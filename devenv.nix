@@ -18,14 +18,18 @@
     git --version
   '';
 
-  # Support for devcontainers
-  devcontainer.enable = true;
-
   # https://devenv.sh/languages/
-  # languages.nix.enable = true;
+  languages.rust = {
+    enable = true;
+    # https://devenv.sh/reference/options/#languagesrustversion
+    version = "latest";
+  };
 
   # https://devenv.sh/pre-commit-hooks/
-  # pre-commit.hooks.shellcheck.enable = true;
+  pre-commit.hooks = {
+    clippy.enable = true;
+    rustfmt.enable = true;
+  };
 
   # https://devenv.sh/processes/
   # processes.ping.exec = "ping example.com";
