@@ -8,6 +8,10 @@
   packages = [
     pkgs.git
     pkgs.hasura-cli
+    pkgs.reuse
+
+    # To be able to use vim in the terminal
+    pkgs.vim
   ];
 
   # https://devenv.sh/scripts/
@@ -29,6 +33,12 @@
   pre-commit.hooks = {
     clippy.enable = true;
     rustfmt.enable = true;
+    reuse = {
+      enable = true;
+      name = "Reuse license headers";
+      entry = "reuse lint";
+      pass_filenames = false;
+    };
   };
 
   # https://devenv.sh/processes/
