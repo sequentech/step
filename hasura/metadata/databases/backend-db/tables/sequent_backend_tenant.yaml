@@ -1,0 +1,3 @@
+table:
+  name: tenant
+  schema: sequent_backend
