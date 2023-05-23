@@ -12,8 +12,8 @@
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": false,
 
-	"onCreateCommand": "direnv allow && cargo build && (cargo clippy || true) && cd hasura/ && hasura deploy",
-	"updateContentCommand": "direnv allow && cargo build && (cargo clippy || true) && cd hasura/ && hasura deploy",
+	"onCreateCommand": "direnv allow",
+	"updateContentCommand": "direnv allow",
 
     "customizations": {
         "vscode": {
