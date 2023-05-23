@@ -6,13 +6,14 @@
 	"name": "backend-services",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "devcontainer",
-	"forwardPorts": [9695,8080, 8000],
+	"forwardPorts": [9695, 8080, 8000],
 	"workspaceFolder": "/workspace",
 
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": false,
 
-	//"updateContentCommand": "devenv ci",
+	"onCreateCommand": "direnv allow && cargo build && (cargo clippy || true) && cd hasura/ && hasura deploy",
+	"updateContentCommand": "direnv allow && cargo build && (cargo clippy || true) && cd hasura/ && hasura deploy",
 
     "customizations": {
         "vscode": {

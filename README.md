@@ -68,7 +68,7 @@ This should output something like:
    database metadata executing the following command in a dedicated terminal:
 
 ```bash
-cd hasura/ && hasura console
+cd /workspace/hasura/ && hasura deploy && hasura console
 ```
 
 This should have an output similar to:

@@ -5,9 +5,10 @@
 #[macro_use]
 extern crate rocket;
 
-#[get("/hello-world")]
+#[post("/hello-world")]
 fn hello_world() -> &'static str {
-    "Hello, world!"
+    // Answer needs to be valid json
+    "\"Hello, world!\""
 }
 
 #[launch]
