@@ -36,7 +36,7 @@
     reuse = {
       enable = true;
       name = "Reuse license headers";
-      entry = "reuse lint";
+      entry = "${pkgs.reuse}/bin/reuse lint";
       pass_filenames = false;
     };
   };

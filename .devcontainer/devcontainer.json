@@ -6,13 +6,13 @@
 	"name": "backend-services",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "devcontainer",
-	"forwardPorts": [9695,8080],
+	"forwardPorts": [9695,8080, 8000],
 	"workspaceFolder": "/workspace",
 
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": false,
 
-	"updateContentCommand": "devenv ci",
+	//"updateContentCommand": "devenv ci",
 
     "customizations": {
         "vscode": {
