@@ -1,0 +1,3 @@
+table:
+  name: cast_vote
+  schema: sequent_backend

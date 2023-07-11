@@ -1,0 +1,3 @@
+table:
+  name: ballot_style
+  schema: sequent_backend

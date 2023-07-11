@@ -1,0 +1,3 @@
+table:
+  name: candidate
+  schema: sequent_backend

@@ -1,0 +1,3 @@
+table:
+  name: contest
+  schema: sequent_backend
