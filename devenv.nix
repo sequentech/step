@@ -9,6 +9,7 @@
     pkgs.git
     pkgs.hasura-cli
     pkgs.reuse
+    pkgs.openssl
 
     # To be able to use vim in the terminal
     pkgs.vim
