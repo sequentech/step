@@ -10,6 +10,7 @@
     pkgs.hasura-cli
     pkgs.reuse
     pkgs.openssl
+    pkgs.postgresql_15
 
     # To be able to use vim in the terminal
     pkgs.vim

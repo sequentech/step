@@ -1,4 +1,10 @@
 type Query {
-  helloWorld : String!
+  helloWorld (
+    input: InputParams!
+  ): String!
+}
+
+input InputParams {
+  string : String
 }
 
