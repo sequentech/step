@@ -63,5 +63,34 @@ services:
       timeout: 10s
       retries: 5
       start_period: 5s
+
+  postgres_keycloak:
+    image: postgres:15
+    restart: unless-stopped
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: postgrespassword
+
+  keycloak:
+    build:
+      context: .
+      dockerfile: Dockerfile.keycloak
+    restart: always
+    ports:
+      - 8090:8090
+    environment:
+      KC_HOSTNAME: keycloak
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_PORT: "8090"
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgrespassword
+      KC_DB_SCHEMA: public
+      KC_DB_URL: jdbc:postgresql://postgres_keycloak:5432/postgres
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    entrypoint: /opt/keycloak/bin/kc.sh start-dev
+
 volumes:
   db_data:
+  keycloak_db_data:

@@ -6,7 +6,7 @@
 	"name": "backend-services",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "devcontainer",
-	"forwardPorts": [9695, 8080, 8000],
+	"forwardPorts": [8090, 8080, 8000],
 	"workspaceFolder": "/workspace",
 
 	"userEnvProbe": "loginShell",
@@ -15,6 +15,9 @@
 	"onCreateCommand": "direnv allow",
 	"updateContentCommand": "direnv allow",
 
+	"features": {
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+	},
     "customizations": {
         "vscode": {
     	    "extensions": [
