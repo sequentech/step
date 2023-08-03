@@ -80,7 +80,7 @@ services:
     ports:
       - 8090:8090
     environment:
-      KC_HOSTNAME: keycloak
+      KC_HOSTNAME: "127.0.0.1"
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_PORT: "8090"
       KC_DB_USERNAME: postgres

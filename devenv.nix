@@ -14,6 +14,8 @@
 
     # To be able to use vim in the terminal
     pkgs.vim
+    # utility for search
+    pkgs.ack
   ];
 
   # https://devenv.sh/scripts/
