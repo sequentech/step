@@ -8,7 +8,6 @@ services:
     image: ghcr.io/cachix/devenv:latest
     volumes:
       - ../:/workspace:cached
-    network_mode: service:graphql-engine
     security_opt:
       - label:disable
     environment:
@@ -24,13 +23,19 @@ services:
     environment:
       POSTGRES_PASSWORD: postgrespassword
   graphql-engine:
-    image: hasura/graphql-engine:v2.25.0
+    image: hasura/graphql-engine:v2.31.0.cli-migrations-v3
     ports:
       - "8080:8080"
     restart: always
+    volumes:
+      - ../hasura/metadata/:/hasura-metadata:cached
+      - ../hasura/migrations/:/hasura-migrations:cached
     environment:
       ## postgres database to store Hasura metadata
       HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      # applies migrations on start
+      HASURA_GRAPHQL_MIGRATIONS_DIR: /hasura-migrations
+      HASURA_GRAPHQL_METADATA_DIR: /hasura-metadata
       ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
       ## enable the console served by server
@@ -48,7 +53,7 @@ services:
       data-connector-agent:
         condition: service_healthy
   data-connector-agent:
-    image: hasura/graphql-data-connector:v2.23.0
+    image: hasura/graphql-data-connector:v2.31.0
     restart: always
     ports:
       - 8081:8081
@@ -89,7 +94,10 @@ services:
       KC_DB_URL: jdbc:postgresql://postgres_keycloak:5432/postgres
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
-    entrypoint: /opt/keycloak/bin/kc.sh start-dev
+    entrypoint: >
+      /opt/keycloak/bin/kc.sh start-dev
+      --features=preview
+      -Dkeycloak.profile.feature.upload_scripts=enabled
 
 volumes:
   db_data:
