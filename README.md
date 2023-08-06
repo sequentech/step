@@ -27,8 +27,12 @@ launch all the services in development mode, so that you are ready to start
 using them and continue development:
 
 - **Keycloak** at [http://127.0.0.1:8090]:
-  - Username: `admin`
-  - Password: `admin`
+  - `master` realm:
+    - Username: `admin`
+    - Password: `admin`
+  - `electoral-process` realm (used through the react frontend):
+    - Username: `edu`
+    - Password: `edu`
 - **Hasura console** at [http://127.0.0.1:8080].
   - This docker service has the `hasura/migrations` and `hasura/metadata`
   services mounted, so that you can work transparently on that and it's synced
