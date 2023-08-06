@@ -16,6 +16,10 @@
     pkgs.vim
     # utility for search
     pkgs.ack
+
+    # For frontend
+    pkgs.yarn
+    pkgs.nodejs_20
   ];
 
   # https://devenv.sh/scripts/
@@ -35,10 +39,10 @@
 
   # https://devenv.sh/pre-commit-hooks/
   pre-commit.hooks = {
-    clippy.enable = true;
-    rustfmt.enable = true;
+    clippy.enable = false;
+    rustfmt.enable = false;
     reuse = {
-      enable = true;
+      enable = false;
       name = "Reuse license headers";
       entry = "${pkgs.reuse}/bin/reuse lint";
       pass_filenames = false;

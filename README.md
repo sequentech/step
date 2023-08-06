@@ -24,13 +24,13 @@ done, you can:
    following command in a dedicated terminal:
 
 ```bash
-cargo run
+cd backend/ && cargo run
 ```
 
 This should output something like:
 
 ```bash
-@edulix ➜ /workspaces/backend-services (main ✗) $ cargo run
+@edulix ➜ /workspaces/backend-services/backend (main ✗) $ cargo run
     Updating crates.io index
   Downloaded async-trait v0.1.68
   ....
