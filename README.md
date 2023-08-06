@@ -92,7 +92,7 @@ This should output something like:
 🚀 Rocket has launched from http://127.0.0.1:8000
 ```
 
-### Docker services management
+### Docker services logs
 
 We have configured the use of [direnv] and [devenv] in this dev container, and
 doing so in the `devenv.nix` file we configured the 
@@ -105,7 +105,11 @@ compose service with:
 
 `docker compose logs -f frontend`
 
-And do the same for the other services.
+And do the same for the other services. You could also do anything
+docker-compose allows for example list running commands with`docker compose ps`.
+
+With regards to the logs, we have configured in `.vscode/tasks.json` to 
+automatically run docker compose logs on start up, for convenience.
 
 [direnv]: https://direnv.net/
 [devenv]: https://devenv.sh/
