@@ -4,24 +4,52 @@ SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Sequent backend-services
+# Sequent Voting Platform
 
 WARNING: This is a work-in-progress - not usable yet.
 
-The backend-services for Sequent Voting Platform. This includes:
-- admin-api
-- ballot-box
+This is a mono-repo project encompasing the whole second generation of Sequent
+Voting Platform.
 
-Implemented using hasura and rust.
+Implemented using:
+- **Hasura** for GraphQL backend services API.
+- **Rust** with **Rocket** for implementing custom backend services API logic.
+- **Keycloak** as the IAM service.
+- **PostgreSQL** for database storage for both Hasura and Keycloak.
+- **React** for the frontend UI.
+- \[TODO\] Shared **Rust** libraries for logic shared by both frontend and
+  backend.
 
 ## Development environment setup
 
-Open the repository with devcontainers/codespaces within vscode. Once that is 
-done, you can:
+Open the repository with devcontainers/codespaces within vscode. This will 
+launch all the services in development mode, so that you are ready to start
+using them and continue development:
 
-1. **Launch the backend rust service** to provide the REST API with all the 
-   complex logic that is not just reading from the database, by executing the
-   following command in a dedicated terminal:
+- **Keycloak** at [http://127.0.0.1:8090]:
+  - Username: `admin`
+  - Password: `admin`
+- **Hasura console** at [http://127.0.0.1:8080].
+  - This docker service has the `hasura/migrations` and `hasura/metadata`
+  services mounted, so that you can work transparently on that and it's synced
+  to and from the development environment.
+- **React Frontend** at [http://127.0.0.1:3000].
+  - This has the `frontend/test-app` directory mounted in the docker service,
+  and has been launched with the `yarn dev` command that will automatically
+  detect and rebuild changes in the code, and detect and install dependencies
+  when it detects changes in `package.json` and then relaunch the service.
+- \[TODO\] **Rust Rocket service** at [http://127.0.0.1:8000]
+
+Additionally, this dev container comes with:
+ - Relevant VS Code plugins installed
+ - `cargo run` and `yarn install` pre-run so that you don't have to spend time
+   waiting for setting up the enviroment the first time.
+
+### Launch the backend rust service
+
+Since we have not yet setup a docker container to automatically launch the
+rust&rocket based backend service, you can launch it manually by executing the
+following command in a dedicated terminal:
 
 ```bash
 cd backend/ && cargo run
@@ -64,24 +92,20 @@ This should output something like:
 🚀 Rocket has launched from http://127.0.0.1:8000
 ```
 
-2. **Hasura console** is automatically launched on this devcontainer as a docker
-service along with , to enable automatic tracking of the changes in the
-   database metadata executing the following command in a dedicated terminal:
+### Docker services management
 
-```bash
-cd /workspace/hasura/ && hasura deploy && hasura console
-```
+We have configured the use of [direnv] and [devenv] in this dev container, and
+doing so in the `devenv.nix` file we configured the 
+`COMPOSE_PROJECT_NAME=backend-services_devcontainer` env variable for 
+convenience and some utility packages automatically installed like `ack` or
+`docker`.
 
-This should have an output similar to:
+Given that, you can then for example watch the log output of the frontend docker
+compose service with:
 
-```bash
-@edulix ➜ /workspaces/backend-services (main ✗) $ cd hasura/
-@edulix ➜ /workspaces/backend-services/hasura (main ✗) $ hasura console
-NFO Help us improve Hasura! The cli collects anonymized usage stats which
-allow us to keep improving Hasura at warp speed. To opt-out or read more,
-visit https://hasura.io/docs/latest/graphql/core/guides/telemetry.html 
-WARN Error opening browser, try to open the url manually?  error="exec: \"xdg-open\": executable file not found in $PATH"
-INFO console running at: http://localhost:9695/
-```
+`docker compose logs -f frontend`
 
-After that, you can open the hasura console at [http://localhost:9695/].
+And do the same for the other services.
+
+[direnv]: https://direnv.net/
+[devenv]: https://devenv.sh/
