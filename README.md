@@ -30,12 +30,12 @@ cd backend/ && cargo run
 This should output something like:
 
 ```bash
-@edulix ➜ /workspaces/backend-services/backend (main ✗) $ cargo run
+@edulix ➜ /workspace/backend (main ✗) $ cargo run
     Updating crates.io index
   Downloaded async-trait v0.1.68
   ....
   Downloaded 102 crates (7.9 MB) in 0.93s (largest was `encoding_rs` at 1.4 MB)
-   Compiling backend-services v0.1.0 (/workspaces/backend-services)
+   Compiling backend-services v0.1.0 (/workspace)
     Finished dev [unoptimized + debuginfo] target(s) in 28.50s
      Running `target/debug/backend-services`
 🔧 Configured for debug.
@@ -64,7 +64,8 @@ This should output something like:
 🚀 Rocket has launched from http://127.0.0.1:8000
 ```
 
-2. **Launch Hasura console**, to enable automatic tracking of the changes in the
+2. **Hasura console** is automatically launched on this devcontainer as a docker
+service along with , to enable automatic tracking of the changes in the
    database metadata executing the following command in a dedicated terminal:
 
 ```bash

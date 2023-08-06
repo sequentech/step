@@ -28,6 +28,7 @@
   enterShell = ''
     hello
     git --version
+    export COMPOSE_PROJECT_NAME=backend-services_devcontainer
   '';
 
   # https://devenv.sh/languages/

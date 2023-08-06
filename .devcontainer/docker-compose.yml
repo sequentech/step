@@ -99,6 +99,17 @@ services:
       --features=preview
       -Dkeycloak.profile.feature.upload_scripts=enabled
 
+  frontend:
+    build:
+      context: ../frontend/test-app
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    stdin_open: true
+    volumes:
+       - ../frontend/test-app:/usr/src/app/:cached
+       - /usr/src/app/node_modules
+
 volumes:
   db_data:
   keycloak_db_data:
