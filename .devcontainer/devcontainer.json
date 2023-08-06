@@ -13,7 +13,7 @@
 	"updateRemoteUserUID": false,
 
 	"onCreateCommand": "direnv allow",
-	"updateContentCommand": "direnv allow && cd backend/ && cargo build && cd /workspace/frontend/test-app && yarn install",
+	"updateContentCommand": "direnv allow && devenv shell bash -c 'cd backend/ && cargo build && cd /workspace/frontend/test-app && yarn install' || true",
 
 	"features": {
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
