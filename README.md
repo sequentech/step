@@ -117,3 +117,23 @@ automatically run docker compose logs on start up, for convenience.
 
 [direnv]: https://direnv.net/
 [devenv]: https://devenv.sh/
+
+## Common issues
+
+### Yarn build unexpectedly returns `exit code 143`
+
+You run out of memory. Run in a bigger codespace or stop some service before
+proceeding. You can stop for example the frontend with
+`docker compose stop frontend`
+
+### I changed my `Dockerfile` or my `docker-compose.yml`. Can I relaunch it without rebuilding the whole Dev Container?
+
+Yes you can. For example, if you need to apply a new `DockerFile` o
+`docker-compose.yml` config just for the frontend service, you can do the 
+following:
+
+```bash
+# First rebuild the service from the Dockerfile as indicated in the
+# docker-compose.yml, then relaunch just the frontend service
+docker compose build frontend && docker compose up -d --no-deps frontend
+```

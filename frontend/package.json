@@ -1,0 +1,15 @@
+{
+    "private": true,
+    "name": "sequentech",
+    "version": "0.0.1",
+    "license": "MIT",
+    "workspaces": [
+      "ui-essentials",
+      "test-app"
+    ],
+    "scripts": {
+      "dev": "yarn --cwd ./test-app dev",
+      "build": "yarn workspaces run build"
+    }
+  }
+  

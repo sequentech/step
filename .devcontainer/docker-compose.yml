@@ -105,14 +105,14 @@ services:
 
   frontend:
     build:
-      context: ../frontend/test-app
+      context: ../frontend/
       dockerfile: Dockerfile
+    #restart: always
     ports:
       - 3000:3000
     stdin_open: true
     volumes:
-       - ../frontend/test-app:/usr/src/app/:cached
-       - /usr/src/app/node_modules
+       - /workspaces/backend-services/frontend:/usr/src/app:delegated
 
 volumes:
   db_data:

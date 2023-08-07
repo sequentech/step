@@ -16,6 +16,7 @@
     pkgs.vim
     # utility for search
     pkgs.ack
+    pkgs.dive
 
     # For frontend
     pkgs.yarn
