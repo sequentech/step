@@ -3,13 +3,16 @@
     "name": "sequentech",
     "version": "0.0.1",
     "license": "MIT",
+    "proxy": "https://i.imgur.com",
     "workspaces": [
       "ui-essentials",
-      "test-app"
+      "test-app",
+      "voting-portal"
     ],
     "scripts": {
       "dev": "yarn --cwd ./test-app dev",
-      "start": "yarn --cwd ./test-app start",
+      "start0": "yarn --cwd ./test-app start",
+      "start": "yarn --cwd ./voting-portal start",
       "build": "yarn workspaces run build"
     }
   }

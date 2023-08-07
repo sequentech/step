@@ -2,7 +2,7 @@ import { useContext } from 'react';
 import logo from './logo.svg';
 import './App.css';
 import { AuthContext } from './context/AuthContextProvider';
-import {WarnBox, Header, initializeLanguages} from '@sequentech/ui-essentials';
+import {WarnBox, Header, Footer, initializeLanguages} from '@sequentech/ui-essentials';
 
 initializeLanguages({})
 
