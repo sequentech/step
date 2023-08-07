@@ -5,6 +5,7 @@ import { Box } from "@mui/system"
 import React, { useContext, useEffect } from "react"
 import { AuthContext } from "../providers/AuthContextProvider"
 import { useNavigate } from "react-router"
+import { CircularProgress } from "@mui/material"
 
 export const LoginScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -17,10 +18,6 @@ export const LoginScreen: React.FC = () => {
     }, [authContext.isAuthenticated])
 
     return <Box>
-        {
-        !authContext.isAuthenticated
-          ? <p>Not Authenticated</p>
-          : <p>User Authenticated</p>
-        }       
+        <CircularProgress />
     </Box>
 }

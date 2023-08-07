@@ -70,6 +70,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     if (!election) {
         return null
     }
+
     return (
         <SelectElection
             isActive={true}
