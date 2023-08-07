@@ -34,7 +34,7 @@ const App = () => {
 
     return (
         <StyledApp>
-            <Header />
+            <Header logoutFn={authContext.isAuthenticated ? authContext.logout : undefined} />
             <PageBanner marginBottom="auto">
                 <Routes>
                     <Route path="/" element={<LoginScreen />} />
