@@ -14,10 +14,19 @@ import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
+import { ApolloClient, InMemoryCache, ApolloProvider } from '@apollo/client'
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
 SequentCoreLibInit().then(set_hooks)
+
+const apolloClient = new ApolloClient({
+
+    uri: 'https://flyby-router-demo.herokuapp.com/',
+  
+    cache: new InMemoryCache(),
+  
+  })
 
 root.render(
     <React.StrictMode>
@@ -25,7 +34,9 @@ root.render(
             <Provider store={store}>
                 <BrowserRouter>
                     <ThemeProvider theme={theme}>
-                        <App />
+                        <ApolloProvider client={apolloClient}>
+                            <App />
+                        </ApolloProvider>
                     </ThemeProvider>
                 </BrowserRouter>
             </Provider>
