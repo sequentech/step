@@ -2,13 +2,15 @@ import { useContext } from 'react';
 import logo from './logo.svg';
 import './App.css';
 import { AuthContext } from './context/AuthContextProvider';
+import {WarnBox, Header, initializeLanguages} from '@sequentech/ui-essentials';
+
+initializeLanguages({})
 
 let App = () => {
   const authContext = useContext(AuthContext);
 
   return (
     <div className="App">
-      <header className="App-header">
         <img src={logo} className="App-logo" alt="logo" />
         {
         !authContext.isAuthenticated
@@ -26,7 +28,11 @@ let App = () => {
         >
           Learn React
         </a>
-      </header>
+        <Header />
+        <WarnBox variant="error" onClose={() => undefined}>
+            <b>Question / Contest Title 2:</b> You have chosen more than the allowed selecitons on
+            this contest/office.
+        </WarnBox>
     </div>
   );
 };
