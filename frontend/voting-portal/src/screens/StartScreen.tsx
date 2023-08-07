@@ -4,7 +4,13 @@
 import {Box, Typography} from "@mui/material"
 import React, {useEffect} from "react"
 import {useTranslation} from "react-i18next"
-import {BreadCrumbSteps, PageLimit, theme, stringToHtml, isUndefined} from "@sequentech/ui-essentials"
+import {
+    BreadCrumbSteps,
+    PageLimit,
+    theme,
+    stringToHtml,
+    isUndefined,
+} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"

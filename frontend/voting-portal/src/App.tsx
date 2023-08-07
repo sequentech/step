@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useEffect, useContext } from "react"
+import React, {useEffect, useContext} from "react"
 import {Routes, Route, useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
@@ -13,8 +13,8 @@ import {ConfirmationScreen} from "./screens/ConfirmationScreen"
 import {AuditScreen} from "./screens/AuditScreen"
 import {ElectionSelectionScreen} from "./screens/ElectionSelectionScreen"
 import {LoginScreen} from "./screens/LoginScreen"
-import { useNavigate } from "react-router"
-import { AuthContext } from "./providers/AuthContextProvider"
+import {useNavigate} from "react-router"
+import {AuthContext} from "./providers/AuthContextProvider"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;

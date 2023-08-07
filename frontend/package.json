@@ -15,7 +15,9 @@
       "start": "yarn --cwd ./voting-portal start",
       "storybook:ui-essentials": "yarn --cwd ./ui-essentials storybook",
       "build": "yarn workspaces run build",
-      "build:ui-essentials": "yarn --cwd ./ui-essentials build"
+      "build:ui-essentials": "yarn --cwd ./ui-essentials build",
+      "lint:fix": "yarn --cwd ./voting-portal lint:fix",
+      "prettify:fix": "yarn --cwd ./voting-portal prettify:fix"
     }
   }
   

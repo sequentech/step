@@ -41,7 +41,6 @@ export const getCheckableOptions = (
             return {checkableLists: true, checkableCandidates: true}
         case "allow-selecting-candidates":
             return {checkableLists: false, checkableCandidates: true}
-            break
         case "allow-selecting-lists":
             return {checkableLists: true, checkableCandidates: false}
         default:
