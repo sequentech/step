@@ -1,0 +1,21 @@
+import { Canvas, Meta } from '@storybook/blocks'
+import * as CandidatesListStories from './CandidatesList.stories'
+
+<Meta of={CandidatesListStories} title="components/CandidatesList"/>
+
+# CandidatesList
+
+A CandidatesList is a container for a list of candidates. It may be checkable or
+not, and the candidates may or not be checkable.
+
+## Primary
+
+<Canvas of={CandidatesListStories.Primary} />
+
+## Not Checkable
+
+<Canvas of={CandidatesListStories.NotCheckable} />
+
+## Not Active
+
+<Canvas of={CandidatesListStories.NotActive} />

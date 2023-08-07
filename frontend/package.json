@@ -9,6 +9,7 @@
     ],
     "scripts": {
       "dev": "yarn --cwd ./test-app dev",
+      "start": "yarn --cwd ./test-app start",
       "build": "yarn workspaces run build"
     }
   }

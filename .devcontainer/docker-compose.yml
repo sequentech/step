@@ -109,10 +109,10 @@ services:
       dockerfile: Dockerfile
     #restart: always
     ports:
-      - 3000:3000
+      - 3001:3000
     stdin_open: true
     volumes:
-       - /workspaces/backend-services/frontend:/usr/src/app:delegated
+       - /workspaces/backend-services/frontend:/usr/src/app:cached
 
 volumes:
   db_data:

@@ -1,0 +1,184 @@
+// SPDX-FileCopyrightText: 2022-2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import {Box, TextField, Typography} from "@mui/material"
+import React, {PropsWithChildren, ReactNode} from "react"
+import {styled} from "@mui/material/styles"
+import {theme} from "../../services/theme"
+import {Checkbox} from "@mui/material"
+import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
+import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
+import emotionStyled from "@emotion/styled"
+import {useTranslation} from "react-i18next"
+
+const BorderBox = styled(Box)<{isactive: string; hascategory: string; isinvalidvote: string}>`
+    border: 2px solid
+        ${({hascategory, isactive, theme}) =>
+            isactive === "true" && hascategory === "true"
+                ? theme.palette.white
+                : theme.palette.customGrey.light};
+    ${({hascategory, isinvalidvote, theme}) =>
+        hascategory === "true"
+            ? `background-color: ${theme.palette.white};`
+            : isinvalidvote === "true"
+            ? `background-color: ${theme.palette.lightBackground};`
+            : ""}
+    border-radius: 10px;
+    padding: 8px;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+    flex-grow: 2;
+    ${({isactive, hascategory, theme}) =>
+        isactive === "true"
+            ? hascategory === "true"
+                ? `
+                    box-shadow: 0 5px 5px rgba(0, 0, 0, 0.5);
+                    &:hover {
+                        cursor: pointer;
+                        box-shadow: unset;
+                        border-color: ${theme.palette.customGrey.light};
+                    }
+                    &:active {
+                        background-color: #eee;
+                    }
+                `
+                : `
+                    &:hover {
+                        cursor: pointer;
+                        box-shadow: 0 5px 5px rgba(0, 0, 0, 0.5);
+                    }
+                    &:active {
+                        background-color: #eee;
+                    }
+                `
+            : ""}
+`
+
+const ImageBox = styled(Box)`
+    display: flex;
+    width: 64px;
+    height: 64px;
+    position: relative;
+    flex-shrink: 0;
+`
+
+const StyledLink = emotionStyled.a`
+    text-decoration: underline;
+    font-weight: normal;
+    &:hover {
+        text-decoration: none;
+    }
+    display: flex;
+    flex: direction: row;
+    align-items: center;
+    color: ${({theme}) => theme.palette.brandColor};
+`
+
+export interface CandidateProps extends PropsWithChildren {
+    title: string | ReactNode
+    description?: string | ReactNode
+    isActive?: boolean
+    isInvalidVote?: boolean
+    checked?: boolean
+    hasCategory?: boolean
+    url?: string
+    setChecked?: (value: boolean) => void
+    isWriteIn?: boolean
+    writeInValue?: string
+    setWriteInText?: (value: string) => void
+}
+
+const Candidate: React.FC<CandidateProps> = ({
+    title,
+    description,
+    isActive,
+    isInvalidVote,
+    checked,
+    hasCategory,
+    url,
+    setChecked,
+    isWriteIn,
+    writeInValue,
+    setWriteInText,
+    children,
+}) => {
+    const {t} = useTranslation()
+    const onClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
+        event.stopPropagation()
+        if (setChecked) {
+            setChecked(!checked)
+        }
+    }
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        event.stopPropagation()
+        if (setChecked) {
+            setChecked(event.target.checked)
+        }
+    }
+
+    const onWriteInTextChange: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+        setWriteInText && setWriteInText(event.target.value)
+    }
+
+    const handleWriteInClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
+        event.stopPropagation()
+    }
+
+    return (
+        <BorderBox
+            isactive={String(!!isActive)}
+            hascategory={String(!!hasCategory)}
+            isinvalidvote={String(!!isInvalidVote)}
+            onClick={onClick}
+        >
+            <ImageBox>{children}</ImageBox>
+            <Box flexGrow={2}>
+                <Typography
+                    fontWeight="bold"
+                    fontSize="16px"
+                    lineHeight="22px"
+                    marginTop="4px"
+                    marginBottom="4px"
+                    color={theme.palette.customGrey.contrastText}
+                >
+                    {title}
+                </Typography>
+                <Typography
+                    color={theme.palette.customGrey.dark}
+                    fontSize="16px"
+                    marginTop="4px"
+                    marginBottom="4px"
+                >
+                    {description}
+                </Typography>
+                {isWriteIn ? (
+                    <Box>
+                        <TextField
+                            placeholder={t("candidate.writeInsPlaceholder")}
+                            InputLabelProps={{shrink: true}}
+                            value={writeInValue}
+                            onChange={onWriteInTextChange}
+                            onClick={handleWriteInClick}
+                        />
+                    </Box>
+                ) : null}
+            </Box>
+            {url ? (
+                <StyledLink href={url} target="_blank">
+                    <FontAwesomeIcon icon={faInfoCircle} size="sm" />
+                    <Typography
+                        variant="body2"
+                        sx={{margin: "2px 0 0 6px", display: {xs: "none", sm: "block"}}}
+                    >
+                        {t("candidate.moreInformationLink")}
+                    </Typography>
+                </StyledLink>
+            ) : null}
+            {isActive ? <Checkbox checked={checked} onChange={handleChange} /> : null}
+        </BorderBox>
+    )
+}
+
+export default Candidate
