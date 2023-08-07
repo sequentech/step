@@ -13,6 +13,7 @@ import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
+import AuthContextProvider from "./providers/AuthContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -20,13 +21,15 @@ SequentCoreLibInit().then(set_hooks)
 
 root.render(
     <React.StrictMode>
-        <Provider store={store}>
-            <BrowserRouter>
-                <ThemeProvider theme={theme}>
-                    <App />
-                </ThemeProvider>
-            </BrowserRouter>
-        </Provider>
+        <AuthContextProvider>
+            <Provider store={store}>
+                <BrowserRouter>
+                    <ThemeProvider theme={theme}>
+                        <App />
+                    </ThemeProvider>
+                </BrowserRouter>
+            </Provider>
+        </AuthContextProvider>
     </React.StrictMode>
 )
 

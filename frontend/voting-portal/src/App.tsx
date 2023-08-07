@@ -12,6 +12,7 @@ import {ReviewScreen} from "./screens/ReviewScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
 import {AuditScreen} from "./screens/AuditScreen"
 import {ElectionSelectionScreen} from "./screens/ElectionSelectionScreen"
+import {LoginScreen} from "./screens/LoginScreen"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -23,7 +24,8 @@ const App = () => {
             <Header />
             <PageBanner marginBottom="auto">
                 <Routes>
-                    <Route path="/" element={<ElectionSelectionScreen />} />
+                    <Route path="/" element={<LoginScreen />} />
+                    <Route path="/election-chooser" element={<ElectionSelectionScreen />} />
                     <Route path="/election/:electionId/start" element={<StartScreen />} />
                     <Route path="/election/:electionId/vote" element={<VotingScreen />} />
                     <Route path="/election/:electionId/review" element={<ReviewScreen />} />
