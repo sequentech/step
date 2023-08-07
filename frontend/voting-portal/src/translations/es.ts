@@ -43,6 +43,12 @@ const spanishTranslation: TranslationType = {
             backButton: "Edit ballot",
             castBallotButton: "Cast your ballot",
             auditButton: "Audit ballot",
+            reviewScreenHelpDialog: {
+                title: "Información: Pantalla de revisión",
+                content:
+                    "Esta pantalla le permite revisar sus selecciones antes de emitir su voto.",
+                ok: "OK",
+            },
             ballotIdHelpDialog: {
                 title: "Voto no emitido",
                 content:

@@ -41,6 +41,12 @@ const englishTranslation = {
             backButton: "Edit ballot",
             castBallotButton: "Cast your ballot",
             auditButton: "Audit ballot",
+            reviewScreenHelpDialog: {
+                title: "Information: Review Screen",
+                content:
+                    "This screen allows you to review your selections before casting your ballot.",
+                ok: "OK",
+            },
             ballotIdHelpDialog: {
                 title: "Vote has not been cast",
                 content:

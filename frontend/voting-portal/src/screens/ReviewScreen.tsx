@@ -139,6 +139,7 @@ export const ReviewScreen: React.FC = () => {
     const auditableBallot = useAppSelector(selectAuditableBallot(Number(electionId)))
     const dispatch = useAppDispatch()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
+    const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
     const {t} = useTranslation()
 
     useEffect(() => {
@@ -184,7 +185,17 @@ export const ReviewScreen: React.FC = () => {
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
+                    onClick={() => setReviewScreenHelp(true)}
                 />
+                <Dialog
+                    handleClose={() => setReviewScreenHelp(false)}
+                    open={openReviewScreenHelp}
+                    title={t("reviewScreen.reviewScreenHelpDialog.title")}
+                    ok={t("reviewScreen.reviewScreenHelpDialog.ok")}
+                    variant="info"
+                >
+                    {stringToHtml(t("reviewScreen.reviewScreenHelpDialog.content"))}
+                </Dialog>
             </StyledTitle>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(t("reviewScreen.description"))}
