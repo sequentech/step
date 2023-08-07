@@ -11,9 +11,11 @@
     ],
     "scripts": {
       "dev": "yarn --cwd ./test-app dev",
-      "start0": "yarn --cwd ./test-app start",
+      "start:test-app": "yarn --cwd ./test-app start",
       "start": "yarn --cwd ./voting-portal start",
-      "build": "yarn workspaces run build"
+      "storybook:ui-essentials": "yarn --cwd ./ui-essentials storybook",
+      "build": "yarn workspaces run build",
+      "build:ui-essentials": "yarn --cwd ./ui-essentials build"
     }
   }
   

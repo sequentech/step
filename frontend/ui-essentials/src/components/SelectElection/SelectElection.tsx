@@ -136,6 +136,10 @@ const StyledTitle = styled(Typography)`
     margin-top: 0;
     margin-bottom: 10px;
     font-weight: bold;
+
+    @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
+        margin-bottom: 0;
+    }
 `
 
 export interface SelectElectionProps {
@@ -212,8 +216,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                 )}
             </TextContainer>
             <StatusBanner isopen={String(!!isOpen)}>
-                {" "}
-                {t(`selectElection.${isOpen ? "openElection" : "closedElection"}`)}{" "}
+                {t(`selectElection.${isOpen ? "openElection" : "closedElection"}`)}
             </StatusBanner>
             <DatesUrlWrap>
                 <DatesContainer>
