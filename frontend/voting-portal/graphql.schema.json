@@ -1968,7 +1968,39 @@
             "description": "delete single row from the table: \"sequent_backend.area\"",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -2084,7 +2116,39 @@
             "description": "delete single row from the table: \"sequent_backend.ballot_style\"",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -2142,7 +2206,39 @@
             "description": "delete single row from the table: \"sequent_backend.candidate\"",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -2200,7 +2296,39 @@
             "description": "delete single row from the table: \"sequent_backend.cast_vote\"",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -2258,7 +2386,39 @@
             "description": "delete single row from the table: \"sequent_backend.contest\"",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -2316,7 +2476,39 @@
             "description": "delete single row from the table: \"sequent_backend.election\"",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -6182,7 +6374,39 @@
             "description": "fetch data from the table: \"sequent_backend.area\" using primary key columns",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -6628,7 +6852,39 @@
             "description": "fetch data from the table: \"sequent_backend.ballot_style\" using primary key columns",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -6851,7 +7107,39 @@
             "description": "fetch data from the table: \"sequent_backend.candidate\" using primary key columns",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -7074,7 +7362,39 @@
             "description": "fetch data from the table: \"sequent_backend.cast_vote\" using primary key columns",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -7297,7 +7617,39 @@
             "description": "fetch data from the table: \"sequent_backend.contest\" using primary key columns",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -7520,7 +7872,39 @@
             "description": "fetch data from the table: \"sequent_backend.election\" using primary key columns",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -8278,9 +8662,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -8355,9 +8743,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -8739,7 +9131,7 @@
         "enumValues": [
           {
             "name": "area_pkey",
-            "description": "unique or primary key constraint on columns \"id\"",
+            "description": "unique or primary key constraint on columns \"id\", \"tenant_id\", \"election_event_id\"",
             "isDeprecated": false,
             "deprecationReason": null
           }
@@ -11198,7 +11590,39 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "election_event_id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
             "description": null,
             "type": {
               "kind": "NON_NULL",
@@ -11843,7 +12267,7 @@
             "args": [],
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -11878,9 +12302,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -11890,9 +12318,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -11967,9 +12399,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -12233,7 +12669,7 @@
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "bytea_comparison_exp",
+              "name": "String_comparison_exp",
               "ofType": null
             },
             "defaultValue": null,
@@ -12363,7 +12799,7 @@
         "enumValues": [
           {
             "name": "ballot_style_pkey",
-            "description": "unique or primary key constraint on columns \"id\"",
+            "description": "unique or primary key constraint on columns \"id\", \"tenant_id\", \"election_event_id\"",
             "isDeprecated": false,
             "deprecationReason": null
           }
@@ -12526,7 +12962,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -12664,6 +13100,18 @@
             "deprecationReason": null
           },
           {
+            "name": "ballot_eml",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "created_at",
             "description": null,
             "args": [],
@@ -12765,6 +13213,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "ballot_eml",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -13136,7 +13596,39 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "election_event_id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
             "description": null,
             "type": {
               "kind": "NON_NULL",
@@ -13309,7 +13801,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -13503,7 +13995,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -13876,9 +14368,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -13990,9 +14486,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -14422,7 +14922,7 @@
         "enumValues": [
           {
             "name": "candidate_pkey",
-            "description": "unique or primary key constraint on columns \"id\"",
+            "description": "unique or primary key constraint on columns \"id\", \"tenant_id\", \"election_event_id\"",
             "isDeprecated": false,
             "deprecationReason": null
           }
@@ -15287,7 +15787,39 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "election_event_id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
             "description": null,
             "type": {
               "kind": "NON_NULL",
@@ -16047,7 +16579,7 @@
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_eml",
+            "name": "cast_ballot_signature",
             "description": null,
             "args": [],
             "type": {
@@ -16059,12 +16591,12 @@
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_signature",
+            "name": "content",
             "description": null,
             "args": [],
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -16087,9 +16619,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -16164,9 +16700,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -16438,7 +16978,7 @@
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_eml",
+            "name": "cast_ballot_signature",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -16450,11 +16990,11 @@
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_signature",
+            "name": "content",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "bytea_comparison_exp",
+              "name": "String_comparison_exp",
               "ofType": null
             },
             "defaultValue": null,
@@ -16572,7 +17112,7 @@
         "enumValues": [
           {
             "name": "cast_vote_pkey",
-            "description": "unique or primary key constraint on columns \"id\"",
+            "description": "unique or primary key constraint on columns \"id\", \"tenant_id\", \"election_event_id\"",
             "isDeprecated": false,
             "deprecationReason": null
           }
@@ -16731,7 +17271,7 @@
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_eml",
+            "name": "cast_ballot_signature",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -16743,11 +17283,11 @@
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_signature",
+            "name": "content",
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -16873,6 +17413,18 @@
             "deprecationReason": null
           },
           {
+            "name": "content",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "created_at",
             "description": null,
             "args": [],
@@ -16974,6 +17526,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "content",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -17214,7 +17778,7 @@
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_eml",
+            "name": "cast_ballot_signature",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -17226,7 +17790,7 @@
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_signature",
+            "name": "content",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -17345,7 +17909,39 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "election_event_id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
             "description": null,
             "type": {
               "kind": "NON_NULL",
@@ -17421,13 +18017,13 @@
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_eml",
+            "name": "cast_ballot_signature",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_signature",
+            "name": "content",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -17514,7 +18110,7 @@
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_eml",
+            "name": "cast_ballot_signature",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -17526,11 +18122,11 @@
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_signature",
+            "name": "content",
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -17708,7 +18304,7 @@
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_eml",
+            "name": "cast_ballot_signature",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -17720,11 +18316,11 @@
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_signature",
+            "name": "content",
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -17853,13 +18449,13 @@
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_eml",
+            "name": "cast_ballot_signature",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "cast_ballot_signature",
+            "name": "content",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -18110,9 +18706,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -18122,9 +18722,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -18309,9 +18913,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -18980,7 +19588,7 @@
         "enumValues": [
           {
             "name": "contest_pkey",
-            "description": "unique or primary key constraint on columns \"id\"",
+            "description": "unique or primary key constraint on columns \"id\", \"tenant_id\", \"election_event_id\"",
             "isDeprecated": false,
             "deprecationReason": null
           }
@@ -20208,7 +20816,39 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "election_event_id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
             "description": null,
             "type": {
               "kind": "NON_NULL",
@@ -21542,9 +22182,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -21555,7 +22199,7 @@
             "args": [],
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -21721,9 +22365,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -22178,7 +22826,7 @@
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "bytea_comparison_exp",
+              "name": "String_comparison_exp",
               "ofType": null
             },
             "defaultValue": null,
@@ -22320,7 +22968,7 @@
         "enumValues": [
           {
             "name": "election_pkey",
-            "description": "unique or primary key constraint on columns \"id\"",
+            "description": "unique or primary key constraint on columns \"id\", \"tenant_id\", \"election_event_id\"",
             "isDeprecated": false,
             "deprecationReason": null
           }
@@ -25633,7 +26281,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -25807,6 +26455,18 @@
             "deprecationReason": null
           },
           {
+            "name": "eml",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -25908,6 +26568,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "eml",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -26303,7 +26975,39 @@
         "fields": null,
         "inputFields": [
           {
+            "name": "election_event_id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
             "description": null,
             "type": {
               "kind": "NON_NULL",
@@ -26531,7 +27235,7 @@
             "args": [],
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -26929,7 +27633,7 @@
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "bytea_comparison_exp",
+              "name": "String_comparison_exp",
               "ofType": null
             },
             "defaultValue": null,
@@ -27266,7 +27970,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -27392,6 +28096,18 @@
             "deprecationReason": null
           },
           {
+            "name": "result_eml",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "tenant_id",
             "description": null,
             "args": [],
@@ -27481,6 +28197,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "timestamptz",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "result_eml",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -28037,7 +28765,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -28231,7 +28959,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -28639,7 +29367,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -28950,7 +29678,7 @@
             "description": null,
             "type": {
               "kind": "SCALAR",
-              "name": "bytea",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -31106,7 +31834,39 @@
             "description": "fetch data from the table: \"sequent_backend.area\" using primary key columns",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -31698,7 +32458,39 @@
             "description": "fetch data from the table: \"sequent_backend.ballot_style\" using primary key columns",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -31994,7 +32786,39 @@
             "description": "fetch data from the table: \"sequent_backend.candidate\" using primary key columns",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -32290,7 +33114,39 @@
             "description": "fetch data from the table: \"sequent_backend.cast_vote\" using primary key columns",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -32586,7 +33442,39 @@
             "description": "fetch data from the table: \"sequent_backend.contest\" using primary key columns",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -32882,7 +33770,39 @@
             "description": "fetch data from the table: \"sequent_backend.election\" using primary key columns",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "uuid",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",

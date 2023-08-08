@@ -13,7 +13,7 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  * Therefore it is highly recommended to use the babel or swc plugin for production.
  */
 const documents = {
-    "\n    query GetBallotStyles {\n        sequent_backend_ballot_style {\n        id\n        election_id\n        election_event_id\n        status\n        tenant_id\n        ballot_eml\n        ballot_signature\n        created_at\n        area_id\n        annotations\n        labels\n        last_updated_at\n        }\n    }\n": types.GetBallotStylesDocument,
+    "\n    query GetBallotStyles {\n        sequent_backend_ballot_style {\n            id\n            election_id\n            election_event_id\n            status\n            tenant_id\n            ballot_eml\n            ballot_signature\n            created_at\n            area_id\n            annotations\n            labels\n            last_updated_at\n        }\n    }\n": types.GetBallotStylesDocument,
 };
 
 /**
@@ -33,7 +33,7 @@ export function graphql(source: string): unknown;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n    query GetBallotStyles {\n        sequent_backend_ballot_style {\n        id\n        election_id\n        election_event_id\n        status\n        tenant_id\n        ballot_eml\n        ballot_signature\n        created_at\n        area_id\n        annotations\n        labels\n        last_updated_at\n        }\n    }\n"): (typeof documents)["\n    query GetBallotStyles {\n        sequent_backend_ballot_style {\n        id\n        election_id\n        election_event_id\n        status\n        tenant_id\n        ballot_eml\n        ballot_signature\n        created_at\n        area_id\n        annotations\n        labels\n        last_updated_at\n        }\n    }\n"];
+export function graphql(source: "\n    query GetBallotStyles {\n        sequent_backend_ballot_style {\n            id\n            election_id\n            election_event_id\n            status\n            tenant_id\n            ballot_eml\n            ballot_signature\n            created_at\n            area_id\n            annotations\n            labels\n            last_updated_at\n        }\n    }\n"): (typeof documents)["\n    query GetBallotStyles {\n        sequent_backend_ballot_style {\n            id\n            election_id\n            election_event_id\n            status\n            tenant_id\n            ballot_eml\n            ballot_signature\n            created_at\n            area_id\n            annotations\n            labels\n            last_updated_at\n        }\n    }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};
