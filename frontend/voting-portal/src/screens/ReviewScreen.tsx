@@ -29,9 +29,11 @@ import {IElectionDTO} from "sequent-core"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {Link as RouterLink} from "react-router-dom"
-
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
+import {useMutation} from "@apollo/client"
+import { INSERT_CAST_VOTE } from "../queries/InsertCastVote"
+import { InsertCastVoteMutation } from "../gql/graphql"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -71,6 +73,7 @@ interface ActionButtonProps {
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
+    const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const {t} = useTranslation()
     const navigate = useNavigate()
     const [auditBallotHelp, setAuditBallotHelp] = useState(false)
@@ -78,6 +81,24 @@ const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
         setAuditBallotHelp(false)
         if (value) {
             navigate(`/election/${election.id}/audit`)
+        }
+    }
+
+    const castBallotAction = async () => {
+        try {
+            await insertCastVote({
+                variables: {
+                    id: "b4029a97-a65c-4dd7-8362-bf42f2e98178",
+                    electionId: "f2f1065e-b784-46d1-b81a-c71bfeb9ad55",
+                    electionEventId: "33f18502-a67c-4853-8333-a58630663559",
+                    tenantId: "f74bf7ee-824a-46fe-b3de-d773604e0552",
+                    voterIdString: "voter-id-1",
+                    content: "something",
+                },
+            })
+            navigate(`/election/${election.id}/confirmation`)
+        } catch (error) {
+            console.log(`error casting vote: ${error}`)
         }
     }
 
@@ -119,15 +140,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
                     <Icon icon={faFire} size="sm" />
                     <Box>{t("reviewScreen.auditButton")}</Box>
                 </StyledButton>
-                <StyledLink
-                    to={`/election/${election.id}/confirmation`}
-                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                >
-                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                        <Box>{t("reviewScreen.castBallotButton")}</Box>
-                        <Icon icon={faAngleRight} size="sm" />
-                    </StyledButton>
-                </StyledLink>
+                <StyledButton sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}} onClick={castBallotAction}>
+                    <Box>{t("reviewScreen.castBallotButton")}</Box>
+                    <Icon icon={faAngleRight} size="sm" />
+                </StyledButton>
             </ActionsContainer>
         </Box>
     )
