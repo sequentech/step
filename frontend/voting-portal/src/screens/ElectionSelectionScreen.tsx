@@ -10,18 +10,22 @@ import {
     IconButton,
     PageLimit,
     SelectElection,
+    isString,
+    isUndefined,
     stringToHtml,
     theme,
 } from "@sequentech/ui-essentials"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {fetchElectionByIdAsync, selectElectionById} from "../store/elections/electionsSlice"
+import {selectElectionById, setElection} from "../store/elections/electionsSlice"
 import {ELECTIONS_LIST} from "../fixtures/election"
 import {useNavigate} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {GetBallotStylesQuery} from "../gql/graphql"
+import { IElectionDTO } from "sequent-core"
+import { resetBallotSelection } from "../store/ballotSelections/ballotSelectionsSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -41,34 +45,40 @@ const ElectionContainer = styled(Box)`
     gap: 30px;
 `
 
-const ReactQueryTest: React.FC = () => {
-    const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
-
-    if (loading || error || !data) {
-        return null
-    }
-
-    return (
-        <Box>
-            {data.sequent_backend_ballot_style.map((ballotStyle) => (
-                <Box key={ballotStyle.id}>{ballotStyle.id}</Box>
-            ))}
-        </Box>
-    )
-}
-
 interface ElectionWrapperProps {
     electionId: number
 }
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
+    const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
     const election = useAppSelector(selectElectionById(electionId))
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
 
     useEffect(() => {
-        dispatch(fetchElectionByIdAsync(electionId))
-    }, [])
+        if (!loading && !error && data) {
+            data.sequent_backend_ballot_style
+            .filter(ballotStyle => !isUndefined(ballotStyle.ballot_eml))
+            .map(ballotStyle => {
+                const ballotEml = ballotStyle.ballot_eml
+                if (!isString(ballotEml)) {
+                    return
+                }
+                try {
+                    const electionData: IElectionDTO = JSON.parse(atob(ballotEml))
+                    dispatch(setElection(electionData))
+                    dispatch(resetBallotSelection({
+                        election: electionData
+                    }))
+                } catch (error) {
+                    console.log(`Error loading EML: ${error}`)
+                    console.log(ballotEml)
+                }
+            })
+            
+        }
+        //dispatch(fetchElectionByIdAsync(electionId))
+    }, [loading, error, data])
 
     const onClickToVote = () => {
         navigate(`/election/${electionId}/start`)
@@ -124,7 +134,6 @@ export const ElectionSelectionScreen: React.FC = () => {
                     selected={0}
                 />
             </Box>
-            <ReactQueryTest />
             <StyledTitle variant="h1">
                 <Box>{t("electionSelectionScreen.title")}</Box>
                 <IconButton
