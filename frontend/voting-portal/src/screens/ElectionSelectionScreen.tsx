@@ -19,9 +19,9 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {fetchElectionByIdAsync, selectElectionById} from "../store/elections/electionsSlice"
 import {ELECTIONS_LIST} from "../fixtures/election"
 import {useNavigate} from "react-router-dom"
-import { useQuery } from "@apollo/client"
-import { GET_BALLOT_STYLES } from "../queries/GetBallotStyles"
-import { GetBallotStylesQuery } from "../gql/graphql"
+import {useQuery} from "@apollo/client"
+import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
+import {GetBallotStylesQuery} from "../gql/graphql"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -42,17 +42,19 @@ const ElectionContainer = styled(Box)`
 `
 
 const ReactQueryTest: React.FC = () => {
-    const { loading, error, data } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+    const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
 
-    if(loading || error || !data) {
+    if (loading || error || !data) {
         return null
     }
 
-    return <Box>
-        {data.sequent_backend_ballot_style.map(ballotStyle =>
-            <Box key={ballotStyle.id}>{ballotStyle.id}</Box>
-        )}
-    </Box>
+    return (
+        <Box>
+            {data.sequent_backend_ballot_style.map((ballotStyle) => (
+                <Box key={ballotStyle.id}>{ballotStyle.id}</Box>
+            ))}
+        </Box>
+    )
 }
 
 interface ElectionWrapperProps {

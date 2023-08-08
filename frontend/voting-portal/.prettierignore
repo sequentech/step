@@ -13,4 +13,5 @@ dist/
 target/
 pkg/
 build/
+src/gql/
 .github
