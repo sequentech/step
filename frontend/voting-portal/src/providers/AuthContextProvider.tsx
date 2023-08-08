@@ -5,8 +5,6 @@ import React from "react"
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
 
-let keycloakInitialized = false
-
 /**
  * KeycloakConfig configures the connection to the Keycloak server.
  */
@@ -85,8 +83,6 @@ interface AuthContextProviderProps {
 const AuthContextProvider = (props: AuthContextProviderProps) => {
     console.log("rendering AuthContextProvider")
 
-    const [done, setDone] = useState(false)
-
     // Create the local state in which we will keep track if a user is authenticated
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
     // Local state that will contain the users name once it is loaded
@@ -98,10 +94,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
          * Initialize the Keycloak instance
          */
         async function initializeKeycloak() {
-            if (keycloakInitialized) {
-                return
-            }
-            //keycloakInitialized = true;
             console.log("initialize Keycloak")
             try {
                 const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)

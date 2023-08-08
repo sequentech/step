@@ -22,7 +22,7 @@ SequentCoreLibInit().then(set_hooks)
 
 const apolloClient = new ApolloClient({
 
-    uri: 'http://graphql-engine:8080/v1/graphql',
+    uri: 'http://localhost:8080/v1/graphql',
   
     cache: new InMemoryCache(),
   
