@@ -137,3 +137,8 @@ following:
 # docker-compose.yml, then relaunch just the frontend service
 docker compose build frontend && docker compose up -d --no-deps frontend
 ```
+
+### The hasura schema changed or I want to add a query/mutation to the voting-portal
+
+Add the query/mutation to the `frontend/voting-portal/src/queries/` folder and 
+then run `yarn generate` from the `frontend/` folder to update the types.
