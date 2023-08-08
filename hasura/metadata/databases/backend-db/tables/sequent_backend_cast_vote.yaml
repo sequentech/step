@@ -1,3 +1,10 @@
 table:
   name: cast_vote
   schema: sequent_backend
+configuration:
+  column_config:
+    content:
+      custom_name: content
+  custom_column_names:
+    content: content
+  custom_root_fields: {}
