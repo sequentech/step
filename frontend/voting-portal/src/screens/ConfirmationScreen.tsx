@@ -97,7 +97,7 @@ const ActionLink = styled(Link)`ç
     }
 `
 
-const ActionButtons: React.FC = ({}) => {
+const ActionButtons: React.FC = () => {
     const {t} = useTranslation()
     const triggerPrint = () => window.print()
 
@@ -138,7 +138,7 @@ export const ConfirmationScreen: React.FC = () => {
         if (!isUndefined(electionId) && isUndefined(election)) {
             dispatch(fetchElectionByIdAsync(Number(electionId)))
         }
-    }, [electionId, election])
+    }, [electionId, election, dispatch])
 
     return (
         <PageLimit maxWidth="lg">

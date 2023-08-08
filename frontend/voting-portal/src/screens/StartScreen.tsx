@@ -79,7 +79,7 @@ export const StartScreen: React.FC = () => {
         if (!isUndefined(electionId) && isUndefined(election)) {
             dispatch(fetchElectionByIdAsync(Number(electionId)))
         }
-    }, [electionId, election])
+    }, [electionId, election, dispatch])
 
     if (!election) {
         return <Box>Loading</Box>

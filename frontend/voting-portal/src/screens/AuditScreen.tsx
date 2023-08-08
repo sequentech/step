@@ -84,7 +84,7 @@ const AuditableBallotData = styled(Box)`
     margin: 4px 0;
 `
 
-const ActionButtons: React.FC = ({}) => {
+const ActionButtons: React.FC = () => {
     const {t} = useTranslation()
     const triggerPrint = () => window.print()
 
@@ -122,7 +122,7 @@ export const AuditScreen: React.FC = () => {
         if (!isUndefined(electionId) && isUndefined(election)) {
             dispatch(fetchElectionByIdAsync(Number(electionId)))
         }
-    }, [electionId, election])
+    }, [electionId, election, dispatch])
 
     const downloadAuditableBallot = () => {
         if (!auditableBallot) {

@@ -15,7 +15,7 @@ export const LoginScreen: React.FC = () => {
         if (authContext.isAuthenticated) {
             navigate(`/election-chooser`)
         }
-    }, [authContext.isAuthenticated])
+    }, [authContext.isAuthenticated, navigate])
 
     return (
         <Box>

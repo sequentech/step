@@ -30,7 +30,7 @@ const App = () => {
         if (location.pathname !== "/" && !authContext.isAuthenticated) {
             navigate("/")
         }
-    }, [location.pathname, authContext.isAuthenticated])
+    }, [location.pathname, authContext.isAuthenticated, navigate])
 
     return (
         <StyledApp>

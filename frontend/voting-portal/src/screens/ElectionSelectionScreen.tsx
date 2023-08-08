@@ -11,7 +11,6 @@ import {
     PageLimit,
     SelectElection,
     isString,
-    isUndefined,
     stringToHtml,
     theme,
 } from "@sequentech/ui-essentials"
@@ -57,12 +56,10 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
 
     useEffect(() => {
         if (!loading && !error && data) {
-            data.sequent_backend_ballot_style
-            .filter(ballotStyle => !isUndefined(ballotStyle.ballot_eml))
-            .map(ballotStyle => {
+            for (let ballotStyle of data.sequent_backend_ballot_style) {
                 const ballotEml = ballotStyle.ballot_eml
                 if (!isString(ballotEml)) {
-                    return
+                    continue
                 }
                 try {
                     const electionData: IElectionDTO = JSON.parse(atob(ballotEml))
@@ -74,11 +71,11 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
                     console.log(`Error loading EML: ${error}`)
                     console.log(ballotEml)
                 }
-            })
+            }
             
         }
         //dispatch(fetchElectionByIdAsync(electionId))
-    }, [loading, error, data])
+    }, [loading, error, data, dispatch])
 
     const onClickToVote = () => {
         navigate(`/election/${electionId}/start`)

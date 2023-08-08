@@ -26,7 +26,8 @@
     "react-router-dom": "6.11.2",
     "react-scripts": "5.0.1",
     "sequent-core": "file:./rust/pkg/sequent-core-0.1.0.tgz",
-    "web-vitals": "^2.1.0"
+    "web-vitals": "^2.1.0",
+    "uuid": "9.0.0"
   },
   "scripts": {
     "start": "NODE_OPTIONS=--openssl-legacy-provider react-scripts start",
@@ -81,6 +82,7 @@
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "@types/sanitize-html": "2.9.0",
+    "@types/uuid": "9.0.2",
     "@typescript-eslint/eslint-plugin": "^5.32.0",
     "@typescript-eslint/parser": "^5.32.0",
     "babel-plugin-named-exports-order": "^0.0.2",

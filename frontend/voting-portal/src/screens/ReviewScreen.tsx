@@ -34,6 +34,7 @@ import {Question} from "../components/Question/Question"
 import {useMutation} from "@apollo/client"
 import { INSERT_CAST_VOTE } from "../queries/InsertCastVote"
 import { InsertCastVoteMutation } from "../gql/graphql"
+import { v4 as uuidv4 } from 'uuid'
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -88,7 +89,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
         try {
             await insertCastVote({
                 variables: {
-                    id: "b4029a97-a65c-4dd7-8362-bf42f2e98178",
+                    id: uuidv4(),
                     electionId: "f2f1065e-b784-46d1-b81a-c71bfeb9ad55",
                     electionEventId: "33f18502-a67c-4853-8333-a58630663559",
                     tenantId: "f74bf7ee-824a-46fe-b3de-d773604e0552",
@@ -162,7 +163,7 @@ export const ReviewScreen: React.FC = () => {
         if (!isUndefined(electionId) && isUndefined(election)) {
             dispatch(fetchElectionByIdAsync(Number(electionId)))
         }
-    }, [electionId, election])
+    }, [electionId, election, dispatch])
 
     if (!election) {
         return <Box>Loading</Box>
