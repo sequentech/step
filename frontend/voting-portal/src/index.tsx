@@ -22,7 +22,7 @@ SequentCoreLibInit().then(set_hooks)
 
 const apolloClient = new ApolloClient({
 
-    uri: 'https://flyby-router-demo.herokuapp.com/',
+    uri: 'http://graphql-engine:8080/v1/graphql',
   
     cache: new InMemoryCache(),
   

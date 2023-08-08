@@ -19,18 +19,7 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {fetchElectionByIdAsync, selectElectionById} from "../store/elections/electionsSlice"
 import {ELECTIONS_LIST} from "../fixtures/election"
 import {useNavigate} from "react-router-dom"
-import { useQuery, gql } from '@apollo/client'
 
-const GET_LOCATIONS = gql`
-  query GetLocations {
-    locations {
-      id
-      name
-      description
-      photo
-    }
-  }
-`
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -49,32 +38,6 @@ const ElectionContainer = styled(Box)`
     flex-direction: column;
     gap: 30px;
 `
-
-const DisplayLocations: React.FC = () => {
-
-    const { loading, error, data } = useQuery(GET_LOCATIONS);
-  
-  
-    if (loading) return <p>Loading...</p>;
-  
-    if (error) return <p>Error : {error.message}</p>;
-  
-  
-    return data.locations.map((info: any) => {
-        const { id, name, description, photo } = info as any
-  
-      return <div key={id}>
-        <h3>{name}</h3>
-        <img width="400" height="250" alt="location-reference" src={`${photo}`} />
-        <br />
-        <b>About this location:</b>
-        <p>{description}</p>
-        <br />
-      </div>
-  
-});
-  
-  }
 
 interface ElectionWrapperProps {
     electionId: number
@@ -143,7 +106,6 @@ export const ElectionSelectionScreen: React.FC = () => {
                     selected={0}
                 />
             </Box>
-            <DisplayLocations />
             <StyledTitle variant="h1">
                 <Box>{t("electionSelectionScreen.title")}</Box>
                 <IconButton
