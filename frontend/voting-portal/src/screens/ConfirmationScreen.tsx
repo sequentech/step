@@ -21,7 +21,7 @@ import Button from "@mui/material/Button"
 import {useParams} from "react-router-dom"
 import Link from "@mui/material/Link"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {fetchElectionByIdAsync, selectElectionById} from "../store/elections/electionsSlice"
+import {selectElectionById} from "../store/elections/electionsSlice"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 
 const StyledTitle = styled(Typography)`
@@ -125,8 +125,8 @@ const ActionButtons: React.FC = () => {
 
 export const ConfirmationScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
-    const election = useAppSelector(selectElectionById(Number(electionId)))
-    const auditableBallot = useAppSelector(selectAuditableBallot(Number(electionId)))
+    const election = useAppSelector(selectElectionById(String(electionId)))
+    const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const ballotId = auditableBallot?.ballot_hash || ""
     const {t} = useTranslation()
     const dispatch = useAppDispatch()
@@ -136,7 +136,7 @@ export const ConfirmationScreen: React.FC = () => {
 
     useEffect(() => {
         if (!isUndefined(electionId) && isUndefined(election)) {
-            dispatch(fetchElectionByIdAsync(Number(electionId)))
+            //dispatch(fetchElectionByIdAsync(Number(electionId)))
         }
     }, [electionId, election, dispatch])
 

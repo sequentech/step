@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {CandidatesList, isUndefined} from "@sequentech/ui-essentials"
-import {IDecodedVoteQuestion, IElectionDTO} from "sequent-core"
+import {IDecodedVoteQuestion} from "sequent-core"
 import {Answer} from "../Answer/Answer"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
@@ -12,6 +12,7 @@ import {
     setBallotSelectionVoteChoice,
 } from "../../store/ballotSelections/ballotSelectionsSlice"
 import {ICategory} from "../../services/CategoryService"
+import { IBallotStyle } from "../../store/elections/electionsSlice"
 
 export interface AnswersListProps {
     title: string
@@ -19,7 +20,7 @@ export interface AnswersListProps {
     checkableLists: boolean
     checkableCandidates: boolean
     category: ICategory
-    election: IElectionDTO
+    ballotStyle: IBallotStyle
     questionIndex: number
     isReview: boolean
 }
@@ -45,22 +46,22 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     checkableLists,
     checkableCandidates,
     category,
-    election,
+    ballotStyle,
     questionIndex,
     isReview,
 }) => {
     const categoryAnswerId = category.header?.id || -1
     const selectionState = useAppSelector(
-        selectBallotSelectionVoteChoice(election.id, questionIndex, categoryAnswerId)
+        selectBallotSelectionVoteChoice(ballotStyle.id, questionIndex, categoryAnswerId)
     )
-    const questionState = useAppSelector(selectBallotSelectionQuestion(election.id, questionIndex))
+    const questionState = useAppSelector(selectBallotSelectionQuestion(ballotStyle.id, questionIndex))
     const dispatch = useAppDispatch()
     const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
     const setChecked = (value: boolean) =>
         isActive &&
         dispatch(
             setBallotSelectionVoteChoice({
-                election,
+                ballotStyle,
                 questionIndex,
                 voteChoice: {
                     id: categoryAnswerId,
@@ -82,7 +83,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
         >
             {category.candidates.map((candidate, candidateIndex) => (
                 <Answer
-                    election={election}
+                    ballotStyle={ballotStyle}
                     answer={candidate}
                     questionIndex={questionIndex}
                     key={candidateIndex}

@@ -4,7 +4,7 @@
 import React from "react"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {Candidate, stringToHtml, isUndefined} from "@sequentech/ui-essentials"
-import {IAnswer, IElectionDTO} from "sequent-core"
+import {IAnswer} from "sequent-core"
 import Image from "mui-image"
 import {
     selectBallotSelectionQuestion,
@@ -18,11 +18,12 @@ import {
     getImageUrl,
     getLinkUrl,
 } from "../../services/ElectionConfigService"
+import { IBallotStyle } from "../../store/elections/electionsSlice"
 
 export interface IAnswerProps {
     answer: IAnswer
     questionIndex: number
-    election: IElectionDTO
+    ballotStyle: IBallotStyle
     hasCategory?: boolean
     isActive: boolean
     isReview: boolean
@@ -32,17 +33,17 @@ export interface IAnswerProps {
 export const Answer: React.FC<IAnswerProps> = ({
     answer,
     questionIndex,
-    election,
+    ballotStyle,
     hasCategory,
     isActive,
     isReview,
     isInvalidVote,
 }) => {
     const selectionState = useAppSelector(
-        selectBallotSelectionVoteChoice(election.id, questionIndex, answer.id)
+        selectBallotSelectionVoteChoice(ballotStyle.id, questionIndex, answer.id)
     )
-    const questionState = useAppSelector(selectBallotSelectionQuestion(election.id, questionIndex))
-    const question = election.configuration.questions[questionIndex]
+    const questionState = useAppSelector(selectBallotSelectionQuestion(ballotStyle.id, questionIndex))
+    const question = ballotStyle.ballot_eml.configuration.questions[questionIndex]
     const dispatch = useAppDispatch()
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
@@ -57,7 +58,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     const setInvalidVote = (value: boolean) => {
         dispatch(
             setBallotSelectionInvalidVote({
-                election,
+                ballotStyle,
                 questionIndex,
                 isExplicitInvalid: value,
             })
@@ -73,7 +74,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         }
         dispatch(
             setBallotSelectionVoteChoice({
-                election,
+                ballotStyle,
                 questionIndex,
                 voteChoice: {
                     id: answer.id,
@@ -93,7 +94,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         }
         dispatch(
             setBallotSelectionVoteChoice({
-                election,
+                ballotStyle,
                 questionIndex,
                 voteChoice: {
                     id: answer.id,

@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {fetchElectionByIdAsync, selectElectionById} from "../store/elections/electionsSlice"
+//import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
+import {IBallotStyle, selectElectionById} from "../store/elections/electionsSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {
@@ -18,7 +19,6 @@ import {
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
-import {IElectionDTO} from "sequent-core"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {Link as RouterLink, useNavigate, useParams} from "react-router-dom"
@@ -63,7 +63,7 @@ const StyledButton = styled(Button)`
 `
 
 interface ActionButtonProps {
-    election: IElectionDTO
+    election: IBallotStyle
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
@@ -78,10 +78,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
             return
         }
         try {
-            const auditableBallot = encryptBallotSelection(selectionState, election)
+            const auditableBallot = encryptBallotSelection(selectionState, election.ballot_eml)
             console.log("Success encrypting ballot:")
             console.log(auditableBallot)
-            dispatch(setAuditableBallot(auditableBallot))
+            dispatch(setAuditableBallot({
+                ballotStyleId: election.id,
+                auditableBallot,
+            }))
             navigate(`/election/${election.id}/review`)
         } catch (error) {
             console.log("ERROR encrypting ballot:")
@@ -107,14 +110,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
 
 export const VotingScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
-    const election = useAppSelector(selectElectionById(Number(electionId)))
+    const election = useAppSelector(selectElectionById(String(electionId)))
     const {t} = useTranslation()
     const dispatch = useAppDispatch()
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
 
     useEffect(() => {
         if (!isUndefined(electionId) && isUndefined(election)) {
-            dispatch(fetchElectionByIdAsync(Number(electionId)))
+            //dispatch(fetchElectionByIdAsync(Number(electionId)))
         }
     }, [electionId, election, dispatch])
 
@@ -136,7 +139,7 @@ export const VotingScreen: React.FC = () => {
                 />
             </Box>
             <StyledTitle variant="h4">
-                <Box>{election.configuration.title}</Box>
+                <Box>{election.ballot_eml.configuration.title}</Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
@@ -153,14 +156,14 @@ export const VotingScreen: React.FC = () => {
                     {stringToHtml(t("votingScreen.ballotHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            {election.configuration.description ? (
+            {election.ballot_eml.configuration.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(election.configuration.description)}
+                    {stringToHtml(election.ballot_eml.configuration.description)}
                 </Typography>
             ) : null}
-            {election.configuration.questions.map((question, index) => (
+            {election.ballot_eml.configuration.questions.map((question, index) => (
                 <Question
-                    election={election}
+                    ballotStyle={election}
                     question={question}
                     questionIndex={index}
                     key={index}

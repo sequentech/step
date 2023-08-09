@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {useNavigate, useParams} from "react-router-dom"
-import {fetchElectionByIdAsync, selectElectionById} from "../store/elections/electionsSlice"
+//import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
+import {IBallotStyle, selectElectionById} from "../store/elections/electionsSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {
@@ -25,7 +26,6 @@ import {
     faAngleRight,
     faFire,
 } from "@fortawesome/free-solid-svg-icons"
-import {IElectionDTO} from "sequent-core"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {Link as RouterLink} from "react-router-dom"
@@ -70,7 +70,7 @@ const StyledButton = styled(Button)`
 `
 
 interface ActionButtonProps {
-    election: IElectionDTO
+    election: IBallotStyle
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
@@ -152,8 +152,8 @@ const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
 
 export const ReviewScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
-    const election = useAppSelector(selectElectionById(Number(electionId)))
-    const auditableBallot = useAppSelector(selectAuditableBallot(Number(electionId)))
+    const election = useAppSelector(selectElectionById(String(electionId)))
+    const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const dispatch = useAppDispatch()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
@@ -161,7 +161,7 @@ export const ReviewScreen: React.FC = () => {
 
     useEffect(() => {
         if (!isUndefined(electionId) && isUndefined(election)) {
-            dispatch(fetchElectionByIdAsync(Number(electionId)))
+            //dispatch(fetchElectionByIdAsync(Number(electionId)))
         }
     }, [electionId, election, dispatch])
 
@@ -217,9 +217,9 @@ export const ReviewScreen: React.FC = () => {
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(t("reviewScreen.description"))}
             </Typography>
-            {election.configuration.questions.map((question, index) => (
+            {election.ballot_eml.configuration.questions.map((question, index) => (
                 <Question
-                    election={election}
+                    ballotStyle={election}
                     question={question}
                     key={index}
                     questionIndex={index}

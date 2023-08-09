@@ -28,7 +28,7 @@ import {
 import {Link as RouterLink, useParams} from "react-router-dom"
 import {Typography} from "@mui/material"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {fetchElectionByIdAsync, selectElectionById} from "../store/elections/electionsSlice"
+import {selectElectionById} from "../store/elections/electionsSlice"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 
 const ActionsContainer = styled(Box)`
@@ -110,8 +110,8 @@ const ActionButtons: React.FC = () => {
 
 export const AuditScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
-    const election = useAppSelector(selectElectionById(Number(electionId)))
-    const auditableBallot = useAppSelector(selectAuditableBallot(election?.id || 0))
+    const election = useAppSelector(selectElectionById(String(electionId)))
+    const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const {t} = useTranslation()
     const dispatch = useAppDispatch()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
@@ -120,7 +120,7 @@ export const AuditScreen: React.FC = () => {
 
     useEffect(() => {
         if (!isUndefined(electionId) && isUndefined(election)) {
-            dispatch(fetchElectionByIdAsync(Number(electionId)))
+            //dispatch(fetchElectionByIdAsync(String(electionId)))
         }
     }, [electionId, election, dispatch])
 

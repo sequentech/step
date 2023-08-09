@@ -6,7 +6,7 @@ import {Box} from "@mui/material"
 import {theme, stringToHtml, shuffle, splitList} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
-import {IElectionDTO, IQuestion} from "sequent-core"
+import {IQuestion} from "sequent-core"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
 import {
@@ -17,6 +17,7 @@ import {
     getCheckableOptions,
 } from "../../services/ElectionConfigService"
 import {categorizeCandidates, getShuffledCategories} from "../../services/CategoryService"
+import { IBallotStyle } from "../../store/elections/electionsSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -33,14 +34,14 @@ const CandidatesWrapper = styled(Box)`
 `
 
 export interface IQuestionProps {
-    election: IElectionDTO
+    ballotStyle: IBallotStyle
     question: IQuestion
     questionIndex: number
     isReview: boolean
 }
 
 export const Question: React.FC<IQuestionProps> = ({
-    election,
+    ballotStyle,
     question,
     questionIndex,
     isReview,
@@ -78,7 +79,7 @@ export const Question: React.FC<IQuestionProps> = ({
             <CandidatesWrapper>
                 {invalidTopCandidates.map((answer, answerIndex) => (
                     <Answer
-                        election={election}
+                        ballotStyle={ballotStyle}
                         answer={answer}
                         questionIndex={questionIndex}
                         key={answerIndex}
@@ -95,14 +96,14 @@ export const Question: React.FC<IQuestionProps> = ({
                         checkableLists={checkableLists}
                         checkableCandidates={checkableCandidates}
                         category={category}
-                        election={election}
+                        ballotStyle={ballotStyle}
                         questionIndex={questionIndex}
                         isReview={isReview}
                     />
                 ))}
                 {noCategoryCandidates.map((answer, answerIndex) => (
                     <Answer
-                        election={election}
+                        ballotStyle={ballotStyle}
                         answer={answer}
                         questionIndex={questionIndex}
                         key={answerIndex}
@@ -112,7 +113,7 @@ export const Question: React.FC<IQuestionProps> = ({
                 ))}
                 {invalidBottomCandidates.map((answer, answerIndex) => (
                     <Answer
-                        election={election}
+                        ballotStyle={ballotStyle}
                         answer={answer}
                         questionIndex={questionIndex}
                         key={answerIndex}

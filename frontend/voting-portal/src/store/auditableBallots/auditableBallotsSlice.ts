@@ -6,7 +6,7 @@ import {RootState} from "../store"
 import {IAuditableBallot} from "sequent-core"
 
 export interface AuditableBallotsState {
-    [electionId: number]: IAuditableBallot | undefined
+    [ballotStyleId: string]: IAuditableBallot | undefined
 }
 
 const initialState: AuditableBallotsState = {}
@@ -17,9 +17,12 @@ export const auditableBallotsSlice = createSlice({
     reducers: {
         setAuditableBallot: (
             state,
-            action: PayloadAction<IAuditableBallot>
+            action: PayloadAction<{
+                ballotStyleId: string,
+                auditableBallot: IAuditableBallot
+            }>
         ): AuditableBallotsState => {
-            state[action.payload.config.id] = action.payload
+            state[action.payload.ballotStyleId] = action.payload.auditableBallot
 
             return state
         },
@@ -28,7 +31,7 @@ export const auditableBallotsSlice = createSlice({
 
 export const {setAuditableBallot} = auditableBallotsSlice.actions
 
-export const selectAuditableBallot = (electionId: number) => (state: RootState) =>
-    state.auditableBallots[electionId]
+export const selectAuditableBallot = (ballotStyleId: string) => (state: RootState) =>
+    state.auditableBallots[ballotStyleId]
 
 export default auditableBallotsSlice.reducer

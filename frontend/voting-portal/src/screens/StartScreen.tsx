@@ -15,8 +15,7 @@ import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {fetchElectionByIdAsync, selectElectionById} from "../store/elections/electionsSlice"
-import {IElectionDTO} from "sequent-core"
+import {IBallotStyle, selectElectionById} from "../store/elections/electionsSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -54,7 +53,7 @@ const StyledButton = styled(Button)`
 `
 
 interface ActionButtonsProps {
-    election: IElectionDTO
+    election: IBallotStyle
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
@@ -72,12 +71,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
 export const StartScreen: React.FC = () => {
     const {t} = useTranslation()
     const {electionId} = useParams<{electionId?: string}>()
-    const election = useAppSelector(selectElectionById(Number(electionId)))
+    const election = useAppSelector(selectElectionById(String(electionId)))
     const dispatch = useAppDispatch()
 
     useEffect(() => {
         if (!isUndefined(electionId) && isUndefined(election)) {
-            dispatch(fetchElectionByIdAsync(Number(electionId)))
+            //dispatch(fetchElectionByIdAsync(Number(electionId)))
         }
     }, [electionId, election, dispatch])
 
@@ -99,11 +98,11 @@ export const StartScreen: React.FC = () => {
                 />
             </Box>
             <StyledTitle variant="h3" justifyContent="center" fontWeight="bold">
-                <span>{election.configuration.title}</span>
+                <span>{election.ballot_eml.configuration.title}</span>
             </StyledTitle>
-            {election.configuration.description ? (
+            {election.ballot_eml.configuration.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(election.configuration.description)}
+                    {stringToHtml(election.ballot_eml.configuration.description)}
                 </Typography>
             ) : null}
             <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>
