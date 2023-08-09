@@ -53,15 +53,15 @@ const StyledButton = styled(Button)`
 `
 
 interface ActionButtonsProps {
-    election: IBallotStyle
+    ballotStyle: IBallotStyle
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
+const ActionButtons: React.FC<ActionButtonsProps> = ({ballotStyle}) => {
     const {t} = useTranslation()
 
     return (
         <ActionsContainer>
-            <StyledLink to={`/election/${election.id}/vote`} sx={{margin: "auto 0", width: "100%"}}>
+            <StyledLink to={`/election/${ballotStyle.election_id}/vote`} sx={{margin: "auto 0", width: "100%"}}>
                 <StyledButton sx={{width: "100%"}}>{t("startScreen.startButton")}</StyledButton>
             </StyledLink>
         </ActionsContainer>
@@ -133,7 +133,7 @@ export const StartScreen: React.FC = () => {
                     <Typography variant="body2">{t("startScreen.step3Description")}</Typography>
                 </Box>
             </Box>
-            <ActionButtons election={ballotStyle} />
+            <ActionButtons ballotStyle={ballotStyle} />
         </PageLimit>
     )
 }

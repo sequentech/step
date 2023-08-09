@@ -70,10 +70,10 @@ const StyledButton = styled(Button)`
 `
 
 interface ActionButtonProps {
-    election: IBallotStyle
+    ballotStyle: IBallotStyle
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
     const {t} = useTranslation()
     const navigate = useNavigate()
@@ -81,7 +81,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
         if (value) {
-            navigate(`/election/${election.id}/audit`)
+            navigate(`/election/${ballotStyle.election_id}/audit`)
         }
     }
 
@@ -90,14 +90,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
             await insertCastVote({
                 variables: {
                     id: uuidv4(),
-                    electionId: "f2f1065e-b784-46d1-b81a-c71bfeb9ad55",
-                    electionEventId: "33f18502-a67c-4853-8333-a58630663559",
-                    tenantId: "f74bf7ee-824a-46fe-b3de-d773604e0552",
+                    electionId: ballotStyle.election_id,
+                    electionEventId: ballotStyle.election_event_id,
+                    tenantId: ballotStyle.tenant_id,
                     voterIdString: "voter-id-1",
                     content: "something",
                 },
             })
-            navigate(`/election/${election.id}/confirmation`)
+            navigate(`/election/${ballotStyle.election_id}/confirmation`)
         } catch (error) {
             console.log(`error casting vote: ${error}`)
         }
@@ -125,7 +125,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
             </Dialog>
             <ActionsContainer>
                 <StyledLink
-                    to={`/election/${election.id}/vote`}
+                    to={`/election/${ballotStyle.election_id}/vote`}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
                     <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
@@ -226,7 +226,7 @@ export const ReviewScreen: React.FC = () => {
                     isReview={true}
                 />
             ))}
-            <ActionButtons election={ballotStyle} />
+            <ActionButtons ballotStyle={ballotStyle} />
         </PageLimit>
     )
 }

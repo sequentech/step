@@ -1,11 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {createAsyncThunk, createSlice, PayloadAction} from "@reduxjs/toolkit"
+import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-//import {fetchElection} from "./electionsAPI"
 import {IElectionDTO} from "sequent-core"
-import { isUndefined } from "@sequentech/ui-essentials"
 
 export interface IBallotStyle {
     id: string
@@ -48,7 +46,7 @@ export const ballotStylesSlice = createSlice({
             state: BallotStylesState,
             action: PayloadAction<IBallotStyle>
         ): BallotStylesState => {
-            state[action.payload.id] = action.payload
+            state[action.payload.election_id] = action.payload
             return state
         },
     },
@@ -58,8 +56,5 @@ export const {setBallotStyle} = ballotStylesSlice.actions
 
 export const selectBallotStyleByElectionId = (electionId: string) => (state: RootState) =>
     state.ballotStyles[electionId]
-
-export const selectAllElectionIds = (state: RootState) =>
-    Object.keys(state.ballotStyles).filter(electionId => !isUndefined(state.ballotStyles[electionId]))
 
 export default ballotStylesSlice.reducer

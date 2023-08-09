@@ -52,9 +52,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
 }) => {
     const categoryAnswerId = category.header?.id || -1
     const selectionState = useAppSelector(
-        selectBallotSelectionVoteChoice(ballotStyle.id, questionIndex, categoryAnswerId)
+        selectBallotSelectionVoteChoice(ballotStyle.election_id, questionIndex, categoryAnswerId)
     )
-    const questionState = useAppSelector(selectBallotSelectionQuestion(ballotStyle.id, questionIndex))
+    const questionState = useAppSelector(selectBallotSelectionQuestion(ballotStyle.election_id, questionIndex))
     const dispatch = useAppDispatch()
     const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
     const setChecked = (value: boolean) =>

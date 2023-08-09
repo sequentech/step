@@ -40,9 +40,9 @@ export const Answer: React.FC<IAnswerProps> = ({
     isInvalidVote,
 }) => {
     const selectionState = useAppSelector(
-        selectBallotSelectionVoteChoice(ballotStyle.id, questionIndex, answer.id)
+        selectBallotSelectionVoteChoice(ballotStyle.election_id, questionIndex, answer.id)
     )
-    const questionState = useAppSelector(selectBallotSelectionQuestion(ballotStyle.id, questionIndex))
+    const questionState = useAppSelector(selectBallotSelectionQuestion(ballotStyle.election_id, questionIndex))
     const question = ballotStyle.ballot_eml.configuration.questions[questionIndex]
     const dispatch = useAppDispatch()
     const imageUrl = getImageUrl(answer)

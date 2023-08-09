@@ -17,14 +17,16 @@ import {
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {IBallotStyle, selectAllElectionIds, selectBallotStyleByElectionId, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
+import {IBallotStyle, selectBallotStyleByElectionId, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {ELECTIONS_LIST} from "../fixtures/election"
 import {useNavigate} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
-import {GetBallotStylesQuery} from "../gql/graphql"
+import {GetBallotStylesQuery, GetElectionsQuery} from "../gql/graphql"
 import { IElectionDTO } from "sequent-core"
 import { resetBallotSelection } from "../store/ballotSelections/ballotSelectionsSlice"
+import { IElection, selectAllElectionIds, setElection } from "../store/elections/electionsSlice"
+import { GET_ELECTIONS } from "../queries/GetElections"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -90,11 +92,39 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
 
 export const ElectionSelectionScreen: React.FC = () => {
     const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
+    const {loading: loadingElections, error: errorElections, data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS)
     const dispatch = useAppDispatch()
     const {t} = useTranslation()
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
 
     const electionIds = useAppSelector(selectAllElectionIds)
+
+    useEffect(() => {
+        if (!loadingElections && !errorElections && dataElections) {
+            for (let election of dataElections.sequent_backend_election) {
+                const formattedElection: IElection = {
+                    id: election.id,
+                    annotations: election.annotations,
+                    created_at: election.created_at,
+                    dates: election.dates,
+                    description: election.description,
+                    election_event_id: election.election_event_id,
+                    eml: election.eml,
+                    is_consolidated_ballot_encoding: election.is_consolidated_ballot_encoding,
+                    labels: election.labels,
+                    last_updated_at: election.last_updated_at,
+                    name: election.name,
+                    num_allowed_revotes: election.num_allowed_revotes,
+                    presentation: election.presentation,
+                    spoil_ballot_option: election.spoil_ballot_option,
+                    status: election.status,
+                    tenant_id: election.tenant_id,
+                }
+                dispatch(setElection(formattedElection))
+
+            }
+        }
+    }, [loadingElections, errorElections, dataElections, dispatch])
 
     useEffect(() => {
         if (!loading && !error && data) {

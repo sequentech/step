@@ -22,7 +22,7 @@ import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-sol
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {Link as RouterLink, useNavigate, useParams} from "react-router-dom"
-import {selectBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
 import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
@@ -63,13 +63,13 @@ const StyledButton = styled(Button)`
 `
 
 interface ActionButtonProps {
-    election: IBallotStyle
+    ballotStyle: IBallotStyle
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
     const {t} = useTranslation()
     const {encryptBallotSelection} = provideBallotService()
-    const selectionState = useAppSelector(selectBallotSelection(election.id))
+    const selectionState = useAppSelector(selectBallotSelectionByElectionId(ballotStyle.election_id))
     const navigate = useNavigate()
     const dispatch = useAppDispatch()
 
@@ -78,14 +78,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
             return
         }
         try {
-            const auditableBallot = encryptBallotSelection(selectionState, election.ballot_eml)
+            const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
             console.log("Success encrypting ballot:")
             console.log(auditableBallot)
             dispatch(setAuditableBallot({
-                ballotStyleId: election.id,
+                electionId: ballotStyle.election_id,
                 auditableBallot,
             }))
-            navigate(`/election/${election.id}/review`)
+            navigate(`/election/${ballotStyle.election_id}/review`)
         } catch (error) {
             console.log("ERROR encrypting ballot:")
             console.log(error)
@@ -170,7 +170,7 @@ export const VotingScreen: React.FC = () => {
                     isReview={false}
                 />
             ))}
-            <ActionButtons election={ballotStyle} />
+            <ActionButtons ballotStyle={ballotStyle} />
         </PageLimit>
     )
 }

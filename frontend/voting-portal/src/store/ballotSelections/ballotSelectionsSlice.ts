@@ -3,15 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {IElectionDTO, IDecodedVoteQuestion, IDecodedVoteChoice} from "sequent-core"
+import {IDecodedVoteQuestion, IDecodedVoteChoice} from "sequent-core"
 import {isUndefined} from "@sequentech/ui-essentials"
 import { IBallotStyle } from "../ballotStyles/ballotStylesSlice"
-//import {fetchElectionByIdAsync} from "../elections/electionsSlice"
 
 export type BallotSelection = Array<IDecodedVoteQuestion>
 
 export interface BallotSelectionsState {
-    [ballotStyleId: string]: BallotSelection | undefined
+    [electionId: string]: BallotSelection | undefined
 }
 
 const initialState: BallotSelectionsState = {}
@@ -27,9 +26,9 @@ export const ballotSelectionsSlice = createSlice({
                 force?: boolean
             }>
         ): BallotSelectionsState => {
-            let currentElection = state[action.payload.ballotStyle.id]
+            let currentElection = state[action.payload.ballotStyle.election_id]
             if (!currentElection || action.payload.force) {
-                state[action.payload.ballotStyle.id] =
+                state[action.payload.ballotStyle.election_id] =
                     action.payload.ballotStyle.ballot_eml.configuration.questions.map((question) => ({
                         is_explicit_invalid: false,
                         invalid_errors: [],
@@ -58,7 +57,7 @@ export const ballotSelectionsSlice = createSlice({
                 return state
             }
             // find question
-            let currentElection = state[action.payload.ballotStyle.id]
+            let currentElection = state[action.payload.ballotStyle.election_id]
             let currentQuestion = currentElection?.[action.payload.questionIndex]
             // update state
             if (!isUndefined(currentQuestion)) {
@@ -84,7 +83,7 @@ export const ballotSelectionsSlice = createSlice({
             ) {
                 return state
             }
-            let currentElection = state[action.payload.ballotStyle.id]
+            let currentElection = state[action.payload.ballotStyle.election_id]
             let currentChoiceIndex = currentElection?.[
                 action.payload.questionIndex
             ]?.choices.findIndex((choice) => action.payload.voteChoice.id === choice.id)
@@ -101,7 +100,7 @@ export const ballotSelectionsSlice = createSlice({
             }
 
             // modify
-            currentElection = state[action.payload.ballotStyle.id]
+            currentElection = state[action.payload.ballotStyle.election_id]
             currentChoiceIndex = currentElection?.[action.payload.questionIndex]?.choices.findIndex(
                 (choice) => action.payload.voteChoice.id === choice.id
             )
@@ -133,16 +132,16 @@ export const {resetBallotSelection, setBallotSelectionInvalidVote, setBallotSele
     ballotSelectionsSlice.actions
 
 export const selectBallotSelectionVoteChoice =
-    (ballotStyleId: string, questionIndex: number, answerIndex: number) => (state: RootState) =>
-        state.ballotSelections[ballotStyleId]?.[questionIndex]?.choices.find(
+    (electionId: string, questionIndex: number, answerIndex: number) => (state: RootState) =>
+        state.ballotSelections[electionId]?.[questionIndex]?.choices.find(
             (choice) => answerIndex === choice.id
         )
 
 export const selectBallotSelectionQuestion =
-    (ballotStyleId: string, questionIndex: number) => (state: RootState) =>
-        state.ballotSelections[ballotStyleId]?.[questionIndex]
+    (electionId: string, questionIndex: number) => (state: RootState) =>
+        state.ballotSelections[electionId]?.[questionIndex]
 
-export const selectBallotSelection = (ballotStyleId: string) => (state: RootState) =>
-    state.ballotSelections[ballotStyleId]
+export const selectBallotSelectionByElectionId = (electionId: string) => (state: RootState) =>
+    state.ballotSelections[electionId]
 
 export default ballotSelectionsSlice.reducer

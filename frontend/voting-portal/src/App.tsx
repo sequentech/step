@@ -26,7 +26,6 @@ const App = () => {
     const authContext = useContext(AuthContext)
 
     useEffect(() => {
-        console.log(location.pathname)
         if (location.pathname !== "/" && !authContext.isAuthenticated) {
             navigate("/")
         }
