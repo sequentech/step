@@ -18,7 +18,7 @@ export const auditableBallotsSlice = createSlice({
         setAuditableBallot: (
             state,
             action: PayloadAction<{
-                electionId: string,
+                electionId: string
                 auditableBallot: IAuditableBallot
             }>
         ): AuditableBallotsState => {

@@ -32,9 +32,9 @@ import {Link as RouterLink} from "react-router-dom"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
 import {useMutation} from "@apollo/client"
-import { INSERT_CAST_VOTE } from "../queries/InsertCastVote"
-import { InsertCastVoteMutation } from "../gql/graphql"
-import { v4 as uuidv4 } from 'uuid'
+import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
+import {InsertCastVoteMutation} from "../gql/graphql"
+import {v4 as uuidv4} from "uuid"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -141,7 +141,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
                     <Icon icon={faFire} size="sm" />
                     <Box>{t("reviewScreen.auditButton")}</Box>
                 </StyledButton>
-                <StyledButton sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}} onClick={castBallotAction}>
+                <StyledButton
+                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                    onClick={castBallotAction}
+                >
                     <Box>{t("reviewScreen.castBallotButton")}</Box>
                     <Icon icon={faAngleRight} size="sm" />
                 </StyledButton>

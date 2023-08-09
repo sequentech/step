@@ -17,16 +17,16 @@ import {
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {IBallotStyle, selectBallotStyleByElectionId, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
-import {ELECTIONS_LIST} from "../fixtures/election"
+import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {useNavigate} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {GetBallotStylesQuery, GetElectionsQuery} from "../gql/graphql"
-import { IElectionDTO } from "sequent-core"
-import { resetBallotSelection } from "../store/ballotSelections/ballotSelectionsSlice"
-import { IElection, selectAllElectionIds, setElection } from "../store/elections/electionsSlice"
-import { GET_ELECTIONS } from "../queries/GetElections"
+import {IElectionDTO} from "sequent-core"
+import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
+import {selectElectionById, setElection} from "../store/elections/electionsSlice"
+import {GET_ELECTIONS} from "../queries/GetElections"
+import {AppDispatch} from "../store/store"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -52,7 +52,7 @@ interface ElectionWrapperProps {
 }
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
-    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId))
+    const election = useAppSelector(selectElectionById(electionId))
     const navigate = useNavigate()
 
     const onClickToVote = () => {
@@ -71,94 +71,83 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
         return dateFormat.format(date)
     }
 
-    if (!ballotStyle) {
+    if (!election) {
         return null
     }
 
     return (
         <SelectElection
             isActive={true}
-            isOpen={ballotStyle.ballot_eml.state === "started"}
-            title={ballotStyle.ballot_eml.configuration.title}
+            isOpen={true}
+            title={election.name || ""}
             electionHomeUrl={"https://sequentech.io"}
-            hasVoted={ballotStyle.ballot_eml.id === ELECTIONS_LIST[0].id}
-            openDate={ballotStyle.ballot_eml.startDate && formatDate(ballotStyle.ballot_eml.startDate)}
-            closeDate={ballotStyle.ballot_eml.endDate && formatDate(ballotStyle.ballot_eml.endDate)}
+            hasVoted={false}
             onClickToVote={onClickToVote}
             onClickElectionResults={() => undefined}
         />
     )
 }
 
+const updateBallotStyleAndSelection = (data: GetBallotStylesQuery, dispatch: AppDispatch) => {
+    for (let ballotStyle of data.sequent_backend_ballot_style) {
+        const ballotEml = ballotStyle.ballot_eml
+        if (!isString(ballotEml)) {
+            continue
+        }
+        try {
+            const electionData: IElectionDTO = JSON.parse(atob(ballotEml))
+            const formattedBallotStyle: IBallotStyle = {
+                id: ballotStyle.id,
+                election_id: ballotStyle.election_id,
+                election_event_id: ballotStyle.election_event_id,
+                status: ballotStyle.status || undefined,
+                tenant_id: ballotStyle.tenant_id,
+                ballot_eml: electionData,
+                ballot_signature: ballotStyle.ballot_signature,
+                created_at: ballotStyle.created_at,
+                area_id: ballotStyle.area_id,
+                annotations: ballotStyle.annotations,
+                labels: ballotStyle.labels,
+                last_updated_at: ballotStyle.last_updated_at,
+            }
+            dispatch(setBallotStyle(formattedBallotStyle))
+            dispatch(
+                resetBallotSelection({
+                    ballotStyle: formattedBallotStyle,
+                })
+            )
+        } catch (error) {
+            console.log(`Error loading EML: ${error}`)
+            console.log(ballotEml)
+        }
+    }
+}
+
 export const ElectionSelectionScreen: React.FC = () => {
     const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
-    const {loading: loadingElections, error: errorElections, data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS)
+    const {
+        loading: loadingElections,
+        error: errorElections,
+        data: dataElections,
+    } = useQuery<GetElectionsQuery>(GET_ELECTIONS)
     const dispatch = useAppDispatch()
     const {t} = useTranslation()
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
 
-    const electionIds = useAppSelector(selectAllElectionIds)
+    const [electionIds, setElectionIds] = useState<Array<string>>([])
 
     useEffect(() => {
         if (!loadingElections && !errorElections && dataElections) {
+            setElectionIds(dataElections.sequent_backend_election.map((election) => election.id))
             for (let election of dataElections.sequent_backend_election) {
-                const formattedElection: IElection = {
-                    id: election.id,
-                    annotations: election.annotations,
-                    created_at: election.created_at,
-                    dates: election.dates,
-                    description: election.description,
-                    election_event_id: election.election_event_id,
-                    eml: election.eml,
-                    is_consolidated_ballot_encoding: election.is_consolidated_ballot_encoding,
-                    labels: election.labels,
-                    last_updated_at: election.last_updated_at,
-                    name: election.name,
-                    num_allowed_revotes: election.num_allowed_revotes,
-                    presentation: election.presentation,
-                    spoil_ballot_option: election.spoil_ballot_option,
-                    status: election.status,
-                    tenant_id: election.tenant_id,
-                }
-                dispatch(setElection(formattedElection))
-
+                dispatch(setElection(election))
             }
         }
     }, [loadingElections, errorElections, dataElections, dispatch])
 
     useEffect(() => {
         if (!loading && !error && data) {
-            for (let ballotStyle of data.sequent_backend_ballot_style) {
-                const ballotEml = ballotStyle.ballot_eml
-                if (!isString(ballotEml)) {
-                    continue
-                }
-                try {
-                    const electionData: IElectionDTO = JSON.parse(atob(ballotEml))
-                    const formattedBallotStyle: IBallotStyle = {
-                        id: ballotStyle.id,
-                        election_id: ballotStyle.election_id,
-                        election_event_id: ballotStyle.election_event_id,
-                        status: ballotStyle.status || undefined,
-                        tenant_id: ballotStyle.tenant_id,
-                        ballot_eml: electionData,
-                        ballot_signature: ballotStyle.ballot_signature,
-                        created_at: ballotStyle.created_at,
-                        area_id: ballotStyle.area_id,
-                        annotations: ballotStyle.annotations,
-                        labels: ballotStyle.labels,
-                        last_updated_at: ballotStyle.last_updated_at,
-                    }
-                    dispatch(setBallotStyle(formattedBallotStyle))
-                    dispatch(resetBallotSelection({
-                        ballotStyle: formattedBallotStyle
-                    }))
-                } catch (error) {
-                    console.log(`Error loading EML: ${error}`)
-                    console.log(ballotEml)
-                }
-            }
-            
+            updateBallotStyleAndSelection(data, dispatch)
         }
     }, [loading, error, data, dispatch])
 

@@ -5,7 +5,7 @@ import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
 import {IDecodedVoteQuestion, IDecodedVoteChoice} from "sequent-core"
 import {isUndefined} from "@sequentech/ui-essentials"
-import { IBallotStyle } from "../ballotStyles/ballotStylesSlice"
+import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
 
 export type BallotSelection = Array<IDecodedVoteQuestion>
 
@@ -29,14 +29,16 @@ export const ballotSelectionsSlice = createSlice({
             let currentElection = state[action.payload.ballotStyle.election_id]
             if (!currentElection || action.payload.force) {
                 state[action.payload.ballotStyle.election_id] =
-                    action.payload.ballotStyle.ballot_eml.configuration.questions.map((question) => ({
-                        is_explicit_invalid: false,
-                        invalid_errors: [],
-                        choices: question.answers.map((answer) => ({
-                            id: answer.id,
-                            selected: -1,
-                        })),
-                    }))
+                    action.payload.ballotStyle.ballot_eml.configuration.questions.map(
+                        (question) => ({
+                            is_explicit_invalid: false,
+                            invalid_errors: [],
+                            choices: question.answers.map((answer) => ({
+                                id: answer.id,
+                                selected: -1,
+                            })),
+                        })
+                    )
             }
 
             return state
@@ -78,8 +80,9 @@ export const ballotSelectionsSlice = createSlice({
                 action.payload.questionIndex >=
                     action.payload.ballotStyle.ballot_eml.configuration.questions.length ||
                 action.payload.voteChoice.id >=
-                    action.payload.ballotStyle.ballot_eml.configuration.questions[action.payload.questionIndex]
-                        .answers.length
+                    action.payload.ballotStyle.ballot_eml.configuration.questions[
+                        action.payload.questionIndex
+                    ].answers.length
             ) {
                 return state
             }

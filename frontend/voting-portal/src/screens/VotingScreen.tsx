@@ -69,7 +69,9 @@ interface ActionButtonProps {
 const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
     const {t} = useTranslation()
     const {encryptBallotSelection} = provideBallotService()
-    const selectionState = useAppSelector(selectBallotSelectionByElectionId(ballotStyle.election_id))
+    const selectionState = useAppSelector(
+        selectBallotSelectionByElectionId(ballotStyle.election_id)
+    )
     const navigate = useNavigate()
     const dispatch = useAppDispatch()
 
@@ -81,10 +83,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
             const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
             console.log("Success encrypting ballot:")
             console.log(auditableBallot)
-            dispatch(setAuditableBallot({
-                electionId: ballotStyle.election_id,
-                auditableBallot,
-            }))
+            dispatch(
+                setAuditableBallot({
+                    electionId: ballotStyle.election_id,
+                    auditableBallot,
+                })
+            )
             navigate(`/election/${ballotStyle.election_id}/review`)
         } catch (error) {
             console.log("ERROR encrypting ballot:")

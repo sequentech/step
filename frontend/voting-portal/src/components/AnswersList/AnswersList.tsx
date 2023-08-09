@@ -12,7 +12,7 @@ import {
     setBallotSelectionVoteChoice,
 } from "../../store/ballotSelections/ballotSelectionsSlice"
 import {ICategory} from "../../services/CategoryService"
-import { IBallotStyle } from "../../store/ballotStyles/ballotStylesSlice"
+import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 
 export interface AnswersListProps {
     title: string
@@ -54,7 +54,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, questionIndex, categoryAnswerId)
     )
-    const questionState = useAppSelector(selectBallotSelectionQuestion(ballotStyle.election_id, questionIndex))
+    const questionState = useAppSelector(
+        selectBallotSelectionQuestion(ballotStyle.election_id, questionIndex)
+    )
     const dispatch = useAppDispatch()
     const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
     const setChecked = (value: boolean) =>

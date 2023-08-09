@@ -18,7 +18,7 @@ import {
     getImageUrl,
     getLinkUrl,
 } from "../../services/ElectionConfigService"
-import { IBallotStyle } from "../../store/ballotStyles/ballotStylesSlice"
+import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 
 export interface IAnswerProps {
     answer: IAnswer
@@ -42,7 +42,9 @@ export const Answer: React.FC<IAnswerProps> = ({
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, questionIndex, answer.id)
     )
-    const questionState = useAppSelector(selectBallotSelectionQuestion(ballotStyle.election_id, questionIndex))
+    const questionState = useAppSelector(
+        selectBallotSelectionQuestion(ballotStyle.election_id, questionIndex)
+    )
     const question = ballotStyle.ballot_eml.configuration.questions[questionIndex]
     const dispatch = useAppDispatch()
     const imageUrl = getImageUrl(answer)

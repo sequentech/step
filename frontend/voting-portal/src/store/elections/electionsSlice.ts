@@ -33,10 +33,7 @@ export const electionsSlice = createSlice({
     name: "elections",
     initialState,
     reducers: {
-        setElection: (
-            state: ElectionState,
-            action: PayloadAction<IElection>
-        ): ElectionState => {
+        setElection: (state: ElectionState, action: PayloadAction<IElection>): ElectionState => {
             state[action.payload.id] = action.payload
             return state
         },
@@ -47,8 +44,5 @@ export const {setElection} = electionsSlice.actions
 
 export const selectElectionById = (electionId: string) => (state: RootState) =>
     state.elections[electionId]
-
-export const selectAllElectionIds = (state: RootState) =>
-    Object.keys(state.elections)
 
 export default electionsSlice.reducer

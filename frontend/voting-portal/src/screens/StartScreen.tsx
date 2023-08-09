@@ -61,7 +61,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotStyle}) => {
 
     return (
         <ActionsContainer>
-            <StyledLink to={`/election/${ballotStyle.election_id}/vote`} sx={{margin: "auto 0", width: "100%"}}>
+            <StyledLink
+                to={`/election/${ballotStyle.election_id}/vote`}
+                sx={{margin: "auto 0", width: "100%"}}
+            >
                 <StyledButton sx={{width: "100%"}}>{t("startScreen.startButton")}</StyledButton>
             </StyledLink>
         </ActionsContainer>
@@ -77,6 +80,7 @@ export const StartScreen: React.FC = () => {
     useEffect(() => {
         if (!isUndefined(electionId) && isUndefined(ballotStyle)) {
             //dispatch(fetchElectionByIdAsync(Number(electionId)))
+            console.log("Felix was here")
         }
     }, [electionId, ballotStyle, dispatch])
 
