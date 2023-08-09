@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 //import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
-import {IBallotStyle, selectElectionById} from "../store/elections/electionsSlice"
+import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {
@@ -110,18 +110,18 @@ const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
 
 export const VotingScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
-    const election = useAppSelector(selectElectionById(String(electionId)))
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const {t} = useTranslation()
     const dispatch = useAppDispatch()
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
 
     useEffect(() => {
-        if (!isUndefined(electionId) && isUndefined(election)) {
+        if (!isUndefined(electionId) && isUndefined(ballotStyle)) {
             //dispatch(fetchElectionByIdAsync(Number(electionId)))
         }
-    }, [electionId, election, dispatch])
+    }, [electionId, ballotStyle, dispatch])
 
-    if (!election) {
+    if (!ballotStyle) {
         return <Box>Loading</Box>
     }
 
@@ -139,7 +139,7 @@ export const VotingScreen: React.FC = () => {
                 />
             </Box>
             <StyledTitle variant="h4">
-                <Box>{election.ballot_eml.configuration.title}</Box>
+                <Box>{ballotStyle.ballot_eml.configuration.title}</Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
@@ -156,21 +156,21 @@ export const VotingScreen: React.FC = () => {
                     {stringToHtml(t("votingScreen.ballotHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            {election.ballot_eml.configuration.description ? (
+            {ballotStyle.ballot_eml.configuration.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(election.ballot_eml.configuration.description)}
+                    {stringToHtml(ballotStyle.ballot_eml.configuration.description)}
                 </Typography>
             ) : null}
-            {election.ballot_eml.configuration.questions.map((question, index) => (
+            {ballotStyle.ballot_eml.configuration.questions.map((question, index) => (
                 <Question
-                    ballotStyle={election}
+                    ballotStyle={ballotStyle}
                     question={question}
                     questionIndex={index}
                     key={index}
                     isReview={false}
                 />
             ))}
-            <ActionButtons election={election} />
+            <ActionButtons election={ballotStyle} />
         </PageLimit>
     )
 }

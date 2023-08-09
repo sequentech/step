@@ -17,7 +17,7 @@ import {
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {IBallotStyle, selectAllElectionIds, selectElectionById, setElection} from "../store/elections/electionsSlice"
+import {IBallotStyle, selectAllElectionIds, selectBallotStyleByElectionId, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {ELECTIONS_LIST} from "../fixtures/election"
 import {useNavigate} from "react-router-dom"
 import {useQuery} from "@apollo/client"
@@ -42,6 +42,7 @@ const ElectionContainer = styled(Box)`
     display: flex;
     flex-direction: column;
     gap: 30px;
+    margin-bottom: 30px;
 `
 
 interface ElectionWrapperProps {
@@ -49,7 +50,7 @@ interface ElectionWrapperProps {
 }
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
-    const election = useAppSelector(selectElectionById(electionId))
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId))
     const navigate = useNavigate()
 
     const onClickToVote = () => {
@@ -68,19 +69,19 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
         return dateFormat.format(date)
     }
 
-    if (!election) {
+    if (!ballotStyle) {
         return null
     }
 
     return (
         <SelectElection
             isActive={true}
-            isOpen={election.ballot_eml.state === "started"}
-            title={election.ballot_eml.configuration.title}
+            isOpen={ballotStyle.ballot_eml.state === "started"}
+            title={ballotStyle.ballot_eml.configuration.title}
             electionHomeUrl={"https://sequentech.io"}
-            hasVoted={election.ballot_eml.id === ELECTIONS_LIST[0].id}
-            openDate={election.ballot_eml.startDate && formatDate(election.ballot_eml.startDate)}
-            closeDate={election.ballot_eml.endDate && formatDate(election.ballot_eml.endDate)}
+            hasVoted={ballotStyle.ballot_eml.id === ELECTIONS_LIST[0].id}
+            openDate={ballotStyle.ballot_eml.startDate && formatDate(ballotStyle.ballot_eml.startDate)}
+            closeDate={ballotStyle.ballot_eml.endDate && formatDate(ballotStyle.ballot_eml.endDate)}
             onClickToVote={onClickToVote}
             onClickElectionResults={() => undefined}
         />
@@ -118,7 +119,7 @@ export const ElectionSelectionScreen: React.FC = () => {
                         labels: ballotStyle.labels,
                         last_updated_at: ballotStyle.last_updated_at,
                     }
-                    dispatch(setElection(formattedBallotStyle))
+                    dispatch(setBallotStyle(formattedBallotStyle))
                     dispatch(resetBallotSelection({
                         ballotStyle: formattedBallotStyle
                     }))

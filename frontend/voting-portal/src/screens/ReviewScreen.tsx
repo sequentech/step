@@ -4,7 +4,7 @@
 import React, {useEffect, useState} from "react"
 import {useNavigate, useParams} from "react-router-dom"
 //import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
-import {IBallotStyle, selectElectionById} from "../store/elections/electionsSlice"
+import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {
@@ -152,7 +152,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({election}) => {
 
 export const ReviewScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
-    const election = useAppSelector(selectElectionById(String(electionId)))
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const dispatch = useAppDispatch()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
@@ -160,12 +160,12 @@ export const ReviewScreen: React.FC = () => {
     const {t} = useTranslation()
 
     useEffect(() => {
-        if (!isUndefined(electionId) && isUndefined(election)) {
+        if (!isUndefined(electionId) && isUndefined(ballotStyle)) {
             //dispatch(fetchElectionByIdAsync(Number(electionId)))
         }
-    }, [electionId, election, dispatch])
+    }, [electionId, ballotStyle, dispatch])
 
-    if (!election) {
+    if (!ballotStyle) {
         return <Box>Loading</Box>
     }
 
@@ -217,16 +217,16 @@ export const ReviewScreen: React.FC = () => {
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(t("reviewScreen.description"))}
             </Typography>
-            {election.ballot_eml.configuration.questions.map((question, index) => (
+            {ballotStyle.ballot_eml.configuration.questions.map((question, index) => (
                 <Question
-                    ballotStyle={election}
+                    ballotStyle={ballotStyle}
                     question={question}
                     key={index}
                     questionIndex={index}
                     isReview={true}
                 />
             ))}
-            <ActionButtons election={election} />
+            <ActionButtons election={ballotStyle} />
         </PageLimit>
     )
 }

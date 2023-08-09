@@ -5,7 +5,7 @@ import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
 import {IElectionDTO, IDecodedVoteQuestion, IDecodedVoteChoice} from "sequent-core"
 import {isUndefined} from "@sequentech/ui-essentials"
-import { IBallotStyle } from "../elections/electionsSlice"
+import { IBallotStyle } from "../ballotStyles/ballotStylesSlice"
 //import {fetchElectionByIdAsync} from "../elections/electionsSlice"
 
 export type BallotSelection = Array<IDecodedVoteQuestion>

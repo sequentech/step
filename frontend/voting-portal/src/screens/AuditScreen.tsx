@@ -28,7 +28,7 @@ import {
 import {Link as RouterLink, useParams} from "react-router-dom"
 import {Typography} from "@mui/material"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {selectElectionById} from "../store/elections/electionsSlice"
+import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 
 const ActionsContainer = styled(Box)`
@@ -110,7 +110,7 @@ const ActionButtons: React.FC = () => {
 
 export const AuditScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
-    const election = useAppSelector(selectElectionById(String(electionId)))
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const {t} = useTranslation()
     const dispatch = useAppDispatch()
@@ -119,10 +119,10 @@ export const AuditScreen: React.FC = () => {
     const [openStep2Help, setOpenStep2Help] = useState(false)
 
     useEffect(() => {
-        if (!isUndefined(electionId) && isUndefined(election)) {
+        if (!isUndefined(electionId) && isUndefined(ballotStyle)) {
             //dispatch(fetchElectionByIdAsync(String(electionId)))
         }
-    }, [electionId, election, dispatch])
+    }, [electionId, ballotStyle, dispatch])
 
     const downloadAuditableBallot = () => {
         if (!auditableBallot) {

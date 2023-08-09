@@ -12,7 +12,7 @@ import {
     setBallotSelectionVoteChoice,
 } from "../../store/ballotSelections/ballotSelectionsSlice"
 import {ICategory} from "../../services/CategoryService"
-import { IBallotStyle } from "../../store/elections/electionsSlice"
+import { IBallotStyle } from "../../store/ballotStyles/ballotStylesSlice"
 
 export interface AnswersListProps {
     title: string

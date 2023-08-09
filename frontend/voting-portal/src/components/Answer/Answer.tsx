@@ -18,7 +18,7 @@ import {
     getImageUrl,
     getLinkUrl,
 } from "../../services/ElectionConfigService"
-import { IBallotStyle } from "../../store/elections/electionsSlice"
+import { IBallotStyle } from "../../store/ballotStyles/ballotStylesSlice"
 
 export interface IAnswerProps {
     answer: IAnswer

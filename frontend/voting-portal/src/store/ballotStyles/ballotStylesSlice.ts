@@ -11,22 +11,22 @@ export interface IBallotStyle {
     id: string
     election_id: string
     election_event_id: string
-    status?: string
+    status?: string | null
     tenant_id: string
     ballot_eml: IElectionDTO
-    ballot_signature?: string
-    created_at?: string
-    area_id?: string
-    annotations?: string
-    labels?: string
-    last_updated_at?: string
+    ballot_signature?: string | null
+    created_at: string
+    area_id?: string | null
+    annotations?: string | null
+    labels?: string | null
+    last_updated_at: string
 }
 
-export interface ElectionsState {
-    [id: string]: IBallotStyle | undefined
+export interface BallotStylesState {
+    [electionId: string]: IBallotStyle | undefined
 }
 
-const initialState: ElectionsState = {}
+const initialState: BallotStylesState = {}
 
 /*
 export const fetchElectionByIdAsync = createAsyncThunk(
@@ -40,26 +40,26 @@ export const fetchElectionByIdAsync = createAsyncThunk(
 )
 */
 
-export const electionsSlice = createSlice({
-    name: "elections",
+export const ballotStylesSlice = createSlice({
+    name: "ballotStyles",
     initialState,
     reducers: {
-        setElection: (
-            state: ElectionsState,
+        setBallotStyle: (
+            state: BallotStylesState,
             action: PayloadAction<IBallotStyle>
-        ): ElectionsState => {
+        ): BallotStylesState => {
             state[action.payload.id] = action.payload
             return state
         },
     },
 })
 
-export const {setElection} = electionsSlice.actions
+export const {setBallotStyle} = ballotStylesSlice.actions
 
-export const selectElectionById = (electionId: string) => (state: RootState) =>
-    state.elections[electionId]
+export const selectBallotStyleByElectionId = (electionId: string) => (state: RootState) =>
+    state.ballotStyles[electionId]
 
 export const selectAllElectionIds = (state: RootState) =>
-    Object.keys(state.elections).filter(electionId => !isUndefined(state.elections[electionId]))
+    Object.keys(state.ballotStyles).filter(electionId => !isUndefined(state.ballotStyles[electionId]))
 
-export default electionsSlice.reducer
+export default ballotStylesSlice.reducer

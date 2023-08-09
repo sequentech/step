@@ -17,7 +17,7 @@ import {
     getCheckableOptions,
 } from "../../services/ElectionConfigService"
 import {categorizeCandidates, getShuffledCategories} from "../../services/CategoryService"
-import { IBallotStyle } from "../../store/elections/electionsSlice"
+import { IBallotStyle } from "../../store/ballotStyles/ballotStylesSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;

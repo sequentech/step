@@ -15,7 +15,7 @@ import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {IBallotStyle, selectElectionById} from "../store/elections/electionsSlice"
+import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -71,16 +71,16 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
 export const StartScreen: React.FC = () => {
     const {t} = useTranslation()
     const {electionId} = useParams<{electionId?: string}>()
-    const election = useAppSelector(selectElectionById(String(electionId)))
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
 
     useEffect(() => {
-        if (!isUndefined(electionId) && isUndefined(election)) {
+        if (!isUndefined(electionId) && isUndefined(ballotStyle)) {
             //dispatch(fetchElectionByIdAsync(Number(electionId)))
         }
-    }, [electionId, election, dispatch])
+    }, [electionId, ballotStyle, dispatch])
 
-    if (!election) {
+    if (!ballotStyle) {
         return <Box>Loading</Box>
     }
 
@@ -98,11 +98,11 @@ export const StartScreen: React.FC = () => {
                 />
             </Box>
             <StyledTitle variant="h3" justifyContent="center" fontWeight="bold">
-                <span>{election.ballot_eml.configuration.title}</span>
+                <span>{ballotStyle.ballot_eml.configuration.title}</span>
             </StyledTitle>
-            {election.ballot_eml.configuration.description ? (
+            {ballotStyle.ballot_eml.configuration.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(election.ballot_eml.configuration.description)}
+                    {stringToHtml(ballotStyle.ballot_eml.configuration.description)}
                 </Typography>
             ) : null}
             <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>
@@ -133,7 +133,7 @@ export const StartScreen: React.FC = () => {
                     <Typography variant="body2">{t("startScreen.step3Description")}</Typography>
                 </Box>
             </Box>
-            <ActionButtons election={election} />
+            <ActionButtons election={ballotStyle} />
         </PageLimit>
     )
 }
