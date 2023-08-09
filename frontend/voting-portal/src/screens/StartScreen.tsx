@@ -2,20 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React, {useEffect} from "react"
+import React from "react"
 import {useTranslation} from "react-i18next"
-import {
-    BreadCrumbSteps,
-    PageLimit,
-    theme,
-    stringToHtml,
-    isUndefined,
-} from "@sequentech/ui-essentials"
+import {BreadCrumbSteps, PageLimit, theme, stringToHtml} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"
-import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {useAppSelector} from "../store/hooks"
+import {IElection, selectElectionById} from "../store/elections/electionsSlice"
+import {CircularProgress} from "@mui/material"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -53,18 +48,15 @@ const StyledButton = styled(Button)`
 `
 
 interface ActionButtonsProps {
-    ballotStyle: IBallotStyle
+    election: IElection
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({ballotStyle}) => {
+const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
     const {t} = useTranslation()
 
     return (
         <ActionsContainer>
-            <StyledLink
-                to={`/election/${ballotStyle.election_id}/vote`}
-                sx={{margin: "auto 0", width: "100%"}}
-            >
+            <StyledLink to={`/election/${election.id}/vote`} sx={{margin: "auto 0", width: "100%"}}>
                 <StyledButton sx={{width: "100%"}}>{t("startScreen.startButton")}</StyledButton>
             </StyledLink>
         </ActionsContainer>
@@ -74,18 +66,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ballotStyle}) => {
 export const StartScreen: React.FC = () => {
     const {t} = useTranslation()
     const {electionId} = useParams<{electionId?: string}>()
-    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
-    const dispatch = useAppDispatch()
+    const election = useAppSelector(selectElectionById(String(electionId)))
 
-    useEffect(() => {
-        if (!isUndefined(electionId) && isUndefined(ballotStyle)) {
-            //dispatch(fetchElectionByIdAsync(Number(electionId)))
-            console.log("Felix was here")
-        }
-    }, [electionId, ballotStyle, dispatch])
-
-    if (!ballotStyle) {
-        return <Box>Loading</Box>
+    if (!election) {
+        return <CircularProgress />
     }
 
     return (
@@ -102,11 +86,11 @@ export const StartScreen: React.FC = () => {
                 />
             </Box>
             <StyledTitle variant="h3" justifyContent="center" fontWeight="bold">
-                <span>{ballotStyle.ballot_eml.configuration.title}</span>
+                <span>{election.name}</span>
             </StyledTitle>
-            {ballotStyle.ballot_eml.configuration.description ? (
+            {election.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(ballotStyle.ballot_eml.configuration.description)}
+                    {stringToHtml(election.description)}
                 </Typography>
             ) : null}
             <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>
@@ -137,7 +121,7 @@ export const StartScreen: React.FC = () => {
                     <Typography variant="body2">{t("startScreen.step3Description")}</Typography>
                 </Box>
             </Box>
-            <ActionButtons ballotStyle={ballotStyle} />
+            <ActionButtons election={election} />
         </PageLimit>
     )
 }

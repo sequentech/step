@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React, {useEffect, useState} from "react"
+import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     PageLimit,
@@ -13,15 +13,13 @@ import {
     theme,
     QRCode,
     Dialog,
-    isUndefined,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import Button from "@mui/material/Button"
 import {useParams} from "react-router-dom"
 import Link from "@mui/material/Link"
-import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 
 const StyledTitle = styled(Typography)`
@@ -125,20 +123,12 @@ const ActionButtons: React.FC = () => {
 
 export const ConfirmationScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
-    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const ballotId = auditableBallot?.ballot_hash || ""
     const {t} = useTranslation()
-    const dispatch = useAppDispatch()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
     const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/election/${electionId}/public/ballot-locator/${ballotId}`
-
-    useEffect(() => {
-        if (!isUndefined(electionId) && isUndefined(ballotStyle)) {
-            //dispatch(fetchElectionByIdAsync(Number(electionId)))
-        }
-    }, [electionId, ballotStyle, dispatch])
 
     return (
         <PageLimit maxWidth="lg">

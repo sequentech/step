@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useState} from "react"
 //import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -26,6 +26,8 @@ import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballo
 import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
+import {CircularProgress} from "@mui/material"
+import {selectElectionById} from "../store/elections/electionsSlice"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -80,8 +82,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
             return
         }
         try {
+            const startMs = Date.now()
             const auditableBallot = encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
-            console.log("Success encrypting ballot:")
+            const endMs = Date.now()
+            console.log(`Success encrypting ballot: ${endMs - startMs} ms`)
             console.log(auditableBallot)
             dispatch(
                 setAuditableBallot({
@@ -115,18 +119,12 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
 export const VotingScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const election = useAppSelector(selectElectionById(String(electionId)))
     const {t} = useTranslation()
-    const dispatch = useAppDispatch()
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
 
-    useEffect(() => {
-        if (!isUndefined(electionId) && isUndefined(ballotStyle)) {
-            //dispatch(fetchElectionByIdAsync(Number(electionId)))
-        }
-    }, [electionId, ballotStyle, dispatch])
-
-    if (!ballotStyle) {
-        return <Box>Loading</Box>
+    if (!ballotStyle || !election) {
+        return <CircularProgress />
     }
 
     return (
@@ -143,7 +141,7 @@ export const VotingScreen: React.FC = () => {
                 />
             </Box>
             <StyledTitle variant="h4">
-                <Box>{ballotStyle.ballot_eml.configuration.title}</Box>
+                <Box>{election.name || ""}</Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
@@ -160,9 +158,9 @@ export const VotingScreen: React.FC = () => {
                     {stringToHtml(t("votingScreen.ballotHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            {ballotStyle.ballot_eml.configuration.description ? (
+            {election.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(ballotStyle.ballot_eml.configuration.description)}
+                    {stringToHtml(election.description)}
                 </Typography>
             ) : null}
             {ballotStyle.ballot_eml.configuration.questions.map((question, index) => (

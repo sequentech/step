@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useState} from "react"
 import {useNavigate, useParams} from "react-router-dom"
 //import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
-import {useAppDispatch, useAppSelector} from "../store/hooks"
+import {useAppSelector} from "../store/hooks"
 import {Box} from "@mui/material"
 import {
     PageLimit,
@@ -15,7 +15,6 @@ import {
     theme,
     stringToHtml,
     BallotHash,
-    isUndefined,
     Dialog,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
@@ -35,6 +34,10 @@ import {useMutation} from "@apollo/client"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {InsertCastVoteMutation} from "../gql/graphql"
 import {v4 as uuidv4} from "uuid"
+import {CircularProgress} from "@mui/material"
+import {toHashableBallot} from "../services/BallotService"
+import {IAuditableBallot} from "sequent-core"
+import {AuthContext} from "../providers/AuthContextProvider"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -71,10 +74,12 @@ const StyledButton = styled(Button)`
 
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
+    auditableBallot: IAuditableBallot
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot}) => {
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
+    const authContext = useContext(AuthContext)
     const {t} = useTranslation()
     const navigate = useNavigate()
     const [auditBallotHelp, setAuditBallotHelp] = useState(false)
@@ -87,14 +92,16 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
 
     const castBallotAction = async () => {
         try {
+            const hashableBallot = toHashableBallot(auditableBallot)
+            const content = btoa(JSON.stringify(hashableBallot))
             await insertCastVote({
                 variables: {
                     id: uuidv4(),
                     electionId: ballotStyle.election_id,
                     electionEventId: ballotStyle.election_event_id,
                     tenantId: ballotStyle.tenant_id,
-                    voterIdString: "voter-id-1",
-                    content: "something",
+                    voterIdString: authContext.username,
+                    content: content,
                 },
             })
             navigate(`/election/${ballotStyle.election_id}/confirmation`)
@@ -157,19 +164,12 @@ export const ReviewScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
-    const dispatch = useAppDispatch()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
     const {t} = useTranslation()
 
-    useEffect(() => {
-        if (!isUndefined(electionId) && isUndefined(ballotStyle)) {
-            //dispatch(fetchElectionByIdAsync(Number(electionId)))
-        }
-    }, [electionId, ballotStyle, dispatch])
-
-    if (!ballotStyle) {
-        return <Box>Loading</Box>
+    if (!ballotStyle || !auditableBallot) {
+        return <CircularProgress />
     }
 
     return (
@@ -229,7 +229,7 @@ export const ReviewScreen: React.FC = () => {
                     isReview={true}
                 />
             ))}
-            <ActionButtons ballotStyle={ballotStyle} />
+            <ActionButtons ballotStyle={ballotStyle} auditableBallot={auditableBallot} />
         </PageLimit>
     )
 }
