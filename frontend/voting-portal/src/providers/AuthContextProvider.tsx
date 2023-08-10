@@ -10,7 +10,7 @@ import {createContext, useEffect, useState} from "react"
  */
 const keycloakConfig: KeycloakConfig = {
     realm: "electoral-process",
-    clientId: "hasura",
+    clientId: "frontend",
     url: "http://127.0.0.1:8090/",
 }
 
@@ -48,6 +48,10 @@ interface AuthContextValues {
      * Check if the user has the given role
      */
     hasRole: (role: string) => boolean
+    /**
+     * Get Access Token
+     */
+    getAccessToken: () => string | undefined
 }
 
 /**
@@ -58,6 +62,7 @@ const defaultAuthContextValues: AuthContextValues = {
     username: "",
     logout: () => {},
     hasRole: (role) => false,
+    getAccessToken: () => undefined
 }
 
 /**
@@ -101,7 +106,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 // If the authentication was not successfull the user is send back to the Keycloak login form
                 if (!isAuthenticatedResponse) {
                     console.log("user is not yet authenticated. forwarding user to login.")
-                    keycloak.login()
+                    await keycloak.login()
                 }
                 // If we get here the user is authenticated and we can update the state accordingly
                 console.log("user already authenticated")
@@ -156,9 +161,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         return keycloak.hasRealmRole(role)
     }
 
+    const getAccessToken = () => keycloak.token
+
     // Setup the context provider
     return (
-        <AuthContext.Provider value={{isAuthenticated, username, logout, hasRole}}>
+        <AuthContext.Provider value={{isAuthenticated, username, logout, hasRole, getAccessToken}}>
             {props.children}
         </AuthContext.Provider>
     )
