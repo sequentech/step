@@ -118,6 +118,24 @@ automatically run docker compose logs on start up, for convenience.
 [direnv]: https://direnv.net/
 [devenv]: https://devenv.sh/
 
+### Add Hasura migrations/changes.
+
+If you want to make changes to hasura, or if you want the Hasura console to
+automatically add migrations to the code, first run this project in Codespaces
+and open it in VS Code Desktop (not from the web). Then, in your local machine
+install the hasura client:
+
+    curl -L https://github.com/hasura/graphql-engine/raw/stable/cli/get.sh | bash
+
+Also clone this github project on your local machine (so this is apart from running
+it on Codespaces), and from the `backend-services/hasura` folder, run this:
+
+    hasura console --endpoint "http://127.0.0.1:8080" --admin-secret "admin"
+  
+Then open `http://localhost:9695` on the browser and make the changes you need.
+Those changes will be tracked with file changes on your local github, then
+commit the changes.
+
 ## Common issues
 
 ### Yarn build unexpectedly returns `exit code 143`
