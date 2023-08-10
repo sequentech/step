@@ -461,6 +461,32 @@
   "webAuthnPolicyPasswordlessCreateTimeout": 0,
   "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister": false,
   "webAuthnPolicyPasswordlessAcceptableAaguids": [],
+  "users" : [ {
+    "id" : "0516ed22-3a8f-48ca-9514-83020e242159",
+    "createdTimestamp" : 1691702289318,
+    "username" : "felix",
+    "enabled" : true,
+    "totp" : false,
+    "emailVerified" : false,
+    "firstName" : "",
+    "lastName" : "",
+    "credentials" : [ {
+      "id" : "6d4932d1-daf6-4e97-ae40-29a10f241f63",
+      "type" : "password",
+      "userLabel" : "My password",
+      "createdDate" : 1691702298980,
+      "secretData" : "{\"value\":\"2JXqixlYRSxWflpc2DvPMtHP8Six2s1xiwcQ+8R6gUI=\",\"salt\":\"VC7OZ++wHSFKQgMKnEs/ig==\",\"additionalParameters\":{}}",
+      "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
+    } ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ "UPDATE_PASSWORD" ],
+    "realmRoles" : [ "default-roles-electoral-process" ],
+    "clientRoles" : {
+      "frontend" : [ "user" ]
+    },
+    "notBefore" : 0,
+    "groups" : [ ]
+  } ],
   "scopeMappings": [
     {
       "clientScope": "offline_access",
