@@ -14,17 +14,12 @@ import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
-import {ApolloClient, InMemoryCache, ApolloProvider} from "@apollo/client"
+import {ApolloProvider} from "@apollo/client"
+import { apolloClient } from "./services/ApolloService"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
 SequentCoreLibInit().then(set_hooks)
-
-const apolloClient = new ApolloClient({
-    uri: "http://localhost:8080/v1/graphql",
-
-    cache: new InMemoryCache(),
-})
 
 root.render(
     <React.StrictMode>

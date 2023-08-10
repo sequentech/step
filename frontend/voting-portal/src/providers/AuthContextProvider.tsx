@@ -108,6 +108,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     console.log("user is not yet authenticated. forwarding user to login.")
                     await keycloak.login()
                 }
+                if (isAuthenticatedResponse && keycloak.token) {
+                    localStorage.setItem('token', keycloak.token)
+                }
                 // If we get here the user is authenticated and we can update the state accordingly
                 console.log("user already authenticated")
                 setAuthenticated(isAuthenticatedResponse)
@@ -149,6 +152,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
      * Initiate the logout
      */
     const logout = () => {
+        localStorage.removeItem('token')
         keycloak.logout()
     }
 
