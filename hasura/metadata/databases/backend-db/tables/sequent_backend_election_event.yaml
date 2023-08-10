@@ -1,3 +1,29 @@
 table:
   name: election_event
   schema: sequent_backend
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - is_archived
+        - is_audit
+        - encryption_protocol
+        - name
+        - user_boards
+        - annotations
+        - bulletin_board_reference
+        - dates
+        - labels
+        - presentation
+        - status
+        - voting_channels
+        - description
+        - created_at
+        - updated_at
+        - audit_election_event_id
+        - id
+        - tenant_id
+      filter:
+        tenant_id:
+          _eq: X-Hasura-Tenant-Id
+    comment: ""
