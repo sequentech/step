@@ -87,8 +87,6 @@ services:
     restart: always
     ports:
       - 8090:8090
-      - 9693:9693
-      - 9695:9695
     environment:
       KC_HOSTNAME: "127.0.0.1"
       #KC_HOSTNAME_PATH: "keycloak"

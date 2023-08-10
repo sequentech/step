@@ -136,6 +136,26 @@ Then open `http://localhost:9695` on the browser and make the changes you need.
 Those changes will be tracked with file changes on your local github, then
 commit the changes.
 
+#### Or do it inside the codespace
+
+Alternatively you could run the local console inside the `graphql-engine container`.
+For that you need to add ports `9693` and `9695` to `forwardPorts` in the file
+`.devcontainer/devcontainer.json` and add them to `graphql-engine.ports` in
+file `.devcontainer/docker-compose.yml`.
+
+You'll need to rebuild the container:
+
+    docker compose stop graphql-engine
+    docker compose build graphql-engine  && docker compose up -d --no-deps graphql-engine
+
+Then you get inside the container with:
+
+    docker compose exec graphql-engine /bin/sh
+
+And run the hasura console with something like:
+
+    /usr/bin/hasura-cli console --endpoint "http://127.0.0.1:8080" --admin-secret "admin" --address 0.0.0.0 --console-hge-endpoint http://127.0.0.1:8080
+
 ## Common issues
 
 ### Yarn build unexpectedly returns `exit code 143`
