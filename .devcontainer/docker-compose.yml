@@ -117,6 +117,20 @@ services:
     volumes:
        - /workspaces/backend-services/frontend:/usr/src/app:cached
 
+  immudb:
+    image: codenotary/immudb:1.5
+    restart: always
+    ports:
+      - 3322:3322 # immudb service
+      - 3323:3323 # immugw REST API service
+      - 3324:9497 # prometheus
+      - 3325:8080 # web console
+    volumes:
+      - immudb_data:/var/lib/immudb
+      - immudb_logs:/var/log/immudb
+
 volumes:
   db_data:
   keycloak_db_data:
+  immudb_data:
+  immudb_logs:
