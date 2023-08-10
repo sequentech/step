@@ -152,6 +152,9 @@ Then open `http://localhost:9695` on the browser and make the changes you need.
 Those changes will be tracked with file changes on your local github, then
 commit the changes.
 
+Note that you can insert rows as a migration by clicking on the 
+`This is a migration` option at the bottom of the `Insert Row` form.
+
 #### Or do it inside the codespace
 
 Alternatively you could run the local console inside the `graphql-engine container`.
