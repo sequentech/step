@@ -22,5 +22,5 @@ select_permissions:
           - tenant_id:
               _eq: X-Hasura-Tenant-Id
           - area_id:
-              _eq: X-Hasura-Area_id
+              _eq: X-Hasura-Area-Id
     comment: ""
