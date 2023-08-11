@@ -30,6 +30,42 @@ services:
       retries: 15
       start_period: 5s
 
+  graphql-engine:
+    image: hasura/graphql-engine:v2.31.0.cli-migrations-v3
+    ports:
+      - "8080:8080"
+    restart: always
+    volumes:
+      - ../hasura/metadata/:/hasura-metadata:cached
+      - ../hasura/migrations/:/hasura-migrations:cached
+    environment:
+      ## postgres database to store Hasura metadata
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      # applies migrations on start
+      HASURA_GRAPHQL_MIGRATIONS_DIR: /hasura-migrations
+      HASURA_GRAPHQL_METADATA_DIR: /hasura-metadata
+      ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
+      PG_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      ## enable the console served by server
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true" # set to "false" to disable console
+      ## enable debugging mode. It is recommended to disable this in production
+      HASURA_GRAPHQL_DEV_MODE: "true"
+      BACKEND_SERVICE_HOSTNAME: "http://localhost:8000"
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+      ## uncomment next line to run console offline (i.e load console assets from server instead of CDN)
+      # HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: /srv/console-assets
+      ## uncomment next line to set an admin secret
+      # HASURA_GRAPHQL_ADMIN_SECRET: myadminsecretkey
+      HASURA_GRAPHQL_METADATA_DEFAULTS: '{"backend_configs":{"dataconnector":{"athena":{"uri":"http://data-connector-agent:8081/api/v1/athena"},"mariadb":{"uri":"http://data-connector-agent:8081/api/v1/mariadb"},"mysql8":{"uri":"http://data-connector-agent:8081/api/v1/mysql"},"oracle":{"uri":"http://data-connector-agent:8081/api/v1/oracle"},"snowflake":{"uri":"http://data-connector-agent:8081/api/v1/snowflake"}}}}'
+      # keycloak jwks endpoint
+      HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url": "http://keycloak:8090/realms/electoral-process/protocol/openid-connect/certs"}'
+      HASURA_GRAPHQL_ADMIN_SECRET: 'admin'
+    #depends_on:
+    #  data-connector-agent:
+    #    condition: service_healthy
+    #  postgres:
+    #    condition: service_healthy
+
   data-connector-agent:
     image: hasura/graphql-data-connector:v2.31.0
     restart: always
@@ -90,42 +126,6 @@ services:
       --import-realm
     depends_on:
       postgres_keycloak:
-        condition: service_healthy
-
-  graphql-engine:
-    image: hasura/graphql-engine:v2.31.0.cli-migrations-v3
-    ports:
-      - "8080:8080"
-    restart: always
-    volumes:
-      - ../hasura/metadata/:/hasura-metadata:cached
-      - ../hasura/migrations/:/hasura-migrations:cached
-    environment:
-      ## postgres database to store Hasura metadata
-      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
-      # applies migrations on start
-      HASURA_GRAPHQL_MIGRATIONS_DIR: /hasura-migrations
-      HASURA_GRAPHQL_METADATA_DIR: /hasura-metadata
-      ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
-      PG_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
-      ## enable the console served by server
-      HASURA_GRAPHQL_ENABLE_CONSOLE: "true" # set to "false" to disable console
-      ## enable debugging mode. It is recommended to disable this in production
-      HASURA_GRAPHQL_DEV_MODE: "true"
-      BACKEND_SERVICE_HOSTNAME: "http://localhost:8000"
-      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
-      ## uncomment next line to run console offline (i.e load console assets from server instead of CDN)
-      # HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: /srv/console-assets
-      ## uncomment next line to set an admin secret
-      # HASURA_GRAPHQL_ADMIN_SECRET: myadminsecretkey
-      HASURA_GRAPHQL_METADATA_DEFAULTS: '{"backend_configs":{"dataconnector":{"athena":{"uri":"http://data-connector-agent:8081/api/v1/athena"},"mariadb":{"uri":"http://data-connector-agent:8081/api/v1/mariadb"},"mysql8":{"uri":"http://data-connector-agent:8081/api/v1/mysql"},"oracle":{"uri":"http://data-connector-agent:8081/api/v1/oracle"},"snowflake":{"uri":"http://data-connector-agent:8081/api/v1/snowflake"}}}}'
-      # keycloak jwks endpoint
-      HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url": "http://keycloak:8090/realms/electoral-process/protocol/openid-connect/certs"}'
-      HASURA_GRAPHQL_ADMIN_SECRET: 'admin'
-    depends_on:
-      data-connector-agent:
-        condition: service_healthy
-      postgres:
         condition: service_healthy
 
   frontend:
