@@ -199,3 +199,12 @@ docker compose build frontend && docker compose up -d --no-deps frontend
 
 Add the query/mutation to the `frontend/voting-portal/src/queries/` folder and 
 then run `yarn generate` from the `frontend/` folder to update the types.
+
+### The voting portal will not load any elections
+
+It's possible you find that the voting portal is not loading any elections,
+and that inspecting it further, the Hasura/Graphql POST gives an error similar to
+`field not found in type: 'query_root'`. This is possibly because you're connecting
+to the wrong instance of Hasura. Possibly, you're running VS Code with Codespaces
+and a local Hasura client as well, so the container port is being forwarded to
+a different port than 8080.
