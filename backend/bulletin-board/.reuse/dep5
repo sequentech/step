@@ -1,0 +1,10 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: bulletin-board
+Upstream-Contact: Eduardo Robles <edu@sequentech.io>
+Source: https://github.com/sequentech/bulletin-board
+
+# Sample paragraph, commented out:
+#
+# Files: src/*
+# Copyright: $YEAR $NAME <$CONTACT>
+# License: ...

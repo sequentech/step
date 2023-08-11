@@ -24,6 +24,7 @@ rayon = { version = "1.5" }
 anyhow = "1.0"
 
 # bb
+bulletin-board = { path="../bulletin-board", optional = true }
 clap = { version = "4.0", features = ["derive"], optional = true }
 tokio = { version = "1.0", optional = true }
 uuid = { version = "1.2", features = [ "v4" ], optional = true }

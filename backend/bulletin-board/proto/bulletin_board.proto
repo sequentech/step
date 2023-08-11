@@ -1,0 +1,280 @@
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+syntax = "proto3";
+package bulletin_board;
+
+service BulletinBoard {
+    rpc ListBoards (ListBoardsRequest) returns (ListBoardsResponse);
+    rpc CreateBoard (CreateBoardRequest) returns (CreateBoardResponse);
+    rpc ListEntries (ListEntriesRequest) returns (ListEntriesResponse);
+    rpc AddEntries (AddEntriesRequest) returns (AddEntriesResponse);
+    rpc ModifyBoard (ModifyBoardRequest) returns (ModifyBoardResponse);
+}
+
+// BulletinBoard message.
+message Board {
+    // Board UUID will coincide with the one requested.
+    string uuid = 1;
+
+    // Human-readable name to assign to this board.
+    // Requirements:
+    // - it need not to be an empty string
+    // - it needs to be valid UTF-8
+    // - it cannot contain any whitspace
+    // - it cannot contain the `+` character
+    string name = 2;
+
+    // Human-readable description of the board. Optional.
+    optional string description = 3;
+
+    // If the board is archived or not.
+    bool is_archived = 5;
+
+    // Public Key of the board.
+    string public_key = 6;
+
+    // Metadata of the board.
+    map<string, string> metadata = 7;
+
+    // Manage board permissions.
+    Permissions permissions = 8;
+}
+
+// Checkpoint message.
+message Checkpoint {
+    // Origin is the string identifing the log which issued this checkpoint.
+    string origin = 1;
+
+    // Size is the number of entries in the log at this checkpoint.
+    uint64 size = 2;
+
+    // Hash which commits to the contents of the entire log.
+    string hash = 3;
+}
+
+message BoardEntryData {
+    // Data is optional because for example in AddEntries method it doesn't make
+    // sense to reply with the whole entry again - it's inefficient
+    optional bytes data = 6;
+}
+
+// BoardEntry message.
+message BoardEntry {
+    // Board entry sequence id, assigned by the service.
+    uint64 sequence_id = 1;
+
+    // Board entry kind. It contains the entry data (provided by the signer) too.
+    oneof kind {
+        Board board = 2;
+        BoardEntryData entry_data = 3;
+    }
+
+    // Board entry metadata, provided by the signer.
+    map<string, string> metadata = 4;
+
+    // Signer of the board entry.
+    string signer_public_key = 5;
+
+    // Verifiable signature of the board entry by the signer.
+    string signature = 6;
+
+    // Timestamp of when the board entry was added, provided by the service.
+    uint64 timestamp = 7;
+}
+
+// ListBoards request.
+message ListBoardsRequest {
+    // Filter by board archival state.
+    optional bool is_archived = 1;
+
+    // Listing by exact board name match.
+    optional string board_name = 2; 
+
+    // Listing by exact board uuid match.
+    optional string board_uuid = 3;
+}
+
+// Items that ties together a Board and its latest sequence id.
+message ListBoardItem {
+    // Latest sequence id of this board.
+    uint64 board_last_sequence_id = 1;
+
+    // Latest configuration of this board.
+    Board board = 2;
+}
+
+// ListBoards response.
+message ListBoardsResponse {
+    // Listed boards
+    repeated ListBoardItem boards = 1;
+}
+
+// Represents a user identity.
+message User {
+    // Identity name of the user, unique for each board.
+    string name = 1;
+
+    // Public key of the user.
+    string public_key = 2;
+
+    // Metadata of the user.
+    map<string, string> metadata = 3;
+}
+
+// Represents a role with a set of permissions.
+message Role {
+    // Name of the role.
+    string name = 1;
+
+    // Permissions of the role. Available permissions:
+    // - "AddEntries"
+    // - "ModifyBoardConfig"
+    repeated string permissions = 2;
+
+    // Metadata of the role.
+    map<string, string> metadata = 3;
+}
+
+// Assigns a set of roles to a user by name.
+message UserRole {
+    // Name of the user.
+    string user_name = 1;
+
+    // List of roles assigned to the user.
+    repeated string role_names = 2;
+}
+
+// Handles permissions.
+message Permissions {
+    // List of users of the board.
+    repeated User users = 5;
+
+    // List of roles that can be assigned to users.
+    repeated Role roles = 6;
+
+    // List of assignment of roles to users.
+    repeated UserRole user_roles = 7;
+}
+
+// CreateBoard request.
+message CreateBoardRequest {
+    // Board UUID will coincide with the one requested.
+    string board_uuid = 1;
+
+    // Human-readable name to assign to this board.
+    string board_name = 2;
+
+    // Human-readable description of the board. Optional.
+    optional string board_description = 3;
+
+    // Metadata of the board.
+    map<string, string> board_metadata = 4;
+
+    // Board permissions.
+    Permissions permissions = 5;
+
+    // Signer of the board entry.
+    string signer_public_key = 6;
+
+    // Verifiable signature of the board entry by the signer.
+    string signature = 7;
+}
+
+// CreateBoard response.
+message CreateBoardResponse {
+    // Created Board.
+    Board bulletin_board = 1;
+
+    // Latest checkpoint of the board.
+    Checkpoint checkpoint = 2;
+}
+
+// ListEntries request.
+message ListEntriesRequest {
+    // UUID of the board whose entries should be listed.
+    string board_uuid = 1;
+
+    // Request listing entries in order, including and starting with this
+    // sequence id.
+    uint64 start_sequence_id = 2;
+}
+
+// ListEntries response.
+message ListEntriesResponse {
+    // Last sequence id of the requested board.
+    uint64 board_last_sequence_id = 1;
+
+    // List of entries included in the response.
+    repeated BoardEntry board_entries = 2;
+}
+
+// NewDataEntry message.
+message NewDataEntry {
+    // Entry data. Note this is the only part of the data that will be signed
+    // by the signer - not even the metadata will be signed.
+    bytes data = 1;
+
+    // Entry metadata.
+    map<string, string> metadata = 2;
+
+    // Signer of the board entry.
+    string signer_public_key = 6;
+
+    // Verifiable signature of the board entry by the signer.
+    string signature = 7;
+}
+
+// AddEntries request.
+message AddEntriesRequest {
+    // UUID of the board in which the entry should be added.
+    string board_uuid = 1;
+
+    // Data entries to be added.
+    repeated NewDataEntry entries = 2;
+}
+
+// AddEntries response.
+message AddEntriesResponse {
+    // List of entries added, but with the entry data not included to avoid
+    // performance penalty.
+    repeated BoardEntry entries = 1;
+
+    // Latest checkpoint that includes these entries.
+    Checkpoint checkpoint = 2;
+}
+
+// ModifyBoard request.
+message ModifyBoardRequest {
+    // UUID of the board to modify.
+    string board_uuid = 1;
+
+    // Human-readable name to assign to this board.
+    string board_name = 2;
+
+    // Human-readable description of the board. Optional.
+    optional string board_description = 3;
+
+    // If the board is archived or not.
+    bool is_archived = 4;
+
+    // Metadata of the board.
+    map<string, string> board_metadata = 5;
+
+    // Board permissions.
+    Permissions permissions = 6;
+
+    // Signer of the board entry.
+    string signer_public_key = 7;
+
+    // Verifiable signature of the board entry by the signer.
+    string signature = 8;
+
+}
+
+// ModifyBoard response.
+message ModifyBoardResponse {
+    // Latest state of the Board, where it is archived.
+    Board board = 1;
+}

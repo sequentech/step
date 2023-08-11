@@ -1,4 +1,7 @@
+#![feature(let_chains)]
+
 cfg_if::cfg_if! {
+
 if #[cfg(feature = "repl")] {
 
 
@@ -265,10 +268,9 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
 
 fn log<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     let mut new_level = filter::LevelFilter::INFO;
-    let l = args.value_of("level");
-    if let Some(level) = l {
-        let parsed = level.parse::<u8>()?;
-        new_level = match parsed {
+    if let Some(level_string) = args.get_one::<String>("level") &&
+       let Ok(level) = level_string.parse::<u8>() {
+        new_level = match level {
             0 => filter::LevelFilter::OFF,
             1 => filter::LevelFilter::ERROR,
             2 => filter::LevelFilter::WARN,
@@ -324,7 +326,11 @@ fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
 
 fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     let ctx = context.ctx.clone();
-    let batch = args.value_of("batch").unwrap().parse::<usize>().unwrap();
+    let batch = args
+        .get_one::<String>("batch")
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
     info!("Generating 10 ballots with batch# {}", batch);
 
     let dkgpk = context.trustees[0].get_dkg_public_key_nohash().unwrap();
@@ -372,6 +378,7 @@ fn plaintexts<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<
         .collect();
     Ok(Some(format!("Plaintexts {:?}", encoded)))
 }
+
 fn decrypted<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     if let Some(plaintexts) = context.trustees[0].get_plaintexts_nohash(1) {
         let decrypted: Vec<C::E> = plaintexts
@@ -394,12 +401,17 @@ fn decrypted<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<O
 }
 
 fn reset<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
-    let n_trustees = args.value_of("trustees").unwrap().parse::<u8>().unwrap();
-    let threshold = args
-        .value_of("threshold")
+    let n_trustees = args
+        .get_one::<String>("trustees")
         .unwrap()
-        .parse::<usize>()
+        .parse::<u8>()
         .unwrap();
+    
+    let threshold = args
+    .get_one::<String>("threshold")
+    .unwrap()
+    .parse::<usize>()
+    .unwrap();
 
     let t = [1, 2, 3, 4, 5, 6, 7, 8];
     let reset = mk_context(context.ctx.clone(), n_trustees, &t[0..threshold]);
@@ -424,11 +436,10 @@ fn reset<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Optio
 fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     context.last_actions = HashSet::from([]);
     context.last_messages = vec![];
-
-    let trustee = args.value_of("trustee");
-    if let Some(value) = trustee {
-        let t = value.parse::<u8>()?;
-        let trustee_: Option<&mut Trustee<C>> = context.trustees.get_mut(t as usize);
+    if let Some(trustee_string) = args.get_one::<String>("trustee") &&
+        let Ok(trustee) = trustee_string.parse::<u8>()
+    {
+        let trustee_: Option<&mut Trustee<C>> = context.trustees.get_mut(trustee as usize);
         if let Some(trustee) = trustee_ {
             let (messages, actions) = trustee.step(context.remote.get(0)).unwrap();
             send(&messages, &mut context.remote);
@@ -515,9 +526,7 @@ fn test_repl<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Resul
         .with_command(Command::new("quit").about("quit"), quit);
     repl.run()
 }
-}
-
-else {
+} else {
     fn main() {
         println!("Requires the 'repl' feature");
     }

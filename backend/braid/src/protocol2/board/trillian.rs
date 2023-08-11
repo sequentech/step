@@ -17,6 +17,7 @@ pub struct TrillianBoard<CS: CacheStore> {
     client: Client<CS>,
     name: String,
 }
+
 impl<CS: CacheStore> TrillianBoard<CS> {
     pub fn new(name: String, client: Client<CS>) -> TrillianBoard<CS> {
         TrillianBoard { name, client }

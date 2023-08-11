@@ -1,0 +1,68 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "cargo-build-server",
+        "type": "shell",
+        "command": "nix develop --command bash -c 'cargo build --all-features --bin bulletin-board-server'",
+        "problemMatcher": [
+            "$rustc"
+        ],
+        "group": {
+            "kind": "build",
+            "isDefault": true
+        }
+      },{
+        "label": "cargo-build-server-release",
+        "type": "shell",
+        "command": "nix develop --command bash -c 'cargo build --release --all-features --bin bulletin-board-server'",
+        "problemMatcher": [
+            "$rustc"
+        ],
+        "group": {
+            "kind": "build",
+            "isDefault": true
+        }
+      },
+      {
+        "label": "run lib tests",
+        "type": "shell",
+        "command": "nix develop --command bash -c 'TRACING_LEVEL=debug cargo test --all-features --package=bulletin-board'",
+        "problemMatcher": [
+            "$rustc"
+        ],
+        "group": {
+            "kind": "test",
+            "isDefault": true
+        }
+      },
+      {
+        "label": "run lib benchmark",
+        "type": "shell",
+        "command": "nix develop --command bash -c 'TRACING_LEVEL=error cargo bench --all-features --bench service'",
+        "problemMatcher": [
+            "$rustc"
+        ],
+        "group": {
+            "kind": "test",
+            "isDefault": true
+        }
+      },
+      {
+        "label": "run cargo doc and launch http server",
+        "type": "shell",
+        "command": "nix develop --command bash -c 'cargo doc && python -m http.server -d /workspace/target/doc/ 8080'",
+        "problemMatcher": [
+            "$rustc"
+        ],
+      },
+      {
+        "label": "launch docusaurus documentation",
+        "type": "shell",
+        "command": "nix develop --command bash -c 'cd doc/ && yarn && yarn start'",
+        "problemMatcher": [
+            "$rustc"
+        ],
+      },
+    ]
+  }
