@@ -1,0 +1,258 @@
+<!--
+SPDX-FileCopyrightText: 2022 David Ruescas <david@sequentech.io>
+SPDX-FileCopyrightText: 2022 Eduardo Robles <edu@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>strand wasm demo</title>
+    <style>
+      body {
+        background-color: black;
+      }
+
+      .data-element {
+        white-space: pre;
+        font-size: 20px;
+        display: block; 
+        overflow: auto;
+        height: 120px;
+      }
+
+      #encrypted {
+        color:gray;
+      }
+
+      #shuffled {
+        color:lightgrey;
+      }
+
+      #decrypted {
+        color:lightgreen;
+      }
+
+      .component-wrapper {
+        padding: 15px 10px 10px;
+        width: 98%;
+        border: solid cyan;
+        border-width: 1px;
+        margin-right: 5px;
+      }
+
+      .component-wrapper .header {
+        position:absolute;
+        margin-top:-25px;
+        margin-left:10px;
+        color:white;
+        background:gray;
+        padding:2px 10px;
+      }
+      
+      .grid-area {
+        display: grid;
+    
+        grid-template-rows: 40px 1fr 1fr;
+        grid-template-columns: 1fr;
+        
+        gap: 0px;
+        height: 100%;
+        width: 100%;
+      }
+        
+      #button-area {
+        background-color: black; 
+        grid-row-start: 1;
+        grid-column-start: 1;
+    
+        grid-row-end: 2;
+        grid-column-end: 2;
+        width: 100%;
+      }
+      #data-area {
+        background-color: black; 
+        grid-row-start: 2;
+        grid-column-start: 1;
+    
+        grid-row-end: 3;
+        grid-column-end: 2;
+        width: 100%;
+      }
+
+      #item-2 {
+        background-color: black; 
+        grid-row-start: 3;
+        grid-column-start: 1;
+    
+        grid-row-end: 4;
+        grid-column-end: 2;
+        overflow:scroll;
+        overflow-x:hidden;
+        width: 100%;  
+        height: 150px;
+      }
+    </style>
+    <script type="module">
+      var encrypted = [];
+      var shuffled = [];
+      var parameters = {};
+      window.location.search.slice(1).split("&").forEach( function(key_value) { var kv = key_value.split("="); parameters[kv[0]] = kv[1]; });
+      var w = 'demo.js';
+      
+      var worker = new Worker(w + window.location.search, { type: 'module' });
+      worker.onmessage = function(e) {
+        var message = e.data;
+        
+        if(!(typeof message === 'object')) {
+          console.log("Main: wasm: " + JSON.stringify(message));
+          message = { data: message };
+          message.type = "log"
+        }
+        
+        if(message.type == "log") {
+          var log = document.getElementById("log");
+          var lognew = document.getElementById("lognew");
+          if(lognew.textContent != '') {
+            log.textContent += lognew.textContent + '\r\n';
+          }
+          lognew.textContent = message.data;
+          
+          var footer = document.getElementById("item-2");
+          footer.scrollTo(0, footer.scrollHeight);
+        }
+        else if(message.type == "ready") {
+          document.getElementById("buttons").removeAttribute("hidden");
+          document.getElementById("working").setAttribute("hidden", "hidden");
+          document.getElementById("encrypt").onclick = function() {
+            var yes = document.getElementById("yes").value;
+            var no = document.getElementById("no").value;
+
+            yes = isNaN(yes) ? 100 : yes;
+            no = isNaN(no) ? 100 : no;
+            
+            document.getElementById("working").removeAttribute("hidden");
+            worker.postMessage({
+              type: "encrypt",
+              yes: yes,
+              no: no,
+            });
+          };
+          document.getElementById("shuffle").onclick = function() {
+            if(encrypted.length == 0) {
+              console.log("Main: Nothing to shuffle yet");
+              return;
+            }
+            
+            document.getElementById("working").removeAttribute("hidden");
+            worker.postMessage({
+              type: "shuffle",
+              data: encrypted,
+            });
+          };
+          document.getElementById("decrypt").onclick = function() {
+            var arg = [];
+            if(shuffled.length == 0) {
+              arg = encrypted;
+            }
+            else {
+              arg = shuffled;
+            }
+
+            if(arg.length == 0) {
+              console.log("Main: Nothing to decrypt yet");
+              return;
+            }
+            else {
+              document.getElementById("working").removeAttribute("hidden");
+              worker.postMessage({
+                type: "decrypt",
+                data: arg,
+              });
+            }
+          };
+          document.getElementById("clear").onclick = function() {
+            encrypted = [];
+            shuffled = [];
+            document.getElementById("encrypted").textContent = '';
+            document.getElementById("shuffled").textContent = '';
+            document.getElementById("decrypted").textContent = '';
+          };
+        }
+        else if(message.type == "encrypted") {
+          console.log("Main: received encrypted: " + JSON.stringify(message.data));
+          encrypted = message.data;
+          var target = document.getElementById("encrypted");
+          target.textContent = '';  
+          if(message.data.length > 1000) {
+            var extra = message.data.length - 1000;
+            message.data = message.data.slice(0, 1000);
+            message.data.push("... " + extra + " more ...");
+          }
+          message.data.forEach(x => target.textContent += JSON.stringify(x) + '\r\n');
+          target.scrollTo(0, target.scrollHeight);
+          document.getElementById("working").setAttribute("hidden", "hidden");
+        }
+        else if(message.type == "shuffled") {
+          console.log("Main: received shuffled: " + JSON.stringify(message.data));
+          shuffled = message.data;
+          var target = document.getElementById("shuffled");
+          target.textContent = '';
+          if(message.data.length > 1000) {
+            var extra = message.data.length - 1000;
+            message.data = message.data.slice(0, 1000);
+            message.data.push("... " + extra + " more ...");
+          }
+          
+          message.data.forEach(x => target.textContent += JSON.stringify(x) + '\r\n');
+          target.scrollTo(0, target.scrollHeight);
+          document.getElementById("working").setAttribute("hidden", "hidden");
+        }
+        else if(message.type == "decrypted") {
+          console.log("Main: received decrypted: " + JSON.stringify(message.data));
+          var target = document.getElementById("decrypted");
+          target.textContent = '';
+          if(message.data.length > 1000) {
+            var extra = message.data.length - 1000;
+            message.data = message.data.slice(0, 1000);
+            message.data.push({value: "... " + extra + " more ..."});
+          }
+          message.data.forEach(x => target.textContent += x.value + '\r\n');
+          target.scrollTo(0, target.scrollHeight);
+          document.getElementById("working").setAttribute("hidden", "hidden");
+        }
+      };
+    </script>
+  </head>
+  <body>
+    <div class="grid-area">
+      <div id="button-area">
+        <span id="buttons" hidden="hidden">
+          <label style="color:lightgray;" for="yes">Yes # </label><input type="text" size="5" value="1000" id="yes" name="Yes">
+          <label style="color:lightgray;" for="no">No # </label><input type="text" size="5" value="1000" id="no" name="No">
+          <button id="encrypt">Encrypt</button>
+          <button id="shuffle">Shuffle</button>
+          <button id="decrypt">Decrypt</button>
+          <button id="clear">Clear</button>
+        </span>
+        <span id="working" style="color:yellow;text-align: right;">Working..</span>
+      </div>
+      <div id="data-area">
+        <div id="encrypted_div" class='component-wrapper'><div class="header">Input ciphertexts</div>
+        <span class="data-element" id="encrypted"></span>
+        </div>
+        <div id="shuffled_div" class='component-wrapper'><div class="header">Shuffled ciphertexts</div>  
+        <span class="data-element" id="shuffled"></span>
+        </div>
+        <div id="decrypted_div" class='component-wrapper'><div class="header">Plaintexts</div>  
+        <span class="data-element" id="decrypted"></span>
+        </div>
+      </div>
+      <div id="item-2">
+        <span id="log" style="color:white;white-space: pre;font-size: 20px;"></span>
+        <span id="lognew" style="color:cyan;white-space: pre;font-size: 20px;"></span>
+      </div>
+    </div>  
+  </body>
+</html>

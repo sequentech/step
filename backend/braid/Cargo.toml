@@ -19,13 +19,11 @@ getrandom = { version = "0.2", features = ["js"] }
 borsh = "0.9.3"
 crepe = "0.1.5"
 strum = { version = "0.24.1", features = ["derive"] }
-# strand = { path="../strand", features=["rayon"] }
-strand = { git = "https://github.com/sequentech/strand", features= ["rayon"], tag = "v0.2.0" }
+strand = { path="../strand", features=["rayon"] }
 rayon = { version = "1.5" }
 anyhow = "1.0"
 
 # bb
-bulletin-board = { path="../bulletin-board", optional = true }
 clap = { version = "4.0", features = ["derive"], optional = true }
 tokio = { version = "1.0", optional = true }
 uuid = { version = "1.2", features = [ "v4" ], optional = true }

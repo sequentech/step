@@ -56,13 +56,13 @@ rust&rocket based backend service, you can launch it manually by executing the
 following command in a dedicated terminal:
 
 ```bash
-cd backend/ && cargo run
+cd backend/backend-services && cargo run
 ```
 
 This should output something like:
 
 ```bash
-@edulix ➜ /workspace/backend (main ✗) $ cargo run
+@edulix ➜ /workspace/backend/backend-services (main ✗) $ cargo run
     Updating crates.io index
   Downloaded async-trait v0.1.68
   ....
