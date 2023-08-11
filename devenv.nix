@@ -14,9 +14,15 @@
 
     # To be able to use vim in the terminal
     pkgs.vim
+  
     # utility for search
     pkgs.ack
+
+    # docker utility
     pkgs.dive
+
+    # wget! basic
+    pkgs.wget
 
     # For frontend
     pkgs.yarn

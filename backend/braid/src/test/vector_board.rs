@@ -1,0 +1,72 @@
+use crate::protocol2::{message::Message, statement::StatementType};
+
+///////////////////////////////////////////////////////////////////////////
+// VectorBoard
+//
+// A vector backed dummy implementation for in memory testing.
+///////////////////////////////////////////////////////////////////////////
+
+/*
+Persistence implementation:
+
+* Add a message counter, starts at zero when constructing
+
+* Step procedure
+
+1) Retrieve messages starting at counter
+2) Verify messages
+3) Save messages in kv
+4) Trustee update
+5) Increment counter
+
+* When constructing:
+1) Read all persistent messages and store them in memory
+2) Return persistent messages + updated messages in next Trustee update
+3) Clear persistent messages from memory
+
+*/
+
+#[derive(Clone)]
+pub struct VectorBoard {
+    session_id: u128,
+    // required by test_repl
+    pub messages: Vec<Message>,
+}
+
+impl VectorBoard {
+    pub fn new(session_id: u128) -> VectorBoard {
+        let messages = Vec::new();
+
+        VectorBoard {
+            session_id,
+            messages,
+        }
+    }
+
+    pub fn add(&mut self, message: Message) {
+        self.messages.push(message);
+    }
+
+    pub fn get(&self, from: usize) -> Vec<Message> {
+        self.messages[from..self.messages.len()].to_vec()
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Debug
+///////////////////////////////////////////////////////////////////////////
+
+impl std::fmt::Debug for VectorBoard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let types: Vec<(StatementType, bool)> = self
+            .messages
+            .iter()
+            .map(|m| (m.statement.get_kind(), m.artifact.is_some()))
+            .collect();
+        write!(
+            f,
+            "VectorBoard{{session_id={} messages={:?} }}",
+            self.session_id, types
+        )
+    }
+}

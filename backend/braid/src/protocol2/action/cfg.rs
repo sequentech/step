@@ -1,0 +1,18 @@
+use anyhow::Result;
+
+use super::*;
+
+pub(super) fn sign_config<C: Ctx>(
+    configuration_h: &ConfigurationHash,
+    trustee: &Trustee<C>,
+) -> Result<Vec<Message>> {
+    let cfg = trustee.get_configuration(configuration_h)?;
+    assert!(trustee.is_config_valid(cfg));
+    trace!("Configuration is valid");
+
+    let self_index = cfg.get_trustee_position(&trustee.get_pk());
+    assert!(self_index.is_some());
+
+    let m = Message::configuration_msg(cfg, trustee)?;
+    Ok(vec![m])
+}

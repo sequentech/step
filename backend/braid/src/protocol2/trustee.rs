@@ -1,0 +1,492 @@
+use anyhow::anyhow;
+use anyhow::Result;
+use chacha20poly1305::{
+    aead::{Aead, AeadCore, KeyInit, OsRng},
+    consts::{U12, U32},
+    ChaCha20Poly1305,
+};
+use generic_array::GenericArray;
+use log::{debug, error, info, trace, warn};
+use rayon::prelude::*;
+use std::collections::HashSet;
+use std::marker::PhantomData;
+use tracing_attributes::instrument;
+
+use strand::context::Ctx;
+use strand::serialization::{StrandDeserialize, StrandSerialize};
+use strand::signature::{StrandSignature, StrandSignaturePk, StrandSignatureSk};
+
+use crate::protocol2::artifact::Commitments;
+use crate::protocol2::artifact::Configuration;
+use crate::protocol2::artifact::DkgPublicKey;
+use crate::protocol2::artifact::Shares;
+use crate::protocol2::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts, ShareTransport};
+use crate::protocol2::board::local::LocalBoard;
+use crate::protocol2::message::Message;
+use crate::protocol2::predicate::Predicate;
+use crate::protocol2::predicate::*;
+use crate::protocol2::statement::{Statement, StatementType};
+use crate::protocol2::PROTOCOL_MANAGER_INDEX;
+use crate::protocol2::{action::Action, artifact::EncryptedCoefficients};
+
+///////////////////////////////////////////////////////////////////////////
+// Trustee
+//
+// Represents the instantiation of a trustee within a specific protocol
+// session. Runs the main loop for the trustee's participation in the session.
+//
+// 1) Retrieve messages from RemoteBoard
+// 2) Update LocalBoard with Statements and Artifacts
+// 3) Derive Predicates from Statements on LocalBoard
+// 4) Invoke Datalog with input predicates
+//      4.1) Pass output predicates from 4) to subsequent MachinePhases
+// 5) Run Actions resulting from 4)
+// 6) Return resulting Messages for subsequent posting on RemoteBoard
+//
+// Does not post the messages itself, to abstract from protocol level
+// parallelization concerns handled elsewhere.
+///////////////////////////////////////////////////////////////////////////
+
+pub struct Trustee<C: Ctx> {
+    pub signing_key: StrandSignatureSk,
+    // A ChaCha20Poly1305 encryption key
+    pub encryption_key: GenericArray<u8, U32>,
+    local_board: LocalBoard<C>,
+}
+
+impl<C: Ctx> Sender for Trustee<C> {
+    fn get_signing_key(&self) -> &StrandSignatureSk {
+        &self.signing_key
+    }
+}
+
+impl<C: Ctx> Trustee<C> {
+    pub fn new(
+        signing_key: StrandSignatureSk,
+        encryption_key: GenericArray<u8, U32>,
+    ) -> Trustee<C> {
+        let local_board = LocalBoard::new();
+
+        Trustee {
+            signing_key,
+            encryption_key,
+            local_board,
+        }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Protocol step: update->derive predicates->infer&run
+    ///////////////////////////////////////////////////////////////////////////
+
+    #[instrument(name = "Trustee::step", skip(messages))]
+    pub fn step(&mut self, messages: Vec<Message>) -> Result<(Vec<Message>, HashSet<Action>)> {
+        let added_messages = self.update(messages)?;
+
+        debug!("Update added {} messages", added_messages);
+        let predicates = self.derive_predicates()?;
+        debug!("Derived {} predicates {:?}", predicates.len(), predicates);
+        let (messages, actions) = self.infer_and_run_actions(&predicates)?;
+
+        debug!(
+            "Actions yielded {} messages, {:?}",
+            messages.len(),
+            messages
+        );
+
+        for m in messages.iter() {
+            info!("Returning message {:?}", m);
+            // Sanity check
+            // Ensure that all outgoing messages' cfg field matches that of the local board
+            assert_eq!(
+                m.statement.get_cfg_h(),
+                self.local_board
+                    .get_cfg_hash()
+                    .expect("cfg hash should always be present once the trustee is posting")
+            );
+        }
+
+        Ok((messages, actions))
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // update
+    ///////////////////////////////////////////////////////////////////////////
+
+    #[instrument(name = "Trustee::update", skip_all)]
+    fn update(&mut self, mut messages: Vec<Message>) -> Result<i32> {
+        let mut added = 0;
+        info!("Updating with {} messages", messages.len());
+
+        let configuration = self.local_board.get_configuration_raw();
+        if let Some(configuration) = configuration {
+            ///////////////////////////////////////////////////////////////////////////
+            // Generic message update
+            //
+            // Each message is verified and added to the local board.
+            ///////////////////////////////////////////////////////////////////////////
+
+            info!("Generic update with {} messages", messages.len());
+
+            // The parallel field cfg_hash must exist as well as the configuration itself
+            assert!(self.local_board.get_cfg_hash().is_some());
+            let cfg_hash = self.local_board.get_cfg_hash().expect("impossible");
+
+            for message in messages {
+                let verified = message.verify(&configuration);
+
+                if verified.is_none() {
+                    warn!("Message failed verification, ignoring");
+                    continue;
+                }
+                let verified = verified.expect("impossible");
+
+                if verified.statement.get_cfg_h() != cfg_hash {
+                    warn!("Message has mismatched configuration hash, ignoring");
+                    continue;
+                }
+
+                let added_ = self.local_board.add(verified);
+                if added_.is_ok() {
+                    added += 1;
+                }
+            }
+        } else {
+            ///////////////////////////////////////////////////////////////////////////
+            // Bootstrapping update
+            //
+            // There is no configuration. We retrieve message zero, check that it's the
+            // configuration and add it to the local board.
+            ///////////////////////////////////////////////////////////////////////////
+
+            info!("Configuration not present in board, getting first remote message");
+            if messages.is_empty() {
+                return Err(anyhow!(
+                    "Zero messages received, cannot retrieve configuration"
+                ));
+            }
+            let zero = messages.remove(0);
+
+            if zero.statement.get_kind() != StatementType::Configuration {
+                return Err(anyhow!("Invalid statement type for zeroth message"));
+            }
+
+            if zero.artifact.is_none() {
+                return Err(anyhow!("No artifact for configuration message"));
+            }
+
+            let artifact = zero.artifact.as_ref().expect("impossible");
+            let configuration_ = Configuration::strand_deserialize(artifact);
+            if configuration_.is_err() {
+                return Err(anyhow!("Error deserializing configuration"));
+            }
+
+            let configuration: Configuration<C> = configuration_.expect("impossible");
+            let verified_ = zero.verify(&configuration);
+            if verified_.is_none() {
+                return Err(anyhow!("Failed verifying message"));
+            }
+
+            let verified = verified_.expect("impossible");
+            assert!(verified.signer_position == PROTOCOL_MANAGER_INDEX);
+            trace!("Verified signature, Configuration signed by Protocol Manager");
+
+            // The configuration is not verified here, but in the SignConfiguration action
+            let added_ = self.local_board.add(verified);
+            if added_.is_ok() {
+                added += 1;
+            } else {
+                return Err(anyhow!("Configuration should have been added"));
+            }
+            // Process the rest of the messages
+            if !messages.is_empty() {
+                return self.update(messages);
+            }
+        }
+
+        info!("Update done");
+        Ok(added)
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // derive
+    ///////////////////////////////////////////////////////////////////////////
+
+    #[instrument(name = "Trustee::derive_predicates", skip_all)]
+    fn derive_predicates(&self) -> Result<Vec<Predicate>> {
+        let mut predicates = vec![];
+
+        let configuration = self.local_board.get_configuration_raw();
+        let configuration =
+            configuration.ok_or(anyhow!("Cannot derive predicates without a configuration"))?;
+        // Generate special configuration predicate
+        let configuration_p_ = Predicate::get_bootstrap_predicate(&configuration, &self.get_pk());
+
+        let configuration_p =
+            configuration_p_.ok_or(anyhow!("Self authority not found in configuration"))?;
+        predicates.push(configuration_p);
+        trace!("Adding bootstrap predicate {:?}", configuration_p);
+
+        let entries = self.local_board.get_entries();
+
+        let stmts: Vec<String> = entries.iter().map(|s| s.key.kind.to_string()).collect();
+        info!(
+            "There are {} non bootstrap statements on local board, {:?}",
+            entries.len(),
+            stmts
+        );
+
+        // Generate predicates from board statements
+        for entry in entries.iter() {
+            debug!("Found statement entry {:?}", entry.value);
+            let statement = &entry.value.1;
+            let next =
+                Predicate::from_statement(statement, entry.key.signer_position, &self.local_board);
+            if let Some(ps) = next {
+                for p in ps {
+                    debug!("Adding predicate {:?}", p);
+                    predicates.push(p);
+                }
+            } else {
+                warn!("No predicate added for statement entry {:?}", entry.value);
+            }
+        }
+
+        info!("Derived {} predicates", predicates.len());
+
+        Ok(predicates)
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // infer&run
+    ///////////////////////////////////////////////////////////////////////////
+
+    #[instrument(name = "Trustee::infer_and_run_actions", skip_all)]
+    fn infer_and_run_actions(
+        &self,
+        predicates: &Vec<Predicate>,
+    ) -> Result<(Vec<Message>, HashSet<Action>)> {
+        let _ = self
+            .local_board
+            .get_configuration_raw()
+            .ok_or(anyhow!("Cannot run actions without a configuration"))?;
+
+        let actions = crate::protocol2::datalog::run(predicates);
+        debug!("Datalog returns {} actions, {:?}", actions.len(), actions);
+
+        let ret_actions = actions.clone();
+
+        // Cross-Action parallelism (which in effect is cross-batch parallelism)
+        let messages: Vec<Option<Vec<Message>>> = actions
+            .into_par_iter()
+            .map(|a| {
+                info!("Action {:?} start", a);
+
+                let m_ = a.run(self);
+                if let Ok(m) = m_ {
+                    info!("Action {:?} yields message {:?}", a, m);
+                    Some(m)
+                } else {
+                    error!("Action {:?} returned error {:?}", a, m_);
+                    None
+                }
+            })
+            .collect();
+
+        let result: Vec<Message> = messages.into_iter().flatten().flatten().collect();
+
+        info!("{} actions executed", ret_actions.len());
+
+        Ok((result, ret_actions))
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Artifact accessors for Actions
+    ///////////////////////////////////////////////////////////////////////////
+
+    pub(crate) fn get_configuration(&self, hash: &ConfigurationHash) -> Result<&Configuration<C>> {
+        self.local_board
+            .get_configuration(hash)
+            .ok_or(anyhow!("Could not retrieve configuration",))
+    }
+
+    // FIXME Used by test_repl::status, remove
+    pub fn copy_local_board(&self) -> LocalBoard<C> {
+        self.local_board.clone()
+    }
+
+    pub(crate) fn get_commitments(
+        &self,
+        hash: &CommitmentsHash,
+        signer_position: TrusteePosition,
+    ) -> Option<Commitments<C>> {
+        self.local_board.get_commitments(hash, signer_position)
+    }
+
+    pub(crate) fn get_shares(
+        &self,
+        hash: &SharesHash,
+        signer_position: TrusteePosition,
+    ) -> Option<Shares> {
+        self.local_board.get_shares(hash, signer_position)
+    }
+
+    pub(crate) fn get_dkg_public_key(
+        &self,
+        hash: &PublicKeyHash,
+        signer_position: TrusteePosition,
+    ) -> Option<DkgPublicKey<C>> {
+        self.local_board.get_dkg_public_key(hash, signer_position)
+    }
+
+    pub(crate) fn get_ballots(
+        &self,
+        hash: &CiphertextsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Option<Ballots<C>> {
+        self.local_board.get_ballots(hash, batch, signer_position)
+    }
+
+    pub(crate) fn get_mix(
+        &self,
+        hash: &CiphertextsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Option<Mix<C>> {
+        self.local_board.get_mix(hash, batch, signer_position)
+    }
+
+    pub(crate) fn get_decryption_factors(
+        &self,
+        hash: &DecryptionFactorsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Option<DecryptionFactors<C>> {
+        self.local_board
+            .get_decryption_factors(hash, batch, signer_position)
+    }
+
+    pub(crate) fn get_plaintexts(
+        &self,
+        hash: &PlaintextsHash,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Option<Plaintexts<C>> {
+        self.local_board
+            .get_plaintexts(hash, batch, signer_position)
+    }
+
+    // FIXME "outside" function
+    pub fn get_dkg_public_key_nohash(&self) -> Option<DkgPublicKey<C>> {
+        self.local_board.get_dkg_public_key_nohash(0)
+    }
+
+    // FIXME "outside" function
+    pub fn get_plaintexts_nohash(&self, batch: BatchNumber) -> Option<Plaintexts<C>> {
+        self.local_board.get_plaintexts_nohash(batch, 0)
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    pub(crate) fn is_config_valid(&self, _config: &Configuration<C>) -> bool {
+        // FIXME validate
+        true
+    }
+
+    pub fn get_pk(&self) -> StrandSignaturePk {
+        StrandSignaturePk::from(&self.signing_key)
+    }
+
+    pub(crate) fn encrypt_coefficients(
+        &self,
+        coefficients: Vec<C::X>,
+    ) -> Result<EncryptedCoefficients> {
+        let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+        let cipher = ChaCha20Poly1305::new(&self.encryption_key);
+        let bytes: &[u8] = &coefficients.strand_serialize()?;
+        let encrypted: Result<Vec<u8>> = cipher
+            .encrypt(&nonce, bytes)
+            .map_err(|e| anyhow!("chacha error {e}"));
+
+        Ok(EncryptedCoefficients::new(encrypted?, nonce))
+    }
+
+    pub(crate) fn decrypt_coefficients(&self, ec: &EncryptedCoefficients) -> Option<Vec<C::X>> {
+        let cipher = ChaCha20Poly1305::new(&self.encryption_key);
+        let nonce = GenericArray::<u8, U12>::from_slice(&ec.nonce);
+        let bytes: &[u8] = &ec.encrypted_coefficients;
+        let decrypted = cipher.decrypt(nonce, bytes).ok()?;
+        Vec::<C::X>::strand_deserialize(&decrypted).ok()
+    }
+
+    pub(crate) fn encrypt_share_sk(&self, pk: C::E, sk: C::X) -> Result<ShareTransport<C>> {
+        let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+        let cipher = ChaCha20Poly1305::new(&self.encryption_key);
+        let bytes: &[u8] = &sk.strand_serialize()?;
+        let encrypted: Result<Vec<u8>> = cipher
+            .encrypt(&nonce, bytes)
+            .map_err(|e| anyhow!("chacha error {e}"));
+
+        Ok(ShareTransport::new(pk, encrypted?, nonce))
+    }
+
+    pub(crate) fn decrypt_share_sk(&self, st: &ShareTransport<C>) -> Option<C::X> {
+        let cipher = ChaCha20Poly1305::new(&self.encryption_key);
+        let nonce = GenericArray::<u8, U12>::from_slice(&st.nonce);
+        let bytes: &[u8] = &st.encrypted_sk;
+        let decrypted = cipher.decrypt(nonce, bytes).ok()?;
+        C::X::strand_deserialize(&decrypted).ok()
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// ProtocolManager
+///////////////////////////////////////////////////////////////////////////
+
+#[derive(Clone)]
+pub struct ProtocolManager<C: Ctx> {
+    pub signing_key: StrandSignatureSk,
+    pub phantom: PhantomData<C>,
+}
+
+impl<C: Ctx> Sender for ProtocolManager<C> {
+    fn get_signing_key(&self) -> &StrandSignatureSk {
+        &self.signing_key
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Sender (commonality to sign messages for Trustee and Protocolmanager)
+///////////////////////////////////////////////////////////////////////////
+
+pub(crate) trait Sender {
+    fn get_signing_key(&self) -> &StrandSignatureSk;
+    fn sign(&self, statement: Statement, artifact: Option<Vec<u8>>) -> Result<Message> {
+        let sk = self.get_signing_key();
+        let bytes = statement.strand_serialize()?;
+        let signature: StrandSignature = sk.sign(&bytes);
+
+        Ok(Message {
+            signer_key: StrandSignaturePk::from(sk),
+            signature,
+            statement,
+            artifact,
+        })
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Debug
+///////////////////////////////////////////////////////////////////////////
+
+impl<C: Ctx> std::fmt::Debug for Trustee<C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Trustee{{ pk={:?} }}", self.signing_key)
+    }
+}
+
+impl<C: Ctx> std::fmt::Debug for ProtocolManager<C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ProtcolManager{{ pk={:?} }}", self.signing_key)
+    }
+}
