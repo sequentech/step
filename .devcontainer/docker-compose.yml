@@ -22,6 +22,12 @@ services:
       - db_data:/var/lib/postgresql/data
     environment:
       POSTGRES_PASSWORD: postgrespassword
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 5s
   graphql-engine:
     image: hasura/graphql-engine:v2.31.0.cli-migrations-v3
     ports:
@@ -55,6 +61,10 @@ services:
     depends_on:
       data-connector-agent:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+      #keycloak:
+      #  condition: service_healthy
   data-connector-agent:
     image: hasura/graphql-data-connector:v2.31.0
     restart: always
@@ -79,6 +89,12 @@ services:
       - keycloak_db_data:/var/lib/postgresql/data
     environment:
       POSTGRES_PASSWORD: postgrespassword
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 5s
 
   keycloak:
     build:
@@ -107,6 +123,9 @@ services:
       --features=preview
       -Dkeycloak.profile.feature.upload_scripts=enabled
       --import-realm
+    depends_on:
+      postgres_keycloak:
+        condition: service_healthy
 
   frontend:
     build:
