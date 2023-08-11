@@ -42,4 +42,4 @@ Cargo.lock
 /__pycache__/
 rust-toolchain
 result
-rust/pkg
+#rust/pkg
