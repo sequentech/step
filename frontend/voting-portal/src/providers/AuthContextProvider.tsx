@@ -62,7 +62,7 @@ const defaultAuthContextValues: AuthContextValues = {
     username: "",
     logout: () => {},
     hasRole: (role) => false,
-    getAccessToken: () => undefined
+    getAccessToken: () => undefined,
 }
 
 /**
@@ -109,7 +109,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     await keycloak.login()
                 }
                 if (isAuthenticatedResponse && keycloak.token) {
-                    localStorage.setItem('token', keycloak.token)
+                    localStorage.setItem("token", keycloak.token)
                 }
                 // If we get here the user is authenticated and we can update the state accordingly
                 console.log("user already authenticated")
@@ -152,7 +152,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
      * Initiate the logout
      */
     const logout = () => {
-        localStorage.removeItem('token')
+        localStorage.removeItem("token")
         keycloak.logout()
     }
 

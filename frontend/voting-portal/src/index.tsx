@@ -15,7 +15,7 @@ import {theme} from "@sequentech/ui-essentials"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {ApolloProvider} from "@apollo/client"
-import { apolloClient } from "./services/ApolloService"
+import {apolloClient} from "./services/ApolloService"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
