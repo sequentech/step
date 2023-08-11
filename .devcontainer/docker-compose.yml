@@ -117,7 +117,7 @@ services:
       - 3001:3000
     stdin_open: true
     volumes:
-       - /workspaces/backend-services/frontend:/usr/src/app:cached
+       - ../frontend:/usr/src/app
 
 volumes:
   db_data:
