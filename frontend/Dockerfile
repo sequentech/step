@@ -10,10 +10,10 @@ RUN apk add --no-cache yarn
 
 # Install dependencies
 WORKDIR /usr/src/app/
-COPY package*.json ./
-COPY yarn.lock ./
+#COPY package*.json ./
+#COPY yarn.lock ./
 #RUN yarn  --pure-lockfile --non-interactive
 
 EXPOSE 3000
 
-CMD ["yarn", "start"]
+CMD ["./init.sh", "start"]

@@ -1,0 +1,1 @@
+INSERT INTO "sequent_backend"."tenant"("is_active", "annotations", "labels", "username", "created_at", "updated_at", "id") VALUES (true, null, null, E'tenant_user', E'2023-08-10T22:04:32.314715+00:00', E'2023-08-10T22:04:32.314715+00:00', E'90505c8a-23a9-4cdf-a26b-4e19f6a097d5');

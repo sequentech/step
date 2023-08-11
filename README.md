@@ -118,6 +118,63 @@ automatically run docker compose logs on start up, for convenience.
 [direnv]: https://direnv.net/
 [devenv]: https://devenv.sh/
 
+### Export keycloak realm with users
+
+If you want to export a realm configuration but you don't need the users,
+you can do it from the realm console, going to the `Realm settings` and
+clicking on `Action` > `Partial export`.
+
+However that won't export users. You can export them by running this:
+
+    docker compose exec keycloak sh -c '/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm electoral-process'
+    docker compose exec keycloak sh -c 'cat /tmp/export.json' > file.json
+
+Then you'll find the export -including users- in the `file.json`. You
+can then for example update the file `.devcontainer/keycloak/import/electoral-process-realm.json`
+if you want to automatically import that data when the container is
+created.
+
+### Add Hasura migrations/changes
+
+If you want to make changes to hasura, or if you want the Hasura console to
+automatically add migrations to the code, first run this project in Codespaces
+and open it in VS Code Desktop (not from the web). Then, in your local machine
+install the hasura client:
+
+    curl -L https://github.com/hasura/graphql-engine/raw/stable/cli/get.sh | bash
+
+Also clone this github project on your local machine (so this is apart from running
+it on Codespaces), and from the `backend-services/hasura` folder, run this:
+
+    hasura console --endpoint "http://127.0.0.1:8080" --admin-secret "admin"
+  
+Then open `http://localhost:9695` on the browser and make the changes you need.
+Those changes will be tracked with file changes on your local github, then
+commit the changes.
+
+Note that you can insert rows as a migration by clicking on the 
+`This is a migration` option at the bottom of the `Insert Row` form.
+
+#### Or do it inside the codespace
+
+Alternatively you could run the local console inside the `graphql-engine container`.
+For that you need to add ports `9693` and `9695` to `forwardPorts` in the file
+`.devcontainer/devcontainer.json` and add them to `graphql-engine.ports` in
+file `.devcontainer/docker-compose.yml`.
+
+You'll need to rebuild the container:
+
+    docker compose stop graphql-engine
+    docker compose build graphql-engine  && docker compose up -d --no-deps graphql-engine
+
+Then you get inside the container with:
+
+    docker compose exec graphql-engine /bin/sh
+
+And run the hasura console with something like:
+
+    /usr/bin/hasura-cli console --endpoint "http://127.0.0.1:8080" --admin-secret "admin" --address 0.0.0.0 --console-hge-endpoint http://127.0.0.1:8080
+
 ## Common issues
 
 ### Yarn build unexpectedly returns `exit code 143`
@@ -142,3 +199,12 @@ docker compose build frontend && docker compose up -d --no-deps frontend
 
 Add the query/mutation to the `frontend/voting-portal/src/queries/` folder and 
 then run `yarn generate` from the `frontend/` folder to update the types.
+
+### The voting portal will not load any elections
+
+It's possible you find that the voting portal is not loading any elections,
+and that inspecting it further, the Hasura/Graphql POST gives an error similar to
+`field not found in type: 'query_root'`. This is possibly because you're connecting
+to the wrong instance of Hasura. Possibly, you're running VS Code with Codespaces
+and a local Hasura client as well, so the container port is being forwarded to
+a different port than 8080.
