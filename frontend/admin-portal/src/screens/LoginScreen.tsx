@@ -13,7 +13,7 @@ export const LoginScreen: React.FC = () => {
 
     useEffect(() => {
         if (authContext.isAuthenticated) {
-            navigate(`/election-chooser`)
+            navigate(`/test`)
         }
     }, [authContext.isAuthenticated, navigate])
 

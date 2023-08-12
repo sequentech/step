@@ -13,7 +13,7 @@ import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
-import AuthContextProvider from "./providers/AuthContextProvider"
+//import AuthContextProvider from "./providers/AuthContextProvider"
 import {ApolloProvider} from "@apollo/client"
 import {apolloClient} from "./services/ApolloService"
 
@@ -23,7 +23,7 @@ SequentCoreLibInit().then(set_hooks)
 
 root.render(
     <React.StrictMode>
-        <AuthContextProvider>
+        {/*<AuthContextProvider>*/}
             <Provider store={store}>
                 <BrowserRouter>
                     <ThemeProvider theme={theme}>
@@ -33,7 +33,7 @@ root.render(
                     </ThemeProvider>
                 </BrowserRouter>
             </Provider>
-        </AuthContextProvider>
+        {/*</AuthContextProvider>*/}
     </React.StrictMode>
 )
 
