@@ -1,5 +1,5 @@
 # voting-portal
-Voting portal for the next generation.
+Admin portal for the next generation.
 
 # 1. Compile the Ui library
 
@@ -20,7 +20,7 @@ yarn build
 
 # 2. Use sequent-core
 
-The voting portal uses [sequent-core] as a npm package. You need to compile it in another
+The admin-portal uses [sequent-core] as a npm package. You need to compile it in another
 place and then copy it to `rust/sequent-core-0.1.0.tgz `. Note that if its version
 is changed you may need to update its hash in `voting-portal/yarn.lock` (use 
 `sha1sum rust/sequent-core-0.1.0.tgz` to get the hash, or `shasum` instead of `sha1sum` if
