@@ -80,7 +80,7 @@ impl<CS: CacheStore> TrillianBoard<CS> {
     pub async fn send_messages(&mut self, messages: Vec<Message>) -> Result<()> {
         let id = self.get_board().await?;
 
-        let (sk, pk) = get_admin_keys();
+        let (sk, _pk) = get_admin_keys();
 
         for m in messages {
             let request = AddEntriesRequest {

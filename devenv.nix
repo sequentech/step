@@ -21,8 +21,9 @@
     # docker utility
     pkgs.dive
 
-    # wget! basic
+    # wget and curl
     pkgs.wget
+    pkgs.curl
 
     # For frontend
     pkgs.yarn
@@ -30,6 +31,7 @@
 
     # For protocol buffers
     pkgs.protobuf
+    pkgs.iputils
   ];
 
   # https://devenv.sh/scripts/
@@ -39,6 +41,11 @@
     hello
     git --version
     export COMPOSE_PROJECT_NAME=backend-services_devcontainer
+
+    # Used by braid:
+    export IMMUDB_USERNAME=immudb
+    export IMMUDB_PASSWORD=immudb
+    export IMMUDB_SERVER_URL=http://immugw:3323
   '';
 
   # https://devenv.sh/languages/
@@ -59,6 +66,10 @@
       pass_filenames = false;
     };
   };
+
+  # https://devenv.sh/integrations/dotenv/
+  # Enable usage of the .env file for setting env variables
+  # dotenv.enable = true;
 
   # https://devenv.sh/processes/
   # processes.ping.exec = "ping example.com";

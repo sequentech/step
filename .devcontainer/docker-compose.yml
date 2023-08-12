@@ -122,15 +122,27 @@ services:
     restart: always
     ports:
       - 3322:3322 # immudb service
-      - 3323:3323 # immugw REST API service
       - 3324:9497 # prometheus
       - 3325:8080 # web console
     volumes:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
 
+  immugw:
+    image: codenotary/immugw:1.3
+    restart: always
+    ports:
+      - 3323:3323 # immugw REST API service
+    environment:
+      IMMUGW_IMMUDB_ADDRESS: immudb
+    volumes:
+      - immugw_data:/var/lib/immudb
+      - immugw_logs:/var/log/immugw
+
 volumes:
   db_data:
   keycloak_db_data:
   immudb_data:
   immudb_logs:
+  immugw_data:
+  immugw_logs:
