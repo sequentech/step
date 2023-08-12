@@ -38,8 +38,7 @@ sha2 = "0.10"
 
 # used for cryptography (public and private keys to verify authentication and
 # authorization).
-# TODO: Change to using version instead of git when a release is published
-strand = { git = "https://github.com/sequentech/strand", features= ["rayon"], tag = "v0.2.0" }
+strand = { path="../strand", features=["rayon"] }
 
 # both anyhow and thiserror serve error handling purposes
 thiserror = "1.0"

@@ -23,6 +23,28 @@ impl<CS: CacheStore> TrillianBoard<CS> {
         TrillianBoard { name, client }
     }
 
+    pub async fn get_board(&mut self) -> Result<String> {
+        let request = ListBoardsRequest {
+            board_name: Some(self.name.clone()),
+            ..Default::default()
+        };
+        let response = self.client.list_boards(request).await?;
+        let boards: &Vec<ListBoardItem> = &response.get_ref().boards;
+
+        if boards.len() == 1 {
+            let ListBoardItem { board, .. } =
+                boards.get(0).ok_or(anyhow!("Board get returned error"))?;
+            let board_uuid = board
+                .clone()
+                .ok_or(anyhow!("Board get returned None"))?
+                .uuid;
+
+            Ok(board_uuid)
+        } else {
+            Err(anyhow::Error::msg("Expected 1 result"))
+        }
+    }
+
     pub async fn get_messages(&mut self) -> Result<Vec<Message>> {
         let id = self.get_board().await?;
         info!("Board id is '{id}'");
@@ -79,28 +101,6 @@ impl<CS: CacheStore> TrillianBoard<CS> {
         }
 
         Ok(())
-    }
-
-    async fn get_board(&mut self) -> Result<String> {
-        let request = ListBoardsRequest {
-            board_name: Some(self.name.clone()),
-            ..Default::default()
-        };
-        let response = self.client.list_boards(request).await?;
-        let boards: &Vec<ListBoardItem> = &response.get_ref().boards;
-
-        if boards.len() == 1 {
-            let ListBoardItem { board, .. } =
-                boards.get(0).ok_or(anyhow!("Board get returned error"))?;
-            let board_uuid = board
-                .clone()
-                .ok_or(anyhow!("Board get returned None"))?
-                .uuid;
-
-            Ok(board_uuid)
-        } else {
-            Err(anyhow::Error::msg("Expected 1 result"))
-        }
     }
 }
 

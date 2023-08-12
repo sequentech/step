@@ -27,6 +27,9 @@
     # For frontend
     pkgs.yarn
     pkgs.nodejs_20
+
+    # For protocol buffers
+    pkgs.protobuf
   ];
 
   # https://devenv.sh/scripts/

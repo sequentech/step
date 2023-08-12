@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![feature(io_error_more)]
-#![feature(option_result_contains)]
 #![feature(stmt_expr_attributes)]
 
 #[macro_use]

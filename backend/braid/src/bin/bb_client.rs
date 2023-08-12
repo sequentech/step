@@ -20,7 +20,7 @@ use bulletin_board::{
     ListBoardsRequest, ListEntriesRequest, Permissions, Role, User, UserRole
 };
 use bulletin_board::signature::Signable;
-
+ 
 use braid::protocol2::artifact::Configuration;
 use braid::protocol2::artifact::DkgPublicKey;
 use braid::protocol2::message::Message;
