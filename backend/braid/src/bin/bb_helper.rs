@@ -2,7 +2,6 @@ cfg_if::cfg_if! {
     if #[cfg(feature = "bb-test")] {
 
 use anyhow::{anyhow, Context, Result};
-use base64::{Engine as _, engine::general_purpose::STANDARD_NO_PAD as base64engine};
 use braid::util::init_log;
 use clap::Parser;
 use reqwest::{
@@ -11,8 +10,9 @@ use reqwest::{
     header::HeaderMap,
     header::HeaderValue
 };
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use serde_with::{serde_as, base64::Base64};
 use std::env;
 use std::path::PathBuf;
 use tracing_subscriber::filter;
@@ -90,26 +90,60 @@ impl Cli {
     }
 }
 
+
+/// These structs allow to serialize/deserialize requests with Base64 encoding
+
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize)]
+struct ImmudbLogin {
+    #[serde_as(as = "Base64")]
+    user: Vec<u8>,
+
+    #[serde_as(as = "Base64")]
+    password: Vec<u8>,
+}
+
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize)]
+struct ImmudbCreate {
+    #[serde_as(as = "Base64")]
+    name: Vec<u8>,
+}
+
+
 struct BBHelper {
-    args: Cli,
     client: Client,
+    server_url: String,
+    index_dbname: String,
 }
 
 impl BBHelper {
     async fn create() -> Result<BBHelper> {
         let args = Cli::init();
-        let client = BBHelper::get_client(&args).await?;
-        
+        let server_url = match args.server_url.as_deref() {
+            Some(server_url) => server_url.to_owned(),
+            None => env::var("IMMUDB_SERVER_URL")
+                .context("server_url not provided and IMMUDB_SERVER_URL env var not set")?
+        };
+        let index_dbname = match args.index_dbname.as_deref() {
+            Some(index_dbname) => index_dbname.to_owned(),
+            None => env::var("IMMUDB_INDEX_DBNAME")
+                .context("index_dbname not provided and IMMUDB_INDEX_DBNAME env var not set")?
+        };
+
+        let client = BBHelper::get_client(&args, &server_url).await?;
+
         Ok(
             BBHelper {
-                args: args,
                 client: client,
+                server_url: server_url,
+                index_dbname: index_dbname,
             }
         )
     }
 
     /// Returns an authenticated reqwest client
-    async fn get_client(args: &Cli) -> Result<Client> {
+    async fn get_client(args: &Cli, server_url: &String) -> Result<Client> {
         let username = match args.username.as_deref() {
             Some(username) => username.to_owned(),
             None => env::var("IMMUDB_USERNAME")
@@ -120,15 +154,11 @@ impl BBHelper {
             None => env::var("IMMUDB_PASSWORD")
                 .context("password not provided and IMMUDB_PASSWORD env var not set")?
         };
-        let server_url = match args.server_url.as_deref() {
-            Some(server_url) => server_url.to_owned(),
-            None => env::var("IMMUDB_SERVER_URL")
-                .context("server_url not provided and IMMUDB_SERVER_URL env var not set")?
-        };
 
-        let mut login_credentials = HashMap::new();
-        login_credentials.insert("user", base64engine.encode(username));
-        login_credentials.insert("password", base64engine.encode(password));
+        let login_credentials = ImmudbLogin {
+            user: username.into(),
+            password: password.into()
+        };
         let client = reqwest::Client::new();
         let response = client.post(server_url.to_owned() + "/login")
             .json(&login_credentials)
@@ -165,6 +195,45 @@ impl BBHelper {
 
     /// Creates the index database, only if it doesn't exist
     async fn create_index_db(&self) -> Result<()> {
+        let url = format!("{}/db/{}/state", self.server_url, self.index_dbname);
+        let response = self.client
+            .get(&url)
+            .send()
+            .await?;
+
+        let status = response.status();
+        let body_bytes = &response.bytes().await?;
+        debug!(
+            "GET request:\n\t- url={}\n\t- status={:?}\n\t- body={:?}",
+            url,
+            status,
+            body_bytes
+        );
+        if status == 404 {
+            // Create the missing index database
+            let data = ImmudbCreate {
+                name: self.index_dbname.clone().into()
+            };
+            let url = format!(
+                "{}/db/{}/create/v2", self.server_url, self.index_dbname
+            );
+            let response = self.client.post(&url)
+                .json(&data)
+                .send()
+                .await?;
+            let status = response.status();
+            let body_bytes = &response.bytes().await?;
+            debug!(
+                "POST request:\n\t- url={}\n\t- status={:?}\n\t- body={:?}",
+                url,
+                status,
+                body_bytes
+            );
+            if status != 200 {
+                return Err(anyhow!("db-create-error"));
+            }        
+        }
+
         Ok(())
     }
 }
