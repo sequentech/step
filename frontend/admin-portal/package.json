@@ -21,6 +21,8 @@
     "mui-image": "1.0.7",
     "react": "18.1.0",
     "react-dom": "18.1.0",
+    "react-admin": "4.12.4",
+    "ra-data-hasura": "0.6.0",
     "react-i18next": "11.18.3",
     "react-redux": "8.1.2",
     "react-router-dom": "6.11.2",
