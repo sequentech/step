@@ -18,6 +18,11 @@ use std::path::PathBuf;
 use tracing_subscriber::filter;
 use tracing::{debug, instrument};
 
+pub mod immudb {
+    tonic::include_proto!("immudb.schema");
+}
+
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -108,6 +113,8 @@ struct ImmudbLogin {
 struct ImmudbCreate {
     #[serde_as(as = "Base64")]
     name: Vec<u8>,
+
+    ifNotExists: bool,
 }
 
 
@@ -195,7 +202,7 @@ impl BBHelper {
 
     /// Creates the index database, only if it doesn't exist
     async fn create_index_db(&self) -> Result<()> {
-        let url = format!("{}/db/{}/state", self.server_url, self.index_dbname);
+        let url = format!("{}/db/{}/health", self.server_url, self.index_dbname);
         let response = self.client
             .get(&url)
             .send()
@@ -212,7 +219,8 @@ impl BBHelper {
         if status == 404 {
             // Create the missing index database
             let data = ImmudbCreate {
-                name: self.index_dbname.clone().into()
+                name: self.index_dbname.clone().into(),
+                ifNotExists: true,
             };
             let url = format!(
                 "{}/db/{}/create/v2", self.server_url, self.index_dbname
