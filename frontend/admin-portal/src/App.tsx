@@ -15,8 +15,8 @@ import {ElectionSelectionScreen} from "./screens/ElectionSelectionScreen"
 import {LoginScreen} from "./screens/LoginScreen"
 import {useNavigate} from "react-router"
 import {AuthContext} from "./providers/AuthContextProvider"
-import { Admin } from 'react-admin'
-import buildHasuraProvider from 'ra-data-hasura'
+import {Admin} from "react-admin"
+import buildHasuraProvider from "ra-data-hasura"
 import {Box, CircularProgress} from "@mui/material"
 
 const StyledApp = styled(Stack)`
@@ -27,16 +27,16 @@ const App = () => {
     const location = useLocation()
     const navigate = useNavigate()
     const authContext = useContext(AuthContext)
-    const [dataProvider, setDataProvider] = useState(null);
-  
+    const [dataProvider, setDataProvider] = useState(null)
+
     useEffect(() => {
-      const buildDataProvider = async () => {
-        const dataProvider = await buildHasuraProvider({
-          clientOptions: { uri: 'http://localhost:8080/v1/graphql' },
-        })
-        setDataProvider(() => dataProvider);
-      }
-      buildDataProvider();
+        const buildDataProvider = async () => {
+            const dataProvider = await buildHasuraProvider({
+                clientOptions: {uri: "http://localhost:8080/v1/graphql"},
+            })
+            setDataProvider(() => dataProvider)
+        }
+        buildDataProvider()
     }, [])
 
     useEffect(() => {
@@ -45,11 +45,12 @@ const App = () => {
         }
     }, [location.pathname, authContext.isAuthenticated, navigate])
 
-  
-    if (!dataProvider){
-        return <Box>
-            <CircularProgress />
-        </Box>
+    if (!dataProvider) {
+        return (
+            <Box>
+                <CircularProgress />
+            </Box>
+        )
     }
 
     return (
