@@ -5,8 +5,8 @@ type Timestamp = u64;
 use crate::protocol2::Hash;
 pub type THashes = [Hash; crate::protocol2::MAX_TRUSTEES];
 
-use crate::protocol2::predicate::TrusteePosition;
 use crate::protocol2::predicate::MixNumber;
+use crate::protocol2::predicate::TrusteePosition;
 
 ///////////////////////////////////////////////////////////////////////////
 // Statement
@@ -33,7 +33,7 @@ pub enum Statement {
         SharesHs,
         CommitmentsHs,
     ),
-    
+
     Ballots(
         Timestamp,
         ConfigurationH,

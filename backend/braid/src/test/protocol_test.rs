@@ -1,13 +1,13 @@
 use anyhow::Result;
 use chacha20poly1305::{aead::KeyInit, ChaCha20Poly1305};
 use log::{error, info};
+use rand::seq::SliceRandom;
+use rand::Rng;
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
-use rand::seq::SliceRandom;
-use rand::Rng;
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
@@ -32,7 +32,10 @@ pub fn run<C: Ctx>(ciphertexts: u32, batches: usize, ctx: C) {
     let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     let all = &max[0..n_trustees];
     let mut rng = &mut rand::thread_rng();
-    let threshold: Vec<usize> = all.choose_multiple(&mut rng, n_threshold).cloned().collect();
+    let threshold: Vec<usize> = all
+        .choose_multiple(&mut rng, n_threshold)
+        .cloned()
+        .collect();
     let test = create_protocol_test(n_trustees, &threshold, ctx).unwrap();
 
     let now = instant::Instant::now();

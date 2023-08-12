@@ -406,7 +406,7 @@ fn reset<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Optio
         .unwrap()
         .parse::<u8>()
         .unwrap();
-    
+
     let threshold = args
     .get_one::<String>("threshold")
     .unwrap()

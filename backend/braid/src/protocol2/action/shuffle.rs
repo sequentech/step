@@ -33,7 +33,7 @@ pub(crate) fn mix<C: Ctx>(
         }
     } else {
         // First mix ciphertexts come from ballots, second from first mix, third from second, etc.
-        // mix_no is 1-based, but trustees[] is 0-based, so the previous mixer is 
+        // mix_no is 1-based, but trustees[] is 0-based, so the previous mixer is
         // the trustee at index n - 2 (= (n - 1) - 1). For example, if we're on mix #2,
         // the source mix is signed by the first trustee, which is trustees[0].
         // Trustees[] elements are 1-based, so n - 1.
@@ -81,8 +81,7 @@ pub(crate) fn mix<C: Ctx>(
         // eg mix #2 is performed by trustee at index 1.
         // trustees[] elements are 1-based, so n - 1
         trustees[*mix_no] - 1
-    }
-    else {
+    } else {
         // There is no next trustee
         crate::protocol2::datalog::NULL_TRUSTEE
     };

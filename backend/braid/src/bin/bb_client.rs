@@ -20,7 +20,7 @@ use bulletin_board::{
     ListBoardsRequest, ListEntriesRequest, Permissions, Role, User, UserRole
 };
 use bulletin_board::signature::Signable;
- 
+
 use braid::protocol2::artifact::Configuration;
 use braid::protocol2::artifact::DkgPublicKey;
 use braid::protocol2::message::Message;
@@ -215,7 +215,7 @@ async fn post_ballots<C: Ctx, CS: CacheStore>(client: &mut Client<CS>, ctx: C) -
                 let pk_h = strand::util::hash_array(&pk_bytes);
                 let pk_element = dkgpk.pk;
                 let pk = strand::elgamal::PublicKey::from_element(&pk_element, &ctx);
-                
+
                 // let pk_h = strand::util::hash(&pk.strand_serialize().unwrap());
 
                 let ps: Vec<C::P> = (0..1000).map(|_| ctx.rnd_plaintext()).collect();

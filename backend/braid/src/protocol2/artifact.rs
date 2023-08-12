@@ -255,8 +255,7 @@ impl<C: Ctx> std::fmt::Debug for Mix<C> {
         write!(
             f,
             "mix_number={:?}, target_trustee={:?}",
-            self.mix_number,
-            self.target_trustee
+            self.mix_number, self.target_trustee
         )
     }
 }
