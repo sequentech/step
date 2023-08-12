@@ -9,7 +9,6 @@ export const INSERT_CAST_VOTE = gql`
         $electionId: uuid
         $electionEventId: uuid
         $tenantId: uuid
-        $voterIdString: String!
         $content: String!
     ) {
         insert_sequent_backend_cast_vote(
@@ -18,7 +17,6 @@ export const INSERT_CAST_VOTE = gql`
                 election_id: $electionId
                 election_event_id: $electionEventId
                 tenant_id: $tenantId
-                voter_id_string: $voterIdString
                 content: $content
             }
         ) {

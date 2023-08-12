@@ -100,7 +100,6 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                     electionId: ballotStyle.election_id,
                     electionEventId: ballotStyle.election_event_id,
                     tenantId: ballotStyle.tenant_id,
-                    voterIdString: authContext.username,
                     content: content,
                 },
             })

@@ -13,8 +13,8 @@ insert_permissions:
     permission:
       check:
         _and:
-          - area_id:
-              _eq: X-Hasura-Area_id
+          - Area-Id:
+              _eq: X-Hasura-Area-Id
           - tenant_id:
               _eq: X-Hasura-Tenant-Id
       set:
@@ -27,7 +27,7 @@ insert_permissions:
         - content
         - created_at
         - last_updated_at
-        - area_id
+        - Area-Id
         - election_event_id
         - election_id
         - id
@@ -44,15 +44,15 @@ select_permissions:
         - content
         - created_at
         - last_updated_at
-        - area_id
+        - Area-Id
         - election_event_id
         - election_id
         - id
         - tenant_id
       filter:
         _and:
-          - area_id:
-              _eq: X-Hasura-Area_id
+          - Area-Id:
+              _eq: X-Hasura-Area-Id
           - tenant_id:
               _eq: X-Hasura-Tenant-Id
     comment: ""
