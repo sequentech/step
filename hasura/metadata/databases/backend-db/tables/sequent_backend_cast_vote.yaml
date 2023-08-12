@@ -14,7 +14,7 @@ insert_permissions:
       check:
         _and:
           - area_id:
-              _eq: X-Hasura-Area_id
+              _eq: X-Hasura-Area-Id
           - tenant_id:
               _eq: X-Hasura-Tenant-Id
       set:
@@ -52,7 +52,7 @@ select_permissions:
       filter:
         _and:
           - area_id:
-              _eq: X-Hasura-Area_id
+              _eq: X-Hasura-Area-Id
           - tenant_id:
               _eq: X-Hasura-Tenant-Id
     comment: ""
