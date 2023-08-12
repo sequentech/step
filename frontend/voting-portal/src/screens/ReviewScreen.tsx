@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useState} from "react"
+import React, {useState} from "react"
 import {useNavigate, useParams} from "react-router-dom"
 //import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
@@ -37,7 +37,6 @@ import {v4 as uuidv4} from "uuid"
 import {CircularProgress} from "@mui/material"
 import {toHashableBallot} from "../services/BallotService"
 import {IAuditableBallot} from "sequent-core"
-import {AuthContext} from "../providers/AuthContextProvider"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -79,7 +78,6 @@ interface ActionButtonProps {
 
 const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot}) => {
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
-    const authContext = useContext(AuthContext)
     const {t} = useTranslation()
     const navigate = useNavigate()
     const [auditBallotHelp, setAuditBallotHelp] = useState(false)

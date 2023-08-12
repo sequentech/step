@@ -17868,9 +17868,9 @@ sentence-case@^3.0.4:
     tslib "^2.0.3"
     upper-case-first "^2.0.2"
 
-"sequent-core@file:./voting-portal/rust/pkg/sequent-core-0.1.0.tgz":
+"sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./voting-portal/rust/pkg/sequent-core-0.1.0.tgz#348d84375aa62e9f798fd505fed028f4a2f3673c"
+  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#348d84375aa62e9f798fd505fed028f4a2f3673c"
 
 serialize-javascript@^4.0.0:
   version "4.0.0"
