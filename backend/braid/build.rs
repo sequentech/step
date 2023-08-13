@@ -8,10 +8,7 @@ fn cargo_warn_apply(args: &[&str]) {
 fn main() {
     tonic_build::configure()
         .build_server(false)
-        .compile(
-            &["proto/immudb/immudb.proto"],
-            &["proto/immudb"],
-        )
+        .compile(&["proto/immudb/immudb.proto"], &["proto/immudb"])
         .unwrap();
 
     cargo_warn_apply(&["cargo:rerun-if-changed=proto/immudb/immudb.proto"]);

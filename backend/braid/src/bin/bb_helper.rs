@@ -11,7 +11,7 @@ use tracing_subscriber::filter;
 use tracing::{debug, instrument};
 use tonic::{
     metadata::MetadataValue,
-    transport::Channel, 
+    transport::Channel,
     Request
 };
 
@@ -52,7 +52,7 @@ struct Cli {
     /// Immugw password. Example: immudb
     #[arg(short, long)]
     password: Option<String>,
-    
+
     /// Action to execute
     #[arg(value_enum)]
     actions: Vec<Action>,
@@ -84,7 +84,7 @@ enum Action {
 
 impl Cli {
     fn init() -> Self {
-        let log_reload = init_log(true);    
+        let log_reload = init_log(true);
         let args = Cli::parse();
 
         // set log level
@@ -190,7 +190,7 @@ impl BBHelper {
             Database { database_name: self.index_dbname.clone() },
             None
         )?;
-        
+
         // Index database doesn't seem to exist, so we have to create it
         match self.client.use_database(use_db_request).await {
             Err(_) => {
@@ -209,7 +209,7 @@ impl BBHelper {
                 let use_db_request = self.get_request(
                     Database { database_name: self.index_dbname.clone() },
                     None
-                )?;        
+                )?;
                 let use_db_response = self.client
                     .use_database(use_db_request)
                     .await?;
@@ -274,7 +274,7 @@ impl BBHelper {
         let list_dbs_request = self.get_request(
             DatabaseListRequestV2 {}, None
         )?;
-        
+
         let list_dbs_response = self.client
             .database_list_v2(list_dbs_request)
             .await?;
