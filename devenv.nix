@@ -45,8 +45,8 @@
     # Used by braid:
     export IMMUDB_USERNAME=immudb
     export IMMUDB_PASSWORD=immudb
-    export IMMUDB_SERVER_URL=http://immugw:3323
-    export IMMUDB_INDEX_DBNAME=boards_index
+    export IMMUDB_SERVER_URL=http://immudb:3322
+    export IMMUDB_INDEX_DBNAME=boardsindex
   '';
 
   # https://devenv.sh/languages/

@@ -1,27 +1,31 @@
 cfg_if::cfg_if! {
     if #[cfg(feature = "bb-test")] {
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use braid::util::init_log;
 use clap::Parser;
-use reqwest::{
-    Client,
-    header,
-    header::HeaderMap,
-    header::HeaderValue
-};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use serde_with::{serde_as, base64::Base64};
+use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
 use tracing_subscriber::filter;
 use tracing::{debug, instrument};
+use tonic::{
+    metadata::MetadataValue,
+    transport::Channel, 
+    Request
+};
+
+use crate::immudb::immu_service_client::ImmuServiceClient;
+use crate::immudb::{
+    CreateDatabaseRequest,
+    Database,
+    LoginRequest,
+    SqlExecRequest,
+};
 
 pub mod immudb {
     tonic::include_proto!("immudb.schema");
 }
-
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -95,33 +99,12 @@ impl Cli {
     }
 }
 
-
-/// These structs allow to serialize/deserialize requests with Base64 encoding
-
-#[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
-struct ImmudbLogin {
-    #[serde_as(as = "Base64")]
-    user: Vec<u8>,
-
-    #[serde_as(as = "Base64")]
-    password: Vec<u8>,
-}
-
-#[serde_as]
-#[derive(Debug, Serialize, Deserialize)]
-struct ImmudbCreate {
-    #[serde_as(as = "Base64")]
-    name: Vec<u8>,
-
-    ifNotExists: bool,
-}
-
-
 struct BBHelper {
-    client: Client,
+    client: ImmuServiceClient<Channel>,
     server_url: String,
     index_dbname: String,
+    login_token: String,
+    database_tokens: HashMap<String, String>
 }
 
 impl BBHelper {
@@ -138,19 +121,7 @@ impl BBHelper {
                 .context("index_dbname not provided and IMMUDB_INDEX_DBNAME env var not set")?
         };
 
-        let client = BBHelper::get_client(&args, &server_url).await?;
-
-        Ok(
-            BBHelper {
-                client: client,
-                server_url: server_url,
-                index_dbname: index_dbname,
-            }
-        )
-    }
-
-    /// Returns an authenticated reqwest client
-    async fn get_client(args: &Cli, server_url: &String) -> Result<Client> {
+        // Authenticate
         let username = match args.username.as_deref() {
             Some(username) => username.to_owned(),
             None => env::var("IMMUDB_USERNAME")
@@ -161,85 +132,130 @@ impl BBHelper {
             None => env::var("IMMUDB_PASSWORD")
                 .context("password not provided and IMMUDB_PASSWORD env var not set")?
         };
-
-        let login_credentials = ImmudbLogin {
-            user: username.into(),
-            password: password.into()
-        };
-        let client = reqwest::Client::new();
-        let response = client.post(server_url.to_owned() + "/login")
-            .json(&login_credentials)
-            .send()
+        let login_request = Request::new(LoginRequest {
+            user: username.clone().into(),
+            password: password.clone().into()
+        });
+        let mut client = ImmuServiceClient::connect(server_url.clone())
             .await?;
-
-        let status = response.status();
-        let body_bytes = &response.bytes().await?;
-        debug!(
-            "authentication returned: status={:?} body={:?}",
-            status,
-            body_bytes
-        );
-        if status != 200 {
-            return Err(anyhow!("auth-error"));
-        }
-
-        let body_json: Value = serde_json::from_slice(&body_bytes)?;
-        let auth_token = body_json["token"]
-            .as_str()
-            .ok_or(anyhow!("Authentication token key not found"))?;
-
-        let mut headers = HeaderMap::new();
-        let mut auth_value = HeaderValue::from_str(auth_token)?;
-        auth_value.set_sensitive(true);
-        headers.insert(header::AUTHORIZATION, auth_value);
+        let response = client.login(login_request).await?;
+        debug!("grpc-login-response={:?}", response);
+        let login_token = format!("Bearer {}", response.get_ref().token);
 
         Ok(
-            Client::builder()
-                .default_headers(headers)
-                .build()?
+            BBHelper {
+                client: client,
+                server_url: server_url,
+                index_dbname: index_dbname,
+                login_token: login_token,
+                database_tokens: Default::default()
+            }
         )
     }
 
-    /// Creates the index database, only if it doesn't exist
-    async fn create_index_db(&self) -> Result<()> {
-        let url = format!("{}/db/{}/health", self.server_url, self.index_dbname);
-        let response = self.client
-            .get(&url)
-            .send()
-            .await?;
-
-        let status = response.status();
-        let body_bytes = &response.bytes().await?;
+    /// Creates an Authenticated request, with the proper Auth token
+    fn get_request<T: std::fmt::Debug>(
+        &self,
+        data: T,
+        database_name: Option<String>
+    ) -> Result<Request<T>>
+    {
+        let mut request = Request::new(data);
+        let token: MetadataValue<_> = match &database_name {
+            None => self.login_token.clone(),
+            Some(database_name) =>
+                self.database_tokens.get(database_name).unwrap().clone()
+        }.parse()?;
+        request.metadata_mut().insert("authorization", token);
         debug!(
-            "GET request:\n\t- url={}\n\t- status={:?}\n\t- body={:?}",
-            url,
-            status,
-            body_bytes
+            "BBHelper::get_request(database_name={:?}): request={:?}",
+            database_name,
+            request,
         );
-        if status == 404 {
-            // Create the missing index database
-            let data = ImmudbCreate {
-                name: self.index_dbname.clone().into(),
-                ifNotExists: true,
-            };
-            let url = format!(
-                "{}/db/{}/create/v2", self.server_url, self.index_dbname
-            );
-            let response = self.client.post(&url)
-                .json(&data)
-                .send()
+
+        return Ok(request);
+    }
+
+    /// Creates the index database, only if it doesn't exist. It also creates
+    /// the appropriate tables if they don't exist.
+    async fn upsert_index_db(&mut self) -> Result<()> {
+        let use_db_request = self.get_request(
+            Database { database_name: self.index_dbname.clone() },
+            None
+        )?;
+        
+        // Index database doesn't seem to exist, so we have to create it
+        match self.client.use_database(use_db_request).await {
+            Err(_) => {
+                debug!("Index Database doesn't exist, creating it");
+                let create_db_request = self.get_request(
+                    CreateDatabaseRequest {
+                        name: self.index_dbname.clone(),
+                        ..Default::default()
+                    },
+                    None
+                )?;
+                let _create_db_response = self.client
+                    .create_database_v2(create_db_request).await?;
+                debug!("Index Database created! try obtaining token again..");
+
+                let use_db_request = self.get_request(
+                    Database { database_name: self.index_dbname.clone() },
+                    None
+                )?;        
+                let use_db_response = self.client
+                    .use_database(use_db_request)
+                    .await?;
+                self.database_tokens.insert(
+                    self.index_dbname.clone(),
+                    use_db_response.get_ref().token.clone()
+                );
+            },
+            Ok(use_db_response) => {
+                debug!("Index Database already exists, obtaining token..");
+                self.database_tokens.insert(
+                    self.index_dbname.clone(),
+                    use_db_response.get_ref().token.clone()
+                );
+            }
+        };
+
+        // List tables and create them if missing
+        let list_tables_request = self.get_request(
+            (),
+            Some(self.index_dbname.clone())
+        )?;
+        let list_tables_response = self.client
+            .list_tables(list_tables_request)
+            .await?;
+        debug!("list_tables_response={:?}", list_tables_response);
+        if list_tables_response.get_ref().rows.is_empty() {
+            debug!("no tables! let's create them");
+            let create_tables_request = self.get_request(
+                SqlExecRequest {
+                    sql: String::from(r#"
+                    CREATE TABLE IF NOT EXISTS bulletin_boards (
+                        id INTEGER,
+                        database_name VARCHAR,
+                        trustee_names VARCHAR,
+                        is_archived BOOLEAN,
+                        PRIMARY KEY id
+                    );
+                    "#),
+                    no_wait: true,
+                    params: vec![],
+                },
+                Some(self.index_dbname.clone())
+            )?;
+            let create_tables_response = self.client
+                .sql_exec(create_tables_request)
                 .await?;
-            let status = response.status();
-            let body_bytes = &response.bytes().await?;
+            debug!("create_tables_response={:?}", create_tables_response);
+        } else {
             debug!(
-                "POST request:\n\t- url={}\n\t- status={:?}\n\t- body={:?}",
-                url,
-                status,
-                body_bytes
+                "index database has the following tables: {:?}",
+                list_tables_response.get_ref().rows
             );
-            if status != 200 {
-                return Err(anyhow!("db-create-error"));
-            }        
         }
 
         Ok(())
@@ -249,8 +265,8 @@ impl BBHelper {
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    let helper = BBHelper::create().await?;
-    helper.create_index_db().await?;
+    let mut helper = BBHelper::create().await?;
+    helper.upsert_index_db().await?;
 
     Ok(())
 }
