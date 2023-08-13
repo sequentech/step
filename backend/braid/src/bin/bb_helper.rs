@@ -19,6 +19,9 @@ use crate::immudb::immu_service_client::ImmuServiceClient;
 use crate::immudb::{
     CreateDatabaseRequest,
     Database,
+    DatabaseListRequestV2,
+    UnloadDatabaseRequest,
+    DeleteDatabaseRequest,
     LoginRequest,
     SqlExecRequest,
 };
@@ -52,7 +55,7 @@ struct Cli {
     
     /// Action to execute
     #[arg(value_enum)]
-    action: Action,
+    actions: Vec<Action>,
 
     /// Set verbosity level
     #[arg(short,long, value_enum, default_value_t=LogLevel::Info)]
@@ -70,8 +73,10 @@ enum LogLevel {
 }
 
 
-#[derive(clap::ValueEnum, Clone)]
+#[derive(clap::ValueEnum, Clone, Debug)]
 enum Action {
+    DeleteInitDb,
+    UpsertInitDb,
     Init,
     Ballots,
     List,
@@ -104,7 +109,8 @@ struct BBHelper {
     server_url: String,
     index_dbname: String,
     login_token: String,
-    database_tokens: HashMap<String, String>
+    database_tokens: HashMap<String, String>,
+    actions: Vec<Action>,
 }
 
 impl BBHelper {
@@ -148,7 +154,8 @@ impl BBHelper {
                 server_url: server_url,
                 index_dbname: index_dbname,
                 login_token: login_token,
-                database_tokens: Default::default()
+                database_tokens: Default::default(),
+                actions: args.actions
             }
         )
     }
@@ -237,7 +244,6 @@ impl BBHelper {
                     CREATE TABLE IF NOT EXISTS bulletin_boards (
                         id INTEGER,
                         database_name VARCHAR,
-                        trustee_names VARCHAR,
                         is_archived BOOLEAN,
                         PRIMARY KEY id
                     );
@@ -260,14 +266,66 @@ impl BBHelper {
 
         Ok(())
     }
+
+
+    /// Deletes the index database.
+    async fn delete_index_db(&mut self) -> Result<()> {
+        debug!("Listing databases..");
+        let list_dbs_request = self.get_request(
+            DatabaseListRequestV2 {}, None
+        )?;
+        
+        let list_dbs_response = self.client
+            .database_list_v2(list_dbs_request)
+            .await?;
+        let find_index_db = list_dbs_response
+            .get_ref()
+            .databases
+            .iter()
+            .find(|&database| database.name == self.index_dbname);
+        if find_index_db.is_some() {
+            debug!("Index Database found, unloading it before deletion...");
+            let unload_db_request = self.get_request(
+                UnloadDatabaseRequest { database: self.index_dbname.clone() },
+                None,
+            )?;
+            let _unload_db_response = self.client
+                .unload_database(unload_db_request).await?;
+            debug!("Deleting index database...");
+            let delete_db_request = self.get_request(
+                DeleteDatabaseRequest { database: self.index_dbname.clone() },
+                None,
+            )?;
+            let _delete_db_response = self.client
+                .delete_database(delete_db_request).await?;
+            debug!("Index Database deleted!");
+        } else {
+            debug!("Index Database doesn't exist, nothing to do");
+        }
+
+        Ok(())
+    }
+
+    // Run the given actions
+    async fn run_actions(&mut self) -> Result<()> {
+        for action in self.actions.clone().iter() {
+            debug!("executing action {:?}:\n", action);
+
+            match action {
+                Action::DeleteInitDb => self.delete_index_db().await?,
+                Action::UpsertInitDb => self.upsert_index_db().await?,
+                _ => debug!("action {:?} not implemented", action),
+            }
+        }
+        Ok(())
+    }
 }
 
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
     let mut helper = BBHelper::create().await?;
-    helper.upsert_index_db().await?;
-
+    helper.run_actions().await?;
     Ok(())
 }
 
