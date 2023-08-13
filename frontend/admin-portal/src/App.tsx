@@ -7,18 +7,38 @@ import {
     DataProvider,
     List,
     Resource,
-    Datagrid,
+    TopToolbar,
     TextField,
     ReferenceManyField,
     useListContext,
+    SimpleForm,
+    TextInput,
+    Form,
+    DatagridConfigurable,
+    CreateButton,
+    ExportButton,
+    Edit,
+    SelectColumnsButton,
+    Create,
+    ReferenceInput,
+    SelectInput,
 } from "react-admin"
 import buildHasuraProvider from "ra-data-hasura"
 import {apolloClient} from "./services/ApolloService"
 import {Chip} from "@mui/material"
 import {Sequent_Backend_Election} from "./gql/graphql"
 
+const ListActions: React.FC = () => (
+    <TopToolbar>
+        <SelectColumnsButton />
+        {/*<FilterButton/>*/}
+        <CreateButton />
+        <ExportButton />
+    </TopToolbar>
+)
+
 const ElectionList: React.FC = () => {
-    const {data} = useListContext<{id: string; name: string}>()
+    const {data} = useListContext<Sequent_Backend_Election>()
     if (!data) {
         return null
     }
@@ -33,9 +53,11 @@ const ElectionList: React.FC = () => {
 }
 
 const ElectionEventList: React.FC<PropsWithChildren> = ({}) => (
-    <List>
-        <Datagrid>
+    <List actions={<ListActions />}>
+        <DatagridConfigurable rowClick="edit" omit={["id"]}>
+            <TextField source="id" />
             <TextField source="name" />
+            <TextField source="description" />
             <ReferenceManyField
                 label="Elections"
                 reference="sequent_backend_election"
@@ -43,9 +65,43 @@ const ElectionEventList: React.FC<PropsWithChildren> = ({}) => (
             >
                 <ElectionList />
             </ReferenceManyField>
-        </Datagrid>
+        </DatagridConfigurable>
     </List>
 )
+
+const ElectionListForm: React.FC = () => {
+    return (
+        <SimpleForm>
+            <TextInput source="description" />
+            <TextInput source="name" />
+            <SelectInput
+                source="encryption_protocol"
+                choices={[
+                    {id: "RSA256", name: "RSA256"}
+                ]}
+            />
+            <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
+                <SelectInput optionText="username" />
+            </ReferenceInput>
+        </SimpleForm>
+    )
+}
+
+const EditElectionList: React.FC = () => {
+    return (
+        <Edit>
+            <ElectionListForm />
+        </Edit>
+    )
+}
+
+const CreateElectionList: React.FC = () => {
+    return (
+        <Create>
+            <ElectionListForm />
+        </Create>
+    )
+}
 
 const App = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
@@ -65,6 +121,8 @@ const App = () => {
             <Resource
                 name="sequent_backend_election_event"
                 list={ElectionEventList}
+                create={CreateElectionList}
+                edit={EditElectionList}
                 options={{label: "Election Events"}}
             />
         </Admin>
