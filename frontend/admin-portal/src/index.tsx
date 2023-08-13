@@ -24,15 +24,15 @@ SequentCoreLibInit().then(set_hooks)
 root.render(
     <React.StrictMode>
         {/*<AuthContextProvider>*/}
-            <Provider store={store}>
-                <BrowserRouter>
-                    <ThemeProvider theme={theme}>
-                        <ApolloProvider client={apolloClient}>
-                            <App />
-                        </ApolloProvider>
-                    </ThemeProvider>
-                </BrowserRouter>
-            </Provider>
+        <Provider store={store}>
+            <BrowserRouter>
+                <ThemeProvider theme={theme}>
+                    <ApolloProvider client={apolloClient}>
+                        <App />
+                    </ApolloProvider>
+                </ThemeProvider>
+            </BrowserRouter>
+        </Provider>
         {/*</AuthContextProvider>*/}
     </React.StrictMode>
 )
