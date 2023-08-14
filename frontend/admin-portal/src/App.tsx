@@ -23,15 +23,62 @@ import {
     SelectInput,
     ArrayInput,
     SimpleFormIterator,
+    Layout,
+    AppBar,
+    LayoutProps,
+    CustomRoutes,
+    Show,
+    SimpleShowLayout,
+    ReferenceField,
 } from "react-admin"
 import buildHasuraProvider from "ra-data-hasura"
 import {apolloClient} from "./services/ApolloService"
-import {Chip} from "@mui/material"
+import {Box, Chip} from "@mui/material"
 import {CreateElectionEventMutation, Sequent_Backend_Election} from "./gql/graphql"
 import {v4} from "uuid"
-import { useMutation } from "@apollo/client"
-import { INSERT_ELECTION_EVENT } from "./queries/InsertElectionEvent"
-import { Editor } from "./components/Editor"
+import {useMutation} from "@apollo/client"
+import {INSERT_ELECTION_EVENT} from "./queries/InsertElectionEvent"
+import {Header} from "@sequentech/ui-essentials"
+import {Route} from "react-router-dom"
+import {UserAndRoles} from "./screens/UserAndRoles"
+import {Settings} from "./screens/Settings"
+import {Messages} from "./screens/Messages"
+import {styled} from "@mui/material/styles"
+
+const HorizontalBox = styled(Box)`
+    display: flex;
+    flex-direction: row;
+`
+
+const CustomAppBar: React.FC = () => (
+    <AppBar
+        position="static"
+        sx={{
+            "backgroundColor": "#F7F9FE",
+            "color": "black",
+            "& .MuiContainer-root.MuiContainer-maxWidthLg": {
+                maxWidth: "unset",
+            },
+        }}
+    >
+        <Header />
+    </AppBar>
+)
+
+const CustomLayout: React.FC<LayoutProps> = (props) => (
+    <Layout
+        {...props}
+        sx={{
+            "& .RaLayout-appFrame": {
+                marginTop: 0,
+            },
+            "& .MuiPaper-root": {
+                //boxShadow: "unset",
+            },
+        }}
+        appBar={CustomAppBar}
+    />
+)
 
 const ListActions: React.FC = () => (
     <TopToolbar>
@@ -77,14 +124,9 @@ const ElectionEventList: React.FC<PropsWithChildren> = ({}) => (
 const ElectionListForm: React.FC = () => {
     return (
         <SimpleForm>
-            <TextInput source="description" />
             <TextInput source="name" />
-            <SelectInput
-                source="encryption_protocol"
-                choices={[
-                    {id: "RSA256", name: "RSA256"}
-                ]}
-            />
+            <TextInput source="description" />
+            <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />
             <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                 <SelectInput optionText="username" />
             </ReferenceInput>
@@ -94,10 +136,12 @@ const ElectionListForm: React.FC = () => {
 
 const EditElectionList: React.FC = () => {
     return (
-        <Edit>
-            <ElectionListForm />
-            <Editor />
-        </Edit>
+        <HorizontalBox>
+            <ElectionEventList />
+            <Edit>
+                <ElectionListForm />
+            </Edit>
+        </HorizontalBox>
     )
 }
 
@@ -123,7 +167,11 @@ const CreateElectionList: React.FC = () => {
         const {elections, ...electionSubmit} = values as IElectionEventSubmit
         await insertElectionEvent({
             variables: {
-                elections: elections.map(e => ({election_event_id: electionSubmit.id, tenant_id: electionSubmit.tenant_id, ...e})),
+                elections: elections.map((e) => ({
+                    election_event_id: electionSubmit.id,
+                    tenant_id: electionSubmit.tenant_id,
+                    ...e,
+                })),
                 electionEvent: electionSubmit,
             },
         })
@@ -133,12 +181,7 @@ const CreateElectionList: React.FC = () => {
         <SimpleForm defaultValues={postDefaultValues} onSubmit={handleSubmit}>
             <TextInput source="description" />
             <TextInput source="name" />
-            <SelectInput
-                source="encryption_protocol"
-                choices={[
-                    {id: "RSA256", name: "RSA256"}
-                ]}
-            />
+            <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />
             <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                 <SelectInput optionText="username" />
             </ReferenceInput>
@@ -166,7 +209,12 @@ const App = () => {
     }, [])
 
     return (
-        <Admin dataProvider={dataProvider || undefined}>
+        <Admin dataProvider={dataProvider || undefined} layout={CustomLayout}>
+            <CustomRoutes>
+                <Route path="/user-roles" element={<UserAndRoles />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/messages" element={<Messages />} />
+            </CustomRoutes>
             <Resource
                 name="sequent_backend_election_event"
                 list={ElectionEventList}
@@ -177,5 +225,8 @@ const App = () => {
         </Admin>
     )
 }
+
+/*
+ */
 
 export default App
