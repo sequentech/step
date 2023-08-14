@@ -13,7 +13,6 @@ import {
     useListContext,
     SimpleForm,
     TextInput,
-    Form,
     DatagridConfigurable,
     CreateButton,
     ExportButton,
@@ -32,6 +31,7 @@ import {CreateElectionEventMutation, Sequent_Backend_Election} from "./gql/graph
 import {v4} from "uuid"
 import { useMutation } from "@apollo/client"
 import { INSERT_ELECTION_EVENT } from "./queries/InsertElectionEvent"
+import { Editor } from "./components/Editor"
 
 const ListActions: React.FC = () => (
     <TopToolbar>
@@ -96,6 +96,7 @@ const EditElectionList: React.FC = () => {
     return (
         <Edit>
             <ElectionListForm />
+            <Editor />
         </Edit>
     )
 }
