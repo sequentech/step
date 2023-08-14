@@ -33,23 +33,38 @@ pub mod immudb {
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    /// Path to the cache directory. Example: path/to/dir
+    /// Path to the cache directory
+    /// [example: path/to/dir]
     #[arg(short, long, value_name="PATH")]
     cache_dir: PathBuf,
 
-    /// Immugw Server URL. Example: http://127.0.0.1:3323
+    /// Immugw Server URL
+    /// [example: http://127.0.0.1:3323]
+    /// [default: IMMUDB_SERVER_URL env var if set]
     #[arg(short, long, value_name="URL")]
     server_url: Option<String>,
 
-    /// Index dbname. Example: bb_index
+    /// Index dbname
+    /// [example: bb_index]
+    /// [default: IMMUDB_INDEX_DBNAME env var if set]
     #[arg(short, long, value_name="DBNAME")]
     index_dbname: Option<String>,
 
-    /// Immugw username. Example: immudb
+    /// Board dbname
+    /// [example: board1]
+    /// [default: IMMUDB_BOARD_DBNAME env var if set]
+    #[arg(short, long, value_name="DBNAME")]
+    board_dbname: Option<String>,
+
+    /// Immugw username
+    /// [example: immudb]
+    /// [default: IMMUDB_USERNAME env var if set]
     #[arg(short, long)]
     username: Option<String>,
 
-    /// Immugw password. Example: immudb
+    /// Immugw password
+    /// [example: immudb]
+    /// [default: IMMUDB_PASSWORD env var if set]
     #[arg(short, long)]
     password: Option<String>,
 
@@ -57,7 +72,7 @@ struct Cli {
     #[arg(value_enum)]
     actions: Vec<Action>,
 
-    /// Set verbosity level
+    /// Verbosity level
     #[arg(short,long, value_enum, default_value_t=LogLevel::Info)]
     log_level: LogLevel,
 }
@@ -72,14 +87,12 @@ enum LogLevel {
     Trace,
 }
 
-
 #[derive(clap::ValueEnum, Clone, Debug)]
 enum Action {
     DeleteInitDb,
     UpsertInitDb,
-    Init,
-    Ballots,
-    List,
+    DeleteBoardDb,
+    UpsertBoardDb,
 }
 
 impl Cli {
@@ -106,8 +119,8 @@ impl Cli {
 
 struct BBHelper {
     client: ImmuServiceClient<Channel>,
-    server_url: String,
     index_dbname: String,
+    board_dbname: String,
     login_token: String,
     database_tokens: HashMap<String, String>,
     actions: Vec<Action>,
@@ -125,6 +138,11 @@ impl BBHelper {
             Some(index_dbname) => index_dbname.to_owned(),
             None => env::var("IMMUDB_INDEX_DBNAME")
                 .context("index_dbname not provided and IMMUDB_INDEX_DBNAME env var not set")?
+        };
+        let board_dbname = match args.board_dbname.as_deref() {
+            Some(board_dbname) => board_dbname.to_owned(),
+            None => env::var("IMMUDB_BOARD_DBNAME")
+                .context("board_dbname not provided and IMMUDB_BOARD_DBNAME env var not set")?
         };
 
         // Authenticate
@@ -151,8 +169,8 @@ impl BBHelper {
         Ok(
             BBHelper {
                 client: client,
-                server_url: server_url,
                 index_dbname: index_dbname,
+                board_dbname: board_dbname,
                 login_token: login_token,
                 database_tokens: Default::default(),
                 actions: args.actions
@@ -183,45 +201,46 @@ impl BBHelper {
         return Ok(request);
     }
 
-    /// Creates the index database, only if it doesn't exist. It also creates
+    /// Creates the database, only if it doesn't exist. It also creates
     /// the appropriate tables if they don't exist.
-    async fn upsert_index_db(&mut self) -> Result<()> {
+    async fn upsert_database(&mut self, name: &str, tables: &str) -> Result<()>
+    {
         let use_db_request = self.get_request(
-            Database { database_name: self.index_dbname.clone() },
+            Database { database_name: name.to_string() },
             None
         )?;
 
-        // Index database doesn't seem to exist, so we have to create it
+        // database doesn't seem to exist, so we have to create it
         match self.client.use_database(use_db_request).await {
             Err(_) => {
-                debug!("Index Database doesn't exist, creating it");
+                debug!("Database doesn't exist, creating it");
                 let create_db_request = self.get_request(
                     CreateDatabaseRequest {
-                        name: self.index_dbname.clone(),
+                        name: name.to_string(),
                         ..Default::default()
                     },
                     None
                 )?;
                 let _create_db_response = self.client
                     .create_database_v2(create_db_request).await?;
-                debug!("Index Database created! try obtaining token again..");
+                debug!("Database created! try obtaining token again..");
 
                 let use_db_request = self.get_request(
-                    Database { database_name: self.index_dbname.clone() },
+                    Database { database_name: name.to_string() },
                     None
                 )?;
                 let use_db_response = self.client
                     .use_database(use_db_request)
                     .await?;
                 self.database_tokens.insert(
-                    self.index_dbname.clone(),
+                    name.to_string(),
                     use_db_response.get_ref().token.clone()
                 );
             },
             Ok(use_db_response) => {
-                debug!("Index Database already exists, obtaining token..");
+                debug!("Index Database already exists, refreshing token..");
                 self.database_tokens.insert(
-                    self.index_dbname.clone(),
+                    name.to_string(),
                     use_db_response.get_ref().token.clone()
                 );
             }
@@ -230,7 +249,7 @@ impl BBHelper {
         // List tables and create them if missing
         let list_tables_request = self.get_request(
             (),
-            Some(self.index_dbname.clone())
+            Some(name.to_string())
         )?;
         let list_tables_response = self.client
             .list_tables(list_tables_request)
@@ -240,18 +259,11 @@ impl BBHelper {
             debug!("no tables! let's create them");
             let create_tables_request = self.get_request(
                 SqlExecRequest {
-                    sql: String::from(r#"
-                    CREATE TABLE IF NOT EXISTS bulletin_boards (
-                        id INTEGER,
-                        database_name VARCHAR,
-                        is_archived BOOLEAN,
-                        PRIMARY KEY id
-                    );
-                    "#),
+                    sql: tables.to_string(),
                     no_wait: true,
                     params: vec![],
                 },
-                Some(self.index_dbname.clone())
+                Some(name.to_string())
             )?;
             let create_tables_response = self.client
                 .sql_exec(create_tables_request)
@@ -259,7 +271,7 @@ impl BBHelper {
             debug!("create_tables_response={:?}", create_tables_response);
         } else {
             debug!(
-                "index database has the following tables: {:?}",
+                "Database has the following tables: {:?}",
                 list_tables_response.get_ref().rows
             );
         }
@@ -267,9 +279,8 @@ impl BBHelper {
         Ok(())
     }
 
-
-    /// Deletes the index database.
-    async fn delete_index_db(&mut self) -> Result<()> {
+    async fn delete_database(&mut self, name: &str) -> Result<()>
+    {
         debug!("Listing databases..");
         let list_dbs_request = self.get_request(
             DatabaseListRequestV2 {}, None
@@ -282,18 +293,18 @@ impl BBHelper {
             .get_ref()
             .databases
             .iter()
-            .find(|&database| database.name == self.index_dbname);
+            .find(|&database| database.name == name);
         if find_index_db.is_some() {
             debug!("Index Database found, unloading it before deletion...");
             let unload_db_request = self.get_request(
-                UnloadDatabaseRequest { database: self.index_dbname.clone() },
+                UnloadDatabaseRequest { database: name.to_string() },
                 None,
             )?;
             let _unload_db_response = self.client
                 .unload_database(unload_db_request).await?;
             debug!("Deleting index database...");
             let delete_db_request = self.get_request(
-                DeleteDatabaseRequest { database: self.index_dbname.clone() },
+                DeleteDatabaseRequest { database: name.to_string() },
                 None,
             )?;
             let _delete_db_response = self.client
@@ -302,8 +313,46 @@ impl BBHelper {
         } else {
             debug!("Index Database doesn't exist, nothing to do");
         }
-
         Ok(())
+    }
+
+    async fn upsert_index_db(&mut self) -> Result<()> {
+        self.upsert_database(
+            self.index_dbname.clone().as_str(),
+            r#"
+            CREATE TABLE IF NOT EXISTS bulletin_boards (
+                id INTEGER,
+                database_name VARCHAR,
+                is_archived BOOLEAN,
+                PRIMARY KEY id
+            );
+            "#
+        ).await
+    }
+
+    async fn delete_index_db(&mut self) -> Result<()> {
+        self.delete_database(self.index_dbname.clone().as_str()).await
+    }
+
+    async fn upsert_board_db(&mut self) -> Result<()> {
+        self.upsert_database(
+            self.board_dbname.clone().as_str(),
+            r#"
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER AUTO_INCREMENT,
+                created TIMESTAMP,
+                signer_key INTEGER,
+                statement_timestamp TIMESTAMP,
+                statement_kind VARCHAR,
+                message BLOB,
+                PRIMARY KEY id
+            );
+            "#
+        ).await
+    }
+
+    async fn delete_board_db(&mut self) -> Result<()> {
+        self.delete_database(self.board_dbname.clone().as_str()).await
     }
 
     // Run the given actions
@@ -314,7 +363,8 @@ impl BBHelper {
             match action {
                 Action::DeleteInitDb => self.delete_index_db().await?,
                 Action::UpsertInitDb => self.upsert_index_db().await?,
-                _ => debug!("action {:?} not implemented", action),
+                Action::DeleteBoardDb => self.delete_board_db().await?,
+                Action::UpsertBoardDb => self.upsert_board_db().await?,
             }
         }
         Ok(())
