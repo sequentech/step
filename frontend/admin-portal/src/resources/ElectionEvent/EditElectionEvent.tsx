@@ -1,12 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, Typography} from "@mui/material"
+import {Typography} from "@mui/material"
 import React from "react"
 import {
     BooleanInput,
     Edit,
-    ReferenceInput,
     ReferenceManyField,
     SelectInput,
     SimpleForm,

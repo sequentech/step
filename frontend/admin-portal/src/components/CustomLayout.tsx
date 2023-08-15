@@ -16,6 +16,9 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
             "& .MuiPaper-root": {
                 //boxShadow: "unset",
             },
+            "& .MuiToolbar-root": {
+                minHeight: "unset",
+            },
         }}
         appBar={CustomAppBar}
         menu={CustomMenu}
