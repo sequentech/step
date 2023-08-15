@@ -1,199 +1,29 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState, PropsWithChildren} from "react"
+import React, {useEffect, useState} from "react"
 import {
     Admin,
     DataProvider,
-    List,
     Resource,
-    TopToolbar,
-    TextField,
-    ReferenceManyField,
-    useListContext,
-    SimpleForm,
-    TextInput,
-    DatagridConfigurable,
-    CreateButton,
-    ExportButton,
-    Edit,
-    SelectColumnsButton,
-    Create,
-    ReferenceInput,
-    SelectInput,
-    ArrayInput,
-    SimpleFormIterator,
-    Layout,
-    AppBar,
-    LayoutProps,
     CustomRoutes,
-    Show,
-    SimpleShowLayout,
-    ReferenceField,
 } from "react-admin"
 import buildHasuraProvider from "ra-data-hasura"
 import {apolloClient} from "./services/ApolloService"
-import {Box, Chip} from "@mui/material"
-import {CreateElectionEventMutation, Sequent_Backend_Election} from "./gql/graphql"
-import {v4} from "uuid"
-import {useMutation} from "@apollo/client"
-import {INSERT_ELECTION_EVENT} from "./queries/InsertElectionEvent"
-import {Header} from "@sequentech/ui-essentials"
 import {Route} from "react-router-dom"
 import {UserAndRoles} from "./screens/UserAndRoles"
 import {Settings} from "./screens/Settings"
 import {Messages} from "./screens/Messages"
-import {styled} from "@mui/material/styles"
-
-const HorizontalBox = styled(Box)`
-    display: flex;
-    flex-direction: row;
-`
-
-const CustomAppBar: React.FC = () => (
-    <AppBar
-        position="static"
-        sx={{
-            "backgroundColor": "#F7F9FE",
-            "color": "black",
-            "& .MuiContainer-root.MuiContainer-maxWidthLg": {
-                maxWidth: "unset",
-            },
-        }}
-    >
-        <Header />
-    </AppBar>
-)
-
-const CustomLayout: React.FC<LayoutProps> = (props) => (
-    <Layout
-        {...props}
-        sx={{
-            "& .RaLayout-appFrame": {
-                marginTop: 0,
-            },
-            "& .MuiPaper-root": {
-                //boxShadow: "unset",
-            },
-        }}
-        appBar={CustomAppBar}
-    />
-)
-
-const ListActions: React.FC = () => (
-    <TopToolbar>
-        <SelectColumnsButton />
-        {/*<FilterButton/>*/}
-        <CreateButton />
-        <ExportButton />
-    </TopToolbar>
-)
-
-const ElectionList: React.FC = () => {
-    const {data} = useListContext<Sequent_Backend_Election>()
-    if (!data) {
-        return null
-    }
-
-    return (
-        <>
-            {data.map((election) => (
-                <Chip label={election.name} key={election.id} />
-            ))}
-        </>
-    )
-}
-
-const ElectionEventList: React.FC<PropsWithChildren> = ({}) => (
-    <List actions={<ListActions />}>
-        <DatagridConfigurable rowClick="edit" omit={["id"]}>
-            <TextField source="id" />
-            <TextField source="name" />
-            <TextField source="description" />
-            <ReferenceManyField
-                label="Elections"
-                reference="sequent_backend_election"
-                target="election_event_id"
-            >
-                <ElectionList />
-            </ReferenceManyField>
-        </DatagridConfigurable>
-    </List>
-)
-
-const ElectionListForm: React.FC = () => {
-    return (
-        <SimpleForm>
-            <TextInput source="name" />
-            <TextInput source="description" />
-            <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />
-            <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
-                <SelectInput optionText="username" />
-            </ReferenceInput>
-        </SimpleForm>
-    )
-}
-
-const EditElectionList: React.FC = () => {
-    return (
-        <HorizontalBox>
-            <ElectionEventList />
-            <Edit>
-                <ElectionListForm />
-            </Edit>
-        </HorizontalBox>
-    )
-}
-
-interface IElectionSubmit {
-    description: string
-    name: string
-}
-
-interface IElectionEventSubmit {
-    name: string
-    description: string
-    elections: Array<IElectionSubmit>
-    encryption_protocol: string
-    id: string
-    tenant_id: string
-}
-
-const CreateElectionList: React.FC = () => {
-    const [insertElectionEvent] = useMutation<CreateElectionEventMutation>(INSERT_ELECTION_EVENT)
-    const postDefaultValues = () => ({id: v4()})
-
-    const handleSubmit = async (values: any) => {
-        const {elections, ...electionSubmit} = values as IElectionEventSubmit
-        await insertElectionEvent({
-            variables: {
-                elections: elections.map((e) => ({
-                    election_event_id: electionSubmit.id,
-                    tenant_id: electionSubmit.tenant_id,
-                    ...e,
-                })),
-                electionEvent: electionSubmit,
-            },
-        })
-        console.log(values)
-    }
-    return (
-        <SimpleForm defaultValues={postDefaultValues} onSubmit={handleSubmit}>
-            <TextInput source="description" />
-            <TextInput source="name" />
-            <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />
-            <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
-                <SelectInput optionText="username" />
-            </ReferenceInput>
-            <ArrayInput source="elections">
-                <SimpleFormIterator inline>
-                    <TextInput source="name" />
-                    <TextInput source="description" />
-                </SimpleFormIterator>
-            </ArrayInput>
-        </SimpleForm>
-    )
-}
+import { CustomLayout } from "./components/CustomLayout"
+import { ElectionEventList } from "./resources/ElectionEvent/ElectionEventList"
+import { CreateElectionList } from "./resources/ElectionEvent/CreateElectionEvent"
+import { EditElectionList } from "./resources/ElectionEvent/EditElectionEvent"
+import { EditElection } from "./resources/Election/EditElection"
+import { ElectionList } from "./resources/Election/ListElection"
+import { EditContest } from "./resources/Contest/EditContest"
+import { ContestList } from "./resources/Contest/ListContest"
+import { CreateElection } from "./resources/Election/CreateElection"
+import { CreateContest } from "./resources/Contest/CreateContest"
 
 const App = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
@@ -222,11 +52,22 @@ const App = () => {
                 edit={EditElectionList}
                 options={{label: "Election Events"}}
             />
+            <Resource
+                name="sequent_backend_election"
+                edit={EditElection}
+                list={ElectionList}
+                create={CreateElection}
+                options={{label: "Elections"}}
+            />
+            <Resource
+                name="sequent_backend_contest"
+                edit={EditContest}
+                list={ContestList}
+                create={CreateContest}
+                options={{label: "Contests"}}
+            />
         </Admin>
     )
 }
-
-/*
- */
 
 export default App
