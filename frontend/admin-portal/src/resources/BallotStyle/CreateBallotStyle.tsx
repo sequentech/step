@@ -7,34 +7,20 @@ import {
     BooleanInput,
     SimpleForm,
     TextInput,
-    NumberInput,
     SelectInput,
     ReferenceInput,
     Create,
     FormDataConsumer,
 } from "react-admin"
 
-export const CreateContest: React.FC = () => {
+export const CreateBallotStyle: React.FC = () => {
     return (
         <Create>
             <SimpleForm>
-                <Typography variant="h4">Contest</Typography>
-                <Typography variant="body2">Contest configuration</Typography>
-                <TextInput source="name" />
-                <TextInput source="description" />
-                <BooleanInput source="is_acclaimed" />
-                <BooleanInput source="is_active" />
-                <NumberInput source="min_votes" />
-                <NumberInput source="max_votes" />
-                <SelectInput
-                    source="voting_type"
-                    choices={[{id: "first-past-the-post", name: "First Past The Post"}]}
-                />
-                <SelectInput
-                    source="counting_algorithm"
-                    choices={[{id: "plurality-at-large", name: "Plurality At Large"}]}
-                />
-                <BooleanInput source="is_encrypted" />
+                <Typography variant="h4">Ballot Style</Typography>
+                <Typography variant="body2">Ballot Style creation</Typography>
+                <TextInput source="ballot_eml" />
+                <TextInput source="status" />
                 <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                     <SelectInput optionText="username" />
                 </ReferenceInput>
@@ -51,6 +37,16 @@ export const CreateContest: React.FC = () => {
                             <ReferenceInput
                                 source="election_id"
                                 reference="sequent_backend_election"
+                                filter={{
+                                    tenant_id: formData.tenant_id,
+                                    election_event_id: formData.election_event_id,
+                                }}
+                            >
+                                <SelectInput optionText="name" />
+                            </ReferenceInput>
+                            <ReferenceInput
+                                source="area_id"
+                                reference="sequent_backend_area"
                                 filter={{
                                     tenant_id: formData.tenant_id,
                                     election_event_id: formData.election_event_id,

@@ -1,16 +1,30 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { PropsWithChildren } from "react"
-import { DatagridConfigurable, List, BooleanField, TextField, NumberField } from "react-admin"
-import { ListActions } from "../../components/ListActions"
+import React, {PropsWithChildren} from "react"
+import {
+    DatagridConfigurable,
+    List,
+    BooleanField,
+    TextField,
+    NumberField,
+    ReferenceManyField,
+} from "react-admin"
+import {ListActions} from "../../components/ListActions"
+import {CandidateChipList} from "../../components/CandidateChipList"
 
 const OMIT_FIELDS = [
-    "id", "is_acclaimed", "is_active", "min_votes", "max_votes", "voting_type",
-    "counting_algorithm", "is_encrypted"
+    "id",
+    "is_acclaimed",
+    "is_active",
+    "min_votes",
+    "max_votes",
+    "voting_type",
+    "counting_algorithm",
+    "is_encrypted",
 ]
 
-export const ContestList: React.FC<PropsWithChildren> = ({}) => (
+export const ListContest: React.FC<PropsWithChildren> = ({}) => (
     <List actions={<ListActions />} sx={{flexGrow: 2}}>
         <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
             <TextField source="id" />
@@ -23,6 +37,13 @@ export const ContestList: React.FC<PropsWithChildren> = ({}) => (
             <TextField source="voting_type" />
             <TextField source="counting_algorithm" />
             <BooleanField source="is_encrypted" />
+            <ReferenceManyField
+                label="Candidates"
+                reference="sequent_backend_candidate"
+                target="contest_id"
+            >
+                <CandidateChipList />
+            </ReferenceManyField>
         </DatagridConfigurable>
     </List>
 )

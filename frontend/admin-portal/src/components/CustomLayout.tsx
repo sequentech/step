@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import { Layout, LayoutProps } from "react-admin"
-import { CustomAppBar } from "./CustomAppBar"
+import {Layout, LayoutProps} from "react-admin"
+import {CustomAppBar} from "./CustomAppBar"
 
 export const CustomLayout: React.FC<LayoutProps> = (props) => (
     <Layout

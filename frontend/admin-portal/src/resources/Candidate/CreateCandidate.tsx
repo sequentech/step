@@ -7,34 +7,22 @@ import {
     BooleanInput,
     SimpleForm,
     TextInput,
-    NumberInput,
     SelectInput,
     ReferenceInput,
     Create,
     FormDataConsumer,
 } from "react-admin"
 
-export const CreateContest: React.FC = () => {
+export const CreateCandidate: React.FC = () => {
     return (
         <Create>
             <SimpleForm>
-                <Typography variant="h4">Contest</Typography>
-                <Typography variant="body2">Contest configuration</Typography>
+                <Typography variant="h4">Candidate</Typography>
+                <Typography variant="body2">Candidate creation</Typography>
                 <TextInput source="name" />
                 <TextInput source="description" />
-                <BooleanInput source="is_acclaimed" />
-                <BooleanInput source="is_active" />
-                <NumberInput source="min_votes" />
-                <NumberInput source="max_votes" />
-                <SelectInput
-                    source="voting_type"
-                    choices={[{id: "first-past-the-post", name: "First Past The Post"}]}
-                />
-                <SelectInput
-                    source="counting_algorithm"
-                    choices={[{id: "plurality-at-large", name: "Plurality At Large"}]}
-                />
-                <BooleanInput source="is_encrypted" />
+                <TextInput source="type" />
+                <BooleanInput source="is_public" />
                 <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                     <SelectInput optionText="username" />
                 </ReferenceInput>
@@ -54,6 +42,17 @@ export const CreateContest: React.FC = () => {
                                 filter={{
                                     tenant_id: formData.tenant_id,
                                     election_event_id: formData.election_event_id,
+                                }}
+                            >
+                                <SelectInput optionText="name" />
+                            </ReferenceInput>
+                            <ReferenceInput
+                                source="contest_id"
+                                reference="sequent_backend_contest"
+                                filter={{
+                                    tenant_id: formData.tenant_id,
+                                    election_event_id: formData.election_event_id,
+                                    election_id: formData.election_id,
                                 }}
                             >
                                 <SelectInput optionText="name" />

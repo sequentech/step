@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import { CreateButton, ExportButton, SelectColumnsButton, TopToolbar } from "react-admin"
+import {CreateButton, ExportButton, SelectColumnsButton, TopToolbar} from "react-admin"
 
 export const ListActions: React.FC = () => (
     <TopToolbar>

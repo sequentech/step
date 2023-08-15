@@ -1,14 +1,17 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { PropsWithChildren } from "react"
-import { BooleanField, DatagridConfigurable, List, ReferenceManyField, TextField } from "react-admin"
-import { ListActions } from "../../components/ListActions"
-import { ContestChipList } from "../../components/ContestChipList"
+import React, {PropsWithChildren} from "react"
+import {BooleanField, DatagridConfigurable, List, ReferenceManyField, TextField} from "react-admin"
+import {ListActions} from "../../components/ListActions"
+import {ContestChipList} from "../../components/ContestChipList"
 
-export const ElectionList: React.FC<PropsWithChildren> = ({}) => (
+export const ListElection: React.FC<PropsWithChildren> = ({}) => (
     <List actions={<ListActions />} sx={{flexGrow: 2}}>
-        <DatagridConfigurable rowClick="edit" omit={["id", "is_consolidated_ballot_encoding", "spoil_ballot_option"]}>
+        <DatagridConfigurable
+            rowClick="edit"
+            omit={["id", "is_consolidated_ballot_encoding", "spoil_ballot_option"]}
+        >
             <TextField source="id" />
             <TextField source="name" />
             <TextField source="description" />

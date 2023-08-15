@@ -1,12 +1,20 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Box, Typography } from "@mui/material"
+import {Box, Typography} from "@mui/material"
 import React from "react"
-import { BooleanInput, Edit, ReferenceInput, ReferenceManyField, SelectInput, SimpleForm, TextInput } from "react-admin"
-import { ElectionEventList } from "./ElectionEventList"
-import { ElectionChipList } from "../../components/ElectionChipList"
-import { HorizontalBox } from "../../components/HorizontalBox"
+import {
+    BooleanInput,
+    Edit,
+    ReferenceInput,
+    ReferenceManyField,
+    SelectInput,
+    SimpleForm,
+    TextInput,
+} from "react-admin"
+import {ElectionEventList} from "./ElectionEventList"
+import {ElectionChipList} from "../../components/ElectionChipList"
+import {HorizontalBox} from "../../components/HorizontalBox"
 
 const ElectionEventListForm: React.FC = () => {
     return (

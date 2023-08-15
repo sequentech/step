@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { Header } from "@sequentech/ui-essentials"
+import {Header} from "@sequentech/ui-essentials"
 import React from "react"
-import { AppBar } from "react-admin"
+import {AppBar} from "react-admin"
 
 export const CustomAppBar: React.FC = () => (
     <AppBar

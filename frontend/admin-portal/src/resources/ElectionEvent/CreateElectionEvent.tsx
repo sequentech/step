@@ -1,12 +1,19 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useMutation } from "@apollo/client"
+import {useMutation} from "@apollo/client"
 import React from "react"
-import { CreateElectionEventMutation } from "../../gql/graphql"
+import {CreateElectionEventMutation} from "../../gql/graphql"
 import {v4} from "uuid"
-import { ArrayInput, ReferenceInput, SelectInput, SimpleForm, SimpleFormIterator, TextInput } from "react-admin"
-import { INSERT_ELECTION_EVENT } from "../../queries/InsertElectionEvent"
+import {
+    ArrayInput,
+    ReferenceInput,
+    SelectInput,
+    SimpleForm,
+    SimpleFormIterator,
+    TextInput,
+} from "react-admin"
+import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
 
 interface IElectionSubmit {
     description: string

@@ -2,28 +2,29 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {
-    Admin,
-    DataProvider,
-    Resource,
-    CustomRoutes,
-} from "react-admin"
+import {Admin, DataProvider, Resource, CustomRoutes} from "react-admin"
 import buildHasuraProvider from "ra-data-hasura"
 import {apolloClient} from "./services/ApolloService"
 import {Route} from "react-router-dom"
 import {UserAndRoles} from "./screens/UserAndRoles"
 import {Settings} from "./screens/Settings"
 import {Messages} from "./screens/Messages"
-import { CustomLayout } from "./components/CustomLayout"
-import { ElectionEventList } from "./resources/ElectionEvent/ElectionEventList"
-import { CreateElectionList } from "./resources/ElectionEvent/CreateElectionEvent"
-import { EditElectionList } from "./resources/ElectionEvent/EditElectionEvent"
-import { EditElection } from "./resources/Election/EditElection"
-import { ElectionList } from "./resources/Election/ListElection"
-import { EditContest } from "./resources/Contest/EditContest"
-import { ContestList } from "./resources/Contest/ListContest"
-import { CreateElection } from "./resources/Election/CreateElection"
-import { CreateContest } from "./resources/Contest/CreateContest"
+import {CustomLayout} from "./components/CustomLayout"
+import {ElectionEventList} from "./resources/ElectionEvent/ElectionEventList"
+import {CreateElectionList} from "./resources/ElectionEvent/CreateElectionEvent"
+import {EditElectionList} from "./resources/ElectionEvent/EditElectionEvent"
+import {EditElection} from "./resources/Election/EditElection"
+import {ListElection} from "./resources/Election/ListElection"
+import {EditContest} from "./resources/Contest/EditContest"
+import {ListContest} from "./resources/Contest/ListContest"
+import {CreateElection} from "./resources/Election/CreateElection"
+import {CreateContest} from "./resources/Contest/CreateContest"
+import {EditCandidate} from "./resources/Candidate/EditCandidate"
+import {ListCandidate} from "./resources/Candidate/ListCandidate"
+import {CreateCandidate} from "./resources/Candidate/CreateCandidate"
+import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
+import {ListBallotStyle} from "./resources/BallotStyle/ListBallotStyle"
+import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
 
 const App = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
@@ -55,16 +56,30 @@ const App = () => {
             <Resource
                 name="sequent_backend_election"
                 edit={EditElection}
-                list={ElectionList}
+                list={ListElection}
                 create={CreateElection}
                 options={{label: "Elections"}}
             />
             <Resource
                 name="sequent_backend_contest"
                 edit={EditContest}
-                list={ContestList}
+                list={ListContest}
                 create={CreateContest}
                 options={{label: "Contests"}}
+            />
+            <Resource
+                name="sequent_backend_candidate"
+                edit={EditCandidate}
+                list={ListCandidate}
+                create={CreateCandidate}
+                options={{label: "Candidates"}}
+            />
+            <Resource
+                name="sequent_backend_ballot_style"
+                edit={EditBallotStyle}
+                list={ListBallotStyle}
+                create={CreateBallotStyle}
+                options={{label: "Ballot Styles"}}
             />
         </Admin>
     )
