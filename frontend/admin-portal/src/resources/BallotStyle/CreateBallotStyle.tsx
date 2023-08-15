@@ -4,7 +4,6 @@
 import {Typography} from "@mui/material"
 import React from "react"
 import {
-    BooleanInput,
     SimpleForm,
     TextInput,
     SelectInput,

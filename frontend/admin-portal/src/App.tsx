@@ -25,6 +25,9 @@ import {CreateCandidate} from "./resources/Candidate/CreateCandidate"
 import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
 import {ListBallotStyle} from "./resources/BallotStyle/ListBallotStyle"
 import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
+import {CreateArea} from "./resources/Area/CreateArea"
+import {ListArea} from "./resources/Area/ListArea"
+import {EditArea} from "./resources/Area/EditArea"
 
 const App = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
@@ -79,6 +82,13 @@ const App = () => {
                 edit={EditBallotStyle}
                 list={ListBallotStyle}
                 create={CreateBallotStyle}
+                options={{label: "Ballot Styles"}}
+            />
+            <Resource
+                name="sequent_backend_area"
+                edit={EditArea}
+                list={ListArea}
+                create={CreateArea}
                 options={{label: "Ballot Styles"}}
             />
         </Admin>

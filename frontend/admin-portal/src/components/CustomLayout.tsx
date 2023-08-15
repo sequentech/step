@@ -4,6 +4,7 @@
 import React from "react"
 import {Layout, LayoutProps} from "react-admin"
 import {CustomAppBar} from "./CustomAppBar"
+import {CustomMenu} from "./CustomMenu"
 
 export const CustomLayout: React.FC<LayoutProps> = (props) => (
     <Layout
@@ -17,5 +18,6 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
             },
         }}
         appBar={CustomAppBar}
+        menu={CustomMenu}
     />
 )

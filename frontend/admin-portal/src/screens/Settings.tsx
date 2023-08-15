@@ -4,4 +4,4 @@
 import {Box} from "@mui/material"
 import React from "react"
 
-export const Settings: React.FC = () => <Box>User and roles</Box>
+export const Settings: React.FC = () => <Box>Settings</Box>
