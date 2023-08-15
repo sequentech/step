@@ -45,7 +45,7 @@ struct Cli {
     server_url: Option<String>,
 
     /// Index dbname
-    /// [example: bb_index]
+    /// [example: bbindex]
     /// [default: IMMUDB_INDEX_DBNAME env var if set]
     #[arg(short, long, value_name="DBNAME")]
     index_dbname: Option<String>,
@@ -127,7 +127,7 @@ struct BBHelper {
 }
 
 impl BBHelper {
-    async fn create() -> Result<BBHelper> {
+    async fn new() -> Result<BBHelper> {
         let args = Cli::init();
         let server_url = match args.server_url.as_deref() {
             Some(server_url) => server_url.to_owned(),
@@ -374,7 +374,7 @@ impl BBHelper {
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    let mut helper = BBHelper::create().await?;
+    let mut helper = BBHelper::new().await?;
     helper.run_actions().await?;
     Ok(())
 }

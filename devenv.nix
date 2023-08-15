@@ -47,7 +47,7 @@
     export IMMUDB_PASSWORD=immudb
     export IMMUDB_SERVER_URL=http://immudb:3322
     export IMMUDB_INDEX_DBNAME=boardsindex
-    export IMMUDB_BOARD_DBNAME=board1
+    export IMMUDB_BOARD_DBNAME=bulletin_board
   '';
 
   # https://devenv.sh/languages/
