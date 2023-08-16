@@ -17,8 +17,8 @@ import {
 } from "react-admin"
 import {HorizontalBox} from "../../components/HorizontalBox"
 import {ListBallotStyle} from "./ListBallotStyle"
-import { Sequent_Backend_Ballot_Style } from "../../gql/graphql"
-import { JsonInput } from "react-admin-json-view"
+import {Sequent_Backend_Ballot_Style} from "../../gql/graphql"
+import {JsonInput} from "react-admin-json-view"
 
 const BallotStyleForm: React.FC = () => {
     return (
@@ -96,12 +96,14 @@ const BallotStyleForm: React.FC = () => {
 const ListBallotStyleWrapper: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Ballot_Style>()
 
-    return <ListBallotStyle
-        electionEventId={record?.election_event_id}
-        electionId={record?.election_id}
-        areaId={record?.area_id}
-        aside={<BallotStyleForm />}
-    />
+    return (
+        <ListBallotStyle
+            electionEventId={record?.election_event_id}
+            electionId={record?.election_id}
+            areaId={record?.area_id}
+            aside={<BallotStyleForm />}
+        />
+    )
 }
 
 export const EditBallotStyle: React.FC = () => {

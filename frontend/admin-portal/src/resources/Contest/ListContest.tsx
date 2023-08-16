@@ -12,8 +12,8 @@ import {
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {ChipList} from "../../components/ChipList"
-import { useTenantStore } from "../../components/CustomMenu"
-import { Typography } from "@mui/material"
+import {useTenantStore} from "../../components/CustomMenu"
+import {Typography} from "@mui/material"
 
 const OMIT_FIELDS = [
     "id",
@@ -35,37 +35,39 @@ export interface ListContestProps {
 export const ListContest: React.FC<ListContestProps> = ({electionEventId, electionId, aside}) => {
     const [tenantId] = useTenantStore()
 
-    return <>
-        <Typography variant="h5">Contests</Typography>
-        <List
-            actions={<ListActions />}
-            sx={{flexGrow: 2}}
-            filter={{
-                tenant_id: tenantId || undefined,
-                election_event_id: electionEventId,
-                election_id: electionId,
-            }}
-            aside={aside}
-        >
-            <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
-                <TextField source="id" />
-                <TextField source="name" />
-                <TextField source="description" />
-                <BooleanField source="is_acclaimed" />
-                <BooleanField source="is_active" />
-                <NumberField source="min_votes" />
-                <NumberField source="max_votes" />
-                <TextField source="voting_type" />
-                <TextField source="counting_algorithm" />
-                <BooleanField source="is_encrypted" />
-                <ReferenceManyField
-                    label="Candidates"
-                    reference="sequent_backend_candidate"
-                    target="contest_id"
-                >
-                    <ChipList source="sequent_backend_candidate" />
-                </ReferenceManyField>
-            </DatagridConfigurable>
-        </List>
-    </>
+    return (
+        <>
+            <Typography variant="h5">Contests</Typography>
+            <List
+                actions={<ListActions />}
+                sx={{flexGrow: 2}}
+                filter={{
+                    tenant_id: tenantId || undefined,
+                    election_event_id: electionEventId,
+                    election_id: electionId,
+                }}
+                aside={aside}
+            >
+                <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
+                    <TextField source="id" />
+                    <TextField source="name" />
+                    <TextField source="description" />
+                    <BooleanField source="is_acclaimed" />
+                    <BooleanField source="is_active" />
+                    <NumberField source="min_votes" />
+                    <NumberField source="max_votes" />
+                    <TextField source="voting_type" />
+                    <TextField source="counting_algorithm" />
+                    <BooleanField source="is_encrypted" />
+                    <ReferenceManyField
+                        label="Candidates"
+                        reference="sequent_backend_candidate"
+                        target="contest_id"
+                    >
+                        <ChipList source="sequent_backend_candidate" />
+                    </ReferenceManyField>
+                </DatagridConfigurable>
+            </List>
+        </>
+    )
 }

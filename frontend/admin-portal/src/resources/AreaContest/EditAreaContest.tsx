@@ -5,8 +5,8 @@ import {Typography} from "@mui/material"
 import React from "react"
 import {Edit, ReferenceField, SimpleForm, TextField, TextInput, useRecordContext} from "react-admin"
 import {ListAreaContest} from "./ListAreaContest"
-import { Sequent_Backend_Area_Contest } from "../../gql/graphql"
-import { JsonInput } from "react-admin-json-view"
+import {Sequent_Backend_Area_Contest} from "../../gql/graphql"
+import {JsonInput} from "react-admin-json-view"
 
 const AreaContestForm: React.FC = () => {
     return (
@@ -21,19 +21,11 @@ const AreaContestForm: React.FC = () => {
                 <TextField source="name" />
             </ReferenceField>
             <Typography variant="h5">Area</Typography>
-            <ReferenceField
-                label="Area"
-                reference="sequent_backend_area"
-                source="area_id"
-            >
+            <ReferenceField label="Area" reference="sequent_backend_area" source="area_id">
                 <TextField source="name" />
             </ReferenceField>
             <Typography variant="h5">Contest</Typography>
-            <ReferenceField
-                label="Contest"
-                reference="sequent_backend_contest"
-                source="contest_id"
-            >
+            <ReferenceField label="Contest" reference="sequent_backend_contest" source="contest_id">
                 <TextField source="name" />
             </ReferenceField>
             <JsonInput
@@ -63,11 +55,13 @@ const AreaContestForm: React.FC = () => {
 const ListAreaContestWrapper: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Area_Contest>()
 
-    return <ListAreaContest
-        electionEventId={record?.election_event_id}
-        areaId={record?.area_id}
-        aside={<AreaContestForm />}
-    />
+    return (
+        <ListAreaContest
+            electionEventId={record?.election_event_id}
+            areaId={record?.area_id}
+            aside={<AreaContestForm />}
+        />
+    )
 }
 
 export const EditAreaContest: React.FC = () => {

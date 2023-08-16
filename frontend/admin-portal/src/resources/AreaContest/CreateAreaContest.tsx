@@ -11,7 +11,7 @@ import {
     Create,
     FormDataConsumer,
 } from "react-admin"
-import { JsonInput } from "react-admin-json-view"
+import {JsonInput} from "react-admin-json-view"
 
 export const CreateAreaContest: React.FC = () => {
     return (
@@ -35,14 +35,20 @@ export const CreateAreaContest: React.FC = () => {
                             <ReferenceInput
                                 source="contest_id"
                                 reference="sequent_backend_contest"
-                                filter={{tenant_id: formData.tenant_id, election_event_id: formData.election_event_id}}
+                                filter={{
+                                    tenant_id: formData.tenant_id,
+                                    election_event_id: formData.election_event_id,
+                                }}
                             >
                                 <SelectInput optionText="name" />
                             </ReferenceInput>
                             <ReferenceInput
                                 source="area_id"
                                 reference="sequent_backend_area"
-                                filter={{tenant_id: formData.tenant_id, election_event_id: formData.election_event_id}}
+                                filter={{
+                                    tenant_id: formData.tenant_id,
+                                    election_event_id: formData.election_event_id,
+                                }}
                             >
                                 <SelectInput optionText="name" />
                             </ReferenceInput>

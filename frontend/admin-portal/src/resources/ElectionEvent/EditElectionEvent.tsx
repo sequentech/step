@@ -101,10 +101,12 @@ const ElectionEventListForm: React.FC = () => {
 
 export const EditElectionList: React.FC = () => {
     return (
-        <ElectionEventList aside={
-            <Edit sx={{flexGrow: 2}}>
-                <ElectionEventListForm />
-            </Edit>
-        }/>
+        <ElectionEventList
+            aside={
+                <Edit sx={{flexGrow: 2}}>
+                    <ElectionEventListForm />
+                </Edit>
+            }
+        />
     )
 }

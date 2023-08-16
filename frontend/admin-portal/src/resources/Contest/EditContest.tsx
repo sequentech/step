@@ -18,8 +18,8 @@ import {
 import {HorizontalBox} from "../../components/HorizontalBox"
 import {ListContest} from "./ListContest"
 import {ChipList} from "../../components/ChipList"
-import { Sequent_Backend_Contest } from "../../gql/graphql"
-import { JsonInput } from "react-admin-json-view"
+import {Sequent_Backend_Contest} from "../../gql/graphql"
+import {JsonInput} from "react-admin-json-view"
 
 const ContestForm: React.FC = () => {
     return (
@@ -136,11 +136,13 @@ const ContestForm: React.FC = () => {
 const ListContestWrapper: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()
 
-    return <ListContest
-        electionEventId={record?.election_event_id}
-        electionId={record?.election_id}
-        aside={<ContestForm />}
-    />
+    return (
+        <ListContest
+            electionEventId={record?.election_event_id}
+            electionId={record?.election_id}
+            aside={<ContestForm />}
+        />
+    )
 }
 
 export const EditContest: React.FC = () => (

@@ -6,7 +6,7 @@ import {DatagridConfigurable, List, ReferenceManyField, TextField} from "react-a
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
 import {ChipList} from "../../components/ChipList"
-import { Box, Typography } from "@mui/material"
+import {Box, Typography} from "@mui/material"
 
 const OMIT_FIELDS = ["id", "sequent_backend_area"]
 

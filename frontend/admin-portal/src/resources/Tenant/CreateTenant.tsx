@@ -3,13 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Typography} from "@mui/material"
 import React from "react"
-import {
-    SimpleForm,
-    TextInput,
-    Create,
-    BooleanInput,
-} from "react-admin"
-import { JsonInput } from "react-admin-json-view"
+import {SimpleForm, TextInput, Create, BooleanInput} from "react-admin"
+import {JsonInput} from "react-admin-json-view"
 
 export const CreateTenant: React.FC = () => {
     return (

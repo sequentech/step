@@ -4,8 +4,8 @@
 import React, {PropsWithChildren, ReactElement} from "react"
 import {DatagridConfigurable, List, TextField, ReferenceField, BooleanField} from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import { useTenantStore } from "../../components/CustomMenu"
-import { Typography } from "@mui/material"
+import {useTenantStore} from "../../components/CustomMenu"
+import {Typography} from "@mui/material"
 
 const OMIT_FIELDS = ["id"]
 
@@ -14,18 +14,16 @@ export interface ListTenantProps {
 }
 
 export const ListTenant: React.FC<ListTenantProps> = ({aside}) => {
-    return <>
-        <Typography variant="h5">Customers</Typography>
-        <List
-            actions={<ListActions />}
-            sx={{flexGrow: 2}}
-            aside={aside}
-        >
-            <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
-                <TextField source="id" />
-                <TextField source="username" />
-                <BooleanField source="is_active" />
-            </DatagridConfigurable>
-        </List>
-    </>
+    return (
+        <>
+            <Typography variant="h5">Customers</Typography>
+            <List actions={<ListActions />} sx={{flexGrow: 2}} aside={aside}>
+                <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
+                    <TextField source="id" />
+                    <TextField source="username" />
+                    <BooleanField source="is_active" />
+                </DatagridConfigurable>
+            </List>
+        </>
+    )
 }

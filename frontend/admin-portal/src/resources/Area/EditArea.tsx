@@ -5,8 +5,8 @@ import {Typography} from "@mui/material"
 import React from "react"
 import {Edit, ReferenceField, SimpleForm, TextField, TextInput, useRecordContext} from "react-admin"
 import {ListArea} from "./ListArea"
-import { Sequent_Backend_Area } from "../../gql/graphql"
-import { JsonInput } from "react-admin-json-view"
+import {Sequent_Backend_Area} from "../../gql/graphql"
+import {JsonInput} from "react-admin-json-view"
 
 const AreaForm: React.FC = () => {
     return (
@@ -51,10 +51,7 @@ const AreaForm: React.FC = () => {
 const ListAreaWrapper: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Area>()
 
-    return <ListArea
-        electionEventId={record?.election_event_id}
-        aside={<AreaForm />}
-    />
+    return <ListArea electionEventId={record?.election_event_id} aside={<AreaForm />} />
 }
 
 export const EditArea: React.FC = () => {

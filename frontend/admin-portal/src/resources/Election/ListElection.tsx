@@ -6,7 +6,7 @@ import {BooleanField, DatagridConfigurable, List, ReferenceManyField, TextField}
 import {ListActions} from "../../components/ListActions"
 import {ChipList} from "../../components/ChipList"
 import {useTenantStore} from "../../components/CustomMenu"
-import { Typography } from "@mui/material"
+import {Typography} from "@mui/material"
 
 const OMIT_FIELDS = ["id", "is_consolidated_ballot_encoding", "spoil_ballot_option"]
 
@@ -16,7 +16,8 @@ export interface ListElectionProps {
 }
 
 export const ListElection: React.FC<ListElectionProps & PropsWithChildren> = ({
-    electionEventId, aside
+    electionEventId,
+    aside,
 }) => {
     const [tenantId] = useTenantStore()
 

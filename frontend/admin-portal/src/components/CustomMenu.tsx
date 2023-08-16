@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useEffect } from "react"
+import React, {useEffect} from "react"
 import {Menu, useSidebarState, useGetList, useResourceContext} from "react-admin"
 import {faThLarge, faUsers, faCog, faStar, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, theme} from "@sequentech/ui-essentials"
@@ -16,7 +16,8 @@ export const useTenantStore = () => useStore<string | null>("tenant_id", null)
 const StyledItem = styled(Menu.Item)`
     color: ${theme.palette.brandColor};
 
-    &.RaMenuItemLink-active, .MuiIconButton-root {
+    &.RaMenuItemLink-active,
+    .MuiIconButton-root {
         color: ${theme.palette.brandColor};
     }
 `
@@ -70,69 +71,71 @@ export const CustomMenu = () => {
         console.log(resource)
     }, [resource])
 
-    return <Menu
+    return (
+        <Menu
             sx={{
-                '.RaMenuItemLink-active': {
+                ".RaMenuItemLink-active": {
                     backgroundColor: theme.palette.green.light,
                 },
-                color: theme.palette.brandColor,
+                "color": theme.palette.brandColor,
             }}
         >
-        <CustomerSelector />
-        <StyledItem
-            to="/sequent_backend_election_event"
-            primaryText="Election Events"
-            leftIcon={<IconButton icon={faThLarge} fontSize="24px"/>}
-        />
-        <StyledItem
-            to="/sequent_backend_election"
-            primaryText="Elections"
-            leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-        />
-        <StyledItem
-            to="/sequent_backend_contest"
-            primaryText="Contests"
-            leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-        />
-        <StyledItem
-            to="/sequent_backend_candidate"
-            primaryText="Candidates"
-            leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-        />
-        <StyledItem
-            to="/sequent_backend_area"
-            primaryText="Areas"
-            leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-        />
-        <StyledItem
-            to="/sequent_backend_area_contest"
-            primaryText="Area Contests"
-            leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-        />
-        <StyledItem
-            to="/sequent_backend_ballot_style"
-            primaryText="Ballot Styles"
-            leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-        />
-        <StyledItem
-            to="/sequent_backend_tenant"
-            primaryText="Customers"
-            leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-        />
-        <StyledItem
-            to="/user-roles"
-            primaryText="User and Roles"
-            leftIcon={<IconButton icon={faUsers} fontSize="24px" />}
-        />
-        <StyledItem
-            to="/settings"
-            primaryText="Settings"
-            leftIcon={<IconButton icon={faCog} fontSize="24px" />}
-        />
-        <StyledItem
-            to="/messages"
-            primaryText="Messages"
-            leftIcon={<IconButton icon={faStar} fontSize="24px" />}
-        />
-    </Menu>
+            <CustomerSelector />
+            <StyledItem
+                to="/sequent_backend_election_event"
+                primaryText="Election Events"
+                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+            />
+            <StyledItem
+                to="/sequent_backend_election"
+                primaryText="Elections"
+                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+            />
+            <StyledItem
+                to="/sequent_backend_contest"
+                primaryText="Contests"
+                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+            />
+            <StyledItem
+                to="/sequent_backend_candidate"
+                primaryText="Candidates"
+                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+            />
+            <StyledItem
+                to="/sequent_backend_area"
+                primaryText="Areas"
+                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+            />
+            <StyledItem
+                to="/sequent_backend_area_contest"
+                primaryText="Area Contests"
+                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+            />
+            <StyledItem
+                to="/sequent_backend_ballot_style"
+                primaryText="Ballot Styles"
+                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+            />
+            <StyledItem
+                to="/sequent_backend_tenant"
+                primaryText="Customers"
+                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+            />
+            <StyledItem
+                to="/user-roles"
+                primaryText="User and Roles"
+                leftIcon={<IconButton icon={faUsers} fontSize="24px" />}
+            />
+            <StyledItem
+                to="/settings"
+                primaryText="Settings"
+                leftIcon={<IconButton icon={faCog} fontSize="24px" />}
+            />
+            <StyledItem
+                to="/messages"
+                primaryText="Messages"
+                leftIcon={<IconButton icon={faStar} fontSize="24px" />}
+            />
+        </Menu>
+    )
 }

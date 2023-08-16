@@ -12,7 +12,7 @@ import {
     Create,
     FormDataConsumer,
 } from "react-admin"
-import { JsonInput } from "react-admin-json-view"
+import {JsonInput} from "react-admin-json-view"
 
 export const CreateCandidate: React.FC = () => {
     return (

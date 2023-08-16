@@ -28,12 +28,12 @@ import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
 import {CreateArea} from "./resources/Area/CreateArea"
 import {ListArea} from "./resources/Area/ListArea"
 import {EditArea} from "./resources/Area/EditArea"
-import { EditAreaContest } from "./resources/AreaContest/EditAreaContest"
-import { ListAreaContest } from "./resources/AreaContest/ListAreaContest"
-import { CreateAreaContest } from "./resources/AreaContest/CreateAreaContest"
-import { EditTenant } from "./resources/Tenant/EditTenant"
-import { ListTenant } from "./resources/Tenant/ListTenant"
-import { CreateTenant } from "./resources/Tenant/CreateTenant"
+import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
+import {ListAreaContest} from "./resources/AreaContest/ListAreaContest"
+import {CreateAreaContest} from "./resources/AreaContest/CreateAreaContest"
+import {EditTenant} from "./resources/Tenant/EditTenant"
+import {ListTenant} from "./resources/Tenant/ListTenant"
+import {CreateTenant} from "./resources/Tenant/CreateTenant"
 
 const App = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)

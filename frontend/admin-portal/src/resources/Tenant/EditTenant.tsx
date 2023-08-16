@@ -4,8 +4,8 @@
 import {Typography} from "@mui/material"
 import React from "react"
 import {BooleanInput, Edit, ReferenceField, SimpleForm, TextField, TextInput} from "react-admin"
-import { JsonInput } from "react-admin-json-view"
-import { ListTenant } from "./ListTenant"
+import {JsonInput} from "react-admin-json-view"
+import {ListTenant} from "./ListTenant"
 
 const TenantForm: React.FC = () => {
     return (
@@ -41,9 +41,7 @@ const TenantForm: React.FC = () => {
 export const EditTenant: React.FC = () => {
     return (
         <Edit>
-            <ListTenant
-                aside={<TenantForm />}
-            />
+            <ListTenant aside={<TenantForm />} />
         </Edit>
     )
 }

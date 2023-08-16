@@ -13,7 +13,7 @@ import {
     SimpleForm,
     TextInput,
 } from "react-admin"
-import { JsonInput } from "react-admin-json-view"
+import {JsonInput} from "react-admin-json-view"
 
 export const CreateElection: React.FC = () => {
     return (

@@ -3,11 +3,23 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
 import React from "react"
-import {BooleanInput, Edit, SimpleForm, TextInput, NumberInput, SelectInput, useRecordContext, ReferenceField, TextField, FormDataConsumer, ReferenceInput} from "react-admin"
+import {
+    BooleanInput,
+    Edit,
+    SimpleForm,
+    TextInput,
+    NumberInput,
+    SelectInput,
+    useRecordContext,
+    ReferenceField,
+    TextField,
+    FormDataConsumer,
+    ReferenceInput,
+} from "react-admin"
 import {HorizontalBox} from "../../components/HorizontalBox"
 import {ListCandidate} from "./ListCandidate"
-import { Sequent_Backend_Candidate } from "../../gql/graphql"
-import { JsonInput } from "react-admin-json-view"
+import {Sequent_Backend_Candidate} from "../../gql/graphql"
+import {JsonInput} from "react-admin-json-view"
 
 const CandidateForm: React.FC = () => {
     return (
@@ -79,11 +91,13 @@ const CandidateForm: React.FC = () => {
 const ListCandidateWrapper: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Candidate>()
 
-    return <ListCandidate
-        electionEventId={record?.election_event_id}
-        contestId={record?.contest_id}
-        aside={<CandidateForm />}
-    />
+    return (
+        <ListCandidate
+            electionEventId={record?.election_event_id}
+            contestId={record?.contest_id}
+            aside={<CandidateForm />}
+        />
+    )
 }
 
 export const EditCandidate: React.FC = () => {

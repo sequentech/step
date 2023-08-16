@@ -18,7 +18,7 @@ import {HorizontalBox} from "../../components/HorizontalBox"
 import {ListElection} from "./ListElection"
 import {ChipList} from "../../components/ChipList"
 import {Sequent_Backend_Election} from "../../gql/graphql"
-import { JsonInput } from "react-admin-json-view"
+import {JsonInput} from "react-admin-json-view"
 
 const ElectionForm: React.FC = () => {
     return (
@@ -108,10 +108,7 @@ const ElectionForm: React.FC = () => {
 const ListElectionWrapper: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
 
-    return <ListElection
-        electionEventId={record?.election_event_id}
-        aside={<ElectionForm />}
-    />
+    return <ListElection electionEventId={record?.election_event_id} aside={<ElectionForm />} />
 }
 
 export const EditElection: React.FC = (props) => (
