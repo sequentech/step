@@ -1,8 +1,8 @@
-cfg_if::cfg_if! {
-    if #[cfg(feature = "bb-test")] {
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{Context, Result};
-use braid::util::init_log;
 use clap::Parser;
 use std::collections::HashMap;
 use std::env;
@@ -15,8 +15,8 @@ use tonic::{
     Request
 };
 
-use crate::immudb::immu_service_client::ImmuServiceClient;
-use crate::immudb::{
+use immudb_rs::immu_service_client::ImmuServiceClient;
+use immudb_rs::{
     CreateDatabaseRequest,
     Database,
     DatabaseListRequestV2,
@@ -26,9 +26,7 @@ use crate::immudb::{
     SqlExecRequest,
 };
 
-pub mod immudb {
-    tonic::include_proto!("immudb.schema");
-}
+use immu_board::util::init_log;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -377,13 +375,4 @@ async fn main() -> Result<()> {
     let mut helper = BBHelper::new().await?;
     helper.run_actions().await?;
     Ok(())
-}
-
-    } else {
-
-fn main() {
-    println!("Requires the 'bb-test' feature");
-}
-
-    }
 }

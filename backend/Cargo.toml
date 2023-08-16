@@ -4,4 +4,6 @@ members = [
     "backend-services",
     "braid",
     "strand",
+    "immu-board",
+    "immudb-rs",
 ]
