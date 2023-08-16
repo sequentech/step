@@ -2,13 +2,27 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {PropsWithChildren, ReactElement} from "react"
-import {BooleanField, DatagridConfigurable, List, ReferenceManyField, TextField} from "react-admin"
+import {
+    BooleanField,
+    DatagridConfigurable,
+    List,
+    ReferenceManyField,
+    SearchInput,
+    TextField,
+    TextInput,
+} from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {ChipList} from "../../components/ChipList"
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
 
 const OMIT_FIELDS = ["id", "is_consolidated_ballot_encoding", "spoil_ballot_option"]
+
+const Filters: Array<ReactElement> = [
+    <TextInput label="Name" source="name" key={0} />,
+    <TextInput label="Description" source="description" key={1} />,
+    <TextInput label="ID" source="id" key={2} />,
+]
 
 export interface ListElectionProps {
     electionEventId?: string
@@ -25,9 +39,10 @@ export const ListElection: React.FC<ListElectionProps & PropsWithChildren> = ({
         <>
             <Typography variant="h5">Elections</Typography>
             <List
-                actions={<ListActions />}
+                actions={<ListActions withFilter={true} />}
                 filter={{tenant_id: tenantId || undefined, election_event_id: electionEventId}}
                 aside={aside}
+                filters={Filters}
             >
                 <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
                     <TextField source="id" />

@@ -9,6 +9,9 @@ import {
     TextField,
     NumberField,
     ReferenceManyField,
+    TextInput,
+    BooleanInput,
+    NumberInput,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {ChipList} from "../../components/ChipList"
@@ -26,6 +29,19 @@ const OMIT_FIELDS = [
     "is_encrypted",
 ]
 
+const Filters: Array<ReactElement> = [
+    <TextInput label="Name" source="name" key={0} />,
+    <TextInput label="Description" source="description" key={1} />,
+    <TextInput label="ID" source="id" key={2} />,
+    <BooleanInput label="Is Acclaimed" source="is_acclaimed" key={3} />,
+    <BooleanInput label="Is Active" source="is_active" key={4} />,
+    <NumberInput label="Min Votes" source="min_votes" key={5} />,
+    <NumberInput label="Max Votes" source="max_votes" key={6} />,
+    <TextInput label="Voting Type" source="voting_type" key={7} />,
+    <TextInput label="Counting Algorithm" source="counting_algorithm" key={8} />,
+    <BooleanInput label="Is Encrypted" source="is_encrypted" key={9} />,
+]
+
 export interface ListContestProps {
     electionEventId?: string
     electionId?: string
@@ -39,13 +55,14 @@ export const ListContest: React.FC<ListContestProps> = ({electionEventId, electi
         <>
             <Typography variant="h5">Contests</Typography>
             <List
-                actions={<ListActions />}
+                actions={<ListActions withFilter={true} />}
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,
                     election_event_id: electionEventId,
                     election_id: electionId,
                 }}
+                filters={Filters}
                 aside={aside}
             >
                 <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>

@@ -2,12 +2,27 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement} from "react"
-import {DatagridConfigurable, List, BooleanField, TextField, NumberField} from "react-admin"
+import {
+    DatagridConfigurable,
+    List,
+    BooleanField,
+    TextField,
+    NumberField,
+    TextInput,
+    BooleanInput,
+} from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
 
 const OMIT_FIELDS = ["id", "type", "is_public"]
+
+const Filters: Array<ReactElement> = [
+    <TextInput label="Name" source="name" key={0} />,
+    <TextInput label="Description" source="description" key={1} />,
+    <TextInput label="ID" source="id" key={2} />,
+    <BooleanInput label="Is Public" source="is_public" key={3} />,
+]
 
 export interface ListCandidateProps {
     electionEventId?: string
@@ -33,6 +48,7 @@ export const ListCandidate: React.FC<ListCandidateProps> = ({
                     election_event_id: electionEventId,
                     contest_id: contestId,
                 }}
+                filters={Filters}
                 aside={aside}
             >
                 <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>

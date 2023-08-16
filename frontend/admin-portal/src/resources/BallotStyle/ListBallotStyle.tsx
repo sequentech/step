@@ -2,12 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement} from "react"
-import {DatagridConfigurable, List, TextField, ReferenceField} from "react-admin"
+import {DatagridConfigurable, List, TextField, ReferenceField, TextInput} from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
+
+const Filters: Array<ReactElement> = [
+    <TextInput label="Ballot EML" source="ballot_eml" key={0} />,
+    <TextInput label="ID" source="id" key={1} />,
+    <TextInput label="Status" source="status" key={2} />,
+]
 
 export interface ListBallotStyleProps {
     electionEventId?: string
@@ -28,7 +34,7 @@ export const ListBallotStyle: React.FC<ListBallotStyleProps> = ({
         <>
             <Typography variant="h5">Ballot Styles</Typography>
             <List
-                actions={<ListActions />}
+                actions={<ListActions withFilter={true} />}
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,
@@ -36,6 +42,7 @@ export const ListBallotStyle: React.FC<ListBallotStyleProps> = ({
                     election_id: electionId,
                     area_id: areaId,
                 }}
+                filters={Filters}
                 aside={aside}
             >
                 <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>

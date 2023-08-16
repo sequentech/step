@@ -2,12 +2,22 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {CreateButton, ExportButton, SelectColumnsButton, TopToolbar} from "react-admin"
+import {
+    CreateButton,
+    ExportButton,
+    FilterButton,
+    SelectColumnsButton,
+    TopToolbar,
+} from "react-admin"
 
-export const ListActions: React.FC = () => (
+interface ListActionsProps {
+    withFilter?: boolean
+}
+
+export const ListActions: React.FC<ListActionsProps> = ({withFilter}) => (
     <TopToolbar>
         <SelectColumnsButton />
-        {/*<FilterButton/>*/}
+        {withFilter ? <FilterButton /> : null}
         <CreateButton />
         <ExportButton />
     </TopToolbar>

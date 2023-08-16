@@ -8,6 +8,7 @@ import {
     TextField,
     ReferenceField,
     ReferenceManyField,
+    TextInput,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
@@ -15,6 +16,13 @@ import {Typography} from "@mui/material"
 import {ChipList} from "../../components/ChipList"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
+
+const Filters: Array<ReactElement> = [
+    <TextInput label="Name" source="name" key={0} />,
+    <TextInput label="Description" source="description" key={1} />,
+    <TextInput label="ID" source="id" key={2} />,
+    <TextInput label="Type" source="type" key={3} />,
+]
 
 export interface ListAreaProps {
     electionEventId?: string
@@ -28,13 +36,14 @@ export const ListArea: React.FC<ListAreaProps> = ({aside, electionEventId}) => {
         <>
             <Typography variant="h5">Areas</Typography>
             <List
-                actions={<ListActions />}
+                actions={<ListActions withFilter={true} />}
                 sx={{flexGrow: 2}}
                 aside={aside}
                 filter={{
                     tenant_id: tenantId || undefined,
                     election_event_id: electionEventId,
                 }}
+                filters={Filters}
             >
                 <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
                     <TextField source="id" />
