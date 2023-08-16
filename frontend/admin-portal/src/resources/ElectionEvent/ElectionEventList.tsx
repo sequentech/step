@@ -5,32 +5,39 @@ import React, {PropsWithChildren} from "react"
 import {DatagridConfigurable, List, ReferenceManyField, TextField} from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {ElectionChipList} from "../../components/ElectionChipList"
-import { AreaChipList } from "../../components/AreaChipList"
+import {AreaChipList} from "../../components/AreaChipList"
+import {useTenantStore} from "../../components/CustomMenu"
 
 const OMIT_FIELDS = ["id", "sequent_backend_area"]
 
-export const ElectionEventList: React.FC<PropsWithChildren> = () => (
-    <List actions={<ListActions />} sx={{flexGrow: 2}}>
-        <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
-            <TextField source="id" />
-            <TextField source="name" />
-            <TextField source="description" />
-            <ReferenceManyField
-                label="Elections"
-                reference="sequent_backend_election"
-                source="sequent_backend_election"
-                target="election_event_id"
-            >
-                <ElectionChipList />
-            </ReferenceManyField>
-            <ReferenceManyField
-                label="Areas"
-                reference="sequent_backend_area"
-                source="sequent_backend_area"
-                target="election_event_id"
-            >
-                <AreaChipList />
-            </ReferenceManyField>
-        </DatagridConfigurable>
-    </List>
-)
+export const ElectionEventList: React.FC<PropsWithChildren> = () => {
+    const [tenantId] = useTenantStore()
+
+    return (
+        <List
+            actions={<ListActions />}
+            sx={{flexGrow: 2}}
+            filter={{tenant_id: tenantId || undefined}}
+        >
+            <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
+                <TextField source="id" />
+                <TextField source="name" />
+                <TextField source="description" />
+                <ReferenceManyField
+                    label="Elections"
+                    reference="sequent_backend_election"
+                    target="election_event_id"
+                >
+                    <ElectionChipList />
+                </ReferenceManyField>
+                <ReferenceManyField
+                    label="Areas"
+                    reference="sequent_backend_area"
+                    target="election_event_id"
+                >
+                    <AreaChipList />
+                </ReferenceManyField>
+            </DatagridConfigurable>
+        </List>
+    )
+}

@@ -6,12 +6,11 @@ import {BooleanField, DatagridConfigurable, List, ReferenceManyField, TextField}
 import {ListActions} from "../../components/ListActions"
 import {ContestChipList} from "../../components/ContestChipList"
 
+const OMIT_FIELDS = ["id", "is_consolidated_ballot_encoding", "spoil_ballot_option"]
+
 export const ListElection: React.FC<PropsWithChildren> = ({}) => (
     <List actions={<ListActions />} sx={{flexGrow: 2}}>
-        <DatagridConfigurable
-            rowClick="edit"
-            omit={["id", "is_consolidated_ballot_encoding", "spoil_ballot_option"]}
-        >
+        <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
             <TextField source="id" />
             <TextField source="name" />
             <TextField source="description" />
