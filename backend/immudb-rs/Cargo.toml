@@ -22,4 +22,3 @@ crate-type = ["cdylib", "rlib"]
 
 [build-dependencies]
 tonic-build = "0.9"
-
