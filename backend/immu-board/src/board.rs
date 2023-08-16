@@ -96,7 +96,7 @@ impl Board {
         )
     }
 
-    pub async fn has_table(&mut self) -> Result<bool> {
+    pub async fn has_tables(&mut self) -> Result<bool> {
         let list_tables_request = self.get_request(())?;
         let list_tables_response = self.client
             .list_tables(list_tables_request)
