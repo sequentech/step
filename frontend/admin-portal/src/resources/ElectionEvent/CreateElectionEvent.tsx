@@ -13,6 +13,7 @@ import {
     SimpleFormIterator,
     TextInput,
 } from "react-admin"
+import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
 
 interface IElectionSubmit {
@@ -61,6 +62,58 @@ export const CreateElectionList: React.FC = () => {
                     <TextInput source="description" />
                 </SimpleFormIterator>
             </ArrayInput>
+            <JsonInput
+                source="labels"
+                jsonString={false}
+                reactJsonOptions={{
+                    name: null,
+                    collapsed: true,
+                    enableClipboard: true,
+                    displayDataTypes: false,
+                }}
+            />
+            <JsonInput
+                source="presentation"
+                jsonString={false}
+                reactJsonOptions={{
+                    name: null,
+                    collapsed: true,
+                    enableClipboard: true,
+                    displayDataTypes: false,
+                }}
+            />
+            <JsonInput
+                source="voting_channels"
+                jsonString={false}
+                reactJsonOptions={{
+                    name: null,
+                    collapsed: true,
+                    enableClipboard: true,
+                    displayDataTypes: false,
+                }}
+            />
+            <JsonInput
+                source="voting_channels"
+                jsonString={false}
+                reactJsonOptions={{
+                    name: null,
+                    collapsed: true,
+                    enableClipboard: true,
+                    displayDataTypes: false,
+                }}
+            />
+            <JsonInput
+                source="dates"
+                jsonString={false}
+                reactJsonOptions={{
+                    name: null,
+                    collapsed: true,
+                    enableClipboard: true,
+                    displayDataTypes: false,
+                }}
+            />
+            <TextInput source="user_boards" />
+            <TextInput source="audit_election_event_id" />
         </SimpleForm>
     )
 }

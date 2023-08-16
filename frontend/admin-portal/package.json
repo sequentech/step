@@ -21,6 +21,7 @@
     "lodash": "^4.17.21",
     "mui-image": "1.0.7",
     "react": "18.1.0",
+    "react-admin-json-view": "2.0.0",
     "react-dom": "18.1.0",
     "react-admin": "4.12.4",
     "ra-data-hasura": "0.6.0",

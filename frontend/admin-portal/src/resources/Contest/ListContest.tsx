@@ -11,7 +11,7 @@ import {
     ReferenceManyField,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {CandidateChipList} from "../../components/CandidateChipList"
+import {ChipList} from "../../components/ChipList"
 
 const OMIT_FIELDS = [
     "id",
@@ -42,7 +42,7 @@ export const ListContest: React.FC<PropsWithChildren> = ({}) => (
                 reference="sequent_backend_candidate"
                 target="contest_id"
             >
-                <CandidateChipList />
+                <ChipList source="sequent_backend_candidate" />
             </ReferenceManyField>
         </DatagridConfigurable>
     </List>

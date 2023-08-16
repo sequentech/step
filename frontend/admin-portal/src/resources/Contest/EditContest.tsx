@@ -13,8 +13,8 @@ import {
     ReferenceManyField,
 } from "react-admin"
 import {HorizontalBox} from "../../components/HorizontalBox"
-import {CandidateChipList} from "../../components/CandidateChipList"
 import {ListContest} from "./ListContest"
+import {ChipList} from "../../components/ChipList"
 
 const ContestForm: React.FC = () => {
     return (
@@ -43,7 +43,7 @@ const ContestForm: React.FC = () => {
                 target="contest_id"
             >
                 <HorizontalBox>
-                    <CandidateChipList />
+                    <ChipList source="sequent_backend_candidate" />
                 </HorizontalBox>
             </ReferenceManyField>
         </SimpleForm>

@@ -11,9 +11,10 @@ import {
     SimpleForm,
     TextInput,
 } from "react-admin"
+import {JsonInput} from "react-admin-json-view"
 import {ElectionEventList} from "./ElectionEventList"
-import {ElectionChipList} from "../../components/ElectionChipList"
 import {HorizontalBox} from "../../components/HorizontalBox"
+import {ChipList} from "../../components/ChipList"
 
 const ElectionEventListForm: React.FC = () => {
     return (
@@ -25,15 +26,75 @@ const ElectionEventListForm: React.FC = () => {
             <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />
             <BooleanInput source="is_archived" />
             <BooleanInput source="is_audit" />
+            <Typography variant="h5">Elections</Typography>
             <ReferenceManyField
                 label="Elections"
                 reference="sequent_backend_election"
                 target="election_event_id"
             >
                 <HorizontalBox>
-                    <ElectionChipList />
+                    <ChipList source="sequent_backend_election" />
                 </HorizontalBox>
             </ReferenceManyField>
+            <ReferenceManyField
+                label="Areas"
+                reference="sequent_backend_area"
+                target="election_event_id"
+            >
+                <ChipList source="sequent_backend_area" />
+            </ReferenceManyField>
+            <JsonInput
+                source="labels"
+                jsonString={false}
+                reactJsonOptions={{
+                    name: null,
+                    collapsed: true,
+                    enableClipboard: true,
+                    displayDataTypes: false,
+                }}
+            />
+            <JsonInput
+                source="presentation"
+                jsonString={false}
+                reactJsonOptions={{
+                    name: null,
+                    collapsed: true,
+                    enableClipboard: true,
+                    displayDataTypes: false,
+                }}
+            />
+            <JsonInput
+                source="voting_channels"
+                jsonString={false}
+                reactJsonOptions={{
+                    name: null,
+                    collapsed: true,
+                    enableClipboard: true,
+                    displayDataTypes: false,
+                }}
+            />
+            <JsonInput
+                source="voting_channels"
+                jsonString={false}
+                reactJsonOptions={{
+                    name: null,
+                    collapsed: true,
+                    enableClipboard: true,
+                    displayDataTypes: false,
+                }}
+            />
+            <JsonInput
+                source="dates"
+                jsonString={false}
+                reactJsonOptions={{
+                    name: null,
+                    collapsed: true,
+                    enableClipboard: true,
+                    displayDataTypes: false,
+                }}
+            />
+            <TextInput source="user_boards" />
+            <TextInput source="audit_election_event_id" />
         </SimpleForm>
     )
 }

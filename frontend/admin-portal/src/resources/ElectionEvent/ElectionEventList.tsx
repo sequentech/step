@@ -4,9 +4,8 @@
 import React, {PropsWithChildren} from "react"
 import {DatagridConfigurable, List, ReferenceManyField, TextField} from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {ElectionChipList} from "../../components/ElectionChipList"
-import {AreaChipList} from "../../components/AreaChipList"
 import {useTenantStore} from "../../components/CustomMenu"
+import {ChipList} from "../../components/ChipList"
 
 const OMIT_FIELDS = ["id", "sequent_backend_area"]
 
@@ -28,14 +27,14 @@ export const ElectionEventList: React.FC<PropsWithChildren> = () => {
                     reference="sequent_backend_election"
                     target="election_event_id"
                 >
-                    <ElectionChipList />
+                    <ChipList source="sequent_backend_election" />
                 </ReferenceManyField>
                 <ReferenceManyField
                     label="Areas"
                     reference="sequent_backend_area"
                     target="election_event_id"
                 >
-                    <AreaChipList />
+                    <ChipList source="sequent_backend_area" />
                 </ReferenceManyField>
             </DatagridConfigurable>
         </List>

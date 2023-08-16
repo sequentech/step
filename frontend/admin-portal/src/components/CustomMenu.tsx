@@ -27,10 +27,6 @@ const CustomerSelector: React.FC = () => {
         setTenant(event.target.value)
     }
 
-    if (!isLoading && !error) {
-        console.log(data)
-    }
-    // data?.map(tenant => ({id: tenant.id, name: tenant.username})) || []
     return (
         <HorizontalBox>
             <IconButton icon={faThLarge} fontSize="24px" />
