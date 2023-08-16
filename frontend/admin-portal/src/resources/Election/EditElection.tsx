@@ -6,16 +6,19 @@ import React from "react"
 import {
     BooleanInput,
     Edit,
+    NumberInput,
+    ReferenceField,
     ReferenceManyField,
     SimpleForm,
+    TextField,
     TextInput,
     useRecordContext,
-    useResourceContext,
 } from "react-admin"
 import {HorizontalBox} from "../../components/HorizontalBox"
 import {ListElection} from "./ListElection"
 import {ChipList} from "../../components/ChipList"
 import {Sequent_Backend_Election} from "../../gql/graphql"
+import { JsonInput } from "react-admin-json-view"
 
 const ElectionForm: React.FC = () => {
     return (
@@ -28,6 +31,14 @@ const ElectionForm: React.FC = () => {
                 <BooleanInput source="is_consolidated_ballot_encoding" />
                 <BooleanInput source="spoil_ballot_option" />
                 <Typography variant="h5">Contests</Typography>
+                <Typography variant="h5">Election Event</Typography>
+                <ReferenceField
+                    label="Election Event"
+                    reference="sequent_backend_election_event"
+                    source="election_event_id"
+                >
+                    <TextField source="name" />
+                </ReferenceField>
                 <ReferenceManyField
                     label="Contests"
                     reference="sequent_backend_contest"
@@ -37,6 +48,58 @@ const ElectionForm: React.FC = () => {
                         <ChipList source="sequent_backend_contest" />
                     </HorizontalBox>
                 </ReferenceManyField>
+                <JsonInput
+                    source="labels"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="annotations"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="presentation"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="dates"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="status"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <TextInput source="eml" />
+                <NumberInput source="num_allowed_revotes" />
             </SimpleForm>
         </Box>
     )
@@ -45,14 +108,14 @@ const ElectionForm: React.FC = () => {
 const ListElectionWrapper: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
 
-    return <ListElection electionEventId={record?.election_event_id} />
+    return <ListElection
+        electionEventId={record?.election_event_id}
+        aside={<ElectionForm />}
+    />
 }
 
 export const EditElection: React.FC = (props) => (
     <Edit>
-        <HorizontalBox>
-            <ListElectionWrapper />
-            <ElectionForm />
-        </HorizontalBox>
+        <ListElectionWrapper />
     </Edit>
 )

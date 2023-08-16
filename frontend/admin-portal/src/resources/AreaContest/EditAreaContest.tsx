@@ -4,23 +4,35 @@
 import {Typography} from "@mui/material"
 import React from "react"
 import {Edit, ReferenceField, SimpleForm, TextField, TextInput, useRecordContext} from "react-admin"
-import {ListArea} from "./ListArea"
-import { Sequent_Backend_Area } from "../../gql/graphql"
+import {ListAreaContest} from "./ListAreaContest"
+import { Sequent_Backend_Area_Contest } from "../../gql/graphql"
 import { JsonInput } from "react-admin-json-view"
 
-const AreaForm: React.FC = () => {
+const AreaContestForm: React.FC = () => {
     return (
         <SimpleForm>
             <Typography variant="h4">Area</Typography>
-            <Typography variant="body2">Area configuration</Typography>
-            <TextInput source="name" />
-            <TextInput source="description" />
-            <TextInput source="type" />
             <Typography variant="h5">Election Event</Typography>
             <ReferenceField
                 label="Election Event"
                 reference="sequent_backend_election_event"
                 source="election_event_id"
+            >
+                <TextField source="name" />
+            </ReferenceField>
+            <Typography variant="h5">Area</Typography>
+            <ReferenceField
+                label="Area"
+                reference="sequent_backend_area"
+                source="area_id"
+            >
+                <TextField source="name" />
+            </ReferenceField>
+            <Typography variant="h5">Contest</Typography>
+            <ReferenceField
+                label="Contest"
+                reference="sequent_backend_contest"
+                source="contest_id"
             >
                 <TextField source="name" />
             </ReferenceField>
@@ -48,19 +60,20 @@ const AreaForm: React.FC = () => {
     )
 }
 
-const ListAreaWrapper: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Area>()
+const ListAreaContestWrapper: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Area_Contest>()
 
-    return <ListArea
+    return <ListAreaContest
         electionEventId={record?.election_event_id}
-        aside={<AreaForm />}
+        areaId={record?.area_id}
+        aside={<AreaContestForm />}
     />
 }
 
-export const EditArea: React.FC = () => {
+export const EditAreaContest: React.FC = () => {
     return (
         <Edit>
-            <ListAreaWrapper />
+            <ListAreaContestWrapper />
         </Edit>
     )
 }

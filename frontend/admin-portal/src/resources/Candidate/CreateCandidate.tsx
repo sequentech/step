@@ -12,6 +12,7 @@ import {
     Create,
     FormDataConsumer,
 } from "react-admin"
+import { JsonInput } from "react-admin-json-view"
 
 export const CreateCandidate: React.FC = () => {
     return (
@@ -60,6 +61,36 @@ export const CreateCandidate: React.FC = () => {
                         </>
                     )}
                 </FormDataConsumer>
+                <JsonInput
+                    source="labels"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="annotations"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="presentation"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
             </SimpleForm>
         </Create>
     )

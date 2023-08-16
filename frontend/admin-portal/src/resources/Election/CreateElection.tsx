@@ -7,11 +7,13 @@ import {
     BooleanInput,
     Create,
     FormDataConsumer,
+    NumberInput,
     ReferenceInput,
     SelectInput,
     SimpleForm,
     TextInput,
 } from "react-admin"
+import { JsonInput } from "react-admin-json-view"
 
 export const CreateElection: React.FC = () => {
     return (
@@ -36,6 +38,58 @@ export const CreateElection: React.FC = () => {
                         </ReferenceInput>
                     )}
                 </FormDataConsumer>
+                <JsonInput
+                    source="labels"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="annotations"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="presentation"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="dates"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="status"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <TextInput source="eml" />
+                <NumberInput source="num_allowed_revotes" />
             </SimpleForm>
         </Create>
     )

@@ -1,32 +1,95 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Typography} from "@mui/material"
+import {Box, Typography} from "@mui/material"
 import React from "react"
-import {BooleanInput, Edit, SimpleForm, TextInput, NumberInput, SelectInput} from "react-admin"
+import {BooleanInput, Edit, SimpleForm, TextInput, NumberInput, SelectInput, useRecordContext, ReferenceField, TextField, FormDataConsumer, ReferenceInput} from "react-admin"
 import {HorizontalBox} from "../../components/HorizontalBox"
 import {ListCandidate} from "./ListCandidate"
+import { Sequent_Backend_Candidate } from "../../gql/graphql"
+import { JsonInput } from "react-admin-json-view"
 
 const CandidateForm: React.FC = () => {
     return (
-        <SimpleForm>
-            <Typography variant="h4">Candidate</Typography>
-            <Typography variant="body2">Candidate configuration</Typography>
-            <TextInput source="name" />
-            <TextInput source="description" />
-            <TextInput source="type" />
-            <BooleanInput source="is_public" />
-        </SimpleForm>
+        <Box sx={{flexGrow: 2, flexShrink: 0}}>
+            <SimpleForm>
+                <Typography variant="h4">Candidate</Typography>
+                <Typography variant="body2">Candidate configuration</Typography>
+                <TextInput source="name" />
+                <TextInput source="description" />
+                <TextInput source="type" />
+                <BooleanInput source="is_public" />
+                <Typography variant="h5">Election Event</Typography>
+                <ReferenceField
+                    label="Election Event"
+                    reference="sequent_backend_election_event"
+                    source="election_event_id"
+                >
+                    <TextField source="name" />
+                </ReferenceField>
+                <FormDataConsumer>
+                    {({formData}) => (
+                        <ReferenceInput
+                            source="contest_id"
+                            reference="sequent_backend_contest"
+                            filter={{
+                                tenant_id: formData.tenant_id,
+                                election_event_id: formData.election_event_id,
+                            }}
+                        >
+                            <SelectInput optionText="name" />
+                        </ReferenceInput>
+                    )}
+                </FormDataConsumer>
+                <JsonInput
+                    source="labels"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="annotations"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="presentation"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+            </SimpleForm>
+        </Box>
     )
+}
+
+const ListCandidateWrapper: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Candidate>()
+
+    return <ListCandidate
+        electionEventId={record?.election_event_id}
+        contestId={record?.contest_id}
+        aside={<CandidateForm />}
+    />
 }
 
 export const EditCandidate: React.FC = () => {
     return (
-        <HorizontalBox>
-            <ListCandidate />
-            <Edit sx={{flexGrow: 2}}>
-                <CandidateForm />
-            </Edit>
-        </HorizontalBox>
+        <Edit>
+            <ListCandidateWrapper />
+        </Edit>
     )
 }

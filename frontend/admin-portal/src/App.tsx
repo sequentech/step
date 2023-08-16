@@ -28,6 +28,12 @@ import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
 import {CreateArea} from "./resources/Area/CreateArea"
 import {ListArea} from "./resources/Area/ListArea"
 import {EditArea} from "./resources/Area/EditArea"
+import { EditAreaContest } from "./resources/AreaContest/EditAreaContest"
+import { ListAreaContest } from "./resources/AreaContest/ListAreaContest"
+import { CreateAreaContest } from "./resources/AreaContest/CreateAreaContest"
+import { EditTenant } from "./resources/Tenant/EditTenant"
+import { ListTenant } from "./resources/Tenant/ListTenant"
+import { CreateTenant } from "./resources/Tenant/CreateTenant"
 
 const App = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
@@ -89,7 +95,21 @@ const App = () => {
                 edit={EditArea}
                 list={ListArea}
                 create={CreateArea}
-                options={{label: "Ballot Styles"}}
+                options={{label: "Area"}}
+            />
+            <Resource
+                name="sequent_backend_area_contest"
+                edit={EditAreaContest}
+                list={ListAreaContest}
+                create={CreateAreaContest}
+                options={{label: "Area Contest"}}
+            />
+            <Resource
+                name="sequent_backend_tenant"
+                edit={EditTenant}
+                list={ListTenant}
+                create={CreateTenant}
+                options={{label: "Customer"}}
             />
         </Admin>
     )
