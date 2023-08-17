@@ -165,7 +165,7 @@ impl BBHelper {
         // List tables and create them if missing
         if !self.client.has_tables().await? {
             debug!("no tables! let's create them");
-            self.client.sql_exec(&tables).await?;
+            self.client.sql_exec(&tables, vec![]).await?;
         }
         Ok(())
     }
@@ -204,7 +204,7 @@ impl BBHelper {
             CREATE TABLE IF NOT EXISTS messages (
                 id INTEGER AUTO_INCREMENT,
                 created TIMESTAMP,
-                signer_key INTEGER,
+                signer_key BLOB,
                 statement_timestamp TIMESTAMP,
                 statement_kind VARCHAR,
                 message BLOB,

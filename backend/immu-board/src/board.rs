@@ -1,179 +1,148 @@
 use anyhow::{anyhow, Result};
-use tracing::{debug, instrument};
+use tracing::{instrument};
 
 use std::fmt::Debug;
-
-use immudb_rs::immu_service_client::ImmuServiceClient;
-use immudb_rs::{
-    Database,
-    DatabaseListRequestV2,
-    DatabaseListResponseV2,
-    DeleteDatabaseRequest,
-    LoginRequest,
-    SqlExecRequest,
-    SqlQueryRequest,
-    SqlQueryResult,
-    UnloadDatabaseRequest,
-};
-use tonic::{
-    metadata::MetadataValue,
-    transport::Channel,
-    Request,
-    Response,
-};
+use immudb_rs::{Client, Row, sql_value::Value};
 
 #[derive(Debug)]
 pub struct Board {
-    client: ImmuServiceClient<Channel>,
-    auth_token: Option<String>,
+    client: Client,
+    index_dbname: String,
+    board_dbname: String,
 }
 
-type AsyncResponse<T> = Result<Response<T>>;
+#[derive(Debug, Clone)]
+pub struct BoardMessage {
+    id: i64,
+    created: i64,
+    signer_key: Vec<u8>,
+    statement_timestamp: i64,
+    statement_kind: String,
+    message: Vec<u8>
+}
+
+macro_rules! assign_value {
+    ($enum_variant:path, $value:expr, $target:ident) => {
+        match $value.value.as_ref() {
+            Some($enum_variant(inner)) => {
+                $target = inner.clone();
+            }
+            _ => {
+                return Err(
+                    anyhow!(
+                        r#"invalid column value for `$enum_variant`, `$value`, 
+                        `$target`"#
+                    )
+                );
+            }
+        }
+    };
+}
+
+impl TryFrom<&Row> for BoardMessage {
+    type Error = anyhow::Error;
+
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        let mut id = 0;
+        let mut created = 0;
+        let mut signer_key = vec![];
+        let mut statement_timestamp = 0;
+        let mut statement_kind = String::from("");
+        let mut message = vec![];
+        for (column, value) in row.columns.iter().zip(row.values.iter()) {
+            match column.as_str() {
+                "id" => assign_value!(Value::N, value, id),
+                "created" => assign_value!(Value::N, value, created),
+                "signer_key" => assign_value!(Value::Bs, value, signer_key),
+                "statement_timestamp" => assign_value!(Value::N, value, statement_timestamp),
+                "statement_kind" => assign_value!(Value::S, value, statement_kind),
+                "message" => assign_value!(Value::Bs, value, message),
+                _ => return Err(anyhow!("invalid column found")),
+            }
+        }
+        Ok(BoardMessage {
+            id,
+            created,
+            signer_key,
+            statement_timestamp,
+            statement_kind,
+            message,
+        })
+    }
+}
 
 impl Board {
     #[instrument]
     pub async fn new(
         server_url: &str,
+        index_dbname: String,
+        board_dbname: String,
     ) -> Result<Board> {
-        let client = ImmuServiceClient::connect(String::from(server_url)).await?;
         Ok(Board {
-            client: client,
-            auth_token: None,
+            client: Client::new(&server_url).await?,
+            index_dbname: index_dbname,
+            board_dbname: board_dbname,
         })
     }
 
-    #[instrument]
-    async fn login(
-        &mut self, username: &str, password: &str
-    ) -> Result<()> {
-        let login_request = Request::new(LoginRequest {
-            user: username.clone().into(),
-            password: password.clone().into()
-        });
-        let response = self.client.login(login_request).await?;
-        debug!("grpc-login-response={:?}", response);
-        self.auth_token = Some(format!("Bearer {}", response.get_ref().token));
-        Ok(())
-    }
-
-    /// Creates an Authenticated request, with the proper Auth token
-    #[instrument]
-    fn get_request<T: Debug>(
-        &self,
-        data: T
-    ) -> Result<Request<T>>
+    /// Get all messages whose id is bigger than `last_id`
+    pub async fn get_messages(
+        &mut self, last_id: i64
+    ) -> Result<Vec<BoardMessage>>
     {
-        let mut request = Request::new(data);
-        let token: MetadataValue<_> = self.auth_token
-            .clone()
-            .ok_or(anyhow!("not logged in",))?
-            .parse()?;
-        request.metadata_mut().insert("authorization", token);
-        return Ok(request);
-    }
-
-    #[instrument]
-    pub async fn list_boards(&mut self)
-        -> AsyncResponse<DatabaseListResponseV2>
-    {
-        let database_list_request = self.get_request(
-            DatabaseListRequestV2 {}
-        )?;
-        let database_list_response = self.client
-            .database_list_v2(database_list_request)
-            .await?;
-        Ok(database_list_response)
-    }
-
-    #[instrument]
-    pub async fn board_exists(&mut self, board_name: &str) -> Result<bool> {
-        let database_list_request = self.get_request(
-            DatabaseListRequestV2 {}
-        )?;
-        let database_list_response = self.client
-            .database_list_v2(database_list_request)
-            .await?;
-        Ok(database_list_response
+        let sql = format!(r#"
+        SELECT
+            id,
+            created,
+            signer_key,
+            statement_timestamp,
+            statement_kind,
+            message
+        FROM messages
+        WHERE id > {}
+        "#, last_id);
+        let sql_query_response = self.client.sql_query(&sql, vec![]).await?;
+        let messages = sql_query_response
             .get_ref()
-            .databases
+            .rows
             .iter()
-            .find(|database| database.name == board_name).is_some()
-        )
+            .map(BoardMessage::try_from)
+            .collect::<Result<Vec<BoardMessage>>>()?;
+        Ok(messages)
     }
 
-    #[instrument]
-    pub async fn has_tables(&mut self) -> Result<bool> {
-        let list_tables_request = self.get_request(())?;
-        let list_tables_response = self.client
-            .list_tables(list_tables_request)
-            .await?;
-        debug!("list_tables_response={:?}", list_tables_response);
-        Ok(list_tables_response.get_ref().rows.is_empty())
-    }
-
-    #[instrument]
-    pub async fn sql_exec(&mut self, sql: &str) -> Result<()> {
-        let sql_exec_request = self.get_request(
-            SqlExecRequest {
-                sql: sql.clone().into(),
-                no_wait: true,
-                params: vec![],
-            }
-        )?;
-        let sql_exec_response = self.client
-            .sql_exec(sql_exec_request)
-            .await?;
-        debug!("sql_exec_response={:?}", sql_exec_response);
-        Ok(())
-    }
-
-    #[instrument]
-    pub async fn sql_query(
-        &mut self, sql: &str
-    ) -> AsyncResponse<SqlQueryResult>
+    pub async fn insert_messages(
+        &mut self, messages: &Vec<BoardMessage>
+    ) -> Result<()>
     {
-        let sql_query_request = self.get_request(
-            SqlQueryRequest {
-                sql: sql.clone().into(),
-                reuse_snapshot: false,
-                params: vec![],
-            }
-        )?;
-        let sql_query_response = self.client
-            .sql_query(sql_query_request)
-            .await?;
-        debug!("sql_query_response={:?}", sql_query_response);
-        Ok(sql_query_response)
-    }
-
-    #[instrument]
-    pub async fn use_board(&mut self, board_name: &str) -> Result<()> {
-        let use_db_request = self.get_request(
-            Database { database_name: board_name.to_string() }
-        )?;
-
-        let use_db_response = self.client.use_database(use_db_request).await?;
-        debug!("grpc-use-response={:?}", use_db_response);
-        self.auth_token =  Some(use_db_response.get_ref().token.clone());
-
-        Ok(())
-    }
-
-    #[instrument]
-    pub async fn delete_board(&mut self, board_name: &str) -> Result<()>
-    {
-        let unload_db_request = self.get_request(
-            UnloadDatabaseRequest { database: board_name.to_string() },
-        )?;
-        let _unload_db_response = self.client
-            .unload_database(unload_db_request).await?;
-        debug!("Deleting index database...");
-        let delete_db_request = self.get_request(
-            DeleteDatabaseRequest { database: board_name.to_string() },
-        )?;
-        let _delete_db_response = self.client
-            .delete_database(delete_db_request).await?;
-        debug!("Index Database deleted!");
+        let sql: String = messages
+            .iter()
+            .try_fold(
+                String::new(),
+                |mut acc_sql: String, message: &BoardMessage| -> Result<String>
+                {
+                    let message_sql = format!(r#"
+                        INSERT INTO messages(
+                            id,
+                            created,
+                            signer_key,
+                            statement_timestamp,
+                            statement_kind,
+                            message)
+                        VALUES ({}, {}, {:?}, {}, {}, {:?});
+                        "#,
+                        message.id,
+                        message.created,
+                        message.signer_key,
+                        message.statement_timestamp,
+                        message.statement_kind,
+                        message.message
+                    );
+                    acc_sql.push_str(&message_sql);
+                    Ok(acc_sql)
+                }
+            )?;
+        self.client.sql_exec(&sql, vec![]).await?;
         Ok(())
     }
 }
