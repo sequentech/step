@@ -11,14 +11,12 @@ import {
     NumberInput,
     SelectInput,
     ReferenceManyField,
-    useRecordContext,
     ReferenceField,
     TextField,
 } from "react-admin"
 import {HorizontalBox} from "../../components/HorizontalBox"
 import {ListContest} from "./ListContest"
 import {ChipList} from "../../components/ChipList"
-import {Sequent_Backend_Contest} from "../../gql/graphql"
 import {JsonInput} from "react-admin-json-view"
 
 const ContestForm: React.FC = () => {
@@ -27,6 +25,8 @@ const ContestForm: React.FC = () => {
             <SimpleForm>
                 <Typography variant="h4">Contest</Typography>
                 <Typography variant="body2">Contest configuration</Typography>
+                <Typography variant="h5">ID</Typography>
+                <TextField source="id" />
                 <TextInput source="name" />
                 <TextInput source="description" />
                 <BooleanInput source="is_acclaimed" />
@@ -136,14 +136,8 @@ const ContestForm: React.FC = () => {
     )
 }
 
-const ListContestWrapper: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Contest>()
-
-    return <ListContest aside={<ContestForm />} />
-}
-
 export const EditContest: React.FC = () => (
     <Edit>
-        <ListContestWrapper />
+        <ListContest aside={<ContestForm />} />
     </Edit>
 )

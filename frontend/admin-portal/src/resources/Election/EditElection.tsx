@@ -12,12 +12,10 @@ import {
     SimpleForm,
     TextField,
     TextInput,
-    useRecordContext,
 } from "react-admin"
 import {HorizontalBox} from "../../components/HorizontalBox"
 import {ListElection} from "./ListElection"
 import {ChipList} from "../../components/ChipList"
-import {Sequent_Backend_Election} from "../../gql/graphql"
 import {JsonInput} from "react-admin-json-view"
 
 const ElectionForm: React.FC = () => {
@@ -26,6 +24,8 @@ const ElectionForm: React.FC = () => {
             <SimpleForm>
                 <Typography variant="h4">Election</Typography>
                 <Typography variant="body2">Election configuration</Typography>
+                <Typography variant="h5">ID</Typography>
+                <TextField source="id" />
                 <TextInput source="name" />
                 <TextInput source="description" />
                 <BooleanInput source="is_consolidated_ballot_encoding" />
@@ -108,14 +108,8 @@ const ElectionForm: React.FC = () => {
     )
 }
 
-const ListElectionWrapper: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Election>()
-
-    return <ListElection aside={<ElectionForm />} />
-}
-
 export const EditElection: React.FC = (props) => (
     <Edit>
-        <ListElectionWrapper />
+        <ListElection aside={<ElectionForm />} />
     </Edit>
 )

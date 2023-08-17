@@ -9,6 +9,7 @@ import {
     ReferenceManyField,
     SelectInput,
     SimpleForm,
+    TextField,
     TextInput,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
@@ -21,6 +22,8 @@ const ElectionEventListForm: React.FC = () => {
         <SimpleForm>
             <Typography variant="h4">Election Event</Typography>
             <Typography variant="body2">Election event configuration</Typography>
+            <Typography variant="h5">ID</Typography>
+            <TextField source="id" />
             <TextInput source="name" />
             <TextInput source="description" />
             <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />

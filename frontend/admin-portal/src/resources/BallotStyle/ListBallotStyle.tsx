@@ -61,6 +61,9 @@ export const ListBallotStyle: React.FC<ListBallotStyleProps> = ({aside}) => {
                     >
                         <TextField source="name" />
                     </ReferenceField>
+                    <ReferenceField source="area_id" reference="sequent_backend_area">
+                        <TextField source="name" />
+                    </ReferenceField>
                 </DatagridConfigurable>
             </List>
         </>

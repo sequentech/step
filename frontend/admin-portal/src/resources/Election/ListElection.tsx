@@ -6,8 +6,8 @@ import {
     BooleanField,
     DatagridConfigurable,
     List,
+    ReferenceField,
     ReferenceManyField,
-    SearchInput,
     TextField,
     TextInput,
 } from "react-admin"
@@ -23,7 +23,7 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Name" source="name" key={0} />,
     <TextInput label="Description" source="description" key={1} />,
     <TextInput label="ID" source="id" key={2} />,
-    <TextInput source="election_event_id" key={3} />,
+    <TextInput label="Election Event ID" source="election_event_id" key={3} />,
 ]
 
 export interface ListElectionProps {
@@ -60,6 +60,12 @@ export const ListElection: React.FC<ListElectionProps & PropsWithChildren> = ({a
                             filterFields={["election_event_id", "election_id"]}
                         />
                     </ReferenceManyField>
+                    <ReferenceField
+                        source="election_event_id"
+                        reference="sequent_backend_election_event"
+                    >
+                        <TextField source="name" />
+                    </ReferenceField>
                 </DatagridConfigurable>
             </List>
         </>

@@ -3,9 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Typography} from "@mui/material"
 import React from "react"
-import {Edit, ReferenceField, SimpleForm, TextField, TextInput, useRecordContext} from "react-admin"
+import {Edit, ReferenceField, SimpleForm, TextField} from "react-admin"
 import {ListAreaContest} from "./ListAreaContest"
-import {Sequent_Backend_Area_Contest} from "../../gql/graphql"
 import {JsonInput} from "react-admin-json-view"
 
 const AreaContestForm: React.FC = () => {
@@ -13,6 +12,8 @@ const AreaContestForm: React.FC = () => {
         <SimpleForm>
             <Typography variant="h4">Area</Typography>
             <Typography variant="h5">Election Event</Typography>
+            <Typography variant="h5">ID</Typography>
+            <TextField source="id" />
             <ReferenceField
                 label="Election Event"
                 reference="sequent_backend_election_event"
@@ -52,16 +53,10 @@ const AreaContestForm: React.FC = () => {
     )
 }
 
-const ListAreaContestWrapper: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Area_Contest>()
-
-    return <ListAreaContest aside={<AreaContestForm />} />
-}
-
 export const EditAreaContest: React.FC = () => {
     return (
         <Edit>
-            <ListAreaContestWrapper />
+            <ListAreaContest aside={<AreaContestForm />} />
         </Edit>
     )
 }

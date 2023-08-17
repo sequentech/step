@@ -14,8 +14,7 @@ import {
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
 import {ChipList} from "../../components/ChipList"
-import {Box, Typography} from "@mui/material"
-import {Sequent_Backend_Area, Sequent_Backend_Election} from "../../gql/graphql"
+import {Typography} from "@mui/material"
 
 const OMIT_FIELDS = ["id", "sequent_backend_area", "is_archived", "is_audit"]
 
@@ -33,11 +32,6 @@ export interface ElectionEventListProps {
 
 export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
-
-    const electionFilter = (data: Sequent_Backend_Election) => ({
-        election_event_id: data.election_event_id,
-    })
-    const areaFilter = (data: Sequent_Backend_Area) => ({election_event_id: data.election_event_id})
 
     return (
         <>

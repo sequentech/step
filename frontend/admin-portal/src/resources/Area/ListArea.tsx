@@ -14,7 +14,6 @@ import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
 import {ChipList} from "../../components/ChipList"
-import {Sequent_Backend_Area_Contest} from "../../gql/graphql"
 import {generateRowClickHandler} from "../../services/RowClickService"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]

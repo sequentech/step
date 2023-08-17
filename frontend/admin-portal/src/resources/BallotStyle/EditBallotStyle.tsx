@@ -12,10 +12,8 @@ import {
     SimpleForm,
     TextField,
     TextInput,
-    useRecordContext,
 } from "react-admin"
 import {ListBallotStyle} from "./ListBallotStyle"
-import {Sequent_Backend_Ballot_Style} from "../../gql/graphql"
 import {JsonInput} from "react-admin-json-view"
 
 const BallotStyleForm: React.FC = () => {
@@ -24,6 +22,8 @@ const BallotStyleForm: React.FC = () => {
             <SimpleForm>
                 <Typography variant="h4">Ballot Style</Typography>
                 <Typography variant="body2">Ballot Style configuration</Typography>
+                <Typography variant="h5">ID</Typography>
+                <TextField source="id" />
                 <TextInput source="ballot_eml" />
                 <TextInput source="status" />
                 <Typography variant="h5">Election</Typography>
@@ -91,16 +91,10 @@ const BallotStyleForm: React.FC = () => {
     )
 }
 
-const ListBallotStyleWrapper: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Ballot_Style>()
-
-    return <ListBallotStyle aside={<BallotStyleForm />} />
-}
-
 export const EditBallotStyle: React.FC = () => {
     return (
         <Edit>
-            <ListBallotStyleWrapper />
+            <ListBallotStyle aside={<BallotStyleForm />} />
         </Edit>
     )
 }

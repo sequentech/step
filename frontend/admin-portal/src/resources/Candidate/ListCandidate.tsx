@@ -7,9 +7,9 @@ import {
     List,
     BooleanField,
     TextField,
-    NumberField,
     TextInput,
     BooleanInput,
+    ReferenceField,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
@@ -54,6 +54,15 @@ export const ListCandidate: React.FC<ListCandidateProps> = ({aside}) => {
                     <TextField source="description" />
                     <TextField source="type" />
                     <BooleanField source="is_public" />
+                    <ReferenceField
+                        source="election_event_id"
+                        reference="sequent_backend_election_event"
+                    >
+                        <TextField source="name" />
+                    </ReferenceField>
+                    <ReferenceField source="contest_id" reference="sequent_backend_contest">
+                        <TextField source="name" />
+                    </ReferenceField>
                 </DatagridConfigurable>
             </List>
         </>

@@ -8,17 +8,13 @@ import {
     Edit,
     SimpleForm,
     TextInput,
-    NumberInput,
     SelectInput,
-    useRecordContext,
     ReferenceField,
     TextField,
     FormDataConsumer,
     ReferenceInput,
 } from "react-admin"
-import {HorizontalBox} from "../../components/HorizontalBox"
 import {ListCandidate} from "./ListCandidate"
-import {Sequent_Backend_Candidate} from "../../gql/graphql"
 import {JsonInput} from "react-admin-json-view"
 
 const CandidateForm: React.FC = () => {
@@ -27,6 +23,8 @@ const CandidateForm: React.FC = () => {
             <SimpleForm>
                 <Typography variant="h4">Candidate</Typography>
                 <Typography variant="body2">Candidate configuration</Typography>
+                <Typography variant="h5">ID</Typography>
+                <TextField source="id" />
                 <TextInput source="name" />
                 <TextInput source="description" />
                 <TextInput source="type" />
@@ -88,16 +86,10 @@ const CandidateForm: React.FC = () => {
     )
 }
 
-const ListCandidateWrapper: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Candidate>()
-
-    return <ListCandidate aside={<CandidateForm />} />
-}
-
 export const EditCandidate: React.FC = () => {
     return (
         <Edit>
-            <ListCandidateWrapper />
+            <ListCandidate aside={<CandidateForm />} />
         </Edit>
     )
 }

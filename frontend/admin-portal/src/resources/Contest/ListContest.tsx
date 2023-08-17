@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {PropsWithChildren, ReactElement} from "react"
+import React, {ReactElement} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -12,6 +12,7 @@ import {
     TextInput,
     BooleanInput,
     NumberInput,
+    ReferenceField,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {ChipList} from "../../components/ChipList"
@@ -87,6 +88,15 @@ export const ListContest: React.FC<ListContestProps> = ({aside}) => {
                             filterFields={["election_event_id", "contest_id"]}
                         />
                     </ReferenceManyField>
+                    <ReferenceField
+                        source="election_event_id"
+                        reference="sequent_backend_election_event"
+                    >
+                        <TextField source="name" />
+                    </ReferenceField>
+                    <ReferenceField source="election_id" reference="sequent_backend_election">
+                        <TextField source="name" />
+                    </ReferenceField>
                 </DatagridConfigurable>
             </List>
         </>

@@ -10,10 +10,8 @@ import {
     SimpleForm,
     TextField,
     TextInput,
-    useRecordContext,
 } from "react-admin"
 import {ListArea} from "./ListArea"
-import {Sequent_Backend_Area} from "../../gql/graphql"
 import {JsonInput} from "react-admin-json-view"
 import {ChipList} from "../../components/ChipList"
 
@@ -22,6 +20,8 @@ const AreaForm: React.FC = () => {
         <SimpleForm>
             <Typography variant="h4">Area</Typography>
             <Typography variant="body2">Area configuration</Typography>
+            <Typography variant="h5">ID</Typography>
+            <TextField source="id" />
             <TextInput source="name" />
             <TextInput source="description" />
             <TextInput source="type" />
@@ -67,16 +67,10 @@ const AreaForm: React.FC = () => {
     )
 }
 
-const ListAreaWrapper: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Area>()
-
-    return <ListArea aside={<AreaForm />} />
-}
-
 export const EditArea: React.FC = () => {
     return (
         <Edit>
-            <ListAreaWrapper />
+            <ListArea aside={<AreaForm />} />
         </Edit>
     )
 }
