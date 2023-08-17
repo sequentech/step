@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use tracing::{instrument};
 
 use std::fmt::Debug;
-use immudb_rs::{Client, Row, sql_value::Value};
+use immudb_rs::{sql_value::Value, Client, Row, SqlValue, NamedParam, TxMode};
 
 #[derive(Debug)]
 pub struct Board {
@@ -115,34 +115,75 @@ impl Board {
         &mut self, messages: &Vec<BoardMessage>
     ) -> Result<()>
     {
-        let sql: String = messages
-            .iter()
-            .try_fold(
-                String::new(),
-                |mut acc_sql: String, message: &BoardMessage| -> Result<String>
-                {
-                    let message_sql = format!(r#"
-                        INSERT INTO messages(
-                            id,
-                            created,
-                            signer_key,
-                            statement_timestamp,
-                            statement_kind,
-                            message)
-                        VALUES ({}, {}, {:?}, {}, {}, {:?});
-                        "#,
-                        message.id,
-                        message.created,
-                        message.signer_key,
-                        message.statement_timestamp,
-                        message.statement_kind,
-                        message.message
-                    );
-                    acc_sql.push_str(&message_sql);
-                    Ok(acc_sql)
-                }
-            )?;
-        self.client.sql_exec(&sql, vec![]).await?;
+        // Start a new transaction
+        self.client.new_tx(TxMode::WriteOnly).await?;
+        for message in messages {
+            let message_sql = r#"
+                INSERT INTO messages(
+                    id,
+                    created,
+                    signer_key,
+                    statement_timestamp,
+                    statement_kind,
+                    message
+                ) VALUES (
+                    @id,
+                    @created,
+                    @signer_key,
+                    @statement_timestamp,
+                    @statement_kind,
+                    @message
+                );
+            "#;
+            let params = vec![
+                NamedParam {
+                    name: String::from("id"),
+                    value: Some(
+                        SqlValue { value: Some(Value::N(message.id)) }
+                    ),
+                },
+                NamedParam {
+                    name: String::from("created"),
+                    value: Some(
+                        SqlValue { value: Some(Value::N(message.created)) }
+                    ),
+                },
+                NamedParam {
+                    name: String::from("signer_key"),
+                    value: Some(
+                        SqlValue { value: Some(
+                            Value::Bs(message.signer_key.clone())
+                        ) }
+                    ),
+                },
+                NamedParam {
+                    name: String::from("statement_timestamp"),
+                    value: Some(
+                        SqlValue { value: Some(
+                            Value::N(message.statement_timestamp)
+                        ) }
+                    ),
+                },
+                NamedParam {
+                    name: String::from("statement_kind"),
+                    value: Some(
+                        SqlValue { value: Some(
+                            Value::S(message.statement_kind.clone())
+                        ) }
+                    ),
+                },
+                NamedParam {
+                    name: String::from("message"),
+                    value: Some(
+                        SqlValue { value: Some(
+                            Value::Bs(message.message.clone())
+                        ) }
+                    ),
+                },
+            ];
+            self.client.tx_sql_exec(&message_sql, params).await?;
+        }
+        self.client.commit().await?;
         Ok(())
     }
 }
