@@ -15,6 +15,7 @@ import SequentCoreLibInit, {set_hooks} from "sequent-core"
 //import AuthContextProvider from "./providers/AuthContextProvider"
 import {ApolloProvider} from "@apollo/client"
 import {apolloClient} from "./services/ApolloService"
+import AuthContextProvider from "./providers/AuthContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -22,15 +23,15 @@ SequentCoreLibInit().then(set_hooks)
 
 root.render(
     <React.StrictMode>
-        {/*<AuthContextProvider>*/}
-        <Provider store={store}>
-            <ThemeProvider theme={theme}>
-                <ApolloProvider client={apolloClient}>
-                    <App />
-                </ApolloProvider>
-            </ThemeProvider>
-        </Provider>
-        {/*</AuthContextProvider>*/}
+        <AuthContextProvider>
+            <Provider store={store}>
+                <ThemeProvider theme={theme}>
+                    <ApolloProvider client={apolloClient}>
+                        <App />
+                    </ApolloProvider>
+                </ThemeProvider>
+            </Provider>
+        </AuthContextProvider>
     </React.StrictMode>
 )
 
