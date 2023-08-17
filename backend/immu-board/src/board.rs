@@ -6,11 +6,14 @@ use std::fmt::Debug;
 use immudb_rs::immu_service_client::ImmuServiceClient;
 use immudb_rs::{
     Database,
-    DatabaseWithSettings,
     DatabaseListRequestV2,
     DatabaseListResponseV2,
+    DeleteDatabaseRequest,
     LoginRequest,
     SqlExecRequest,
+    SqlQueryRequest,
+    SqlQueryResult,
+    UnloadDatabaseRequest,
 };
 use tonic::{
     metadata::MetadataValue,
@@ -69,6 +72,7 @@ impl Board {
         return Ok(request);
     }
 
+    #[instrument]
     pub async fn list_boards(&mut self)
         -> AsyncResponse<DatabaseListResponseV2>
     {
@@ -81,6 +85,7 @@ impl Board {
         Ok(database_list_response)
     }
 
+    #[instrument]
     pub async fn board_exists(&mut self, board_name: &str) -> Result<bool> {
         let database_list_request = self.get_request(
             DatabaseListRequestV2 {}
@@ -96,6 +101,7 @@ impl Board {
         )
     }
 
+    #[instrument]
     pub async fn has_tables(&mut self) -> Result<bool> {
         let list_tables_request = self.get_request(())?;
         let list_tables_response = self.client
@@ -105,6 +111,7 @@ impl Board {
         Ok(list_tables_response.get_ref().rows.is_empty())
     }
 
+    #[instrument]
     pub async fn sql_exec(&mut self, sql: &str) -> Result<()> {
         let sql_exec_request = self.get_request(
             SqlExecRequest {
@@ -120,6 +127,26 @@ impl Board {
         Ok(())
     }
 
+    #[instrument]
+    pub async fn sql_query(
+        &mut self, sql: &str
+    ) -> AsyncResponse<SqlQueryResult>
+    {
+        let sql_query_request = self.get_request(
+            SqlQueryRequest {
+                sql: sql.clone().into(),
+                reuse_snapshot: false,
+                params: vec![],
+            }
+        )?;
+        let sql_query_response = self.client
+            .sql_query(sql_query_request)
+            .await?;
+        debug!("sql_query_response={:?}", sql_query_response);
+        Ok(sql_query_response)
+    }
+
+    #[instrument]
     pub async fn use_board(&mut self, board_name: &str) -> Result<()> {
         let use_db_request = self.get_request(
             Database { database_name: board_name.to_string() }
@@ -132,12 +159,21 @@ impl Board {
         Ok(())
     }
 
-    pub async fn get_messages<T>(&mut self) -> Result<Vec<T>> {
-        unimplemented!()
-    }
-
-    pub async fn send_messages<T>(&mut self, messages: Vec<T>) -> Result<()> {
-        unimplemented!()
-
+    #[instrument]
+    pub async fn delete_board(&mut self, board_name: &str) -> Result<()>
+    {
+        let unload_db_request = self.get_request(
+            UnloadDatabaseRequest { database: board_name.to_string() },
+        )?;
+        let _unload_db_response = self.client
+            .unload_database(unload_db_request).await?;
+        debug!("Deleting index database...");
+        let delete_db_request = self.get_request(
+            DeleteDatabaseRequest { database: board_name.to_string() },
+        )?;
+        let _delete_db_response = self.client
+            .delete_database(delete_db_request).await?;
+        debug!("Index Database deleted!");
+        Ok(())
     }
 }

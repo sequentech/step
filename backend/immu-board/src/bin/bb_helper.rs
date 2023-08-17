@@ -4,27 +4,12 @@
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
 use tracing_subscriber::filter;
 use tracing::{debug, instrument};
-use tonic::{
-    metadata::MetadataValue,
-    transport::Channel,
-    Request
-};
 
-use immudb_rs::immu_service_client::ImmuServiceClient;
-use immudb_rs::{
-    CreateDatabaseRequest,
-    Database,
-    DatabaseListRequestV2,
-    UnloadDatabaseRequest,
-    DeleteDatabaseRequest,
-    LoginRequest,
-    SqlExecRequest,
-};
+use immudb_rs::Client;
 
 use immu_board::util::init_log;
 
@@ -116,11 +101,9 @@ impl Cli {
 }
 
 struct BBHelper {
-    client: ImmuServiceClient<Channel>,
+    client: Client,
     index_dbname: String,
     board_dbname: String,
-    login_token: String,
-    database_tokens: HashMap<String, String>,
     actions: Vec<Action>,
 }
 
@@ -154,162 +137,44 @@ impl BBHelper {
             None => env::var("IMMUDB_PASSWORD")
                 .context("password not provided and IMMUDB_PASSWORD env var not set")?
         };
-        let login_request = Request::new(LoginRequest {
-            user: username.clone().into(),
-            password: password.clone().into()
-        });
-        let mut client = ImmuServiceClient::connect(server_url.clone())
-            .await?;
-        let response = client.login(login_request).await?;
-        debug!("grpc-login-response={:?}", response);
-        let login_token = format!("Bearer {}", response.get_ref().token);
-
+        let mut client = Client::new(&server_url).await?;
+        client.login(&username, &password).await?;
         Ok(
             BBHelper {
                 client: client,
                 index_dbname: index_dbname,
                 board_dbname: board_dbname,
-                login_token: login_token,
-                database_tokens: Default::default(),
                 actions: args.actions
             }
         )
     }
 
-    /// Creates an Authenticated request, with the proper Auth token
-    fn get_request<T: std::fmt::Debug>(
-        &self,
-        data: T,
-        database_name: Option<String>
-    ) -> Result<Request<T>>
-    {
-        let mut request = Request::new(data);
-        let token: MetadataValue<_> = match &database_name {
-            None => self.login_token.clone(),
-            Some(database_name) =>
-                self.database_tokens.get(database_name).unwrap().clone()
-        }.parse()?;
-        request.metadata_mut().insert("authorization", token);
-        debug!(
-            "BBHelper::get_request(database_name={:?}): request={:?}",
-            database_name,
-            request,
-        );
-
-        return Ok(request);
-    }
-
     /// Creates the database, only if it doesn't exist. It also creates
     /// the appropriate tables if they don't exist.
-    async fn upsert_database(&mut self, name: &str, tables: &str) -> Result<()>
+    async fn upsert_database(
+        &mut self, database_name: &str, tables: &str
+    ) -> Result<()>
     {
-        let use_db_request = self.get_request(
-            Database { database_name: name.to_string() },
-            None
-        )?;
-
-        // database doesn't seem to exist, so we have to create it
-        match self.client.use_database(use_db_request).await {
-            Err(_) => {
-                debug!("Database doesn't exist, creating it");
-                let create_db_request = self.get_request(
-                    CreateDatabaseRequest {
-                        name: name.to_string(),
-                        ..Default::default()
-                    },
-                    None
-                )?;
-                let _create_db_response = self.client
-                    .create_database_v2(create_db_request).await?;
-                debug!("Database created! try obtaining token again..");
-
-                let use_db_request = self.get_request(
-                    Database { database_name: name.to_string() },
-                    None
-                )?;
-                let use_db_response = self.client
-                    .use_database(use_db_request)
-                    .await?;
-                self.database_tokens.insert(
-                    name.to_string(),
-                    use_db_response.get_ref().token.clone()
-                );
-            },
-            Ok(use_db_response) => {
-                debug!("Index Database already exists, refreshing token..");
-                self.database_tokens.insert(
-                    name.to_string(),
-                    use_db_response.get_ref().token.clone()
-                );
-            }
+        // create database if it doesn't exist
+        if !self.client.has_database(database_name).await? {
+            self.client.create_database(database_name).await?;
+            debug!("Database created!");
         };
+        self.client.use_database(database_name).await?;
 
         // List tables and create them if missing
-        let list_tables_request = self.get_request(
-            (),
-            Some(name.to_string())
-        )?;
-        let list_tables_response = self.client
-            .list_tables(list_tables_request)
-            .await?;
-        debug!("list_tables_response={:?}", list_tables_response);
-        if list_tables_response.get_ref().rows.is_empty() {
+        if !self.client.has_tables().await? {
             debug!("no tables! let's create them");
-            let create_tables_request = self.get_request(
-                SqlExecRequest {
-                    sql: tables.to_string(),
-                    no_wait: true,
-                    params: vec![],
-                },
-                Some(name.to_string())
-            )?;
-            let create_tables_response = self.client
-                .sql_exec(create_tables_request)
-                .await?;
-            debug!("create_tables_response={:?}", create_tables_response);
-        } else {
-            debug!(
-                "Database has the following tables: {:?}",
-                list_tables_response.get_ref().rows
-            );
+            self.client.sql_exec(&tables).await?;
         }
-
         Ok(())
     }
 
-    async fn delete_database(&mut self, name: &str) -> Result<()>
+    async fn delete_database(&mut self, database_name: &str) -> Result<()>
     {
-        debug!("Listing databases..");
-        let list_dbs_request = self.get_request(
-            DatabaseListRequestV2 {}, None
-        )?;
-
-        let list_dbs_response = self.client
-            .database_list_v2(list_dbs_request)
-            .await?;
-        let find_index_db = list_dbs_response
-            .get_ref()
-            .databases
-            .iter()
-            .find(|&database| database.name == name);
-        if find_index_db.is_some() {
-            debug!("Index Database found, unloading it before deletion...");
-            let unload_db_request = self.get_request(
-                UnloadDatabaseRequest { database: name.to_string() },
-                None,
-            )?;
-            let _unload_db_response = self.client
-                .unload_database(unload_db_request).await?;
-            debug!("Deleting index database...");
-            let delete_db_request = self.get_request(
-                DeleteDatabaseRequest { database: name.to_string() },
-                None,
-            )?;
-            let _delete_db_response = self.client
-                .delete_database(delete_db_request).await?;
-            debug!("Index Database deleted!");
-        } else {
-            debug!("Index Database doesn't exist, nothing to do");
+        if !self.client.has_database(database_name).await?
+        {
+            self.client.delete_database(database_name).await?;
         }
         Ok(())
     }
