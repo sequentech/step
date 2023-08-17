@@ -18,7 +18,7 @@ pub struct BoardMessage {
     signer_key: Vec<u8>,
     statement_timestamp: i64,
     statement_kind: String,
-    message: Vec<u8>
+    pub message: Vec<u8>
 }
 
 macro_rules! assign_value {
@@ -78,8 +78,10 @@ impl Board {
         index_dbname: String,
         board_dbname: String,
     ) -> Result<Board> {
+        let mut client = Client::new(&server_url).await?;
+        client.use_database(&board_dbname).await?;
         Ok(Board {
-            client: Client::new(&server_url).await?,
+            client: client,
             index_dbname: index_dbname,
             board_dbname: board_dbname,
         })
