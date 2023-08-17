@@ -6,6 +6,7 @@ import {DatagridConfigurable, List, TextField, ReferenceField, TextInput} from "
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
+import {generateRowClickHandler} from "../../services/RowClickService"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -25,6 +26,8 @@ export interface ListBallotStyleProps {
 export const ListBallotStyle: React.FC<ListBallotStyleProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
 
+    const rowClickHandler = generateRowClickHandler(["election_event_id", "election_id", "area_id"])
+
     return (
         <>
             <Typography variant="h5">Ballot Styles</Typography>
@@ -37,7 +40,7 @@ export const ListBallotStyle: React.FC<ListBallotStyleProps> = ({aside}) => {
                 filters={Filters}
                 aside={aside}
             >
-                <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
+                <DatagridConfigurable rowClick={rowClickHandler} omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="ballot_eml" />
                     <TextField source="status" />

@@ -17,6 +17,7 @@ import {ListActions} from "../../components/ListActions"
 import {ChipList} from "../../components/ChipList"
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
+import {generateRowClickHandler} from "../../services/RowClickService"
 
 const OMIT_FIELDS = [
     "id",
@@ -40,6 +41,8 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Voting Type" source="voting_type" key={7} />,
     <TextInput label="Counting Algorithm" source="counting_algorithm" key={8} />,
     <BooleanInput label="Is Encrypted" source="is_encrypted" key={9} />,
+    <TextInput source="election_event_id" key={10} />,
+    <TextInput source="election_id" key={11} />,
 ]
 
 export interface ListContestProps {
@@ -48,6 +51,8 @@ export interface ListContestProps {
 
 export const ListContest: React.FC<ListContestProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
+
+    const rowClickHandler = generateRowClickHandler(["election_event_id", "election_id"])
 
     return (
         <>
@@ -61,7 +66,7 @@ export const ListContest: React.FC<ListContestProps> = ({aside}) => {
                 filters={Filters}
                 aside={aside}
             >
-                <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
+                <DatagridConfigurable rowClick={rowClickHandler} omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="name" />
                     <TextField source="description" />

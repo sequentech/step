@@ -5,6 +5,7 @@ import React from "react"
 import {RaRecord, useListContext} from "react-admin"
 import {Link} from "react-router-dom"
 import {StyledChip} from "./StyledChip"
+import {stringifyFields} from "../services/RowClickService"
 
 export interface ChipListProps {
     source: string
@@ -23,16 +24,6 @@ export const ChipList: React.FC<ChipListProps> = ({source, filterFields, max}) =
         event.stopPropagation()
     }
 
-    const filter = (input: Record<string, any>): Record<string, any> => {
-        let o: Record<string, any> = {}
-        if (filterFields) {
-            for (let key of filterFields) {
-                o[key] = input[key]
-            }
-        }
-        return o
-    }
-
     return (
         <>
             {data.slice(0, max || DEFAULT_MAX).map((element) => (
@@ -40,7 +31,7 @@ export const ChipList: React.FC<ChipListProps> = ({source, filterFields, max}) =
                     to={{
                         pathname: `/${source}/${element.id}`,
                         search: filterFields
-                            ? `filter=${JSON.stringify(filter(element))}`
+                            ? `filter=${stringifyFields(element, filterFields)}`
                             : undefined,
                     }}
                     key={element.id}

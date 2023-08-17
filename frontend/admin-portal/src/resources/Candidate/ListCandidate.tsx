@@ -14,6 +14,7 @@ import {
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
+import {generateRowClickHandler} from "../../services/RowClickService"
 
 const OMIT_FIELDS = ["id", "type", "is_public"]
 
@@ -33,6 +34,8 @@ export interface ListCandidateProps {
 export const ListCandidate: React.FC<ListCandidateProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
 
+    const rowClickHandler = generateRowClickHandler(["election_event_id", "contest_id"])
+
     return (
         <>
             <Typography variant="h5">Candidates</Typography>
@@ -45,7 +48,7 @@ export const ListCandidate: React.FC<ListCandidateProps> = ({aside}) => {
                 filters={Filters}
                 aside={aside}
             >
-                <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
+                <DatagridConfigurable rowClick={rowClickHandler} omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="name" />
                     <TextField source="description" />

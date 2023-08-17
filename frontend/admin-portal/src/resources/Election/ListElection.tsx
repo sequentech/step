@@ -15,6 +15,7 @@ import {ListActions} from "../../components/ListActions"
 import {ChipList} from "../../components/ChipList"
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
+import {generateRowClickHandler} from "../../services/RowClickService"
 
 const OMIT_FIELDS = ["id", "is_consolidated_ballot_encoding", "spoil_ballot_option"]
 
@@ -32,6 +33,8 @@ export interface ListElectionProps {
 export const ListElection: React.FC<ListElectionProps & PropsWithChildren> = ({aside}) => {
     const [tenantId] = useTenantStore()
 
+    const rowClickHandler = generateRowClickHandler(["election_event_id"])
+
     return (
         <>
             <Typography variant="h5">Elections</Typography>
@@ -41,7 +44,7 @@ export const ListElection: React.FC<ListElectionProps & PropsWithChildren> = ({a
                 aside={aside}
                 filters={Filters}
             >
-                <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
+                <DatagridConfigurable rowClick={rowClickHandler} omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="name" />
                     <TextField source="description" />

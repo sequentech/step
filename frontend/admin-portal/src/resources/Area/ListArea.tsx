@@ -15,6 +15,7 @@ import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
 import {ChipList} from "../../components/ChipList"
 import {Sequent_Backend_Area_Contest} from "../../gql/graphql"
+import {generateRowClickHandler} from "../../services/RowClickService"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -33,6 +34,8 @@ export interface ListAreaProps {
 export const ListArea: React.FC<ListAreaProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
 
+    const rowClickHandler = generateRowClickHandler(["election_event_id"])
+
     return (
         <>
             <Typography variant="h5">Areas</Typography>
@@ -45,7 +48,7 @@ export const ListArea: React.FC<ListAreaProps> = ({aside}) => {
                 }}
                 filters={Filters}
             >
-                <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
+                <DatagridConfigurable rowClick={rowClickHandler} omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="name" />
                     <TextField source="description" />

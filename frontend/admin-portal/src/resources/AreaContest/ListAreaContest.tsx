@@ -6,6 +6,7 @@ import {DatagridConfigurable, List, TextField, ReferenceField, TextInput} from "
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
+import {generateRowClickHandler} from "../../services/RowClickService"
 
 const OMIT_FIELDS = ["id"]
 
@@ -22,6 +23,8 @@ export interface ListAreaContestProps {
 export const ListAreaContest: React.FC<ListAreaContestProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
 
+    const rowClickHandler = generateRowClickHandler(["election_event_id", "contest_id", "area_id"])
+
     return (
         <>
             <Typography variant="h5">Area Contests</Typography>
@@ -34,7 +37,7 @@ export const ListAreaContest: React.FC<ListAreaContestProps> = ({aside}) => {
                 }}
                 filters={Filters}
             >
-                <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
+                <DatagridConfigurable rowClick={rowClickHandler} omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <ReferenceField
                         label="Election Event"
