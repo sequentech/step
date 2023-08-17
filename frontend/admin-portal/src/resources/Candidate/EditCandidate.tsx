@@ -91,13 +91,7 @@ const CandidateForm: React.FC = () => {
 const ListCandidateWrapper: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Candidate>()
 
-    return (
-        <ListCandidate
-            electionEventId={record?.election_event_id}
-            contestId={record?.contest_id}
-            aside={<CandidateForm />}
-        />
-    )
+    return <ListCandidate aside={<CandidateForm />} />
 }
 
 export const EditCandidate: React.FC = () => {

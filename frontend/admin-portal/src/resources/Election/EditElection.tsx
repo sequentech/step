@@ -45,7 +45,10 @@ const ElectionForm: React.FC = () => {
                     target="election_id"
                 >
                     <HorizontalBox>
-                        <ChipList source="sequent_backend_contest" />
+                        <ChipList
+                            source="sequent_backend_contest"
+                            filterFields={["election_event_id", "election_id"]}
+                        />
                     </HorizontalBox>
                 </ReferenceManyField>
                 <JsonInput
@@ -108,7 +111,7 @@ const ElectionForm: React.FC = () => {
 const ListElectionWrapper: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
 
-    return <ListElection electionEventId={record?.election_event_id} aside={<ElectionForm />} />
+    return <ListElection aside={<ElectionForm />} />
 }
 
 export const EditElection: React.FC = (props) => (

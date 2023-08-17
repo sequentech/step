@@ -13,21 +13,16 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Ballot EML" source="ballot_eml" key={0} />,
     <TextInput label="ID" source="id" key={1} />,
     <TextInput label="Status" source="status" key={2} />,
+    <TextInput source="area_id" key={3} />,
+    <TextInput source="election_event_id" key={4} />,
+    <TextInput source="election_id" key={5} />,
 ]
 
 export interface ListBallotStyleProps {
-    electionEventId?: string
-    electionId?: string
-    areaId?: string
     aside?: ReactElement
 }
 
-export const ListBallotStyle: React.FC<ListBallotStyleProps> = ({
-    electionEventId,
-    electionId,
-    areaId,
-    aside,
-}) => {
+export const ListBallotStyle: React.FC<ListBallotStyleProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
 
     return (
@@ -38,9 +33,6 @@ export const ListBallotStyle: React.FC<ListBallotStyleProps> = ({
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,
-                    election_event_id: electionEventId,
-                    election_id: electionId,
-                    area_id: areaId,
                 }}
                 filters={Filters}
                 aside={aside}

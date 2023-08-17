@@ -3,10 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Typography} from "@mui/material"
 import React from "react"
-import {Edit, ReferenceField, SimpleForm, TextField, TextInput, useRecordContext} from "react-admin"
+import {
+    Edit,
+    ReferenceField,
+    ReferenceManyField,
+    SimpleForm,
+    TextField,
+    TextInput,
+    useRecordContext,
+} from "react-admin"
 import {ListArea} from "./ListArea"
 import {Sequent_Backend_Area} from "../../gql/graphql"
 import {JsonInput} from "react-admin-json-view"
+import {ChipList} from "../../components/ChipList"
 
 const AreaForm: React.FC = () => {
     return (
@@ -24,6 +33,16 @@ const AreaForm: React.FC = () => {
             >
                 <TextField source="name" />
             </ReferenceField>
+            <ReferenceManyField
+                label="Area Contests"
+                reference="sequent_backend_area_contest"
+                target="area_id"
+            >
+                <ChipList
+                    source="sequent_backend_area_contest"
+                    filterFields={["election_event_id", "area_id"]}
+                />
+            </ReferenceManyField>
             <JsonInput
                 source="labels"
                 jsonString={false}
@@ -51,7 +70,7 @@ const AreaForm: React.FC = () => {
 const ListAreaWrapper: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Area>()
 
-    return <ListArea electionEventId={record?.election_event_id} aside={<AreaForm />} />
+    return <ListArea aside={<AreaForm />} />
 }
 
 export const EditArea: React.FC = () => {

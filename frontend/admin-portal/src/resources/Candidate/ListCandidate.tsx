@@ -22,19 +22,15 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Description" source="description" key={1} />,
     <TextInput label="ID" source="id" key={2} />,
     <BooleanInput label="Is Public" source="is_public" key={3} />,
+    <TextInput source="election_event_id" key={4} />,
+    <TextInput source="contest_id" key={5} />,
 ]
 
 export interface ListCandidateProps {
-    electionEventId?: string
-    contestId?: string
     aside?: ReactElement
 }
 
-export const ListCandidate: React.FC<ListCandidateProps> = ({
-    electionEventId,
-    contestId,
-    aside,
-}) => {
+export const ListCandidate: React.FC<ListCandidateProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
 
     return (
@@ -45,8 +41,6 @@ export const ListCandidate: React.FC<ListCandidateProps> = ({
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,
-                    election_event_id: electionEventId,
-                    contest_id: contestId,
                 }}
                 filters={Filters}
                 aside={aside}

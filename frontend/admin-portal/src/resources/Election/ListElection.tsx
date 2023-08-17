@@ -22,17 +22,14 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Name" source="name" key={0} />,
     <TextInput label="Description" source="description" key={1} />,
     <TextInput label="ID" source="id" key={2} />,
+    <TextInput source="election_event_id" key={3} />,
 ]
 
 export interface ListElectionProps {
-    electionEventId?: string
     aside?: ReactElement
 }
 
-export const ListElection: React.FC<ListElectionProps & PropsWithChildren> = ({
-    electionEventId,
-    aside,
-}) => {
+export const ListElection: React.FC<ListElectionProps & PropsWithChildren> = ({aside}) => {
     const [tenantId] = useTenantStore()
 
     return (
@@ -40,7 +37,7 @@ export const ListElection: React.FC<ListElectionProps & PropsWithChildren> = ({
             <Typography variant="h5">Elections</Typography>
             <List
                 actions={<ListActions withFilter={true} />}
-                filter={{tenant_id: tenantId || undefined, election_event_id: electionEventId}}
+                filter={{tenant_id: tenantId || undefined}}
                 aside={aside}
                 filters={Filters}
             >
@@ -55,7 +52,10 @@ export const ListElection: React.FC<ListElectionProps & PropsWithChildren> = ({
                         reference="sequent_backend_contest"
                         target="election_id"
                     >
-                        <ChipList source="sequent_backend_contest" />
+                        <ChipList
+                            source="sequent_backend_contest"
+                            filterFields={["election_event_id", "election_id"]}
+                        />
                     </ReferenceManyField>
                 </DatagridConfigurable>
             </List>

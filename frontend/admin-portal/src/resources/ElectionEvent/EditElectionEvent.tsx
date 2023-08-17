@@ -33,15 +33,19 @@ const ElectionEventListForm: React.FC = () => {
                 target="election_event_id"
             >
                 <HorizontalBox>
-                    <ChipList source="sequent_backend_election" />
+                    <ChipList
+                        source="sequent_backend_election"
+                        filterFields={["election_event_id"]}
+                    />
                 </HorizontalBox>
             </ReferenceManyField>
+            <Typography variant="h5">Areas</Typography>
             <ReferenceManyField
                 label="Areas"
                 reference="sequent_backend_area"
                 target="election_event_id"
             >
-                <ChipList source="sequent_backend_area" />
+                <ChipList source="sequent_backend_area" filterFields={["election_event_id"]} />
             </ReferenceManyField>
             <JsonInput
                 source="labels"

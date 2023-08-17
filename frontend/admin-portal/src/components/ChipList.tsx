@@ -8,14 +8,14 @@ import {StyledChip} from "./StyledChip"
 
 export interface ChipListProps {
     source: string
+    filterFields?: Array<string>
+    max?: number
 }
 
-interface DataRecord extends RaRecord {
-    name: string
-}
+const DEFAULT_MAX = 10
 
-export const ChipList: React.FC<ChipListProps> = ({source}) => {
-    const {data} = useListContext<DataRecord>()
+export const ChipList: React.FC<ChipListProps> = ({source, filterFields, max}) => {
+    const {data} = useListContext<RaRecord>()
     if (!data) {
         return null
     }
@@ -23,10 +23,29 @@ export const ChipList: React.FC<ChipListProps> = ({source}) => {
         event.stopPropagation()
     }
 
+    const filter = (input: Record<string, any>): Record<string, any> => {
+        let o: Record<string, any> = {}
+        if (filterFields) {
+            for (let key of filterFields) {
+                o[key] = input[key]
+            }
+        }
+        return o
+    }
+
     return (
         <>
-            {data.map((element) => (
-                <Link to={`/${source}/${element.id}`} key={element.id} onClick={handleClick}>
+            {data.slice(0, max || DEFAULT_MAX).map((element) => (
+                <Link
+                    to={{
+                        pathname: `/${source}/${element.id}`,
+                        search: filterFields
+                            ? `filter=${JSON.stringify(filter(element))}`
+                            : undefined,
+                    }}
+                    key={element.id}
+                    onClick={handleClick}
+                >
                     <StyledChip label={element.name} />
                 </Link>
             ))}

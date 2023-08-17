@@ -15,6 +15,7 @@ import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
 import {ChipList} from "../../components/ChipList"
 import {Box, Typography} from "@mui/material"
+import {Sequent_Backend_Area, Sequent_Backend_Election} from "../../gql/graphql"
 
 const OMIT_FIELDS = ["id", "sequent_backend_area", "is_archived", "is_audit"]
 
@@ -32,6 +33,11 @@ export interface ElectionEventListProps {
 
 export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
+
+    const electionFilter = (data: Sequent_Backend_Election) => ({
+        election_event_id: data.election_event_id,
+    })
+    const areaFilter = (data: Sequent_Backend_Area) => ({election_event_id: data.election_event_id})
 
     return (
         <>
@@ -53,14 +59,20 @@ export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => 
                         reference="sequent_backend_election"
                         target="election_event_id"
                     >
-                        <ChipList source="sequent_backend_election" />
+                        <ChipList
+                            source="sequent_backend_election"
+                            filterFields={["election_event_id"]}
+                        />
                     </ReferenceManyField>
                     <ReferenceManyField
                         label="Areas"
                         reference="sequent_backend_area"
                         target="election_event_id"
                     >
-                        <ChipList source="sequent_backend_area" />
+                        <ChipList
+                            source="sequent_backend_area"
+                            filterFields={["election_event_id"]}
+                        />
                     </ReferenceManyField>
                 </DatagridConfigurable>
             </List>

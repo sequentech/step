@@ -6,13 +6,11 @@ import {
     DatagridConfigurable,
     List,
     TextField,
-    ReferenceField,
     BooleanField,
     TextInput,
     BooleanInput,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
 
 const OMIT_FIELDS = ["id"]
@@ -31,7 +29,12 @@ export const ListTenant: React.FC<ListTenantProps> = ({aside}) => {
     return (
         <>
             <Typography variant="h5">Customers</Typography>
-            <List actions={<ListActions withFilter={true} />} sx={{flexGrow: 2}} aside={aside}>
+            <List
+                actions={<ListActions withFilter={true} />}
+                sx={{flexGrow: 2}}
+                aside={aside}
+                filters={Filters}
+            >
                 <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="username" />

@@ -43,12 +43,10 @@ const Filters: Array<ReactElement> = [
 ]
 
 export interface ListContestProps {
-    electionEventId?: string
-    electionId?: string
     aside?: ReactElement
 }
 
-export const ListContest: React.FC<ListContestProps> = ({electionEventId, electionId, aside}) => {
+export const ListContest: React.FC<ListContestProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
 
     return (
@@ -59,8 +57,6 @@ export const ListContest: React.FC<ListContestProps> = ({electionEventId, electi
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,
-                    election_event_id: electionEventId,
-                    election_id: electionId,
                 }}
                 filters={Filters}
                 aside={aside}
@@ -81,7 +77,10 @@ export const ListContest: React.FC<ListContestProps> = ({electionEventId, electi
                         reference="sequent_backend_candidate"
                         target="contest_id"
                     >
-                        <ChipList source="sequent_backend_candidate" />
+                        <ChipList
+                            source="sequent_backend_candidate"
+                            filterFields={["election_event_id", "contest_id"]}
+                        />
                     </ReferenceManyField>
                 </DatagridConfigurable>
             </List>

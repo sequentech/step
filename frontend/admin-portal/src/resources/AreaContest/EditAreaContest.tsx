@@ -55,13 +55,7 @@ const AreaContestForm: React.FC = () => {
 const ListAreaContestWrapper: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Area_Contest>()
 
-    return (
-        <ListAreaContest
-            electionEventId={record?.election_event_id}
-            areaId={record?.area_id}
-            aside={<AreaContestForm />}
-        />
-    )
+    return <ListAreaContest aside={<AreaContestForm />} />
 }
 
 export const EditAreaContest: React.FC = () => {

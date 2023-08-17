@@ -2,24 +2,24 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement} from "react"
-import {DatagridConfigurable, List, TextField, ReferenceField} from "react-admin"
+import {DatagridConfigurable, List, TextField, ReferenceField, TextInput} from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
 
 const OMIT_FIELDS = ["id"]
 
+const Filters: Array<ReactElement> = [
+    <TextInput source="election_event_id" key={0} />,
+    <TextInput source="area_id" key={1} />,
+    <TextInput source="contest_id" key={2} />,
+]
+
 export interface ListAreaContestProps {
-    electionEventId?: string
-    areaId?: string
     aside?: ReactElement
 }
 
-export const ListAreaContest: React.FC<ListAreaContestProps> = ({
-    aside,
-    electionEventId,
-    areaId,
-}) => {
+export const ListAreaContest: React.FC<ListAreaContestProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
 
     return (
@@ -31,9 +31,8 @@ export const ListAreaContest: React.FC<ListAreaContestProps> = ({
                 aside={aside}
                 filter={{
                     tenant_id: tenantId || undefined,
-                    election_event_id: electionEventId,
-                    area_id: areaId,
                 }}
+                filters={Filters}
             >
                 <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
                     <TextField source="id" />

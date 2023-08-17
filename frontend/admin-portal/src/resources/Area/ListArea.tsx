@@ -14,6 +14,7 @@ import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
 import {ChipList} from "../../components/ChipList"
+import {Sequent_Backend_Area_Contest} from "../../gql/graphql"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -22,14 +23,14 @@ const Filters: Array<ReactElement> = [
     <TextInput label="Description" source="description" key={1} />,
     <TextInput label="ID" source="id" key={2} />,
     <TextInput label="Type" source="type" key={3} />,
+    <TextInput source="election_event_id" key={3} />,
 ]
 
 export interface ListAreaProps {
-    electionEventId?: string
     aside?: ReactElement
 }
 
-export const ListArea: React.FC<ListAreaProps> = ({aside, electionEventId}) => {
+export const ListArea: React.FC<ListAreaProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
 
     return (
@@ -41,7 +42,6 @@ export const ListArea: React.FC<ListAreaProps> = ({aside, electionEventId}) => {
                 aside={aside}
                 filter={{
                     tenant_id: tenantId || undefined,
-                    election_event_id: electionEventId,
                 }}
                 filters={Filters}
             >
@@ -62,7 +62,10 @@ export const ListArea: React.FC<ListAreaProps> = ({aside, electionEventId}) => {
                         reference="sequent_backend_area_contest"
                         target="area_id"
                     >
-                        <ChipList source="sequent_backend_area_contest" />
+                        <ChipList
+                            source="sequent_backend_area_contest"
+                            filterFields={["election_event_id", "area_id"]}
+                        />
                     </ReferenceManyField>
                 </DatagridConfigurable>
             </List>

@@ -4,7 +4,6 @@
 import {Box, Typography} from "@mui/material"
 import React from "react"
 import {
-    BooleanInput,
     Edit,
     FormDataConsumer,
     ReferenceField,
@@ -15,7 +14,6 @@ import {
     TextInput,
     useRecordContext,
 } from "react-admin"
-import {HorizontalBox} from "../../components/HorizontalBox"
 import {ListBallotStyle} from "./ListBallotStyle"
 import {Sequent_Backend_Ballot_Style} from "../../gql/graphql"
 import {JsonInput} from "react-admin-json-view"
@@ -96,14 +94,7 @@ const BallotStyleForm: React.FC = () => {
 const ListBallotStyleWrapper: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Ballot_Style>()
 
-    return (
-        <ListBallotStyle
-            electionEventId={record?.election_event_id}
-            electionId={record?.election_id}
-            areaId={record?.area_id}
-            aside={<BallotStyleForm />}
-        />
-    )
+    return <ListBallotStyle aside={<BallotStyleForm />} />
 }
 
 export const EditBallotStyle: React.FC = () => {
