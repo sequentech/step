@@ -19,16 +19,23 @@ pub mod elgamal;
 #[allow(dead_code)]
 mod keymaker;
 /// Random number generation frontend.
+#[doc(hidden)]
 pub mod rnd;
 /// Serialization frontend. StrandVectors for parallel serialization.
+#[doc(hidden)]
 pub mod serialization;
 /// Wikstrom proof of shuffle.
+#[doc(hidden)]
 pub mod shuffler;
-/// Signature frontend.
+/// Signature frontend (Zcash).
 pub mod signature;
+/// Signature frontend (Dalek).
+pub mod signature2;
 /// Support for threshold ElGamal.
+#[doc(hidden)]
 pub mod threshold;
 /// Miscellaneous functions.
+#[doc(hidden)]
 pub mod util;
 #[cfg(feature = "wasm")]
 /// Webassembly API.

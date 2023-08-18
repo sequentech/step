@@ -72,7 +72,8 @@ pub(crate) mod tests {
         let plaintext = ctx.encode(&data).unwrap();
         let label = vec![];
 
-        let (c, proof) = pk.encrypt_and_pok(&plaintext, &label).unwrap();
+        let (c, proof, _randomness) =
+            pk.encrypt_and_pok(&plaintext, &label).unwrap();
         let d = sk.decrypt(&c);
         let zkp = Zkp::new(ctx);
         let proof_ok = zkp

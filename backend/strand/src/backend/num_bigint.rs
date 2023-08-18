@@ -22,12 +22,11 @@ use std::io::{Error, ErrorKind};
 use std::marker::PhantomData;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use num_bigint::BigUint;
 use num_bigint::RandBigInt;
+use num_bigint::{BigUint, ParseBigIntError};
 use num_integer::Integer;
 use num_modular::{ModularSymbols, ModularUnaryOps};
-use num_traits::Num;
-use num_traits::{One, Zero};
+use num_traits::{Num, One, Zero};
 use sha2::Digest;
 
 use crate::backend::constants::*;
@@ -36,6 +35,14 @@ use crate::elgamal::{Ciphertext, PrivateKey, PublicKey};
 use crate::rnd::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
+
+pub trait SerializeNumber {
+    fn to_str_radix(&self, radix: u32) -> String;
+}
+
+pub trait DeserializeNumber: Sized {
+    fn from_str_radix(s: &str, radix: u32) -> Result<Self, ParseBigIntError>;
+}
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct BigUintE<P: BigintCtxParams>(
@@ -51,9 +58,31 @@ pub struct BigUintX<P: BigintCtxParams>(
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub struct BigUintP(pub(crate) BigUint);
 
+impl DeserializeNumber for BigUintP {
+    fn from_str_radix(
+        s: &str,
+        radix: u32,
+    ) -> Result<BigUintP, ParseBigIntError> {
+        let val = BigUint::from_str_radix(s, radix)?;
+        Ok(BigUintP(val))
+    }
+}
+
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct BigintCtx<P: BigintCtxParams> {
     params: P,
+}
+
+impl<P: BigintCtxParams> SerializeNumber for BigUintE<P> {
+    fn to_str_radix(&self, radix: u32) -> String {
+        self.0.to_str_radix(radix)
+    }
+}
+
+impl<P: BigintCtxParams> SerializeNumber for BigUintX<P> {
+    fn to_str_radix(&self, radix: u32) -> String {
+        self.0.to_str_radix(radix)
+    }
 }
 
 impl<P: BigintCtxParams> BigintCtx<P> {

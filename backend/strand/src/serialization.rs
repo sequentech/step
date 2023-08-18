@@ -41,6 +41,8 @@ impl<T: BorshDeserialize> StrandDeserialize for T {
 }
 
 // Optimized (par) serialization vectors
+// See also https://github.com/rust-lang/rust/issues/31844
+// See also https://github.com/rust-lang/rust/issues/42721
 
 /// Parallelized serialization for plaintext vectors.
 #[derive(Clone, Debug)]
