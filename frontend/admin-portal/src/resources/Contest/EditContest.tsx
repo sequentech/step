@@ -137,7 +137,7 @@ const ContestForm: React.FC = () => {
 }
 
 export const EditContest: React.FC = () => (
-    <Edit>
+    <Edit sx={{flexGrow: 2, width: "50%"}}>
         <ListContest aside={<ContestForm />} />
     </Edit>
 )

@@ -55,7 +55,7 @@ const AreaContestForm: React.FC = () => {
 
 export const EditAreaContest: React.FC = () => {
     return (
-        <Edit>
+        <Edit sx={{flexGrow: 2, width: "50%"}}>
             <ListAreaContest aside={<AreaContestForm />} />
         </Edit>
     )

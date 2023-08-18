@@ -88,7 +88,7 @@ const CandidateForm: React.FC = () => {
 
 export const EditCandidate: React.FC = () => {
     return (
-        <Edit>
+        <Edit sx={{flexGrow: 2, width: "50%"}}>
             <ListCandidate aside={<CandidateForm />} />
         </Edit>
     )

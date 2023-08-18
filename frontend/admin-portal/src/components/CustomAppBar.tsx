@@ -24,6 +24,7 @@ export const CustomAppBar: React.FC = () => {
             "& .MuiContainer-root.MuiContainer-maxWidthLg": {
                 maxWidth: "unset",
             },
+            "marginBottom": "8px",
         }}
     >
         <Header logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}/>

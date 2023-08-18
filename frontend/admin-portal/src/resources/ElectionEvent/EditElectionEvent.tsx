@@ -110,7 +110,7 @@ export const EditElectionList: React.FC = () => {
     return (
         <ElectionEventList
             aside={
-                <Edit sx={{flexGrow: 2}}>
+                <Edit sx={{flexGrow: 2, width: "50%"}}>
                     <ElectionEventListForm />
                 </Edit>
             }
