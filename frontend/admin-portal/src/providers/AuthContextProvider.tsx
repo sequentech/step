@@ -4,6 +4,7 @@
 import React from "react"
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
+import {sleep} from "@sequentech/ui-essentials"
 
 /**
  * KeycloakConfig configures the connection to the Keycloak server.
@@ -51,7 +52,7 @@ interface AuthContextValues {
     /**
      * Get Access Token
      */
-    getAccessToken: () => string | undefined
+    getAccessToken: () => Promise<string | undefined> | string | undefined
 }
 
 /**
@@ -93,6 +94,21 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     // Local state that will contain the users name once it is loaded
     const [username, setUsername] = useState<string>("")
 
+    const updateTokenPeriodically = async () => {
+        const sleepSecs = 50
+        const bufferSecs = 10
+        const refreshed = await keycloak.updateToken(sleepSecs + bufferSecs)
+        if (!keycloak.token) {
+            console.log(`error updating token`)
+            return
+        }
+        if (refreshed) {
+            localStorage.setItem("token", keycloak.token)
+        }
+        await sleep(sleepSecs * 1e3)
+        updateTokenPeriodically()
+    }
+
     // Effect used to initialize the Keycloak client. It has no dependencies so it is only rendered when the app is (re-)loaded.
     useEffect(() => {
         /**
@@ -108,12 +124,17 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     console.log("user is not yet authenticated. forwarding user to login.")
                     await keycloak.login()
                 }
-                if (isAuthenticatedResponse && keycloak.token) {
-                    localStorage.setItem("token", keycloak.token)
+                if (!keycloak.token) {
+                    console.log("error authenticating user")
+                    console.log("error initializing Keycloak")
+                    setAuthenticated(false)
+                    return
                 }
                 // If we get here the user is authenticated and we can update the state accordingly
-                console.log("user already authenticated")
-                setAuthenticated(isAuthenticatedResponse)
+                localStorage.setItem("token", keycloak.token)
+                setAuthenticated(true)
+                updateTokenPeriodically()
+                console.log("user is authenticated")
             } catch (error) {
                 console.log("error initializing Keycloak")
                 console.log(error)
@@ -165,7 +186,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         return keycloak.hasRealmRole(role)
     }
 
-    const getAccessToken = () => keycloak.token
+    const getAccessToken = async () => {
+        return keycloak.token
+    }
 
     // Setup the context provider
     return (
