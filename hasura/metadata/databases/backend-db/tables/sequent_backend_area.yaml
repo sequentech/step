@@ -1,3 +1,24 @@
 table:
   name: area
   schema: sequent_backend
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - name
+        - type
+        - annotations
+        - labels
+        - description
+        - created_at
+        - last_updated_at
+        - election_event_id
+        - id
+        - tenant_id
+      filter:
+        _and:
+          - tenant_id:
+              _eq: X-Hasura-Tenant-Id
+          - id:
+              _eq: X-Hasura-Area-Id
+    comment: ""

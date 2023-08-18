@@ -1,3 +1,18 @@
 table:
   name: tenant
   schema: sequent_backend
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - is_active
+        - annotations
+        - labels
+        - username
+        - created_at
+        - updated_at
+        - id
+      filter:
+        id:
+          _eq: X-Hasura-Tenant-Id
+    comment: ""

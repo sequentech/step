@@ -4,7 +4,18 @@
 # Newer versions may be available at 
 # https://quay.io/repository/keycloak/keycloak?tab=tags
 
+FROM registry.access.redhat.com/ubi9 AS ubi-micro-build
+RUN mkdir -p /mnt/rootfs
+RUN dnf install --installroot /mnt/rootfs curl --releasever 9 --setopt install_weak_deps=false --nodocs -y; dnf --installroot /mnt/rootfs clean all
+RUN echo $(ls -lah /mnt/rootfs/bin/curl)
+RUN echo $(ls /mnt/rootfs/usr/bin/curl)
+
 FROM quay.io/keycloak/keycloak:22.0 as builder
+COPY --from=ubi-micro-build /mnt/rootfs /
+COPY --from=ubi-micro-build /mnt/rootfs/usr/bin/curl /usr/bin/curl
+COPY --from=ubi-micro-build /mnt/rootfs/bin/curl /bin/curl
+RUN echo $(ls -lah /usr/bin/curl)
+RUN echo $(ls -lah /bin/curl)
 
 # Enable health and metrics support
 ENV KC_HEALTH_ENABLED=true
