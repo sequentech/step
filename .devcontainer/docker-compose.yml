@@ -68,9 +68,10 @@ services:
 
   graphql-admin:
     image: hasura/graphql-engine:v2.31.0.cli-migrations-v3
+    profiles:
+      - donotstart
     ports:
       - "8082:8082"
-    restart: always
     volumes:
       - ../hasura/metadata/:/hasura-metadata:cached
       - ../hasura/migrations/:/hasura-migrations:cached
