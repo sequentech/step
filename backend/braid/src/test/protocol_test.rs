@@ -67,9 +67,9 @@ fn run_protocol_test<C: Ctx>(
     let mut dkg_pk = None;
     let count = ciphertexts;
 
-    let mut selected_slots =
+    let mut selected_trustees =
         [crate::protocol2::datalog::NULL_TRUSTEE; crate::protocol2::MAX_TRUSTEES];
-    selected_slots[0..threshold.len()].copy_from_slice(threshold);
+    selected_trustees[0..threshold.len()].copy_from_slice(threshold);
 
     for i in 0..30 {
         info!("Cycle {}", i);
@@ -107,7 +107,7 @@ fn run_protocol_test<C: Ctx>(
             })
             .collect();
         let ballot_batch =
-            crate::protocol2::artifact::Ballots::new(ballots, selected_slots, &test.cfg);
+            crate::protocol2::artifact::Ballots::new(ballots, selected_trustees, &test.cfg);
 
         let message = crate::protocol2::message::Message::ballots_msg(
             &test.cfg,

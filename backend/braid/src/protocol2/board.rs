@@ -5,4 +5,3 @@ pub mod immudb;
 
 #[cfg(feature = "bb-test")]
 pub mod trillian;
-

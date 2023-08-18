@@ -309,7 +309,7 @@ impl<C: Ctx> Trustee<C> {
             .ok_or(anyhow!("Could not retrieve configuration",))
     }
 
-    // FIXME Used by test_repl::status, remove
+    // FIXME Used by dbg::status, remove
     pub fn copy_local_board(&self) -> LocalBoard<C> {
         self.local_board.clone()
     }

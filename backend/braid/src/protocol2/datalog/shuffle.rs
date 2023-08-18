@@ -103,6 +103,7 @@ crepe! {
     // Because threshold selected trustees are not contiguous (there are holes)
     // we need to arrange them into a continuous sequence so that the
     // MixNumbersignedUpTo predicate can detect when the threshold is reached
+    // Get the position of trustee that signed the mix (MixSigned) (because trustees is 1-based n + 1)
     let p = trustees.iter().position(|t| *t == signer_t + 1),
     // NULL_TRUSTEE is a dummy value that will not contribute to reaching the threshold
     let signer_position = p.unwrap_or(NULL_TRUSTEE);
@@ -122,7 +123,7 @@ crepe! {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// API
+// Running (see datalog::get_phases())
 ///////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

@@ -1,8 +1,5 @@
-#![feature(let_chains)]
-
 cfg_if::cfg_if! {
-
-if #[cfg(feature = "repl")] {
+if #[cfg(feature = "dbg")] {
 
 
 use ascii_table::{Align, AsciiTable};
@@ -43,8 +40,6 @@ use strand::context::Ctx;
 use strand::context::Exponent;
 use braid::protocol2::action::Action;
 
-static mut selected_slots: [usize; 12] = [1001usize; 12];
-
 struct ReplContext<C: Ctx> {
     pub ctx: C,
     pub cfg: Configuration<C>,
@@ -57,6 +52,7 @@ struct ReplContext<C: Ctx> {
     pub last_actions: HashSet<Action>,
     pub log_reload: Option<Handle<LevelFilter, Registry>>,
     pub plaintexts: Vec<C::P>,
+    pub selected_trustees: [usize; 12],
 }
 
 struct Status<C: Ctx> {
@@ -188,7 +184,7 @@ impl<C: Ctx> Status<C> {
 fn main() {
     let log_reload = init_log();
     let ctx = RistrettoCtx;
-    test_repl(ctx, log_reload).unwrap();
+    dbg(ctx, log_reload).unwrap();
 }
 
 fn init_log() -> Handle<LevelFilter, Registry> {
@@ -215,9 +211,9 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
     let mut csprng = strand::rnd::StrandRng;
     let session_id = 0;
 
-    unsafe {
-        selected_slots[0..threshold.len()].copy_from_slice(&threshold);
-    }
+    let mut selected = [1001usize; 12];
+    selected[0..threshold.len()].copy_from_slice(&threshold);
+
 
     let pmkey: StrandSignatureSk = StrandSignatureSk::new(&mut csprng);
     let pm: ProtocolManager<C> = ProtocolManager {
@@ -263,14 +259,16 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
         last_actions: HashSet::from([]),
         log_reload: None,
         plaintexts: vec![],
+        selected_trustees: selected,
     }
 }
 
 fn log<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     let mut new_level = filter::LevelFilter::INFO;
-    if let Some(level_string) = args.get_one::<String>("level") &&
-       let Ok(level) = level_string.parse::<u8>() {
-        new_level = match level {
+    let l = args.value_of("level");
+    if let Some(level) = l {
+        let parsed = level.parse::<u8>()?;
+        new_level = match parsed {
             0 => filter::LevelFilter::OFF,
             1 => filter::LevelFilter::ERROR,
             2 => filter::LevelFilter::WARN,
@@ -326,12 +324,9 @@ fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
 
 fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     let ctx = context.ctx.clone();
-    let batch = args
-        .get_one::<String>("batch")
-        .unwrap()
-        .parse::<usize>()
-        .unwrap();
-    info!("Generating 10 ballots with batch# {}", batch);
+    let batch = args.value_of("batch").unwrap().parse::<usize>().unwrap();
+    let ballot_no_str = args.value_of("count").unwrap_or("10");
+    let ballot_no = ballot_no_str.parse::<usize>().unwrap();
 
     let dkgpk = context.trustees[0].get_dkg_public_key_nohash().unwrap();
 
@@ -340,9 +335,8 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
 
     let pk_element = dkgpk.pk;
     let pk = strand::elgamal::PublicKey::from_element(&pk_element, &ctx);
-    // let pk_h = strand::util::hash_array(&pk.strand_serialize().unwrap());
 
-    let ps: Vec<C::P> = (0..10).map(|i| ctx.rnd_plaintext()).collect();
+    let ps: Vec<C::P> = (0..ballot_no).map(|i| ctx.rnd_plaintext()).collect();
     let ballots: Vec<Ciphertext<C>> = ps
         .iter()
         .map(|p| {
@@ -352,22 +346,21 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
         .collect();
     context.plaintexts = ps;
 
-    unsafe {
-        info!("selected_slots {:?}", selected_slots);
-        let ballot_batch = braid::protocol2::artifact::Ballots::new(ballots, selected_slots, &context.cfg);
-        let message = braid::protocol2::message::Message::ballots_msg(
-            &context.cfg,
-            batch,
-            &ballot_batch,
-            PublicKeyHash(pk_h),
-            &context.protocol_manager,
-        ).unwrap();
+    info!("selected_trustees {:?}", context.selected_trustees);
+    let ballot_batch = braid::protocol2::artifact::Ballots::new(ballots, context.selected_trustees, &context.cfg);
+    let message = braid::protocol2::message::Message::ballots_msg(
+        &context.cfg,
+        batch,
+        &ballot_batch,
+        PublicKeyHash(pk_h),
+        &context.protocol_manager,
+    ).unwrap();
 
-        context.remote.add(message);
-    }
+    context.remote.add(message);
 
-    status(ArgMatches::default(), context)
 
+    info!("{}", status(ArgMatches::default(), context).unwrap().unwrap());
+    Ok(Some(format!("Generated {} ballots with batch# {} ({:?})", ballot_no, batch, context.selected_trustees)))
 }
 
 fn plaintexts<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
@@ -378,7 +371,6 @@ fn plaintexts<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<
         .collect();
     Ok(Some(format!("Plaintexts {:?}", encoded)))
 }
-
 fn decrypted<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     if let Some(plaintexts) = context.trustees[0].get_plaintexts_nohash(1) {
         let decrypted: Vec<C::E> = plaintexts
@@ -401,17 +393,12 @@ fn decrypted<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<O
 }
 
 fn reset<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
-    let n_trustees = args
-        .get_one::<String>("trustees")
-        .unwrap()
-        .parse::<u8>()
-        .unwrap();
-
+    let n_trustees = args.value_of("trustees").unwrap().parse::<u8>().unwrap();
     let threshold = args
-    .get_one::<String>("threshold")
-    .unwrap()
-    .parse::<usize>()
-    .unwrap();
+        .value_of("threshold")
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
 
     let t = [1, 2, 3, 4, 5, 6, 7, 8];
     let reset = mk_context(context.ctx.clone(), n_trustees, &t[0..threshold]);
@@ -436,10 +423,11 @@ fn reset<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Optio
 fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     context.last_actions = HashSet::from([]);
     context.last_messages = vec![];
-    if let Some(trustee_string) = args.get_one::<String>("trustee") &&
-        let Ok(trustee) = trustee_string.parse::<u8>()
-    {
-        let trustee_: Option<&mut Trustee<C>> = context.trustees.get_mut(trustee as usize);
+
+    let trustee = args.value_of("trustee");
+    if let Some(value) = trustee {
+        let t = value.parse::<u8>()?;
+        let trustee_: Option<&mut Trustee<C>> = context.trustees.get_mut(t as usize);
         if let Some(trustee) = trustee_ {
             let (messages, actions) = trustee.step(context.remote.get(0)).unwrap();
             send(&messages, &mut context.remote);
@@ -473,7 +461,7 @@ fn send(messages: &Vec<Message>, remote: &mut VectorBoard) {
 }
 
 #[instrument(skip(log_reload))]
-fn test_repl<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Result<()> {
+fn dbg<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Result<()> {
     let trustees = 2;
     let threshold = [1, 2];
     let mut demo = mk_context(ctx, trustees, &threshold);
@@ -520,15 +508,18 @@ fn test_repl<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Resul
         .with_command(
             Command::new("ballots")
                 .arg(Arg::new("batch").required(true))
+                .arg(Arg::new("count").required(false))
                 .about("Post a ballot batch"),
             ballots,
         )
         .with_command(Command::new("quit").about("quit"), quit);
     repl.run()
 }
-} else {
+}
+
+else {
     fn main() {
-        println!("Requires the 'repl' feature");
+        println!("Requires the 'dbg' feature");
     }
 }
 }

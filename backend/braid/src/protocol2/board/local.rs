@@ -33,9 +33,9 @@ use crate::protocol2::predicate::{CiphertextsHash, DecryptionFactorsHash};
 //
 // Messages are composed of statements and optionally artifacts
 //
-#[derive(Clone)] // FIXME used by test_repl
+#[derive(Clone)] // FIXME used by dbg
 pub struct LocalBoard<C: Ctx> {
-    pub configuration: Option<Configuration<C>>, // FIXME pub used by test_repl
+    pub configuration: Option<Configuration<C>>, // FIXME pub used by dbg
     cfg_hash: Option<Hash>,
 
     // All keys contain a statement type and a sender. For multi instance predicates
@@ -43,7 +43,7 @@ pub struct LocalBoard<C: Ctx> {
     //
     // We put the hash in the value so that we can detect overwrite attempt,
     // the statement hash is checked on retrieval (it's not in the key)
-    pub statements: HashMap<StatementEntryIdentifier, (Hash, Statement)>, // FIXME pub used by test_repl
+    pub statements: HashMap<StatementEntryIdentifier, (Hash, Statement)>, // FIXME pub used by dbg
 
     // Artifacts entries include their source statement plus adding the ArtifactType
     // We put the hash in the value so that we can distinguish
@@ -55,7 +55,7 @@ pub struct LocalBoard<C: Ctx> {
     // This access to artifacts is done through specific type safe methods
     // that construct the keys to the underlying key value store, the hash is
     // checked on retrieval (it's not in the key)
-    pub artifacts: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>, // FIXME pub used by test_repl
+    pub artifacts: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>, // FIXME pub used by dbg
 }
 
 impl<C: Ctx> LocalBoard<C> {
@@ -63,16 +63,11 @@ impl<C: Ctx> LocalBoard<C> {
         let statements = HashMap::new();
         let artifacts = HashMap::new();
 
-        // let ballots_cache = HashMap::new();
-        // let mix_cache = HashMap::new();
-
         LocalBoard {
             configuration: None,
             cfg_hash: None,
             statements,
             artifacts,
-            // ballots_cache,
-            // mix_cache,
         }
     }
 

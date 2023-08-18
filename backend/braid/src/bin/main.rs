@@ -15,7 +15,6 @@ use std::path::PathBuf;
 use tokio::time::{sleep, Duration};
 use tracing::instrument;
 
-
 use braid::protocol2::board::trillian::TrillianBoard;
 use braid::protocol2::session::Session;
 use braid::protocol2::trustee::Trustee;

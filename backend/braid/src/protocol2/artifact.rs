@@ -156,16 +156,16 @@ pub struct Ballots<C: Ctx> {
     // Each trustee is a number starting at 1 up to the the number of eligible
     // trustees as per the configuration. 0 is not a valid trustee. Remaining
     // slots of this fixed size array must be padded with Datalog::NULL_TRUSTEE
-    pub trustees: TrusteeSet,
+    pub selected_trustees: TrusteeSet,
 }
 impl<C: Ctx> Ballots<C> {
     pub fn new(
         ciphertexts: Vec<Ciphertext<C>>,
-        trustees: TrusteeSet,
+        selected_trustees: TrusteeSet,
         cfg: &Configuration<C>,
     ) -> Ballots<C> {
         let mut selected = 0;
-        trustees.iter().for_each(|s| {
+        selected_trustees.iter().for_each(|s| {
             if *s != NULL_TRUSTEE {
                 assert!(*s > 0 && *s <= cfg.trustees.len());
                 selected += 1;
@@ -176,12 +176,11 @@ impl<C: Ctx> Ballots<C> {
 
         Ballots {
             ciphertexts: StrandVectorC(ciphertexts),
-            trustees,
+            selected_trustees,
         }
     }
 }
 
-// FIXME Clone only necessary for local board ballots/mix cache
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub(crate) struct Mix<C: Ctx> {
     pub ciphertexts: StrandVectorC<C>,

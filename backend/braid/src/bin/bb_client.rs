@@ -235,13 +235,13 @@ async fn post_ballots<C: Ctx, CS: CacheStore>(client: &mut Client<CS>, ctx: C) -
                     .map_err(|e| anyhow!("Could not read configuration {}", e))?;
 
                 let threshold = [1, 2];
-                let mut selected_slots =
+                let mut selected_trustees =
                     [braid::protocol2::datalog::NULL_TRUSTEE; braid::protocol2::MAX_TRUSTEES];
-                selected_slots[0..threshold.len()].copy_from_slice(&threshold);
+                    selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
                 let ballot_batch = braid::protocol2::artifact::Ballots::new(
                     ballots,
-                    selected_slots,
+                    selected_trustees,
                     &configuration,
                 );
                 let pm = get_pm(PhantomData);

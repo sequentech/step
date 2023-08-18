@@ -17,32 +17,9 @@ pub struct TrillianBoard<CS: CacheStore> {
     client: Client<CS>,
     name: String,
 }
-
 impl<CS: CacheStore> TrillianBoard<CS> {
     pub fn new(name: String, client: Client<CS>) -> TrillianBoard<CS> {
         TrillianBoard { name, client }
-    }
-
-    pub async fn get_board(&mut self) -> Result<String> {
-        let request = ListBoardsRequest {
-            board_name: Some(self.name.clone()),
-            ..Default::default()
-        };
-        let response = self.client.list_boards(request).await?;
-        let boards: &Vec<ListBoardItem> = &response.get_ref().boards;
-
-        if boards.len() == 1 {
-            let ListBoardItem { board, .. } =
-                boards.get(0).ok_or(anyhow!("Board get returned error"))?;
-            let board_uuid = board
-                .clone()
-                .ok_or(anyhow!("Board get returned None"))?
-                .uuid;
-
-            Ok(board_uuid)
-        } else {
-            Err(anyhow::Error::msg("Expected 1 result"))
-        }
     }
 
     pub async fn get_messages(&mut self) -> Result<Vec<Message>> {
@@ -80,7 +57,7 @@ impl<CS: CacheStore> TrillianBoard<CS> {
     pub async fn send_messages(&mut self, messages: Vec<Message>) -> Result<()> {
         let id = self.get_board().await?;
 
-        let (sk, _pk) = get_admin_keys();
+        let (sk, pk) = get_admin_keys();
 
         for m in messages {
             let request = AddEntriesRequest {
@@ -103,6 +80,27 @@ impl<CS: CacheStore> TrillianBoard<CS> {
         Ok(())
     }
 
+    async fn get_board(&mut self) -> Result<String> {
+        let request = ListBoardsRequest {
+            board_name: Some(self.name.clone()),
+            ..Default::default()
+        };
+        let response = self.client.list_boards(request).await?;
+        let boards: &Vec<ListBoardItem> = &response.get_ref().boards;
+
+        if boards.len() == 1 {
+            let ListBoardItem { board, .. } =
+                boards.get(0).ok_or(anyhow!("Board get returned error"))?;
+            let board_uuid = board
+                .clone()
+                .ok_or(anyhow!("Board get returned None"))?
+                .uuid;
+
+            Ok(board_uuid)
+        } else {
+            Err(anyhow::Error::msg("Expected 1 result"))
+        }
+    }
 }
 
 const ADMIN_SK: &str = "gZai7r2m5/9bAV2vmtxFOXoUL8UEMBnOPZ//0eoBX2g";

@@ -29,7 +29,7 @@ Persistence implementation:
 #[derive(Clone)]
 pub struct VectorBoard {
     session_id: u128,
-    // required by test_repl
+    // pub required by dbg
     pub messages: Vec<Message>,
 }
 

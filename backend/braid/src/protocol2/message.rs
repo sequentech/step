@@ -170,8 +170,8 @@ impl Message {
             CiphertextsH(bb_h),
             PublicKeyH(pk_h.0),
             Batch(batch),
-            ballots.trustees[0],
-            ballots.trustees,
+            ballots.selected_trustees[0],
+            ballots.selected_trustees,
         );
         pm.sign(statement, Some(ballots_bytes))
     }
