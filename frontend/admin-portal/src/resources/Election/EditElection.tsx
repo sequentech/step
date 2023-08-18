@@ -109,7 +109,11 @@ const ElectionForm: React.FC = () => {
 }
 
 export const EditElection: React.FC = (props) => (
-    <Edit sx={{flexGrow: 2, width: "50%"}}>
-        <ListElection aside={<ElectionForm />} />
-    </Edit>
+    <ListElection
+        aside={
+            <Edit sx={{flexGrow: 2, width: "50%", flexShrink: 0}}>
+                <ElectionForm />
+            </Edit>
+        }
+    />
 )

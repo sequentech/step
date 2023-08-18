@@ -93,8 +93,12 @@ const BallotStyleForm: React.FC = () => {
 
 export const EditBallotStyle: React.FC = () => {
     return (
-        <Edit sx={{flexGrow: 2, width: "50%"}}>
-            <ListBallotStyle aside={<BallotStyleForm />} />
-        </Edit>
+        <ListBallotStyle
+            aside={
+                <Edit sx={{flexGrow: 2, width: "50%", flexShrink: 0}}>
+                    <BallotStyleForm />
+                </Edit>
+            }
+        />
     )
 }

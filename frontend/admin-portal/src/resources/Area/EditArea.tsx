@@ -69,8 +69,12 @@ const AreaForm: React.FC = () => {
 
 export const EditArea: React.FC = () => {
     return (
-        <Edit sx={{flexGrow: 2, width: "50%"}}>
-            <ListArea aside={<AreaForm />} />
-        </Edit>
+        <ListArea
+            aside={
+                <Edit sx={{flexGrow: 2, width: "50%", flexShrink: 0}}>
+                    <AreaForm />
+                </Edit>
+            }
+        />
     )
 }
