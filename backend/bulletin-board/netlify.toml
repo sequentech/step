@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[build]
+base = "./"
+command = """\
+    rustup toolchain install nightly-2023-02-15 && \
+    cargo doc -p bulletin-board && \
+    cd doc/ && \
+    yarn && yarn build && \
+    cd .. && cp -r ./target/doc/bulletin-board/ ./doc/build/reference/
+    """
+publish = "doc/build/"

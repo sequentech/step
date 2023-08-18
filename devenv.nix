@@ -14,13 +14,24 @@
 
     # To be able to use vim in the terminal
     pkgs.vim
+  
     # utility for search
     pkgs.ack
+
+    # docker utility
     pkgs.dive
+
+    # wget and curl
+    pkgs.wget
+    pkgs.curl
 
     # For frontend
     pkgs.yarn
     pkgs.nodejs_20
+
+    # For protocol buffers
+    pkgs.protobuf
+    pkgs.iputils
   ];
 
   # https://devenv.sh/scripts/
@@ -30,6 +41,13 @@
     hello
     git --version
     export COMPOSE_PROJECT_NAME=backend-services_devcontainer
+
+    # Used by braid:
+    export IMMUDB_USERNAME=immudb
+    export IMMUDB_PASSWORD=immudb
+    export IMMUDB_SERVER_URL=http://immudb:3322
+    export IMMUDB_INDEX_DBNAME=boardsindex
+    export IMMUDB_BOARD_DBNAME=bulletin_board
   '';
 
   # https://devenv.sh/languages/
@@ -50,6 +68,10 @@
       pass_filenames = false;
     };
   };
+
+  # https://devenv.sh/integrations/dotenv/
+  # Enable usage of the .env file for setting env variables
+  # dotenv.enable = true;
 
   # https://devenv.sh/processes/
   # processes.ping.exec = "ping example.com";

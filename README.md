@@ -2,6 +2,7 @@
 SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 
 SPDX-License-Identifier: AGPL-3.0-only
+
 -->
 
 # Sequent Voting Platform
@@ -19,6 +20,7 @@ Implemented using:
 - **React** for the frontend UI.
 - \[TODO\] Shared **Rust** libraries for logic shared by both frontend and
   backend.
+- **Immudb** for tamper-evident logging.
 
 ## Development environment setup
 
@@ -42,6 +44,12 @@ using them and continue development:
   and has been launched with the `yarn dev` command that will automatically
   detect and rebuild changes in the code, and detect and install dependencies
   when it detects changes in `package.json` and then relaunch the service.
+- **Immudb**:
+  - gRPC service available at [http://127.0.0.1:3322]
+  - Web console at [http://127.0.0.1:3325]
+  - Default admin
+    - Username: `immudb`
+    - Password: `immudb`
 - \[TODO\] **Rust Rocket service** at [http://127.0.0.1:8000]
 
 Additionally, this dev container comes with:
@@ -56,13 +64,13 @@ rust&rocket based backend service, you can launch it manually by executing the
 following command in a dedicated terminal:
 
 ```bash
-cd backend/ && cargo run
+cd backend/backend-services && cargo run
 ```
 
 This should output something like:
 
 ```bash
-@edulix ➜ /workspace/backend (main ✗) $ cargo run
+@edulix ➜ /workspace/backend/backend-services (main ✗) $ cargo run
     Updating crates.io index
   Downloaded async-trait v0.1.68
   ....

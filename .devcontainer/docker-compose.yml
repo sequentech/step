@@ -139,6 +139,19 @@ services:
     volumes:
        - ../frontend:/usr/src/app
 
+  immudb:
+    image: codenotary/immudb:1.5
+    restart: always
+    ports:
+      - 3322:3322 # immudb service
+      - 3324:9497 # prometheus
+      - 3325:8080 # web console
+    volumes:
+      - immudb_data:/var/lib/immudb
+      - immudb_logs:/var/log/immudb
+
 volumes:
   db_data:
   keycloak_db_data:
+  immudb_data:
+  immudb_logs:

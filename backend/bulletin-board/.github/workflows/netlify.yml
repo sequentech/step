@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: 'Deploy | Netlify documentation'
+on:
+  workflow_dispatch: # allows manual triggering
+  push:
+
+jobs:
+  netlify:
+    name: Netlify
+    uses: sequentech/meta/.github/workflows/netlify.yml@main
+    with:
+      cachix-auth-identity: '${{ vars.CACHIX_AUTH_IDENTITY }}'
+      command: >
+        cargo doc -p bulletin-board && cd doc/ && yarn && yarn gen-protobuf-markdown && yarn build && cd .. && cp -r ./target/doc/bulletin_board/ ./doc/build/rust-api/ && cp -r ./target/doc/static.files/ ./doc/build/ && cp ./target/doc/crates.js ./doc/build/
+      output-dir: ./doc/build/
+    secrets:
+      cachix-auth-token: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      netlify-auth-token: '${{ secrets.NETLIFY_AUTH_TOKEN }}'
+      netlify-site-id: '${{ secrets.NETLIFY_SITE_ID }}'
+      github-token: '${{ secrets.GITHUB_TOKEN }}'

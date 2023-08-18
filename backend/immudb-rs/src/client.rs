@@ -1,0 +1,294 @@
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use anyhow::{anyhow, Result};
+use tracing::{debug, instrument};
+use std::fmt::Debug;
+use tonic::{
+    metadata::MetadataValue,
+    transport::Channel,
+    Request,
+    Response,
+};
+
+use crate::schema::immu_service_client::ImmuServiceClient;
+use crate::schema::{
+    CommittedSqlTx,
+    Database,
+    DatabaseListRequestV2,
+    DatabaseListResponseV2,
+    DeleteDatabaseRequest,
+    LoginRequest,
+    NamedParam,
+    NewTxRequest,
+    SqlExecRequest,
+    SqlQueryRequest,
+    SqlQueryResult,
+    TxMode,
+    UnloadDatabaseRequest,
+};
+
+#[derive(Debug)]
+pub struct Client {
+    client: ImmuServiceClient<Channel>,
+    auth_token: Option<String>,
+}
+
+pub type AsyncResponse<T> = Result<Response<T>>;
+
+/// Represents a Immudb Client.
+/// Allows you to handle operations in an easier manner.
+impl Client {
+    #[instrument]
+    pub async fn new(
+        server_url: &str,
+    ) -> Result<Client> {
+        let client = ImmuServiceClient::connect(String::from(server_url)).await?;
+        Ok(Client {
+            client: client,
+            auth_token: None,
+        })
+    }
+
+    #[instrument]
+    pub async fn login(
+        &mut self, username: &str, password: &str
+    ) -> Result<()> {
+        let login_request = Request::new(LoginRequest {
+            user: username.clone().into(),
+            password: password.clone().into()
+        });
+        let response = self.client.login(login_request).await?;
+        debug!("grpc-login-response={:?}", response);
+        self.auth_token = Some(format!("Bearer {}", response.get_ref().token));
+        Ok(())
+    }
+
+    /// Creates an Authenticated request, with the proper Auth token
+    #[instrument]
+    fn get_request<T: Debug>(
+        &self,
+        data: T
+    ) -> Result<Request<T>>
+    {
+        let mut request = Request::new(data);
+        let token: MetadataValue<_> = self.auth_token
+            .clone()
+            .ok_or(anyhow!("not logged in",))?
+            .parse()?;
+        request.metadata_mut().insert("authorization", token);
+        Ok(request)
+    }
+
+    #[instrument]
+    pub async fn list_databases(&mut self)
+        -> AsyncResponse<DatabaseListResponseV2>
+    {
+        let database_list_request = self.get_request(
+            DatabaseListRequestV2 {}
+        )?;
+        let database_list_response = self.client
+            .database_list_v2(database_list_request)
+            .await?;
+        debug!("grpc-database-list-response={:?}", database_list_response);
+        Ok(database_list_response)
+    }
+
+    #[instrument]
+    pub async fn has_database(&mut self, database_name: &str) -> Result<bool> {
+        let database_list_request = self.get_request(
+            DatabaseListRequestV2 {}
+        )?;
+        let database_list_response = self.client
+            .database_list_v2(database_list_request)
+            .await?;
+        debug!("grpc-database-list-response={:?}", database_list_response);
+        let has_database = database_list_response
+            .get_ref()
+            .databases
+            .iter()
+            .find(|database| database.name == database_name).is_some();
+        Ok(has_database)
+    }
+
+    #[instrument]
+    pub async fn has_tables(&mut self) -> Result<bool> {
+        let list_tables_request = self.get_request(())?;
+        let list_tables_response = self.client
+            .list_tables(list_tables_request)
+            .await?;
+        debug!("list-tables-response={:?}", list_tables_response);
+        Ok(list_tables_response.get_ref().rows.is_empty())
+    }
+
+    #[instrument]
+    pub async fn sql_exec(
+        &mut self,
+        sql: &str,
+        params: Vec<NamedParam>
+    ) -> Result<()> {
+        let sql_exec_request = self.get_request(
+            SqlExecRequest {
+                sql: sql.clone().into(),
+                no_wait: false,
+                params: params,
+            }
+        )?;
+        let sql_exec_response = self.client
+            .sql_exec(sql_exec_request)
+            .await?;
+        debug!("sql-exec-response={:?}", sql_exec_response);
+        Ok(())
+    }
+
+    #[instrument]
+    pub async fn sql_query(
+        &mut self,
+        sql: &str,
+        params: Vec<NamedParam>
+    ) -> AsyncResponse<SqlQueryResult>
+    {
+        let sql_query_request = self.get_request(
+            SqlQueryRequest {
+                sql: sql.clone().into(),
+                reuse_snapshot: false,
+                params: params,
+            }
+        )?;
+        let sql_query_response = self.client
+            .sql_query(sql_query_request)
+            .await?;
+        debug!("sql-query-response={:?}", sql_query_response);
+        Ok(sql_query_response)
+    }
+
+    /// Creates a new transaction, returning the transaction id
+    #[instrument]
+    pub async fn new_tx(
+        &mut self,
+        mode: TxMode,
+    ) -> Result<String> {
+        let new_tx_request = self.get_request(
+            NewTxRequest { mode: mode.into() }
+        )?;
+        let new_tx_response = self.client
+            .new_tx(new_tx_request)
+            .await?;
+        debug!("new-tx-response={:?}", new_tx_response);
+        Ok(new_tx_response.get_ref().transaction_id.clone())
+    }
+
+    /// Commits a transaction, returning the transaction results
+    #[instrument]
+    pub async fn commit(
+        &mut self,
+    ) -> Result<CommittedSqlTx> {
+        let commit_request = self.get_request( () )?;
+        let commit_response = self.client
+            .commit(commit_request)
+            .await?;
+        debug!("commit-response={:?}", commit_response);
+        Ok(commit_response.get_ref().clone())
+    }
+
+
+    /// Rollsback a transaction
+    #[instrument]
+    pub async fn rollback(
+        &mut self,
+    ) -> Result<()> {
+        let rollback_request = self.get_request( () )?;
+        let rollback_response = self.client
+            .rollback(rollback_request)
+            .await?;
+        debug!("rollback-response={:?}", rollback_response);
+        Ok(())
+    }
+
+    #[instrument]
+    pub async fn tx_sql_exec(
+        &mut self,
+        sql: &str,
+        params: Vec<NamedParam>
+    ) -> Result<()> {
+        let sql_exec_request = self.get_request(
+            SqlExecRequest {
+                sql: sql.clone().into(),
+                no_wait: false,
+                params: params,
+            }
+        )?;
+        let sql_exec_response = self.client
+            .tx_sql_exec(sql_exec_request)
+            .await?;
+        debug!("tx-sql-exec-response={:?}", sql_exec_response);
+        Ok(())
+    }
+
+    #[instrument]
+    pub async fn tx_sql_query(
+        &mut self,
+        sql: &str,
+        params: Vec<NamedParam>
+    ) -> AsyncResponse<SqlQueryResult>
+    {
+        let sql_query_request = self.get_request(
+            SqlQueryRequest {
+                sql: sql.clone().into(),
+                reuse_snapshot: false,
+                params: params,
+            }
+        )?;
+        let sql_query_response = self.client
+            .tx_sql_query(sql_query_request)
+            .await?;
+        debug!("tx-sql-query-response={:?}", sql_query_response);
+        Ok(sql_query_response)
+    }
+
+
+    #[instrument]
+    pub async fn create_database(&mut self, database_name: &str) -> Result<()> {
+        let create_db_request = self.get_request(
+            Database { database_name: database_name.to_string() }
+        )?;
+
+        let create_db_response = self.client.use_database(create_db_request).await?;
+        debug!("grpc-create-database-response={:?}", create_db_response);
+        self.auth_token =  Some(create_db_response.get_ref().token.clone());
+
+        Ok(())
+    }
+
+    #[instrument]
+    pub async fn use_database(&mut self, database_name: &str) -> Result<()> {
+        let use_db_request = self.get_request(
+            Database { database_name: database_name.to_string() }
+        )?;
+
+        let use_db_response = self.client.use_database(use_db_request).await?;
+        debug!("grpc-use-database-response={:?}", use_db_response);
+        self.auth_token =  Some(use_db_response.get_ref().token.clone());
+
+        Ok(())
+    }
+
+    #[instrument]
+    pub async fn delete_database(&mut self, database_name: &str) -> Result<()>
+    {
+        let unload_db_request = self.get_request(
+            UnloadDatabaseRequest { database: database_name.to_string() },
+        )?;
+        let unload_db_response = self.client
+            .unload_database(unload_db_request).await?;
+        debug!("grpc-unload-database-response={:?}", unload_db_response);
+        let delete_db_request = self.get_request(
+            DeleteDatabaseRequest { database: database_name.to_string() },
+        )?;
+        let delete_db_response = self.client
+            .delete_database(delete_db_request).await?;
+        debug!("grpc-delete-database-response={:?}", delete_db_response);
+        Ok(())
+    }
+}
