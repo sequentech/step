@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Typography} from "@mui/material"
+import {Button, Typography} from "@mui/material"
 import React from "react"
 import {
     BooleanInput,
@@ -11,15 +11,28 @@ import {
     SimpleForm,
     TextField,
     TextInput,
+    useRecordContext,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {ElectionEventList} from "./ElectionEventList"
 import {HorizontalBox} from "../../components/HorizontalBox"
 import {ChipList} from "../../components/ChipList"
+import {Link} from "react-router-dom"
+import {Sequent_Backend_Election_Event} from "../../gql/graphql"
+import {IconButton} from "@sequentech/ui-essentials"
+import {faPieChart} from "@fortawesome/free-solid-svg-icons"
 
 const ElectionEventListForm: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+
     return (
         <SimpleForm>
+            <Link to={`/sequent_backend_election_event/${record.id}/show`}>
+                <Button>
+                    <IconButton icon={faPieChart} fontSize="24px" />
+                    Show Dashboard
+                </Button>
+            </Link>
             <Typography variant="h4">Election Event</Typography>
             <Typography variant="body2">Election event configuration</Typography>
             <Typography variant="h5">ID</Typography>

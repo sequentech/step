@@ -34,6 +34,7 @@ import {CreateAreaContest} from "./resources/AreaContest/CreateAreaContest"
 import {EditTenant} from "./resources/Tenant/EditTenant"
 import {ListTenant} from "./resources/Tenant/ListTenant"
 import {CreateTenant} from "./resources/Tenant/CreateTenant"
+import {ShowElectionEvent} from "./resources/ElectionEvent/ShowElectionEvent"
 
 const App = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
@@ -60,6 +61,7 @@ const App = () => {
                 list={ElectionEventList}
                 create={CreateElectionList}
                 edit={EditElectionList}
+                show={ShowElectionEvent}
                 options={{label: "Election Events"}}
             />
             <Resource

@@ -22,6 +22,8 @@
     "mui-image": "1.0.7",
     "react": "18.1.0",
     "react-admin-json-view": "2.0.0",
+    "react-apexcharts": "1.4.1",
+    "apexcharts": "3.41.1",
     "react-dom": "18.1.0",
     "react-admin": "4.12.4",
     "ra-data-hasura": "0.6.0",
