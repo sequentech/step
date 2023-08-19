@@ -9,7 +9,7 @@ import {
     SelectColumnsButton,
     TopToolbar,
 } from "react-admin"
-import { ImportButton } from "react-admin-import-csv"
+import {ImportButton, ImportConfig} from "react-admin-import-csv"
 
 interface ListActionsProps {
     withFilter?: boolean
@@ -18,11 +18,21 @@ interface ListActionsProps {
 export const ListActions: React.FC<ListActionsProps> = (props) => {
     const {withFilter} = props
 
-    return <TopToolbar>
-        <SelectColumnsButton />
-        {withFilter ? <FilterButton /> : null}
-        <CreateButton />
-        <ImportButton {...props} />
-        <ExportButton />
-    </TopToolbar>
+    const config: ImportConfig = {
+        logging: true,
+        // Disable the attempt to use "createMany", will instead just use "create" calls
+        disableCreateMany: true,
+        // Disable the attempt to use "updateMany", will instead just use "update" calls
+        disableUpdateMany: true,
+    }
+
+    return (
+        <TopToolbar>
+            <SelectColumnsButton />
+            {withFilter ? <FilterButton /> : null}
+            <CreateButton />
+            <ImportButton {...props} {...config} />
+            <ExportButton />
+        </TopToolbar>
+    )
 }
