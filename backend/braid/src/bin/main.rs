@@ -1,4 +1,6 @@
 // cargo run --bin gen_config
+// cargo run --bin bb_helper -- --cache-dir /tmp/cache -s http://immudb:3322 -i defaultindexboard -b defaultboard  -u immudb -p immudb upsert-init-db -l debug
+// cargo run --bin bb_helper -- --cache-dir /tmp/cache -s http://immudb:3322 -i defaultindexboard -b defaultboard  -u immudb -p immudb upsert-board-db -l debug
 // cargo run --bin bb_client -- --server-url https://localhost:3000 --cache-dir /tmp init
 // cargo run --bin main -- --server-url https://localhost:3000 --cache-dir /tmp --trustee-config trustee1.toml
 // cargo run --bin bb_client -- --server-url https://localhost:3000 --cache-dir /tmp ballots

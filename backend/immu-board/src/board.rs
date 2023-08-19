@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use log::{info};
 use tracing::{instrument};
 
 use std::fmt::Debug;
@@ -13,11 +14,11 @@ pub struct Board {
 
 #[derive(Debug, Clone)]
 pub struct BoardMessage {
-    id: i64,
-    created: i64,
-    signer_key: Vec<u8>,
-    statement_timestamp: i64,
-    statement_kind: String,
+    pub id: i64,
+    pub created: i64,
+    pub signer_key: Vec<u8>,
+    pub statement_timestamp: i64,
+    pub statement_kind: String,
     pub message: Vec<u8>
 }
 
@@ -50,14 +51,15 @@ impl TryFrom<&Row> for BoardMessage {
         let mut statement_kind = String::from("");
         let mut message = vec![];
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
+            // FIXME for some reason columns names appear with parentheses
             match column.as_str() {
-                "id" => assign_value!(Value::N, value, id),
-                "created" => assign_value!(Value::N, value, created),
-                "signer_key" => assign_value!(Value::Bs, value, signer_key),
-                "statement_timestamp" => assign_value!(Value::N, value, statement_timestamp),
-                "statement_kind" => assign_value!(Value::S, value, statement_kind),
-                "message" => assign_value!(Value::Bs, value, message),
-                _ => return Err(anyhow!("invalid column found")),
+                "(messages.id)" => assign_value!(Value::N, value, id),
+                "(messages.created)" => assign_value!(Value::Ts, value, created),
+                "(messages.signer_key)" => assign_value!(Value::Bs, value, signer_key),
+                "(messages.statement_timestamp)" => assign_value!(Value::Ts, value, statement_timestamp),
+                "(messages.statement_kind)" => assign_value!(Value::S, value, statement_kind),
+                "(messages.message)" => assign_value!(Value::Bs, value, message),
+                _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
             }
         }
         Ok(BoardMessage {
@@ -81,8 +83,9 @@ impl Board {
         board_dbname: String,
     ) -> Result<Board> {
         let mut client = Client::new(&server_url).await?;
-        client.login(&username, &password).await?;
-        client.use_database(&board_dbname).await?;
+        // client.login(&username, &password).await?;
+        // client.use_database(&board_dbname).await?;
+        client.open_session(&board_dbname).await?;
         Ok(Board {
             client: client,
             index_dbname: index_dbname,
@@ -120,37 +123,30 @@ impl Board {
         &mut self, messages: &Vec<BoardMessage>
     ) -> Result<()>
     {
+        info!("Insert {} messages..", messages.len());
         // Start a new transaction
-        self.client.new_tx(TxMode::WriteOnly).await?;
+        let transaction_id = self.client.new_tx(TxMode::ReadWrite).await?;
         for message in messages {
             let message_sql = r#"
                 INSERT INTO messages(
-                    id,
                     created,
                     signer_key,
-                    statement_timestamp,
                     statement_kind,
+                    statement_timestamp,
                     message
                 ) VALUES (
-                    @id,
                     @created,
                     @signer_key,
-                    @statement_timestamp,
                     @statement_kind,
+                    @statement_timestamp,
                     @message
                 );
             "#;
             let params = vec![
                 NamedParam {
-                    name: String::from("id"),
-                    value: Some(
-                        SqlValue { value: Some(Value::N(message.id)) }
-                    ),
-                },
-                NamedParam {
                     name: String::from("created"),
                     value: Some(
-                        SqlValue { value: Some(Value::N(message.created)) }
+                        SqlValue { value: Some(Value::Ts(message.created)) }
                     ),
                 },
                 NamedParam {
@@ -165,7 +161,7 @@ impl Board {
                     name: String::from("statement_timestamp"),
                     value: Some(
                         SqlValue { value: Some(
-                            Value::N(message.statement_timestamp)
+                            Value::Ts(message.statement_timestamp)
                         ) }
                     ),
                 },
@@ -186,9 +182,13 @@ impl Board {
                     ),
                 },
             ];
-            self.client.tx_sql_exec(&message_sql, params).await?;
+            self.client.tx_sql_exec(&message_sql, &transaction_id, params).await?;
         }
-        self.client.commit().await?;
+        self.client.commit(&transaction_id).await?;
         Ok(())
+    }
+
+    pub async fn close(&mut self) -> Result<()> {
+        self.client.close_session().await
     }
 }

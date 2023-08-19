@@ -456,7 +456,7 @@ impl<C: Ctx> LocalBoard<C> {
         statement: &Statement,
         signer_position: usize,
     ) -> StatementEntryIdentifier {
-        let (kind, _, batch, mix_signature_number, _) = statement.get_data();
+        let (kind, _, batch, mix_signature_number, _, _) = statement.get_data();
 
         StatementEntryIdentifier {
             kind,

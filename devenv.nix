@@ -55,6 +55,7 @@
     enable = true;
     # https://devenv.sh/reference/options/#languagesrustversion
     version = "latest";
+    packages.rust-src = pkgs.rustPlatform.rustLibSrc;
   };
 
   # https://devenv.sh/pre-commit-hooks/
