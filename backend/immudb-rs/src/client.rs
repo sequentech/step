@@ -119,7 +119,7 @@ impl Client {
             .list_tables(list_tables_request)
             .await?;
         debug!("list-tables-response={:?}", list_tables_response);
-        Ok(list_tables_response.get_ref().rows.is_empty())
+        Ok(!list_tables_response.get_ref().rows.is_empty())
     }
 
     #[instrument]
@@ -251,13 +251,11 @@ impl Client {
     #[instrument]
     pub async fn create_database(&mut self, database_name: &str) -> Result<()> {
         let create_db_request = self.get_request(
-            Database { database_name: database_name.to_string() }
+            crate::CreateDatabaseRequest { name: database_name.to_string(), settings: None, if_not_exists: true }
         )?;
 
-        let create_db_response = self.client.use_database(create_db_request).await?;
+        let create_db_response = self.client.create_database_v2(create_db_request).await?;
         debug!("grpc-create-database-response={:?}", create_db_response);
-        self.auth_token =  Some(create_db_response.get_ref().token.clone());
-
         Ok(())
     }
 
