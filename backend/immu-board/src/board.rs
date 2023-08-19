@@ -75,10 +75,13 @@ impl Board {
     #[instrument]
     pub async fn new(
         server_url: &str,
+        username: &str,
+        password: &str,
         index_dbname: String,
         board_dbname: String,
     ) -> Result<Board> {
         let mut client = Client::new(&server_url).await?;
+        client.login(&username, &password).await?;
         client.use_database(&board_dbname).await?;
         Ok(Board {
             client: client,
