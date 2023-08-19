@@ -42,8 +42,10 @@ const TenantForm: React.FC = () => {
 
 export const EditTenant: React.FC = () => {
     return (
-        <Edit sx={{flexGrow: 2, width: "50%"}}>
-            <ListTenant aside={<TenantForm />} />
-        </Edit>
+        <ListTenant aside={
+            <Edit sx={{flexGrow: 2, width: "50%"}}>
+                <TenantForm />
+            </Edit>
+        } />
     )
 }

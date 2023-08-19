@@ -9,16 +9,20 @@ import {
     SelectColumnsButton,
     TopToolbar,
 } from "react-admin"
+import { ImportButton } from "react-admin-import-csv"
 
 interface ListActionsProps {
     withFilter?: boolean
 }
 
-export const ListActions: React.FC<ListActionsProps> = ({withFilter}) => (
-    <TopToolbar>
+export const ListActions: React.FC<ListActionsProps> = (props) => {
+    const {withFilter} = props
+
+    return <TopToolbar>
         <SelectColumnsButton />
         {withFilter ? <FilterButton /> : null}
         <CreateButton />
+        <ImportButton {...props} />
         <ExportButton />
     </TopToolbar>
-)
+}
