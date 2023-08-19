@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, Typography} from "@mui/material"
-import React, {useEffect} from "react"
+import {Box, Paper, Typography} from "@mui/material"
+import React from "react"
 import {Show, TextField, useRecordContext} from "react-admin"
 import Chart, {Props} from "react-apexcharts"
 import {styled} from "@mui/material/styles"
@@ -14,14 +14,16 @@ import {
     faEnvelope,
     faCommentSms,
     faCalendar,
+    faClock,
 } from "@fortawesome/free-solid-svg-icons"
 import {useQuery} from "@apollo/client"
 import {
     GetCastVotesQuery,
-    Sequent_Backend_Cast_Vote,
+    GetElectionEventStatsQuery,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
 import {GET_CAST_VOTES} from "../../queries/GetCastVotes"
+import {GET_ELECTION_EVENT_STATS} from "../../queries/GetElectionEventStats"
 
 const CardList = styled(Box)`
     display: flex;
@@ -52,6 +54,16 @@ const ChartsContainer = styled(Box)`
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
+    gap: 24px;
+`
+
+const BarChartPaper = styled(Paper)`
+    padding: 16px 16px 25px 16px;
+`
+
+const Separator = styled(Box)`
+    border-top: 1px solid ${theme.palette.customGrey.light};
+    margin: 16px 0;
 `
 
 const PieChart: React.FC = () => {
@@ -63,13 +75,19 @@ const PieChart: React.FC = () => {
     }
 
     return (
-        <Chart
-            options={state.options}
-            series={state.series}
-            type="donut"
-            width={500}
-            height={320}
-        />
+        <BarChartPaper>
+            <Chart
+                options={state.options}
+                series={state.series}
+                type="donut"
+                width={370}
+                height={250}
+            />
+            <Separator />
+            <Typography fontSize="16px" color={theme.palette.customGrey.main}>
+                Votes by Channel
+            </Typography>
+        </BarChartPaper>
     )
 }
 
@@ -99,6 +117,13 @@ const aggregateByDay = (votes?: GetCastVotesQuery["sequent_backend_cast_vote"]):
     return values.reverse()
 }
 
+const getWeekLegend = (): Array<string> => {
+    const legend = ["M", "T", "W", "T", "F", "S", "S"]
+    const dayOfWeek = now.getDay() // 0-6 day of week
+
+    return [...legend.slice(dayOfWeek, 7), ...legend.slice(0, dayOfWeek)]
+}
+
 const BarChart: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
@@ -111,19 +136,17 @@ const BarChart: React.FC = () => {
         },
     })
 
-    useEffect(() => {
-        if (!loading && !error) {
-            console.log(data)
-        }
-    }, [loading, error, data])
+    if (loading || error || !data) {
+        return null
+    }
 
     const state: Props = {
         options: {
             chart: {
-                id: "apexchart-example",
+                id: "barchart-votes",
             },
             xaxis: {
-                categories: ["M", "T", "W", "T", "F", "S", "S"],
+                categories: getWeekLegend(),
             },
         },
         series: [
@@ -135,61 +158,94 @@ const BarChart: React.FC = () => {
     }
 
     return (
-        <Chart options={state.options} series={state.series} type="bar" width={500} height={320} />
+        <BarChartPaper>
+            <Chart
+                options={state.options}
+                series={state.series}
+                type="bar"
+                width={370}
+                height={200}
+            />
+            <Typography fontSize="16px" color={theme.palette.customGrey.main}>
+                Votes by Day
+            </Typography>
+            <Separator />
+            <Typography fontSize="14px" color={theme.palette.customGrey.main}>
+                <IconButton icon={faClock} fontSize="14px" />
+                Election started 23/12/2022 at 12:00 pm
+            </Typography>
+        </BarChartPaper>
+    )
+}
+
+const ElectionStats: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+
+    const {loading, error, data} = useQuery<GetElectionEventStatsQuery>(GET_ELECTION_EVENT_STATS, {
+        variables: {
+            electionEventId: record.id,
+            tenantId: record.tenant_id,
+        },
+    })
+
+    if (loading || error || !data) {
+        return null
+    }
+
+    return (
+        <CardList>
+            <CardContainer>
+                <IconButton icon={faBriefcase} fontSize="38px" />
+                <Typography fontSize="24px">5</Typography>
+                <Typography fontSize="12px">TRUSTEES</Typography>
+            </CardContainer>
+            <CardContainer selected="true">
+                <IconButton icon={faUsers} fontSize="38px" />
+                <Typography fontSize="24px">
+                    {data.sequent_backend_cast_vote_aggregate.aggregate?.count}
+                </Typography>
+                <Typography fontSize="12px">VOTERS</Typography>
+            </CardContainer>
+            <CardContainer>
+                <IconButton icon={faUsers} fontSize="38px" />
+                <Typography fontSize="24px">
+                    {data.sequent_backend_election_aggregate.aggregate?.count}
+                </Typography>
+                <Typography fontSize="12px">ELECTIONS</Typography>
+            </CardContainer>
+            <CardContainer>
+                <IconButton icon={faGlobe} fontSize="38px" />
+                <Typography fontSize="24px">
+                    {data.sequent_backend_area_aggregate.aggregate?.count}
+                </Typography>
+                <Typography fontSize="12px">AREAS</Typography>
+            </CardContainer>
+            <CardContainer>
+                <IconButton icon={faEnvelope} fontSize="38px" />
+                <Typography fontSize="24px">50</Typography>
+                <Typography fontSize="12px">EMAILS SENT</Typography>
+            </CardContainer>
+            <CardContainer>
+                <IconButton icon={faCommentSms} fontSize="38px" />
+                <Typography fontSize="24px">50</Typography>
+                <Typography fontSize="12px">SMS SENT</Typography>
+            </CardContainer>
+            <CardContainer>
+                <IconButton icon={faCalendar} fontSize="38px" />
+                <Typography fontSize="24px">Scheduled</Typography>
+                <Typography fontSize="12px">CALENDAR</Typography>
+            </CardContainer>
+        </CardList>
     )
 }
 
 export const ShowElectionEvent: React.FC = () => {
-    const state: Props = {
-        options: {
-            labels: ["A", "B", "C", "D", "E"],
-        },
-        series: [44, 55, 41, 17, 15],
-    }
-
     return (
         <Show>
             <Box sx={{padding: "16px"}}>
                 <TextField source="name" fontSize="24px" fontWeight="bold" />
-                <CardList>
-                    <CardContainer>
-                        <IconButton icon={faBriefcase} fontSize="38px" />
-                        <Typography fontSize="24px">5</Typography>
-                        <Typography fontSize="12px">TRUSTEES</Typography>
-                    </CardContainer>
-                    <CardContainer selected="true">
-                        <IconButton icon={faUsers} fontSize="38px" />
-                        <Typography fontSize="24px">128</Typography>
-                        <Typography fontSize="12px">VOTERS</Typography>
-                    </CardContainer>
-                    <CardContainer>
-                        <IconButton icon={faUsers} fontSize="38px" />
-                        <Typography fontSize="24px">10</Typography>
-                        <Typography fontSize="12px">ELECTIONS</Typography>
-                    </CardContainer>
-                    <CardContainer>
-                        <IconButton icon={faGlobe} fontSize="38px" />
-                        <Typography fontSize="24px">10</Typography>
-                        <Typography fontSize="12px">AREAS</Typography>
-                    </CardContainer>
-                    <CardContainer>
-                        <IconButton icon={faEnvelope} fontSize="38px" />
-                        <Typography fontSize="24px">50</Typography>
-                        <Typography fontSize="12px">EMAILS SENT</Typography>
-                    </CardContainer>
-                    <CardContainer>
-                        <IconButton icon={faCommentSms} fontSize="38px" />
-                        <Typography fontSize="24px">50</Typography>
-                        <Typography fontSize="12px">SMS SENT</Typography>
-                    </CardContainer>
-                    <CardContainer>
-                        <IconButton icon={faCalendar} fontSize="38px" />
-                        <Typography fontSize="24px">Scheduled</Typography>
-                        <Typography fontSize="12px">CALENDAR</Typography>
-                    </CardContainer>
-                </CardList>
+                <ElectionStats />
                 <ChartsContainer>
-                    <BarChart />
                     <BarChart />
                     <PieChart />
                 </ChartsContainer>
