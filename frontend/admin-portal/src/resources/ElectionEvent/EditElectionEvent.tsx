@@ -20,7 +20,7 @@ import {ChipList} from "../../components/ChipList"
 import {Link} from "react-router-dom"
 import {Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {IconButton} from "@sequentech/ui-essentials"
-import {faPieChart} from "@fortawesome/free-solid-svg-icons"
+import {faPieChart, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 
 const ElectionEventListForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -55,6 +55,22 @@ const ElectionEventListForm: React.FC = () => {
                     />
                 </HorizontalBox>
             </ReferenceManyField>
+            <Link
+                to={{
+                    pathname: "/sequent_backend_election/create",
+                }}
+                state={{
+                    record: {
+                        election_event_id: record.id,
+                        tenant_id: record.tenant_id,
+                    },
+                }}
+            >
+                <Button>
+                    <IconButton icon={faPlusCircle} fontSize="24px" />
+                    Add election
+                </Button>
+            </Link>
             <Typography variant="h5">Areas</Typography>
             <ReferenceManyField
                 label="Areas"
@@ -63,6 +79,22 @@ const ElectionEventListForm: React.FC = () => {
             >
                 <ChipList source="sequent_backend_area" filterFields={["election_event_id"]} />
             </ReferenceManyField>
+            <Link
+                to={{
+                    pathname: "/sequent_backend_area/create",
+                }}
+                state={{
+                    record: {
+                        election_event_id: record.id,
+                        tenant_id: record.tenant_id,
+                    },
+                }}
+            >
+                <Button>
+                    <IconButton icon={faPlusCircle} fontSize="24px" />
+                    Add area
+                </Button>
+            </Link>
             <JsonInput
                 source="labels"
                 jsonString={false}
