@@ -1,0 +1,28 @@
+use anyhow::Result;
+use headless_chrome::types::PrintToPdfOptions;
+use headless_chrome::{Browser, LaunchOptionsBuilder};
+use std::time::Duration;
+use std::thread::sleep;
+
+pub fn print_to_pdf(
+    file_path: &str,
+    pdf_options: PrintToPdfOptions,
+    wait: Option<Duration>,
+) -> Result<Vec<u8>> {
+    let options = LaunchOptionsBuilder::default()
+        .build()
+        .expect("Default should not panic");
+    let browser = Browser::new(options)?;
+    let tab = browser.wait_for_initial_tab()?;
+    let tab = tab.navigate_to(file_path)?.wait_until_navigated()?;
+
+    if let Some(wait) = wait {
+        //info!("Waiting {} before export to PDF", format_duration(wait));
+        sleep(wait);
+    }
+
+    //debug!("Using PDF options: {:?}", pdf_options);
+    let bytes = tab.print_to_pdf(Some(pdf_options))?;
+
+    Ok(bytes)
+}

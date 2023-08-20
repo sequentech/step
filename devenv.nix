@@ -32,6 +32,7 @@
     # For protocol buffers
     pkgs.protobuf
     pkgs.iputils
+    pkgs.chromium
   ];
 
   # https://devenv.sh/scripts/

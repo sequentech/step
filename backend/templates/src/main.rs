@@ -11,6 +11,12 @@ use serde::Deserialize;
 use rocket::serde::json::Json;
 use rocket::serde::json::Value;
 use handlebars::Handlebars;
+use headless_chrome::types::PrintToPdfOptions;
+use std::time::Duration;
+use tempfile::NamedTempFile;
+use std::io::{self, Write, Read};
+
+mod pdf;
 
 #[derive(Deserialize, Debug)]
 struct Body {
@@ -20,18 +26,47 @@ struct Body {
 }
 
 #[post("/render-template", format = "json", data="<body>")]
-async fn hello_world(body: Json<Body>) -> Result<String, Debug<reqwest::Error>> {
-    //println!("{:#?}", body.into_inner());
+async fn render_template(body: Json<Body>) -> Result<Vec<u8>, Debug<reqwest::Error>> {
     let input = body.into_inner();
 
     let reg = Handlebars::new();
     let render = reg.render_template(input.template.as_str(), &input.variables).unwrap();
 
-    // Answer needs to be valid json
-    Ok(render)
+    let five_seconds = Duration::new(5, 0);
+
+
+    // Create a file inside of `std::env::temp_dir()`.
+    let mut file = NamedTempFile::new().unwrap();
+    file.write_all(render.as_bytes()).unwrap();
+
+    let file_path = file.path().to_str().expect("Path should be unicode");
+    let bytes = pdf::print_to_pdf(
+        file_path,
+        PrintToPdfOptions {
+            landscape: None,
+            display_header_footer: None,
+            print_background: None,
+            scale: None,
+            paper_width: None,
+            paper_height: None,
+            margin_top: None,
+            margin_bottom: None,
+            margin_left: None,
+            margin_right: None,
+            page_ranges: None,
+            ignore_invalid_page_ranges: None,
+            header_template: None,
+            footer_template: None,
+            prefer_css_page_size: None,
+            transfer_mode: None,
+        },
+        Some(five_seconds)
+    ).unwrap();
+
+    Ok(bytes)
 }
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![hello_world])
+    rocket::build().mount("/", routes![render_template])
 }
