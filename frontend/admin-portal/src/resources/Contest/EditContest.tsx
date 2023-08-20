@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, Typography} from "@mui/material"
+import {Box, Button, Typography} from "@mui/material"
 import React from "react"
 import {
     BooleanInput,
@@ -13,13 +13,20 @@ import {
     ReferenceManyField,
     ReferenceField,
     TextField,
+    useRecordContext,
 } from "react-admin"
 import {HorizontalBox} from "../../components/HorizontalBox"
 import {ListContest} from "./ListContest"
 import {ChipList} from "../../components/ChipList"
 import {JsonInput} from "react-admin-json-view"
+import {Sequent_Backend_Contest} from "../../gql/graphql"
+import {Link} from "react-router-dom"
+import {IconButton} from "@sequentech/ui-essentials"
+import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 
 const ContestForm: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Contest>()
+
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
             <SimpleForm>
@@ -71,6 +78,23 @@ const ContestForm: React.FC = () => {
                         />
                     </HorizontalBox>
                 </ReferenceManyField>
+                <Link
+                    to={{
+                        pathname: "/sequent_backend_candidate/create",
+                    }}
+                    state={{
+                        record: {
+                            contest_id: record.id,
+                            election_event_id: record.election_event_id,
+                            tenant_id: record.tenant_id,
+                        },
+                    }}
+                >
+                    <Button>
+                        <IconButton icon={faPlusCircle} fontSize="24px" />
+                        Add candidate
+                    </Button>
+                </Link>
                 <JsonInput
                     source="labels"
                     jsonString={false}
