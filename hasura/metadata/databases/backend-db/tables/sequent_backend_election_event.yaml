@@ -1,7 +1,55 @@
 table:
   name: election_event
   schema: sequent_backend
+insert_permissions:
+  - role: admin-user
+    permission:
+      check: {}
+      columns:
+        - is_archived
+        - is_audit
+        - encryption_protocol
+        - name
+        - user_boards
+        - annotations
+        - bulletin_board_reference
+        - dates
+        - labels
+        - presentation
+        - status
+        - voting_channels
+        - description
+        - created_at
+        - updated_at
+        - audit_election_event_id
+        - id
+        - tenant_id
+    comment: ""
 select_permissions:
+  - role: admin-user
+    permission:
+      columns:
+        - is_archived
+        - is_audit
+        - encryption_protocol
+        - name
+        - user_boards
+        - annotations
+        - bulletin_board_reference
+        - dates
+        - labels
+        - presentation
+        - status
+        - voting_channels
+        - description
+        - created_at
+        - updated_at
+        - audit_election_event_id
+        - id
+        - tenant_id
+      filter: {}
+      allow_aggregations: true
+    comment: ""
   - role: user
     permission:
       columns:
@@ -26,4 +74,34 @@ select_permissions:
       filter:
         tenant_id:
           _eq: X-Hasura-Tenant-Id
+    comment: ""
+update_permissions:
+  - role: admin-user
+    permission:
+      columns:
+        - is_archived
+        - is_audit
+        - encryption_protocol
+        - name
+        - user_boards
+        - annotations
+        - bulletin_board_reference
+        - dates
+        - labels
+        - presentation
+        - status
+        - voting_channels
+        - description
+        - created_at
+        - updated_at
+        - audit_election_event_id
+        - id
+        - tenant_id
+      filter: {}
+      check: {}
+    comment: ""
+delete_permissions:
+  - role: admin-user
+    permission:
+      filter: {}
     comment: ""

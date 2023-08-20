@@ -20,10 +20,10 @@ yarn build
 
 # 2. Use sequent-core
 
-The ballot verifier uses [sequent-core] as a npm package. You need to compile it in another
-place and then copy it to `rust/pkg/sequent-core-0.1.0.tgz `. Note that if its version
+The voting portal uses [sequent-core] as a npm package. You need to compile it in another
+place and then copy it to `rust/sequent-core-0.1.0.tgz `. Note that if its version
 is changed you may need to update its hash in `voting-portal/yarn.lock` (use 
-`sha1sum rust/pkg/sequent-core-0.1.0.tgz` to get the hash, or `shasum` instead of `sha1sum` if
+`sha1sum rust/sequent-core-0.1.0.tgz` to get the hash, or `shasum` instead of `sha1sum` if
 you're in Mac Os X.
 
 # 3. Run it
