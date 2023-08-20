@@ -9,25 +9,26 @@ use rocket::response::Debug;
 use reqwest;
 use serde::Deserialize;
 use rocket::serde::json::Json;
-
-type uuid = String;
-
-#[derive(Deserialize, Debug)]
-struct Input {
-    string: String
-}
+use rocket::serde::json::Value;
+use handlebars::Handlebars;
 
 #[derive(Deserialize, Debug)]
 struct Body {
-    input: Input
+    template: String,
+    variables: Value, //JSON
+    format: String // html|text|pdf
 }
 
-#[post("/hello-world", format = "json", data="<body>")]
-async fn hello_world(body: Json<Body>) -> Result<&'static str, Debug<reqwest::Error>> {
-    println!("{:#?}", body.into_inner());
+#[post("/render-template", format = "json", data="<body>")]
+async fn hello_world(body: Json<Body>) -> Result<String, Debug<reqwest::Error>> {
+    //println!("{:#?}", body.into_inner());
+    let input = body.into_inner();
+
+    let reg = Handlebars::new();
+    let render = reg.render_template(input.template.as_str(), &input.variables).unwrap();
 
     // Answer needs to be valid json
-    Ok("\"Hello, world!\"")
+    Ok(render)
 }
 
 #[launch]
