@@ -33,6 +33,8 @@ use crate::schema::{
 #[derive(Debug)]
 pub struct Client {
     client: ImmuServiceClient<Channel>,
+    username: String,
+    password: String,
     auth_token: Option<String>,
     session_id: Option<String>
 }
@@ -45,10 +47,14 @@ impl Client {
     #[instrument]
     pub async fn new(
         server_url: &str,
+        username: &str,
+        password: &str
     ) -> Result<Client> {
         let client = ImmuServiceClient::connect(String::from(server_url)).await?;
         Ok(Client {
             client: client,
+            username: username.to_string(),
+            password: password.to_string(),
             auth_token: None,
             session_id: None,
         })
@@ -76,12 +82,6 @@ impl Client {
     ) -> Result<Request<T>>
     {
         let mut request = Request::new(data);
-        /*let token: MetadataValue<_> = self.auth_token
-            .clone()
-            .ok_or(anyhow!("not logged in",))?
-            .parse()?;
-        request.metadata_mut().insert("authorization", token);*/
-
         let session_id: MetadataValue<_> = self.session_id
             .clone()
             .ok_or(anyhow!("no open session"))?
@@ -317,8 +317,8 @@ impl Client {
         let open_session_request = Request::new(
             OpenSessionRequest { 
                 database_name: database_name.to_string(),
-                username: "immudb".into(),
-                password: "immudb".into()
+                username: self.username.clone().into(),
+                password: self.password.clone().into()
             },
         );
         let open_session_response = self.client

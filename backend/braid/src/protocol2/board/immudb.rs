@@ -3,14 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use immu_board::{Board, BoardMessage};
+use immu_board::{BoardClient, BoardMessage, IndexBoard};
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
 
 use crate::protocol2::message::Message;
 
 pub struct ImmudbBoard {
-    board: Board,
+    board_client: BoardClient,
+    board_dbname: String,
 }
 
 impl From<Message> for BoardMessage {
@@ -31,21 +32,20 @@ impl ImmudbBoard {
         server_url: &str,
         username: &str,
         password: &str,
-        index_dbname: String,
         board_dbname: String,
     ) -> Result<ImmudbBoard> {
-        let board = Board::new(server_url, username, password, index_dbname, board_dbname).await?;
+        let board_client = BoardClient::new(server_url, username, password).await?;
         Ok(ImmudbBoard {
-            board: board,
+            board_client: board_client,
+            board_dbname
         })
     }
 
     pub async fn get_messages(
         &mut self, last_id: i64
-    ) -> Result<Vec<Message>>
-    {
-        self.board
-            .get_messages(last_id)
+    ) -> Result<Vec<Message>> {
+        self.board_client
+            .get_messages(&self.board_dbname, last_id)
             .await?
             .iter()
             .map(|board_message: &BoardMessage| {
@@ -53,19 +53,47 @@ impl ImmudbBoard {
             })
             .collect()
     }
-
     
     pub async fn post_messages(
         &mut self, messages: Vec<Message>,
-    ) -> Result<()>
-    {
+    ) -> Result<()> {
         let bm: Vec<BoardMessage> = messages.into_iter().map(|m| {
             m.into()
         }).collect();
-        self.board.insert_messages(&bm).await
-    }
-
-    pub async fn close(&mut self) -> Result<()> {
-        self.board.close().await
+        self.board_client.insert_messages(&self.board_dbname, &bm).await
     }
 }
+
+pub struct ImmudbBoardIndex {
+    board_client: BoardClient,
+    index_dbname: String,
+}
+
+impl ImmudbBoardIndex {
+    pub async fn new(
+        server_url: &str,
+        username: &str,
+        password: &str,
+        index_dbname: String,
+    ) -> Result<ImmudbBoardIndex> {
+        let board_client = BoardClient::new(server_url, username, password).await?;
+        Ok(ImmudbBoardIndex {
+            board_client: board_client,
+            index_dbname
+        })
+    }
+
+    pub async fn get_board_names(
+        &mut self
+    ) -> Result<Vec<String>> {
+        self.board_client
+            .get_boards(&self.index_dbname)
+            .await?
+            .iter()
+            .map(|board: &IndexBoard| {
+                Ok(board.database_name.clone())
+            })
+            .collect()
+    }
+}
+

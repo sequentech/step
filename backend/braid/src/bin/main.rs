@@ -21,14 +21,13 @@ use braid::protocol2::board::immudb::ImmudbBoard;
 use braid::protocol2::session::Session;
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
-use bulletin_board::client::{Client, FileCache};
 use braid::util::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
 
 const BOARD_NAME: &str = "defaultboard";
-const INDEX_BOARD_NAME: &str = "defaultindexboard";
+const INDEX_NAME: &str = "defaultindexboard";
 const IMMUDB_USER: &str = "immudb";
 const IMMUDB_PW: &str = "immudb";
 
@@ -64,7 +63,7 @@ async fn main() -> Result<()> {
 
     let trustee: Trustee<RistrettoCtx> = Trustee::new(sk, ek);
     
-    let board = ImmudbBoard::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, INDEX_BOARD_NAME.to_string(), BOARD_NAME.to_string()).await.unwrap();
+    let board = ImmudbBoard::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, BOARD_NAME.to_string()).await.unwrap();
     let mut session = Session::new(trustee, board);
 
     loop {

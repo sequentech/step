@@ -1,4 +1,4 @@
-// cargo run --bin bb_client --features=bb-test -- --server-url http://immudb:3322 <init|list|ballots>
+// cargo run --bin bb_client --features=bb-test -- --server-url http://immudb:3322 <init|ballots|list|boards>
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "bb-test")] {
@@ -14,6 +14,7 @@ use uuid::Uuid;
 
 use braid::util::init_log;
 use braid::protocol2::board::immudb::ImmudbBoard;
+use braid::protocol2::board::immudb::ImmudbBoardIndex;
 
 use braid::protocol2::artifact::Configuration;
 use braid::protocol2::artifact::DkgPublicKey;
@@ -43,11 +44,12 @@ struct Cli {
 enum Command {
     Init,
     Ballots,
-    List,
+    Messages,
+    Boards,
 }
 
 const BOARD_NAME: &str = "defaultboard";
-const INDEX_BOARD_NAME: &str = "defaultindexboard";
+const INDEX_NAME: &str = "defaultindexboard";
 const PROTOCOL_MANAGER: &str = "pm.toml";
 const CONFIG: &str = "config.bin";
 const IMMUDB_USER: &str = "immudb";
@@ -60,7 +62,8 @@ async fn main() -> Result<()> {
     init_log(true);
     let args = Cli::parse();
     
-    let mut board = ImmudbBoard::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, INDEX_BOARD_NAME.to_string(), BOARD_NAME.to_string()).await.unwrap();
+    let mut board = ImmudbBoard::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, BOARD_NAME.to_string()).await.unwrap();
+    let mut index = ImmudbBoardIndex::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, INDEX_NAME.to_string()).await.unwrap();
     
     match &args.command {
         Command::Init => {
@@ -74,8 +77,11 @@ async fn main() -> Result<()> {
         Command::Ballots => {
             post_ballots(&mut board, ctx).await?;
         }
-        Command::List => {
-            list_entries(&mut board).await?;
+        Command::Messages => {
+            list_messages(&mut board).await?;
+        }
+        Command::Boards => {
+            list_boards(&mut index).await?;
         }
     }
 
@@ -90,14 +96,22 @@ async fn init<C: Ctx>(
     let message = Message::bootstrap_msg(&configuration, &pm)?;
     info!("Adding configuration to the board..");
     let result = board.post_messages(vec![message]).await?;
-    board.close().await?;
     Ok(())
 }
 
-async fn list_entries(board: &mut ImmudbBoard) -> Result<()> {
+async fn list_messages(board: &mut ImmudbBoard) -> Result<()> {
     let messages: Vec<Message> = board.get_messages(0i64).await?;
-    info!("messages {:?}", messages);
-    
+    for message in messages {
+        info!("message: {:?}", message);
+    }    
+    Ok(())
+}
+
+async fn list_boards(index: &mut ImmudbBoardIndex) -> Result<()> {
+    let boards: Vec<String> = index.get_board_names().await?;
+    for board in boards {
+        info!("board: {}", board);
+    }
     Ok(())
 }
 
@@ -159,26 +173,6 @@ async fn post_ballots<C: Ctx>(board: &mut ImmudbBoard, ctx: C) -> Result<()> {
 
     Ok(())
 }
-/*
-async fn get_board<CS: CacheStore>(client: &mut Client<CS>) -> Result<String> {
-    let board_name = BOARD_NAME.to_string();
-    let request = ListBoardsRequest {
-        board_name: Some(board_name.clone()),
-        ..Default::default()
-    };
-    let response = client.list_boards(request).await?;
-    let boards: &Vec<ListBoardItem> = &response.get_ref().boards;
-
-    if boards.len() == 1 {
-        let ListBoardItem { board, .. } = boards.get(0).ok_or(anyhow!("BoardRetrievalError"))?;
-        let board_uuid = board.clone().unwrap().uuid;
-
-        Ok(board_uuid)
-    } else {
-        Err(anyhow::Error::msg("Expected 1 result"))
-    }
-}
-*/
 
 fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> ProtocolManager<C> {
     let contents = fs::read_to_string(PROTOCOL_MANAGER)

@@ -137,7 +137,7 @@ impl BBHelper {
             None => env::var("IMMUDB_PASSWORD")
                 .context("password not provided and IMMUDB_PASSWORD env var not set")?
         };
-        let mut client = Client::new(&server_url).await?;
+        let mut client = Client::new(&server_url, &username, &password).await?;
         client.login(&username, &password).await?;
         Ok(
             BBHelper {
