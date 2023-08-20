@@ -86,6 +86,12 @@ impl Board {
         // client.login(&username, &password).await?;
         // client.use_database(&board_dbname).await?;
         client.open_session(&board_dbname).await?;
+
+
+        let mut client2 = Client::new(&server_url).await?;
+        // client.login(&username, &password).await?;
+        // client.use_database(&board_dbname).await?;
+        client2.open_session(&index_dbname).await?;
         Ok(Board {
             client: client,
             index_dbname: index_dbname,

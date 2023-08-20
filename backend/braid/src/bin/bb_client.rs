@@ -50,6 +50,8 @@ const BOARD_NAME: &str = "defaultboard";
 const INDEX_BOARD_NAME: &str = "defaultindexboard";
 const PROTOCOL_MANAGER: &str = "pm.toml";
 const CONFIG: &str = "config.bin";
+const IMMUDB_USER: &str = "immudb";
+const IMMUDB_PW: &str = "immudb";
 
 #[tokio::main]
 #[instrument]
@@ -57,10 +59,8 @@ async fn main() -> Result<()> {
     let ctx = RistrettoCtx;
     init_log(true);
     let args = Cli::parse();
-    // FIXME
-    let username = "immudb";
-    let password = "immudb";
-    let mut board = ImmudbBoard::new(&args.server_url, username, password, INDEX_BOARD_NAME.to_string(), BOARD_NAME.to_string()).await.unwrap();
+    
+    let mut board = ImmudbBoard::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, INDEX_BOARD_NAME.to_string(), BOARD_NAME.to_string()).await.unwrap();
     
     match &args.command {
         Command::Init => {
@@ -150,7 +150,7 @@ async fn post_ballots<C: Ctx>(board: &mut ImmudbBoard, ctx: C) -> Result<()> {
             )?;
 
             info!("Adding ballots to the board..");
-            board.post_messages(vec![message]);
+            board.post_messages(vec![message]).await?;
 
             break;
         }

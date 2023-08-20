@@ -17,21 +17,23 @@ use std::path::PathBuf;
 use tokio::time::{sleep, Duration};
 use tracing::instrument;
 
-use braid::protocol2::board::trillian::TrillianBoard;
+use braid::protocol2::board::immudb::ImmudbBoard;
 use braid::protocol2::session::Session;
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
 use bulletin_board::client::{Client, FileCache};
-use bulletin_board::util::init_log;
+use braid::util::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
 
+const BOARD_NAME: &str = "defaultboard";
+const INDEX_BOARD_NAME: &str = "defaultindexboard";
+const IMMUDB_USER: &str = "immudb";
+const IMMUDB_PW: &str = "immudb";
+
 #[derive(Parser)]
 struct Cli {
-    #[arg(long)]
-    cache_dir: PathBuf,
-
     #[arg(long)]
     server_url: String,
 
@@ -42,10 +44,8 @@ struct Cli {
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    init_log().map_err(|error| anyhow!(error))?;
+    init_log(true);
     let args = Cli::parse();
-    let cache = FileCache::new(&args.cache_dir)?;
-    let client = Client::new(args.server_url, cache).await?;
 
     let contents = fs::read_to_string(args.trustee_config)
         .expect("Should have been able to read the trustee configuration file");
@@ -63,7 +63,8 @@ async fn main() -> Result<()> {
     let ek = GenericArray::<u8, U32>::from_slice(&bytes).to_owned();
 
     let trustee: Trustee<RistrettoCtx> = Trustee::new(sk, ek);
-    let board = TrillianBoard::new("default-board".to_string(), client);
+    
+    let board = ImmudbBoard::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, INDEX_BOARD_NAME.to_string(), BOARD_NAME.to_string()).await.unwrap();
     let mut session = Session::new(trustee, board);
 
     loop {
