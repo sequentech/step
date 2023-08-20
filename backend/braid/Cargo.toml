@@ -25,10 +25,10 @@ strand = { path="../strand", features=["rayon"] }
 rayon = { version = "1.5" }
 anyhow = "1.0"
 
-# bulletin-board
-clap = { version = "4.0", features = ["derive"], optional = true }
-tokio = { version = "1.0", optional = true }
-uuid = { version = "1.2", features = ["v4"], optional = true }
+# daemon
+clap = { version = "4.0", features = ["derive"] }
+tokio = { version = "1.0" }
+uuid = { version = "1.2", features = ["v4"] }
 tonic = { version = "0.9.2", optional = true }
 
 # logging 
@@ -69,4 +69,3 @@ crate-type = ["cdylib", "rlib"]
 repl = ["dep:reedline-repl-rs", "dep:ascii_table"]
 wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-rayon", "dep:tracing-wasm", "instant/wasm-bindgen"]
 rug = ["strand/rug"]
-bb-test = ["dep:tokio", "dep:clap", "dep:uuid", "dep:tonic"]

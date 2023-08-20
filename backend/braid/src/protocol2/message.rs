@@ -10,7 +10,7 @@ use crate::protocol2::artifact::*;
 use crate::protocol2::statement::ArtifactType;
 use crate::protocol2::statement::Statement;
 use crate::protocol2::statement::StatementType;
-use crate::protocol2::trustee::Sender;
+use crate::protocol2::trustee::Signer;
 
 use crate::protocol2::artifact::Configuration;
 use crate::protocol2::datalog::PublicKeyHash;

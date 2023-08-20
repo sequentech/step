@@ -14,16 +14,18 @@ pub struct ImmudbBoard {
     board_dbname: String,
 }
 
-impl From<Message> for BoardMessage {
-    fn from(message: Message) -> BoardMessage {
-        BoardMessage {
+impl TryFrom<Message> for BoardMessage {
+    type Error = anyhow::Error;
+    
+    fn try_from(message: Message) -> Result<BoardMessage> {
+        Ok(BoardMessage {
             id: 0,
             created: (instant::now() * 1000f64) as i64,
             statement_timestamp: (message.statement.get_timestamp() * 1000) as i64,
             statement_kind: message.statement.get_kind().to_string(),
-            message: message.strand_serialize().unwrap(),
-            signer_key: message.signer_key.strand_serialize().unwrap(),
-        }
+            message: message.strand_serialize()?,
+            signer_key: message.signer_key.strand_serialize()?,
+        })
     }
 }
 
@@ -57,10 +59,15 @@ impl ImmudbBoard {
     pub async fn post_messages(
         &mut self, messages: Vec<Message>,
     ) -> Result<()> {
-        let bm: Vec<BoardMessage> = messages.into_iter().map(|m| {
-            m.into()
-        }).collect();
-        self.board_client.insert_messages(&self.board_dbname, &bm).await
+        if messages.len() > 0 {
+            let bm: Result<Vec<BoardMessage>> = messages.into_iter().map(|m| {
+                m.try_into()
+            }).collect();
+            self.board_client.insert_messages(&self.board_dbname, &bm?).await
+        }
+        else {
+            Ok(())
+        }
     }
 }
 

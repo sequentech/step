@@ -75,7 +75,6 @@ impl Client {
     }
 
     /// Creates an Authenticated request, with the proper Auth token
-    #[instrument]
     fn get_request<T: Debug>(
         &self,
         data: T
@@ -133,7 +132,6 @@ impl Client {
         Ok(!list_tables_response.get_ref().rows.is_empty())
     }
 
-    #[instrument]
     pub async fn sql_exec(
         &mut self,
         sql: &str,
@@ -153,7 +151,6 @@ impl Client {
         Ok(())
     }
 
-    #[instrument]
     pub async fn sql_query(
         &mut self,
         sql: &str,
@@ -175,7 +172,6 @@ impl Client {
     }
 
     /// Creates a new transaction, returning the transaction id
-    #[instrument]
     pub async fn new_tx(
         &mut self,
         mode: TxMode,
@@ -220,7 +216,6 @@ impl Client {
         Ok(())
     }
 
-    #[instrument]
     pub async fn tx_sql_exec(
         &mut self,
         sql: &str,
@@ -245,7 +240,6 @@ impl Client {
         Ok(())
     }
 
-    #[instrument]
     pub async fn tx_sql_query(
         &mut self,
         sql: &str,
@@ -282,7 +276,6 @@ impl Client {
         Ok(())
     }
 
-    #[instrument]
     pub async fn use_database(&mut self, database_name: &str) -> Result<()> {
         let use_db_request = self.get_request(
             Database { database_name: database_name.to_string() }
@@ -312,7 +305,6 @@ impl Client {
         Ok(())
     }
 
-    #[instrument]
     pub async fn open_session(&mut self, database_name: &str) -> Result<()> {
         let open_session_request = Request::new(
             OpenSessionRequest { 
@@ -328,7 +320,6 @@ impl Client {
         Ok(())
     }
     
-    #[instrument]
     pub async fn close_session(&mut self) -> Result<()> {
         let close_session_request = self.get_request( () )?;
         let close_session_response = self.client

@@ -264,7 +264,7 @@ impl Statement {
 
     pub fn get_data(&self) -> (StatementType, Hash, usize, usize, Option<ArtifactType>, Timestamp) {
         let kind: StatementType;
-        let mut ts: u64 = 0;
+        let ts: u64;
         let cfg: [u8; 64];
         let mut batch = 0usize;
         let mut mix_signature_number = 0usize;

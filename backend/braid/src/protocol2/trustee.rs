@@ -54,7 +54,7 @@ pub struct Trustee<C: Ctx> {
     local_board: LocalBoard<C>,
 }
 
-impl<C: Ctx> Sender for Trustee<C> {
+impl<C: Ctx> Signer for Trustee<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }
@@ -449,17 +449,17 @@ pub struct ProtocolManager<C: Ctx> {
     pub phantom: PhantomData<C>,
 }
 
-impl<C: Ctx> Sender for ProtocolManager<C> {
+impl<C: Ctx> Signer for ProtocolManager<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Sender (commonality to sign messages for Trustee and Protocolmanager)
+// Signer (commonality to sign messages for Trustee and Protocolmanager)
 ///////////////////////////////////////////////////////////////////////////
 
-pub(crate) trait Sender {
+pub(crate) trait Signer {
     fn get_signing_key(&self) -> &StrandSignatureSk;
     fn sign(&self, statement: Statement, artifact: Option<Vec<u8>>) -> Result<Message> {
         let sk = self.get_signing_key();

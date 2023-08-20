@@ -1,16 +1,11 @@
 // cargo run --bin bb_client --features=bb-test -- --server-url http://immudb:3322 <init|ballots|list|boards>
-
-cfg_if::cfg_if! {
-    if #[cfg(feature = "bb-test")] {
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose, Engine as _};
 use clap::Parser;
 use rayon::prelude::*;
 use std::fs;
 use std::marker::PhantomData;
-use std::path::PathBuf;
 use tracing::{info, instrument};
-use uuid::Uuid;
 
 use braid::util::init_log;
 use braid::protocol2::board::immudb::ImmudbBoard;
@@ -29,7 +24,6 @@ use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignatureSk;
-use strand::signature::StrandSignaturePk;
 
 #[derive(Parser)]
 struct Cli {
@@ -95,7 +89,7 @@ async fn init<C: Ctx>(
     let pm = get_pm(PhantomData);
     let message = Message::bootstrap_msg(&configuration, &pm)?;
     info!("Adding configuration to the board..");
-    let result = board.post_messages(vec![message]).await?;
+    board.post_messages(vec![message]).await?;
     Ok(())
 }
 
@@ -189,30 +183,4 @@ fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> ProtocolManager<C> {
     };
 
     pm
-}
-
-const ADMIN_SK: &str = "gZai7r2m5/9bAV2vmtxFOXoUL8UEMBnOPZ//0eoBX2g";
-const ADMIN_PK: &str = "NbkLVEFH7IOz9MAwpp9o7VmegTum4t9YSRo367dQ8ok";
-
-fn get_admin_keys() -> (StrandSignatureSk, StrandSignaturePk) {
-    let bytes = general_purpose::STANDARD_NO_PAD
-        .decode(ADMIN_SK)
-        .map_err(|error| anyhow!(error))
-        .unwrap();
-    let sk = StrandSignatureSk::strand_deserialize(&bytes).unwrap();
-
-    let bytes = general_purpose::STANDARD_NO_PAD
-        .decode(ADMIN_PK)
-        .unwrap();
-
-    let pk = StrandSignaturePk::strand_deserialize(&bytes).unwrap();
-
-    (sk, pk)
-}
-}
-else {
-    fn main() {
-        println!("Requires the 'bb-test' feature");
-    }
-}
 }
