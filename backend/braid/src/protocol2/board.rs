@@ -1,2 +1,2 @@
-pub mod local;
 pub mod immudb;
+pub mod local;

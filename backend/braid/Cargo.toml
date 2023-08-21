@@ -54,9 +54,9 @@ wasm-bindgen-rayon = {version = "1.0.3", features = ["no-bundler"], optional = t
 wasm-bindgen = {version = "=0.2.79", optional = true}
 tracing-wasm = {version="0.2.1", optional = true}
 
-# repl
-reedline-repl-rs = { version = "1.0.2", optional = true }
-ascii_table = { version = "4.0.2", optional = true }
+# dbg
+reedline-repl-rs = { version = "1.0.7" }
+ascii_table = { version = "4.0.2" }
 async-trait = "0.1.73"
 
 [dev-dependencies]
@@ -66,6 +66,5 @@ criterion = {version = "0.4", features=["html_reports"]}
 crate-type = ["cdylib", "rlib"]
 
 [features]
-repl = ["dep:reedline-repl-rs", "dep:ascii_table"]
 wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-rayon", "dep:tracing-wasm", "instant/wasm-bindgen"]
 rug = ["strand/rug"]

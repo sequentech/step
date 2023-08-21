@@ -7,9 +7,9 @@ use std::fs;
 use std::marker::PhantomData;
 use tracing::{info, instrument};
 
-use braid::util::init_log;
 use braid::protocol2::board::immudb::ImmudbBoard;
 use braid::protocol2::board::immudb::ImmudbBoardIndex;
+use braid::util::init_log;
 
 use braid::protocol2::artifact::Configuration;
 use braid::protocol2::artifact::DkgPublicKey;
@@ -55,10 +55,24 @@ async fn main() -> Result<()> {
     let ctx = RistrettoCtx;
     init_log(true);
     let args = Cli::parse();
-    
-    let mut board = ImmudbBoard::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, BOARD_NAME.to_string()).await.unwrap();
-    let mut index = ImmudbBoardIndex::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, INDEX_NAME.to_string()).await.unwrap();
-    
+
+    let mut board = ImmudbBoard::new(
+        &args.server_url,
+        IMMUDB_USER,
+        IMMUDB_PW,
+        BOARD_NAME.to_string(),
+    )
+    .await
+    .unwrap();
+    let mut index = ImmudbBoardIndex::new(
+        &args.server_url,
+        IMMUDB_USER,
+        IMMUDB_PW,
+        INDEX_NAME.to_string(),
+    )
+    .await
+    .unwrap();
+
     match &args.command {
         Command::Init => {
             let cfg_bytes = fs::read("config.bin")
@@ -82,10 +96,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn init<C: Ctx>(
-    board: &mut ImmudbBoard,
-    configuration: Configuration<C>,
-) -> Result<()> {
+async fn init<C: Ctx>(board: &mut ImmudbBoard, configuration: Configuration<C>) -> Result<()> {
     let pm = get_pm(PhantomData);
     let message = Message::bootstrap_msg(&configuration, &pm)?;
     info!("Adding configuration to the board..");
@@ -97,7 +108,7 @@ async fn list_messages(board: &mut ImmudbBoard) -> Result<()> {
     let messages: Vec<Message> = board.get_messages(0i64).await?;
     for message in messages {
         info!("message: {:?}", message);
-    }    
+    }
     Ok(())
 }
 
@@ -132,8 +143,8 @@ async fn post_ballots<C: Ctx>(board: &mut ImmudbBoard, ctx: C) -> Result<()> {
                 .collect();
 
             info!("Generated {} ballots", ballots.len());
-            let contents = fs::read(CONFIG)
-                .expect("Should have been able to read session configuration file");
+            let contents =
+                fs::read(CONFIG).expect("Should have been able to read session configuration file");
 
             let configuration = Configuration::<C>::strand_deserialize(&contents)
                 .map_err(|e| anyhow!("Could not read configuration {}", e))?;
@@ -141,7 +152,7 @@ async fn post_ballots<C: Ctx>(board: &mut ImmudbBoard, ctx: C) -> Result<()> {
             let threshold = [1, 2];
             let mut selected_trustees =
                 [braid::protocol2::datalog::NULL_TRUSTEE; braid::protocol2::MAX_TRUSTEES];
-                selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
+            selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
             let ballot_batch = braid::protocol2::artifact::Ballots::new(
                 ballots,
@@ -162,7 +173,6 @@ async fn post_ballots<C: Ctx>(board: &mut ImmudbBoard, ctx: C) -> Result<()> {
 
             break;
         }
-            
     }
 
     Ok(())

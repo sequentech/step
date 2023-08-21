@@ -172,8 +172,6 @@ impl<C: Ctx> LocalBoard<C> {
                     hex::encode(artifact_hash)[0..10].to_string()
                 );
 
-                // self.insert_artifact(&artifact_identifier, &artifact);
-
                 let artifact_entry = self.artifacts.get(&artifact_identifier);
 
                 if let Some((existing_hash, _)) = artifact_entry {

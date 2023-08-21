@@ -262,7 +262,16 @@ impl Statement {
         self.get_data().5
     }
 
-    pub fn get_data(&self) -> (StatementType, Hash, usize, usize, Option<ArtifactType>, Timestamp) {
+    pub fn get_data(
+        &self,
+    ) -> (
+        StatementType,
+        Hash,
+        usize,
+        usize,
+        Option<ArtifactType>,
+        Timestamp,
+    ) {
         let kind: StatementType;
         let ts: u64;
         let cfg: [u8; 64];

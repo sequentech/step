@@ -16,7 +16,7 @@ pub struct ImmudbBoard {
 
 impl TryFrom<Message> for BoardMessage {
     type Error = anyhow::Error;
-    
+
     fn try_from(message: Message) -> Result<BoardMessage> {
         Ok(BoardMessage {
             id: 0,
@@ -39,13 +39,11 @@ impl ImmudbBoard {
         let board_client = BoardClient::new(server_url, username, password).await?;
         Ok(ImmudbBoard {
             board_client: board_client,
-            board_dbname
+            board_dbname,
         })
     }
 
-    pub async fn get_messages(
-        &mut self, last_id: i64
-    ) -> Result<Vec<Message>> {
+    pub async fn get_messages(&mut self, last_id: i64) -> Result<Vec<Message>> {
         self.board_client
             .get_messages(&self.board_dbname, last_id)
             .await?
@@ -55,17 +53,15 @@ impl ImmudbBoard {
             })
             .collect()
     }
-    
-    pub async fn post_messages(
-        &mut self, messages: Vec<Message>,
-    ) -> Result<()> {
+
+    pub async fn post_messages(&mut self, messages: Vec<Message>) -> Result<()> {
         if messages.len() > 0 {
-            let bm: Result<Vec<BoardMessage>> = messages.into_iter().map(|m| {
-                m.try_into()
-            }).collect();
-            self.board_client.insert_messages(&self.board_dbname, &bm?).await
-        }
-        else {
+            let bm: Result<Vec<BoardMessage>> =
+                messages.into_iter().map(|m| m.try_into()).collect();
+            self.board_client
+                .insert_messages(&self.board_dbname, &bm?)
+                .await
+        } else {
             Ok(())
         }
     }
@@ -86,21 +82,16 @@ impl ImmudbBoardIndex {
         let board_client = BoardClient::new(server_url, username, password).await?;
         Ok(ImmudbBoardIndex {
             board_client: board_client,
-            index_dbname
+            index_dbname,
         })
     }
 
-    pub async fn get_board_names(
-        &mut self
-    ) -> Result<Vec<String>> {
+    pub async fn get_board_names(&mut self) -> Result<Vec<String>> {
         self.board_client
             .get_boards(&self.index_dbname)
             .await?
             .iter()
-            .map(|board: &IndexBoard| {
-                Ok(board.database_name.clone())
-            })
+            .map(|board: &IndexBoard| Ok(board.database_name.clone()))
             .collect()
     }
 }
-
