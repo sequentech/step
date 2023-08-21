@@ -32,6 +32,10 @@
     # For protocol buffers
     pkgs.protobuf
     pkgs.iputils
+
+    # to build the rug backend in strand/braid
+    pkgs.gcc
+    pkgs.m4
   ];
 
   # https://devenv.sh/scripts/
