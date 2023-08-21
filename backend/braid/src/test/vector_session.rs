@@ -8,6 +8,7 @@ use strand::context::Ctx;
 use crate::protocol2::{
     artifact::{DkgPublicKey, Plaintexts},
     datalog::BatchNumber,
+    datalog::TrusteePosition,
 };
 
 // Implements cross-session parallelism as well as simulates cross-trustee parallelism
@@ -40,8 +41,8 @@ impl<C: Ctx> VectorSession<C> {
         }
     }
 
-    pub(crate) fn get_plaintexts_nohash(&self, batch: BatchNumber) -> Option<Plaintexts<C>> {
-        self.trustee.get_plaintexts_nohash(batch)
+    pub(crate) fn get_plaintexts_nohash(&self, batch: BatchNumber, signer_position: TrusteePosition) -> Option<Plaintexts<C>> {
+        self.trustee.get_plaintexts_nohash(batch, signer_position)
     }
     pub(crate) fn get_dkg_public_key_nohash(&self) -> Option<DkgPublicKey<C>> {
         self.trustee.get_dkg_public_key_nohash()

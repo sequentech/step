@@ -370,8 +370,10 @@ fn plaintexts<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result
     Ok(Some(format!("Plaintexts {:?}", encoded)))
 }
 fn decrypted<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
+    // FIXME hardcoded batch 1, use command line argument
+    let decryptor = context.selected_trustees[0] - 1;
     if let Some(plaintexts) =
-        context.trustees[context.selected_trustees[0]].get_plaintexts_nohash(1)
+        context.trustees[decryptor].get_plaintexts_nohash(1, decryptor)
     {
         let decrypted: Vec<C::E> = plaintexts
             .0
