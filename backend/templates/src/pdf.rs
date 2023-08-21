@@ -13,8 +13,12 @@ pub fn print_to_pdf(
         .build()
         .expect("Default should not panic");
     let browser = Browser::new(options)?;
-    let tab = browser.wait_for_initial_tab()?;
-    let tab = tab.navigate_to(file_path)?.wait_until_navigated()?;
+    let _tab0 = browser.wait_for_initial_tab()?;
+    //let tab = tab.navigate_to(file_path)?.wait_until_navigated()?;
+    let tab = browser.new_tab().unwrap();
+    println!("path: {}", file_path);
+    tab.navigate_to(file_path).unwrap().wait_until_navigated().unwrap();
+    //tab.wait_for_element("input#searchInput").unwrap().click();
 
     if let Some(wait) = wait {
         //info!("Waiting {} before export to PDF", format_duration(wait));
