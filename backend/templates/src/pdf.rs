@@ -10,6 +10,7 @@ pub fn print_to_pdf(
     wait: Option<Duration>,
 ) -> Result<Vec<u8>> {
     let options = LaunchOptionsBuilder::default()
+        .sandbox(false)
         .build()
         .expect("Default should not panic");
     let browser = Browser::new(options)?;
