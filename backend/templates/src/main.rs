@@ -48,11 +48,6 @@ async fn render_template(body: Json<Body>) -> Result<Vec<u8>, Debug<reqwest::Err
     println!("path: {}", file_path_str);
     let url_path = format!("file://{}", file_path_str);
 
-/*
-    let file_path = "/Users/felixrobles/workspace/backend-services/temp.html";
-    let mut file = File::create(file_path).expect("Failed to create file");
-    file.write_all(render.as_bytes()).expect("Failed to write to file");
-*/
     let bytes = pdf::print_to_pdf(
         url_path.as_str(),
         PrintToPdfOptions {

@@ -10,19 +10,18 @@ pub fn print_to_pdf(
     wait: Option<Duration>,
 ) -> Result<Vec<u8>> {
     let options = LaunchOptionsBuilder::default()
+        //.idle_browser_timeout(Duration::from_secs(99999999))
         .sandbox(false)
         .build()
         .expect("Default should not panic");
     let browser = Browser::new(options)?;
     let _tab0 = browser.wait_for_initial_tab()?;
-    //let tab = tab.navigate_to(file_path)?.wait_until_navigated()?;
-    let tab = browser.new_tab().unwrap();
+    let tab = browser.new_tab()?;
+    //tab.set_default_timeout(Duration::from_secs(99999999));
     println!("path: {}", file_path);
-    tab.navigate_to(file_path).unwrap().wait_until_navigated().unwrap();
-    //tab.wait_for_element("input#searchInput").unwrap().click();
+    tab.navigate_to(file_path)?.wait_until_navigated()?;
 
     if let Some(wait) = wait {
-        //info!("Waiting {} before export to PDF", format_duration(wait));
         sleep(wait);
     }
 

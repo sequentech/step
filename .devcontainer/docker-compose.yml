@@ -149,6 +149,14 @@ services:
     volumes:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
+  
+  templates:
+    stdin_open: true
+    build:
+      context: ../backend/templates/
+      dockerfile: Dockerfile
+    ports:
+      - 8400:8400 # templates service
 
 volumes:
   db_data:
