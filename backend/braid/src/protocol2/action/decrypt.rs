@@ -133,7 +133,7 @@ pub(super) fn sign_plaintexts<C: Ctx>(
         dfactors_hs,
         ciphertexts_h,
         mix_signer,
-    trustees,
+        trustees,
         threshold,
         trustee,
     )?;

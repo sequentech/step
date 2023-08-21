@@ -382,8 +382,13 @@ impl<C: Ctx> Trustee<C> {
     }
 
     // FIXME "outside" function
-    pub fn get_plaintexts_nohash(&self, batch: BatchNumber, signer_position: TrusteePosition) -> Option<Plaintexts<C>> {
-        self.local_board.get_plaintexts_nohash(batch, signer_position)
+    pub fn get_plaintexts_nohash(
+        &self,
+        batch: BatchNumber,
+        signer_position: TrusteePosition,
+    ) -> Option<Plaintexts<C>> {
+        self.local_board
+            .get_plaintexts_nohash(batch, signer_position)
     }
 
     ///////////////////////////////////////////////////////////////////////////

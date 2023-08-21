@@ -1,9 +1,6 @@
 use ascii_table::{Align, AsciiTable};
 
-use chacha20poly1305::{
-    aead::KeyInit,
-    ChaCha20Poly1305,
-};
+use chacha20poly1305::{aead::KeyInit, ChaCha20Poly1305};
 use log::{info, warn};
 use reedline_repl_rs::clap::{Arg, ArgMatches, Command};
 use reedline_repl_rs::{Repl, Result};
@@ -372,9 +369,7 @@ fn plaintexts<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result
 fn decrypted<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     // FIXME hardcoded batch 1, use command line argument
     let decryptor = context.selected_trustees[0] - 1;
-    if let Some(plaintexts) =
-        context.trustees[decryptor].get_plaintexts_nohash(1, decryptor)
-    {
+    if let Some(plaintexts) = context.trustees[decryptor].get_plaintexts_nohash(1, decryptor) {
         let decrypted: Vec<C::E> = plaintexts
             .0
              .0
