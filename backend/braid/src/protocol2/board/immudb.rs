@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use immu_board::{BoardClient, BoardMessage, IndexBoard};
+use immu_board::{Board, BoardClient, BoardMessage};
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
 
@@ -91,7 +91,7 @@ impl ImmudbBoardIndex {
             .get_boards(&self.index_dbname)
             .await?
             .iter()
-            .map(|board: &IndexBoard| Ok(board.database_name.clone()))
+            .map(|board: &Board| Ok(board.database_name.clone()))
             .collect()
     }
 }

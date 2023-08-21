@@ -43,7 +43,7 @@ enum Command {
 }
 
 const BOARD_NAME: &str = "defaultboard";
-const INDEX_NAME: &str = "defaultindexboard";
+const INDEX_NAME: &str = "defaultboardindex";
 const PROTOCOL_MANAGER: &str = "pm.toml";
 const CONFIG: &str = "config.bin";
 const IMMUDB_USER: &str = "immudb";

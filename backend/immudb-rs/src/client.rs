@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use tracing::{debug, instrument};
 use std::fmt::Debug;
 use tonic::{
@@ -81,12 +81,22 @@ impl Client {
     ) -> Result<Request<T>>
     {
         let mut request = Request::new(data);
-        let session_id: MetadataValue<_> = self.session_id
+        
+        if self.session_id.is_some() {
+            let session_id: MetadataValue<_> = self.session_id
+                .clone()
+                .expect("impossible")
+                .parse()?;
+            request.metadata_mut().insert("sessionid", session_id);
+        }
+        
+        if self.auth_token.is_some() {
+            let auth_token: MetadataValue<_> = self.auth_token
             .clone()
-            .ok_or(anyhow!("no open session"))?
+            .expect("impossible")
             .parse()?;
-
-        request.metadata_mut().insert("sessionid", session_id);
+            request.metadata_mut().insert("authorization", auth_token);
+        }
         
         Ok(request)
     }
