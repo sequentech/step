@@ -207,8 +207,12 @@ impl Client {
     #[instrument]
     pub async fn rollback(
         &mut self,
+        transaction_id: &String
     ) -> Result<()> {
-        let rollback_request = self.get_request( () )?;
+        let mut rollback_request = self.get_request( () )?;
+        let tx_id: MetadataValue<_> = transaction_id
+            .parse()?;
+        rollback_request.metadata_mut().insert("transactionid", tx_id);
         let rollback_response = self.client
             .rollback(rollback_request)
             .await?;
