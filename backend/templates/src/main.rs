@@ -13,7 +13,7 @@ use rocket::serde::json::Value;
 use handlebars::Handlebars;
 use headless_chrome::types::PrintToPdfOptions;
 use std::time::Duration;
-use tempfile::NamedTempFile;
+use tempfile::tempdir;
 use std::io::{self, Write, Read};
 use std::fs::File;
 
@@ -36,12 +36,17 @@ async fn render_template(body: Json<Body>) -> Result<Vec<u8>, Debug<reqwest::Err
     let five_seconds = Duration::new(5, 0);
 
     // Create a file inside of `std::env::temp_dir()`.
-    let mut file = NamedTempFile::new().unwrap();
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("index.html");
+    let mut file = File::create(file_path.clone()).unwrap();
+    let file_path_str = file_path.to_str().unwrap();
+
+    //let mut file = NamedTempFile::new().unwrap();
     file.write_all(render.as_bytes()).unwrap();
 
-    let file_path = file.path().to_str().expect("Path should be unicode");
-    println!("path: {}", file_path.clone());
-    let url_path = format!("file://{}", file_path);
+    //let file_path = file.path().to_str().expect("Path should be unicode");
+    println!("path: {}", file_path_str);
+    let url_path = format!("file://{}", file_path_str);
 
 /*
     let file_path = "/Users/felixrobles/workspace/backend-services/temp.html";
