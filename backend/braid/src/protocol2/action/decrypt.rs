@@ -133,12 +133,12 @@ pub(super) fn sign_plaintexts<C: Ctx>(
         dfactors_hs,
         ciphertexts_h,
         mix_signer,
-        trustees,
+    trustees,
         threshold,
         trustee,
     )?;
     let actual = trustee
-        .get_plaintexts(plaintexts_h, *batch, 0)
+        .get_plaintexts(plaintexts_h, *batch, trustees[0] - 1)
         .ok_or(anyhow!("Could not retrieve plaintexts".to_string(),))?;
 
     if expected.0 .0 == actual.0 .0 {
