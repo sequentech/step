@@ -1,4 +1,4 @@
-use num_bigint::ParseBigIntError;
+
 // SPDX-FileCopyrightText: 2022 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -40,12 +40,14 @@ cfg_if::cfg_if! {
     }
 }
 
+
 #[derive(Error, Debug)]
 pub enum StrandError {
     #[error("{0}")]
     Generic(String),
+    #[cfg(feature = "num_bigint")]
     #[error("bigint parse error: {0}")]
-    ParseBigIntError(#[from] ParseBigIntError),
+    ParseBigIntError(#[from] num_bigint::ParseBigIntError),
     #[error("io error: {0}")]
     SerializationError(#[from] std::io::Error),
     #[error("decode error: {0}")]

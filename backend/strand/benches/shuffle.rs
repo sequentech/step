@@ -49,7 +49,7 @@ fn shuffle_malachite(n: usize) {
 }
 
 cfg_if::cfg_if! {
-    if #[cfg(feature = "rug")] {
+    if #[cfg(unix)] {
         use strand::backend::rug::RugCtx;
         use strand::backend::rug::P2048 as RP2048;
         fn shuffle_rug(n: usize) {
@@ -74,7 +74,7 @@ fn bench_shuffle(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("malachite", i), i, |b, i| {
             b.iter(|| shuffle_malachite(*i))
         });
-        #[cfg(feature = "rug")]
+        #[cfg(unix)]
         group.bench_with_input(BenchmarkId::new("rug", i), i, |b, i| {
             b.iter(|| shuffle_rug(*i))
         });

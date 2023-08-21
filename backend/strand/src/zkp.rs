@@ -6,11 +6,11 @@
 //! ```
 //! // This example shows how to construct and verify proofs.
 //! use strand::context::{Ctx, Element};
-//! use strand::backend::num_bigint::{BigintCtx, P2048};
+//! use strand::backend::ristretto::RistrettoCtx;
 //! use strand::elgamal::{PrivateKey, PublicKey};
 //! use strand::zkp::Zkp;
 //!
-//! let ctx: BigintCtx::<P2048> = Default::default();
+//! let ctx = RistrettoCtx;
 //! let zkp = Zkp::new(&ctx);
 //! let exponent = ctx.rnd_exp();
 //! let g = ctx.generator();

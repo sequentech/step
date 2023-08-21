@@ -527,6 +527,12 @@ mod tests {
     }
 
     #[test]
+    fn test_elements_borsh() {
+        let ctx = RistrettoCtx;
+        test_borsh_elements(&ctx);
+    }
+
+    #[test]
     fn test_exponent_borsh() {
         let ctx = RistrettoCtx;
         test_borsh_exponent(&ctx);
