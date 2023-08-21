@@ -7,7 +7,7 @@ extern crate rocket;
 
 use rocket::response::Debug;
 use reqwest;
-use serde::Deserialize;
+use rocket::serde::Deserialize;
 use rocket::serde::json::Json;
 use rocket::serde::json::Value;
 use handlebars::Handlebars;
@@ -16,36 +16,44 @@ use std::time::Duration;
 use tempfile::tempdir;
 use std::io::{self, Write, Read};
 use std::fs::File;
+use either::*;
 
 mod pdf;
 
+#[derive(Deserialize, Debug, PartialEq, Eq)]
+#[serde(crate = "rocket::serde")]
+enum FormatType {
+    TEXT,
+    PDF
+}
+
 #[derive(Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
 struct Body {
     template: String,
     variables: Value, //JSON
-    format: String // html|text|pdf
+    format: FormatType // html|text|pdf
 }
 
 #[post("/render-template", format = "json", data="<body>")]
-async fn render_template(body: Json<Body>) -> Result<Vec<u8>, Debug<reqwest::Error>> {
+async fn render_template(body: Json<Body>) -> Result<Either<String, Vec<u8>>, Debug<reqwest::Error>> {
     let input = body.into_inner();
 
+    // render handlebars template
     let reg = Handlebars::new();
     let render = reg.render_template(input.template.as_str(), &input.variables).unwrap();
 
-    let five_seconds = Duration::new(5, 0);
+    // if output format is text/html, just return that
+    if FormatType::TEXT == input.format {
+        return Ok(Left(render))
+    }
 
-    // Create a file inside of `std::env::temp_dir()`.
+    // Create temp html file
     let dir = tempdir().unwrap();
     let file_path = dir.path().join("index.html");
     let mut file = File::create(file_path.clone()).unwrap();
     let file_path_str = file_path.to_str().unwrap();
-
-    //let mut file = NamedTempFile::new().unwrap();
     file.write_all(render.as_bytes()).unwrap();
-
-    //let file_path = file.path().to_str().expect("Path should be unicode");
-    println!("path: {}", file_path_str);
     let url_path = format!("file://{}", file_path_str);
 
     let bytes = pdf::print_to_pdf(
@@ -68,10 +76,10 @@ async fn render_template(body: Json<Body>) -> Result<Vec<u8>, Debug<reqwest::Err
             prefer_css_page_size: None,
             transfer_mode: None,
         },
-        Some(five_seconds)
+        Some(Duration::new(1, 0))
     ).unwrap();
 
-    Ok(bytes)
+    Ok(Right(bytes))
 }
 
 #[launch]
