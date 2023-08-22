@@ -5,26 +5,33 @@ use s3::creds::Credentials;
 use s3::region::Region;
 use s3::BucketConfiguration;
 use s3::error::S3Error;
-
+use std::env;
 
 pub async fn upload_to_s3(data: &Vec<u8>, media_type: String) -> Result<String, Box<dyn Error>> {
+    let key_id = env::var("MINIO_ROOT_USER").expect(&format!("MINIO_ROOT_USER must be set"));
+    let key_secret = env::var("MINIO_ROOT_PASSWORD").expect(&format!("MINIO_ROOT_PASSWORD must be set"));
+    let minio_uri = env::var("MINIO_URI").expect(&format!("MINIO_URI must be set"));
+    let minio_region = env::var("MINIO_REGION").expect(&format!("MINIO_URI must be set"));
+    let minio_bucket = env::var("MINIO_BUCKET").expect(&format!("MINIO_URI must be set"));
+
 	// 1) Instantiate the bucket client
 	println!("=== Bucket instantiation");
+
+	let region = Region::Custom {
+		region: "".to_owned(),
+		endpoint: minio_uri.to_owned(),
+	};
+	let credentials = Credentials {
+		access_key: Some(key_id.to_owned()),
+		secret_key: Some(key_secret.to_owned()),
+		security_token: None,
+		session_token: None,
+		expiration: None,
+	};
 	let bucket = Bucket::new(
-		"rust-s3",
-		Region::Custom {
-			region: "".to_owned(),
-			endpoint: "http://127.0.0.1:9000".to_owned(),
-		},
-		Credentials {
-			//access_key: Some("LZAw7hwBziRjwAhfP6Xl".to_owned()),
-			//secret_key: Some("4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct".to_owned()),
-			access_key: Some("minio_user".to_owned()),
-			secret_key: Some("minio_pass".to_owned()),
-			security_token: None,
-			session_token: None,
-            expiration: None,
-		}
+		minio_bucket.as_str(),
+		region.clone(),
+		credentials.clone()
 	)?.with_path_style();
 	println!("=== Bucket list");
 
@@ -37,18 +44,9 @@ pub async fn upload_to_s3(data: &Vec<u8>, media_type: String) -> Result<String, 
 	if is404Error {
 		println!("=== Bucket creation");
 		let create_result = Bucket::create_with_path_style(
-            "rust-s3",
-            Region::Custom {
-                region: "".to_owned(),
-                endpoint: "http://127.0.0.1:9000".to_owned(),
-            },
-            Credentials {
-                access_key: Some("minio_user".to_owned()),
-                secret_key: Some("minio_pass".to_owned()),
-                security_token: None,
-                session_token: None,
-                expiration: None,
-            },
+			minio_bucket.as_str(),
+			region,
+			credentials,
 			BucketConfiguration::default(),
 		)
 		.await?;

@@ -17,6 +17,7 @@ use tempfile::tempdir;
 use std::io::Write;
 use std::fs::File;
 use either::*;
+use dotenv::dotenv;
 
 mod pdf;
 mod s3;
@@ -46,7 +47,7 @@ async fn render_template(body: Json<Body>) -> Result<String, Debug<reqwest::Erro
 
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {
-        let  url = s3::upload_to_s3(&render.into_bytes(), "text/plain".into()).await.unwrap();
+        let url = s3::upload_to_s3(&render.into_bytes(), "text/plain".into()).await.unwrap();
         return Ok(url)
     }
 
@@ -81,13 +82,13 @@ async fn render_template(body: Json<Body>) -> Result<String, Debug<reqwest::Erro
         Some(Duration::new(1, 0))
     ).unwrap();
 
-    let  url = s3::upload_to_s3(&bytes, "application/pdf".into()).await.unwrap();
-    println!("url: {url}");
+    let url = s3::upload_to_s3(&bytes, "application/pdf".into()).await.unwrap();
 
     Ok(url)
 }
 
 #[launch]
 fn rocket() -> _ {
+    dotenv().ok();
     rocket::build().mount("/", routes![render_template])
 }
