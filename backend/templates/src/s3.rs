@@ -7,7 +7,7 @@ use s3::BucketConfiguration;
 
 // help from https://gist.github.com/jeremychone/4a6eb58822b65c5c3458fcba2db846c1
 
-pub async fn upload_to_s3() -> Result<(), Box<dyn Error>> {
+pub async fn upload_to_s3() -> Result<String, Box<dyn Error>> {
 	// 1) Instantiate the bucket client
 	println!("=== Bucket instanciation");
 	let bucket = Bucket::new(
@@ -75,5 +75,8 @@ pub async fn upload_to_s3() -> Result<(), Box<dyn Error>> {
 	let data = str::from_utf8(data.as_slice()).expect("Wrong data!!!");
 	println!("data: {}", data);
 
-    Ok(())
+
+	let url = bucket.presign_get(key, 86400, None)
+
+    Ok(url)
 }
