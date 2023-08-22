@@ -9,9 +9,19 @@ actions:
           template: "$body.input \n"
         template_engine: Kriti
         version: 2
+  - name: renderTemplate
+    definition:
+      kind: synchronous
+      handler: http://templates:8400/render-template
+      forward_client_headers: true
+    permissions:
+      - role: admin-user
+    comment: render template
 custom_types:
   enums: []
   input_objects:
     - name: InputParams
-  objects: []
+    - name: TemplateInput
+  objects:
+    - name: TemplateOutput
   scalars: []
