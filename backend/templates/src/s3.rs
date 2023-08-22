@@ -4,17 +4,18 @@ use s3::bucket::Bucket;
 use s3::creds::Credentials;
 use s3::region::Region;
 use s3::BucketConfiguration;
+use s3::error::S3Error;
 
 // help from https://gist.github.com/jeremychone/4a6eb58822b65c5c3458fcba2db846c1
 
 pub async fn upload_to_s3() -> Result<String, Box<dyn Error>> {
 	// 1) Instantiate the bucket client
-	println!("=== Bucket instanciation");
+	println!("=== Bucket instantiation");
 	let bucket = Bucket::new(
 		"rust-s3",
 		Region::Custom {
 			region: "".to_owned(),
-			endpoint: "http://minio:9000".to_owned(),
+			endpoint: "http://127.0.0.1:9000".to_owned(),
 		},
 		Credentials {
 			access_key: Some("LZAw7hwBziRjwAhfP6Xi".to_owned()),
@@ -23,18 +24,22 @@ pub async fn upload_to_s3() -> Result<String, Box<dyn Error>> {
 			session_token: None,
             expiration: None,
 		}
-	)?;
+	)?.with_path_style();
 	println!("=== Bucket list");
 
 	// 2) Create bucket if does not exist
-	let (_, code) = bucket.head_object("/").await?;
-	if code == 404 {
+	let result = bucket.head_object("/").await;
+	let is404Error = match result {
+		Err(S3Error::Http(404, _)) => true,
+		_ => false
+	};
+	if is404Error {
 		println!("=== Bucket creation");
 		let create_result = Bucket::create_with_path_style(
             "rust-s3",
             Region::Custom {
                 region: "".to_owned(),
-                endpoint: "http://minio:9000".to_owned(),
+                endpoint: "http://127.0.0.1:9000".to_owned(),
             },
             Credentials {
                 access_key: Some("minio_user".to_owned()),
@@ -54,7 +59,7 @@ pub async fn upload_to_s3() -> Result<String, Box<dyn Error>> {
 	}
 
 	// 3) Create object (text/plain)
-	let key = "test_file_2";
+	let key = "test_file_3";
 	println!("=== Put content");
 	bucket
 		.put_object_with_content_type(key, "NEW !!! Stuff!!!".as_bytes(), "text/plain")
@@ -75,8 +80,7 @@ pub async fn upload_to_s3() -> Result<String, Box<dyn Error>> {
 	let data = str::from_utf8(data.as_slice()).expect("Wrong data!!!");
 	println!("data: {}", data);
 
-
-	let url = bucket.presign_get(key, 86400, None)
+	let url = bucket.presign_get(key, 86400, None)?;
 
     Ok(url)
 }
