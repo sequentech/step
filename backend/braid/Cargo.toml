@@ -15,21 +15,20 @@ license = "AGPL-3.0-only"
 [dependencies]
 rand = "0.8"
 getrandom = { version = "0.2", features = ["js"] }
+strand = { path="../strand", features=["rayon"] }
 
 borsh = "0.9.3"
 crepe = "0.1.5"
 immu-board = { path="../immu-board" }
 immudb-rs = { path="../immudb-rs" }
 strum = { version = "0.24.1", features = ["derive"] }
-strand = { path="../strand", features=["rayon"] }
 rayon = { version = "1.5" }
 anyhow = "1.0"
 
-# bulletin-board
-bulletin-board = { path="../bulletin-board", optional = true }
-clap = { version = "4.0", features = ["derive"], optional = true }
-tokio = { version = "1.0", optional = true }
-uuid = { version = "1.2", features = ["v4"], optional = true }
+# daemon
+clap = { version = "4.0", features = ["derive"] }
+tokio = { version = "1.0" }
+uuid = { version = "1.2", features = ["v4"] }
 tonic = { version = "0.9.2", optional = true }
 
 # logging 
@@ -55,9 +54,9 @@ wasm-bindgen-rayon = {version = "1.0.3", features = ["no-bundler"], optional = t
 wasm-bindgen = {version = "=0.2.79", optional = true}
 tracing-wasm = {version="0.2.1", optional = true}
 
-# repl
-reedline-repl-rs = { version = "1.0.2", optional = true }
-ascii_table = { version = "4.0.2", optional = true }
+# dbg
+reedline-repl-rs = { version = "1.0.7" }
+ascii_table = { version = "4.0.2" }
 async-trait = "0.1.73"
 
 [dev-dependencies]
@@ -67,7 +66,4 @@ criterion = {version = "0.4", features=["html_reports"]}
 crate-type = ["cdylib", "rlib"]
 
 [features]
-repl = ["dep:reedline-repl-rs", "dep:ascii_table"]
 wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-rayon", "dep:tracing-wasm", "instant/wasm-bindgen"]
-rug = ["strand/rug"]
-bb-test = ["dep:bulletin-board", "dep:tokio", "dep:clap", "dep:uuid", "dep:tonic"]

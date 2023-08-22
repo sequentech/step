@@ -172,8 +172,6 @@ impl<C: Ctx> LocalBoard<C> {
                     hex::encode(artifact_hash)[0..10].to_string()
                 );
 
-                // self.insert_artifact(&artifact_identifier, &artifact);
-
                 let artifact_entry = self.artifacts.get(&artifact_identifier);
 
                 if let Some((existing_hash, _)) = artifact_entry {
@@ -456,7 +454,7 @@ impl<C: Ctx> LocalBoard<C> {
         statement: &Statement,
         signer_position: usize,
     ) -> StatementEntryIdentifier {
-        let (kind, _, batch, mix_signature_number, _) = statement.get_data();
+        let (kind, _, batch, mix_signature_number, _, _) = statement.get_data();
 
         StatementEntryIdentifier {
             kind,

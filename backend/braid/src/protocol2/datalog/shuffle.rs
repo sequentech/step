@@ -50,6 +50,7 @@ crepe! {
     ConfigurationSignedAll(cfg_h, self_p, _num_t, _threshold),
     PublicKeySignedAll(cfg_h, pk_h, _shares_h),
     // Detects that we (self_p) are the trustee assigned to perform the next mix
+    // See also Message::ballots_msg()
     Ballots(cfg_h, batch, source_h, pk_h, self_p, trustees),
     !Mix(cfg_h, batch, source_h, _, 1, self_p, _);
 

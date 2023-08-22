@@ -128,8 +128,9 @@ fn run_protocol_test<C: Ctx>(
             t.step();
         });
 
+        let decryptor = selected_trustees[0] - 1;
         let plaintexts: Vec<Plaintexts<C>> = (0..batches)
-            .filter_map(|b| sessions[0].get_plaintexts_nohash(b + 1))
+            .filter_map(|b| sessions[decryptor].get_plaintexts_nohash(b + 1, decryptor))
             .collect();
 
         if plaintexts.len() == batches {

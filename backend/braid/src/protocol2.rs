@@ -36,7 +36,6 @@ pub mod board;
 pub mod datalog;
 pub mod message;
 pub mod predicate;
-#[cfg(feature = "bb-test")]
 pub mod session;
 pub mod statement;
 pub mod trustee;
