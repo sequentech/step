@@ -14,11 +14,12 @@ use handlebars::Handlebars;
 use headless_chrome::types::PrintToPdfOptions;
 use std::time::Duration;
 use tempfile::tempdir;
-use std::io::{self, Write, Read};
+use std::io::Write;
 use std::fs::File;
 use either::*;
 
 mod pdf;
+mod s3;
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 #[serde(crate = "rocket::serde")]
@@ -38,6 +39,8 @@ struct Body {
 #[post("/render-template", format = "json", data="<body>")]
 async fn render_template(body: Json<Body>) -> Result<Either<String, Vec<u8>>, Debug<reqwest::Error>> {
     let input = body.into_inner();
+
+    s3::upload_to_s3().await.unwrap();
 
     // render handlebars template
     let reg = Handlebars::new();
