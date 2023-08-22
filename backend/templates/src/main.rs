@@ -37,10 +37,8 @@ struct Body {
 }
 
 #[post("/render-template", format = "json", data="<body>")]
-async fn render_template(body: Json<Body>) -> Result<Either<String, Vec<u8>>, Debug<reqwest::Error>> {
+async fn render_template(body: Json<Body>) -> Result<String, Debug<reqwest::Error>> {
     let input = body.into_inner();
-
-    s3::upload_to_s3().await.unwrap();
 
     // render handlebars template
     let reg = Handlebars::new();
@@ -48,7 +46,8 @@ async fn render_template(body: Json<Body>) -> Result<Either<String, Vec<u8>>, De
 
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {
-        return Ok(Left(render))
+        let  url = s3::upload_to_s3(&render.into_bytes(), "text/plain".into()).await.unwrap();
+        return Ok(url)
     }
 
     // Create temp html file
@@ -82,7 +81,10 @@ async fn render_template(body: Json<Body>) -> Result<Either<String, Vec<u8>>, De
         Some(Duration::new(1, 0))
     ).unwrap();
 
-    Ok(Right(bytes))
+    let  url = s3::upload_to_s3(&bytes, "application/pdf".into()).await.unwrap();
+    println!("url: {url}");
+
+    Ok(url)
 }
 
 #[launch]

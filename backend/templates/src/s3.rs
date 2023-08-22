@@ -6,9 +6,8 @@ use s3::region::Region;
 use s3::BucketConfiguration;
 use s3::error::S3Error;
 
-// help from https://gist.github.com/jeremychone/4a6eb58822b65c5c3458fcba2db846c1
 
-pub async fn upload_to_s3() -> Result<String, Box<dyn Error>> {
+pub async fn upload_to_s3(data: &Vec<u8>, media_type: String) -> Result<String, Box<dyn Error>> {
 	// 1) Instantiate the bucket client
 	println!("=== Bucket instantiation");
 	let bucket = Bucket::new(
@@ -18,8 +17,77 @@ pub async fn upload_to_s3() -> Result<String, Box<dyn Error>> {
 			endpoint: "http://127.0.0.1:9000".to_owned(),
 		},
 		Credentials {
-			access_key: Some("LZAw7hwBziRjwAhfP6Xi".to_owned()),
-			secret_key: Some("4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct".to_owned()),
+			//access_key: Some("LZAw7hwBziRjwAhfP6Xl".to_owned()),
+			//secret_key: Some("4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct".to_owned()),
+			access_key: Some("minio_user".to_owned()),
+			secret_key: Some("minio_pass".to_owned()),
+			security_token: None,
+			session_token: None,
+            expiration: None,
+		}
+	)?.with_path_style();
+	println!("=== Bucket list");
+
+	// 2) Create bucket if does not exist
+	let result = bucket.head_object("/").await;
+	let is404Error = match result {
+		Err(S3Error::Http(404, _)) => true,
+		_ => false
+	};
+	if is404Error {
+		println!("=== Bucket creation");
+		let create_result = Bucket::create_with_path_style(
+            "rust-s3",
+            Region::Custom {
+                region: "".to_owned(),
+                endpoint: "http://127.0.0.1:9000".to_owned(),
+            },
+            Credentials {
+                access_key: Some("minio_user".to_owned()),
+                secret_key: Some("minio_pass".to_owned()),
+                security_token: None,
+                session_token: None,
+                expiration: None,
+            },
+			BucketConfiguration::default(),
+		)
+		.await?;
+
+		println!(
+			"=== Bucket created\n{} - {} - {}",
+			bucket.name, create_result.response_code, create_result.response_text
+		);
+	}
+
+	// 3) Create object (binary)
+	let key = "test_file_3";
+	println!("=== Put content");
+	bucket
+		.put_object_with_content_type(key, data, media_type.as_str())
+		.await?;
+
+	// 5) Get signed url to file
+	let url = bucket.presign_get(key, 86400, None)?;
+
+	Ok(url)
+}
+
+// based on https://gist.github.com/jeremychone/4a6eb58822b65c5c3458fcba2db846c1
+
+pub async fn upload_to_s30() -> Result<String, Box<dyn Error>> {
+	// 1) Instantiate the bucket client
+	println!("=== Bucket instantiation");
+	let bucket = Bucket::new(
+		"rust-s3",
+		Region::Custom {
+			region: "".to_owned(),
+			endpoint: "http://127.0.0.1:9000".to_owned(),
+		},
+		Credentials {
+			//access_key: Some("LZAw7hwBziRjwAhfP6Xl".to_owned()),
+			//secret_key: Some("4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct".to_owned()),
+			access_key: Some("minio_user".to_owned()),
+			secret_key: Some("minio_pass".to_owned()),
 			security_token: None,
 			session_token: None,
             expiration: None,
