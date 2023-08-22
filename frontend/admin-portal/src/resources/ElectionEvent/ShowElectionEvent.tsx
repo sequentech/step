@@ -24,6 +24,7 @@ import {
 } from "../../gql/graphql"
 import {GET_CAST_VOTES} from "../../queries/GetCastVotes"
 import {GET_ELECTION_EVENT_STATS} from "../../queries/GetElectionEventStats"
+import { TemplatesDialog } from "../../components/TemplatesDialog"
 
 const CardList = styled(Box)`
     display: flex;
@@ -249,6 +250,7 @@ export const ShowElectionEvent: React.FC = () => {
                     <BarChart />
                     <PieChart />
                 </ChartsContainer>
+                <TemplatesDialog />
             </Box>
         </Show>
     )

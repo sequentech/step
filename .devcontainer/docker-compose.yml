@@ -158,8 +158,22 @@ services:
     ports:
       - 8400:8400 # templates service
 
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_storage:/data
+    environment:
+      MINIO_ROOT_USER: minio_user
+      MINIO_ROOT_PASSWORD: minio_pass
+    command: server --console-address ":9001" /data
+    restart: always
+
 volumes:
   db_data:
   keycloak_db_data:
   immudb_data:
   immudb_logs:
+  minio_storage:

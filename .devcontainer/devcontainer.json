@@ -6,7 +6,7 @@
 	"name": "backend-services",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "devcontainer",
-	"forwardPorts": [8090, 8080, 8000, 8400, 3000, 3322, 3323, 3324, 3325],
+	"forwardPorts": [9001, 9000, 8090, 8080, 8000, 8400, 3000, 3322, 3323, 3324, 3325],
 	"workspaceFolder": "/workspace",
 
 	"userEnvProbe": "loginShell",
