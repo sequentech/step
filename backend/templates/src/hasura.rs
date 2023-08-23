@@ -24,7 +24,7 @@ pub async fn perform_my_query(
 
     let client = reqwest::Client::new();
     let res = client
-        .post("http://127.0.0.1:8080/v1/graphql")
+        .post("http://hasura:8080/v1/graphql")
         .header("X-Hasura-Admin-Secret", "admin")
         .json(&request_body)
         .send()
