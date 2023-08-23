@@ -1,0 +1,3 @@
+table:
+  name: scheduled_event
+  schema: sequent_backend

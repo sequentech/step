@@ -6,7 +6,9 @@ type Query {
 
 type Mutation {
   renderTemplate(
-    arg1: TemplateInput!
+    template: String!
+    tenant_id: String
+    format: String!
   ): TemplateOutput
 }
 

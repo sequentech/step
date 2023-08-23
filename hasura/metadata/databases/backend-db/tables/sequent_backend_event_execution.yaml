@@ -1,0 +1,3 @@
+table:
+  name: event_execution
+  schema: sequent_backend
