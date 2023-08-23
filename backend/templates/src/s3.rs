@@ -21,15 +21,15 @@ pub async fn upload_to_s3(
     let minio_uri =
         env::var("MINIO_URI").expect(&format!("MINIO_URI must be set"));
     let minio_region =
-        env::var("MINIO_REGION").expect(&format!("MINIO_URI must be set"));
+        env::var("MINIO_REGION").expect(&format!("MINIO_REGION must be set"));
     let minio_bucket =
-        env::var("MINIO_BUCKET").expect(&format!("MINIO_URI must be set"));
+        env::var("MINIO_BUCKET").expect(&format!("MINIO_BUCKET must be set"));
 
     // 1) Instantiate the bucket client
     println!("=== Bucket instantiation");
 
     let region = Region::Custom {
-        region: "".to_owned(),
+        region: minio_region.to_owned(),
         endpoint: minio_uri.to_owned(),
     };
     let credentials = Credentials {

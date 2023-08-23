@@ -3,6 +3,7 @@ use reqwest;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use serde::Deserialize;
+use std::env;
 
 type uuid = String;
 
@@ -20,12 +21,16 @@ pub struct GetTenant;
 pub async fn perform_my_query(
     variables: get_tenant::Variables,
 ) -> Result<Response<get_tenant::ResponseData>, reqwest::Error> {
+    let hasura_endpoint = env::var("HASURA_ENDPOINT")
+        .expect(&format!("HASURA_ENDPOINT must be set"));
+    let hasura_admin_secret = env::var("HASURA_ADMIN_SECRET")
+        .expect(&format!("HASURA_ADMIN_SECRET must be set"));
     let request_body = GetTenant::build_query(variables);
 
     let client = reqwest::Client::new();
     let res = client
-        .post("http://hasura:8080/v1/graphql")
-        .header("X-Hasura-Admin-Secret", "admin")
+        .post(hasura_endpoint)
+        .header("X-Hasura-Admin-Secret", hasura_admin_secret)
         .json(&request_body)
         .send()
         .await?;
