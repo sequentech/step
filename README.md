@@ -183,6 +183,15 @@ And run the hasura console with something like:
 
     /usr/bin/hasura-cli console --endpoint "http://127.0.0.1:8080" --admin-secret "admin" --address 0.0.0.0 --console-hge-endpoint http://127.0.0.1:8080
 
+## templates
+### Update graphql JSON schema
+
+The file `backend/templates/src/graphql/schema.json` contains the GraphQL/Hasura schema. If the schema changes you might need to update this file. In order to do so, [follow this guide](https://hasura.io/docs/latest/schema/common-patterns/export-graphql-schema/
+) to export the json schema from Hasura, specifically you'll need to run something like:
+
+    npm install -g graphqurl
+    gq http://127.0.0.1:8080/v1/graphql -H "X-Hasura-Admin-Secret: admin" --introspect  --format json > schema.json
+
 ## Common issues
 
 ### Yarn build unexpectedly returns `exit code 143`
