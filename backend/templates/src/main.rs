@@ -37,13 +37,20 @@ enum FormatType {
 struct Body {
     template: String,
     tenant_id: String,
+    election_event_id: String,
+    name: String,
     format: FormatType,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 struct RenderTemplateResponse {
-    url: String,
+    id: String,
+    election_event_id: Option<String>,
+    tenant_id: Option<String>,
+    name: Option<String>,
+    size: Option<Int>,
+    media_type: Option<String>
 }
 
 #[post("/render-template", format = "json", data = "<body>")]
@@ -55,7 +62,7 @@ async fn render_template(
 
     println!("auth headers: {:#?}", auth_headers);
     let hasura_response =
-        hasura::run_query(auth_headers, input.tenant_id)
+        hasura::get_tenant(auth_headers, input.tenant_id)
             .await?;
     let username = hasura_response
         .data
@@ -111,11 +118,39 @@ async fn render_template(
     )
     .unwrap();
 
-    let url = s3::upload_to_s3(&bytes, "application/pdf".into())
+    let size = bytes.len();
+    let media_type = "application/pdf".to_string();
+
+    let new_document = hasura::insert_document(
+        auth_headers,
+        input.tenant_id,
+        input.election_event_id,
+        input.name,
+        media_type,
+        size
+    ).await?;
+
+    let document = new_document
+        .data
+        .expect("expected data".into())
+        .sequent_backend_document[0].clone();
+
+    let document_id = document.id.clone();
+    
+    let document_s3_key = s3::get_document_key(input.tenant_id, input.election_event_id, document_id);
+
+    s3::upload_to_s3(&bytes, document_s3_key, "application/pdf".into())
         .await
         .unwrap();
 
-    Ok(Json(RenderTemplateResponse { url: url }))
+    Ok(Json(RenderTemplateResponse {
+        id: document.id,
+        election_event_id: document.election_event_id,
+        tenant_id: document.tenant_id,
+        name: document.name,
+        size: document.size,
+        media_type: document.media_type
+    }))
 }
 
 #[launch]

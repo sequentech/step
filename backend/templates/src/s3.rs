@@ -12,8 +12,9 @@ use std::env;
 
 pub async fn upload_to_s3(
     data: &Vec<u8>,
+    key: String,
     media_type: String,
-) -> Result<String, Box<dyn Error>> {
+) -> Result<(), Box<dyn Error>> {
     let key_id = env::var("MINIO_ROOT_USER")
         .expect(&format!("MINIO_ROOT_USER must be set"));
     let key_secret = env::var("MINIO_ROOT_PASSWORD")
@@ -74,13 +75,41 @@ pub async fn upload_to_s3(
     }
 
     // 3) Create object (binary)
-    let key = "test_file_3";
     println!("=== Put content");
     bucket
         .put_object_with_content_type(key, data, media_type.as_str())
         .await?;
 
-    // 5) Get signed url to file
+    Ok(())
+}
+
+pub fn get_document_key(tenant_id: String, election_event_id: String, document_id: String) -> String {
+    format("{}/{}/{}", tenant_id, election_event_id, document_id)
+}
+
+pub async fn get_document_url(
+    key: String
+)-> Result<String, Box<dyn Error>> {
+    let key_id = env::var("MINIO_ROOT_USER")
+        .expect(&format!("MINIO_ROOT_USER must be set"));
+    let key_secret = env::var("MINIO_ROOT_PASSWORD")
+        .expect(&format!("MINIO_ROOT_PASSWORD must be set"));
+    let minio_private_uri = env::var("MINIO_PRIVATE_URI")
+        .expect(&format!("MINIO_PRIVATE_URI must be set"));
+    let minio_public_uri = env::var("MINIO_PUBLIC_URI")
+        .expect(&format!("MINIO_PUBLIC_URI must be set"));
+    let minio_region =
+        env::var("MINIO_REGION").expect(&format!("MINIO_REGION must be set"));
+    let minio_bucket =
+        env::var("MINIO_BUCKET").expect(&format!("MINIO_BUCKET must be set"));
+
+    let credentials = Credentials {
+        access_key: Some(key_id.to_owned()),
+        secret_key: Some(key_secret.to_owned()),
+        security_token: None,
+        session_token: None,
+        expiration: None,
+    };
     let public_region = Region::Custom {
         region: minio_region.to_owned(),
         endpoint: minio_public_uri.to_owned(),

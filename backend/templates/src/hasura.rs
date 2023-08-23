@@ -14,12 +14,20 @@ type uuid = String;
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/query.graphql",
+    query_path = "src/graphql/get_tenant.graphql",
     response_derives = "Debug"
 )]
 pub struct GetTenant;
 
-pub async fn perform_my_query(
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/insert_document.graphql",
+    response_derives = "Debug"
+)]
+pub struct InsertDocument;
+
+pub async fn perform_get_tenant(
     auth_headers: connection::AuthHeaders,
     variables: get_tenant::Variables,
 ) -> Result<Response<get_tenant::ResponseData>, reqwest::Error> {
@@ -35,16 +43,53 @@ pub async fn perform_my_query(
         .send()
         .await?;
     let response_body: Response<get_tenant::ResponseData> = res.json().await?;
-    println!("{:#?}", response_body);
     Ok(response_body)
 }
 
-pub async fn run_query(
+pub async fn get_tenant(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
 ) -> Result<Response<get_tenant::ResponseData>, reqwest::Error> {
     let variables = get_tenant::Variables {
         tenant_id: Some(tenant_id),
     };
-    perform_my_query(auth_headers, variables).await
+    perform_get_tenant(auth_headers, variables).await
+}
+
+
+pub async fn perform_insert_document(
+    auth_headers: connection::AuthHeaders,
+    variables: insert_document::Variables,
+) -> Result<Response<insert_document::ResponseData>, reqwest::Error> {
+    let hasura_endpoint = env::var("HASURA_ENDPOINT")
+        .expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = InsertDocument::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<insert_document::ResponseData> = res.json().await?;
+    Ok(response_body)
+}
+
+pub async fn insert_document(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    name: String,
+    media_type: String,
+    size: Int,
+) -> Result<Response<get_tenant::ResponseData>, reqwest::Error> {
+    let variables = insert_document::Variables {
+        tenant_id: Some(tenant_id),
+        election_event_id: Some(election_event_id),
+        name: Some(name),
+        media_type: Some(media_type),
+        size: Some(size),
+    };
+    perform_get_tenant(auth_headers, variables).await
 }
