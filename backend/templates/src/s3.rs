@@ -18,10 +18,10 @@ pub async fn upload_to_s3(
         .expect(&format!("MINIO_ROOT_USER must be set"));
     let key_secret = env::var("MINIO_ROOT_PASSWORD")
         .expect(&format!("MINIO_ROOT_PASSWORD must be set"));
-    let minio_private_uri =
-        env::var("MINIO_PRIVATE_URI").expect(&format!("MINIO_PRIVATE_URI must be set"));
-    let minio_public_uri =
-        env::var("MINIO_PUBLIC_URI").expect(&format!("MINIO_PUBLIC_URI must be set"));
+    let minio_private_uri = env::var("MINIO_PRIVATE_URI")
+        .expect(&format!("MINIO_PRIVATE_URI must be set"));
+    let minio_public_uri = env::var("MINIO_PUBLIC_URI")
+        .expect(&format!("MINIO_PUBLIC_URI must be set"));
     let minio_region =
         env::var("MINIO_REGION").expect(&format!("MINIO_REGION must be set"));
     let minio_bucket =
@@ -85,12 +85,9 @@ pub async fn upload_to_s3(
         region: minio_region.to_owned(),
         endpoint: minio_public_uri.to_owned(),
     };
-    let public_bucket = Bucket::new(
-        minio_bucket.as_str(),
-        public_region,
-        credentials.clone(),
-    )?
-    .with_path_style();
+    let public_bucket =
+        Bucket::new(minio_bucket.as_str(), public_region, credentials.clone())?
+            .with_path_style();
     let url = public_bucket.presign_get(key, 86400, None)?;
 
     Ok(url)
