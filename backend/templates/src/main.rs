@@ -5,20 +5,21 @@
 #[macro_use]
 extern crate rocket;
 
-use rocket::response::Debug;
-use reqwest;
-use rocket::serde::Deserialize;
-use rocket::serde::json::Json;
-use rocket::serde::json::Value;
+use dotenv::dotenv;
+use either::*;
 use handlebars::Handlebars;
 use headless_chrome::types::PrintToPdfOptions;
+use reqwest;
+use rocket::response::Debug;
+use rocket::serde::json::Json;
+use rocket::serde::json::Value;
+use rocket::serde::Deserialize;
+use std::fs::File;
+use std::io::Write;
 use std::time::Duration;
 use tempfile::tempdir;
-use std::io::Write;
-use std::fs::File;
-use either::*;
-use dotenv::dotenv;
 
+mod hasura;
 mod pdf;
 mod s3;
 
@@ -26,29 +27,35 @@ mod s3;
 #[serde(crate = "rocket::serde")]
 enum FormatType {
     TEXT,
-    PDF
+    PDF,
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 struct Body {
     template: String,
-    variables: Value, //JSON
-    format: FormatType // html|text|pdf
+    variables: Value,   //JSON
+    format: FormatType, // html|text|pdf
 }
 
-#[post("/render-template", format = "json", data="<body>")]
-async fn render_template(body: Json<Body>) -> Result<String, Debug<reqwest::Error>> {
+#[post("/render-template", format = "json", data = "<body>")]
+async fn render_template(
+    body: Json<Body>,
+) -> Result<String, Debug<reqwest::Error>> {
     let input = body.into_inner();
 
     // render handlebars template
     let reg = Handlebars::new();
-    let render = reg.render_template(input.template.as_str(), &input.variables).unwrap();
+    let render = reg
+        .render_template(input.template.as_str(), &input.variables)
+        .unwrap();
 
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {
-        let url = s3::upload_to_s3(&render.into_bytes(), "text/plain".into()).await.unwrap();
-        return Ok(url)
+        let url = s3::upload_to_s3(&render.into_bytes(), "text/plain".into())
+            .await
+            .unwrap();
+        return Ok(url);
     }
 
     // Create temp html file
@@ -79,10 +86,13 @@ async fn render_template(body: Json<Body>) -> Result<String, Debug<reqwest::Erro
             prefer_css_page_size: None,
             transfer_mode: None,
         },
-        Some(Duration::new(1, 0))
-    ).unwrap();
+        Some(Duration::new(1, 0)),
+    )
+    .unwrap();
 
-    let url = s3::upload_to_s3(&bytes, "application/pdf".into()).await.unwrap();
+    let url = s3::upload_to_s3(&bytes, "application/pdf".into())
+        .await
+        .unwrap();
 
     Ok(url)
 }

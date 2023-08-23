@@ -1,8 +1,11 @@
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
 use headless_chrome::types::PrintToPdfOptions;
 use headless_chrome::{Browser, LaunchOptionsBuilder};
-use std::time::Duration;
 use std::thread::sleep;
+use std::time::Duration;
 
 pub fn print_to_pdf(
     file_path: &str,
