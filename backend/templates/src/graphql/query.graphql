@@ -1,7 +1,7 @@
 query GetTenant($tenantId: uuid) {
   sequent_backend_tenant(
       where: {
-          tenant_id: {_eq: $tenantId}
+          id: {_eq: $tenantId}
       }
   ) {
     username

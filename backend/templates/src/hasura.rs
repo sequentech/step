@@ -1,5 +1,10 @@
+use rocket::response::Debug;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
+use serde::Deserialize;
+use rocket::serde::json::Json;
+
+type uuid = String;
 
 // The paths are relative to the directory where your `Cargo.toml` is located.
 // Both json and the GraphQL schema language are supported as sources for the
@@ -14,17 +19,25 @@ pub struct GetTenant;
 
 pub async fn perform_my_query(
     variables: get_tenant::Variables,
-) -> Result<(), reqwest::Error> {
-    let request_body = Query::build_query(variables);
+) -> Result<Response<get_tenant::ResponseData>, reqwest::Error> {
+    let request_body = GetTenant::build_query(variables);
 
     let client = reqwest::Client::new();
-    let mut res = client
+    let res = client
         .post("http://127.0.0.1:8080/v1/graphql")
-        .header("X-My-Custom-Header", "foo")
+        .header("X-Hasura-Admin-Secret", "admin")
         .json(&request_body)
         .send()
         .await?;
-    let response_body: Response<query::ResponseData> = res.json().await?;
+    let response_body: Response<get_tenant::ResponseData> = res.json().await?;
     println!("{:#?}", response_body);
-    Ok(())
+    Ok(response_body)
+}
+
+
+pub async fn run_query(tenant_id: String) -> Result<Response<get_tenant::ResponseData>, reqwest::Error> {
+    let variables = get_tenant::Variables {
+        tenant_id: Some(tenant_id)
+    };
+    perform_my_query(variables).await
 }

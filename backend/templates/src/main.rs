@@ -18,6 +18,7 @@ use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
 use tempfile::tempdir;
+use serde_json::json;
 
 mod hasura;
 mod pdf;
@@ -34,7 +35,6 @@ enum FormatType {
 #[serde(crate = "rocket::serde")]
 struct Body {
     template: String,
-    variables: Value,   //JSON
     format: FormatType, // html|text|pdf
 }
 
@@ -44,10 +44,14 @@ async fn render_template(
 ) -> Result<String, Debug<reqwest::Error>> {
     let input = body.into_inner();
 
+    let hasura_response = hasura::run_query("90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into()).await?;
+    let username = hasura_response.data.expect("expected data".into()).sequent_backend_tenant[0].username.clone();
+    let variables = json!({ "username": username });
+
     // render handlebars template
     let reg = Handlebars::new();
     let render = reg
-        .render_template(input.template.as_str(), &input.variables)
+        .render_template(input.template.as_str(), &variables)
         .unwrap();
 
     // if output format is text/html, just return that
