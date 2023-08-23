@@ -13,12 +13,12 @@ use reqwest;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use rocket::serde::json::Value;
-use rocket::serde::Deserialize;
+use rocket::serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
 use tempfile::tempdir;
-use serde_json::json;
 
 mod hasura;
 mod pdf;
@@ -35,17 +35,30 @@ enum FormatType {
 #[serde(crate = "rocket::serde")]
 struct Body {
     template: String,
-    format: FormatType, // html|text|pdf
+    format: FormatType,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+struct RenderTemplateResponse {
+    url: String,
 }
 
 #[post("/render-template", format = "json", data = "<body>")]
 async fn render_template(
     body: Json<Body>,
-) -> Result<String, Debug<reqwest::Error>> {
+) -> Result<Json<RenderTemplateResponse>, Debug<reqwest::Error>> {
     let input = body.into_inner();
 
-    let hasura_response = hasura::run_query("90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into()).await?;
-    let username = hasura_response.data.expect("expected data".into()).sequent_backend_tenant[0].username.clone();
+    let hasura_response =
+        hasura::run_query("90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into())
+            .await?;
+    let username = hasura_response
+        .data
+        .expect("expected data".into())
+        .sequent_backend_tenant[0]
+        .username
+        .clone();
     let variables = json!({ "username": username });
 
     // render handlebars template
@@ -59,7 +72,7 @@ async fn render_template(
         let url = s3::upload_to_s3(&render.into_bytes(), "text/plain".into())
             .await
             .unwrap();
-        return Ok(url);
+        return Ok(Json(RenderTemplateResponse { url: url }));
     }
 
     // Create temp html file
@@ -98,7 +111,7 @@ async fn render_template(
         .await
         .unwrap();
 
-    Ok(url)
+    Ok(Json(RenderTemplateResponse { url: url }))
 }
 
 #[launch]

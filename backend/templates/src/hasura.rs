@@ -1,8 +1,8 @@
-use rocket::response::Debug;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
-use serde::Deserialize;
+use rocket::response::Debug;
 use rocket::serde::json::Json;
+use serde::Deserialize;
 
 type uuid = String;
 
@@ -34,10 +34,11 @@ pub async fn perform_my_query(
     Ok(response_body)
 }
 
-
-pub async fn run_query(tenant_id: String) -> Result<Response<get_tenant::ResponseData>, reqwest::Error> {
+pub async fn run_query(
+    tenant_id: String,
+) -> Result<Response<get_tenant::ResponseData>, reqwest::Error> {
     let variables = get_tenant::Variables {
-        tenant_id: Some(tenant_id)
+        tenant_id: Some(tenant_id),
     };
     perform_my_query(variables).await
 }
