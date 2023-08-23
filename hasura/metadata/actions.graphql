@@ -16,7 +16,7 @@ input InputParams {
 
 input TemplateInput {
   template: String!
-  type: String!
+  format: String!
 }
 
 type TemplateOutput {
