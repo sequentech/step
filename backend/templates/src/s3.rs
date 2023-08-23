@@ -18,8 +18,10 @@ pub async fn upload_to_s3(
         .expect(&format!("MINIO_ROOT_USER must be set"));
     let key_secret = env::var("MINIO_ROOT_PASSWORD")
         .expect(&format!("MINIO_ROOT_PASSWORD must be set"));
-    let minio_uri =
-        env::var("MINIO_URI").expect(&format!("MINIO_URI must be set"));
+    let minio_private_uri =
+        env::var("MINIO_PRIVATE_URI").expect(&format!("MINIO_PRIVATE_URI must be set"));
+    let minio_public_uri =
+        env::var("MINIO_PUBLIC_URI").expect(&format!("MINIO_PUBLIC_URI must be set"));
     let minio_region =
         env::var("MINIO_REGION").expect(&format!("MINIO_REGION must be set"));
     let minio_bucket =
@@ -28,9 +30,9 @@ pub async fn upload_to_s3(
     // 1) Instantiate the bucket client
     println!("=== Bucket instantiation");
 
-    let region = Region::Custom {
+    let private_region = Region::Custom {
         region: minio_region.to_owned(),
-        endpoint: minio_uri.to_owned(),
+        endpoint: minio_private_uri.to_owned(),
     };
     let credentials = Credentials {
         access_key: Some(key_id.to_owned()),
@@ -41,7 +43,7 @@ pub async fn upload_to_s3(
     };
     let bucket = Bucket::new(
         minio_bucket.as_str(),
-        region.clone(),
+        private_region.clone(),
         credentials.clone(),
     )?
     .with_path_style();
@@ -57,8 +59,8 @@ pub async fn upload_to_s3(
         println!("=== Bucket creation");
         let create_result = Bucket::create_with_path_style(
             minio_bucket.as_str(),
-            region,
-            credentials,
+            private_region,
+            credentials.clone(),
             BucketConfiguration::default(),
         )
         .await?;
@@ -79,7 +81,17 @@ pub async fn upload_to_s3(
         .await?;
 
     // 5) Get signed url to file
-    let url = bucket.presign_get(key, 86400, None)?;
+    let public_region = Region::Custom {
+        region: minio_region.to_owned(),
+        endpoint: minio_public_uri.to_owned(),
+    };
+    let public_bucket = Bucket::new(
+        minio_bucket.as_str(),
+        public_region,
+        credentials.clone(),
+    )?
+    .with_path_style();
+    let url = public_bucket.presign_get(key, 86400, None)?;
 
     Ok(url)
 }
