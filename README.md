@@ -225,3 +225,10 @@ and that inspecting it further, the Hasura/Graphql POST gives an error similar t
 to the wrong instance of Hasura. Possibly, you're running VS Code with Codespaces
 and a local Hasura client as well, so the container port is being forwarded to
 a different port than 8080.
+
+### The disk/codespace runs out of space
+
+Clean the disk with:
+
+    docker system prune --all
+    nix-collect-garbage

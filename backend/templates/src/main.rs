@@ -36,6 +36,7 @@ enum FormatType {
 #[serde(crate = "rocket::serde")]
 struct Body {
     template: String,
+    tenant_id: String,
     format: FormatType,
 }
 
@@ -54,7 +55,7 @@ async fn render_template(
 
     println!("auth headers: {:#?}", auth_headers);
     let hasura_response =
-        hasura::run_query("90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into())
+        hasura::run_query(auth_headers, input.tenant_id)
             .await?;
     let username = hasura_response
         .data
