@@ -34,7 +34,7 @@ enum FormatType {
 
 #[derive(Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
-struct Body {
+struct RenderTemplateBody {
     template: String,
     tenant_id: String,
     election_event_id: String,
@@ -55,7 +55,7 @@ struct RenderTemplateResponse {
 
 #[post("/render-template", format = "json", data = "<body>")]
 async fn render_template(
-    body: Json<Body>,
+    body: Json<RenderTemplateBody>,
     auth_headers: connection::AuthHeaders,
 ) -> Result<Json<RenderTemplateResponse>, Debug<reqwest::Error>> {
     let input = body.into_inner();
@@ -174,8 +174,39 @@ async fn upload_and_return_document(
     }))
 }
 
+
+
+#[derive(Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+struct GetDocumentUrlBody {
+    template: String,
+    tenant_id: String,
+    election_event_id: String,
+    document_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+struct GetDocumentUrlResponse {
+    url: String,
+}
+
+#[post("/get-document", format = "json", data = "<body>")]
+async fn get_document(
+    body: Json<GetDocumentUrlBody>,
+    auth_headers: connection::AuthHeaders,
+) -> Result<Json<GetDocumentUrlResponse>, Debug<reqwest::Error>> {
+    let input = body.into_inner();
+    let document_s3_key = s3::get_document_key(input.tenant_id, input.election_event_id, input.document_id);
+    let url = s3::get_document_url(document_s3_key).await.unwrap();
+
+    Ok(Json(GetDocumentUrlResponse {
+        url: url,
+    }))
+}
+
 #[launch]
 fn rocket() -> _ {
     dotenv().ok();
-    rocket::build().mount("/", routes![render_template])
+    rocket::build().mount("/", routes![render_template, get_document])
 }
