@@ -1,29 +1,59 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import {Dialog, downloadUrl} from "@sequentech/ui-essentials"
 import {Button, MenuItem, Select, TextField, Typography} from "@mui/material"
 import {useTenantStore} from "./CustomMenu"
-import {CreateReportMutation} from "../gql/graphql"
-import {useMutation} from "@apollo/client"
+import {
+    CreateReportMutation,
+    FetchDocumentQuery,
+    Sequent_Backend_Document,
+    Sequent_Backend_Election_Event,
+} from "../gql/graphql"
+import {useMutation, useQuery} from "@apollo/client"
 import {CREATE_REPORT} from "../queries/CreateReport"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 import {CircularProgress} from "@mui/material"
+import {FETCH_DOCUMENT} from "../queries/FetchDocument"
+import {useRecordContext} from "react-admin"
 
 const Vertical = styled(Box)`
     display: flex;
     flex-direction: column;
 `
 
-export const TemplatesDialog: React.FC = () => {
+interface FetchDocumentVariables {
+    tenantId: string
+    electionEventId: string
+    documentId: string
+}
+
+export const ReportDialog: React.FC = () => {
     const [createReport] = useMutation<CreateReportMutation>(CREATE_REPORT)
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
     const [showTemplateDialog, setShowTemplateDialog] = useState(false)
     const [tenantId] = useTenantStore()
     const [template, setTemplate] = useState("")
     const [format, setFormat] = useState("PDF")
     const [showProgress, setShowProgress] = useState(false)
+    const [documentId, setDocumentId] = useState<string | null>(null)
+    let reportName = "report.pdf"
+
+    const {loading, error, data} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
+        variables: {
+            tenantId: tenantId,
+            electionEventId: record.id,
+            documentId: documentId,
+        },
+    })
+
+    useEffect(() => {
+        if (!loading && !error && data?.fetchDocument?.url) {
+            downloadUrl(data.fetchDocument.url, reportName)
+        }
+    }, [documentId, loading, error, data?.fetchDocument?.url, reportName])
 
     const handleClose = async (value: boolean) => {
         if (!value) {
@@ -35,6 +65,8 @@ export const TemplatesDialog: React.FC = () => {
             variables: {
                 template: template,
                 tenantId: tenantId,
+                electionEventId: record.id,
+                name: reportName,
                 format: format,
             },
         })
@@ -44,8 +76,9 @@ export const TemplatesDialog: React.FC = () => {
             return
         }
         setShowTemplateDialog(false)
-        if (data?.renderTemplate?.url) {
-            await downloadUrl(data.renderTemplate.url, "report.pdf")
+        let report = data?.renderReport
+        if (report) {
+            setDocumentId(report.id)
         }
     }
 

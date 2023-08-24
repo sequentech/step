@@ -4,9 +4,26 @@
 import {gql} from "@apollo/client"
 
 export const CREATE_REPORT = gql`
-    mutation CreateReport($template: String!, $tenantId: String!, $format: String!) {
-        renderTemplate(template: $template, tenant_id: $tenantId, format: $format) {
-            url
+    mutation CreateReport(
+        $template: String!
+        $tenantId: String!
+        $electionEventId: String!
+        $name: String!
+        $format: String!
+    ) {
+        renderReport(
+            template: $template
+            tenant_id: $tenantId
+            election_event_id: $electionEventId
+            name: $name
+            format: $format
+        ) {
+            id
+            election_event_id
+            tenant_id
+            name
+            size
+            media_type
         }
     }
 `
