@@ -13,7 +13,7 @@ mutation InsertScheduledEvent(
       tenant_id: $tenantId,
       event_processor: $eventProcessor,
       cron_config: $cronConfig,
-      event_payload: $event_payload,
+      event_payload: $eventPayload,
       created_by: $createdBy,
     }
   ) {
