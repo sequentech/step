@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use crate::connection;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;

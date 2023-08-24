@@ -1,11 +1,10 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use dotenv::dotenv;
 use either::*;
 use handlebars::Handlebars;
 use headless_chrome::types::PrintToPdfOptions;
-use reqwest;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use rocket::serde::json::Value;

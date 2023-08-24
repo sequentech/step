@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 use crate::rocket::outcome::IntoOutcome;
 use rocket::http::ext::IntoCollection;
 use rocket::http::{HeaderMap, Status};
