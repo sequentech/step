@@ -58,7 +58,7 @@ async fn upload_and_return_document(
 ) -> Result<Json<RenderTemplateResponse>, Debug<reqwest::Error>> {
     let size = bytes.len();
 
-    let new_document = hasura::insert_document(
+    let new_document = hasura::document::insert_document(
         auth_headers,
         tenant_id.clone(),
         election_event_id.clone(),
@@ -103,7 +103,7 @@ pub async fn render_report(
 
     println!("auth headers: {:#?}", auth_headers);
     let hasura_response =
-        hasura::get_tenant(auth_headers.clone(), input.tenant_id.clone())
+        hasura::tenant::get_tenant(auth_headers.clone(), input.tenant_id.clone())
             .await?;
     let username = hasura_response
         .data

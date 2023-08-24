@@ -18,6 +18,8 @@ fn rocket() -> _ {
     dotenv().ok();
     rocket::build().mount("/", routes![
         routes::fetch_document::fetch_document,
-        routes::render_report::render_report
+        routes::render_report::render_report,
+        routes::scheduled_event::create_scheduled_event,
+
     ])
 }

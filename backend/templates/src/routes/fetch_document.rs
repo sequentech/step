@@ -11,6 +11,7 @@ use serde_json::json;
 
 use crate::connection;
 use crate::s3;
+use crate::hasura;
 
 #[derive(Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
@@ -32,6 +33,20 @@ pub async fn fetch_document(
     auth_headers: connection::AuthHeaders,
 ) -> Result<Json<GetDocumentUrlResponse>, Debug<reqwest::Error>> {
     let input = body.into_inner();
+    let document_result = hasura::document::find_document(
+        auth_headers,
+        input.tenant_id.clone(),
+        input.election_event_id.clone(),
+        input.document_id.clone(),
+    );
+
+    let document = &document_result
+        .data
+        .expect("expected data".into())
+        .sequent_backend_document
+        .unwrap()
+        .returning[0];
+
     let document_s3_key = s3::get_document_key(
         input.tenant_id,
         input.election_event_id,
