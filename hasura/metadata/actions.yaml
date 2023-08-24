@@ -1,4 +1,19 @@
 actions:
+  - name: createScheduledEvent
+    definition:
+      kind: synchronous
+      handler: http://templates:8400/create-scheduled-event
+      forward_client_headers: true
+      headers:
+        - name: X-Hasura-Admin-Secret
+          value_from_env: ACTIONS_ADMIN_SECRET
+      request_transform:
+        body:
+          action: transform
+          template: '{{$body.input}}'
+        template_engine: Kriti
+        version: 2
+    comment: create scheduled event
   - name: fetchDocument
     definition:
       kind: ""
@@ -56,4 +71,5 @@ custom_types:
   objects:
     - name: TemplateOutput
     - name: FetchDocumentOutput
+    - name: ScheduledEventOutput
   scalars: []

@@ -1,3 +1,14 @@
+type Mutation {
+  createScheduledEvent(
+    tenant_id: String!
+    election_event_id: String!
+    event_processor: String!
+    cron_config: String
+    event_payload: jsonb!
+    created_by: String!
+  ): ScheduledEventOutput
+}
+
 type Query {
   fetchDocument(
     tenant_id: String!
@@ -42,5 +53,19 @@ type TemplateOutput {
 
 type FetchDocumentOutput {
   url: String!
+}
+
+type ScheduledEventOutput {
+  id: String!
+  tenant_id: String
+  election_event_id: String
+  created_at: String
+  stopped_at: String
+  labels: jsonb
+  annotations: jsonb
+  event_processor: String
+  cron_config: String
+  event_payload: jsonb
+  created_by: String
 }
 
