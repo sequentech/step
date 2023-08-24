@@ -1,4 +1,26 @@
 actions:
+  - name: fetchDocument
+    definition:
+      kind: ""
+      handler: http://templates:8400/fetch-document
+      forward_client_headers: true
+      headers:
+        - name: X-Hasura-Admin-Secret
+          value_from_env: ACTIONS_ADMIN_SECRET
+      request_transform:
+        body:
+          action: transform
+          template: |-
+            {
+                "tenant_id": {{$body.input.tenant_id}},
+                "election_event_id": {{$body.input.election_event_id}},
+                "document_id": {{$body.input.document_id}}
+            }
+        template_engine: Kriti
+        version: 2
+    permissions:
+      - role: admin-user
+    comment: fetch document
   - name: helloWorld
     definition:
       kind: ""
@@ -9,10 +31,10 @@ actions:
           template: "$body.input \n"
         template_engine: Kriti
         version: 2
-  - name: renderTemplate
+  - name: renderReport
     definition:
       kind: synchronous
-      handler: http://templates:8400/render-template
+      handler: http://templates:8400/render-report
       forward_client_headers: true
       headers:
         - name: X-Hasura-Admin-Secret
@@ -20,12 +42,12 @@ actions:
       request_transform:
         body:
           action: transform
-          template: "{\n  \"template\": {{$body.input.template}},\n  \"tenant_id\": {{$body.input.tenant_id}},\n  \"format\": {{$body.input.format}}\n  \n}"
+          template: "{\n  \"template\": {{$body.input.template}},\n  \"tenant_id\": {{$body.input.tenant_id}},\n  \"election_event_id\": {{$body.input.election_event_id}},\n  \"name\": {{$body.input.name}},\n  \"format\": {{$body.input.format}}\n  \n}"
         template_engine: Kriti
         version: 2
     permissions:
       - role: admin-user
-    comment: render template
+    comment: render report
 custom_types:
   enums: []
   input_objects:
@@ -33,4 +55,5 @@ custom_types:
     - name: TemplateInput
   objects:
     - name: TemplateOutput
+    - name: FetchDocumentOutput
   scalars: []

@@ -1,13 +1,23 @@
 type Query {
+  fetchDocument(
+    tenant_id: String!
+    election_event_id: String!
+    document_id: String!
+  ): FetchDocumentOutput
+}
+
+type Query {
   helloWorld(
     input: InputParams!
   ): String!
 }
 
 type Mutation {
-  renderTemplate(
+  renderReport(
     template: String!
-    tenant_id: String
+    tenant_id: String!
+    election_event_id: String!
+    name: String!
     format: String!
   ): TemplateOutput
 }
@@ -22,6 +32,15 @@ input TemplateInput {
 }
 
 type TemplateOutput {
+  id: String!
+  election_event_id: String
+  tenant_id: String
+  name: String
+  size: Int
+  media_type: String
+}
+
+type FetchDocumentOutput {
   url: String!
 }
 
