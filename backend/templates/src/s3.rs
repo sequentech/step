@@ -83,13 +83,15 @@ pub async fn upload_to_s3(
     Ok(())
 }
 
-pub fn get_document_key(tenant_id: String, election_event_id: String, document_id: String) -> String {
+pub fn get_document_key(
+    tenant_id: String,
+    election_event_id: String,
+    document_id: String,
+) -> String {
     format!("{}/{}/{}", tenant_id, election_event_id, document_id)
 }
 
-pub async fn get_document_url(
-    key: String
-)-> Result<String, Box<dyn Error>> {
+pub async fn get_document_url(key: String) -> Result<String, Box<dyn Error>> {
     let key_id = env::var("MINIO_ROOT_USER")
         .expect(&format!("MINIO_ROOT_USER must be set"));
     let key_secret = env::var("MINIO_ROOT_PASSWORD")

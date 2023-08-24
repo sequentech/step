@@ -1,10 +1,10 @@
+use crate::connection;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use serde::Deserialize;
 use std::env;
-use crate::connection;
 
 type uuid = String;
 
@@ -56,7 +56,6 @@ pub async fn get_tenant(
     perform_get_tenant(auth_headers, variables).await
 }
 
-
 pub async fn perform_insert_document(
     auth_headers: connection::AuthHeaders,
     variables: insert_document::Variables,
@@ -72,7 +71,8 @@ pub async fn perform_insert_document(
         .json(&request_body)
         .send()
         .await?;
-    let response_body: Response<insert_document::ResponseData> = res.json().await?;
+    let response_body: Response<insert_document::ResponseData> =
+        res.json().await?;
     Ok(response_body)
 }
 

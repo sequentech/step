@@ -50,7 +50,7 @@ struct RenderTemplateResponse {
     tenant_id: Option<String>,
     name: Option<String>,
     size: Option<i64>,
-    media_type: Option<String>
+    media_type: Option<String>,
 }
 
 #[post("/render-template", format = "json", data = "<body>")]
@@ -87,7 +87,8 @@ async fn render_template(
             input.tenant_id,
             input.election_event_id,
             input.name,
-        ).await;
+        )
+        .await;
     }
 
     // Create temp html file
@@ -129,7 +130,8 @@ async fn render_template(
         input.tenant_id,
         input.election_event_id,
         input.name,
-    ).await
+    )
+    .await
 }
 
 async fn upload_and_return_document(
@@ -138,7 +140,7 @@ async fn upload_and_return_document(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
-    name: String
+    name: String,
 ) -> Result<Json<RenderTemplateResponse>, Debug<reqwest::Error>> {
     let size = bytes.len();
 
@@ -148,17 +150,21 @@ async fn upload_and_return_document(
         election_event_id.clone(),
         name,
         media_type,
-        size as i64
-    ).await?;
+        size as i64,
+    )
+    .await?;
 
     let document = &new_document
         .data
         .expect("expected data".into())
-        .insert_sequent_backend_document.unwrap().returning[0];
+        .insert_sequent_backend_document
+        .unwrap()
+        .returning[0];
 
     let document_id = document.id.clone();
-    
-    let document_s3_key = s3::get_document_key(tenant_id, election_event_id, document_id);
+
+    let document_s3_key =
+        s3::get_document_key(tenant_id, election_event_id, document_id);
 
     s3::upload_to_s3(&bytes, document_s3_key, "application/pdf".into())
         .await
@@ -173,8 +179,6 @@ async fn upload_and_return_document(
         media_type: document.media_type.clone(),
     }))
 }
-
-
 
 #[derive(Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
@@ -197,12 +201,14 @@ async fn get_document(
     auth_headers: connection::AuthHeaders,
 ) -> Result<Json<GetDocumentUrlResponse>, Debug<reqwest::Error>> {
     let input = body.into_inner();
-    let document_s3_key = s3::get_document_key(input.tenant_id, input.election_event_id, input.document_id);
+    let document_s3_key = s3::get_document_key(
+        input.tenant_id,
+        input.election_event_id,
+        input.document_id,
+    );
     let url = s3::get_document_url(document_s3_key).await.unwrap();
 
-    Ok(Json(GetDocumentUrlResponse {
-        url: url,
-    }))
+    Ok(Json(GetDocumentUrlResponse { url: url }))
 }
 
 #[launch]
