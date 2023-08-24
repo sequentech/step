@@ -9,7 +9,7 @@ use rocket::{Build, Rocket};
 use std::convert::From;
 use std::env;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AuthHeaders {
     pub key: String,
     pub value: String,

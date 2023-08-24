@@ -82,14 +82,14 @@ pub async fn insert_document(
     election_event_id: String,
     name: String,
     media_type: String,
-    size: Int,
-) -> Result<Response<get_tenant::ResponseData>, reqwest::Error> {
+    size: i64,
+) -> Result<Response<insert_document::ResponseData>, reqwest::Error> {
     let variables = insert_document::Variables {
-        tenant_id: Some(tenant_id),
-        election_event_id: Some(election_event_id),
-        name: Some(name),
-        media_type: Some(media_type),
-        size: Some(size),
+        tenant_id: tenant_id,
+        election_event_id: election_event_id,
+        name: name,
+        media_type: media_type,
+        size: size,
     };
-    perform_get_tenant(auth_headers, variables).await
+    perform_insert_document(auth_headers, variables).await
 }
