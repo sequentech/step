@@ -2,7 +2,7 @@ actions:
   - name: createScheduledEvent
     definition:
       kind: synchronous
-      handler: http://templates:8400/create-scheduled-event
+      handler: http://templates:8400/scheduled-event
       forward_client_headers: true
       headers:
         - name: X-Hasura-Admin-Secret
