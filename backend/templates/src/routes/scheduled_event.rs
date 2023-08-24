@@ -2,18 +2,23 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use strum_macros::Display;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use rocket::serde::json::Value;
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::str::FromStr;
+use strum_macros::Display;
+use strum_macros::EnumString;
 
 use crate::connection;
-use crate::s3;
 use crate::hasura;
+use crate::s3;
+use crate::services;
 
-#[derive(Display, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
 #[serde(crate = "rocket::serde")]
 pub enum EventProcessors {
     CreateReport,
@@ -30,10 +35,9 @@ pub struct CreateScheduledEventBody {
     created_by: String,
 }
 
-
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
-pub struct CreateScheduledEventResponse {
+pub struct ScheduledEvent {
     id: String,
     tenant_id: Option<String>,
     election_event_id: Option<String>,
@@ -41,7 +45,7 @@ pub struct CreateScheduledEventResponse {
     stopped_at: Option<String>,
     labels: Option<Value>,
     annotations: Option<Value>,
-    event_processor: Option<String>,
+    event_processor: Option<EventProcessors>,
     cron_config: Option<String>,
     event_payload: Option<Value>,
     created_by: Option<String>,
@@ -51,17 +55,19 @@ pub struct CreateScheduledEventResponse {
 pub async fn create_scheduled_event(
     body: Json<CreateScheduledEventBody>,
     auth_headers: connection::AuthHeaders,
-) -> Result<Json<CreateScheduledEventResponse>, Debug<reqwest::Error>> {
+) -> Result<Json<ScheduledEvent>, Debug<reqwest::Error>> {
     let input = body.into_inner();
-    let scheduled_event_result = hasura::scheduled_event::insert_scheduled_event(
-        auth_headers,
-        input.tenant_id.clone(),
-        input.election_event_id.clone(),
-        input.event_processor.clone().to_string(),
-        input.cron_config.clone(),
-        input.event_payload.clone(),
-        input.created_by.clone(),
-    ).await?;
+    let scheduled_event_result =
+        hasura::scheduled_event::insert_scheduled_event(
+            auth_headers,
+            input.tenant_id.clone(),
+            input.election_event_id.clone(),
+            input.event_processor.clone().to_string(),
+            input.cron_config.clone(),
+            input.event_payload.clone(),
+            input.created_by.clone(),
+        )
+        .await?;
 
     let scheduled_event = &scheduled_event_result
         .data
@@ -70,7 +76,7 @@ pub async fn create_scheduled_event(
         .unwrap()
         .returning[0];
 
-    Ok(Json(CreateScheduledEventResponse {
+    let formatted_event = ScheduledEvent {
         id: scheduled_event.id.clone(),
         tenant_id: scheduled_event.tenant_id.clone(),
         election_event_id: scheduled_event.election_event_id.clone(),
@@ -78,9 +84,16 @@ pub async fn create_scheduled_event(
         stopped_at: scheduled_event.stopped_at.clone(),
         labels: scheduled_event.labels.clone(),
         annotations: scheduled_event.annotations.clone(),
-        event_processor: scheduled_event.event_processor.clone(),
+        event_processor: scheduled_event
+            .event_processor
+            .clone()
+            .map(|p| EventProcessors::from_str(p.as_str()).unwrap()),
         cron_config: scheduled_event.cron_config.clone(),
         event_payload: scheduled_event.event_payload.clone(),
         created_by: scheduled_event.created_by.clone(),
-    }))
+    };
+
+    services::worker::process_scheduled_event(formatted_event.clone()).await;
+
+    Ok(Json(formatted_event))
 }

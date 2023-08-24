@@ -19,7 +19,6 @@ type uuid = String;
 )]
 pub struct GetTenant;
 
-
 pub async fn perform_get_tenant(
     auth_headers: connection::AuthHeaders,
     variables: get_tenant::Variables,

@@ -21,7 +21,6 @@ type timestamptz = String;
 )]
 pub struct InsertDocument;
 
-
 pub async fn perform_insert_document(
     auth_headers: connection::AuthHeaders,
     variables: insert_document::Variables,
@@ -60,7 +59,6 @@ pub async fn insert_document(
     perform_insert_document(auth_headers, variables).await
 }
 
-
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
@@ -73,7 +71,7 @@ pub async fn find_document(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
-    document_id: String
+    document_id: String,
 ) -> Result<Response<get_document::ResponseData>, reqwest::Error> {
     let variables = get_document::Variables {
         tenant_id: tenant_id,

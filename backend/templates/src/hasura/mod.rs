@@ -3,5 +3,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod document;
-pub mod tenant;
 pub mod scheduled_event;
+pub mod tenant;

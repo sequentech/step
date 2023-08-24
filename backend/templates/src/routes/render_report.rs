@@ -102,9 +102,11 @@ pub async fn render_report(
     let input = body.into_inner();
 
     println!("auth headers: {:#?}", auth_headers);
-    let hasura_response =
-        hasura::tenant::get_tenant(auth_headers.clone(), input.tenant_id.clone())
-            .await?;
+    let hasura_response = hasura::tenant::get_tenant(
+        auth_headers.clone(),
+        input.tenant_id.clone(),
+    )
+    .await?;
     let username = hasura_response
         .data
         .expect("expected data".into())

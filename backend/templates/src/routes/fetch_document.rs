@@ -1,4 +1,3 @@
-
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -10,8 +9,8 @@ use rocket::serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::connection;
-use crate::s3;
 use crate::hasura;
+use crate::s3;
 
 #[derive(Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
@@ -38,7 +37,8 @@ pub async fn fetch_document(
         input.tenant_id.clone(),
         input.election_event_id.clone(),
         input.document_id.clone(),
-    ).await?;
+    )
+    .await?;
 
     let document = &document_result
         .data
