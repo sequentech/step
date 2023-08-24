@@ -5,9 +5,13 @@ use crate::connection;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use rocket::response::Debug;
-use rocket::serde::json::Json;
+use rocket::serde::json::{Json, Value};
 use serde::Deserialize;
 use std::env;
+
+type uuid = String;
+type jsonb = Value;
+type timestamptz = String;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -65,7 +69,7 @@ pub async fn insert_document(
 )]
 pub struct GetDocument;
 
-pub async find_document(
+pub async fn find_document(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
@@ -87,7 +91,7 @@ pub async find_document(
         .json(&request_body)
         .send()
         .await?;
-    let response_body: Response<insert_document::ResponseData> =
+    let response_body: Response<get_document::ResponseData> =
         res.json().await?;
     Ok(response_body)
 }

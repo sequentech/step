@@ -38,14 +38,12 @@ pub async fn fetch_document(
         input.tenant_id.clone(),
         input.election_event_id.clone(),
         input.document_id.clone(),
-    );
+    ).await?;
 
     let document = &document_result
         .data
         .expect("expected data".into())
-        .sequent_backend_document
-        .unwrap()
-        .returning[0];
+        .sequent_backend_document[0];
 
     let document_s3_key = s3::get_document_key(
         input.tenant_id,

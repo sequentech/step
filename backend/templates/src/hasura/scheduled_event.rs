@@ -5,9 +5,13 @@ use crate::connection;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use rocket::response::Debug;
-use rocket::serde::json::Json;
+use rocket::serde::json::{Json, Value};
 use serde::Deserialize;
 use std::env;
+
+type uuid = String;
+type jsonb = Value;
+type timestamptz = String;
 
 #[derive(GraphQLQuery)]
 #[graphql(
