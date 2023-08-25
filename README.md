@@ -216,3 +216,20 @@ and that inspecting it further, the Hasura/Graphql POST gives an error similar t
 to the wrong instance of Hasura. Possibly, you're running VS Code with Codespaces
 and a local Hasura client as well, so the container port is being forwarded to
 a different port than 8080.
+
+## Immutable logging
+
+docker compose exec \
+  -e PGPASSWORD=postgrespassword \
+  postgres \
+  psql \
+  -h postgres \
+  -U postgres
+
+SELECT pg_create_logical_replication_slot('json_slot', 'wal2json', false, false);
+CREATE TABLE table1_with_pk (a SERIAL, b VARCHAR(30), c TIMESTAMP NOT NULL, PRIMARY KEY(a, c));
+INSERT INTO table1_with_pk (b, c) VALUES('Backup and Restore', now());
+
+
+docker compose exec   -e PGPASSWORD=postgrespassword   postgres   pg_recvlogical -d postgres -U postgres --slot json_slot --start -o pretty-print=1 -o include-xids=1 -o add-msg
+-prefixes=wal2json -f -
