@@ -24,8 +24,7 @@ output.txt
 
 # Nix
 result
-pkg/
-!vendor/immudb-log-audit/pkg/
+/pkg/
 .env
 .direnv
 

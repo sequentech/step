@@ -79,7 +79,7 @@ func (p *pgAuditJSONLogLineParser) Parse(line string) ([]byte, error) {
 
 	pgae, err := toPgauditEntry(strings.TrimSpace(strings.TrimLeft(r.String(), "AUDIT:")))
 	if err != nil {
-		return nil, fmt.Errorf("not a pgaudit line, %w", err)
+		return nil, fmt.Errorf("not a pgaudit line EDU, %w", err)
 	}
 
 	var pgaje pgAuditJSONLogEntry
