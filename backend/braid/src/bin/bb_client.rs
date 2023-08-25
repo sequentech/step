@@ -55,12 +55,14 @@ async fn main() -> Result<()> {
     let ctx = RistrettoCtx;
     init_log(true);
     let args = Cli::parse();
-
+    let store_root = std::env::current_dir().unwrap().join("message_store");
+    
     let mut board = ImmudbBoard::new(
         &args.server_url,
         IMMUDB_USER,
         IMMUDB_PW,
         BOARD_NAME.to_string(),
+        store_root,
     )
     .await
     .unwrap();

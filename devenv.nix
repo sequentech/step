@@ -36,6 +36,9 @@
     # to build the rug backend in strand/braid
     pkgs.gcc
     pkgs.m4
+
+    # for development of immudb local store
+    pkgs.sqlite
   ];
 
   # https://devenv.sh/scripts/
