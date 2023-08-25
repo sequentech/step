@@ -16,7 +16,8 @@ impl<C: Ctx> Session<C> {
     pub async fn step(&mut self) -> Result<()> {
         info!("Trustee {:?} step..", self.trustee.get_pk());
 
-        if let Ok(messages) = self.board.get_messages(0).await {
+        let m = self.board.get_messages(0).await;
+        if let Ok(messages) = m {
             let step_result = self.trustee.step(messages);
             if let Ok((send_messages, _actions)) = step_result {
                 let sent = self.board.insert_messages(send_messages).await;
@@ -27,7 +28,7 @@ impl<C: Ctx> Session<C> {
                 info!("Step returns error {:?}", step_result);
             }
         } else {
-            info!("Could not retrieve messages");
+            info!("Could not retrieve messages {:?}", m);
         }
 
         Ok(())

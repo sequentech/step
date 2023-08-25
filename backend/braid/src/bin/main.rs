@@ -4,8 +4,7 @@
 // cargo run --bin bb_client -- --server-url http://immudb:3322 init
 // cargo run --bin main -- --server-url http://immudb:3322 --board-index defaultboardindex --trustee-config trustee1.toml
 // cargo run --bin bb_client -- --server-url http://immudb:3322 ballots
-use anyhow::{anyhow, Result};
-use base64::{engine::general_purpose, Engine as _};
+use anyhow::Result;
 use clap::Parser;
 use generic_array::typenum::U32;
 use generic_array::GenericArray;
@@ -50,14 +49,10 @@ async fn main() -> Result<()> {
 
     let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
 
-    let bytes = general_purpose::STANDARD_NO_PAD
-        .decode(&tc.signing_key)
-        .map_err(|error| anyhow!(error))?;
+    let bytes = braid::util::decode_base64(&tc.signing_key)?;
     let sk = StrandSignatureSk::strand_deserialize(&bytes).unwrap();
 
-    let bytes = general_purpose::STANDARD_NO_PAD
-        .decode(&tc.encryption_key)
-        .map_err(|error| anyhow!(error))?;
+    let bytes = braid::util::decode_base64(&tc.encryption_key)?;
     let ek = GenericArray::<u8, U32>::from_slice(&bytes).to_owned();
 
     let mut board_index =
