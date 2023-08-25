@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
     init_log(true);
     let args = Cli::parse();
     let store_root = std::env::current_dir().unwrap().join("message_store");
-    
+
     let mut board = ImmudbBoard::new(
         &args.server_url,
         IMMUDB_USER,

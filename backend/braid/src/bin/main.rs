@@ -66,13 +66,18 @@ async fn main() -> Result<()> {
     loop {
         info!(">");
         let boards: Vec<String> = board_index.get_board_names().await?;
-        
+
         for board_name in boards {
             info!("Connecting to board '{}'..", board_name.clone());
             let trustee: Trustee<RistrettoCtx> = Trustee::new(sk.clone(), ek.clone());
-            let board =
-                ImmudbBoard::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, board_name.clone(), store_root.clone())
-                    .await?;
+            let board = ImmudbBoard::new(
+                &args.server_url,
+                IMMUDB_USER,
+                IMMUDB_PW,
+                board_name.clone(),
+                store_root.clone(),
+            )
+            .await?;
             let mut session = Session::new(trustee, board);
             info!("Running trustee for board '{}'..", board_name);
             // FIXME error should be handled to prevent loop termination
