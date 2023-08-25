@@ -19,7 +19,7 @@ impl<C: Ctx> Session<C> {
         if let Ok(messages) = self.board.get_messages(0).await {
             let step_result = self.trustee.step(messages);
             if let Ok((send_messages, _actions)) = step_result {
-                let sent = self.board.post_messages(send_messages).await;
+                let sent = self.board.insert_messages(send_messages).await;
                 if sent.is_err() {
                     info!("Could not send messages");
                 }

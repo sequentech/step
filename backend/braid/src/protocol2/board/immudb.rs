@@ -60,7 +60,7 @@ impl ImmudbBoard {
         messages
     }
 
-    pub async fn post_messages(&mut self, messages: Vec<Message>) -> Result<()> {
+    pub async fn insert_messages(&mut self, messages: Vec<Message>) -> Result<()> {
         if messages.len() > 0 {
             let bm: Result<Vec<BoardMessage>> =
                 messages.into_iter().map(|m| m.try_into()).collect();
