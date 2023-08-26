@@ -196,7 +196,7 @@ fn compute_pk_<C: Ctx>(
     {
         let hash = *h;
         let commitments_ = trustee.get_commitments(&CommitmentsHash(hash), i);
-        let commitments = commitments_.ok_or(anyhow!("Failed to retrieve my share",))?;
+        let commitments = commitments_.ok_or(anyhow!("Failed to retrieve commitments",))?;
 
         pk = pk.mul(&commitments.commitments[0]).modp(&ctx);
 
@@ -204,10 +204,9 @@ fn compute_pk_<C: Ctx>(
         let share_h = shares_hs.0[i];
         let share_ = trustee.get_shares(&SharesHash(share_h), i);
 
-        let share = share_.ok_or(anyhow!("Failed to retrieve commitments for trustee",))?;
+        let share = share_.ok_or(anyhow!("Failed to retrieve shares",))?;
 
         // Iterate over receiver trustees to compute their verification key
-        // for j in 0..*num_t {
         for (j, vk) in verification_keys.iter_mut().enumerate().take(*num_t) {
             let vkf = strand::threshold::verification_key_factor(
                 &commitments.commitments,
@@ -224,11 +223,11 @@ fn compute_pk_<C: Ctx>(
                 let my_commitments_h = commitments_hs
                     .0
                     .get(*self_p)
-                    .ok_or(anyhow!("Could not retrieve commitments for self"))?;
+                    .ok_or(anyhow!("Could not retrieve commitments hashes for self"))?;
 
                 let my_commitments = trustee
                     .get_commitments(&CommitmentsHash(*my_commitments_h), *self_p)
-                    .ok_or(anyhow!("Could not retrieve commitments",))?;
+                    .ok_or(anyhow!("Could not retrieve commitments for self",))?;
 
                 let sk = trustee
                     .decrypt_share_sk(&my_commitments.share_transport)

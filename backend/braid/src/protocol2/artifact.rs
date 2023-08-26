@@ -68,8 +68,11 @@ impl<C: Ctx> Configuration<C> {
 }
 #[derive(BorshSerialize, BorshDeserialize)]
 pub(crate) struct Commitments<C: Ctx> {
+    // Commitments to the coefficients of the generated polynomial
     pub(crate) commitments: Vec<C::E>,
+    // Encryption of the serialization of the vector of coefficients of the polynomial (C::X's)
     pub(crate) encrypted_coefficients: EncryptedCoefficients,
+    // Channel with which to send shares privately to the originator of these Commitments
     pub(crate) share_transport: ShareTransport<C>,
 }
 impl<C: Ctx> Commitments<C> {
@@ -106,8 +109,11 @@ impl EncryptedCoefficients {
 #[derive(BorshSerialize, BorshDeserialize)]
 // ElGamal key information used to send shares confidentially
 pub(crate) struct ShareTransport<C: Ctx> {
+    // The public key with which other trustees will encrypt shares sent to the originator of this ShareTransport
     pub(crate) pk: C::E,
+    // The encrypted (symmetric) private key corresponding to the above
     pub(crate) encrypted_sk: Vec<u8>,
+    // The nonce used for symmetric encryption
     pub(crate) nonce: Vec<u8>,
 }
 impl<C: Ctx> ShareTransport<C> {
