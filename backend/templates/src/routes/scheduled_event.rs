@@ -38,17 +38,17 @@ pub struct CreateScheduledEventBody {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct ScheduledEvent {
-    id: String,
-    tenant_id: Option<String>,
-    election_event_id: Option<String>,
-    created_at: Option<String>,
-    stopped_at: Option<String>,
-    labels: Option<Value>,
-    annotations: Option<Value>,
-    event_processor: Option<EventProcessors>,
-    cron_config: Option<String>,
-    event_payload: Option<Value>,
-    created_by: Option<String>,
+    pub id: String,
+    pub tenant_id: Option<String>,
+    pub election_event_id: Option<String>,
+    pub created_at: Option<String>,
+    pub stopped_at: Option<String>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub event_processor: Option<EventProcessors>,
+    pub cron_config: Option<String>,
+    pub event_payload: Option<Value>,
+    pub created_by: Option<String>,
 }
 
 #[post("/scheduled-event", format = "json", data = "<body>")]
@@ -59,7 +59,7 @@ pub async fn create_scheduled_event(
     let input = body.into_inner();
     let scheduled_event_result =
         hasura::scheduled_event::insert_scheduled_event(
-            auth_headers,
+            auth_headers.clone(),
             input.tenant_id.clone(),
             input.election_event_id.clone(),
             input.event_processor.clone().to_string(),
@@ -93,7 +93,10 @@ pub async fn create_scheduled_event(
         created_by: scheduled_event.created_by.clone(),
     };
 
-    services::worker::process_scheduled_event(formatted_event.clone()).await;
+    services::worker::process_scheduled_event(
+        auth_headers,
+        formatted_event.clone()
+    ).await;
 
     Ok(Json(formatted_event))
 }
