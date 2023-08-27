@@ -31,6 +31,62 @@ use crate::protocol2::trustee::Trustee;
 use crate::protocol2::MAX_TRUSTEES;
 use crate::test::vector_board::VectorBoard;
 
+#[instrument(skip(log_reload))]
+pub fn dbg<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Result<()> {
+    let trustees = 2;
+    let threshold = [1, 2];
+    let mut demo = mk_context(ctx, trustees, &threshold);
+    demo.log_reload = Some(log_reload);
+
+    let mut repl = Repl::new(demo)
+        .with_name(&format!("Braid (t={})", trustees))
+        .with_version("v0.1")
+        .with_description("")
+        .with_banner("")
+        .with_stop_on_ctrl_c(true)
+        .with_prompt("")
+        .with_command(
+            Command::new("reset")
+                .arg(Arg::new("trustees").required(true))
+                .arg(Arg::new("threshold").required(true))
+                .about("Reset the run"),
+            reset,
+        )
+        .with_command(
+            Command::new("step")
+                .arg(Arg::new("trustee").required(false))
+                .about("Execute one step of the protocol"),
+            step,
+        )
+        .with_command(
+            Command::new("status").about("Shows remote board and localboard"),
+            status,
+        )
+        .with_command(
+            Command::new("plaintexts").about("Shows the last encrypted plaintexts"),
+            plaintexts,
+        )
+        .with_command(
+            Command::new("decrypted").about("Shows the last decrypted plaintexts and whether they match the encrypted plaintexts"),
+            decrypted,
+        )
+        .with_command(
+            Command::new("log")
+                .arg(Arg::new("level").required(false))
+                .about("Set log level (0-6)"),
+            log,
+        )
+        .with_command(
+            Command::new("ballots")
+                .arg(Arg::new("batch").required(true))
+                .arg(Arg::new("count").required(false))
+                .about("Post a ballot batch"),
+            ballots,
+        )
+        .with_command(Command::new("quit").about("quit"), quit);
+    repl.run()
+}
+
 struct ReplContext<C: Ctx> {
     pub ctx: C,
     pub cfg: Configuration<C>,
@@ -436,58 +492,3 @@ fn send(messages: &Vec<Message>, remote: &mut VectorBoard) {
     }
 }
 
-#[instrument(skip(log_reload))]
-pub fn dbg<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Result<()> {
-    let trustees = 2;
-    let threshold = [1, 2];
-    let mut demo = mk_context(ctx, trustees, &threshold);
-    demo.log_reload = Some(log_reload);
-
-    let mut repl = Repl::new(demo)
-        .with_name(&format!("Braid (t={})", trustees))
-        .with_version("v0.1")
-        .with_description("")
-        .with_banner("")
-        .with_stop_on_ctrl_c(true)
-        .with_prompt("")
-        .with_command(
-            Command::new("reset")
-                .arg(Arg::new("trustees").required(true))
-                .arg(Arg::new("threshold").required(true))
-                .about("Reset the run"),
-            reset,
-        )
-        .with_command(
-            Command::new("step")
-                .arg(Arg::new("trustee").required(false))
-                .about("Execute one step of the protocol"),
-            step,
-        )
-        .with_command(
-            Command::new("status").about("Shows remote board and localboard"),
-            status,
-        )
-        .with_command(
-            Command::new("plaintexts").about("Shows the last encrypted plaintexts"),
-            plaintexts,
-        )
-        .with_command(
-            Command::new("decrypted").about("Shows the last decrypted plaintexts and whether they match the encrypted plaintexts"),
-            decrypted,
-        )
-        .with_command(
-            Command::new("log")
-                .arg(Arg::new("level").required(false))
-                .about("Set log level (0-6)"),
-            log,
-        )
-        .with_command(
-            Command::new("ballots")
-                .arg(Arg::new("batch").required(true))
-                .arg(Arg::new("count").required(false))
-                .about("Post a ballot batch"),
-            ballots,
-        )
-        .with_command(Command::new("quit").about("quit"), quit);
-    repl.run()
-}

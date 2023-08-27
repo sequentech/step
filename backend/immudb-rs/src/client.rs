@@ -44,7 +44,7 @@ pub type AsyncResponse<T> = Result<Response<T>>;
 /// Represents a Immudb Client.
 /// Allows you to handle operations in an easier manner.
 impl Client {
-    #[instrument]
+    #[instrument(skip(password))]
     pub async fn new(
         server_url: &str,
         username: &str,
@@ -60,7 +60,7 @@ impl Client {
         })
     }
 
-    #[instrument]
+    #[instrument(skip(password))]
     pub async fn login(
         &mut self, username: &str, password: &str
     ) -> Result<()> {

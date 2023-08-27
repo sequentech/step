@@ -82,6 +82,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+#[instrument]
 async fn init<C: Ctx>(board: &mut BoardClient, configuration: Configuration<C>) -> Result<()> {
     let pm = get_pm(PhantomData);
     let message: BoardMessage = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
@@ -89,6 +90,7 @@ async fn init<C: Ctx>(board: &mut BoardClient, configuration: Configuration<C>) 
     board.insert_messages(BOARD_NAME, &vec![message]).await
 }
 
+#[instrument(skip(board))]
 async fn list_messages(board: &mut BoardClient) -> Result<()> {
     let messages: Result<Vec<Message>> = board
         .get_messages(BOARD_NAME, 0)
@@ -105,6 +107,7 @@ async fn list_messages(board: &mut BoardClient) -> Result<()> {
     Ok(())
 }
 
+#[instrument]
 async fn list_boards(index: &mut BoardClient) -> Result<()> {
     let boards: Result<Vec<String>> = index
         .get_boards(&INDEX_NAME)
@@ -119,6 +122,7 @@ async fn list_boards(index: &mut BoardClient) -> Result<()> {
     Ok(())
 }
 
+#[instrument]
 async fn post_ballots<C: Ctx>(board: &mut BoardClient, ctx: C) -> Result<()> {
     let messages: Vec<Message> = board
         .get_messages(BOARD_NAME, 0)

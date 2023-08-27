@@ -74,6 +74,7 @@ async fn main() -> Result<()> {
             )
             .await?;
             let mut session = Session::new(trustee, board);
+            // session.set_dry_run(true);
             info!("Running trustee for board '{}'..", board_name);
             // FIXME error should be handled to prevent loop termination
             session.step().await?;

@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
-use log::{info};
-use tracing::{instrument};
+use log::info;
 
 use std::fmt::Debug;
 use immudb_rs::{sql_value::Value, Client, Row, SqlValue, NamedParam, TxMode};
@@ -103,7 +102,6 @@ impl TryFrom<&Row> for Board {
 }
 
 impl BoardClient {
-    #[instrument]
     pub async fn new(
         server_url: &str,
         username: &str,
