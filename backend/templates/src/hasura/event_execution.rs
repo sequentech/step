@@ -6,12 +6,41 @@ use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use rocket::response::Debug;
 use rocket::serde::json::{Json, Value};
-use serde::Deserialize;
+use rocket::serde::{Deserialize, Serialize};
 use std::env;
+use std::str::FromStr;
+use strum_macros::Display;
+use strum_macros::EnumString;
 
 type uuid = String;
 type jsonb = Value;
 type timestamptz = String;
+
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
+#[serde(crate = "rocket::serde")]
+pub enum EventExecutionState {
+    Started,
+    Success,
+    Failure,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[serde(crate = "rocket::serde")]
+pub struct EventExecution {
+    pub id: String,
+    pub tenant_id: Option<String>,
+    pub election_event_id: Option<String>,
+    pub scheduled_event_id: String,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub execution_state: Option<EventExecutionState>,
+    pub execution_payload: Option<Value>,
+    pub result_payload: Option<Value>,
+    pub started_at: Option<String>,
+    pub ended_at: Option<String>,
+}
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -26,7 +55,7 @@ pub async fn insert_event_execution(
     tenant_id: String,
     election_event_id: String,
     scheduled_event_id: String,
-    execution_state: String,
+    execution_state: EventExecutionState,
     execution_payload: Value,
     result_payload: Option<Value>,
 ) -> Result<Response<insert_event_execution::ResponseData>, reqwest::Error> {
@@ -34,7 +63,7 @@ pub async fn insert_event_execution(
         tenant_id: tenant_id,
         election_event_id: election_event_id,
         scheduled_event_id: scheduled_event_id,
-        execution_state: Some(execution_state),
+        execution_state: Some(execution_state.to_string()),
         execution_payload: execution_payload,
         result_payload: result_payload,
     };

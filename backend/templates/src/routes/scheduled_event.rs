@@ -93,10 +93,11 @@ pub async fn create_scheduled_event(
         created_by: scheduled_event.created_by.clone(),
     };
 
-    services::worker::process_scheduled_event(
+    let _ = services::worker::process_scheduled_event(
         auth_headers,
-        formatted_event.clone()
-    ).await;
+        formatted_event.clone(),
+    )
+    .await;
 
     Ok(Json(formatted_event))
 }
