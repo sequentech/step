@@ -1,5 +1,4 @@
-use anyhow::anyhow;
-use anyhow::Result;
+use anyhow::{anyhow, Result, Context};
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
     consts::{U12, U32},
@@ -226,7 +225,7 @@ impl<C: Ctx> Trustee<C> {
         let entries = self.local_board.get_entries();
 
         let stmts: Vec<String> = entries.iter().map(|s| s.key.kind.to_string()).collect();
-        info!(
+        trace!(
             "There are {} non bootstrap statements on local board, {:?}",
             entries.len(),
             stmts
@@ -273,24 +272,23 @@ impl<C: Ctx> Trustee<C> {
         let ret_actions = actions.clone();
 
         // Cross-Action parallelism (which in effect is cross-batch parallelism)
-        let messages: Vec<Option<Vec<Message>>> = actions
+        let results: Result<Vec<Vec<Message>>> = actions
             .into_par_iter()
             .map(|a| {
                 info!("Action {:?} start", a);
-
-                let m_ = a.run(self);
-                if let Ok(m) = m_ {
-                    info!("Action {:?} yields message {:?}", a, m);
-                    Some(m)
-                } else {
-                    error!("Action {:?} returned error {:?}", a, m_);
-                    None
+                let m = a.run(self);
+                if m.is_err() {
+                    error!("Action {:?} returned error {:?} (propagated)", a, m);
+                    m.with_context(|| format!("When executing Action {:?}", a))
+                }
+                else {
+                    m
                 }
             })
             .collect();
 
-        let result: Vec<Message> = messages.into_iter().flatten().flatten().collect();
-
+        // flatten all messages
+        let result = results?.into_iter().flatten().collect();
         info!("{} actions executed", ret_actions.len());
 
         Ok((result, ret_actions))
@@ -307,7 +305,7 @@ impl<C: Ctx> Trustee<C> {
     }
 
     // FIXME Used by dbg::status, remove
-    pub fn copy_local_board(&self) -> LocalBoard<C> {
+    pub(crate) fn copy_local_board(&self) -> LocalBoard<C> {
         self.local_board.clone()
     }
 
