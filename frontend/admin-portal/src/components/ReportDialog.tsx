@@ -7,7 +7,9 @@ import {Button, MenuItem, Select, TextField, Typography} from "@mui/material"
 import {useTenantStore} from "./CustomMenu"
 import {
     CreateReportMutation,
+    CreateScheduledEventMutation,
     FetchDocumentQuery,
+    GetEventExecutionQuery,
     Sequent_Backend_Document,
     Sequent_Backend_Election_Event,
 } from "../gql/graphql"
@@ -18,6 +20,8 @@ import {Box} from "@mui/material"
 import {CircularProgress} from "@mui/material"
 import {FETCH_DOCUMENT} from "../queries/FetchDocument"
 import {useRecordContext} from "react-admin"
+import { CREATE_SCHEDULED_EVENT } from "../queries/CreateScheduledEvent"
+import { GET_EVENT_EXECUTION } from "../queries/GetEventExecution"
 
 const Vertical = styled(Box)`
     display: flex;
@@ -31,7 +35,7 @@ interface FetchDocumentVariables {
 }
 
 export const ReportDialog: React.FC = () => {
-    const [createReport] = useMutation<CreateReportMutation>(CREATE_REPORT)
+    const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const [showTemplateDialog, setShowTemplateDialog] = useState(false)
     const [tenantId] = useTenantStore()
@@ -39,7 +43,15 @@ export const ReportDialog: React.FC = () => {
     const [format, setFormat] = useState("PDF")
     const [showProgress, setShowProgress] = useState(false)
     const [documentId, setDocumentId] = useState<string | null>(null)
+    const [scheduledEventId, setScheduledEventId] = useState<string | null>(null)
     let reportName = "report.pdf"
+
+    const eventExecutionQuery = useQuery<GetEventExecutionQuery>(GET_EVENT_EXECUTION, {
+        variables: {
+            tenantId: tenantId,
+            scheduledEventId: scheduledEventId,
+        },
+    })
 
     const {loading, error, data} = useQuery<FetchDocumentQuery>(FETCH_DOCUMENT, {
         variables: {
@@ -50,10 +62,21 @@ export const ReportDialog: React.FC = () => {
     })
 
     useEffect(() => {
+        if (!eventExecutionQuery.loading && !eventExecutionQuery.error && eventExecutionQuery.data?.sequent_backend_event_execution) {
+            let completeExecution = eventExecutionQuery.data.sequent_backend_event_execution.find(e => "Success" === e.execution_state)
+            if (!completeExecution || !completeExecution.result_payload) {
+                return
+            }
+            let document = completeExecution.result_payload as Sequent_Backend_Document
+            setDocumentId(document.id)
+        }
+    }, [eventExecutionQuery.loading, eventExecutionQuery.error, eventExecutionQuery.data?.sequent_backend_event_execution])
+
+    useEffect(() => {
         if (!loading && !error && data?.fetchDocument?.url) {
             downloadUrl(data.fetchDocument.url, reportName)
         }
-    }, [documentId, loading, error, data?.fetchDocument?.url, reportName])
+    }, [loading, error, data?.fetchDocument?.url, reportName])
 
     const handleClose = async (value: boolean) => {
         if (!value) {
@@ -61,13 +84,20 @@ export const ReportDialog: React.FC = () => {
             return
         }
         setShowProgress(true)
-        const {data, errors} = await createReport({
+        const {data, errors} = await createScheduledEvent({
             variables: {
-                template: template,
                 tenantId: tenantId,
                 electionEventId: record.id,
-                name: reportName,
-                format: format,
+                eventProcessor: "CreateReport",
+                cronConfig: undefined,
+                eventPayload: {
+                    template: template,
+                    tenantId: tenantId,
+                    electionEventId: record.id,
+                    name: reportName,
+                    format: format,
+                },
+                createdBy: "admin"
             },
         })
         setShowProgress(false)
@@ -76,9 +106,8 @@ export const ReportDialog: React.FC = () => {
             return
         }
         setShowTemplateDialog(false)
-        let report = data?.renderReport
-        if (report) {
-            setDocumentId(report.id)
+        if (data?.createScheduledEvent?.id) {
+            setScheduledEventId(data.createScheduledEvent.id)
         }
     }
 

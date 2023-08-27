@@ -33,7 +33,7 @@ pub async fn process_scheduled_event(
                     event.tenant_id.unwrap(),
                     event.election_event_id.unwrap(),
                     event.id,
-                    event_execution::EventExecutionState::Started,
+                    event_execution::EventExecutionState::Success,
                     event.event_payload.unwrap(),
                     Some(document_value),
                 )
