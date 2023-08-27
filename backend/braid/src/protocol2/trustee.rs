@@ -93,10 +93,9 @@ impl<C: Ctx> Trustee<C> {
             messages
         );
 
+        // Sanity check: ensure that all outgoing messages' cfg field matches that of the local board
         for m in messages.iter() {
             info!("Returning message {:?}", m);
-            // Sanity check
-            // Ensure that all outgoing messages' cfg field matches that of the local board
             assert_eq!(
                 m.statement.get_cfg_h(),
                 self.local_board
@@ -120,12 +119,10 @@ impl<C: Ctx> Trustee<C> {
         let configuration = self.local_board.get_configuration_raw();
         if let Some(configuration) = configuration {
             ///////////////////////////////////////////////////////////////////////////
-            // Generic message update
+            // General (non-bootstrap) message update
             //
             // Each message is verified and added to the local board.
             ///////////////////////////////////////////////////////////////////////////
-
-            info!("Generic update with {} messages", messages.len());
 
             // The parallel field cfg_hash must exist as well as the configuration itself
             assert!(self.local_board.get_cfg_hash().is_some());
@@ -152,7 +149,7 @@ impl<C: Ctx> Trustee<C> {
             }
         } else {
             ///////////////////////////////////////////////////////////////////////////
-            // Bootstrapping update
+            // Bootstrapping
             //
             // There is no configuration. We retrieve message zero, check that it's the
             // configuration and add it to the local board.

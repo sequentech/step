@@ -91,7 +91,6 @@ pub(crate) fn run(predicates: &Vec<Predicate>) -> HashSet<Action> {
             .join("")
     );
 
-    trace!("Running machine with {} states {:?}", phases.len(), phases);
     let mut actions = HashSet::new();
     for p in phases {
         let next = p.run(&all_predicates);

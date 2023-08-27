@@ -41,6 +41,7 @@ pub(super) fn sign_commitments<C: Ctx>(
     {
         let hash = *h;
         let commitments = trustee.get_commitments(&CommitmentsHash(hash), i);
+        // FIXME assert
         assert!(commitments.is_some());
     }
     // The commitments hashes will be grouped into one sequence of bytes when
@@ -237,6 +238,7 @@ fn compute_pk_<C: Ctx>(
                 // Decrypt the share sent from i to us
                 let value = ctx.decrypt_exp(&share.0[*self_p], sk)?;
 
+                // FIXME assert
                 assert_eq!(ctx.gmod_pow(&value), vkf);
                 info!("Trustee {} verified share received from {}", j, i);
             }

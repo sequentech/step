@@ -32,8 +32,7 @@ use crate::util::dbg_hash;
 ///////////////////////////////////////////////////////////////////////////
 // Action
 //
-// Actions produce Messages that will be posted to the bulletin board,
-// as well as output Predicates passed on to further actions.
+// Actions produce Messages that will be posted to the bulletin board.
 //
 // 1) Dispatch action to target function (pattern match on enum)
 // 2) Retrieve necessary artifacts from trustee (localboard)

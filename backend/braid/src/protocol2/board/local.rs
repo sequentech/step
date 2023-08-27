@@ -29,13 +29,14 @@ use crate::protocol2::predicate::{CiphertextsHash, DecryptionFactorsHash};
 // LocalBoard
 ///////////////////////////////////////////////////////////////////////////
 
-// A LocalBoard is specific to a protocol session_id, referenced in the configuration
+// A LocalBoard is a trustee's local copy of a bulletin board. It is specific to a protocol
+// execution (session_id), referenced in the configuration
 //
 // Messages are composed of statements and optionally artifacts
 //
 #[derive(Clone)] // FIXME used by dbg
 pub struct LocalBoard<C: Ctx> {
-    pub configuration: Option<Configuration<C>>, // FIXME pub used by dbg
+    pub(crate) configuration: Option<Configuration<C>>,
     cfg_hash: Option<Hash>,
 
     // All keys contain a statement type and a sender. For multi instance predicates
@@ -43,7 +44,7 @@ pub struct LocalBoard<C: Ctx> {
     //
     // We put the hash in the value so that we can detect overwrite attempt,
     // the statement hash is checked on retrieval (it's not in the key)
-    pub statements: HashMap<StatementEntryIdentifier, (Hash, Statement)>, // FIXME pub used by dbg
+    pub(crate) statements: HashMap<StatementEntryIdentifier, (Hash, Statement)>,
 
     // Artifacts entries include their source statement plus adding the ArtifactType
     // We put the hash in the value so that we can distinguish
@@ -55,7 +56,7 @@ pub struct LocalBoard<C: Ctx> {
     // This access to artifacts is done through specific type safe methods
     // that construct the keys to the underlying key value store, the hash is
     // checked on retrieval (it's not in the key)
-    pub artifacts: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>, // FIXME pub used by dbg
+    pub(crate) artifacts: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>,
 }
 
 impl<C: Ctx> LocalBoard<C> {
@@ -94,7 +95,6 @@ impl<C: Ctx> LocalBoard<C> {
         let cfg_hash = message.statement.get_cfg_h();
 
         if self.configuration.is_none() {
-            // impossible: is_some checked by caller
             let artifact_bytes = &message
                 .artifact
                 .ok_or(anyhow!("Missing artifact in configuration message"))?
@@ -498,9 +498,9 @@ impl<C: Ctx> LocalBoard<C> {
     }
 }
 
-pub struct BoardEntry {
-    pub key: StatementEntryIdentifier,
-    pub value: (Hash, Statement),
+pub(crate) struct BoardEntry {
+    pub(crate) key: StatementEntryIdentifier,
+    pub(crate) value: (Hash, Statement),
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -513,8 +513,8 @@ pub struct StatementEntryIdentifier {
     pub signer_position: usize,
     // the batch number
     pub batch: usize,
-    // When storing mix signature statementents in the local board we need to distinguish between
-    // mix signatures, which will not be unique with the above fields only.
+    // When storing mix signature statementents in the local board they
+    // will not be unique with the above fields only.
     // (mixes themselves are, since only one mix is produced by each trustee, so the signer position
     // is sufficient; on the other hand each trustee signs _all other mixes_).
     // The need to make this distinction is only for the purposes of storage in the local board,
