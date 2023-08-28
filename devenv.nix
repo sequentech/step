@@ -32,6 +32,7 @@
     # For protocol buffers
     pkgs.protobuf
     pkgs.iputils
+    pkgs.chromium
 
     # to build the rug backend in strand/braid
     pkgs.gcc

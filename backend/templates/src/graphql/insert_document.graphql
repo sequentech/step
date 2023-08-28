@@ -1,0 +1,27 @@
+mutation InsertDocument(
+  $electionEventId: uuid!,
+  $tenantId: uuid!,
+  $name: String!,
+  $size: Int!,
+  $mediaType: String!
+) {
+  insert_sequent_backend_document(
+    objects: 
+    {
+      election_event_id: $electionEventId,
+      tenant_id: $tenantId,
+      name: $name,
+      size: $size,
+      media_type: $mediaType,
+    }
+  ) {
+    returning {
+      id
+      election_event_id
+      tenant_id
+      name
+      size
+      media_type
+    }
+  }
+}

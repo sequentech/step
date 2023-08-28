@@ -7,4 +7,5 @@ members = [
     "immu-board",
     "immudb-rs",
     "wal2immu",
+    "templates",
 ]

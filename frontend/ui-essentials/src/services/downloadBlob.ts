@@ -6,8 +6,13 @@ import {sleep} from "./sleep"
 export const downloadBlob = async (blob: Blob, name: string) => {
     let exportUrl = URL.createObjectURL(blob)
 
+    await downloadUrl(exportUrl, name)
+}
+
+export const downloadUrl = async (url: string, name: string) => {
     const link = document.createElement("a")
-    link.href = exportUrl
+    link.href = url
+    link.target = "_blank"
     link.download = name
 
     // this is necessary as link.click() does not work on the latest firefox
@@ -19,6 +24,6 @@ export const downloadBlob = async (blob: Blob, name: string) => {
         })
     )
     await sleep(100)
-    URL.revokeObjectURL(exportUrl)
+    URL.revokeObjectURL(url)
     link.remove()
 }

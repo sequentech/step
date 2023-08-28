@@ -18,7 +18,9 @@ export const stringifyFields = (record: RaRecord, filterFields: Array<string>): 
 }
 
 export const generateRowClickHandler =
-    (fields: Array<string>): RowClickFunction =>
+    (fields: Array<string>, show?: boolean): RowClickFunction =>
     (id: Identifier, resource: string, record: RaRecord): string => {
-        return `/${resource}/${id}${fields ? `?filter=${stringifyFields(record, fields)}` : ""}`
+        return `/${resource}/${id}${show ? "/show" : ""}${
+            fields ? `?filter=${stringifyFields(record, fields)}` : ""
+        }`
     }
