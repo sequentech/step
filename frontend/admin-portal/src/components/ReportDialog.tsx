@@ -91,11 +91,11 @@ export const ReportDialog: React.FC = () => {
                 eventProcessor: "CreateReport",
                 cronConfig: undefined,
                 eventPayload: {
-                    template: template,
-                    tenantId: tenantId,
-                    electionEventId: record.id,
-                    name: reportName,
-                    format: format,
+                    "template": template,
+                    "tenant_id": tenantId,
+                    "election_event_id": record.id,
+                    "name": reportName,
+                    "format": format,
                 },
                 createdBy: "admin"
             },
