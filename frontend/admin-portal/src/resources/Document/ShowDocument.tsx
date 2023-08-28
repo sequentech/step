@@ -1,25 +1,25 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box} from "@mui/material"
+import {Box, Typography} from "@mui/material"
 import React from "react"
 import {NumberField, ReferenceField, Show, TextField} from "react-admin"
-import { ListDocument } from "./ListDocument"
-import { JsonField } from "react-admin-json-view"
+import {ListDocument} from "./ListDocument"
+import {JsonField} from "react-admin-json-view"
 
 export const DocumentProperties: React.FC = () => {
     return (
-        <Box sx={{padding: "16px"}}>
+        <Box sx={{padding: "16px", display: "flex", flexDirection: "column", gap: "10px"}}>
             <TextField source="name" fontSize="24px" fontWeight="bold" />
-            <TextField source="name" />
+            <Typography variant="body1">Media Type</Typography>
             <TextField source="media_type" />
+            <Typography variant="body1">Size (bytes)</Typography>
             <NumberField source="size" />
-            <ReferenceField
-                source="election_event_id"
-                reference="sequent_backend_election_event"
-            >
+            <Typography variant="body1">Election Event</Typography>
+            <ReferenceField source="election_event_id" reference="sequent_backend_election_event">
                 <TextField source="name" />
             </ReferenceField>
+            <Typography variant="body1">Labels</Typography>
             <JsonField
                 source="labels"
                 jsonString={false}
@@ -30,6 +30,7 @@ export const DocumentProperties: React.FC = () => {
                     displayDataTypes: false,
                 }}
             />
+            <Typography variant="body1">Annotations</Typography>
             <JsonField
                 source="annotations"
                 jsonString={false}
@@ -43,7 +44,6 @@ export const DocumentProperties: React.FC = () => {
         </Box>
     )
 }
-
 
 export const ShowDocument: React.FC = () => {
     return (

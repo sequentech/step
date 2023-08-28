@@ -31,7 +31,7 @@ export interface ListDocumentProps {
 export const ListDocument: React.FC<ListDocumentProps & PropsWithChildren> = ({aside}) => {
     const [tenantId] = useTenantStore()
 
-    const rowClickHandler = generateRowClickHandler(["election_event_id"])
+    const rowClickHandler = generateRowClickHandler(["election_event_id"], true)
 
     return (
         <>
@@ -39,7 +39,7 @@ export const ListDocument: React.FC<ListDocumentProps & PropsWithChildren> = ({a
             <List
                 actions={<ListActions withFilter={true} />}
                 filter={{tenant_id: tenantId || undefined}}
-                aside={aside}
+                aside={aside || <div>hey</div>}
                 filters={Filters}
             >
                 <DatagridConfigurable rowClick={rowClickHandler} omit={OMIT_FIELDS}>

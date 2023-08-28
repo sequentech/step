@@ -20,8 +20,8 @@ import {Box} from "@mui/material"
 import {CircularProgress} from "@mui/material"
 import {FETCH_DOCUMENT} from "../queries/FetchDocument"
 import {useRecordContext} from "react-admin"
-import { CREATE_SCHEDULED_EVENT } from "../queries/CreateScheduledEvent"
-import { GET_EVENT_EXECUTION } from "../queries/GetEventExecution"
+import {CREATE_SCHEDULED_EVENT} from "../queries/CreateScheduledEvent"
+import {GET_EVENT_EXECUTION} from "../queries/GetEventExecution"
 
 const Vertical = styled(Box)`
     display: flex;
@@ -62,15 +62,25 @@ export const ReportDialog: React.FC = () => {
     })
 
     useEffect(() => {
-        if (!eventExecutionQuery.loading && !eventExecutionQuery.error && eventExecutionQuery.data?.sequent_backend_event_execution) {
-            let completeExecution = eventExecutionQuery.data.sequent_backend_event_execution.find(e => "Success" === e.execution_state)
+        if (
+            !eventExecutionQuery.loading &&
+            !eventExecutionQuery.error &&
+            eventExecutionQuery.data?.sequent_backend_event_execution
+        ) {
+            let completeExecution = eventExecutionQuery.data.sequent_backend_event_execution.find(
+                (e) => "Success" === e.execution_state
+            )
             if (!completeExecution || !completeExecution.result_payload) {
                 return
             }
             let document = completeExecution.result_payload as Sequent_Backend_Document
             setDocumentId(document.id)
         }
-    }, [eventExecutionQuery.loading, eventExecutionQuery.error, eventExecutionQuery.data?.sequent_backend_event_execution])
+    }, [
+        eventExecutionQuery.loading,
+        eventExecutionQuery.error,
+        eventExecutionQuery.data?.sequent_backend_event_execution,
+    ])
 
     useEffect(() => {
         if (!loading && !error && data?.fetchDocument?.url) {
@@ -91,13 +101,13 @@ export const ReportDialog: React.FC = () => {
                 eventProcessor: "CreateReport",
                 cronConfig: undefined,
                 eventPayload: {
-                    "template": template,
-                    "tenant_id": tenantId,
-                    "election_event_id": record.id,
-                    "name": reportName,
-                    "format": format,
+                    template: template,
+                    tenant_id: tenantId,
+                    election_event_id: record.id,
+                    name: reportName,
+                    format: format,
                 },
-                createdBy: "admin"
+                createdBy: "admin",
             },
         })
         setShowProgress(false)

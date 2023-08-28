@@ -4,15 +4,9 @@
 import {gql} from "@apollo/client"
 
 export const GET_EVENT_EXECUTION = gql`
-    query GetEventExecution(
-        $tenantId: uuid!
-        $scheduledEventId: uuid!
-    ) {
+    query GetEventExecution($tenantId: uuid!, $scheduledEventId: uuid!) {
         sequent_backend_event_execution(
-            where: {
-                scheduled_event_id: {_eq: $scheduledEventId},
-                tenant_id: {_eq: $tenantId}
-            }
+            where: {scheduled_event_id: {_eq: $scheduledEventId}, tenant_id: {_eq: $tenantId}}
         ) {
             id
             tenant_id
