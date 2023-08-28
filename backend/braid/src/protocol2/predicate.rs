@@ -58,8 +58,8 @@ pub(crate) enum Predicate {
         TrusteeSet,
     ),
     // A mix predicate describes the mix itself but also specifies its position (starting at 1) and which mixing trustee is next. The
-    // next mixing trustee is determined from the TrusteeSet parameter in the Ballots predicate. If it is the last mix, the value
-    // will be whatever random value is next in the TrusteeSet, since it is a fixed length array it will exist for n <= 10.
+    // next mixing trustee is determined from the TrusteeSet parameter in the Ballots predicate. If it is the last mix,
+    // this value will be crate::protocol2::datalog::NULL_TRUSTEE
     Mix(
         ConfigurationHash,
         BatchNumber,
@@ -111,63 +111,58 @@ pub(crate) enum Predicate {
         CiphertextsHash,
         TrusteePosition,
     ),
+    Z(usize),
 }
 impl Predicate {
     pub(crate) fn from_statement<C: Ctx>(
         statement: &Statement,
         signer_position: TrusteePosition,
-        _local_board: &LocalBoard<C>,
-    ) -> Option<Vec<Predicate>> {
+    ) -> Predicate {
         let ret = match statement {
             // Only called for configuration signatures, configuration
             // bootstrap is done through Predicate::get_bootstrap_predicate
             // Configuration(Timestamp, ConfigurationH)
             Statement::Configuration(_, _) => panic!("impossible"),
-            Statement::ConfigurationSigned(_ts, cfg_h) => Some(vec![Self::ConfigurationSigned(
-                ConfigurationHash(cfg_h.0),
-                signer_position,
-            )]),
+            Statement::ConfigurationSigned(_ts, cfg_h) => {
+                Self::ConfigurationSigned(ConfigurationHash(cfg_h.0), signer_position)
+            }
             // Commitments(Timestamp, ConfigurationH, CommitmentsH)
-            Statement::Commitments(_ts, cfg_h, cm_h) => Some(vec![Self::Commitments(
+            Statement::Commitments(_ts, cfg_h, cm_h) => Self::Commitments(
                 ConfigurationHash(cfg_h.0),
                 CommitmentsHash(cm_h.0),
                 signer_position,
-            )]),
+            ),
             // CommitmentsAllSigned(Timestamp, ConfigurationH, CommitmentsHs)
-            Statement::CommitmentsAllSigned(_ts, cfg_h, cm_hs) => {
-                Some(vec![Self::CommitmentsSigned(
-                    ConfigurationHash(cfg_h.0),
-                    CommitmentsHashes(cm_hs.0),
-                    signer_position,
-                )])
-            }
+            Statement::CommitmentsAllSigned(_ts, cfg_h, cm_hs) => Self::CommitmentsSigned(
+                ConfigurationHash(cfg_h.0),
+                CommitmentsHashes(cm_hs.0),
+                signer_position,
+            ),
             // Shares(Timestamp, ConfigurationH, SharesH)
-            Statement::Shares(_ts, cfg_h, sh_h) => Some(vec![Self::Shares(
+            Statement::Shares(_ts, cfg_h, sh_h) => Self::Shares(
                 ConfigurationHash(cfg_h.0),
                 SharesHash(sh_h.0),
                 signer_position,
-            )]),
+            ),
             // PublicKey(Timestamp, ConfigurationH, PublicKeyH, SharesHs, CommitmentsHs)
-            Statement::PublicKey(_ts, cfg_h, pk_h, sh_hs, cm_hs) => Some(vec![Self::PublicKey(
+            Statement::PublicKey(_ts, cfg_h, pk_h, sh_hs, cm_hs) => Self::PublicKey(
                 ConfigurationHash(cfg_h.0),
                 PublicKeyHash(pk_h.0),
                 SharesHashes(sh_hs.0),
                 CommitmentsHashes(cm_hs.0),
                 signer_position,
-            )]),
+            ),
             // PublicKeySigned(Timestamp, ConfigurationH, PublicKeyH, SharesHs, CommitmentsHs)
-            Statement::PublicKeySigned(_ts, cfg_h, pk_h, sh_hs, cm_hs) => {
-                Some(vec![Self::PublicKeySigned(
-                    ConfigurationHash(cfg_h.0),
-                    PublicKeyHash(pk_h.0),
-                    SharesHashes(sh_hs.0),
-                    CommitmentsHashes(cm_hs.0),
-                    signer_position,
-                )])
-            }
+            Statement::PublicKeySigned(_ts, cfg_h, pk_h, sh_hs, cm_hs) => Self::PublicKeySigned(
+                ConfigurationHash(cfg_h.0),
+                PublicKeyHash(pk_h.0),
+                SharesHashes(sh_hs.0),
+                CommitmentsHashes(cm_hs.0),
+                signer_position,
+            ),
             // Ballots(Timestamp, ConfigurationH, usize, CiphertextsH, PublicKeyH)
             Statement::Ballots(_ts, cfg_h, batch, ballots_h, pk_h, first_mixer, trustees) => {
-                Some(vec![Self::Ballots(
+                Self::Ballots(
                     ConfigurationHash(cfg_h.0),
                     batch.0,
                     CiphertextsHash(ballots_h.0),
@@ -175,11 +170,11 @@ impl Predicate {
                     // Trustees are 1-based in the TrusteeSet field of the ballots artifact
                     first_mixer - 1,
                     *trustees,
-                )])
+                )
             }
             // Mix(Timestamp, ConfigurationH, usize, CiphertextsH, CiphertextsH)
             Statement::Mix(_ts, cfg_h, batch, source_h, mix_h, mix_number, target_trustee) => {
-                Some(vec![Self::Mix(
+                Self::Mix(
                     ConfigurationHash(cfg_h.0),
                     batch.0,
                     CiphertextsHash(source_h.0),
@@ -187,47 +182,43 @@ impl Predicate {
                     *mix_number,
                     signer_position,
                     *target_trustee,
-                )])
+                )
             }
             // MixSigned(Timestamp, ConfigurationH, usize, usize, CiphertextsH, CiphertextsH)
-            Statement::MixSigned(_ts, cfg_h, batch, _mix_no, source_h, mix_h) => {
-                Some(vec![Self::MixSigned(
-                    ConfigurationHash(cfg_h.0),
-                    batch.0,
-                    CiphertextsHash(source_h.0),
-                    CiphertextsHash(mix_h.0),
-                    signer_position,
-                )])
-            }
+            Statement::MixSigned(_ts, cfg_h, batch, _mix_no, source_h, mix_h) => Self::MixSigned(
+                ConfigurationHash(cfg_h.0),
+                batch.0,
+                CiphertextsHash(source_h.0),
+                CiphertextsHash(mix_h.0),
+                signer_position,
+            ),
             // DecryptionFactors(Timestamp, ConfigurationH, usize, DecryptionFactorsH, CiphertextsH, SharesHs)
             Statement::DecryptionFactors(_ts, cfg_h, batch, df_h, mix_h, sh_hs) => {
-                Some(vec![Self::DecryptionFactors(
+                Self::DecryptionFactors(
                     ConfigurationHash(cfg_h.0),
                     batch.0,
                     DecryptionFactorsHash(df_h.0),
                     CiphertextsHash(mix_h.0),
                     SharesHashes(sh_hs.0),
                     signer_position,
-                )])
+                )
             }
             // Plaintexts(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs)
-            Statement::Plaintexts(_ts, cfg_h, batch, pl_h, df_hs) => Some(vec![Self::Plaintexts(
+            Statement::Plaintexts(_ts, cfg_h, batch, pl_h, df_hs) => Self::Plaintexts(
                 ConfigurationHash(cfg_h.0),
                 batch.0,
                 PlaintextsHash(pl_h.0),
                 DecryptionFactorsHashes(df_hs.0),
                 signer_position,
-            )]),
+            ),
             // PlaintextsSigned(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs)
-            Statement::PlaintextsSigned(_ts, cfg_h, batch, pl_h, df_hs) => {
-                Some(vec![Self::PlaintextsSigned(
-                    ConfigurationHash(cfg_h.0),
-                    batch.0,
-                    PlaintextsHash(pl_h.0),
-                    DecryptionFactorsHashes(df_hs.0),
-                    signer_position,
-                )])
-            }
+            Statement::PlaintextsSigned(_ts, cfg_h, batch, pl_h, df_hs) => Self::PlaintextsSigned(
+                ConfigurationHash(cfg_h.0),
+                batch.0,
+                PlaintextsHash(pl_h.0),
+                DecryptionFactorsHashes(df_hs.0),
+                signer_position,
+            ),
         };
 
         trace!("Predicate {:?} derived from statement {:?}", ret, statement);
@@ -246,6 +237,20 @@ impl Predicate {
         let p = Predicate::Configuration(
             ConfigurationHash::from_configuration(configuration).ok()?,
             index,
+            configuration.trustees.len(),
+            configuration.threshold,
+        );
+
+        Some(p)
+    }
+
+    // Used when a trustee runs in verifier mode
+    pub(crate) fn get_verifier_bootstrap_predicate<C: Ctx>(
+        configuration: &Configuration<C>,
+    ) -> Option<Predicate> {
+        let p = Predicate::Configuration(
+            ConfigurationHash::from_configuration(configuration).ok()?,
+            crate::protocol2::VERIFIER_INDEX,
             configuration.trustees.len(),
             configuration.threshold,
         );
@@ -298,7 +303,8 @@ pub(crate) type TrusteePosition = usize;
 pub(crate) type Threshold = usize;
 // 1-based _elements_
 pub(crate) type TrusteeSet = [usize; crate::protocol2::MAX_TRUSTEES];
-// 1-based
+// 1-based, the position in the mixing chain (note this is not the same as the
+// position of the mixing trustee, since active trustees are set by the ballots artifact)
 pub(crate) type MixNumber = usize;
 
 pub(crate) type BatchNumber = usize;
@@ -396,6 +402,11 @@ impl std::fmt::Debug for Predicate {
                 f,
                 "PlaintextsSigned{{ cfg hash={:?}, batch={:?}, plaintexts_h={:?}, signer_t={:?} }}",
                 dbg_hash(&cfg_h.0), batch, plaintexts_h, signer_t
+            ),
+            Predicate::Z(value) => write!(
+                f,
+                "Value {}",
+                value
             ),
         }
     }

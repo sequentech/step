@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result, Context};
+use anyhow::{anyhow, Context, Result};
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit, OsRng},
     consts::{U12, U32},
@@ -47,9 +47,9 @@ use crate::protocol2::{action::Action, artifact::EncryptedCoefficients};
 ///////////////////////////////////////////////////////////////////////////
 
 pub struct Trustee<C: Ctx> {
-    pub signing_key: StrandSignatureSk,
+    pub(crate) signing_key: StrandSignatureSk,
     // A ChaCha20Poly1305 encryption key
-    pub encryption_key: GenericArray<u8, U32>,
+    pub(crate) encryption_key: GenericArray<u8, U32>,
     local_board: LocalBoard<C>,
 }
 
@@ -78,13 +78,16 @@ impl<C: Ctx> Trustee<C> {
     ///////////////////////////////////////////////////////////////////////////
 
     #[instrument(name = "Trustee::step", skip(messages))]
-    pub fn step(&mut self, messages: Vec<Message>) -> Result<(Vec<Message>, HashSet<Action>)> {
+    pub(crate) fn step(
+        &mut self,
+        messages: Vec<Message>,
+    ) -> Result<(Vec<Message>, HashSet<Action>)> {
         let added_messages = self.update(messages)?;
 
         debug!("Update added {} messages", added_messages);
-        let predicates = self.derive_predicates()?;
+        let predicates = self.derive_predicates(false)?;
         debug!("Derived {} predicates {:?}", predicates.len(), predicates);
-        let (messages, actions) = self.infer_and_run_actions(&predicates)?;
+        let (messages, actions, _) = self.infer_and_run_actions(&predicates, false)?;
 
         debug!(
             "Actions yielded {} messages, {:?}",
@@ -208,14 +211,18 @@ impl<C: Ctx> Trustee<C> {
     ///////////////////////////////////////////////////////////////////////////
 
     #[instrument(name = "Trustee::derive_predicates", skip_all)]
-    fn derive_predicates(&self) -> Result<Vec<Predicate>> {
+    fn derive_predicates(&self, verifying_mode: bool) -> Result<Vec<Predicate>> {
         let mut predicates = vec![];
 
         let configuration = self.local_board.get_configuration_raw();
         let configuration =
             configuration.ok_or(anyhow!("Cannot derive predicates without a configuration"))?;
-        // Generate special configuration predicate
-        let configuration_p_ = Predicate::get_bootstrap_predicate(&configuration, &self.get_pk());
+
+        let configuration_p_ = if !verifying_mode {
+            Predicate::get_bootstrap_predicate(&configuration, &self.get_pk())
+        } else {
+            Predicate::get_verifier_bootstrap_predicate(&configuration)
+        };
 
         let configuration_p =
             configuration_p_.ok_or(anyhow!("Self authority not found in configuration"))?;
@@ -235,16 +242,8 @@ impl<C: Ctx> Trustee<C> {
         for entry in entries.iter() {
             debug!("Found statement entry {:?}", entry.value);
             let statement = &entry.value.1;
-            let next =
-                Predicate::from_statement(statement, entry.key.signer_position, &self.local_board);
-            if let Some(ps) = next {
-                for p in ps {
-                    debug!("Adding predicate {:?}", p);
-                    predicates.push(p);
-                }
-            } else {
-                warn!("No predicate added for statement entry {:?}", entry.value);
-            }
+            let next = Predicate::from_statement::<C>(statement, entry.key.signer_position);
+            predicates.push(next);
         }
 
         info!("Derived {} predicates", predicates.len());
@@ -260,13 +259,14 @@ impl<C: Ctx> Trustee<C> {
     fn infer_and_run_actions(
         &self,
         predicates: &Vec<Predicate>,
-    ) -> Result<(Vec<Message>, HashSet<Action>)> {
+        verifying_mode: bool,
+    ) -> Result<(Vec<Message>, HashSet<Action>, Vec<Predicate>)> {
         let _ = self
             .local_board
             .get_configuration_raw()
             .ok_or(anyhow!("Cannot run actions without a configuration"))?;
 
-        let actions = crate::protocol2::datalog::run(predicates);
+        let (actions, predicates) = crate::protocol2::datalog::run(predicates);
         debug!("Datalog returns {} actions, {:?}", actions.len(), actions);
 
         let ret_actions = actions.clone();
@@ -275,13 +275,16 @@ impl<C: Ctx> Trustee<C> {
         let results: Result<Vec<Vec<Message>>> = actions
             .into_par_iter()
             .map(|a| {
-                info!("Action {:?} start", a);
-                let m = a.run(self);
+                let m = if !verifying_mode {
+                    a.run(self)
+                } else {
+                    a.run_for_verifier(self)
+                };
+
                 if m.is_err() {
                     error!("Action {:?} returned error {:?} (propagated)", a, m);
                     m.with_context(|| format!("When executing Action {:?}", a))
-                }
-                else {
+                } else {
                     m
                 }
             })
@@ -291,7 +294,24 @@ impl<C: Ctx> Trustee<C> {
         let result = results?.into_iter().flatten().collect();
         info!("{} actions executed", ret_actions.len());
 
-        Ok((result, ret_actions))
+        Ok((result, ret_actions, predicates))
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Trustee verifying mode
+    ///////////////////////////////////////////////////////////////////////////
+
+    #[instrument(name = "Trustee::verify", skip(messages))]
+    pub(crate) fn verify(
+        &mut self,
+        messages: Vec<Message>,
+    ) -> Result<(Vec<Message>, Vec<Predicate>)> {
+        self.update(messages)?;
+
+        let predicates = self.derive_predicates(true)?;
+        let (messages, _, predicates) = self.infer_and_run_actions(&predicates, true)?;
+
+        Ok((messages, predicates))
     }
 
     ///////////////////////////////////////////////////////////////////////////

@@ -15,7 +15,7 @@ use tracing::info;
 use tracing::instrument;
 
 use braid::protocol2::board::immudb::{ImmudbBoard, ImmudbBoardIndex};
-use braid::protocol2::session::Session;
+use braid::protocol2::session::{Session, VerifyingSession};
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
 use braid::util::init_log;
@@ -73,12 +73,14 @@ async fn main() -> Result<()> {
                 store_root.clone(),
             )
             .await?;
-            let mut session = Session::new(trustee, board);
-            // session.set_dry_run(true);
+            let mut session = VerifyingSession::new(trustee, board);
             info!("Running trustee for board '{}'..", board_name);
             // FIXME error should be handled to prevent loop termination
-            session.step().await?;
+            session.run().await?;
         }
         sleep(Duration::from_millis(1000)).await;
+        break;
     }
+
+    Ok(())
 }

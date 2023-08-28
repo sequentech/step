@@ -56,12 +56,12 @@ pub enum Statement {
         // the next mixing trustee (mix.target_trustee in Mix artifact)
         TrusteePosition,
     ),
-    // See local::StatementEntryIdentifier::mix_signature_number regarding MixSignatureNumber
+    // See also local::StatementEntryIdentifier::mix_number
     MixSigned(
         Timestamp,
         ConfigurationH,
         Batch,
-        MixSignatureNumber,
+        MixNumber,
         CiphertextsH,
         CiphertextsH,
     ),
@@ -163,7 +163,7 @@ impl Statement {
         source_ciphertexts_h: CiphertextsH,
         mix_h: CiphertextsH,
         batch: Batch,
-        mix_number: usize,
+        mix_number: MixNumber,
         target_trustee: usize,
     ) -> Statement {
         Statement::Mix(
@@ -183,13 +183,13 @@ impl Statement {
         source_ciphertexts_h: CiphertextsH,
         mix_h: CiphertextsH,
         batch: Batch,
-        mix_signature_number: MixSignatureNumber,
+        mix_number: MixNumber,
     ) -> Statement {
         Statement::MixSigned(
             Self::timestamp(),
             cfg_hash,
             batch,
-            mix_signature_number,
+            mix_number,
             source_ciphertexts_h,
             mix_h,
         )
@@ -276,7 +276,7 @@ impl Statement {
         let ts: u64;
         let cfg: [u8; 64];
         let mut batch = 0usize;
-        let mut mix_signature_number = 0usize;
+        let mut mix_number = 0usize;
         let mut artifact_type = None;
 
         match self {
@@ -333,12 +333,12 @@ impl Statement {
                 batch = bch.0;
                 artifact_type = Some(ArtifactType::Mix);
             }
-            Self::MixSigned(ts_, cfg_h, bch, mix_sno, _, _) => {
+            Self::MixSigned(ts_, cfg_h, bch, mix_no, _, _) => {
                 ts = *ts_;
                 kind = StatementType::MixSigned;
                 cfg = cfg_h.0;
                 batch = bch.0;
-                mix_signature_number = mix_sno.0;
+                mix_number = *mix_no;
             }
             Self::DecryptionFactors(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
@@ -362,7 +362,7 @@ impl Statement {
             }
         }
 
-        (kind, cfg, batch, mix_signature_number, artifact_type, ts)
+        (kind, cfg, batch, mix_number, artifact_type, ts)
     }
 }
 
@@ -393,8 +393,6 @@ pub struct PlaintextsH(pub Hash);
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct Batch(pub usize);
-#[derive(BorshSerialize, BorshDeserialize, Clone)]
-pub struct MixSignatureNumber(pub usize);
 
 ///////////////////////////////////////////////////////////////////////////
 // Enums necessary to store statements and artifacts in LocalBoard

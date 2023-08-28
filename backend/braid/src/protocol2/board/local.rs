@@ -12,6 +12,7 @@ use crate::protocol2::artifact::Configuration;
 use crate::protocol2::artifact::DecryptionFactors;
 use crate::protocol2::artifact::Plaintexts;
 use crate::protocol2::artifact::Shares;
+use crate::protocol2::datalog::MixNumber;
 use crate::protocol2::hash_from_vec;
 use crate::protocol2::message::VerifiedMessage;
 use crate::protocol2::predicate::CommitmentsHash;
@@ -411,7 +412,7 @@ impl<C: Ctx> LocalBoard<C> {
 
     // FIXME "outside" function
     // Used to get the public key from the outside
-    pub fn get_dkg_public_key_nohash(
+    pub(crate) fn get_dkg_public_key_nohash(
         &self,
         signer_position: TrusteePosition,
     ) -> Option<DkgPublicKey<C>> {
@@ -428,7 +429,7 @@ impl<C: Ctx> LocalBoard<C> {
 
     // // FIXME "outside" function
     // Used to get the plaintexts from the outside
-    pub fn get_plaintexts_nohash(
+    pub(crate) fn get_plaintexts_nohash(
         &self,
         batch: BatchNumber,
         signer_position: TrusteePosition,
@@ -454,13 +455,13 @@ impl<C: Ctx> LocalBoard<C> {
         statement: &Statement,
         signer_position: usize,
     ) -> StatementEntryIdentifier {
-        let (kind, _, batch, mix_signature_number, _, _) = statement.get_data();
+        let (kind, _, batch, mix_number, _, _) = statement.get_data();
 
         StatementEntryIdentifier {
             kind,
             signer_position,
             batch,
-            mix_signature_number,
+            mix_number,
         }
     }
     pub(crate) fn get_artifact_entry_identifier(
@@ -472,7 +473,7 @@ impl<C: Ctx> LocalBoard<C> {
             statement_entry.kind.clone(),
             statement_entry.signer_position,
             statement_entry.batch,
-            statement_entry.mix_signature_number,
+            statement_entry.mix_number,
             &artifact_type.clone(),
         )
     }
@@ -481,15 +482,15 @@ impl<C: Ctx> LocalBoard<C> {
         &self,
         statement_type: StatementType,
         signer_position: usize,
-        batch: usize,
-        mix_signature_number: usize,
+        batch: BatchNumber,
+        mix_number: MixNumber,
         artifact_type: &ArtifactType,
     ) -> ArtifactEntryIdentifier {
         let sti = StatementEntryIdentifier {
             kind: statement_type,
             signer_position,
             batch,
-            mix_signature_number,
+            mix_number,
         };
         ArtifactEntryIdentifier {
             statement_entry: sti,
@@ -520,7 +521,7 @@ pub struct StatementEntryIdentifier {
     // The need to make this distinction is only for the purposes of storage in the local board,
     // without this field, the different signature statements would be rejected as duplicates.
     // The field is not used explicitly besides this purpose.
-    pub mix_signature_number: usize,
+    pub mix_number: usize,
 }
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]

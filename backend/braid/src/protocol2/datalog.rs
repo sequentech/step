@@ -10,6 +10,7 @@ pub const NULL_TRUSTEE: usize = 1001;
 
 pub(crate) use crate::protocol2::predicate::*;
 pub(crate) use crate::protocol2::PROTOCOL_MANAGER_INDEX;
+pub(crate) use crate::protocol2::VERIFIER_INDEX;
 
 pub(crate) fn hashes_init(value: Hash) -> THashes {
     let mut ret = [NULL_HASH; crate::protocol2::MAX_TRUSTEES];
@@ -76,7 +77,7 @@ pub(crate) fn get_phases() -> Vec<Phase> {
 }
 
 #[instrument(skip_all)]
-pub(crate) fn run(predicates: &Vec<Predicate>) -> HashSet<Action> {
+pub(crate) fn run(predicates: &Vec<Predicate>) -> (HashSet<Action>, Vec<Predicate>) {
     let phases = get_phases();
     let mut all_predicates = vec![];
     for p in predicates {
@@ -104,7 +105,7 @@ pub(crate) fn run(predicates: &Vec<Predicate>) -> HashSet<Action> {
         });
     }
 
-    actions
+    (actions, all_predicates)
 }
 
 #[derive(Debug)]
@@ -130,3 +131,5 @@ pub(crate) mod cfg;
 pub(crate) mod decrypt;
 pub(crate) mod dkg;
 pub(crate) mod shuffle;
+
+pub(crate) mod v;

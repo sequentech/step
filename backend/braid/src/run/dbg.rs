@@ -491,4 +491,3 @@ fn send(messages: &Vec<Message>, remote: &mut VectorBoard) {
         remote.add(m.clone());
     }
 }
-

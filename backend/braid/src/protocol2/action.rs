@@ -132,7 +132,7 @@ impl Action {
     // Action dispatch to target functions
     ///////////////////////////////////////////////////////////////////////////
     pub(crate) fn run<C: Ctx>(&self, trustee: &Trustee<C>) -> Result<Vec<Message>> {
-        debug!("Running action {:?}", &self);
+        info!("Running action {:?}", &self);
         match self {
             Self::SignConfiguration(cfg_h) => cfg::sign_config(cfg_h, trustee),
             Self::GenCommitments(cfg_h, _num_t, threshold) => {
@@ -246,6 +246,59 @@ impl Action {
                 threshold,
                 trustee,
             ),
+        }
+    }
+
+    // Only three actions are relevant for a verifier
+    pub(crate) fn run_for_verifier<C: Ctx>(&self, trustee: &Trustee<C>) -> Result<Vec<Message>> {
+        match self {
+            Self::SignPublicKey(cfg_h, pk_h, sh_hs, cm_hs, self_pos, num_t, th) => {
+                dkg::sign_pk(cfg_h, pk_h, sh_hs, cm_hs, self_pos, num_t, th, trustee)
+            }
+            Self::SignMix(
+                cfg_h,
+                batch,
+                source_h,
+                signers_t,
+                ciphertexts_h,
+                signert_t,
+                pk_h,
+                mix_n,
+            ) => shuffle::sign_mix(
+                cfg_h,
+                batch,
+                source_h,
+                *signers_t,
+                ciphertexts_h,
+                *signert_t,
+                pk_h,
+                mix_n,
+                trustee,
+            ),
+            Self::SignPlaintexts(
+                cfg_h,
+                batch,
+                pk_h,
+                plaintexts_h,
+                dfactor_hs,
+                ciphertexts_h,
+                mix_signer,
+                trustees,
+                threshold,
+            ) => decrypt::sign_plaintexts(
+                cfg_h,
+                batch,
+                pk_h,
+                plaintexts_h,
+                dfactor_hs,
+                ciphertexts_h,
+                mix_signer,
+                trustees,
+                threshold,
+                trustee,
+            ),
+            // none of the other actions are relevant for a verifier
+            _ => Ok(vec![]),
         }
     }
 }

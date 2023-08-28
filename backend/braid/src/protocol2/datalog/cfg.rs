@@ -28,6 +28,10 @@ crepe! {
     #[derive(Debug)]
     pub struct OutP(Predicate);
 
+    @output
+    #[derive(Debug)]
+    pub struct A(pub(crate) Action);
+
     A(Action::SignConfiguration(cfg_h)) <-
     Configuration(cfg_h, self_position, _, _),
     !ConfigurationSigned(cfg_h, self_position);
@@ -38,10 +42,6 @@ crepe! {
 
     ConfigurationSignedUpTo(cfg_h, 0) <-
     ConfigurationSigned(cfg_h, 0);
-
-    @output
-    #[derive(Debug)]
-    pub struct A(pub(crate) Action);
 
     OutP(Predicate::ConfigurationSignedAll(cfg_h, self_position, num_t, threshold)) <-
     Configuration(cfg_h, self_position, num_t, threshold),

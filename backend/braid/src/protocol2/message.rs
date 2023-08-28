@@ -217,7 +217,7 @@ impl Message {
             CiphertextsH(previous_ciphertexts_h.0),
             CiphertextsH(mix_h.0),
             Batch(batch),
-            MixSignatureNumber(mix_number),
+            mix_number,
         );
         trustee.sign(statement, None)
     }

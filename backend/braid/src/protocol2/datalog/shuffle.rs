@@ -75,7 +75,8 @@ crepe! {
     Ballots(cfg_h, batch, source_h, pk_h, _, trustees),
     !MixSigned(cfg_h, batch, source_h, ciphertexts_h, self_p),
     // Only selected trustees participate (using TrusteeSet parameters from Ballots predicate)
-    (trustees.iter().any(|t| *t - 1 == self_p));
+    // Also include a verifier trustee
+    (trustees.iter().any(|t| *t - 1 == self_p) || self_p == VERIFIER_INDEX);
 
     // Sign after first mix ( sign(mix => ciphertexts) )
     A(Action::SignMix(cfg_h, batch, source_h, signers_t, ciphertexts_h, signert_t, pk_h, mix_number)) <-
@@ -88,7 +89,8 @@ crepe! {
     Mix(cfg_h, batch, _, source_h, _, signers_t, _),
     !MixSigned(cfg_h, batch, source_h, ciphertexts_h, self_p),
     // Only selected trustees participate (using TrusteeSet parameters from Ballots predicate)
-    (trustees.iter().any(|t| *t - 1 == self_p));
+    // Also include a verifier trustee
+    (trustees.iter().any(|t| *t - 1 == self_p) || self_p == VERIFIER_INDEX);
 
     // The producer of a mix already counts as a signature
     MixSigned(cfg_h, batch, source_h, ciphertexts_h, signer_t) <-
