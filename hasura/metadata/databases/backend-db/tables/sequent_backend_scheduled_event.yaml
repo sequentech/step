@@ -1,3 +1,61 @@
 table:
   name: scheduled_event
   schema: sequent_backend
+insert_permissions:
+  - role: admin-user
+    permission:
+      check: {}
+      columns:
+        - created_by
+        - cron_config
+        - event_processor
+        - annotations
+        - event_payload
+        - labels
+        - created_at
+        - stopped_at
+        - election_event_id
+        - id
+        - tenant_id
+    comment: ""
+select_permissions:
+  - role: admin-user
+    permission:
+      columns:
+        - created_by
+        - cron_config
+        - event_processor
+        - annotations
+        - event_payload
+        - labels
+        - created_at
+        - stopped_at
+        - election_event_id
+        - id
+        - tenant_id
+      filter: {}
+      allow_aggregations: true
+    comment: ""
+update_permissions:
+  - role: admin-user
+    permission:
+      columns:
+        - created_by
+        - cron_config
+        - event_processor
+        - annotations
+        - event_payload
+        - labels
+        - created_at
+        - stopped_at
+        - election_event_id
+        - id
+        - tenant_id
+      filter: {}
+      check: {}
+    comment: ""
+delete_permissions:
+  - role: admin-user
+    permission:
+      filter: {}
+    comment: ""
