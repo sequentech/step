@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Button, MenuItem, Menu, Typography} from "@mui/material"
-import React, { useState } from "react"
+import React, {useState} from "react"
 import {
     BooleanInput,
     Edit,
@@ -20,34 +20,53 @@ import {ChipList} from "../../components/ChipList"
 import {JsonInput} from "react-admin-json-view"
 import {Link} from "react-router-dom"
 import {IconButton} from "@sequentech/ui-essentials"
-import {Sequent_Backend_Election} from "../../gql/graphql"
+import {Sequent_Backend_Election, UpdateElectionStatusMutation} from "../../gql/graphql"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
-import { useMutation } from "@apollo/client"
-import { UPDATE_ELECTION_STATUS } from "../../queries/UpdateElectionStatus"
+import {useMutation} from "@apollo/client"
+import {UPDATE_ELECTION_STATUS} from "../../queries/UpdateElectionStatus"
+import {useTenantStore} from "../../components/CustomMenu"
+import {IElectionStatus, IVotingStatus} from "../../services/ElectionStatus"
+import {CircularProgress} from "@mui/material"
+import {useRefresh} from "react-admin"
 
 const ElectionForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
+    const refresh = useRefresh()
     const [showMenu, setShowMenu] = useState(false)
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const [updateElectionStatus] = useMutation<UpdateElectionStatusMutation>(UPDATE_ELECTION_STATUS)
+    const [tenantId] = useTenantStore()
+    const [showProgress, setShowProgress] = useState(false)
 
     const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
         setAnchorEl(event.currentTarget)
         setShowMenu(true)
     }
 
-    const startElectionAction = () => {
+    const startElectionAction = async () => {
         setShowMenu(false)
+        let status: IElectionStatus = {
+            voting_status: IVotingStatus.OPEN,
+        }
+        setShowProgress(true)
+        const {data, errors} = await updateElectionStatus({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: record.election_event_id,
+                electionId: record.id,
+                status: status,
+            },
+        })
+        setShowProgress(false)
+        refresh()
     }
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
             <SimpleForm>
                 <Typography variant="h4">Election</Typography>
-                <Button
-                    onClick={handleActionsButtonClick}
-                >
-                    Actions
+                <Button onClick={handleActionsButtonClick}>
+                    Actions {showProgress ? <CircularProgress /> : null}
                 </Button>
                 <Menu
                     id="election-actions-menu"

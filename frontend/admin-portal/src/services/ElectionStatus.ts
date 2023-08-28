@@ -6,7 +6,7 @@ export enum IVotingStatus {
     NOT_STARTED = "NOT_STARTED",
     OPEN = "OPEN",
     PAUSED = "PAUSED",
-    CLOSED = "CLOSED"
+    CLOSED = "CLOSED",
 }
 
 export interface IElectionStatus {
