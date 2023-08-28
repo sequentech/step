@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, Button, Typography} from "@mui/material"
-import React from "react"
+import {Box, Button, MenuItem, Menu, Typography} from "@mui/material"
+import React, { useState } from "react"
 import {
     BooleanInput,
     Edit,
@@ -22,14 +22,41 @@ import {Link} from "react-router-dom"
 import {IconButton} from "@sequentech/ui-essentials"
 import {Sequent_Backend_Election} from "../../gql/graphql"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import { useMutation } from "@apollo/client"
+import { UPDATE_ELECTION_STATUS } from "../../queries/UpdateElectionStatus"
 
 const ElectionForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
+    const [showMenu, setShowMenu] = useState(false)
+    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
+    const [updateElectionStatus] = useMutation<UpdateElectionStatusMutation>(UPDATE_ELECTION_STATUS)
+
+    const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
+        setAnchorEl(event.currentTarget)
+        setShowMenu(true)
+    }
+
+    const startElectionAction = () => {
+        setShowMenu(false)
+    }
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
             <SimpleForm>
                 <Typography variant="h4">Election</Typography>
+                <Button
+                    onClick={handleActionsButtonClick}
+                >
+                    Actions
+                </Button>
+                <Menu
+                    id="election-actions-menu"
+                    anchorEl={anchorEl}
+                    open={showMenu}
+                    onClose={() => setShowMenu(false)}
+                >
+                    <MenuItem onClick={startElectionAction}>Start</MenuItem>
+                </Menu>
                 <Typography variant="body2">Election configuration</Typography>
                 <Typography variant="h5">ID</Typography>
                 <TextField source="id" />
