@@ -6,7 +6,6 @@ import {Dialog, downloadUrl} from "@sequentech/ui-essentials"
 import {Button, MenuItem, Select, TextField, Typography} from "@mui/material"
 import {useTenantStore} from "./CustomMenu"
 import {
-    CreateReportMutation,
     CreateScheduledEventMutation,
     FetchDocumentQuery,
     GetEventExecutionQuery,
@@ -14,7 +13,6 @@ import {
     Sequent_Backend_Election_Event,
 } from "../gql/graphql"
 import {useMutation, useQuery} from "@apollo/client"
-import {CREATE_REPORT} from "../queries/CreateReport"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 import {CircularProgress} from "@mui/material"
