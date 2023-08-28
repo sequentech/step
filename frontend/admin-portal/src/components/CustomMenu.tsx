@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect} from "react"
 import {Menu, useSidebarState, useGetList, useResourceContext} from "react-admin"
-import {faThLarge, faUsers, faCog, faStar, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import {faThLarge, faUsers, faCog, faStar, faPlusCircle, faFileText} from "@fortawesome/free-solid-svg-icons"
 import {IconButton, theme} from "@sequentech/ui-essentials"
 import {HorizontalBox} from "./HorizontalBox"
 import {Box, MenuItem, Select, SelectChangeEvent} from "@mui/material"
@@ -120,6 +120,11 @@ export const CustomMenu = () => {
                 to="/sequent_backend_tenant"
                 primaryText="Customers"
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+            />
+            <StyledItem
+                to="/sequent_backend_document"
+                primaryText="Documents"
+                leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
             />
             <StyledItem
                 to="/user-roles"

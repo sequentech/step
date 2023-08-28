@@ -35,6 +35,9 @@ import {EditTenant} from "./resources/Tenant/EditTenant"
 import {ListTenant} from "./resources/Tenant/ListTenant"
 import {CreateTenant} from "./resources/Tenant/CreateTenant"
 import {ShowElectionEvent} from "./resources/ElectionEvent/ShowElectionEvent"
+import { ShowDocument } from "./resources/Document/ShowDocument"
+import { ListDocument } from "./resources/Document/ListDocument"
+import { CreateDocument } from "./resources/Document/CreateDocument"
 
 const App = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
@@ -112,6 +115,13 @@ const App = () => {
                 list={ListTenant}
                 create={CreateTenant}
                 options={{label: "Customer"}}
+            />
+            <Resource
+                name="sequent_backend_document"
+                show={ShowDocument}
+                list={ListDocument}
+                create={CreateDocument}
+                options={{label: "Document"}}
             />
         </Admin>
     )
