@@ -10,7 +10,7 @@ use crate::protocol2::artifact::*;
 use crate::protocol2::statement::ArtifactType;
 use crate::protocol2::statement::Statement;
 use crate::protocol2::statement::StatementType;
-use crate::protocol2::trustee::Sender;
+use crate::protocol2::trustee::Signer;
 
 use crate::protocol2::artifact::Configuration;
 use crate::protocol2::datalog::PublicKeyHash;
@@ -302,7 +302,7 @@ impl Message {
         self,
         configuration: &Configuration<C>,
     ) -> Option<VerifiedMessage> {
-        let (kind, st_cfg_h, _, mix_sno, artifact_type) = self.statement.get_data();
+        let (kind, st_cfg_h, _, mix_sno, artifact_type, _) = self.statement.get_data();
 
         if mix_sno > configuration.trustees.len() {
             error!("Received a message whose statement signature number is out of range");

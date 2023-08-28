@@ -69,11 +69,11 @@ crepe! {
 
     DecryptionFactorsAcc(cfg_h, batch, hs, ts, 0) <-
     PublicKeySignedAll(cfg_h, pk_h, shares_hs),
-    Ballots(cfg_h, batch, _, pk_h, _, trustees),
+    Ballots(cfg_h, batch, _, pk_h, _, selected),
     ConfigurationSignedAll(cfg_h, _self_p, _num_t, _threshold),
     // Trustees are 1 based, so n - 1
-    DecryptionFactors(cfg_h, batch, dfactors_h, _ciphertexts_h, shares_hs, trustees[0] - 1),
-    let ts = super::trustees_init(trustees[0]),
+    DecryptionFactors(cfg_h, batch, dfactors_h, _ciphertexts_h, shares_hs, selected[0] - 1),
+    let ts = super::trustees_init(selected[0]),
     let hs = DecryptionFactorsHashes(super::hashes_init(dfactors_h.0));
 
     DecryptionFactorsAcc(cfg_h, batch, new_dfactor_hs, new_ts, n + 1) <-
@@ -82,10 +82,10 @@ crepe! {
     // n accumulator is 0-based, threshold is 1-based, so the last value of n + 1 is threshold - 1
     (n + 1 <= threshold - 1),
     PublicKeySignedAll(cfg_h, pk_h, shares_hs),
-    Ballots(cfg_h, batch, _, pk_h, _, trustees),
+    Ballots(cfg_h, batch, _, pk_h, _, selected),
     // Trustees are 1 based, so n - 1
-    DecryptionFactors(cfg_h, batch, dfactors_h, _ciphertexts_h, shares_hs, trustees[n + 1] - 1),
-    let new_ts = super::trustees_add(ts, trustees[n + 1]),
+    DecryptionFactors(cfg_h, batch, dfactors_h, _ciphertexts_h, shares_hs, selected[n + 1] - 1),
+    let new_ts = super::trustees_add(ts, selected[n + 1]),
     let new_dfactor_hs = DecryptionFactorsHashes(super::hashes_add(dfactor_hs.0, dfactors_h.0));
 
     DecryptionFactorsAll(cfg_h, batch, dfactor_hs, ciphertexts_h, mix_signer, ts, threshold) <-
@@ -94,21 +94,23 @@ crepe! {
     ConfigurationSignedAll(cfg_h, _self_p, _num_t, threshold),
     (trustees_count(ts) == threshold);
 
-    A(Action::ComputePlaintexts(cfg_h, batch, pk_h, dfactors_hs, ciphertexts_h, mix_signer, ts, threshold)) <-
-    ConfigurationSignedAll(cfg_h, 0, _num_t, threshold),
+    A(Action::ComputePlaintexts(cfg_h, batch, pk_h, dfactors_hs, ciphertexts_h, mix_signer, selected, threshold)) <-
+    Ballots(cfg_h, batch, _, pk_h, _, selected),
+    ConfigurationSignedAll(cfg_h, selected[0] - 1, _num_t, threshold),
     PublicKeySignedAll(cfg_h, pk_h, _shares_hs),
-    DecryptionFactorsAll(cfg_h, batch, dfactors_hs, ciphertexts_h, mix_signer, ts, threshold),
-    !Plaintexts(cfg_h, batch, _, dfactors_hs, 0);
+    DecryptionFactorsAll(cfg_h, batch, dfactors_hs, ciphertexts_h, mix_signer, _, threshold),
+    !Plaintexts(cfg_h, batch, _, dfactors_hs, selected[0] - 1);
 
-    PlaintextsSigned(cfg_h, batch, plaintexts_h, dfactors_hs, 0) <-
-    Plaintexts(cfg_h, batch, plaintexts_h, dfactors_hs, 0);
+    PlaintextsSigned(cfg_h, batch, plaintexts_h, dfactors_hs, selected[0] - 1) <-
+    Ballots(cfg_h, batch, _, _, _, selected),
+    Plaintexts(cfg_h, batch, plaintexts_h, dfactors_hs, selected[0] - 1);
 
-    A(Action::SignPlaintexts(cfg_h, batch, pk_h, plaintexts_h, dfactors_hs, ciphertexts_h, mix_signer, trustees, threshold)) <-
+    A(Action::SignPlaintexts(cfg_h, batch, pk_h, plaintexts_h, dfactors_hs, ciphertexts_h, mix_signer, selected, threshold)) <-
     ConfigurationSignedAll(cfg_h, self_p, _num_t, threshold),
     PublicKeySignedAll(cfg_h, pk_h, _shares_hs),
-    Ballots(cfg_h, batch, _, pk_h, _, trustees),
+    Ballots(cfg_h, batch, _, pk_h, _, selected),
     MixComplete(cfg_h, batch, _mix_n, ciphertexts_h, mix_signer),
-    Plaintexts(cfg_h, batch, plaintexts_h, dfactors_hs, 0),
+    Plaintexts(cfg_h, batch, plaintexts_h, dfactors_hs, selected[0] - 1),
     !PlaintextsSigned(cfg_h, batch, plaintexts_h, dfactors_hs, self_p);
 
 }

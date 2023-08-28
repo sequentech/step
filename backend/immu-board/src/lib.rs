@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub use board::*;
+pub use board_client::*;
 
 pub mod util;
-pub mod board;
+pub mod board_client;

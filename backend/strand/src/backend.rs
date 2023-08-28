@@ -2,12 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 /// Multiplicative group backend using [malachite](https://www.malachite.rs/).
+#[cfg(feature = "malachite")]
 pub mod malachite;
 /// Multiplicative group backend using [num_bigint](https://docs.rs/num-bigint/latest/num_bigint/).
+#[cfg(feature = "num_bigint")]
 pub mod num_bigint;
 /// Elliptic curve backend on top of [ristretto](https://ristretto.group/ristretto.html) using [curve25519_dalek](https://doc.dalek.rs/curve25519_dalek/ristretto/index.html).
 pub mod ristretto;
-#[cfg(feature = "rug")]
+#[cfg(unix)]
 /// Multiplicative group backend using [rug](https://docs.rs/rug/1.16.0/rug/).
 pub mod rug;
 

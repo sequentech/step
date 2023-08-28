@@ -1,10 +1,9 @@
 // cargo run --bin gen_config
-// cargo run --bin bb_client -- --server-url https://localhost:3000 --cache-dir /tmp init
-// cargo run --bin main -- --server-url https://localhost:3000 --cache-dir /tmp --trustee-config trustee1.toml
-// cargo run --bin bb_client -- --server-url https://localhost:3000 --cache-dir /tmp ballots
-
-cfg_if::cfg_if! {
-    if #[cfg(feature = "bb-test")] {
+// cargo run --bin bb_helper -- --cache-dir /tmp/cache -s http://immudb:3322 -i defaultboardindex -b defaultboard  -u immudb -p immudb upsert-init-db -l debug
+// cargo run --bin bb_helper -- --cache-dir /tmp/cache -s http://immudb:3322 -i defaultboardindex -b defaultboard  -u immudb -p immudb upsert-board-db -l debug
+// cargo run --bin bb_client -- --server-url http://immudb:3322 init
+// cargo run --bin main -- --server-url http://immudb:3322 --board-index defaultboardindex --trustee-config trustee1.toml
+// cargo run --bin bb_client -- --server-url http://immudb:3322 ballots
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose, Engine as _};
 use clap::Parser;
@@ -13,25 +12,28 @@ use generic_array::GenericArray;
 use std::fs;
 use std::path::PathBuf;
 use tokio::time::{sleep, Duration};
+use tracing::info;
 use tracing::instrument;
 
-use braid::protocol2::board::trillian::TrillianBoard;
+use braid::protocol2::board::immudb::{ImmudbBoard, ImmudbBoardIndex};
 use braid::protocol2::session::Session;
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
-use bulletin_board::client::{Client, FileCache};
-use bulletin_board::util::init_log;
+use braid::util::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
 
+const IMMUDB_USER: &str = "immudb";
+const IMMUDB_PW: &str = "immudb";
+
 #[derive(Parser)]
 struct Cli {
     #[arg(long)]
-    cache_dir: PathBuf,
+    server_url: String,
 
     #[arg(long)]
-    server_url: String,
+    board_index: String,
 
     #[arg(long)]
     trustee_config: PathBuf,
@@ -40,10 +42,8 @@ struct Cli {
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    init_log().map_err(|error| anyhow!(error))?;
+    init_log(true);
     let args = Cli::parse();
-    let cache = FileCache::new(&args.cache_dir)?;
-    let client = Client::new(args.server_url, cache).await?;
 
     let contents = fs::read_to_string(args.trustee_config)
         .expect("Should have been able to read the trustee configuration file");
@@ -60,19 +60,22 @@ async fn main() -> Result<()> {
         .map_err(|error| anyhow!(error))?;
     let ek = GenericArray::<u8, U32>::from_slice(&bytes).to_owned();
 
-    let trustee: Trustee<RistrettoCtx> = Trustee::new(sk, ek);
-    let board = TrillianBoard::new("default-board".to_string(), client);
-    let mut session = Session::new(trustee, board);
-
+    let mut board_index =
+        ImmudbBoardIndex::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, args.board_index).await?;
     loop {
-        session.step().await?;
+        info!(">");
+        let boards: Vec<String> = board_index.get_board_names().await?;
+        for board_name in boards {
+            info!("Connecting to board '{}'..", board_name.clone());
+            let trustee: Trustee<RistrettoCtx> = Trustee::new(sk.clone(), ek.clone());
+            let board =
+                ImmudbBoard::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, board_name.clone())
+                    .await?;
+            let mut session = Session::new(trustee, board);
+            info!("Running trustee for board '{}'..", board_name);
+            // FIXME error should be handled to prevent loop termination
+            session.step().await?;
+        }
         sleep(Duration::from_millis(1000)).await;
     }
-}
-}
-else {
-    fn main() {
-        println!("Requires the 'bb-test' feature");
-    }
-}
 }

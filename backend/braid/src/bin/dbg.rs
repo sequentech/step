@@ -1,16 +1,7 @@
-cfg_if::cfg_if! {
-if #[cfg(feature = "dbg")] {
-
-
 use ascii_table::{Align, AsciiTable};
 
-use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit},
-    consts::{U12, U32},
-    ChaCha20Poly1305, Nonce,
-};
+use chacha20poly1305::{aead::KeyInit, ChaCha20Poly1305};
 use log::{info, warn};
-use rand::rngs::OsRng;
 use reedline_repl_rs::clap::{Arg, ArgMatches, Command};
 use reedline_repl_rs::{Repl, Result};
 use std::collections::HashSet;
@@ -18,32 +9,32 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use tracing_attributes::instrument;
-use tracing_subscriber::reload::Handle;
 use tracing_subscriber::filter::LevelFilter;
+use tracing_subscriber::reload::Handle;
 use tracing_subscriber::{filter, reload};
 use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use tracing_tree::HierarchicalLayer;
 
 use strand::backend::ristretto::RistrettoCtx;
-use strand::elgamal::{Ciphertext, PrivateKey};
+use strand::context::Ctx;
+use strand::elgamal::Ciphertext;
 use strand::serialization::StrandSerialize;
-use strand::signature::{StrandSignature, StrandSignaturePk, StrandSignatureSk};
+use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-use braid::protocol2::artifact::{Configuration};
+use braid::protocol2::action::Action;
+use braid::protocol2::artifact::Configuration;
 use braid::protocol2::board::local::LocalBoard;
-use braid::test::vector_board::VectorBoard;
+use braid::protocol2::datalog::NULL_TRUSTEE;
 use braid::protocol2::message::Message;
 use braid::protocol2::predicate::PublicKeyHash;
 use braid::protocol2::trustee::ProtocolManager;
 use braid::protocol2::trustee::Trustee;
-use strand::context::Ctx;
-use strand::context::Exponent;
-use braid::protocol2::action::Action;
+use braid::protocol2::MAX_TRUSTEES;
+use braid::test::vector_board::VectorBoard;
 
 struct ReplContext<C: Ctx> {
     pub ctx: C,
     pub cfg: Configuration<C>,
-    pub session_id: u128,
     pub protocol_manager: ProtocolManager<C>,
     pub trustees: Vec<Trustee<C>>,
     pub trustee_pks: Vec<StrandSignaturePk>,
@@ -98,12 +89,7 @@ impl<C: Ctx> Status<C> {
             let data2: Vec<String> = b
                 .artifacts
                 .keys()
-                .map(|k| {
-                    format!(
-                        "{}-{}",
-                        k.artifact_type, k.statement_entry.signer_position
-                    )
-                })
+                .map(|k| format!("{}-{}", k.artifact_type, k.statement_entry.signer_position))
                 .collect();
             let mut data3 = vec![format!("{:?}", b.configuration)];
 
@@ -209,11 +195,9 @@ fn init_log() -> Handle<LevelFilter, Registry> {
 
 fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContext<C> {
     let mut csprng = strand::rnd::StrandRng;
-    let session_id = 0;
 
-    let mut selected = [1001usize; 12];
+    let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
     selected[0..threshold.len()].copy_from_slice(&threshold);
-
 
     let pmkey: StrandSignatureSk = StrandSignatureSk::new(&mut csprng);
     let pm: ProtocolManager<C> = ProtocolManager {
@@ -243,14 +227,13 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
         PhantomData,
     );
 
-    let mut remote = VectorBoard::new(session_id);
+    let mut remote = VectorBoard::new(0);
     let message = Message::bootstrap_msg(&cfg, &pm).unwrap();
     remote.add(message);
 
     ReplContext {
         ctx,
         cfg,
-        session_id,
         protocol_manager: pm,
         trustees,
         trustee_pks,
@@ -264,8 +247,8 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
 }
 
 fn log<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
-    let mut new_level = filter::LevelFilter::INFO;
-    let l = args.value_of("level");
+    let new_level;
+    let l = args.get_one::<String>("level");
     if let Some(level) = l {
         let parsed = level.parse::<u8>()?;
         new_level = match parsed {
@@ -324,10 +307,15 @@ fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
 
 fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     let ctx = context.ctx.clone();
-    let batch = args.value_of("batch").unwrap().parse::<usize>().unwrap();
-    let ballot_no_str = args.value_of("count").unwrap_or("10");
-    let ballot_no = ballot_no_str.parse::<usize>().unwrap();
-
+    let batch = args
+        .get_one::<String>("batch")
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
+    let ballot_no = args
+        .get_one::<String>("count")
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(10);
     let dkgpk = context.trustees[0].get_dkg_public_key_nohash().unwrap();
 
     let pk_bytes = dkgpk.strand_serialize().unwrap();
@@ -336,7 +324,7 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
     let pk_element = dkgpk.pk;
     let pk = strand::elgamal::PublicKey::from_element(&pk_element, &ctx);
 
-    let ps: Vec<C::P> = (0..ballot_no).map(|i| ctx.rnd_plaintext()).collect();
+    let ps: Vec<C::P> = (0..ballot_no).map(|_| ctx.rnd_plaintext()).collect();
     let ballots: Vec<Ciphertext<C>> = ps
         .iter()
         .map(|p| {
@@ -347,23 +335,30 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
     context.plaintexts = ps;
 
     info!("selected_trustees {:?}", context.selected_trustees);
-    let ballot_batch = braid::protocol2::artifact::Ballots::new(ballots, context.selected_trustees, &context.cfg);
+    let ballot_batch =
+        braid::protocol2::artifact::Ballots::new(ballots, context.selected_trustees, &context.cfg);
     let message = braid::protocol2::message::Message::ballots_msg(
         &context.cfg,
         batch,
         &ballot_batch,
         PublicKeyHash(pk_h),
         &context.protocol_manager,
-    ).unwrap();
+    )
+    .unwrap();
 
     context.remote.add(message);
 
-
-    info!("{}", status(ArgMatches::default(), context).unwrap().unwrap());
-    Ok(Some(format!("Generated {} ballots with batch# {} ({:?})", ballot_no, batch, context.selected_trustees)))
+    info!(
+        "{}",
+        status(ArgMatches::default(), context).unwrap().unwrap()
+    );
+    Ok(Some(format!(
+        "Generated {} ballots with batch# {} ({:?})",
+        ballot_no, batch, context.selected_trustees
+    )))
 }
 
-fn plaintexts<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
+fn plaintexts<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
     let encoded: Vec<C::E> = context
         .plaintexts
         .iter()
@@ -371,15 +366,18 @@ fn plaintexts<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<
         .collect();
     Ok(Some(format!("Plaintexts {:?}", encoded)))
 }
-fn decrypted<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
-    if let Some(plaintexts) = context.trustees[0].get_plaintexts_nohash(1) {
+fn decrypted<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
+    // FIXME hardcoded batch 1, use command line argument
+    let decryptor = context.selected_trustees[0] - 1;
+    if let Some(plaintexts) = context.trustees[decryptor].get_plaintexts_nohash(1, decryptor) {
         let decrypted: Vec<C::E> = plaintexts
-            .0.0
+            .0
+             .0
             .iter()
             .map(|p| context.ctx.encode(p).unwrap())
             .collect();
 
-        let set1: HashSet<C::P> = HashSet::from_iter(plaintexts.0.0);
+        let set1: HashSet<C::P> = HashSet::from_iter(plaintexts.0 .0);
         let set2 = HashSet::from_iter(context.plaintexts.iter().cloned());
 
         Ok(Some(format!(
@@ -393,21 +391,26 @@ fn decrypted<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<O
 }
 
 fn reset<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<String>> {
-    let n_trustees = args.value_of("trustees").unwrap().parse::<u8>().unwrap();
-    let threshold = args
-        .value_of("threshold")
+    let n_trustees = args
+        .get_one::<String>("trustees")
         .unwrap()
-        .parse::<usize>()
+        .parse::<u8>()
+        .unwrap();
+    let threshold_vec: Vec<_> = args
+        .get_one::<String>("threshold")
+        .unwrap()
+        .split(',')
+        .collect();
+
+    let threshold: Vec<usize> = threshold_vec
+        .iter()
+        .map(|s| s.parse::<usize>())
+        .collect::<std::result::Result<Vec<usize>, _>>()
         .unwrap();
 
-    let t = [1, 2, 3, 4, 5, 6, 7, 8];
-    let reset = mk_context(context.ctx.clone(), n_trustees, &t[0..threshold]);
+    info!("Threshold {:?}", threshold);
 
-    if let Some(plaintexts) = context.trustees[0].get_plaintexts_nohash(1) {
-        info!("Plaintexts {:?}", plaintexts);
-    } else {
-        info!("No plaintexts found");
-    }
+    let reset = mk_context(context.ctx.clone(), n_trustees, &threshold);
 
     context.remote = reset.remote;
     context.trustees = reset.trustees;
@@ -416,6 +419,7 @@ fn reset<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Optio
     context.last_actions = HashSet::from([]);
     context.last_messages = vec![];
     context.cfg = reset.cfg;
+    context.selected_trustees = reset.selected_trustees;
 
     status(ArgMatches::default(), context)
 }
@@ -424,7 +428,7 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
     context.last_actions = HashSet::from([]);
     context.last_messages = vec![];
 
-    let trustee = args.value_of("trustee");
+    let trustee = args.get_one::<String>("trustee");
     if let Some(value) = trustee {
         let t = value.parse::<u8>()?;
         let trustee_: Option<&mut Trustee<C>> = context.trustees.get_mut(t as usize);
@@ -514,12 +518,4 @@ fn dbg<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Result<()> 
         )
         .with_command(Command::new("quit").about("quit"), quit);
     repl.run()
-}
-}
-
-else {
-    fn main() {
-        println!("Requires the 'dbg' feature");
-    }
-}
 }
