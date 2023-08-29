@@ -97,7 +97,7 @@ pub(crate) fn run(predicates: &Vec<Predicate>) -> (HashSet<Action>, Vec<Predicat
         let next = p.run(&all_predicates);
         debug!("Phase {:?} returns {} new predicates", p, next.0.len());
         next.0.into_iter().for_each(|p| {
-            info!("Adding output predicate {:?}", p);
+            trace!("Adding output predicate {:?}", p);
             all_predicates.push(p);
         });
         next.1.into_iter().for_each(|a| {

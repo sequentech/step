@@ -91,6 +91,7 @@ pub(crate) enum Predicate {
         BatchNumber,
         PlaintextsHash,
         DecryptionFactorsHashes,
+        CiphertextsHash,
         TrusteePosition,
     ),
     PlaintextsSigned(
@@ -98,6 +99,7 @@ pub(crate) enum Predicate {
         BatchNumber,
         PlaintextsHash,
         DecryptionFactorsHashes,
+        CiphertextsHash,
         TrusteePosition,
     ),
 
@@ -111,7 +113,7 @@ pub(crate) enum Predicate {
         CiphertextsHash,
         TrusteePosition,
     ),
-    Z(usize),
+    Z(ConfigurationHash, BatchNumber, CiphertextsHash, PlaintextsHash),
 }
 impl Predicate {
     pub(crate) fn from_statement<C: Ctx>(
@@ -204,19 +206,21 @@ impl Predicate {
                 )
             }
             // Plaintexts(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs)
-            Statement::Plaintexts(_ts, cfg_h, batch, pl_h, df_hs) => Self::Plaintexts(
+            Statement::Plaintexts(_ts, cfg_h, batch, pl_h, df_hs, c_h) => Self::Plaintexts(
                 ConfigurationHash(cfg_h.0),
                 batch.0,
                 PlaintextsHash(pl_h.0),
                 DecryptionFactorsHashes(df_hs.0),
+                CiphertextsHash(c_h.0),
                 signer_position,
             ),
             // PlaintextsSigned(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs)
-            Statement::PlaintextsSigned(_ts, cfg_h, batch, pl_h, df_hs) => Self::PlaintextsSigned(
+            Statement::PlaintextsSigned(_ts, cfg_h, batch, pl_h, df_hs, c_h) => Self::PlaintextsSigned(
                 ConfigurationHash(cfg_h.0),
                 batch.0,
                 PlaintextsHash(pl_h.0),
                 DecryptionFactorsHashes(df_hs.0),
+                CiphertextsHash(c_h.0),
                 signer_position,
             ),
         };
@@ -393,20 +397,20 @@ impl std::fmt::Debug for Predicate {
                 f,
                 "DecryptionFactors{{ dfactors_h={dfactors_h:?} signer_t={signer_t:?} }}"
             ),
-            Predicate::Plaintexts(cfg_h, batch, plaintexts_h, _dfactors_hs, signer_t) => write!(
+            Predicate::Plaintexts(cfg_h, batch, plaintexts_h, _dfactors_hs, _ciph_h, signer_t) => write!(
                 f,
                 "Plaintexts{{ cfg hash={:?}, batch={:?}, plaintexts_h={:?}, signer_t={:?} }}",
                 dbg_hash(&cfg_h.0), batch, plaintexts_h, signer_t
             ),
-            Predicate::PlaintextsSigned(cfg_h, batch, plaintexts_h, _df_hs, signer_t) => write!(
+            Predicate::PlaintextsSigned(cfg_h, batch, plaintexts_h, _df_hs, _ciph_h, signer_t) => write!(
                 f,
                 "PlaintextsSigned{{ cfg hash={:?}, batch={:?}, plaintexts_h={:?}, signer_t={:?} }}",
                 dbg_hash(&cfg_h.0), batch, plaintexts_h, signer_t
             ),
-            Predicate::Z(value) => write!(
+            Predicate::Z(cfg, batch, ciph, pl) => write!(
                 f,
-                "Value {}",
-                value
+                "cfg {:?}, batch {}, ciph {:?}, pl {:?}",
+                cfg, batch, ciph, pl
             ),
         }
     }

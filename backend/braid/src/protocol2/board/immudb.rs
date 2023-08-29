@@ -81,12 +81,13 @@ impl ImmudbBoard {
     }
 
     async fn update_store(&mut self, connection: &Connection) -> Result<()> {
-        let last_id: i64 =
-            connection.query_row("SELECT max(id) FROM messages;", [], |row| row.get(0))?;
+        let last_id: Result<i64> =
+            connection.query_row("SELECT max(id) FROM messages;", [], |row| row.get(0))
+            .or(Ok(0i64));
 
         let messages = self
             .board_client
-            .get_messages(&self.board_dbname, last_id)
+            .get_messages(&self.board_dbname, last_id?)
             .await?;
 
         for message in messages {

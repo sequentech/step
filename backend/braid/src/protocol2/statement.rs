@@ -79,6 +79,7 @@ pub enum Statement {
         Batch,
         PlaintextsH,
         DecryptionFactorsHs,
+        CiphertextsH
     ),
     PlaintextsSigned(
         Timestamp,
@@ -86,6 +87,7 @@ pub enum Statement {
         Batch,
         PlaintextsH,
         DecryptionFactorsHs,
+        CiphertextsH
     ),
 }
 
@@ -217,6 +219,7 @@ impl Statement {
         batch: Batch,
         plaintexts_h: PlaintextsH,
         dfactors_hs: DecryptionFactorsHs,
+        cipher_h: CiphertextsH,
     ) -> Statement {
         Statement::Plaintexts(
             Self::timestamp(),
@@ -224,6 +227,7 @@ impl Statement {
             batch,
             plaintexts_h,
             dfactors_hs,
+            cipher_h,
         )
     }
 
@@ -232,6 +236,7 @@ impl Statement {
         batch: Batch,
         plaintexts_h: PlaintextsH,
         dfactors_hs: DecryptionFactorsHs,
+        cipher_h: CiphertextsH,
     ) -> Statement {
         Statement::PlaintextsSigned(
             Self::timestamp(),
@@ -239,6 +244,7 @@ impl Statement {
             batch,
             plaintexts_h,
             dfactors_hs,
+            cipher_h,
         )
     }
 
@@ -347,14 +353,14 @@ impl Statement {
                 batch = bch.0;
                 artifact_type = Some(ArtifactType::DecryptionFactors);
             }
-            Self::Plaintexts(ts_, cfg_h, bch, _, _) => {
+            Self::Plaintexts(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::Plaintexts;
                 cfg = cfg_h.0;
                 batch = bch.0;
                 artifact_type = Some(ArtifactType::Plaintexts);
             }
-            Self::PlaintextsSigned(ts_, cfg_h, bch, _, _) => {
+            Self::PlaintextsSigned(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::PlaintextsSigned;
                 cfg = cfg_h.0;

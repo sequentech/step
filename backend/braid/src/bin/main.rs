@@ -75,8 +75,10 @@ async fn main() -> Result<()> {
             .await?;
             let mut session = VerifyingSession::new(trustee, board);
             info!("Running trustee for board '{}'..", board_name);
-            // FIXME error should be handled to prevent loop termination
             session.run().await?;
+            // FIXME error should be handled to prevent loop termination
+            // let mut session = Session::new(trustee, board);
+            // session.step().await?;
         }
         sleep(Duration::from_millis(1000)).await;
         break;
