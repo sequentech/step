@@ -21,7 +21,6 @@ fn rocket() -> _ {
         "/",
         routes![
             routes::fetch_document::fetch_document,
-            routes::render_report::render_report,
             routes::scheduled_event::create_scheduled_event,
         ],
     )

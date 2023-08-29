@@ -94,7 +94,6 @@ async fn upload_and_return_document(
     }))
 }
 
-#[post("/render-report", format = "json", data = "<body>")]
 pub async fn render_report(
     body: Json<RenderTemplateBody>,
     auth_headers: connection::AuthHeaders,

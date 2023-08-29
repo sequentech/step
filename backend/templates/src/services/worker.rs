@@ -10,7 +10,7 @@ use strum_macros::EnumString;
 
 use crate::connection;
 use crate::hasura::event_execution;
-use crate::routes::render_report;
+use crate::services::events::render_report;
 use crate::routes::scheduled_event;
 use crate::services::events::update_voting_status;
 
