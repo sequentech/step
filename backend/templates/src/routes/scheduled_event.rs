@@ -21,7 +21,8 @@ use crate::services;
 )]
 #[serde(crate = "rocket::serde")]
 pub enum EventProcessors {
-    CreateReport,
+    CREATE_REPORT,
+    UPDATE_VOTING_STATUS
 }
 
 #[derive(Deserialize, Debug)]

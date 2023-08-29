@@ -20,6 +20,7 @@ import {FETCH_DOCUMENT} from "../queries/FetchDocument"
 import {useRecordContext} from "react-admin"
 import {CREATE_SCHEDULED_EVENT} from "../queries/CreateScheduledEvent"
 import {GET_EVENT_EXECUTION} from "../queries/GetEventExecution"
+import { ScheduledEventType } from "../services/ScheduledEvent"
 
 const Vertical = styled(Box)`
     display: flex;
@@ -96,7 +97,7 @@ export const ReportDialog: React.FC = () => {
             variables: {
                 tenantId: tenantId,
                 electionEventId: record.id,
-                eventProcessor: "CreateReport",
+                eventProcessor: ScheduledEventType.CREATE_REPORT,
                 cronConfig: undefined,
                 eventPayload: {
                     template: template,
