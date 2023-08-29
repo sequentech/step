@@ -68,7 +68,7 @@ crepe! {
     MixVerifiedUpto(cfg_h, batch, source_h, n),
     !Plaintexts(cfg_h, batch, _, _, source_h, _);
 
-    OutP(Predicate::Z(cfg_h, batch, ciphertexts_h, plaintexts_h)) <-
+    OutP(Predicate::Z(cfg_h, batch, ballots_h, plaintexts_h)) <-
     ConfigurationSignedAll(cfg_h, _, _num_t, threshold),
     MixVerifiedUpto(cfg_h, batch, ciphertexts_h, threshold),
     MixVerifiedUpto(cfg_h, batch, target_h, 1),

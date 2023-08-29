@@ -4,7 +4,6 @@ use strand::signature::StrandSignaturePk;
 use strand::{context::Ctx, serialization::StrandSerialize};
 
 use crate::protocol2::artifact::Configuration;
-use crate::protocol2::board::local::LocalBoard;
 use crate::protocol2::statement::Statement;
 use crate::protocol2::statement::THashes;
 use crate::protocol2::PROTOCOL_MANAGER_INDEX;
@@ -113,7 +112,12 @@ pub(crate) enum Predicate {
         CiphertextsHash,
         TrusteePosition,
     ),
-    Z(ConfigurationHash, BatchNumber, CiphertextsHash, PlaintextsHash),
+    Z(
+        ConfigurationHash,
+        BatchNumber,
+        CiphertextsHash,
+        PlaintextsHash,
+    ),
 }
 impl Predicate {
     pub(crate) fn from_statement<C: Ctx>(
@@ -215,14 +219,16 @@ impl Predicate {
                 signer_position,
             ),
             // PlaintextsSigned(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs)
-            Statement::PlaintextsSigned(_ts, cfg_h, batch, pl_h, df_hs, c_h) => Self::PlaintextsSigned(
-                ConfigurationHash(cfg_h.0),
-                batch.0,
-                PlaintextsHash(pl_h.0),
-                DecryptionFactorsHashes(df_hs.0),
-                CiphertextsHash(c_h.0),
-                signer_position,
-            ),
+            Statement::PlaintextsSigned(_ts, cfg_h, batch, pl_h, df_hs, c_h) => {
+                Self::PlaintextsSigned(
+                    ConfigurationHash(cfg_h.0),
+                    batch.0,
+                    PlaintextsHash(pl_h.0),
+                    DecryptionFactorsHashes(df_hs.0),
+                    CiphertextsHash(c_h.0),
+                    signer_position,
+                )
+            }
         };
 
         trace!("Predicate {:?} derived from statement {:?}", ret, statement);
@@ -409,8 +415,8 @@ impl std::fmt::Debug for Predicate {
             ),
             Predicate::Z(cfg, batch, ciph, pl) => write!(
                 f,
-                "cfg {:?}, batch {}, ciph {:?}, pl {:?}",
-                cfg, batch, ciph, pl
+                "cfg {:?}, batch {}, ballots {:?}, pl {:?}",
+                dbg_hash(&cfg.0), batch, dbg_hash(&ciph.0), dbg_hash(&pl.0)
             ),
         }
     }

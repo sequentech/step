@@ -35,10 +35,10 @@ impl<C: Ctx> Session<C> {
         info!("Trustee {:?} step..", self.trustee.get_pk());
 
         let messages = self.board.get_messages(0).await?;
-        let (send_messages, _actions) = self.trustee.step(messages)?;            
+        let (send_messages, _actions) = self.trustee.step(messages)?;
         if !self.dry_run {
             self.board.insert_messages(send_messages).await?;
-        }   
+        }
 
         Ok(())
     }

@@ -266,7 +266,7 @@ impl Message {
             Batch(batch),
             PlaintextsH(plaintexts_h),
             DecryptionFactorsHs(dfactors_hs.0),
-            CiphertextsH(cipher_h.0)
+            CiphertextsH(cipher_h.0),
         );
 
         trustee.sign(statement, Some(plaintexts_bytes))
@@ -288,7 +288,7 @@ impl Message {
             Batch(batch),
             PlaintextsH(plaintexts_h.0),
             DecryptionFactorsHs(dfactors_hs.0),
-            CiphertextsH(cipher_h.0)
+            CiphertextsH(cipher_h.0),
         );
 
         trustee.sign(statement, None)

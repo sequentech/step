@@ -108,7 +108,14 @@ pub(super) fn compute_plaintexts<C: Ctx>(
         threshold,
         trustee,
     )?;
-    let m = Message::plaintexts_msg(cfg, *batch, plaintexts, *dfactors_hs, *ciphertexts_h, trustee)?;
+    let m = Message::plaintexts_msg(
+        cfg,
+        *batch,
+        plaintexts,
+        *dfactors_hs,
+        *ciphertexts_h,
+        trustee,
+    )?;
 
     Ok(vec![m])
 }
@@ -143,7 +150,14 @@ pub(super) fn sign_plaintexts<C: Ctx>(
 
     if expected.0 .0 == actual.0 .0 {
         info!("Plaintexts match..ok");
-        let m = Message::plaintexts_signed_msg(cfg, *batch, *plaintexts_h, *dfactors_hs, *ciphertexts_h, trustee)?;
+        let m = Message::plaintexts_signed_msg(
+            cfg,
+            *batch,
+            *plaintexts_h,
+            *dfactors_hs,
+            *ciphertexts_h,
+            trustee,
+        )?;
         Ok(vec![m])
     } else {
         Err(anyhow!(

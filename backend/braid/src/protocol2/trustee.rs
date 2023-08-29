@@ -82,7 +82,7 @@ impl<C: Ctx> Trustee<C> {
         &mut self,
         messages: Vec<Message>,
     ) -> Result<(Vec<Message>, HashSet<Action>)> {
-        let added_messages = self.update(messages)?;
+        let added_messages = self.update_local_board(messages)?;
 
         debug!("Update added {} messages", added_messages);
         let predicates = self.derive_predicates(false)?;
@@ -110,99 +110,109 @@ impl<C: Ctx> Trustee<C> {
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // update
+    // Update
     ///////////////////////////////////////////////////////////////////////////
 
     #[instrument(name = "Trustee::update", skip_all)]
-    fn update(&mut self, mut messages: Vec<Message>) -> Result<i32> {
-        let mut added = 0;
+    fn update_local_board(&mut self, messages: Vec<Message>) -> Result<i32> {
         info!("Updating with {} messages", messages.len());
 
         let configuration = self.local_board.get_configuration_raw();
         if let Some(configuration) = configuration {
-            ///////////////////////////////////////////////////////////////////////////
-            // General (non-bootstrap) message update
-            //
-            // Each message is verified and added to the local board.
-            ///////////////////////////////////////////////////////////////////////////
-
-            // The parallel field cfg_hash must exist as well as the configuration itself
-            assert!(self.local_board.get_cfg_hash().is_some());
-            let cfg_hash = self.local_board.get_cfg_hash().expect("impossible");
-
-            for message in messages {
-                let verified = message.verify(&configuration);
-
-                if verified.is_none() {
-                    warn!("Message failed verification, ignoring");
-                    continue;
-                }
-                let verified = verified.expect("impossible");
-
-                if verified.statement.get_cfg_h() != cfg_hash {
-                    warn!("Message has mismatched configuration hash, ignoring");
-                    continue;
-                }
-
-                let added_ = self.local_board.add(verified);
-                if added_.is_ok() {
-                    added += 1;
-                }
-            }
+            self.update(messages, configuration)
         } else {
-            ///////////////////////////////////////////////////////////////////////////
-            // Bootstrapping
-            //
-            // There is no configuration. We retrieve message zero, check that it's the
-            // configuration and add it to the local board.
-            ///////////////////////////////////////////////////////////////////////////
+            self.update_bootstrap(messages)
+        }
+    }
 
-            info!("Configuration not present in board, getting first remote message");
-            if messages.is_empty() {
-                return Err(anyhow!(
-                    "Zero messages received, cannot retrieve configuration"
-                ));
+    ///////////////////////////////////////////////////////////////////////////
+    // General (non-bootstrap) update
+    //
+    // Each message is verified and added to the local board.
+    ///////////////////////////////////////////////////////////////////////////
+    fn update(&mut self, messages: Vec<Message>, configuration: Configuration<C>) -> Result<i32> {
+        let mut added = 0;
+
+        // The parallel field cfg_hash must exist as well as the configuration itself
+        assert!(self.local_board.get_cfg_hash().is_some());
+        let cfg_hash = self.local_board.get_cfg_hash().expect("impossible");
+
+        for message in messages {
+            let verified = message.verify(&configuration);
+
+            if verified.is_none() {
+                warn!("Message failed verification, ignoring");
+                continue;
             }
-            let zero = messages.remove(0);
+            let verified = verified.expect("impossible");
 
-            if zero.statement.get_kind() != StatementType::Configuration {
-                return Err(anyhow!("Invalid statement type for zeroth message"));
-            }
-
-            if zero.artifact.is_none() {
-                return Err(anyhow!("No artifact for configuration message"));
-            }
-
-            let artifact = zero.artifact.as_ref().expect("impossible");
-            let configuration_ = Configuration::strand_deserialize(artifact);
-            if configuration_.is_err() {
-                return Err(anyhow!("Error deserializing configuration"));
-            }
-
-            let configuration: Configuration<C> = configuration_.expect("impossible");
-            let verified_ = zero.verify(&configuration);
-            if verified_.is_none() {
-                return Err(anyhow!("Failed verifying message"));
+            if verified.statement.get_cfg_h() != cfg_hash {
+                warn!("Message has mismatched configuration hash, ignoring");
+                continue;
             }
 
-            let verified = verified_.expect("impossible");
-            assert!(verified.signer_position == PROTOCOL_MANAGER_INDEX);
-            trace!("Verified signature, Configuration signed by Protocol Manager");
-
-            // The configuration is not verified here, but in the SignConfiguration action
             let added_ = self.local_board.add(verified);
             if added_.is_ok() {
                 added += 1;
-            } else {
-                return Err(anyhow!("Configuration should have been added"));
-            }
-            // Process the rest of the messages
-            if !messages.is_empty() {
-                return self.update(messages);
             }
         }
 
-        info!("Update done");
+        Ok(added)
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Bootstrapping update
+    //
+    // There is no configuration. We retrieve message zero, check that it's the
+    // configuration and add it to the local board.
+    ///////////////////////////////////////////////////////////////////////////
+    fn update_bootstrap(&mut self, mut messages: Vec<Message>) -> Result<i32> {
+        let mut added = 0;
+
+        info!("Configuration not present in board, getting first remote message");
+        if messages.is_empty() {
+            return Err(anyhow!(
+                "Zero messages received, cannot retrieve configuration"
+            ));
+        }
+        let zero = messages.remove(0);
+
+        if zero.statement.get_kind() != StatementType::Configuration {
+            return Err(anyhow!("Invalid statement type for zeroth message"));
+        }
+
+        if zero.artifact.is_none() {
+            return Err(anyhow!("No artifact for configuration message"));
+        }
+
+        let artifact = zero.artifact.as_ref().expect("impossible");
+        let configuration_ = Configuration::strand_deserialize(artifact);
+        if configuration_.is_err() {
+            return Err(anyhow!("Error deserializing configuration"));
+        }
+
+        let configuration: Configuration<C> = configuration_.expect("impossible");
+        let verified_ = zero.verify(&configuration);
+        if verified_.is_none() {
+            return Err(anyhow!("Failed verifying message"));
+        }
+
+        let verified = verified_.expect("impossible");
+        assert!(verified.signer_position == PROTOCOL_MANAGER_INDEX);
+        trace!("Verified signature, Configuration signed by Protocol Manager");
+
+        // The configuration is not verified here, but in the SignConfiguration action
+        let added_ = self.local_board.add(verified);
+        if added_.is_ok() {
+            added += 1;
+        } else {
+            return Err(anyhow!("Configuration should have been added"));
+        }
+        // Process the rest of the messages
+        if !messages.is_empty() {
+            return self.update(messages, configuration);
+        }
+
         Ok(added)
     }
 
@@ -306,7 +316,7 @@ impl<C: Ctx> Trustee<C> {
         &mut self,
         messages: Vec<Message>,
     ) -> Result<(Vec<Message>, Vec<Predicate>)> {
-        self.update(messages)?;
+        self.update_local_board(messages)?;
 
         let predicates = self.derive_predicates(true)?;
         let (messages, _, predicates) = self.infer_and_run_actions(&predicates, true)?;

@@ -79,7 +79,7 @@ pub enum Statement {
         Batch,
         PlaintextsH,
         DecryptionFactorsHs,
-        CiphertextsH
+        CiphertextsH,
     ),
     PlaintextsSigned(
         Timestamp,
@@ -87,7 +87,7 @@ pub enum Statement {
         Batch,
         PlaintextsH,
         DecryptionFactorsHs,
-        CiphertextsH
+        CiphertextsH,
     ),
 }
 
