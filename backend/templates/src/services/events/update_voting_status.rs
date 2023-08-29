@@ -35,7 +35,7 @@ pub struct UpdateVotingStatusPayload {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct ElectionStatus {
-    pub status: VotingStatus,
+    pub voting_status: VotingStatus,
 }
 
 pub async fn update_voting_status(
@@ -45,7 +45,7 @@ pub async fn update_voting_status(
     payload: UpdateVotingStatusPayload
 ) -> Result<(), reqwest::Error> {
     let new_status = ElectionStatus {
-        status: payload.status.clone(),
+        voting_status: payload.status.clone(),
     };
     let new_status_value = serde_json::to_value(new_status).unwrap();
     let hasura_response = hasura::election::update_election_status(

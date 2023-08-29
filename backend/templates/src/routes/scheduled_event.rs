@@ -72,7 +72,7 @@ pub async fn create_scheduled_event(
 
     let scheduled_event = &scheduled_event_result
         .data
-        .expect("expected data".into())
+        .unwrap()
         .insert_sequent_backend_scheduled_event
         .unwrap()
         .returning[0];

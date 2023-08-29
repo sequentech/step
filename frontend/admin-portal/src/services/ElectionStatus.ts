@@ -13,6 +13,6 @@ export interface IElectionStatus {
     voting_status?: IVotingStatus
 }
 
-const isVotingOpen = (data: IElectionStatus): boolean => {
-    return data?.voting_status === IVotingStatus.OPEN
+export const getVotingStatus = (data?: IElectionStatus): IVotingStatus => {
+    return data?.voting_status || IVotingStatus.NOT_STARTED
 }

@@ -20,21 +20,22 @@ import {ChipList} from "../../components/ChipList"
 import {JsonInput} from "react-admin-json-view"
 import {Link} from "react-router-dom"
 import {IconButton} from "@sequentech/ui-essentials"
-import {Sequent_Backend_Election, UpdateElectionStatusMutation} from "../../gql/graphql"
+import {CreateScheduledEventMutation, Sequent_Backend_Election, UpdateElectionStatusMutation} from "../../gql/graphql"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {useMutation} from "@apollo/client"
-import {UPDATE_ELECTION_STATUS} from "../../queries/UpdateElectionStatus"
 import {useTenantStore} from "../../components/CustomMenu"
-import {IElectionStatus, IVotingStatus} from "../../services/ElectionStatus"
+import {IElectionStatus, IVotingStatus, getVotingStatus} from "../../services/ElectionStatus"
 import {CircularProgress} from "@mui/material"
 import {useRefresh} from "react-admin"
+import { CREATE_SCHEDULED_EVENT } from "../../queries/CreateScheduledEvent"
+import { ScheduledEventType } from "../../services/ScheduledEvent"
 
 const ElectionForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
     const refresh = useRefresh()
     const [showMenu, setShowMenu] = useState(false)
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
-    const [updateElectionStatus] = useMutation<UpdateElectionStatusMutation>(UPDATE_ELECTION_STATUS)
+    const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const [tenantId] = useTenantStore()
     const [showProgress, setShowProgress] = useState(false)
 
@@ -43,23 +44,28 @@ const ElectionForm: React.FC = () => {
         setShowMenu(true)
     }
 
-    const startElectionAction = async () => {
+    const changeVotingStatusAction = async (nextStatus: IVotingStatus) => {
         setShowMenu(false)
-        let status: IElectionStatus = {
-            voting_status: IVotingStatus.OPEN,
-        }
         setShowProgress(true)
-        const {data, errors} = await updateElectionStatus({
+
+        const {data, errors} = await createScheduledEvent({
             variables: {
                 tenantId: tenantId,
                 electionEventId: record.election_event_id,
-                electionId: record.id,
-                status: status,
+                eventProcessor: ScheduledEventType.UPDATE_VOTING_STATUS,
+                cronConfig: undefined,
+                eventPayload: {
+                    election_id: record.id,
+                    status: nextStatus,
+                },
+                createdBy: "admin",
             },
         })
         setShowProgress(false)
         refresh()
     }
+
+    let votingStatus = getVotingStatus(record.status)
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
@@ -74,7 +80,21 @@ const ElectionForm: React.FC = () => {
                     open={showMenu}
                     onClose={() => setShowMenu(false)}
                 >
-                    <MenuItem onClick={startElectionAction}>Start</MenuItem>
+                    <MenuItem
+                        onClick={() => changeVotingStatusAction(IVotingStatus.OPEN)}
+                        disabled={IVotingStatus.OPEN === votingStatus}>
+                        Open Voting
+                    </MenuItem>
+                    <MenuItem
+                        onClick={() => changeVotingStatusAction(IVotingStatus.PAUSED)}
+                        disabled={IVotingStatus.OPEN !== votingStatus}>
+                        Pause Voting
+                    </MenuItem>
+                    <MenuItem
+                        onClick={() => changeVotingStatusAction(IVotingStatus.CLOSED)}
+                        disabled={IVotingStatus.CLOSED === votingStatus}>
+                        Close Voting
+                    </MenuItem>
                 </Menu>
                 <Typography variant="body2">Election configuration</Typography>
                 <Typography variant="h5">ID</Typography>
