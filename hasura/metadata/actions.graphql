@@ -23,16 +23,6 @@ type Query {
   ): String!
 }
 
-type Mutation {
-  renderReport(
-    template: String!
-    tenant_id: String!
-    election_event_id: String!
-    name: String!
-    format: String!
-  ): TemplateOutput
-}
-
 input InputParams {
   string: String
 }
