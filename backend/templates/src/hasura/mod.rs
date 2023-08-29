@@ -6,3 +6,4 @@ pub mod document;
 pub mod event_execution;
 pub mod scheduled_event;
 pub mod tenant;
+pub mod election;

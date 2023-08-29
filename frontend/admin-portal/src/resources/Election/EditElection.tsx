@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, Button, Typography} from "@mui/material"
-import React from "react"
+import {Box, Button, MenuItem, Menu, Typography} from "@mui/material"
+import React, {useState} from "react"
 import {
     BooleanInput,
     Edit,
@@ -20,16 +20,82 @@ import {ChipList} from "../../components/ChipList"
 import {JsonInput} from "react-admin-json-view"
 import {Link} from "react-router-dom"
 import {IconButton} from "@sequentech/ui-essentials"
-import {Sequent_Backend_Election} from "../../gql/graphql"
+import {CreateScheduledEventMutation, Sequent_Backend_Election, UpdateElectionStatusMutation} from "../../gql/graphql"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import {useMutation} from "@apollo/client"
+import {useTenantStore} from "../../components/CustomMenu"
+import {IElectionStatus, IVotingStatus, getVotingStatus} from "../../services/ElectionStatus"
+import {CircularProgress} from "@mui/material"
+import {useRefresh} from "react-admin"
+import { CREATE_SCHEDULED_EVENT } from "../../queries/CreateScheduledEvent"
+import { ScheduledEventType } from "../../services/ScheduledEvent"
 
 const ElectionForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
+    const refresh = useRefresh()
+    const [showMenu, setShowMenu] = useState(false)
+    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
+    const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
+    const [tenantId] = useTenantStore()
+    const [showProgress, setShowProgress] = useState(false)
+
+    const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
+        setAnchorEl(event.currentTarget)
+        setShowMenu(true)
+    }
+
+    const changeVotingStatusAction = async (nextStatus: IVotingStatus) => {
+        setShowMenu(false)
+        setShowProgress(true)
+
+        const {data, errors} = await createScheduledEvent({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: record.election_event_id,
+                eventProcessor: ScheduledEventType.UPDATE_VOTING_STATUS,
+                cronConfig: undefined,
+                eventPayload: {
+                    election_id: record.id,
+                    status: nextStatus,
+                },
+                createdBy: "admin",
+            },
+        })
+        setShowProgress(false)
+        refresh()
+    }
+
+    let votingStatus = getVotingStatus(record.status)
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
             <SimpleForm>
                 <Typography variant="h4">Election</Typography>
+                <Button onClick={handleActionsButtonClick}>
+                    Actions {showProgress ? <CircularProgress /> : null}
+                </Button>
+                <Menu
+                    id="election-actions-menu"
+                    anchorEl={anchorEl}
+                    open={showMenu}
+                    onClose={() => setShowMenu(false)}
+                >
+                    <MenuItem
+                        onClick={() => changeVotingStatusAction(IVotingStatus.OPEN)}
+                        disabled={IVotingStatus.OPEN === votingStatus}>
+                        Open Voting
+                    </MenuItem>
+                    <MenuItem
+                        onClick={() => changeVotingStatusAction(IVotingStatus.PAUSED)}
+                        disabled={IVotingStatus.OPEN !== votingStatus}>
+                        Pause Voting
+                    </MenuItem>
+                    <MenuItem
+                        onClick={() => changeVotingStatusAction(IVotingStatus.CLOSED)}
+                        disabled={IVotingStatus.CLOSED === votingStatus}>
+                        Close Voting
+                    </MenuItem>
+                </Menu>
                 <Typography variant="body2">Election configuration</Typography>
                 <Typography variant="h5">ID</Typography>
                 <TextField source="id" />

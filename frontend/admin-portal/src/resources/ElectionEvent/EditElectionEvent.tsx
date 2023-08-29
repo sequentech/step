@@ -147,6 +147,19 @@ const ElectionEventListForm: React.FC = () => {
             />
             <TextInput source="user_boards" />
             <TextInput source="audit_election_event_id" />
+            <Typography variant="h5">Documents</Typography>
+            <ReferenceManyField
+                label="Documents"
+                reference="sequent_backend_document"
+                target="election_event_id"
+            >
+                <HorizontalBox>
+                    <ChipList
+                        source="sequent_backend_document"
+                        filterFields={["election_event_id"]}
+                    />
+                </HorizontalBox>
+            </ReferenceManyField>
         </SimpleForm>
     )
 }
