@@ -14,6 +14,7 @@ use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
 use tempfile::tempdir;
+use anyhow::Result;
 
 use crate::connection;
 use crate::hasura;
@@ -55,7 +56,7 @@ async fn upload_and_return_document(
     tenant_id: String,
     election_event_id: String,
     name: String,
-) -> Result<Json<RenderTemplateResponse>, Debug<reqwest::Error>> {
+) -> Result<Json<RenderTemplateResponse>> {
     let size = bytes.len();
 
     let new_document = hasura::document::insert_document(
@@ -97,7 +98,7 @@ async fn upload_and_return_document(
 pub async fn render_report(
     body: Json<RenderTemplateBody>,
     auth_headers: connection::AuthHeaders,
-) -> Result<Json<RenderTemplateResponse>, Debug<reqwest::Error>> {
+) -> Result<Json<RenderTemplateResponse>> {
     let input = body.into_inner();
 
     println!("auth headers: {:#?}", auth_headers);

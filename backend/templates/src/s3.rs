@@ -9,12 +9,13 @@ use s3::error::S3Error;
 use s3::region::Region;
 use s3::BucketConfiguration;
 use std::env;
+use anyhow::Result;
 
 pub async fn upload_to_s3(
     data: &Vec<u8>,
     key: String,
     media_type: String,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     let key_id = env::var("MINIO_ROOT_USER")
         .expect(&format!("MINIO_ROOT_USER must be set"));
     let key_secret = env::var("MINIO_ROOT_PASSWORD")

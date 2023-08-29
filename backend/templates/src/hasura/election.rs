@@ -8,6 +8,7 @@ use rocket::response::Debug;
 use rocket::serde::json::{Json, Value};
 use serde::Deserialize;
 use std::env;
+use anyhow::Result;
 
 type uuid = String;
 type jsonb = Value;
@@ -27,7 +28,7 @@ pub async fn update_election_status(
     election_event_id: String,
     election_id: String,
     status: Value,
-) -> Result<Response<update_election_status::ResponseData>, reqwest::Error> {
+) -> Result<Response<update_election_status::ResponseData>> {
     let variables = update_election_status::Variables {
         tenant_id: tenant_id,
         election_event_id: election_event_id,

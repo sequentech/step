@@ -10,6 +10,7 @@ use serde_json::json;
 use std::str::FromStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
+use anyhow::Result;
 
 use crate::connection;
 use crate::hasura;
@@ -56,7 +57,7 @@ pub struct ScheduledEvent {
 pub async fn create_scheduled_event(
     body: Json<CreateScheduledEventBody>,
     auth_headers: connection::AuthHeaders,
-) -> Result<Json<ScheduledEvent>, Debug<reqwest::Error>> {
+) -> Result<Json<ScheduledEvent>, Debug<anyhow::Error>> {
     let input = body.into_inner();
     let scheduled_event_result =
         hasura::scheduled_event::insert_scheduled_event(

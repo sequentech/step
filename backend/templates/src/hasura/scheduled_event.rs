@@ -8,6 +8,7 @@ use rocket::response::Debug;
 use rocket::serde::json::{Json, Value};
 use serde::Deserialize;
 use std::env;
+use anyhow::Result;
 
 type uuid = String;
 type jsonb = Value;
@@ -29,7 +30,7 @@ pub async fn insert_scheduled_event(
     cron_config: Option<String>,
     event_payload: Value,
     created_by: String,
-) -> Result<Response<insert_scheduled_event::ResponseData>, reqwest::Error> {
+) -> Result<Response<insert_scheduled_event::ResponseData>> {
     let variables = insert_scheduled_event::Variables {
         tenant_id: tenant_id,
         election_event_id: election_event_id,

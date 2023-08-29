@@ -7,6 +7,7 @@ use rocket::serde::json::Json;
 use serde_json::Error;
 use std::str::FromStr;
 use strum_macros::EnumString;
+use anyhow::Result;
 
 use crate::connection;
 use crate::hasura::event_execution;
@@ -17,7 +18,7 @@ use crate::services::events::update_voting_status;
 pub async fn process_scheduled_event(
     auth_headers: connection::AuthHeaders,
     event: scheduled_event::ScheduledEvent,
-) -> Result<event_execution::EventExecution, reqwest::Error> {
+) -> Result<event_execution::EventExecution> {
     match event.event_processor.unwrap() {
         scheduled_event::EventProcessors::CREATE_REPORT => {
             let body: render_report::RenderTemplateBody =

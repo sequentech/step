@@ -10,6 +10,7 @@ use serde_json::json;
 use std::str::FromStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
+use anyhow::Result;
 
 use crate::connection;
 use crate::hasura;
@@ -43,7 +44,7 @@ pub async fn update_voting_status(
     tenant_id: String,
     election_event_id: String,
     payload: UpdateVotingStatusPayload
-) -> Result<(), reqwest::Error> {
+) -> Result<()> {
     let new_status = ElectionStatus {
         voting_status: payload.status.clone(),
     };

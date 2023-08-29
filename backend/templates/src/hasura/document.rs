@@ -8,6 +8,7 @@ use rocket::response::Debug;
 use rocket::serde::json::{Json, Value};
 use serde::Deserialize;
 use std::env;
+use anyhow::Result;
 
 type uuid = String;
 type jsonb = Value;
@@ -24,7 +25,7 @@ pub struct InsertDocument;
 pub async fn perform_insert_document(
     auth_headers: connection::AuthHeaders,
     variables: insert_document::Variables,
-) -> Result<Response<insert_document::ResponseData>, reqwest::Error> {
+) -> Result<Response<insert_document::ResponseData>> {
     let hasura_endpoint = env::var("HASURA_ENDPOINT")
         .expect(&format!("HASURA_ENDPOINT must be set"));
     let request_body = InsertDocument::build_query(variables);
@@ -48,7 +49,7 @@ pub async fn insert_document(
     name: String,
     media_type: String,
     size: i64,
-) -> Result<Response<insert_document::ResponseData>, reqwest::Error> {
+) -> Result<Response<insert_document::ResponseData>> {
     let variables = insert_document::Variables {
         tenant_id: tenant_id,
         election_event_id: election_event_id,
@@ -72,7 +73,7 @@ pub async fn find_document(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
-) -> Result<Response<get_document::ResponseData>, reqwest::Error> {
+) -> Result<Response<get_document::ResponseData>> {
     let variables = get_document::Variables {
         tenant_id: tenant_id,
         election_event_id: election_event_id,

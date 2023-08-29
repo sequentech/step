@@ -11,6 +11,7 @@ use std::env;
 use std::str::FromStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
+use anyhow::Result;
 
 type uuid = String;
 type jsonb = Value;
@@ -58,7 +59,7 @@ pub async fn insert_event_execution(
     execution_state: EventExecutionState,
     execution_payload: Value,
     result_payload: Option<Value>,
-) -> Result<Response<insert_event_execution::ResponseData>, reqwest::Error> {
+) -> Result<Response<insert_event_execution::ResponseData>> {
     let variables = insert_event_execution::Variables {
         tenant_id: tenant_id,
         election_event_id: election_event_id,

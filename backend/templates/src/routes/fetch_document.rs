@@ -7,6 +7,7 @@ use rocket::serde::json::Json;
 use rocket::serde::json::Value;
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::json;
+use anyhow::Result;
 
 use crate::connection;
 use crate::hasura;
@@ -30,7 +31,7 @@ pub struct GetDocumentUrlResponse {
 pub async fn fetch_document(
     body: Json<GetDocumentUrlBody>,
     auth_headers: connection::AuthHeaders,
-) -> Result<Json<GetDocumentUrlResponse>, Debug<reqwest::Error>> {
+) -> Result<Json<GetDocumentUrlResponse>, Debug<anyhow::Error>> {
     let input = body.into_inner();
     let document_result = hasura::document::find_document(
         auth_headers,
