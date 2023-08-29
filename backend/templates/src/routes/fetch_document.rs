@@ -51,7 +51,7 @@ pub async fn fetch_document(
         input.election_event_id,
         input.document_id,
     );
-    let url = s3::get_document_url(document_s3_key).await.unwrap();
+    let url = s3::get_document_url(document_s3_key).await?;
 
     Ok(Json(GetDocumentUrlResponse { url: url }))
 }

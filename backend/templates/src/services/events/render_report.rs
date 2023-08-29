@@ -82,8 +82,7 @@ async fn upload_and_return_document(
         s3::get_document_key(tenant_id, election_event_id, document_id);
 
     s3::upload_to_s3(&bytes, document_s3_key, "application/pdf".into())
-        .await
-        .unwrap();
+        .await?;
 
     Ok(Json(RenderTemplateResponse {
         id: document.id.clone(),
@@ -118,8 +117,7 @@ pub async fn render_report(
     // render handlebars template
     let reg = Handlebars::new();
     let render = reg
-        .render_template(input.template.as_str(), &variables)
-        .unwrap();
+        .render_template(input.template.as_str(), &variables)?;
 
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {
@@ -135,11 +133,11 @@ pub async fn render_report(
     }
 
     // Create temp html file
-    let dir = tempdir().unwrap();
+    let dir = tempdir()?;
     let file_path = dir.path().join("index.html");
-    let mut file = File::create(file_path.clone()).unwrap();
+    let mut file = File::create(file_path.clone())?;
     let file_path_str = file_path.to_str().unwrap();
-    file.write_all(render.as_bytes()).unwrap();
+    file.write_all(render.as_bytes())?;
     let url_path = format!("file://{}", file_path_str);
 
     let bytes = pdf::print_to_pdf(
@@ -163,8 +161,7 @@ pub async fn render_report(
             transfer_mode: None,
         },
         Some(Duration::new(1, 0)),
-    )
-    .unwrap();
+    )?;
 
     upload_and_return_document(
         bytes,

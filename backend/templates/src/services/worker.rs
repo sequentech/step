@@ -22,14 +22,12 @@ pub async fn process_scheduled_event(
     match event.event_processor.unwrap() {
         scheduled_event::EventProcessors::CREATE_REPORT => {
             let body: render_report::RenderTemplateBody =
-                serde_json::from_value(event.event_payload.clone().unwrap())
-                    .unwrap();
+                serde_json::from_value(event.event_payload.clone().unwrap())?;
             let document_json =
                 render_report::render_report(Json(body), auth_headers.clone())
-                    .await
-                    .unwrap();
+                    .await?;
             let document = document_json.into_inner();
-            let document_value = serde_json::to_value(document).unwrap();
+            let document_value = serde_json::to_value(document)?;
             let insert_event_execution =
                 event_execution::insert_event_execution(
                     auth_headers,
@@ -67,8 +65,7 @@ pub async fn process_scheduled_event(
         },
         scheduled_event::EventProcessors::UPDATE_VOTING_STATUS => {
             let payload: update_voting_status::UpdateVotingStatusPayload =
-                serde_json::from_value(event.event_payload.clone().unwrap())
-                    .unwrap();
+                serde_json::from_value(event.event_payload.clone().unwrap())?;
             let _update_result = update_voting_status::update_voting_status(
                 auth_headers.clone(),
                 event.tenant_id.clone().unwrap(),

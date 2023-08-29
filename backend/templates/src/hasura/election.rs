@@ -45,7 +45,7 @@ pub async fn update_election_status(
         .header(auth_headers.key, auth_headers.value)
         .json(&request_body)
         .send()
-        .await.unwrap();
+        .await?;
     let response_body: Response<update_election_status::ResponseData> =
         res.json().await?;
     Ok(response_body)

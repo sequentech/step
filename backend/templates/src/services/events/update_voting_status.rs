@@ -48,7 +48,7 @@ pub async fn update_voting_status(
     let new_status = ElectionStatus {
         voting_status: payload.status.clone(),
     };
-    let new_status_value = serde_json::to_value(new_status).unwrap();
+    let new_status_value = serde_json::to_value(new_status)?;
     let hasura_response = hasura::election::update_election_status(
         auth_headers.clone(),
         tenant_id.clone(),
