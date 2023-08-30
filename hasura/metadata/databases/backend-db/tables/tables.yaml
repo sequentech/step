@@ -11,3 +11,4 @@
 - "!include sequent_backend_event_execution.yaml"
 - "!include sequent_backend_scheduled_event.yaml"
 - "!include sequent_backend_tenant.yaml"
+- "!include sequent_backend_trustee.yaml"
