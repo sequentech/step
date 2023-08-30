@@ -5,4 +5,5 @@
 export enum ScheduledEventType {
     CREATE_REPORT = "CREATE_REPORT",
     UPDATE_VOTING_STATUS = "UPDATE_VOTING_STATUS",
+    CREATE_BOARD = "CREATE_BOARD",
 }

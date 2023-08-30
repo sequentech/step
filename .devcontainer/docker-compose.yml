@@ -154,8 +154,8 @@ services:
   templates:
     stdin_open: true
     build:
-      context: ../backend/templates/
-      dockerfile: Dockerfile
+      context: ../backend/
+      dockerfile: ./templates/Dockerfile
     ports:
       - 8400:8400 # templates service
 

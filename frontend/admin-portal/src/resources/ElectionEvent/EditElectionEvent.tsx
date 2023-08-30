@@ -49,7 +49,7 @@ const ElectionEventListForm: React.FC = () => {
             variables: {
                 tenantId: tenantId,
                 electionEventId: record.id,
-                eventProcessor: ScheduledEventType.UPDATE_VOTING_STATUS,
+                eventProcessor: ScheduledEventType.CREATE_BOARD,
                 cronConfig: undefined,
                 eventPayload: {
                     board_name: record.id,
