@@ -7,13 +7,16 @@ use immu_board::{Board, BoardClient, BoardMessage};
 use rocket::serde::{Deserialize, Serialize};
 use std::env;
 
+use crate::hasura;
+use crate::connection;
+
 #[derive(Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct CreateBoardPayload {
     pub board_name: String
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct BoardSerializable {
     pub id: i64,
@@ -42,7 +45,12 @@ async fn get_client() -> Result<BoardClient> {
     BoardClient::new(server_url.as_str(), username.as_str(), password.as_str()).await
 }
 
-pub async fn create_board(board_db: &str) -> Result<BoardSerializable> {
+pub async fn create_board(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: &str,
+    election_event_id: &str,
+    board_db: &str,
+) -> Result<BoardSerializable> {
     let index_db = env::var("IMMUDB_INDEX_DB")
         .expect(&format!("IMMUDB_INDEX_DB must be set"));
     let mut board_client = get_client().await?;
@@ -50,5 +58,15 @@ pub async fn create_board(board_db: &str) -> Result<BoardSerializable> {
         index_db.as_str(),
         board_db
     ).await?;
-    Ok(board.into())
+    let board_serializable: BoardSerializable = board.into();
+    let board_value = serde_json::to_value(board_serializable.clone())?;
+
+    let hasura_response = hasura::election_event::update_election_status(
+        auth_headers.clone(),
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+        board_value,
+    )
+    .await?;
+    Ok(board_serializable)
 }

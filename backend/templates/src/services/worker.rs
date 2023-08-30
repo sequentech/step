@@ -123,7 +123,12 @@ pub async fn process_scheduled_event(
         scheduled_event::EventProcessors::CREATE_BOARD => {
             let payload: create_board::CreateBoardPayload =
                 serde_json::from_value(event.event_payload.clone().unwrap())?;
-            let board = create_board::create_board(payload.board_name.as_str()).await?;
+            let board = create_board::create_board(
+                auth_headers.clone(),
+                event.tenant_id.clone().unwrap().as_str(),
+                event.election_event_id.clone().unwrap().as_str(),
+                payload.board_name.as_str()
+            ).await?;
             let board_value = serde_json::to_value(board)?;
             let insert_event_execution =
                 event_execution::insert_event_execution(
