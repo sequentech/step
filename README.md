@@ -126,6 +126,10 @@ automatically run docker compose logs on start up, for convenience.
 [direnv]: https://direnv.net/
 [devenv]: https://devenv.sh/
 
+## Immudb
+
+You can enter the Immudb web console at http://localhost:3325 and the user/pass is `immudb:immudb`.
+
 ### Export keycloak realm with users
 
 If you want to export a realm configuration but you don't need the users,

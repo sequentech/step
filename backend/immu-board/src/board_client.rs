@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use log::{info};
-use tracing::{instrument};
+use tracing::{debug, instrument};
 
 use std::fmt::Debug;
 use immudb_rs::{sql_value::Value, Client, Row, SqlValue, NamedParam, TxMode};
@@ -240,4 +240,62 @@ impl BoardClient {
         self.client.close_session().await?;
         Ok(boards)
     }
+
+    pub async fn create_board(
+        &mut self, 
+        index_db: &str,
+        board_db: &str,
+    ) -> Result<Board> {
+        self.client.create_database(board_db).await?;
+        debug!("Database created!");
+        self.client.use_database(board_db).await?;
+        let tables = r#"
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER AUTO_INCREMENT,
+                created TIMESTAMP,
+                signer_key BLOB,
+                statement_timestamp TIMESTAMP,
+                statement_kind VARCHAR,
+                message BLOB,
+                PRIMARY KEY id
+            );
+            "#;
+        self.client.sql_exec(&tables, vec![]).await?;
+        debug!("Database tables created!");
+        self.client.use_database(index_db).await?;
+
+        let message_sql = r#"
+            INSERT INTO bulletin_boards(
+                database_name,
+                is_archived,
+            ) VALUES (
+                @database_name,
+                @is_archived
+            ) RETURNING id, database_name, is_archived;
+        "#;
+        let params = vec![
+            NamedParam {
+                name: String::from("database_name"),
+                value: Some(
+                    SqlValue { value: Some(Value::S(board_db.to_string())) }
+                ),
+            },
+            NamedParam {
+                name: String::from("is_archived"),
+                value: Some(
+                    SqlValue { value: Some(Value::B(false)) }
+                ),
+            },
+        ];
+        let sql_query_response = self.client.sql_query(&message_sql, params).await?;
+        
+        let boards = sql_query_response
+            .get_ref()
+            .rows
+            .iter()
+            .map(Board::try_from)
+            .collect::<Result<Vec<Board>>>()?;
+        Ok(boards[0].clone())
+    }
+
 }

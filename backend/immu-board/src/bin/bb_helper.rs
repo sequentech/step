@@ -172,7 +172,7 @@ impl BBHelper {
 
     async fn delete_database(&mut self, database_name: &str) -> Result<()>
     {
-        if !self.client.has_database(database_name).await?
+        if self.client.has_database(database_name).await?
         {
             self.client.delete_database(database_name).await?;
         }
@@ -185,7 +185,7 @@ impl BBHelper {
             r#"
             CREATE TABLE IF NOT EXISTS bulletin_boards (
                 id INTEGER,
-                database_name VARCHAR,
+                database_name VARCHAR UNIQUE,
                 is_archived BOOLEAN,
                 PRIMARY KEY id
             );

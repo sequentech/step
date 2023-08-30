@@ -121,8 +121,44 @@ pub async fn process_scheduled_event(
             })
         },
         scheduled_event::EventProcessors::CREATE_BOARD => {
-            create_board::create_board().await;
-            Err(anyhow::Error::new(CustomError {}))
+            let payload: create_board::CreateBoardPayload =
+                serde_json::from_value(event.event_payload.clone().unwrap())?;
+            let board = create_board::create_board(payload.board_name.as_str()).await?;
+            let board_value = serde_json::to_value(board)?;
+            let insert_event_execution =
+                event_execution::insert_event_execution(
+                    auth_headers,
+                    event.tenant_id.unwrap(),
+                    event.election_event_id.unwrap(),
+                    event.id,
+                    event_execution::EventExecutionState::Success,
+                    event.event_payload.unwrap(),
+                    Some(board_value),
+                )
+                .await?;
+
+            let event_execution = &insert_event_execution
+                .data
+                .expect("expected data".into())
+                .insert_sequent_backend_event_execution
+                .unwrap()
+                .returning[0];
+            Ok(event_execution::EventExecution {
+                id: event_execution.id.clone(),
+                tenant_id: event_execution.tenant_id.clone(),
+                election_event_id: event_execution.election_event_id.clone(),
+                scheduled_event_id: event_execution.scheduled_event_id.clone(),
+                labels: event_execution.labels.clone(),
+                annotations: event_execution.annotations.clone(),
+                execution_state: event_execution.execution_state.clone().map(|s| {
+                    event_execution::EventExecutionState::from_str(s.as_str())
+                        .unwrap()
+                }),
+                execution_payload: event_execution.execution_payload.clone(),
+                result_payload: event_execution.result_payload.clone(),
+                started_at: event_execution.started_at.clone(),
+                ended_at: event_execution.ended_at.clone(),
+            })
         }
     }
 }
