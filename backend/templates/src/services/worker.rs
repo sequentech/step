@@ -4,16 +4,29 @@
 
 use reqwest;
 use rocket::serde::json::Json;
-use serde_json::Error;
 use std::str::FromStr;
 use strum_macros::EnumString;
 use anyhow::Result;
+use std::fmt;
+use std::error::Error;
 
 use crate::connection;
 use crate::hasura::event_execution;
 use crate::services::events::render_report;
+use crate::services::events::create_board;
 use crate::routes::scheduled_event;
 use crate::services::events::update_voting_status;
+
+#[derive(Debug, Clone)]
+struct CustomError;
+
+impl fmt::Display for CustomError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+      write!(f, "Custom error")
+    }
+}
+
+impl Error for CustomError { }
 
 pub async fn process_scheduled_event(
     auth_headers: connection::AuthHeaders,
@@ -106,6 +119,10 @@ pub async fn process_scheduled_event(
                 started_at: event_execution.started_at.clone(),
                 ended_at: event_execution.ended_at.clone(),
             })
+        },
+        scheduled_event::EventProcessors::CREATE_BOARD => {
+            create_board::create_board().await;
+            Err(anyhow::Error::new(CustomError {}))
         }
     }
 }
