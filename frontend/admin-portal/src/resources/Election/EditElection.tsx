@@ -20,15 +20,15 @@ import {ChipList} from "../../components/ChipList"
 import {JsonInput} from "react-admin-json-view"
 import {Link} from "react-router-dom"
 import {IconButton} from "@sequentech/ui-essentials"
-import {CreateScheduledEventMutation, Sequent_Backend_Election, UpdateElectionStatusMutation} from "../../gql/graphql"
+import {CreateScheduledEventMutation, Sequent_Backend_Election} from "../../gql/graphql"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {useMutation} from "@apollo/client"
 import {useTenantStore} from "../../components/CustomMenu"
-import {IElectionStatus, IVotingStatus, getVotingStatus} from "../../services/ElectionStatus"
+import {IVotingStatus, getVotingStatus} from "../../services/ElectionStatus"
 import {CircularProgress} from "@mui/material"
 import {useRefresh} from "react-admin"
-import { CREATE_SCHEDULED_EVENT } from "../../queries/CreateScheduledEvent"
-import { ScheduledEventType } from "../../services/ScheduledEvent"
+import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
+import {ScheduledEventType} from "../../services/ScheduledEvent"
 
 const ElectionForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -82,17 +82,20 @@ const ElectionForm: React.FC = () => {
                 >
                     <MenuItem
                         onClick={() => changeVotingStatusAction(IVotingStatus.OPEN)}
-                        disabled={IVotingStatus.OPEN === votingStatus}>
+                        disabled={IVotingStatus.OPEN === votingStatus}
+                    >
                         Open Voting
                     </MenuItem>
                     <MenuItem
                         onClick={() => changeVotingStatusAction(IVotingStatus.PAUSED)}
-                        disabled={IVotingStatus.OPEN !== votingStatus}>
+                        disabled={IVotingStatus.OPEN !== votingStatus}
+                    >
                         Pause Voting
                     </MenuItem>
                     <MenuItem
                         onClick={() => changeVotingStatusAction(IVotingStatus.CLOSED)}
-                        disabled={IVotingStatus.CLOSED === votingStatus}>
+                        disabled={IVotingStatus.CLOSED === votingStatus}
+                    >
                         Close Voting
                     </MenuItem>
                 </Menu>
