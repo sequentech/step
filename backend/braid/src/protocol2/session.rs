@@ -1,11 +1,12 @@
 use crate::protocol2::action::Message;
-use crate::protocol2::datalog::Predicate;
+use crate::protocol2::board::immudb::ImmudbBoard;
+use crate::protocol2::datalog::{
+    BatchNumber, ConfigurationHash, MixingHashes, PlaintextsHash, Predicate,
+};
 use crate::protocol2::predicate::CiphertextsHash;
 use crate::protocol2::statement::StatementType;
 use crate::protocol2::trustee::Trustee;
-use crate::protocol2::PROTOCOL_MANAGER_INDEX;
-use crate::protocol2::{board::immudb::ImmudbBoard, statement::Statement};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use strand::context::Ctx;
 use tracing::{error, info};
 
@@ -13,6 +14,7 @@ pub struct Session<C: Ctx> {
     trustee: Trustee<C>,
     board: ImmudbBoard,
     dry_run: bool,
+    last_message_id: i64,
 }
 impl<C: Ctx> Session<C> {
     pub fn new(trustee: Trustee<C>, board: ImmudbBoard) -> Session<C> {
@@ -20,6 +22,7 @@ impl<C: Ctx> Session<C> {
             trustee,
             board,
             dry_run: false,
+            last_message_id: -1,
         }
     }
 
@@ -28,13 +31,14 @@ impl<C: Ctx> Session<C> {
             trustee,
             board,
             dry_run: true,
+            last_message_id: -1,
         }
     }
 
     pub async fn step(&mut self) -> Result<()> {
         info!("Trustee {:?} step..", self.trustee.get_pk());
 
-        let messages = self.board.get_messages(0).await?;
+        let messages = self.board.get_messages(self.last_message_id).await?;
         let (send_messages, _actions) = self.trustee.step(messages)?;
         if !self.dry_run {
             self.board.insert_messages(send_messages).await?;
@@ -54,10 +58,23 @@ impl<C: Ctx> VerifyingSession<C> {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        info!("Verifying trustee run..");
+        info!("Verifying..");
 
         let messages = self.board.get_messages(-1).await?;
+        let plaintext_signature: Vec<Message> = messages
+            .clone()
+            .into_iter()
+            .filter(|m| m.statement.get_kind() == StatementType::Plaintexts)
+            .collect();
+
+        let pk_signature: Vec<Message> = messages
+            .clone()
+            .into_iter()
+            .filter(|m| m.statement.get_kind() == StatementType::PublicKey)
+            .collect();
+
         let (messages, mut predicates) = self.trustee.verify(messages)?;
+
         for message in messages.clone() {
             info!("Verifier produced message {:?}", message);
             let predicate = Predicate::from_statement::<C>(
@@ -68,40 +85,35 @@ impl<C: Ctx> VerifyingSession<C> {
         }
 
         let predicates = crate::protocol2::datalog::v::S.run(&predicates);
-        info!("Predicates: {:?}", predicates);
 
-        // let ballots = self.trustee.get_ballots
-
-        let mix_signatures: Vec<Message> = messages
-            .clone()
-            .into_iter()
-            .filter(|m| m.statement.get_kind() == StatementType::MixSigned)
-            .collect();
-
-        let first = mix_signatures
+        let zs: Result<
+            Vec<(
+                ConfigurationHash,
+                BatchNumber,
+                CiphertextsHash,
+                PlaintextsHash,
+                MixingHashes,
+            )>,
+        > = predicates
             .iter()
-            .find(|s| s.statement.get_data().3 == 1)
-            .unwrap();
-        let ballots_h = match first.statement.clone() {
-            Statement::MixSigned(_, _, _, _, b, _) => b,
-            _ => panic!(),
-        };
-        let ballots = self
-            .trustee
-            .get_ballots(&CiphertextsHash(ballots_h.0), 1, PROTOCOL_MANAGER_INDEX)
-            .unwrap();
-        // first.statement.
-
-        let pk_signature: Vec<Message> = messages
-            .clone()
-            .into_iter()
-            .filter(|m| m.statement.get_kind() == StatementType::PublicKeySigned)
+            .map(|p| match p {
+                Predicate::Z(cfg, batch, ballots, plaintexts, mixes) => {
+                    Ok((*cfg, *batch, *ballots, *plaintexts, *mixes))
+                }
+                _ => Err(anyhow!("Unexpected predicate type")),
+            })
             .collect();
+        let chains = zs?;
 
-        let plaintext_signature: Vec<Message> = messages
-            .into_iter()
-            .filter(|m| m.statement.get_kind() == StatementType::PlaintextsSigned)
-            .collect();
+        let chain = chains.iter().find(|z| z.1 == 1);
+        info!("chain: {:?}", chain);
+
+        /*for plaintexts in plaintexts_signatures {
+            match plaintexts {
+                Statement::PlaintextsSigned(ts, cfg, batch, pl_h, _, _) => (cfg, batch, pl_h),
+                _ => Err()
+            }
+        }*/
 
         Ok(())
     }

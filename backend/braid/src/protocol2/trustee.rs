@@ -140,14 +140,18 @@ impl<C: Ctx> Trustee<C> {
         for message in messages {
             let verified = message.verify(&configuration);
 
-            if verified.is_none() {
-                warn!("Message failed verification, ignoring");
+            if verified.is_err() {
+                warn!("Message failed verification {:?}", verified);
+                // FIXME
+                panic!();
                 continue;
             }
             let verified = verified.expect("impossible");
 
             if verified.statement.get_cfg_h() != cfg_hash {
-                warn!("Message has mismatched configuration hash, ignoring");
+                warn!("Message has mismatched configuration hash");
+                // FIXME
+                panic!();
                 continue;
             }
 
@@ -192,12 +196,8 @@ impl<C: Ctx> Trustee<C> {
         }
 
         let configuration: Configuration<C> = configuration_.expect("impossible");
-        let verified_ = zero.verify(&configuration);
-        if verified_.is_none() {
-            return Err(anyhow!("Failed verifying message"));
-        }
+        let verified = zero.verify(&configuration)?;
 
-        let verified = verified_.expect("impossible");
         assert!(verified.signer_position == PROTOCOL_MANAGER_INDEX);
         trace!("Verified signature, Configuration signed by Protocol Manager");
 
@@ -418,7 +418,7 @@ impl<C: Ctx> Trustee<C> {
 
     ///////////////////////////////////////////////////////////////////////////
 
-    pub(crate) fn is_config_valid(&self, _config: &Configuration<C>) -> bool {
+    pub(crate) fn is_config_approved(&self, _config: &Configuration<C>) -> bool {
         // FIXME validate
         true
     }

@@ -1,6 +1,6 @@
 use log::{error, warn};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use strand::context::Ctx;
 use strand::serialization::StrandSerialize;
@@ -305,25 +305,25 @@ impl Message {
     pub(crate) fn verify<C: Ctx>(
         self,
         configuration: &Configuration<C>,
-    ) -> Option<VerifiedMessage> {
-        let (kind, st_cfg_h, _, mix_sno, artifact_type, _) = self.statement.get_data();
+    ) -> Result<VerifiedMessage> {
+        let (kind, st_cfg_h, _, mix_no, artifact_type, _) = self.statement.get_data();
 
-        if mix_sno > configuration.trustees.len() {
-            error!("Received a message whose statement signature number is out of range");
-            return None;
+        if mix_no > configuration.trustees.len() {
+            return Err(anyhow!(
+                "Received a message whose statement signature number is out of range"
+            ));
         }
 
         // We don't care about doing a sequential search here as the size is small
         let index = configuration.get_trustee_position(&self.signer_key);
         if index.is_none() {
-            error!(
+            return Err(anyhow!(
                 "Received a message from a trustee that is not part of the configuration {:?}",
                 self.signer_key
-            );
-            return None;
+            ));
         }
 
-        let bytes = self.statement.strand_serialize().ok()?;
+        let bytes = self.statement.strand_serialize()?;
         // Verify signature
         let trustee_ = self
             .signer_key
@@ -332,22 +332,25 @@ impl Message {
             .ok();
 
         if trustee_.is_none() {
-            error!("Signature verification failed for message {:?}", self);
-            return None;
+            return Err(anyhow!(
+                "Signature verification failed for message {:?}",
+                self
+            ));
         }
         let trustee = trustee_.expect("impossible");
 
         // The message must belong to the same context as the configuration
-        let config_hash = strand::util::hash(&configuration.strand_serialize().ok()?);
+        let config_hash = strand::util::hash(&configuration.strand_serialize()?);
         if config_hash != st_cfg_h {
-            warn!("Received message with mismatched configuration hash");
-            return None;
+            return Err(anyhow!(
+                "Received message with mismatched configuration hash"
+            ));
         }
         assert_eq!(config_hash, st_cfg_h);
 
         // Statement-only message
         if self.artifact.is_none() {
-            return Some(VerifiedMessage::new(trustee, self.statement, None));
+            return Ok(VerifiedMessage::new(trustee, self.statement, None));
         }
         let artifact = self.artifact.expect("impossible");
 
@@ -358,7 +361,7 @@ impl Message {
         if st_cfg_h == artifact_hash {
             assert!(kind == StatementType::Configuration);
             let artifact_field = Some((ArtifactType::Configuration, artifact));
-            Some(VerifiedMessage::new(
+            Ok(VerifiedMessage::new(
                 trustee,
                 self.statement,
                 artifact_field,
@@ -369,18 +372,26 @@ impl Message {
 
             // Set the type of the artifact field
             if let Some(artifact_type) = artifact_type {
+                let _ = verify_artifact(&configuration, &artifact_type, &artifact)?;
                 let artifact_field = Some((artifact_type, artifact));
-                Some(VerifiedMessage::new(
+                Ok(VerifiedMessage::new(
                     trustee,
                     self.statement,
                     artifact_field,
                 ))
             } else {
-                warn!("Could not find parameter pointing to artifact");
-                None
+                return Err(anyhow!("Could not find parameter pointing to artifact"));
             }
         }
     }
+}
+
+fn verify_artifact<C: Ctx>(
+    cfg: &Configuration<C>,
+    kind: &ArtifactType,
+    data: &Vec<u8>,
+) -> Result<()> {
+    Ok(())
 }
 
 ///////////////////////////////////////////////////////////////////////////

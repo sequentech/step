@@ -39,13 +39,21 @@ impl<C: Ctx> Configuration<C> {
         let unique: HashSet<StrandSignaturePk> = HashSet::from_iter(trustees.clone());
         assert_eq!(unique.len(), trustees.len());
 
-        Configuration {
+        let c = Configuration {
             id,
             protocol_manager,
             trustees,
             threshold,
             phantom: PhantomData,
-        }
+        };
+        c.validate()
+    }
+
+    pub fn validate(self) -> Self {
+        assert!(self.trustees.len() > 1 && self.trustees.len() <= crate::protocol2::MAX_TRUSTEES);
+        assert!(self.threshold > 1 && self.threshold <= self.trustees.len());
+
+        self
     }
 
     pub fn get_trustee_position(&self, trustee_pk: &StrandSignaturePk) -> Option<usize> {
@@ -170,20 +178,26 @@ impl<C: Ctx> Ballots<C> {
         selected_trustees: TrusteeSet,
         cfg: &Configuration<C>,
     ) -> Ballots<C> {
-        let mut selected = 0;
-        selected_trustees.iter().for_each(|s| {
+        let b = Ballots {
+            ciphertexts: StrandVectorC(ciphertexts),
+            selected_trustees,
+        };
+        b.validate(cfg)
+    }
+
+    pub fn validate(self, cfg: &Configuration<C>) -> Self {
+        let mut selected = vec![];
+        self.selected_trustees.iter().for_each(|s| {
             if *s != NULL_TRUSTEE {
                 assert!(*s > 0 && *s <= cfg.trustees.len());
-                selected += 1;
+                selected.push(*s);
             }
         });
 
-        assert!(selected == cfg.threshold);
+        let unique: HashSet<usize> = selected.into_iter().collect();
+        assert!(unique.len() == cfg.threshold);
 
-        Ballots {
-            ciphertexts: StrandVectorC(ciphertexts),
-            selected_trustees,
-        }
+        self
     }
 }
 

@@ -7,7 +7,7 @@ pub(super) fn sign_config<C: Ctx>(
     trustee: &Trustee<C>,
 ) -> Result<Vec<Message>> {
     let cfg = trustee.get_configuration(configuration_h)?;
-    assert!(trustee.is_config_valid(cfg));
+    assert!(trustee.is_config_approved(cfg));
     trace!("Configuration is valid");
 
     let self_index = cfg.get_trustee_position(&trustee.get_pk());

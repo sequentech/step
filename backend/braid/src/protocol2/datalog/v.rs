@@ -50,28 +50,30 @@ crepe! {
 
     // Intermediate relations
 
-    struct MixVerifiedUpto(ConfigurationHash, BatchNumber, CiphertextsHash, TrusteeCount);
+    struct MixVerifiedUpto(ConfigurationHash, BatchNumber, CiphertextsHash, MixingHashes, TrusteeCount);
 
     @output
     #[derive(Debug)]
     pub struct OutP(Predicate);
 
-    MixVerifiedUpto(cfg_h, batch, target_h, 1) <-
+    MixVerifiedUpto(cfg_h, batch, target_h, mixing_hs, 1) <-
     ConfigurationSignedAll(cfg_h, _, _num_t, _),
     PublicKeySignedAll(cfg_h, pk_h, _shares_hs),
     Ballots(cfg_h, batch, ballots_h, pk_h, _, _),
     !Plaintexts(cfg_h, batch, _, _, ballots_h, _),
-    MixSigned(cfg_h, batch, ballots_h, target_h, VERIFIER_INDEX);
+    MixSigned(cfg_h, batch, ballots_h, target_h, VERIFIER_INDEX),
+    let mixing_hs = MixingHashes(super::hashes_init(ballots_h.0));
 
-    MixVerifiedUpto(cfg_h, batch, ciphertexts_h, n + 1) <-
+    MixVerifiedUpto(cfg_h, batch, ciphertexts_h, new_mixing_hs, n + 1) <-
     MixSigned(cfg_h, batch, source_h, ciphertexts_h, VERIFIER_INDEX),
-    MixVerifiedUpto(cfg_h, batch, source_h, n),
-    !Plaintexts(cfg_h, batch, _, _, source_h, _);
+    MixVerifiedUpto(cfg_h, batch, source_h, mixing_hs, n),
+    !Plaintexts(cfg_h, batch, _, _, source_h, _),
+    let new_mixing_hs = MixingHashes(super::hashes_add(mixing_hs.0, source_h.0));
 
-    OutP(Predicate::Z(cfg_h, batch, ballots_h, plaintexts_h)) <-
+    OutP(Predicate::Z(cfg_h, batch, ballots_h, plaintexts_h, mixing_hs)) <-
     ConfigurationSignedAll(cfg_h, _, _num_t, threshold),
-    MixVerifiedUpto(cfg_h, batch, ciphertexts_h, threshold),
-    MixVerifiedUpto(cfg_h, batch, target_h, 1),
+    MixVerifiedUpto(cfg_h, batch, ciphertexts_h, mixing_hs, threshold),
+    MixVerifiedUpto(cfg_h, batch, target_h, _, 1),
     MixSigned(cfg_h, batch, ballots_h, target_h, VERIFIER_INDEX),
     PublicKeySignedAll(cfg_h, pk_h, _shares_hs),
     Ballots(cfg_h, batch, ballots_h, pk_h, _, selected),

@@ -117,6 +117,7 @@ pub(crate) enum Predicate {
         BatchNumber,
         CiphertextsHash,
         PlaintextsHash,
+        MixingHashes,
     ),
 }
 impl Predicate {
@@ -305,6 +306,8 @@ pub struct DecryptionFactorsHash(pub crate::protocol2::Hash);
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DecryptionFactorsHashes(pub THashes);
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub struct MixingHashes(pub THashes);
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PlaintextsHash(pub crate::protocol2::Hash);
 
 // 0-based
@@ -413,10 +416,10 @@ impl std::fmt::Debug for Predicate {
                 "PlaintextsSigned{{ cfg hash={:?}, batch={:?}, plaintexts_h={:?}, signer_t={:?} }}",
                 dbg_hash(&cfg_h.0), batch, plaintexts_h, signer_t
             ),
-            Predicate::Z(cfg, batch, ciph, pl) => write!(
+            Predicate::Z(cfg, batch, ciph, pl, m_hs) => write!(
                 f,
-                "cfg {:?}, batch {}, ballots {:?}, pl {:?}",
-                dbg_hash(&cfg.0), batch, dbg_hash(&ciph.0), dbg_hash(&pl.0)
+                "cfg {:?}, batch {}, ballots {:?}, pl {:?}, mixes {:?}",
+                dbg_hash(&cfg.0), batch, dbg_hash(&ciph.0), dbg_hash(&pl.0), m_hs
             ),
         }
     }
