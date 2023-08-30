@@ -1,4 +1,4 @@
-// cargo run --bin gen_config
+// cargo run --bin demo_election_config
 // cargo run --bin bb_helper -- --cache-dir /tmp/cache -s http://immudb:3322 -i defaultboardindex -b defaultboard  -u immudb -p immudb upsert-init-db -l debug
 // cargo run --bin bb_helper -- --cache-dir /tmp/cache -s http://immudb:3322 -i defaultboardindex -b defaultboard  -u immudb -p immudb upsert-board-db -l debug
 // cargo run --bin bb_client -- --server-url http://immudb:3322 init
@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
 
     let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
 
-    let bytes = braid::util::decode_base64(&tc.signing_key)?;
+    let bytes = braid::util::decode_base64(&tc.signing_key_sk)?;
     let sk = StrandSignatureSk::strand_deserialize(&bytes).unwrap();
 
     let bytes = braid::util::decode_base64(&tc.encryption_key)?;
@@ -73,15 +73,15 @@ async fn main() -> Result<()> {
                 store_root.clone(),
             )
             .await?;
-            let mut session = VerifyingSession::new(trustee, board);
-            session.run().await?;
+            // let mut session = VerifyingSession::new(trustee, board);
+            // session.run().await?;
             // FIXME error should be handled to prevent loop termination
-            // let mut session = Session::new(trustee, board);
-            // info!("Running trustee for board '{}'..", board_name);
-            // session.step().await?;
+            let mut session = Session::new(trustee, board);
+            info!("Running trustee for board '{}'..", board_name);
+            session.step().await?;
         }
         sleep(Duration::from_millis(1000)).await;
-        break;
+        // break;
     }
 
     Ok(())

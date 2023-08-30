@@ -1,5 +1,3 @@
-use log::{error, warn};
-
 use anyhow::{anyhow, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use strand::context::Ctx;
@@ -387,9 +385,9 @@ impl Message {
 }
 
 fn verify_artifact<C: Ctx>(
-    cfg: &Configuration<C>,
+    _cfg: &Configuration<C>,
     kind: &ArtifactType,
-    data: &Vec<u8>,
+    _data: &Vec<u8>,
 ) -> Result<()> {
     match kind {
         ArtifactType::Ballots => {}

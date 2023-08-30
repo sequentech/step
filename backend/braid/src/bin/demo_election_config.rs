@@ -1,13 +1,14 @@
-// Need to
+// This demo utility generates all the configuration information
+// necessary to create a demo election, as files in the working directory:
+//
 // * Generate .toml config for each trustee, containing:
-//      signing_key: base64 encoding of a StrandSignatureSk serialization
-//      encryption_key: base64 encoding of a GenericArray<u8, U32>,
+//      * signing_key_sk: base64 encoding of a StrandSignatureSk serialization
+//      * signing_key_pk: base64 encoding of corresponding StrandSignaturePk serialization
+//      * encryption_key: base64 encoding of a GenericArray<u8, U32>,
 // * Generate .toml config for the protocol manager:
 //      signing_key: base64 encoding of a StrandSignatureSk serialization
 // * Generate a .bin config for a session, a serialized Configuration artifact
 //
-// The pks present in the session config must match the
-// sks in each trustee config
 
 use chacha20poly1305::{aead::KeyInit, ChaCha20Poly1305};
 use std::fs::File;
@@ -29,12 +30,11 @@ const CONFIG: &str = "config.bin";
 const PROTOCOL_MANAGER: &str = "pm.toml";
 
 fn main() {
-    let ctx = RistrettoCtx;
     let threshold = [1, 2];
-    gen_config(3, &threshold, ctx);
+    gen_election_config::<RistrettoCtx>(3, &threshold);
 }
 
-fn gen_config<C: Ctx>(n_trustees: usize, threshold: &[usize], _ctx: C) {
+fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
     let mut csprng = StrandRng;
 
     let pmkey: StrandSignatureSk = StrandSignatureSk::new(&mut csprng);

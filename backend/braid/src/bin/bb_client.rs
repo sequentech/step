@@ -7,8 +7,6 @@ use std::fs;
 use std::marker::PhantomData;
 use tracing::{info, instrument};
 
-// use braid::protocol2::board::immudb::ImmudbBoard;
-// use braid::protocol2::board::immudb::ImmudbBoardIndex;
 use braid::util::init_log;
 use immu_board::{Board, BoardClient, BoardMessage};
 
@@ -144,7 +142,7 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, ctx: C) -> Result<()> {
             let pk_element = dkgpk.pk;
             let pk = strand::elgamal::PublicKey::from_element(&pk_element, &ctx);
 
-            let ps: Vec<C::P> = (0..1000).map(|_| ctx.rnd_plaintext()).collect();
+            let ps: Vec<C::P> = (0..100).map(|_| ctx.rnd_plaintext()).collect();
             let ballots: Vec<Ciphertext<C>> = ps
                 .par_iter()
                 .map(|p| {
