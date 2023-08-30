@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Button, Typography} from "@mui/material"
-import React from "react"
+import {Button, CircularProgress, Menu, MenuItem, Typography} from "@mui/material"
+import React, { useState } from "react"
 import {
     BooleanInput,
     Edit,
@@ -24,6 +24,14 @@ import {faPieChart, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 
 const ElectionEventListForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const [showMenu, setShowMenu] = useState(false)
+    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
+    const [showProgress, setShowProgress] = useState(false)
+
+    const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
+        setAnchorEl(event.currentTarget)
+        setShowMenu(true)
+    }
 
     return (
         <SimpleForm>
@@ -35,6 +43,16 @@ const ElectionEventListForm: React.FC = () => {
             </Link>
             <Typography variant="h4">Election Event</Typography>
             <Typography variant="body2">Election event configuration</Typography>
+            <Button onClick={handleActionsButtonClick}>
+                Actions {showProgress ? <CircularProgress /> : null}
+            </Button>
+            <Menu
+                id="election-event-actions-menu"
+                anchorEl={anchorEl}
+                open={showMenu}
+                onClose={() => setShowMenu(false)}
+            >
+            </Menu>
             <Typography variant="h5">ID</Typography>
             <TextField source="id" />
             <TextInput source="name" />
