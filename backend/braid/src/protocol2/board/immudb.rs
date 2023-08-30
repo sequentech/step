@@ -84,13 +84,16 @@ impl ImmudbBoard {
         let last_id: Result<i64> = connection
             .query_row("SELECT max(id) FROM messages;", [], |row| row.get(0))
             .or(Ok(0i64));
+        let last_id = last_id?;
 
         let messages = self
             .board_client
-            .get_messages(&self.board_dbname, last_id?)
+            .get_messages(&self.board_dbname, last_id)
             .await?;
 
         for message in messages {
+            // new messages must always be appended to the store in ascending order
+            assert!(message.id > last_id);
             connection.execute(
                 "INSERT INTO MESSAGES VALUES(?1, ?2)",
                 params![message.id, message.message],
@@ -105,7 +108,7 @@ impl ImmudbBoard {
         connection: &Connection,
         last_id: i64,
     ) -> Result<Vec<Message>> {
-        let mut stmt = connection.prepare("SELECT id,message FROM MESSAGES where id > ?1")?;
+        let mut stmt = connection.prepare("SELECT id,message FROM MESSAGES where id > ?1 order by id asc")?;
         let rows = stmt.query_map([last_id], |row| {
             Ok(MessageRow {
                 id: row.get(0)?,
