@@ -40,8 +40,6 @@ pub enum Statement {
         Batch,
         CiphertextsH,
         PublicKeyH,
-        // first_mixer (ballots.trustees[0] - 1 in Ballots artifact)
-        TrusteePosition,
         // the trustees to participate in mixing + decryption (ballots.trustees in Ballots artifact)
         [usize; crate::protocol2::MAX_TRUSTEES],
     ),
@@ -145,7 +143,6 @@ impl Statement {
         ballots_h: CiphertextsH,
         pk_h: PublicKeyH,
         batch: Batch,
-        first_mixer: usize,
         trustees: [usize; crate::protocol2::MAX_TRUSTEES],
     ) -> Statement {
         Statement::Ballots(
@@ -154,7 +151,6 @@ impl Statement {
             batch,
             ballots_h,
             pk_h,
-            first_mixer,
             trustees,
         )
     }
@@ -325,7 +321,7 @@ impl Statement {
                 kind = StatementType::PublicKeySigned;
                 cfg = cfg_h.0;
             }
-            Self::Ballots(ts_, cfg_h, bch, _, _, _, _) => {
+            Self::Ballots(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::Ballots;
                 cfg = cfg_h.0;

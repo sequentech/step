@@ -14,7 +14,7 @@ crepe! {
     struct ConfigurationSignedAll(ConfigurationHash, TrusteePosition, TrusteeCount, Threshold);
     struct PublicKeySignedAll(ConfigurationHash, PublicKeyHash, SharesHashes);
     struct CommitmentsAllSignedAll(ConfigurationHash, CommitmentsHashes);
-    struct Ballots(ConfigurationHash, BatchNumber, CiphertextsHash, PublicKeyHash, TrusteePosition, TrusteeSet);
+    struct Ballots(ConfigurationHash, BatchNumber, CiphertextsHash, PublicKeyHash, TrusteeSet);
     struct MixComplete(ConfigurationHash, BatchNumber, MixNumber, CiphertextsHash, TrusteePosition);
     struct DecryptionFactors(ConfigurationHash, BatchNumber, DecryptionFactorsHash, CiphertextsHash, SharesHashes, TrusteePosition);
     struct Plaintexts(ConfigurationHash, BatchNumber,PlaintextsHash, DecryptionFactorsHashes, CiphertextsHash, TrusteePosition);
@@ -30,8 +30,8 @@ crepe! {
     CommitmentsAllSignedAll(cfg_h, commitments_hs) <- InP(p),
     let Predicate::CommitmentsAllSignedAll(cfg_h, commitments_hs) = p;
 
-    Ballots(cfg_h, batch, ballots_h, pk_h, target_t, selected) <- InP(p),
-    let Predicate::Ballots(cfg_h, batch, ballots_h, pk_h, target_t, selected) = p;
+    Ballots(cfg_h, batch, ballots_h, pk_h, selected) <- InP(p),
+    let Predicate::Ballots(cfg_h, batch, ballots_h, pk_h, selected) = p;
 
     MixComplete(cfg_h, batch, mix_number, ciphertexts_h, signer_t) <- InP(p),
     let Predicate::MixComplete(cfg_h, batch, mix_number, ciphertexts_h, signer_t) = p;
@@ -59,7 +59,7 @@ crepe! {
     MixVerifiedUpto(cfg_h, batch, target_h, mixing_hs, 1) <-
     ConfigurationSignedAll(cfg_h, _, _num_t, _),
     PublicKeySignedAll(cfg_h, pk_h, _shares_hs),
-    Ballots(cfg_h, batch, ballots_h, pk_h, _, _),
+    Ballots(cfg_h, batch, ballots_h, pk_h, _),
     !Plaintexts(cfg_h, batch, _, _, ballots_h, _),
     MixSigned(cfg_h, batch, ballots_h, target_h, VERIFIER_INDEX),
     let mixing_hs = MixingHashes(super::hashes_init(ballots_h.0));
@@ -76,7 +76,7 @@ crepe! {
     MixVerifiedUpto(cfg_h, batch, target_h, _, 1),
     MixSigned(cfg_h, batch, ballots_h, target_h, VERIFIER_INDEX),
     PublicKeySignedAll(cfg_h, pk_h, _shares_hs),
-    Ballots(cfg_h, batch, ballots_h, pk_h, _, selected),
+    Ballots(cfg_h, batch, ballots_h, pk_h, selected),
     Plaintexts(cfg_h, batch, plaintexts_h, _dfactors_hs, ciphertexts_h, selected[0] - 1);
 
 }

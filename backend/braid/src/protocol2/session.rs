@@ -1,4 +1,5 @@
 use crate::protocol2::action::Message;
+use crate::protocol2::artifact::Configuration;
 use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::protocol2::datalog::{
     BatchNumber, ConfigurationHash, MixingHashes, PlaintextsHash, Predicate,
@@ -8,6 +9,7 @@ use crate::protocol2::statement::StatementType;
 use crate::protocol2::trustee::Trustee;
 use anyhow::{anyhow, Result};
 use strand::context::Ctx;
+use strand::serialization::StrandDeserialize;
 use tracing::{error, info};
 
 pub struct Session<C: Ctx> {
@@ -61,6 +63,23 @@ impl<C: Ctx> VerifyingSession<C> {
         info!("Verifying..");
 
         let messages = self.board.get_messages(-1).await?;
+        let cfg_message: Vec<Message> = messages
+            .clone()
+            .into_iter()
+            .filter(|m| m.statement.get_kind() == StatementType::Configuration)
+            .collect();
+
+        assert_eq!(cfg_message.len(), 1);
+
+        let cfg_bytes = cfg_message
+            .first()
+            .as_ref()
+            .unwrap()
+            .artifact
+            .as_ref()
+            .unwrap();
+        let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
+
         let plaintext_signature: Vec<Message> = messages
             .clone()
             .into_iter()
@@ -80,6 +99,7 @@ impl<C: Ctx> VerifyingSession<C> {
             let predicate = Predicate::from_statement::<C>(
                 &message.statement,
                 crate::protocol2::VERIFIER_INDEX,
+                &cfg,
             );
             predicates.push(predicate);
         }

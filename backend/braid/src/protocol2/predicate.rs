@@ -1,9 +1,12 @@
+use std::collections::HashSet;
+
 use anyhow::Result;
 use log::trace;
 use strand::signature::StrandSignaturePk;
 use strand::{context::Ctx, serialization::StrandSerialize};
 
 use crate::protocol2::artifact::Configuration;
+use crate::protocol2::datalog::NULL_TRUSTEE;
 use crate::protocol2::statement::Statement;
 use crate::protocol2::statement::THashes;
 use crate::protocol2::PROTOCOL_MANAGER_INDEX;
@@ -53,7 +56,6 @@ pub(crate) enum Predicate {
         BatchNumber,
         CiphertextsHash,
         PublicKeyHash,
-        TrusteePosition,
         TrusteeSet,
     ),
     // A mix predicate describes the mix itself but also specifies its position (starting at 1) and which mixing trustee is next. The
@@ -124,6 +126,7 @@ impl Predicate {
     pub(crate) fn from_statement<C: Ctx>(
         statement: &Statement,
         signer_position: TrusteePosition,
+        cfg: &Configuration<C>,
     ) -> Predicate {
         let ret = match statement {
             // Only called for configuration signatures, configuration
@@ -167,15 +170,25 @@ impl Predicate {
                 CommitmentsHashes(cm_hs.0),
                 signer_position,
             ),
-            // Ballots(Timestamp, ConfigurationH, usize, CiphertextsH, PublicKeyH)
-            Statement::Ballots(_ts, cfg_h, batch, ballots_h, pk_h, first_mixer, trustees) => {
+            // Ballots(Timestamp, ConfigurationH, usize, CiphertextsH, PublicKeyH, TrusteeSet)
+            Statement::Ballots(_ts, cfg_h, batch, ballots_h, pk_h, trustees) => {
+                // Verify that all selected trustees are unique
+                let mut selected = vec![];
+                trustees.iter().for_each(|s| {
+                    if *s != NULL_TRUSTEE {
+                        assert!(*s > 0 && *s <= cfg.trustees.len());
+                        selected.push(*s);
+                    }
+                });
+
+                let unique: HashSet<usize> = selected.into_iter().collect();
+                assert!(unique.len() == cfg.threshold);
+
                 Self::Ballots(
                     ConfigurationHash(cfg_h.0),
                     batch.0,
                     CiphertextsHash(ballots_h.0),
                     PublicKeyHash(pk_h.0),
-                    // Trustees are 1-based in the TrusteeSet field of the ballots artifact
-                    first_mixer - 1,
                     *trustees,
                 )
             }
@@ -382,10 +395,10 @@ impl std::fmt::Debug for Predicate {
                 "PublicKeySignedAll{{ cfg hash={:?}, pk_hash={:?} }}",
                 dbg_hash(&cfg_h.0), dbg_hash(&pk_h.0)
             ),
-            Predicate::Ballots(cfg_h, batch, cipher_h, pk_h, t, _ts) => write!(
+            Predicate::Ballots(cfg_h, batch, cipher_h, pk_h, _ts) => write!(
                 f,
-                "Ballots{{ cfg hash={:?}, batch={:?}, pk_h={:?} cipher_h={:?} target_t={:?} }}",
-                dbg_hash(&cfg_h.0), batch, dbg_hash(&pk_h.0), dbg_hash(&cipher_h.0), t
+                "Ballots{{ cfg hash={:?}, batch={:?}, pk_h={:?} cipher_h={:?} }}",
+                dbg_hash(&cfg_h.0), batch, dbg_hash(&pk_h.0), dbg_hash(&cipher_h.0),
             ),
             Predicate::Mix(_cfg_h, _batch, source_h, cipher_h, mix_n, signer_t, target_t) => write!(
                 f,

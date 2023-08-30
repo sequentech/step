@@ -1,4 +1,4 @@
-pub use log::{debug, info, trace};
+pub use log::{debug, error, info, trace};
 pub use std::collections::HashSet;
 use tracing_attributes::instrument;
 
@@ -103,6 +103,10 @@ pub(crate) fn run(predicates: &Vec<Predicate>) -> (HashSet<Action>, Vec<Predicat
         next.1.into_iter().for_each(|a| {
             actions.insert(a);
         });
+        next.2.into_iter().for_each(|d| {
+            error!("Datalog returned error {:?}", d);
+            panic!();
+        });
     }
 
     (actions, all_predicates)
@@ -117,7 +121,10 @@ pub(crate) enum Phase {
 }
 
 impl Phase {
-    fn run(&self, predicates: &Vec<Predicate>) -> (HashSet<Predicate>, HashSet<Action>) {
+    fn run(
+        &self,
+        predicates: &Vec<Predicate>,
+    ) -> (HashSet<Predicate>, HashSet<Action>, HashSet<DatalogError>) {
         match self {
             Self::Cfg(s) => s.run(predicates),
             Self::Dkg(s) => s.run(predicates),
@@ -125,6 +132,11 @@ impl Phase {
             Self::Decrypt(s) => s.run(predicates),
         }
     }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub(crate) enum DatalogError {
+    MixRepeat(ConfigurationHash, BatchNumber),
 }
 
 pub(crate) mod cfg;

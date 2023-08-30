@@ -364,11 +364,12 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
     context.plaintexts = ps;
 
     info!("selected_trustees {:?}", context.selected_trustees);
-    let ballot_batch = Ballots::new(ballots, context.selected_trustees, &context.cfg);
+    let ballot_batch = Ballots::new(ballots);
     let message = Message::ballots_msg(
         &context.cfg,
         batch,
         &ballot_batch,
+        context.selected_trustees,
         PublicKeyHash(pk_h),
         &context.protocol_manager,
     )

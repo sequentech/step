@@ -24,6 +24,8 @@ use crate::protocol2::trustee::Trustee;
 
 use crate::protocol2::statement::*;
 
+use super::datalog::TrusteeSet;
+
 ///////////////////////////////////////////////////////////////////////////
 // Message
 ///////////////////////////////////////////////////////////////////////////
@@ -155,6 +157,7 @@ impl Message {
         cfg: &Configuration<C>,
         batch: BatchNumber,
         ballots: &Ballots<C>,
+        selected_trustees: TrusteeSet,
         pk_h: PublicKeyHash,
         pm: &ProtocolManager<C>,
     ) -> Result<Message> {
@@ -168,8 +171,7 @@ impl Message {
             CiphertextsH(bb_h),
             PublicKeyH(pk_h.0),
             Batch(batch),
-            ballots.selected_trustees[0],
-            ballots.selected_trustees,
+            selected_trustees,
         );
         pm.sign(statement, Some(ballots_bytes))
     }
@@ -313,20 +315,19 @@ impl Message {
         }
 
         // We don't care about doing a sequential search here as the size is small
-        let index = configuration.get_trustee_position(&self.signer_key);
-        if index.is_none() {
-            return Err(anyhow!(
+        let index: usize = configuration
+            .get_trustee_position(&self.signer_key)
+            .ok_or(anyhow!(
                 "Received a message from a trustee that is not part of the configuration {:?}",
                 self.signer_key
-            ));
-        }
+            ))?;
 
         let bytes = self.statement.strand_serialize()?;
         // Verify signature
         let trustee_ = self
             .signer_key
             .verify(&self.signature, &bytes)
-            .map(|_| index.expect("impossible"))
+            .map(|_| index)
             .ok();
 
         if trustee_.is_none() {

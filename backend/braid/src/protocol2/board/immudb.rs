@@ -108,7 +108,8 @@ impl ImmudbBoard {
         connection: &Connection,
         last_id: i64,
     ) -> Result<Vec<Message>> {
-        let mut stmt = connection.prepare("SELECT id,message FROM MESSAGES where id > ?1 order by id asc")?;
+        let mut stmt =
+            connection.prepare("SELECT id,message FROM MESSAGES where id > ?1 order by id asc")?;
         let rows = stmt.query_map([last_id], |row| {
             Ok(MessageRow {
                 id: row.get(0)?,

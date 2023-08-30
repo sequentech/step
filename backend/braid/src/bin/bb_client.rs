@@ -163,16 +163,13 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, ctx: C) -> Result<()> {
                 [braid::protocol2::datalog::NULL_TRUSTEE; braid::protocol2::MAX_TRUSTEES];
             selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
-            let ballot_batch = braid::protocol2::artifact::Ballots::new(
-                ballots,
-                selected_trustees,
-                &configuration,
-            );
+            let ballot_batch = braid::protocol2::artifact::Ballots::new(ballots);
             let pm = get_pm(PhantomData);
             let message = braid::protocol2::message::Message::ballots_msg(
                 &configuration,
                 1,
                 &ballot_batch,
+                selected_trustees,
                 PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()),
                 &pm,
             )?;

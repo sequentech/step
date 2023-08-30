@@ -170,34 +170,13 @@ pub struct Ballots<C: Ctx> {
     // Each trustee is a number starting at 1 up to the the number of eligible
     // trustees as per the configuration. 0 is not a valid trustee. Remaining
     // slots of this fixed size array must be padded with Datalog::NULL_TRUSTEE
-    pub selected_trustees: TrusteeSet,
+    // pub selected_trustees: TrusteeSet,
 }
 impl<C: Ctx> Ballots<C> {
-    pub fn new(
-        ciphertexts: Vec<Ciphertext<C>>,
-        selected_trustees: TrusteeSet,
-        cfg: &Configuration<C>,
-    ) -> Ballots<C> {
-        let b = Ballots {
+    pub fn new(ciphertexts: Vec<Ciphertext<C>>) -> Ballots<C> {
+        Ballots {
             ciphertexts: StrandVectorC(ciphertexts),
-            selected_trustees,
-        };
-        b.validate(cfg)
-    }
-
-    pub fn validate(self, cfg: &Configuration<C>) -> Self {
-        let mut selected = vec![];
-        self.selected_trustees.iter().for_each(|s| {
-            if *s != NULL_TRUSTEE {
-                assert!(*s > 0 && *s <= cfg.trustees.len());
-                selected.push(*s);
-            }
-        });
-
-        let unique: HashSet<usize> = selected.into_iter().collect();
-        assert!(unique.len() == cfg.threshold);
-
-        self
+        }
     }
 }
 
