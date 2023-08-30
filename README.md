@@ -219,6 +219,12 @@ a different port than 8080.
 
 ## Immutable logging
 
+docker compose build immudb-log-audit && docker compose up -d immudb-log-audit && docker compose logs -f immudb-log-audit
+docker compose build postgres && docker compose up -d postgres && docker compose logs -f postgres
+
+docker compose exec postgres bash
+
+
 docker compose exec \
   -e PGPASSWORD=postgrespassword \
   postgres \
@@ -226,10 +232,19 @@ docker compose exec \
   -h postgres \
   -U postgres
 
-SELECT pg_create_logical_replication_slot('json_slot', 'wal2json', false, false);
 CREATE TABLE table1_with_pk (a SERIAL, b VARCHAR(30), c TIMESTAMP NOT NULL, PRIMARY KEY(a, c));
 INSERT INTO table1_with_pk (b, c) VALUES('Backup and Restore', now());
 
 
-docker compose exec   -e PGPASSWORD=postgrespassword   postgres   pg_recvlogical -d postgres -U postgres --slot json_slot --start -o pretty-print=1 -o include-xids=1 -o add-msg
--prefixes=wal2json -f -
+
+{"timestamp":"2023-08-30 15:01:31.848 GMT","user":"postgres","dbname":"postgres","pid":2421,"remote_host":"172.18.0.10","remote_port":53902,"session_id":"64ef59c6.975","line_num":1,"ps":"INSERT","session_start":"2023-08-30 15:01:26 GMT","vxid":"4/210","txid":0,"error_severity":"NOTICE","message":"AUDIT: SESSION,1,1,WRITE,INSERT,,,\"INSERT INTO table1_with_pk (b, c) VALUES('Backup and Restore', now());\",<not logged>","application_name":"psql","backend_type":"client backend","query_id":0}
+
+
+
+
+
+
+
+
+backend-services_devcontainer-immudb-log-audit-1  | time="2023-08-30T17:10:40Z" level=debug msg="EDU: Parser called" line="{\"timestamp\":\"2023-08-30 17:10:40.145 GMT\",\"user\":\"postgres\",\"dbname\":\"postgres\",\"pid\":13726,\"remote_host\":\"172.18.0.10\",\"remote_port\":33332,\"session_id\":\"64ef757a.359e\",\"line_num\":2,\"ps\":\"INSERT\",\"session_start\":\"2023-08-30 16:59:38 GMT\",\"vxid\":\"5/2756\",\"txid\":0,\"error_severity\":\"NOTICE\",\"message\":\"AUDIT: SESSION,2,1,WRITE,INSERT,,,\\\"INSERT INTO table1_with_pk (b, c) VALUES('Backup and Restore', now());\\\",<not logged>\",\"application_name\":\"psql\",\"backend_type\":\"client backend\",\"query_id\":0}"
+backend-services_devcontainer-immudb-log-audit-1  | time="2023-08-30T17:10:40Z" level=debug msg="adding to the log line" auditLine="SESSION,2,1,WRITE,INSERT,,,\"INSERT INTO table1_with_pk (b, c) VALUES('Backup and Restore', now());\",<not logged>"

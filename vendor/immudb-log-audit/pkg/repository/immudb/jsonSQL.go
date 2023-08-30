@@ -91,6 +91,7 @@ func (jr *JsonSQLRepository) Write(jObject interface{}) (uint64, error) {
 }
 
 func (jr *JsonSQLRepository) WriteBytes(jBytesArr [][]byte) (uint64, error) {
+	log.Debug("EDU: WriteBytes")
 	var txID uint64
 	for _, jBytes := range jBytesArr {
 		// parse with gjson

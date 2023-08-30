@@ -38,7 +38,7 @@ services:
     environment:
       POSTGRES_PASSWORD: postgrespassword
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 10s
       retries: 15
@@ -108,7 +108,7 @@ services:
     environment:
       POSTGRES_PASSWORD: postgrespassword
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: ["CMD-SHELL", "pg_isready  -U postgres"]
       interval: 5s
       timeout: 10s
       retries: 15
@@ -187,7 +187,7 @@ services:
       context: ../vendor/immudb-log-audit
       dockerfile: Dockerfile.immudb
     command: >
-      tail file pgaudit "/logs/*"
+      tail file pgaudit "/logs/*.json"
       --follow
       --parser pgauditjsonlog
       --file-registry-dir=/data

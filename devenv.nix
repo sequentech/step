@@ -12,6 +12,9 @@
     pkgs.openssl
     pkgs.postgresql_15
 
+    # immudb
+    pkgs.go
+
     # To be able to use vim in the terminal
     pkgs.vim
   

@@ -25,6 +25,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
+	log "github.com/sirupsen/logrus"
 )
 
 type pgauditTimestamp struct {
@@ -72,14 +73,16 @@ func NewPGAuditJSONLogLineParser() *pgAuditJSONLogLineParser {
 }
 
 func (p *pgAuditJSONLogLineParser) Parse(line string) ([]byte, error) {
+	log.WithField("line", line).Debug("Parser called")
 	r := gjson.Get(line, "message")
 	if !r.Exists() {
 		return nil, errors.New("not a pgaudit line, missing 'message' field")
 	}
 
-	pgae, err := toPgauditEntry(strings.TrimSpace(strings.TrimLeft(r.String(), "AUDIT:")))
+	auditLine := strings.TrimSpace(strings.TrimLeft(r.String(), "AUDIT:"))
+	pgae, err := toPgauditEntry(auditLine)
 	if err != nil {
-		return nil, fmt.Errorf("not a pgaudit line EDU, %w", err)
+		return nil, fmt.Errorf("not a pgaudit line ``%s``, ```%w```", auditLine, err)
 	}
 
 	var pgaje pgAuditJSONLogEntry
@@ -91,6 +94,7 @@ func (p *pgAuditJSONLogLineParser) Parse(line string) ([]byte, error) {
 	pgaje.pgAuditEntry = *pgae
 	pgaje.UID = uuid.New().String()
 	pgaje.ServerTimestamp = time.Now().UTC()
+	log.WithField("auditLine", auditLine).Debug("adding to the log line")
 
 	bytes, err := json.Marshal(pgaje)
 	if err != nil {
