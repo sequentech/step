@@ -142,7 +142,7 @@ impl<C: Ctx> Trustee<C> {
 
             if verified.is_err() {
                 warn!("Message failed verification {:?}", verified);
-                // FIXME
+                // FIXME will crash on bad data
                 panic!();
                 continue;
             }
@@ -150,7 +150,7 @@ impl<C: Ctx> Trustee<C> {
 
             if verified.statement.get_cfg_h() != cfg_hash {
                 warn!("Message has mismatched configuration hash");
-                // FIXME
+                // FIXME will crash on bad data
                 panic!();
                 continue;
             }
@@ -190,12 +190,10 @@ impl<C: Ctx> Trustee<C> {
         }
 
         let artifact = zero.artifact.as_ref().expect("impossible");
-        let configuration_ = Configuration::strand_deserialize(artifact);
-        if configuration_.is_err() {
-            return Err(anyhow!("Error deserializing configuration"));
-        }
+        let configuration = Configuration::strand_deserialize(artifact)?;
+        // FIXME will crash on bad data
+        let configuration = configuration.validate();
 
-        let configuration: Configuration<C> = configuration_.expect("impossible");
         let verified = zero.verify(&configuration)?;
 
         assert!(verified.signer_position == PROTOCOL_MANAGER_INDEX);

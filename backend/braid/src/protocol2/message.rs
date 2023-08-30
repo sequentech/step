@@ -391,6 +391,17 @@ fn verify_artifact<C: Ctx>(
     kind: &ArtifactType,
     data: &Vec<u8>,
 ) -> Result<()> {
+    match kind {
+        ArtifactType::Ballots => {}
+        ArtifactType::Commitments => {}
+        ArtifactType::DecryptionFactors => {}
+        ArtifactType::Mix => {}
+        ArtifactType::Plaintexts => {}
+        ArtifactType::PublicKey => {}
+        ArtifactType::Shares => {}
+        ArtifactType::Configuration => {}
+    }
+
     Ok(())
 }
 
