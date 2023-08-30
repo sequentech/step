@@ -88,7 +88,7 @@ const ElectionEventListForm: React.FC = () => {
             >
                 <MenuItem
                     onClick={createBulletinBoardAction}
-                    disabled={!isUndefined(record.bulletin_board_reference)}
+                    disabled={!!record.bulletin_board_reference}
                 >
                     Create Bulletin Board
                 </MenuItem>
@@ -153,6 +153,16 @@ const ElectionEventListForm: React.FC = () => {
                     Add area
                 </Button>
             </Link>
+            <JsonInput
+                source="bulletin_board_reference"
+                jsonString={false}
+                reactJsonOptions={{
+                    name: null,
+                    collapsed: true,
+                    enableClipboard: true,
+                    displayDataTypes: false,
+                }}
+            />
             <JsonInput
                 source="labels"
                 jsonString={false}
