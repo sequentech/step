@@ -143,5 +143,3 @@ pub(crate) mod cfg;
 pub(crate) mod decrypt;
 pub(crate) mod dkg;
 pub(crate) mod shuffle;
-
-pub(crate) mod v;

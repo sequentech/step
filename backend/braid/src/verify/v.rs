@@ -1,4 +1,4 @@
-use super::*;
+use crate::protocol2::datalog::*;
 use crepe::crepe;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -62,13 +62,13 @@ crepe! {
     Ballots(cfg_h, batch, ballots_h, pk_h, _),
     !Plaintexts(cfg_h, batch, _, _, ballots_h, _),
     MixSigned(cfg_h, batch, ballots_h, target_h, VERIFIER_INDEX),
-    let mixing_hs = MixingHashes(super::hashes_init(ballots_h.0));
+    let mixing_hs = MixingHashes(hashes_init(ballots_h.0));
 
     MixVerifiedUpto(cfg_h, batch, ciphertexts_h, new_mixing_hs, n + 1) <-
     MixSigned(cfg_h, batch, source_h, ciphertexts_h, VERIFIER_INDEX),
     MixVerifiedUpto(cfg_h, batch, source_h, mixing_hs, n),
     !Plaintexts(cfg_h, batch, _, _, source_h, _),
-    let new_mixing_hs = MixingHashes(super::hashes_add(mixing_hs.0, source_h.0));
+    let new_mixing_hs = MixingHashes(hashes_add(mixing_hs.0, source_h.0));
 
     OutP(Predicate::Z(cfg_h, batch, ballots_h, plaintexts_h, mixing_hs)) <-
     ConfigurationSignedAll(cfg_h, _, _num_t, threshold),

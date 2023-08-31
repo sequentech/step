@@ -78,7 +78,7 @@ impl<C: Ctx> VerifyingSession<C> {
             predicates.push(predicate);
         }
 
-        let predicates = crate::protocol2::datalog::v::S.run(&predicates);
+        let predicates = crate::verify::v::S.run(&predicates);
 
         let zs: Result<
             Vec<(
