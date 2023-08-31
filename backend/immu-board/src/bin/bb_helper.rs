@@ -185,10 +185,11 @@ impl BBHelper {
             r#"
             CREATE TABLE IF NOT EXISTS bulletin_boards (
                 id INTEGER,
-                database_name VARCHAR UNIQUE,
+                database_name VARCHAR[128],
                 is_archived BOOLEAN,
                 PRIMARY KEY id
             );
+            CREATE UNIQUE INDEX ON bulletin_boards(database_name);
             "#
         ).await
     }
