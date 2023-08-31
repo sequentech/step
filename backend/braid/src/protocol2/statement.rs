@@ -40,8 +40,6 @@ pub enum Statement {
         Batch,
         CiphertextsH,
         PublicKeyH,
-        // first_mixer (ballots.trustees[0] - 1 in Ballots artifact)
-        TrusteePosition,
         // the trustees to participate in mixing + decryption (ballots.trustees in Ballots artifact)
         [usize; crate::protocol2::MAX_TRUSTEES],
     ),
@@ -56,12 +54,12 @@ pub enum Statement {
         // the next mixing trustee (mix.target_trustee in Mix artifact)
         TrusteePosition,
     ),
-    // See local::StatementEntryIdentifier::mix_signature_number regarding MixSignatureNumber
+    // See also local::StatementEntryIdentifier::mix_number
     MixSigned(
         Timestamp,
         ConfigurationH,
         Batch,
-        MixSignatureNumber,
+        MixNumber,
         CiphertextsH,
         CiphertextsH,
     ),
@@ -79,6 +77,7 @@ pub enum Statement {
         Batch,
         PlaintextsH,
         DecryptionFactorsHs,
+        CiphertextsH,
     ),
     PlaintextsSigned(
         Timestamp,
@@ -86,6 +85,7 @@ pub enum Statement {
         Batch,
         PlaintextsH,
         DecryptionFactorsHs,
+        CiphertextsH,
     ),
 }
 
@@ -143,7 +143,6 @@ impl Statement {
         ballots_h: CiphertextsH,
         pk_h: PublicKeyH,
         batch: Batch,
-        first_mixer: usize,
         trustees: [usize; crate::protocol2::MAX_TRUSTEES],
     ) -> Statement {
         Statement::Ballots(
@@ -152,7 +151,6 @@ impl Statement {
             batch,
             ballots_h,
             pk_h,
-            first_mixer,
             trustees,
         )
     }
@@ -163,7 +161,7 @@ impl Statement {
         source_ciphertexts_h: CiphertextsH,
         mix_h: CiphertextsH,
         batch: Batch,
-        mix_number: usize,
+        mix_number: MixNumber,
         target_trustee: usize,
     ) -> Statement {
         Statement::Mix(
@@ -183,13 +181,13 @@ impl Statement {
         source_ciphertexts_h: CiphertextsH,
         mix_h: CiphertextsH,
         batch: Batch,
-        mix_signature_number: MixSignatureNumber,
+        mix_number: MixNumber,
     ) -> Statement {
         Statement::MixSigned(
             Self::timestamp(),
             cfg_hash,
             batch,
-            mix_signature_number,
+            mix_number,
             source_ciphertexts_h,
             mix_h,
         )
@@ -217,6 +215,7 @@ impl Statement {
         batch: Batch,
         plaintexts_h: PlaintextsH,
         dfactors_hs: DecryptionFactorsHs,
+        cipher_h: CiphertextsH,
     ) -> Statement {
         Statement::Plaintexts(
             Self::timestamp(),
@@ -224,6 +223,7 @@ impl Statement {
             batch,
             plaintexts_h,
             dfactors_hs,
+            cipher_h,
         )
     }
 
@@ -232,6 +232,7 @@ impl Statement {
         batch: Batch,
         plaintexts_h: PlaintextsH,
         dfactors_hs: DecryptionFactorsHs,
+        cipher_h: CiphertextsH,
     ) -> Statement {
         Statement::PlaintextsSigned(
             Self::timestamp(),
@@ -239,6 +240,7 @@ impl Statement {
             batch,
             plaintexts_h,
             dfactors_hs,
+            cipher_h,
         )
     }
 
@@ -276,7 +278,7 @@ impl Statement {
         let ts: u64;
         let cfg: [u8; 64];
         let mut batch = 0usize;
-        let mut mix_signature_number = 0usize;
+        let mut mix_number = 0usize;
         let mut artifact_type = None;
 
         match self {
@@ -319,7 +321,7 @@ impl Statement {
                 kind = StatementType::PublicKeySigned;
                 cfg = cfg_h.0;
             }
-            Self::Ballots(ts_, cfg_h, bch, _, _, _, _) => {
+            Self::Ballots(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::Ballots;
                 cfg = cfg_h.0;
@@ -333,12 +335,12 @@ impl Statement {
                 batch = bch.0;
                 artifact_type = Some(ArtifactType::Mix);
             }
-            Self::MixSigned(ts_, cfg_h, bch, mix_sno, _, _) => {
+            Self::MixSigned(ts_, cfg_h, bch, mix_no, _, _) => {
                 ts = *ts_;
                 kind = StatementType::MixSigned;
                 cfg = cfg_h.0;
                 batch = bch.0;
-                mix_signature_number = mix_sno.0;
+                mix_number = *mix_no;
             }
             Self::DecryptionFactors(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
@@ -347,14 +349,14 @@ impl Statement {
                 batch = bch.0;
                 artifact_type = Some(ArtifactType::DecryptionFactors);
             }
-            Self::Plaintexts(ts_, cfg_h, bch, _, _) => {
+            Self::Plaintexts(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::Plaintexts;
                 cfg = cfg_h.0;
                 batch = bch.0;
                 artifact_type = Some(ArtifactType::Plaintexts);
             }
-            Self::PlaintextsSigned(ts_, cfg_h, bch, _, _) => {
+            Self::PlaintextsSigned(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::PlaintextsSigned;
                 cfg = cfg_h.0;
@@ -362,7 +364,7 @@ impl Statement {
             }
         }
 
-        (kind, cfg, batch, mix_signature_number, artifact_type, ts)
+        (kind, cfg, batch, mix_number, artifact_type, ts)
     }
 }
 
@@ -393,8 +395,6 @@ pub struct PlaintextsH(pub Hash);
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct Batch(pub usize);
-#[derive(BorshSerialize, BorshDeserialize, Clone)]
-pub struct MixSignatureNumber(pub usize);
 
 ///////////////////////////////////////////////////////////////////////////
 // Enums necessary to store statements and artifacts in LocalBoard

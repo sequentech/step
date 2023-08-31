@@ -105,8 +105,11 @@ impl TryFrom<&Row> for Board {
 }
 
 impl BoardClient {
-    #[instrument]
-    pub async fn new(server_url: &str, username: &str, password: &str) -> Result<BoardClient> {
+    pub async fn new(
+        server_url: &str,
+        username: &str,
+        password: &str,
+    ) -> Result<BoardClient> {
         let client = Client::new(&server_url, username, password).await?;
         Ok(BoardClient { client: client })
     }

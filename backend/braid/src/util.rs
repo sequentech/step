@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use anyhow::{anyhow, Result};
+use base64::{engine::general_purpose, Engine as _};
 use tracing_subscriber::filter::LevelFilter;
 use tracing_subscriber::reload::Handle;
 use tracing_subscriber::{filter, reload};
@@ -32,4 +34,10 @@ pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
 
 pub(crate) fn dbg_hash(h: &[u8; 64]) -> String {
     hex::encode(h)[0..10].to_string()
+}
+
+pub fn decode_base64(s: &String) -> Result<Vec<u8>> {
+    general_purpose::STANDARD_NO_PAD
+        .decode(&s)
+        .map_err(|error| anyhow!(error))
 }

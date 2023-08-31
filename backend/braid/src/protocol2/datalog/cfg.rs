@@ -28,6 +28,14 @@ crepe! {
     #[derive(Debug)]
     pub struct OutP(Predicate);
 
+    @output
+    #[derive(Debug)]
+    pub struct A(pub(crate) Action);
+
+    @output
+    #[derive(Debug)]
+    pub struct DErr(DatalogError);
+
     A(Action::SignConfiguration(cfg_h)) <-
     Configuration(cfg_h, self_position, _, _),
     !ConfigurationSigned(cfg_h, self_position);
@@ -38,10 +46,6 @@ crepe! {
 
     ConfigurationSignedUpTo(cfg_h, 0) <-
     ConfigurationSigned(cfg_h, 0);
-
-    @output
-    #[derive(Debug)]
-    pub struct A(pub(crate) Action);
 
     OutP(Predicate::ConfigurationSignedAll(cfg_h, self_position, num_t, threshold)) <-
     Configuration(cfg_h, self_position, num_t, threshold),
@@ -57,7 +61,10 @@ crepe! {
 pub(crate) struct S;
 
 impl S {
-    pub(crate) fn run(&self, predicates: &Vec<Predicate>) -> (HashSet<Predicate>, HashSet<Action>) {
+    pub(crate) fn run(
+        &self,
+        predicates: &Vec<Predicate>,
+    ) -> (HashSet<Predicate>, HashSet<Action>, HashSet<DatalogError>) {
         trace!(
             "Datalog: state cfg running with {} predicates, {:?}",
             predicates.len(),
@@ -68,11 +75,16 @@ impl S {
         let inputs: Vec<InP> = predicates.iter().map(|p| InP(*p)).collect();
         runtime.extend(&inputs);
 
-        let result: (HashSet<OutP>, HashSet<A>) = runtime.run();
+        let result: (HashSet<OutP>, HashSet<A>, HashSet<DErr>) = runtime.run();
 
         (
             result.0.iter().map(|a| a.0).collect::<HashSet<Predicate>>(),
             result.1.iter().map(|i| i.0).collect::<HashSet<Action>>(),
+            result
+                .2
+                .iter()
+                .map(|i| i.0)
+                .collect::<HashSet<DatalogError>>(),
         )
     }
 }

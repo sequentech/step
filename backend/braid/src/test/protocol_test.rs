@@ -106,13 +106,13 @@ fn run_protocol_test<C: Ctx>(
                 pk.encrypt(&encoded)
             })
             .collect();
-        let ballot_batch =
-            crate::protocol2::artifact::Ballots::new(ballots, selected_trustees, &test.cfg);
+        let ballot_batch = crate::protocol2::artifact::Ballots::new(ballots);
 
         let message = crate::protocol2::message::Message::ballots_msg(
             &test.cfg,
             i + 1,
             &ballot_batch,
+            selected_trustees,
             PublicKeyHash(crate::protocol2::hash_from_vec(&pk_h).unwrap()),
             &test.protocol_manager,
         )?;

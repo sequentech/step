@@ -15,14 +15,15 @@ license = "AGPL-3.0-only"
 [dependencies]
 rand = "0.8"
 getrandom = { version = "0.2", features = ["js"] }
-strand = { path="../strand", features=["rayon"] }
 
+strand = { path="../strand", features=["rayon"] }
 borsh = "0.9.3"
 crepe = "0.1.5"
 immu-board = { path="../immu-board" }
 immudb-rs = { path="../immudb-rs" }
 strum = { version = "0.24.1", features = ["derive"] }
 rayon = { version = "1.5" }
+rusqlite = { version = "0.29.0", features = ["bundled"] }
 anyhow = "1.0"
 
 # daemon
