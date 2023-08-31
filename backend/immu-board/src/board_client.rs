@@ -1,9 +1,9 @@
 use anyhow::{anyhow, Result};
-use log::{info};
+use log::info;
 use tracing::{debug, instrument};
 
+use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
-use immudb_rs::{sql_value::Value, Client, Row, SqlValue, NamedParam, TxMode};
 
 #[derive(Debug)]
 pub struct BoardClient {
@@ -17,7 +17,7 @@ pub struct BoardMessage {
     pub signer_key: Vec<u8>,
     pub statement_timestamp: i64,
     pub statement_kind: String,
-    pub message: Vec<u8>
+    pub message: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -61,7 +61,9 @@ impl TryFrom<&Row> for BoardMessage {
                 "(messages.id)" => assign_value!(Value::N, value, id),
                 "(messages.created)" => assign_value!(Value::Ts, value, created),
                 "(messages.signer_key)" => assign_value!(Value::Bs, value, signer_key),
-                "(messages.statement_timestamp)" => assign_value!(Value::Ts, value, statement_timestamp),
+                "(messages.statement_timestamp)" => {
+                    assign_value!(Value::Ts, value, statement_timestamp)
+                }
                 "(messages.statement_kind)" => assign_value!(Value::S, value, statement_kind),
                 "(messages.message)" => assign_value!(Value::Bs, value, message),
                 _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
@@ -104,34 +106,24 @@ impl TryFrom<&Row> for Board {
 
 impl BoardClient {
     #[instrument]
-    pub async fn new(
-        server_url: &str,
-        username: &str,
-        password: &str,
-    ) -> Result<BoardClient> {
+    pub async fn new(server_url: &str, username: &str, password: &str) -> Result<BoardClient> {
         let client = Client::new(&server_url, username, password).await?;
-        Ok(BoardClient {
-            client: client,
-        })
+        Ok(BoardClient { client: client })
     }
 
-    pub async fn login(
-        &mut self,
-        username: &str,
-        password: &str,
-    ) -> Result<()> {
+    pub async fn login(&mut self, username: &str, password: &str) -> Result<()> {
         self.client.login(&username, &password).await
     }
 
     /// Get all messages whose id is bigger than `last_id`
     pub async fn get_messages(
-        &mut self, 
+        &mut self,
         board_db: &str,
-        last_id: i64
-    ) -> Result<Vec<BoardMessage>>
-    {
+        last_id: i64,
+    ) -> Result<Vec<BoardMessage>> {
         self.client.open_session(board_db).await?;
-        let sql = format!(r#"
+        let sql = format!(
+            r#"
         SELECT
             id,
             created,
@@ -141,7 +133,9 @@ impl BoardClient {
             message
         FROM messages
         WHERE id > {}
-        "#, last_id);
+        "#,
+            last_id
+        );
         let sql_query_response = self.client.sql_query(&sql, vec![]).await?;
         let messages = sql_query_response
             .get_ref()
@@ -154,9 +148,10 @@ impl BoardClient {
     }
 
     pub async fn insert_messages(
-        &mut self, board_db: &str, messages: &Vec<BoardMessage>
-    ) -> Result<()>
-    {
+        &mut self,
+        board_db: &str,
+        messages: &Vec<BoardMessage>,
+    ) -> Result<()> {
         info!("Insert {} messages..", messages.len());
         self.client.open_session(board_db).await?;
         // Start a new transaction
@@ -180,64 +175,57 @@ impl BoardClient {
             let params = vec![
                 NamedParam {
                     name: String::from("created"),
-                    value: Some(
-                        SqlValue { value: Some(Value::Ts(message.created)) }
-                    ),
+                    value: Some(SqlValue {
+                        value: Some(Value::Ts(message.created)),
+                    }),
                 },
                 NamedParam {
                     name: String::from("signer_key"),
-                    value: Some(
-                        SqlValue { value: Some(
-                            Value::Bs(message.signer_key.clone())
-                        ) }
-                    ),
+                    value: Some(SqlValue {
+                        value: Some(Value::Bs(message.signer_key.clone())),
+                    }),
                 },
                 NamedParam {
                     name: String::from("statement_timestamp"),
-                    value: Some(
-                        SqlValue { value: Some(
-                            Value::Ts(message.statement_timestamp)
-                        ) }
-                    ),
+                    value: Some(SqlValue {
+                        value: Some(Value::Ts(message.statement_timestamp)),
+                    }),
                 },
                 NamedParam {
                     name: String::from("statement_kind"),
-                    value: Some(
-                        SqlValue { value: Some(
-                            Value::S(message.statement_kind.clone())
-                        ) }
-                    ),
+                    value: Some(SqlValue {
+                        value: Some(Value::S(message.statement_kind.clone())),
+                    }),
                 },
                 NamedParam {
                     name: String::from("message"),
-                    value: Some(
-                        SqlValue { value: Some(
-                            Value::Bs(message.message.clone())
-                        ) }
-                    ),
+                    value: Some(SqlValue {
+                        value: Some(Value::Bs(message.message.clone())),
+                    }),
                 },
             ];
-            self.client.tx_sql_exec(&message_sql, &transaction_id, params).await?;
+            self.client
+                .tx_sql_exec(&message_sql, &transaction_id, params)
+                .await?;
         }
         self.client.commit(&transaction_id).await?;
         self.client.close_session().await?;
         Ok(())
     }
 
-    pub async fn get_boards(
-        &mut self, 
-        index_db: &str,
-    ) -> Result<Vec<Board>>
-    {
+    pub async fn get_boards(&mut self, index_db: &str) -> Result<Vec<Board>> {
         self.client.open_session(index_db).await?;
-        let sql = format!(r#"
+        let sql = format!(
+            r#"
         SELECT
             id,
             database_name,
             is_archived
         FROM bulletin_boards
         WHERE is_archived = {}
-        "#, false);
+        "#,
+            false
+        );
         let sql_query_response = self.client.sql_query(&sql, vec![]).await?;
         let boards = sql_query_response
             .get_ref()
@@ -249,12 +237,7 @@ impl BoardClient {
         Ok(boards)
     }
 
-    pub async fn get_board(
-        &mut self, 
-        index_db: &str,
-        board_db: &str,
-    ) -> Result<Board>
-    {
+    pub async fn get_board(&mut self, index_db: &str, board_db: &str) -> Result<Board> {
         self.client.use_database(index_db).await?;
         let message_sql = r#"
         SELECT
@@ -264,14 +247,12 @@ impl BoardClient {
         FROM bulletin_boards
         WHERE database_name = @database_name;
         "#;
-        let params = vec![
-            NamedParam {
-                name: String::from("database_name"),
-                value: Some(
-                    SqlValue { value: Some(Value::S(board_db.to_string())) }
-                ),
-            },
-        ];
+        let params = vec![NamedParam {
+            name: String::from("database_name"),
+            value: Some(SqlValue {
+                value: Some(Value::S(board_db.to_string())),
+            }),
+        }];
         let sql_query_response = self.client.sql_query(&message_sql, params).await?;
         let boards = sql_query_response
             .get_ref()
@@ -282,11 +263,7 @@ impl BoardClient {
         Ok(boards[0].clone())
     }
 
-    pub async fn create_board(
-        &mut self, 
-        index_db: &str,
-        board_db: &str,
-    ) -> Result<Board> {
+    pub async fn create_board(&mut self, index_db: &str, board_db: &str) -> Result<Board> {
         self.client.create_database(board_db).await?;
         debug!("Database created!");
         self.client.use_database(board_db).await?;
@@ -317,20 +294,19 @@ impl BoardClient {
         let params = vec![
             NamedParam {
                 name: String::from("database_name"),
-                value: Some(
-                    SqlValue { value: Some(Value::S(board_db.to_string())) }
-                ),
+                value: Some(SqlValue {
+                    value: Some(Value::S(board_db.to_string())),
+                }),
             },
             NamedParam {
                 name: String::from("is_archived"),
-                value: Some(
-                    SqlValue { value: Some(Value::B(false)) }
-                ),
+                value: Some(SqlValue {
+                    value: Some(Value::B(false)),
+                }),
             },
         ];
         let sql_query_response = self.client.sql_exec(&message_sql, params).await?;
-        
+
         self.get_board(index_db, board_db).await
     }
-
 }

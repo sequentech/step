@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use anyhow::Result;
 use dotenv::dotenv;
 use either::*;
 use handlebars::Handlebars;
@@ -14,7 +15,6 @@ use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
 use tempfile::tempdir;
-use anyhow::Result;
 
 use crate::connection;
 use crate::hasura;
@@ -81,8 +81,7 @@ async fn upload_and_return_document(
     let document_s3_key =
         s3::get_document_key(tenant_id, election_event_id, document_id);
 
-    s3::upload_to_s3(&bytes, document_s3_key, "application/pdf".into())
-        .await?;
+    s3::upload_to_s3(&bytes, document_s3_key, "application/pdf".into()).await?;
 
     Ok(Json(RenderTemplateResponse {
         id: document.id.clone(),
@@ -116,8 +115,7 @@ pub async fn render_report(
 
     // render handlebars template
     let reg = Handlebars::new();
-    let render = reg
-        .render_template(input.template.as_str(), &variables)?;
+    let render = reg.render_template(input.template.as_str(), &variables)?;
 
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {

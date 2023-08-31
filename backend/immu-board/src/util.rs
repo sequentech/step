@@ -29,4 +29,3 @@ pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     tracing_log::LogTracer::init().unwrap();
     reload_handle
 }
-

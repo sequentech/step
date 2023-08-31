@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use rocket::serde::json::Value;
@@ -10,7 +11,6 @@ use serde_json::json;
 use std::str::FromStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
-use anyhow::Result;
 
 use crate::connection;
 use crate::hasura;
@@ -24,7 +24,7 @@ use crate::services;
 pub enum EventProcessors {
     CREATE_REPORT,
     UPDATE_VOTING_STATUS,
-    CREATE_BOARD
+    CREATE_BOARD,
 }
 
 #[derive(Deserialize, Debug)]
@@ -96,7 +96,10 @@ pub async fn create_scheduled_event(
         created_by: scheduled_event.created_by.clone(),
     };
 
-    println!("FFF payload: {}", formatted_event.event_payload.clone().unwrap());
+    println!(
+        "FFF payload: {}",
+        formatted_event.event_payload.clone().unwrap()
+    );
 
     let process_result = services::worker::process_scheduled_event(
         auth_headers,

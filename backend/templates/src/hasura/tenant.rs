@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::connection;
+use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use serde::Deserialize;
 use std::env;
-use anyhow::Result;
 
 type uuid = String;
 

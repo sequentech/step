@@ -6,8 +6,8 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use std::env;
 use std::path::PathBuf;
-use tracing_subscriber::filter;
 use tracing::{debug, instrument};
+use tracing_subscriber::filter;
 
 use immudb_rs::Client;
 
@@ -19,25 +19,25 @@ use immu_board::BoardClient;
 struct Cli {
     /// Path to the cache directory
     /// [example: path/to/dir]
-    #[arg(short, long, value_name="PATH")]
+    #[arg(short, long, value_name = "PATH")]
     cache_dir: PathBuf,
 
     /// Immugw Server URL
     /// [example: http://127.0.0.1:3323]
     /// [default: IMMUDB_SERVER_URL env var if set]
-    #[arg(short, long, value_name="URL")]
+    #[arg(short, long, value_name = "URL")]
     server_url: Option<String>,
 
     /// Index dbname
     /// [example: bbindex]
     /// [default: IMMUDB_INDEX_DBNAME env var if set]
-    #[arg(short, long, value_name="DBNAME")]
+    #[arg(short, long, value_name = "DBNAME")]
     index_dbname: Option<String>,
 
     /// Board dbname
     /// [example: board1]
     /// [default: IMMUDB_BOARD_DBNAME env var if set]
-    #[arg(short, long, value_name="DBNAME")]
+    #[arg(short, long, value_name = "DBNAME")]
     board_dbname: Option<String>,
 
     /// Immugw username
@@ -93,9 +93,7 @@ impl Cli {
             LogLevel::Trace => filter::LevelFilter::TRACE,
             _ => filter::LevelFilter::INFO,
         };
-        log_reload
-            .modify(|filter| *filter = new_log_level)
-            .unwrap();
+        log_reload.modify(|filter| *filter = new_log_level).unwrap();
 
         return args;
     }
@@ -114,48 +112,43 @@ impl BBHelper {
         let server_url = match args.server_url.as_deref() {
             Some(server_url) => server_url.to_owned(),
             None => env::var("IMMUDB_SERVER_URL")
-                .context("server_url not provided and IMMUDB_SERVER_URL env var not set")?
+                .context("server_url not provided and IMMUDB_SERVER_URL env var not set")?,
         };
         let index_dbname = match args.index_dbname.as_deref() {
             Some(index_dbname) => index_dbname.to_owned(),
             None => env::var("IMMUDB_INDEX_DBNAME")
-                .context("index_dbname not provided and IMMUDB_INDEX_DBNAME env var not set")?
+                .context("index_dbname not provided and IMMUDB_INDEX_DBNAME env var not set")?,
         };
         let board_dbname = match args.board_dbname.as_deref() {
             Some(board_dbname) => board_dbname.to_owned(),
             None => env::var("IMMUDB_BOARD_DBNAME")
-                .context("board_dbname not provided and IMMUDB_BOARD_DBNAME env var not set")?
+                .context("board_dbname not provided and IMMUDB_BOARD_DBNAME env var not set")?,
         };
 
         // Authenticate
         let username = match args.username.as_deref() {
             Some(username) => username.to_owned(),
             None => env::var("IMMUDB_USERNAME")
-            .context("username not provided and IMMUDB_USERNAME env var not set")?
+                .context("username not provided and IMMUDB_USERNAME env var not set")?,
         };
         let password = match args.password.as_deref() {
             Some(password) => password.to_owned(),
             None => env::var("IMMUDB_PASSWORD")
-                .context("password not provided and IMMUDB_PASSWORD env var not set")?
+                .context("password not provided and IMMUDB_PASSWORD env var not set")?,
         };
         let mut client = Client::new(&server_url, &username, &password).await?;
         client.login(&username, &password).await?;
-        Ok(
-            BBHelper {
-                client: client,
-                index_dbname: index_dbname,
-                board_dbname: board_dbname,
-                actions: args.actions
-            }
-        )
+        Ok(BBHelper {
+            client: client,
+            index_dbname: index_dbname,
+            board_dbname: board_dbname,
+            actions: args.actions,
+        })
     }
 
     /// Creates the database, only if it doesn't exist. It also creates
     /// the appropriate tables if they don't exist.
-    async fn upsert_database(
-        &mut self, database_name: &str, tables: &str
-    ) -> Result<()>
-    {
+    async fn upsert_database(&mut self, database_name: &str, tables: &str) -> Result<()> {
         // create database if it doesn't exist
         if !self.client.has_database(database_name).await? {
             self.client.create_database(database_name).await?;
@@ -171,10 +164,8 @@ impl BBHelper {
         Ok(())
     }
 
-    async fn delete_database(&mut self, database_name: &str) -> Result<()>
-    {
-        if self.client.has_database(database_name).await?
-        {
+    async fn delete_database(&mut self, database_name: &str) -> Result<()> {
+        if self.client.has_database(database_name).await? {
             self.client.delete_database(database_name).await?;
         }
         Ok(())
@@ -191,12 +182,14 @@ impl BBHelper {
                 PRIMARY KEY id
             );
             CREATE UNIQUE INDEX ON bulletin_boards(database_name);
-            "#
-        ).await
+            "#,
+        )
+        .await
     }
 
     async fn delete_index_db(&mut self) -> Result<()> {
-        self.delete_database(self.index_dbname.clone().as_str()).await
+        self.delete_database(self.index_dbname.clone().as_str())
+            .await
     }
 
     async fn upsert_board_db(&mut self) -> Result<()> {
@@ -212,12 +205,14 @@ impl BBHelper {
                 message BLOB,
                 PRIMARY KEY id
             );
-            "#
-        ).await
+            "#,
+        )
+        .await
     }
 
     async fn delete_board_db(&mut self) -> Result<()> {
-        self.delete_database(self.board_dbname.clone().as_str()).await
+        self.delete_database(self.board_dbname.clone().as_str())
+            .await
     }
 
     // Run the given actions

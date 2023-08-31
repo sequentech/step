@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use std::{error::Error, str};
 
+use anyhow::Result;
 use s3::bucket::Bucket;
 use s3::creds::Credentials;
 use s3::error::S3Error;
 use s3::region::Region;
 use s3::BucketConfiguration;
 use std::env;
-use anyhow::Result;
 
 pub async fn upload_to_s3(
     data: &Vec<u8>,

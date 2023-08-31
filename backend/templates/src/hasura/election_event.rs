@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::connection;
+use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use rocket::response::Debug;
 use rocket::serde::json::{Json, Value};
 use serde::Deserialize;
 use std::env;
-use anyhow::Result;
 
 type uuid = String;
 type jsonb = Value;
@@ -21,7 +21,6 @@ type timestamptz = String;
     response_derives = "Debug"
 )]
 pub struct UpdateElectionEventBoard;
-
 
 pub async fn update_election_event_board(
     auth_headers: connection::AuthHeaders,
