@@ -1,4 +1,4 @@
-pub use log::{debug, info, trace};
+pub use log::{debug, error, info, trace};
 pub use std::collections::HashSet;
 use tracing_attributes::instrument;
 
@@ -10,6 +10,7 @@ pub const NULL_TRUSTEE: usize = 1001;
 
 pub(crate) use crate::protocol2::predicate::*;
 pub(crate) use crate::protocol2::PROTOCOL_MANAGER_INDEX;
+pub(crate) use crate::protocol2::VERIFIER_INDEX;
 
 pub(crate) fn hashes_init(value: Hash) -> THashes {
     let mut ret = [NULL_HASH; crate::protocol2::MAX_TRUSTEES];
@@ -76,7 +77,7 @@ pub(crate) fn get_phases() -> Vec<Phase> {
 }
 
 #[instrument(skip_all)]
-pub(crate) fn run(predicates: &Vec<Predicate>) -> HashSet<Action> {
+pub(crate) fn run(predicates: &Vec<Predicate>) -> (HashSet<Action>, Vec<Predicate>) {
     let phases = get_phases();
     let mut all_predicates = vec![];
     for p in predicates {
@@ -91,21 +92,24 @@ pub(crate) fn run(predicates: &Vec<Predicate>) -> HashSet<Action> {
             .join("")
     );
 
-    trace!("Running machine with {} states {:?}", phases.len(), phases);
     let mut actions = HashSet::new();
     for p in phases {
         let next = p.run(&all_predicates);
         debug!("Phase {:?} returns {} new predicates", p, next.0.len());
         next.0.into_iter().for_each(|p| {
-            info!("Adding output predicate {:?}", p);
+            trace!("Adding output predicate {:?}", p);
             all_predicates.push(p);
         });
         next.1.into_iter().for_each(|a| {
             actions.insert(a);
         });
+        next.2.into_iter().for_each(|d| {
+            error!("Datalog returned error {:?}", d);
+            panic!();
+        });
     }
 
-    actions
+    (actions, all_predicates)
 }
 
 #[derive(Debug)]
@@ -117,7 +121,10 @@ pub(crate) enum Phase {
 }
 
 impl Phase {
-    fn run(&self, predicates: &Vec<Predicate>) -> (HashSet<Predicate>, HashSet<Action>) {
+    fn run(
+        &self,
+        predicates: &Vec<Predicate>,
+    ) -> (HashSet<Predicate>, HashSet<Action>, HashSet<DatalogError>) {
         match self {
             Self::Cfg(s) => s.run(predicates),
             Self::Dkg(s) => s.run(predicates),
@@ -127,7 +134,14 @@ impl Phase {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub(crate) enum DatalogError {
+    MixRepeat(ConfigurationHash, BatchNumber),
+}
+
 pub(crate) mod cfg;
 pub(crate) mod decrypt;
 pub(crate) mod dkg;
 pub(crate) mod shuffle;
+
+pub(crate) mod v;

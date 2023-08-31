@@ -2,8 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use std::path::PathBuf;
+
+use anyhow::{anyhow, Result};
 use immu_board::{Board, BoardClient, BoardMessage};
+use rusqlite::params;
+use rusqlite::Connection;
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
 
@@ -12,6 +16,7 @@ use crate::protocol2::message::Message;
 pub struct ImmudbBoard {
     board_client: BoardClient,
     board_dbname: String,
+    store_root: PathBuf,
 }
 
 impl TryFrom<Message> for BoardMessage {
@@ -35,26 +40,27 @@ impl ImmudbBoard {
         username: &str,
         password: &str,
         board_dbname: String,
+        store_root: PathBuf,
     ) -> Result<ImmudbBoard> {
         let board_client = BoardClient::new(server_url, username, password).await?;
         Ok(ImmudbBoard {
             board_client: board_client,
             board_dbname,
+            store_root,
         })
     }
 
     pub async fn get_messages(&mut self, last_id: i64) -> Result<Vec<Message>> {
-        self.board_client
-            .get_messages(&self.board_dbname, last_id)
-            .await?
-            .iter()
-            .map(|board_message: &BoardMessage| {
-                Ok(Message::strand_deserialize(&board_message.message)?)
-            })
-            .collect()
+        let connection = self.get_store()?;
+        self.update_store(&connection).await?;
+        let messages = self.get_store_messages(&connection, last_id);
+        connection
+            .close()
+            .map_err(|e| anyhow!("Could not close sqlite connection: {:?}", e))?;
+        messages
     }
 
-    pub async fn post_messages(&mut self, messages: Vec<Message>) -> Result<()> {
+    pub async fn insert_messages(&mut self, messages: Vec<Message>) -> Result<()> {
         if messages.len() > 0 {
             let bm: Result<Vec<BoardMessage>> =
                 messages.into_iter().map(|m| m.try_into()).collect();
@@ -64,6 +70,58 @@ impl ImmudbBoard {
         } else {
             Ok(())
         }
+    }
+
+    fn get_store(&self) -> Result<Connection> {
+        let db_path = self.store_root.join(&self.board_dbname);
+        let connection = Connection::open(&db_path)?;
+        connection.execute("CREATE TABLE if not exists MESSAGES(id INT PRIMAREY KEY, message BLOB NOT NULL UNIQUE)", [])?;
+
+        Ok(connection)
+    }
+
+    async fn update_store(&mut self, connection: &Connection) -> Result<()> {
+        let last_id: Result<i64> = connection
+            .query_row("SELECT max(id) FROM messages;", [], |row| row.get(0))
+            .or(Ok(0i64));
+        let last_id = last_id?;
+
+        let messages = self
+            .board_client
+            .get_messages(&self.board_dbname, last_id)
+            .await?;
+
+        for message in messages {
+            // new messages must always be appended to the store in ascending order
+            assert!(message.id > last_id);
+            connection.execute(
+                "INSERT INTO MESSAGES VALUES(?1, ?2)",
+                params![message.id, message.message],
+            )?;
+        }
+
+        Ok(())
+    }
+
+    fn get_store_messages(
+        &mut self,
+        connection: &Connection,
+        last_id: i64,
+    ) -> Result<Vec<Message>> {
+        let mut stmt =
+            connection.prepare("SELECT id,message FROM MESSAGES where id > ?1 order by id asc")?;
+        let rows = stmt.query_map([last_id], |row| {
+            Ok(MessageRow {
+                id: row.get(0)?,
+                message: row.get(1)?,
+            })
+        })?;
+
+        let messages: Result<Vec<Message>> = rows
+            .map(|mr| Ok(Message::strand_deserialize(&mr?.message)?))
+            .collect();
+
+        messages
     }
 }
 
@@ -94,4 +152,9 @@ impl ImmudbBoardIndex {
             .map(|board: &Board| Ok(board.database_name.clone()))
             .collect()
     }
+}
+
+struct MessageRow {
+    id: u64,
+    message: Vec<u8>,
 }

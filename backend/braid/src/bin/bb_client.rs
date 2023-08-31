@@ -7,9 +7,8 @@ use std::fs;
 use std::marker::PhantomData;
 use tracing::{info, instrument};
 
-use braid::protocol2::board::immudb::ImmudbBoard;
-use braid::protocol2::board::immudb::ImmudbBoardIndex;
 use braid::util::init_log;
+use immu_board::{Board, BoardClient, BoardMessage};
 
 use braid::protocol2::artifact::Configuration;
 use braid::protocol2::artifact::DkgPublicKey;
@@ -56,22 +55,7 @@ async fn main() -> Result<()> {
     init_log(true);
     let args = Cli::parse();
 
-    let mut board = ImmudbBoard::new(
-        &args.server_url,
-        IMMUDB_USER,
-        IMMUDB_PW,
-        BOARD_NAME.to_string(),
-    )
-    .await
-    .unwrap();
-    let mut index = ImmudbBoardIndex::new(
-        &args.server_url,
-        IMMUDB_USER,
-        IMMUDB_PW,
-        INDEX_NAME.to_string(),
-    )
-    .await
-    .unwrap();
+    let mut board = BoardClient::new(&args.server_url, IMMUDB_USER, IMMUDB_PW).await?;
 
     match &args.command {
         Command::Init => {
@@ -89,39 +73,64 @@ async fn main() -> Result<()> {
             list_messages(&mut board).await?;
         }
         Command::Boards => {
-            list_boards(&mut index).await?;
+            list_boards(&mut board).await?;
         }
     }
 
     Ok(())
 }
 
-async fn init<C: Ctx>(board: &mut ImmudbBoard, configuration: Configuration<C>) -> Result<()> {
+#[instrument]
+async fn init<C: Ctx>(board: &mut BoardClient, configuration: Configuration<C>) -> Result<()> {
     let pm = get_pm(PhantomData);
-    let message = Message::bootstrap_msg(&configuration, &pm)?;
+    let message: BoardMessage = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
     info!("Adding configuration to the board..");
-    board.post_messages(vec![message]).await?;
-    Ok(())
+    board.insert_messages(BOARD_NAME, &vec![message]).await
 }
 
-async fn list_messages(board: &mut ImmudbBoard) -> Result<()> {
-    let messages: Vec<Message> = board.get_messages(0i64).await?;
-    for message in messages {
+#[instrument(skip(board))]
+async fn list_messages(board: &mut BoardClient) -> Result<()> {
+    let messages: Result<Vec<Message>> = board
+        .get_messages(BOARD_NAME, 0)
+        .await?
+        .iter()
+        .map(|board_message: &BoardMessage| {
+            Ok(Message::strand_deserialize(&board_message.message)?)
+        })
+        .collect();
+
+    for message in messages? {
         info!("message: {:?}", message);
     }
     Ok(())
 }
 
-async fn list_boards(index: &mut ImmudbBoardIndex) -> Result<()> {
-    let boards: Vec<String> = index.get_board_names().await?;
-    for board in boards {
+#[instrument]
+async fn list_boards(index: &mut BoardClient) -> Result<()> {
+    let boards: Result<Vec<String>> = index
+        .get_boards(&INDEX_NAME)
+        .await?
+        .iter()
+        .map(|board: &Board| Ok(board.database_name.clone()))
+        .collect();
+
+    for board in boards? {
         info!("board: {}", board);
     }
     Ok(())
 }
 
-async fn post_ballots<C: Ctx>(board: &mut ImmudbBoard, ctx: C) -> Result<()> {
-    let messages: Vec<Message> = board.get_messages(0i64).await?;
+#[instrument]
+async fn post_ballots<C: Ctx>(board: &mut BoardClient, ctx: C) -> Result<()> {
+    let messages: Vec<Message> = board
+        .get_messages(BOARD_NAME, 0)
+        .await?
+        .iter()
+        .map(|board_message: &BoardMessage| {
+            Ok(Message::strand_deserialize(&board_message.message)?)
+        })
+        .collect::<Result<Vec<Message>>>()?;
+
     for message in messages {
         let kind = message.statement.get_kind();
         info!("Found message kind {}", kind);
@@ -133,7 +142,7 @@ async fn post_ballots<C: Ctx>(board: &mut ImmudbBoard, ctx: C) -> Result<()> {
             let pk_element = dkgpk.pk;
             let pk = strand::elgamal::PublicKey::from_element(&pk_element, &ctx);
 
-            let ps: Vec<C::P> = (0..1000).map(|_| ctx.rnd_plaintext()).collect();
+            let ps: Vec<C::P> = (0..100).map(|_| ctx.rnd_plaintext()).collect();
             let ballots: Vec<Ciphertext<C>> = ps
                 .par_iter()
                 .map(|p| {
@@ -154,22 +163,20 @@ async fn post_ballots<C: Ctx>(board: &mut ImmudbBoard, ctx: C) -> Result<()> {
                 [braid::protocol2::datalog::NULL_TRUSTEE; braid::protocol2::MAX_TRUSTEES];
             selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
-            let ballot_batch = braid::protocol2::artifact::Ballots::new(
-                ballots,
-                selected_trustees,
-                &configuration,
-            );
+            let ballot_batch = braid::protocol2::artifact::Ballots::new(ballots);
             let pm = get_pm(PhantomData);
             let message = braid::protocol2::message::Message::ballots_msg(
                 &configuration,
                 1,
                 &ballot_batch,
+                selected_trustees,
                 PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()),
                 &pm,
             )?;
 
             info!("Adding ballots to the board..");
-            board.post_messages(vec![message]).await?;
+            let bm: BoardMessage = message.try_into()?;
+            board.insert_messages(BOARD_NAME, &vec![bm]).await?;
 
             break;
         }
