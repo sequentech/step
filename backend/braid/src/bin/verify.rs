@@ -9,10 +9,10 @@ use tracing::info;
 use tracing::instrument;
 
 use braid::protocol2::board::immudb::ImmudbBoard;
-use braid::verify::verifier::VerifyingSession;
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
 use braid::util::init_log;
+use braid::verify::verifier::VerifyingSession;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
@@ -50,8 +50,8 @@ async fn main() -> Result<()> {
     let ek = GenericArray::<u8, U32>::from_slice(&bytes).to_owned();
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
-    
-    info!(">");    
+
+    info!(">");
     info!("Connecting to board '{}'..", args.board);
     let trustee: Trustee<RistrettoCtx> = Trustee::new(sk.clone(), ek.clone());
     let board = ImmudbBoard::new(

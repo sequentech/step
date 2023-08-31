@@ -144,7 +144,6 @@ impl<C: Ctx> Trustee<C> {
                 warn!("Message failed verification {:?}", verified);
                 // FIXME will crash on bad data
                 panic!();
-                continue;
             }
             let verified = verified.expect("impossible");
 
@@ -152,7 +151,6 @@ impl<C: Ctx> Trustee<C> {
                 warn!("Message has mismatched configuration hash");
                 // FIXME will crash on bad data
                 panic!();
-                continue;
             }
 
             let added_ = self.local_board.add(verified);

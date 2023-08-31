@@ -73,7 +73,7 @@ async fn main() -> Result<()> {
                 store_root.clone(),
             )
             .await?;
-    
+
             // FIXME error should be handled to prevent loop termination
             let mut session = Session::new(trustee, board);
             info!("Running trustee for board '{}'..", board_name);

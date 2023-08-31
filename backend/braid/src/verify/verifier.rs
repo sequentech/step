@@ -5,7 +5,7 @@ use crate::protocol2::datalog::{
     BatchNumber, ConfigurationHash, MixingHashes, PlaintextsHash, Predicate,
 };
 use crate::protocol2::predicate::CiphertextsHash;
-use crate::protocol2::statement::{StatementType, Statement, CiphertextsH, PlaintextsH, Batch};
+use crate::protocol2::statement::{Batch, CiphertextsH, PlaintextsH, Statement, StatementType};
 use crate::protocol2::trustee::Trustee;
 use anyhow::{anyhow, Result};
 use strand::context::Ctx;
@@ -48,15 +48,17 @@ impl<C: Ctx> VerifyingSession<C> {
             .filter(|m| m.statement.get_kind() == StatementType::Plaintexts)
             .collect();
 
-        let pl_data: Vec<(Batch, PlaintextsH, CiphertextsH)> = plaintexts.into_iter().map(|p| {
-            let (batch, pl_h, ballots_h) = match p.statement {
-                Statement::Plaintexts(ts, cfg, b, pl_h, dhs, b_h) => (b, pl_h, b_h),
-                _ => panic!(),
-            };
+        let pl_data: Vec<(Batch, PlaintextsH, CiphertextsH)> = plaintexts
+            .into_iter()
+            .map(|p| {
+                let (batch, pl_h, ballots_h) = match p.statement {
+                    Statement::Plaintexts(ts, cfg, b, pl_h, dhs, b_h) => (b, pl_h, b_h),
+                    _ => panic!(),
+                };
 
-            (batch, pl_h, ballots_h)
-        }).collect();
-        
+                (batch, pl_h, ballots_h)
+            })
+            .collect();
 
         let pk: Vec<Message> = messages
             .clone()
