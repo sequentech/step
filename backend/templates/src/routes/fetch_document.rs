@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use rocket::serde::json::Value;
@@ -30,7 +31,7 @@ pub struct GetDocumentUrlResponse {
 pub async fn fetch_document(
     body: Json<GetDocumentUrlBody>,
     auth_headers: connection::AuthHeaders,
-) -> Result<Json<GetDocumentUrlResponse>, Debug<reqwest::Error>> {
+) -> Result<Json<GetDocumentUrlResponse>, Debug<anyhow::Error>> {
     let input = body.into_inner();
     let document_result = hasura::document::find_document(
         auth_headers,
@@ -50,7 +51,7 @@ pub async fn fetch_document(
         input.election_event_id,
         input.document_id,
     );
-    let url = s3::get_document_url(document_s3_key).await.unwrap();
+    let url = s3::get_document_url(document_s3_key).await?;
 
     Ok(Json(GetDocumentUrlResponse { url: url }))
 }

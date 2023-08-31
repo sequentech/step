@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::connection;
+use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use rocket::response::Debug;
@@ -29,7 +30,7 @@ pub async fn insert_scheduled_event(
     cron_config: Option<String>,
     event_payload: Value,
     created_by: String,
-) -> Result<Response<insert_scheduled_event::ResponseData>, reqwest::Error> {
+) -> Result<Response<insert_scheduled_event::ResponseData>> {
     let variables = insert_scheduled_event::Variables {
         tenant_id: tenant_id,
         election_event_id: election_event_id,

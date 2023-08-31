@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use anyhow::Result;
 use dotenv::dotenv;
 use either::*;
 use handlebars::Handlebars;
@@ -55,7 +56,7 @@ async fn upload_and_return_document(
     tenant_id: String,
     election_event_id: String,
     name: String,
-) -> Result<Json<RenderTemplateResponse>, Debug<reqwest::Error>> {
+) -> Result<Json<RenderTemplateResponse>> {
     let size = bytes.len();
 
     let new_document = hasura::document::insert_document(
@@ -80,9 +81,7 @@ async fn upload_and_return_document(
     let document_s3_key =
         s3::get_document_key(tenant_id, election_event_id, document_id);
 
-    s3::upload_to_s3(&bytes, document_s3_key, "application/pdf".into())
-        .await
-        .unwrap();
+    s3::upload_to_s3(&bytes, document_s3_key, "application/pdf".into()).await?;
 
     Ok(Json(RenderTemplateResponse {
         id: document.id.clone(),
@@ -94,11 +93,10 @@ async fn upload_and_return_document(
     }))
 }
 
-#[post("/render-report", format = "json", data = "<body>")]
 pub async fn render_report(
     body: Json<RenderTemplateBody>,
     auth_headers: connection::AuthHeaders,
-) -> Result<Json<RenderTemplateResponse>, Debug<reqwest::Error>> {
+) -> Result<Json<RenderTemplateResponse>> {
     let input = body.into_inner();
 
     println!("auth headers: {:#?}", auth_headers);
@@ -117,9 +115,7 @@ pub async fn render_report(
 
     // render handlebars template
     let reg = Handlebars::new();
-    let render = reg
-        .render_template(input.template.as_str(), &variables)
-        .unwrap();
+    let render = reg.render_template(input.template.as_str(), &variables)?;
 
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {
@@ -135,11 +131,11 @@ pub async fn render_report(
     }
 
     // Create temp html file
-    let dir = tempdir().unwrap();
+    let dir = tempdir()?;
     let file_path = dir.path().join("index.html");
-    let mut file = File::create(file_path.clone()).unwrap();
+    let mut file = File::create(file_path.clone())?;
     let file_path_str = file_path.to_str().unwrap();
-    file.write_all(render.as_bytes()).unwrap();
+    file.write_all(render.as_bytes())?;
     let url_path = format!("file://{}", file_path_str);
 
     let bytes = pdf::print_to_pdf(
@@ -163,8 +159,7 @@ pub async fn render_report(
             transfer_mode: None,
         },
         Some(Duration::new(1, 0)),
-    )
-    .unwrap();
+    )?;
 
     upload_and_return_document(
         bytes,

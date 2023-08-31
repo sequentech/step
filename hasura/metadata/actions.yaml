@@ -48,23 +48,6 @@ actions:
           template: "$body.input \n"
         template_engine: Kriti
         version: 2
-  - name: renderReport
-    definition:
-      kind: synchronous
-      handler: http://templates:8400/render-report
-      forward_client_headers: true
-      headers:
-        - name: X-Hasura-Admin-Secret
-          value_from_env: ACTIONS_ADMIN_SECRET
-      request_transform:
-        body:
-          action: transform
-          template: "{\n  \"template\": {{$body.input.template}},\n  \"tenant_id\": {{$body.input.tenant_id}},\n  \"election_event_id\": {{$body.input.election_event_id}},\n  \"name\": {{$body.input.name}},\n  \"format\": {{$body.input.format}}\n  \n}"
-        template_engine: Kriti
-        version: 2
-    permissions:
-      - role: admin-user
-    comment: render report
 custom_types:
   enums: []
   input_objects:

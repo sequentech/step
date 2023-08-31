@@ -103,16 +103,6 @@ export type String_Comparison_Exp = {
   _similar?: InputMaybe<Scalars['String']['input']>;
 };
 
-export type TemplateOutput = {
-  __typename?: 'TemplateOutput';
-  election_event_id?: Maybe<Scalars['String']['output']>;
-  id: Scalars['String']['output'];
-  media_type?: Maybe<Scalars['String']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
-  size?: Maybe<Scalars['Int']['output']>;
-  tenant_id?: Maybe<Scalars['String']['output']>;
-};
-
 /** Boolean expression to compare columns of type "bytea". All fields are combined with logical 'AND'. */
 export type Bytea_Comparison_Exp = {
   _eq?: InputMaybe<Scalars['bytea']['input']>;
@@ -219,6 +209,10 @@ export type Mutation_Root = {
   delete_sequent_backend_tenant?: Maybe<Sequent_Backend_Tenant_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.tenant" */
   delete_sequent_backend_tenant_by_pk?: Maybe<Sequent_Backend_Tenant>;
+  /** delete data from the table: "sequent_backend.trustee" */
+  delete_sequent_backend_trustee?: Maybe<Sequent_Backend_Trustee_Mutation_Response>;
+  /** delete single row from the table: "sequent_backend.trustee" */
+  delete_sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>;
   /** insert data into the table: "sequent_backend.area" */
   insert_sequent_backend_area?: Maybe<Sequent_Backend_Area_Mutation_Response>;
   /** insert data into the table: "sequent_backend.area_contest" */
@@ -271,8 +265,10 @@ export type Mutation_Root = {
   insert_sequent_backend_tenant?: Maybe<Sequent_Backend_Tenant_Mutation_Response>;
   /** insert a single row into the table: "sequent_backend.tenant" */
   insert_sequent_backend_tenant_one?: Maybe<Sequent_Backend_Tenant>;
-  /** render report */
-  renderReport?: Maybe<TemplateOutput>;
+  /** insert data into the table: "sequent_backend.trustee" */
+  insert_sequent_backend_trustee?: Maybe<Sequent_Backend_Trustee_Mutation_Response>;
+  /** insert a single row into the table: "sequent_backend.trustee" */
+  insert_sequent_backend_trustee_one?: Maybe<Sequent_Backend_Trustee>;
   /** update data of the table: "sequent_backend.area" */
   update_sequent_backend_area?: Maybe<Sequent_Backend_Area_Mutation_Response>;
   /** update single row of the table: "sequent_backend.area" */
@@ -351,6 +347,12 @@ export type Mutation_Root = {
   update_sequent_backend_tenant_by_pk?: Maybe<Sequent_Backend_Tenant>;
   /** update multiples rows of table: "sequent_backend.tenant" */
   update_sequent_backend_tenant_many?: Maybe<Array<Maybe<Sequent_Backend_Tenant_Mutation_Response>>>;
+  /** update data of the table: "sequent_backend.trustee" */
+  update_sequent_backend_trustee?: Maybe<Sequent_Backend_Trustee_Mutation_Response>;
+  /** update single row of the table: "sequent_backend.trustee" */
+  update_sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>;
+  /** update multiples rows of table: "sequent_backend.trustee" */
+  update_sequent_backend_trustee_many?: Maybe<Array<Maybe<Sequent_Backend_Trustee_Mutation_Response>>>;
 };
 
 
@@ -529,6 +531,18 @@ export type Mutation_RootDelete_Sequent_Backend_TenantArgs = {
 
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Tenant_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_TrusteeArgs = {
+  where: Sequent_Backend_Trustee_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Trustee_By_PkArgs = {
   id: Scalars['uuid']['input'];
 };
 
@@ -716,12 +730,16 @@ export type Mutation_RootInsert_Sequent_Backend_Tenant_OneArgs = {
 
 
 /** mutation root */
-export type Mutation_RootRenderReportArgs = {
-  election_event_id: Scalars['String']['input'];
-  format: Scalars['String']['input'];
-  name: Scalars['String']['input'];
-  template: Scalars['String']['input'];
-  tenant_id: Scalars['String']['input'];
+export type Mutation_RootInsert_Sequent_Backend_TrusteeArgs = {
+  objects: Array<Sequent_Backend_Trustee_Insert_Input>;
+  on_conflict?: InputMaybe<Sequent_Backend_Trustee_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Trustee_OneArgs = {
+  object: Sequent_Backend_Trustee_Insert_Input;
+  on_conflict?: InputMaybe<Sequent_Backend_Trustee_On_Conflict>;
 };
 
 
@@ -1067,6 +1085,7 @@ export type Mutation_RootUpdate_Sequent_Backend_Scheduled_EventArgs = {
   _delete_at_path?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_At_Path_Input>;
   _delete_elem?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_Elem_Input>;
   _delete_key?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_Key_Input>;
+  _inc?: InputMaybe<Sequent_Backend_Scheduled_Event_Inc_Input>;
   _prepend?: InputMaybe<Sequent_Backend_Scheduled_Event_Prepend_Input>;
   _set?: InputMaybe<Sequent_Backend_Scheduled_Event_Set_Input>;
   where: Sequent_Backend_Scheduled_Event_Bool_Exp;
@@ -1079,6 +1098,7 @@ export type Mutation_RootUpdate_Sequent_Backend_Scheduled_Event_By_PkArgs = {
   _delete_at_path?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_At_Path_Input>;
   _delete_elem?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_Elem_Input>;
   _delete_key?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_Key_Input>;
+  _inc?: InputMaybe<Sequent_Backend_Scheduled_Event_Inc_Input>;
   _prepend?: InputMaybe<Sequent_Backend_Scheduled_Event_Prepend_Input>;
   _set?: InputMaybe<Sequent_Backend_Scheduled_Event_Set_Input>;
   pk_columns: Sequent_Backend_Scheduled_Event_Pk_Columns_Input;
@@ -1118,6 +1138,36 @@ export type Mutation_RootUpdate_Sequent_Backend_Tenant_By_PkArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_Tenant_ManyArgs = {
   updates: Array<Sequent_Backend_Tenant_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_TrusteeArgs = {
+  _append?: InputMaybe<Sequent_Backend_Trustee_Append_Input>;
+  _delete_at_path?: InputMaybe<Sequent_Backend_Trustee_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<Sequent_Backend_Trustee_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<Sequent_Backend_Trustee_Delete_Key_Input>;
+  _prepend?: InputMaybe<Sequent_Backend_Trustee_Prepend_Input>;
+  _set?: InputMaybe<Sequent_Backend_Trustee_Set_Input>;
+  where: Sequent_Backend_Trustee_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Trustee_By_PkArgs = {
+  _append?: InputMaybe<Sequent_Backend_Trustee_Append_Input>;
+  _delete_at_path?: InputMaybe<Sequent_Backend_Trustee_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<Sequent_Backend_Trustee_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<Sequent_Backend_Trustee_Delete_Key_Input>;
+  _prepend?: InputMaybe<Sequent_Backend_Trustee_Prepend_Input>;
+  _set?: InputMaybe<Sequent_Backend_Trustee_Set_Input>;
+  pk_columns: Sequent_Backend_Trustee_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Trustee_ManyArgs = {
+  updates: Array<Sequent_Backend_Trustee_Updates>;
 };
 
 /** column ordering options */
@@ -1219,6 +1269,12 @@ export type Query_Root = {
   sequent_backend_tenant_aggregate: Sequent_Backend_Tenant_Aggregate;
   /** fetch data from the table: "sequent_backend.tenant" using primary key columns */
   sequent_backend_tenant_by_pk?: Maybe<Sequent_Backend_Tenant>;
+  /** fetch data from the table: "sequent_backend.trustee" */
+  sequent_backend_trustee: Array<Sequent_Backend_Trustee>;
+  /** fetch aggregated fields from the table: "sequent_backend.trustee" */
+  sequent_backend_trustee_aggregate: Sequent_Backend_Trustee_Aggregate;
+  /** fetch data from the table: "sequent_backend.trustee" using primary key columns */
+  sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>;
 };
 
 
@@ -1541,6 +1597,29 @@ export type Query_RootSequent_Backend_Tenant_AggregateArgs = {
 
 
 export type Query_RootSequent_Backend_Tenant_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSequent_Backend_TrusteeArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Trustee_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Trustee_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Trustee_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Trustee_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Trustee_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Trustee_By_PkArgs = {
   id: Scalars['uuid']['input'];
 };
 
@@ -5325,6 +5404,7 @@ export type Sequent_Backend_Event_Execution_Updates = {
 export type Sequent_Backend_Scheduled_Event = {
   __typename?: 'sequent_backend_scheduled_event';
   annotations?: Maybe<Scalars['jsonb']['output']>;
+  board_id?: Maybe<Scalars['Int']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   created_by?: Maybe<Scalars['String']['output']>;
   cron_config?: Maybe<Scalars['String']['output']>;
@@ -5365,9 +5445,17 @@ export type Sequent_Backend_Scheduled_Event_Aggregate = {
 /** aggregate fields of "sequent_backend.scheduled_event" */
 export type Sequent_Backend_Scheduled_Event_Aggregate_Fields = {
   __typename?: 'sequent_backend_scheduled_event_aggregate_fields';
+  avg?: Maybe<Sequent_Backend_Scheduled_Event_Avg_Fields>;
   count: Scalars['Int']['output'];
   max?: Maybe<Sequent_Backend_Scheduled_Event_Max_Fields>;
   min?: Maybe<Sequent_Backend_Scheduled_Event_Min_Fields>;
+  stddev?: Maybe<Sequent_Backend_Scheduled_Event_Stddev_Fields>;
+  stddev_pop?: Maybe<Sequent_Backend_Scheduled_Event_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<Sequent_Backend_Scheduled_Event_Stddev_Samp_Fields>;
+  sum?: Maybe<Sequent_Backend_Scheduled_Event_Sum_Fields>;
+  var_pop?: Maybe<Sequent_Backend_Scheduled_Event_Var_Pop_Fields>;
+  var_samp?: Maybe<Sequent_Backend_Scheduled_Event_Var_Samp_Fields>;
+  variance?: Maybe<Sequent_Backend_Scheduled_Event_Variance_Fields>;
 };
 
 
@@ -5384,12 +5472,19 @@ export type Sequent_Backend_Scheduled_Event_Append_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
+/** aggregate avg on columns */
+export type Sequent_Backend_Scheduled_Event_Avg_Fields = {
+  __typename?: 'sequent_backend_scheduled_event_avg_fields';
+  board_id?: Maybe<Scalars['Float']['output']>;
+};
+
 /** Boolean expression to filter rows from the table "sequent_backend.scheduled_event". All fields are combined with a logical 'AND'. */
 export type Sequent_Backend_Scheduled_Event_Bool_Exp = {
   _and?: InputMaybe<Array<Sequent_Backend_Scheduled_Event_Bool_Exp>>;
   _not?: InputMaybe<Sequent_Backend_Scheduled_Event_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Scheduled_Event_Bool_Exp>>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
+  board_id?: InputMaybe<Int_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   created_by?: InputMaybe<String_Comparison_Exp>;
   cron_config?: InputMaybe<String_Comparison_Exp>;
@@ -5429,9 +5524,15 @@ export type Sequent_Backend_Scheduled_Event_Delete_Key_Input = {
   labels?: InputMaybe<Scalars['String']['input']>;
 };
 
+/** input type for incrementing numeric columns in table "sequent_backend.scheduled_event" */
+export type Sequent_Backend_Scheduled_Event_Inc_Input = {
+  board_id?: InputMaybe<Scalars['Int']['input']>;
+};
+
 /** input type for inserting data into table "sequent_backend.scheduled_event" */
 export type Sequent_Backend_Scheduled_Event_Insert_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  board_id?: InputMaybe<Scalars['Int']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   created_by?: InputMaybe<Scalars['String']['input']>;
   cron_config?: InputMaybe<Scalars['String']['input']>;
@@ -5447,6 +5548,7 @@ export type Sequent_Backend_Scheduled_Event_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Scheduled_Event_Max_Fields = {
   __typename?: 'sequent_backend_scheduled_event_max_fields';
+  board_id?: Maybe<Scalars['Int']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   created_by?: Maybe<Scalars['String']['output']>;
   cron_config?: Maybe<Scalars['String']['output']>;
@@ -5460,6 +5562,7 @@ export type Sequent_Backend_Scheduled_Event_Max_Fields = {
 /** aggregate min on columns */
 export type Sequent_Backend_Scheduled_Event_Min_Fields = {
   __typename?: 'sequent_backend_scheduled_event_min_fields';
+  board_id?: Maybe<Scalars['Int']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   created_by?: Maybe<Scalars['String']['output']>;
   cron_config?: Maybe<Scalars['String']['output']>;
@@ -5489,6 +5592,7 @@ export type Sequent_Backend_Scheduled_Event_On_Conflict = {
 /** Ordering options when selecting data from "sequent_backend.scheduled_event". */
 export type Sequent_Backend_Scheduled_Event_Order_By = {
   annotations?: InputMaybe<Order_By>;
+  board_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   created_by?: InputMaybe<Order_By>;
   cron_config?: InputMaybe<Order_By>;
@@ -5518,6 +5622,8 @@ export enum Sequent_Backend_Scheduled_Event_Select_Column {
   /** column name */
   Annotations = 'annotations',
   /** column name */
+  BoardId = 'board_id',
+  /** column name */
   CreatedAt = 'created_at',
   /** column name */
   CreatedBy = 'created_by',
@@ -5542,6 +5648,7 @@ export enum Sequent_Backend_Scheduled_Event_Select_Column {
 /** input type for updating data in table "sequent_backend.scheduled_event" */
 export type Sequent_Backend_Scheduled_Event_Set_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  board_id?: InputMaybe<Scalars['Int']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   created_by?: InputMaybe<Scalars['String']['input']>;
   cron_config?: InputMaybe<Scalars['String']['input']>;
@@ -5552,6 +5659,24 @@ export type Sequent_Backend_Scheduled_Event_Set_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   stopped_at?: InputMaybe<Scalars['timestamptz']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type Sequent_Backend_Scheduled_Event_Stddev_Fields = {
+  __typename?: 'sequent_backend_scheduled_event_stddev_fields';
+  board_id?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_pop on columns */
+export type Sequent_Backend_Scheduled_Event_Stddev_Pop_Fields = {
+  __typename?: 'sequent_backend_scheduled_event_stddev_pop_fields';
+  board_id?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_samp on columns */
+export type Sequent_Backend_Scheduled_Event_Stddev_Samp_Fields = {
+  __typename?: 'sequent_backend_scheduled_event_stddev_samp_fields';
+  board_id?: Maybe<Scalars['Float']['output']>;
 };
 
 /** Streaming cursor of the table "sequent_backend_scheduled_event" */
@@ -5565,6 +5690,7 @@ export type Sequent_Backend_Scheduled_Event_Stream_Cursor_Input = {
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Scheduled_Event_Stream_Cursor_Value_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  board_id?: InputMaybe<Scalars['Int']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   created_by?: InputMaybe<Scalars['String']['input']>;
   cron_config?: InputMaybe<Scalars['String']['input']>;
@@ -5577,10 +5703,18 @@ export type Sequent_Backend_Scheduled_Event_Stream_Cursor_Value_Input = {
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
+/** aggregate sum on columns */
+export type Sequent_Backend_Scheduled_Event_Sum_Fields = {
+  __typename?: 'sequent_backend_scheduled_event_sum_fields';
+  board_id?: Maybe<Scalars['Int']['output']>;
+};
+
 /** update columns of table "sequent_backend.scheduled_event" */
 export enum Sequent_Backend_Scheduled_Event_Update_Column {
   /** column name */
   Annotations = 'annotations',
+  /** column name */
+  BoardId = 'board_id',
   /** column name */
   CreatedAt = 'created_at',
   /** column name */
@@ -5612,12 +5746,32 @@ export type Sequent_Backend_Scheduled_Event_Updates = {
   _delete_elem?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_Elem_Input>;
   /** delete key/value pair or string element. key/value pairs are matched based on their key value */
   _delete_key?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_Key_Input>;
+  /** increments the numeric columns with given value of the filtered values */
+  _inc?: InputMaybe<Sequent_Backend_Scheduled_Event_Inc_Input>;
   /** prepend existing jsonb value of filtered columns with new jsonb value */
   _prepend?: InputMaybe<Sequent_Backend_Scheduled_Event_Prepend_Input>;
   /** sets the columns of the filtered rows to the given values */
   _set?: InputMaybe<Sequent_Backend_Scheduled_Event_Set_Input>;
   /** filter the rows which have to be updated */
   where: Sequent_Backend_Scheduled_Event_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type Sequent_Backend_Scheduled_Event_Var_Pop_Fields = {
+  __typename?: 'sequent_backend_scheduled_event_var_pop_fields';
+  board_id?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate var_samp on columns */
+export type Sequent_Backend_Scheduled_Event_Var_Samp_Fields = {
+  __typename?: 'sequent_backend_scheduled_event_var_samp_fields';
+  board_id?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate variance on columns */
+export type Sequent_Backend_Scheduled_Event_Variance_Fields = {
+  __typename?: 'sequent_backend_scheduled_event_variance_fields';
+  board_id?: Maybe<Scalars['Float']['output']>;
 };
 
 /** columns and relationships of "sequent_backend.tenant" */
@@ -5860,6 +6014,248 @@ export type Sequent_Backend_Tenant_Updates = {
   where: Sequent_Backend_Tenant_Bool_Exp;
 };
 
+/** columns and relationships of "sequent_backend.trustee" */
+export type Sequent_Backend_Trustee = {
+  __typename?: 'sequent_backend_trustee';
+  annotations?: Maybe<Scalars['jsonb']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  id: Scalars['uuid']['output'];
+  labels?: Maybe<Scalars['jsonb']['output']>;
+  last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  public_key?: Maybe<Scalars['String']['output']>;
+};
+
+
+/** columns and relationships of "sequent_backend.trustee" */
+export type Sequent_Backend_TrusteeAnnotationsArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.trustee" */
+export type Sequent_Backend_TrusteeLabelsArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregated selection of "sequent_backend.trustee" */
+export type Sequent_Backend_Trustee_Aggregate = {
+  __typename?: 'sequent_backend_trustee_aggregate';
+  aggregate?: Maybe<Sequent_Backend_Trustee_Aggregate_Fields>;
+  nodes: Array<Sequent_Backend_Trustee>;
+};
+
+/** aggregate fields of "sequent_backend.trustee" */
+export type Sequent_Backend_Trustee_Aggregate_Fields = {
+  __typename?: 'sequent_backend_trustee_aggregate_fields';
+  count: Scalars['Int']['output'];
+  max?: Maybe<Sequent_Backend_Trustee_Max_Fields>;
+  min?: Maybe<Sequent_Backend_Trustee_Min_Fields>;
+};
+
+
+/** aggregate fields of "sequent_backend.trustee" */
+export type Sequent_Backend_Trustee_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Sequent_Backend_Trustee_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Trustee_Append_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** Boolean expression to filter rows from the table "sequent_backend.trustee". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Trustee_Bool_Exp = {
+  _and?: InputMaybe<Array<Sequent_Backend_Trustee_Bool_Exp>>;
+  _not?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>;
+  _or?: InputMaybe<Array<Sequent_Backend_Trustee_Bool_Exp>>;
+  annotations?: InputMaybe<Jsonb_Comparison_Exp>;
+  created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  labels?: InputMaybe<Jsonb_Comparison_Exp>;
+  last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  name?: InputMaybe<String_Comparison_Exp>;
+  public_key?: InputMaybe<String_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "sequent_backend.trustee" */
+export enum Sequent_Backend_Trustee_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  TrusteePkey = 'trustee_pkey'
+}
+
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type Sequent_Backend_Trustee_Delete_At_Path_Input = {
+  annotations?: InputMaybe<Array<Scalars['String']['input']>>;
+  labels?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type Sequent_Backend_Trustee_Delete_Elem_Input = {
+  annotations?: InputMaybe<Scalars['Int']['input']>;
+  labels?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type Sequent_Backend_Trustee_Delete_Key_Input = {
+  annotations?: InputMaybe<Scalars['String']['input']>;
+  labels?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** input type for inserting data into table "sequent_backend.trustee" */
+export type Sequent_Backend_Trustee_Insert_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  public_key?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregate max on columns */
+export type Sequent_Backend_Trustee_Max_Fields = {
+  __typename?: 'sequent_backend_trustee_max_fields';
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  public_key?: Maybe<Scalars['String']['output']>;
+};
+
+/** aggregate min on columns */
+export type Sequent_Backend_Trustee_Min_Fields = {
+  __typename?: 'sequent_backend_trustee_min_fields';
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  public_key?: Maybe<Scalars['String']['output']>;
+};
+
+/** response of any mutation on the table "sequent_backend.trustee" */
+export type Sequent_Backend_Trustee_Mutation_Response = {
+  __typename?: 'sequent_backend_trustee_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Sequent_Backend_Trustee>;
+};
+
+/** on_conflict condition type for table "sequent_backend.trustee" */
+export type Sequent_Backend_Trustee_On_Conflict = {
+  constraint: Sequent_Backend_Trustee_Constraint;
+  update_columns?: Array<Sequent_Backend_Trustee_Update_Column>;
+  where?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "sequent_backend.trustee". */
+export type Sequent_Backend_Trustee_Order_By = {
+  annotations?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  labels?: InputMaybe<Order_By>;
+  last_updated_at?: InputMaybe<Order_By>;
+  name?: InputMaybe<Order_By>;
+  public_key?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: sequent_backend.trustee */
+export type Sequent_Backend_Trustee_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Trustee_Prepend_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** select columns of table "sequent_backend.trustee" */
+export enum Sequent_Backend_Trustee_Select_Column {
+  /** column name */
+  Annotations = 'annotations',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Labels = 'labels',
+  /** column name */
+  LastUpdatedAt = 'last_updated_at',
+  /** column name */
+  Name = 'name',
+  /** column name */
+  PublicKey = 'public_key'
+}
+
+/** input type for updating data in table "sequent_backend.trustee" */
+export type Sequent_Backend_Trustee_Set_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  public_key?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** Streaming cursor of the table "sequent_backend_trustee" */
+export type Sequent_Backend_Trustee_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Sequent_Backend_Trustee_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Trustee_Stream_Cursor_Value_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  public_key?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** update columns of table "sequent_backend.trustee" */
+export enum Sequent_Backend_Trustee_Update_Column {
+  /** column name */
+  Annotations = 'annotations',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Labels = 'labels',
+  /** column name */
+  LastUpdatedAt = 'last_updated_at',
+  /** column name */
+  Name = 'name',
+  /** column name */
+  PublicKey = 'public_key'
+}
+
+export type Sequent_Backend_Trustee_Updates = {
+  /** append existing jsonb value of filtered columns with new jsonb value */
+  _append?: InputMaybe<Sequent_Backend_Trustee_Append_Input>;
+  /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+  _delete_at_path?: InputMaybe<Sequent_Backend_Trustee_Delete_At_Path_Input>;
+  /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+  _delete_elem?: InputMaybe<Sequent_Backend_Trustee_Delete_Elem_Input>;
+  /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+  _delete_key?: InputMaybe<Sequent_Backend_Trustee_Delete_Key_Input>;
+  /** prepend existing jsonb value of filtered columns with new jsonb value */
+  _prepend?: InputMaybe<Sequent_Backend_Trustee_Prepend_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Sequent_Backend_Trustee_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Sequent_Backend_Trustee_Bool_Exp;
+};
+
 export type Subscription_Root = {
   __typename?: 'subscription_root';
   /** fetch data from the table: "sequent_backend.area" */
@@ -5966,6 +6362,14 @@ export type Subscription_Root = {
   sequent_backend_tenant_by_pk?: Maybe<Sequent_Backend_Tenant>;
   /** fetch data from the table in a streaming manner: "sequent_backend.tenant" */
   sequent_backend_tenant_stream: Array<Sequent_Backend_Tenant>;
+  /** fetch data from the table: "sequent_backend.trustee" */
+  sequent_backend_trustee: Array<Sequent_Backend_Trustee>;
+  /** fetch aggregated fields from the table: "sequent_backend.trustee" */
+  sequent_backend_trustee_aggregate: Sequent_Backend_Trustee_Aggregate;
+  /** fetch data from the table: "sequent_backend.trustee" using primary key columns */
+  sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>;
+  /** fetch data from the table in a streaming manner: "sequent_backend.trustee" */
+  sequent_backend_trustee_stream: Array<Sequent_Backend_Trustee>;
 };
 
 
@@ -6370,6 +6774,36 @@ export type Subscription_RootSequent_Backend_Tenant_StreamArgs = {
   where?: InputMaybe<Sequent_Backend_Tenant_Bool_Exp>;
 };
 
+
+export type Subscription_RootSequent_Backend_TrusteeArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Trustee_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Trustee_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Trustee_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Trustee_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Trustee_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Trustee_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Trustee_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Sequent_Backend_Trustee_Stream_Cursor_Input>>;
+  where?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>;
+};
+
 /** Boolean expression to compare columns of type "timestamptz". All fields are combined with logical 'AND'. */
 export type Timestamptz_Comparison_Exp = {
   _eq?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -6395,17 +6829,6 @@ export type Uuid_Comparison_Exp = {
   _neq?: InputMaybe<Scalars['uuid']['input']>;
   _nin?: InputMaybe<Array<Scalars['uuid']['input']>>;
 };
-
-export type CreateReportMutationVariables = Exact<{
-  template: Scalars['String']['input'];
-  tenantId: Scalars['String']['input'];
-  electionEventId: Scalars['String']['input'];
-  name: Scalars['String']['input'];
-  format: Scalars['String']['input'];
-}>;
-
-
-export type CreateReportMutation = { __typename?: 'mutation_root', renderReport?: { __typename?: 'TemplateOutput', id: string, election_event_id?: string | null, tenant_id?: string | null, name?: string | null, size?: number | null, media_type?: string | null } | null };
 
 export type CreateScheduledEventMutationVariables = Exact<{
   tenantId: Scalars['String']['input'];
@@ -6483,18 +6906,7 @@ export type CreateElectionEventMutationVariables = Exact<{
 
 export type CreateElectionEventMutation = { __typename?: 'mutation_root', insert_sequent_backend_election_event?: { __typename?: 'sequent_backend_election_event_mutation_response', returning: Array<{ __typename?: 'sequent_backend_election_event', id: any }> } | null, insert_sequent_backend_election?: { __typename?: 'sequent_backend_election_mutation_response', returning: Array<{ __typename?: 'sequent_backend_election', id: any }> } | null };
 
-export type UpdateElectionStatusMutationVariables = Exact<{
-  electionId?: Scalars['uuid']['input'];
-  electionEventId?: Scalars['uuid']['input'];
-  tenantId?: Scalars['uuid']['input'];
-  status?: Scalars['jsonb']['input'];
-}>;
 
-
-export type UpdateElectionStatusMutation = { __typename?: 'mutation_root', update_sequent_backend_election?: { __typename?: 'sequent_backend_election_mutation_response', returning: Array<{ __typename?: 'sequent_backend_election', id: any }> } | null };
-
-
-export const CreateReportDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateReport"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"template"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"name"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"format"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"renderReport"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"template"},"value":{"kind":"Variable","name":{"kind":"Name","value":"template"}}},{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"name"},"value":{"kind":"Variable","name":{"kind":"Name","value":"name"}}},{"kind":"Argument","name":{"kind":"Name","value":"format"},"value":{"kind":"Variable","name":{"kind":"Name","value":"format"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"size"}},{"kind":"Field","name":{"kind":"Name","value":"media_type"}}]}}]}}]} as unknown as DocumentNode<CreateReportMutation, CreateReportMutationVariables>;
 export const CreateScheduledEventDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateScheduledEvent"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"eventProcessor"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"cronConfig"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"eventPayload"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"jsonb"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"createdBy"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createScheduledEvent"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"event_processor"},"value":{"kind":"Variable","name":{"kind":"Name","value":"eventProcessor"}}},{"kind":"Argument","name":{"kind":"Name","value":"cron_config"},"value":{"kind":"Variable","name":{"kind":"Name","value":"cronConfig"}}},{"kind":"Argument","name":{"kind":"Name","value":"event_payload"},"value":{"kind":"Variable","name":{"kind":"Name","value":"eventPayload"}}},{"kind":"Argument","name":{"kind":"Name","value":"created_by"},"value":{"kind":"Variable","name":{"kind":"Name","value":"createdBy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"stopped_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"event_processor"}},{"kind":"Field","name":{"kind":"Name","value":"cron_config"}},{"kind":"Field","name":{"kind":"Name","value":"event_payload"}},{"kind":"Field","name":{"kind":"Name","value":"created_by"}}]}}]}}]} as unknown as DocumentNode<CreateScheduledEventMutation, CreateScheduledEventMutationVariables>;
 export const FetchDocumentDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"FetchDocument"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fetchDocument"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"document_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]}}]} as unknown as DocumentNode<FetchDocumentQuery, FetchDocumentQueryVariables>;
 export const GetBallotStylesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetBallotStyles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_ballot_style"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_eml"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_signature"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}}]}}]}}]} as unknown as DocumentNode<GetBallotStylesQuery, GetBallotStylesQueryVariables>;
@@ -6504,4 +6916,3 @@ export const GetElectionsDocument = {"kind":"Document","definitions":[{"kind":"O
 export const GetEventExecutionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetEventExecution"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"scheduledEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_event_execution"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"scheduled_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"scheduledEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"scheduled_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"execution_state"}},{"kind":"Field","name":{"kind":"Name","value":"execution_payload"}},{"kind":"Field","name":{"kind":"Name","value":"result_payload"}},{"kind":"Field","name":{"kind":"Name","value":"started_at"}},{"kind":"Field","name":{"kind":"Name","value":"ended_at"}}]}}]}}]} as unknown as DocumentNode<GetEventExecutionQuery, GetEventExecutionQueryVariables>;
 export const InsertCastVoteDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertCastVote"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"content"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insert_sequent_backend_cast_vote"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"objects"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"content"},"value":{"kind":"Variable","name":{"kind":"Name","value":"content"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"returning"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"voter_id_string"}}]}}]}}]}}]} as unknown as DocumentNode<InsertCastVoteMutation, InsertCastVoteMutationVariables>;
 export const CreateElectionEventDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateElectionEvent"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEvent"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"sequent_backend_election_event_insert_input"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"elections"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"sequent_backend_election_insert_input"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insert_sequent_backend_election_event"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"objects"},"value":{"kind":"ListValue","values":[{"kind":"Variable","name":{"kind":"Name","value":"electionEvent"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"returning"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"insert_sequent_backend_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"objects"},"value":{"kind":"Variable","name":{"kind":"Name","value":"elections"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"returning"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]} as unknown as DocumentNode<CreateElectionEventMutation, CreateElectionEventMutationVariables>;
-export const UpdateElectionStatusDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateElectionStatus"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},"defaultValue":{"kind":"StringValue","value":"f2f1065e-b784-46d1-b81a-c71bfeb9ad55","block":false}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},"defaultValue":{"kind":"StringValue","value":"33f18502-a67c-4853-8333-a58630663559","block":false}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},"defaultValue":{"kind":"StringValue","value":"90505c8a-23a9-4cdf-a26b-4e19f6a097d5","block":false}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"status"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"jsonb"}}},"defaultValue":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"voting_status"},"value":{"kind":"StringValue","value":"STARTED","block":false}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update_sequent_backend_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"_set"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"status"},"value":{"kind":"Variable","name":{"kind":"Name","value":"status"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"returning"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateElectionStatusMutation, UpdateElectionStatusMutationVariables>;

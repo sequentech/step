@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use rocket::serde::json::Value;
@@ -42,12 +43,12 @@ pub async fn update_voting_status(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
-    payload: UpdateVotingStatusPayload
-) -> Result<(), reqwest::Error> {
+    payload: UpdateVotingStatusPayload,
+) -> Result<()> {
     let new_status = ElectionStatus {
         voting_status: payload.status.clone(),
     };
-    let new_status_value = serde_json::to_value(new_status).unwrap();
+    let new_status_value = serde_json::to_value(new_status)?;
     let hasura_response = hasura::election::update_election_status(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -63,6 +64,6 @@ pub async fn update_voting_status(
         .update_sequent_backend_election
         .unwrap()
         .returning[0];
-    
+
     Ok(())
 }

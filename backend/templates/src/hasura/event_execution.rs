@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::connection;
+use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use rocket::response::Debug;
@@ -58,7 +59,7 @@ pub async fn insert_event_execution(
     execution_state: EventExecutionState,
     execution_payload: Value,
     result_payload: Option<Value>,
-) -> Result<Response<insert_event_execution::ResponseData>, reqwest::Error> {
+) -> Result<Response<insert_event_execution::ResponseData>> {
     let variables = insert_event_execution::Variables {
         tenant_id: tenant_id,
         election_event_id: election_event_id,

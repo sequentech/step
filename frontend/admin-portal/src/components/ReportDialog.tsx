@@ -20,7 +20,7 @@ import {FETCH_DOCUMENT} from "../queries/FetchDocument"
 import {useRecordContext} from "react-admin"
 import {CREATE_SCHEDULED_EVENT} from "../queries/CreateScheduledEvent"
 import {GET_EVENT_EXECUTION} from "../queries/GetEventExecution"
-import { ScheduledEventType } from "../services/ScheduledEvent"
+import {ScheduledEventType} from "../services/ScheduledEvent"
 
 const Vertical = styled(Box)`
     display: flex;

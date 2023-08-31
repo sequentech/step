@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::connection;
+use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use rocket::response::Debug;
@@ -22,7 +23,7 @@ pub struct GetTenant;
 pub async fn perform_get_tenant(
     auth_headers: connection::AuthHeaders,
     variables: get_tenant::Variables,
-) -> Result<Response<get_tenant::ResponseData>, reqwest::Error> {
+) -> Result<Response<get_tenant::ResponseData>> {
     let hasura_endpoint = env::var("HASURA_ENDPOINT")
         .expect(&format!("HASURA_ENDPOINT must be set"));
     let request_body = GetTenant::build_query(variables);
@@ -41,7 +42,7 @@ pub async fn perform_get_tenant(
 pub async fn get_tenant(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
-) -> Result<Response<get_tenant::ResponseData>, reqwest::Error> {
+) -> Result<Response<get_tenant::ResponseData>> {
     let variables = get_tenant::Variables {
         tenant_id: Some(tenant_id),
     };

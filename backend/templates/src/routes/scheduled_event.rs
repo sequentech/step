@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use rocket::serde::json::Value;
@@ -22,7 +23,8 @@ use crate::services;
 #[serde(crate = "rocket::serde")]
 pub enum EventProcessors {
     CREATE_REPORT,
-    UPDATE_VOTING_STATUS
+    UPDATE_VOTING_STATUS,
+    CREATE_BOARD,
 }
 
 #[derive(Deserialize, Debug)]
@@ -56,7 +58,7 @@ pub struct ScheduledEvent {
 pub async fn create_scheduled_event(
     body: Json<CreateScheduledEventBody>,
     auth_headers: connection::AuthHeaders,
-) -> Result<Json<ScheduledEvent>, Debug<reqwest::Error>> {
+) -> Result<Json<ScheduledEvent>, Debug<anyhow::Error>> {
     let input = body.into_inner();
     let scheduled_event_result =
         hasura::scheduled_event::insert_scheduled_event(
@@ -94,13 +96,16 @@ pub async fn create_scheduled_event(
         created_by: scheduled_event.created_by.clone(),
     };
 
-    println!("FFF payload: {}", formatted_event.event_payload.clone().unwrap());
+    println!(
+        "FFF payload: {}",
+        formatted_event.event_payload.clone().unwrap()
+    );
 
-    let _ = services::worker::process_scheduled_event(
+    let process_result = services::worker::process_scheduled_event(
         auth_headers,
         formatted_event.clone(),
     )
-    .await;
+    .await?;
 
     Ok(Json(formatted_event))
 }

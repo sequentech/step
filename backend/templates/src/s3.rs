@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use std::{error::Error, str};
 
+use anyhow::Result;
 use s3::bucket::Bucket;
 use s3::creds::Credentials;
 use s3::error::S3Error;
@@ -14,7 +15,7 @@ pub async fn upload_to_s3(
     data: &Vec<u8>,
     key: String,
     media_type: String,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     let key_id = env::var("MINIO_ROOT_USER")
         .expect(&format!("MINIO_ROOT_USER must be set"));
     let key_secret = env::var("MINIO_ROOT_PASSWORD")
@@ -91,7 +92,7 @@ pub fn get_document_key(
     format!("{}/{}/{}", tenant_id, election_event_id, document_id)
 }
 
-pub async fn get_document_url(key: String) -> Result<String, Box<dyn Error>> {
+pub async fn get_document_url(key: String) -> Result<String> {
     let key_id = env::var("MINIO_ROOT_USER")
         .expect(&format!("MINIO_ROOT_USER must be set"));
     let key_secret = env::var("MINIO_ROOT_PASSWORD")
@@ -126,7 +127,7 @@ pub async fn get_document_url(key: String) -> Result<String, Box<dyn Error>> {
 
 // based on https://gist.github.com/jeremychone/4a6eb58822b65c5c3458fcba2db846c1
 
-pub async fn upload_to_s30() -> Result<String, Box<dyn Error>> {
+pub async fn upload_to_s30() -> Result<String> {
     // 1) Instantiate the bucket client
     println!("=== Bucket instantiation");
     let bucket = Bucket::new(
