@@ -37,6 +37,8 @@ func init() {
 	createCmd.AddCommand(createSQLCmd)
 	createSQLCmd.Flags().StringSlice("primary-key", nil, "List of columns to be used as primary key")
 	createSQLCmd.Flags().StringSlice("columns", nil, "List of fields to be used as columns")
+	createSQLCmd.Flags().StringSlice("indexes", nil, "List of fields to be used as columns")
+
 }
 
 func createSQL(cmd *cobra.Command, args []string) error {
@@ -47,18 +49,22 @@ func createSQL(cmd *cobra.Command, args []string) error {
 
 	primaryKey, _ := cmd.Flags().GetStringSlice("primary-key")
 	flagColumns, _ := cmd.Flags().GetStringSlice("columns")
+	flagIndexes, _ := cmd.Flags().GetStringSlice("indexes")
 	if flagParser == "pgaudit" {
 		flagColumns = []string{"id=INTEGER AUTO_INCREMENT", "statement_id=INTEGER", "substatement_id=INTEGER", "server_timestamp=TIMESTAMP", "timestamp=TIMESTAMP", "audit_type=VARCHAR[256]", "class=VARCHAR[256]", "command=VARCHAR[256]"}
 		primaryKey = []string{"id"}
+		flagIndexes = []string{"id", "statement_id", "substatement_id", "server_timestamp", "timestamp", "audit_type", "class", "command"}
 		log.WithField("columns", flagColumns).WithField("primary_key", primaryKey).Info("Using default indexes for pgaudit parser")
 	} else if flagParser == "pgauditjsonlog" {
-		flagColumns = []string{"id=INTEGER AUTO_INCREMENT", "user=VARCHAR[256]", "dbname=VARCHAR[256]", "session_id=VARCHAR[256]", "statement_id=INTEGER", "substatement_id=INTEGER", "server_timestamp=TIMESTAMP", "timestamp=TIMESTAMP", "audit_type=VARCHAR[256]", "class=VARCHAR[256]", "command=VARCHAR[256]"}
+		flagColumns = []string{"id=INTEGER AUTO_INCREMENT", "user=VARCHAR[256]", "dbname=VARCHAR[256]", "session_id=VARCHAR[256]", "statement_id=INTEGER", "substatement_id=INTEGER", "server_timestamp=TIMESTAMP", "timestamp=TIMESTAMP", "audit_type=VARCHAR[256]", "class=VARCHAR[256]", "command=VARCHAR[256]", "statement=VARCHAR[256]"}
+		flagIndexes = []string{"id", "user", "dbname", "session_id", "statement_id", "substatement_id", "server_timestamp", "timestamp", "audit_type", "class", "command", "statement"}
 		primaryKey = []string{"id"}
 		log.WithField("columns", flagColumns).WithField("primary_key", primaryKey).Info("Using default indexes for pgauditjsonlog parser")
 	} else if flagParser == "wrap" {
 		flagColumns = []string{"uid=VARCHAR[36]", "log_timestamp=TIMESTAMP"}
 		primaryKey = []string{"uid"}
-		log.WithField("columns", flagColumns).WithField("primary_key", primaryKey).Info("Using default indexes for wrap parser")
+		flagIndexes = []string{"uid", "log_timestamp"}
+		log.WithField("columns", flagColumns).WithField("primary_key", primaryKey).WithField("indexes", flagIndexes).Info("Using default indexes for wrap parser")
 	} else if flagParser != "" {
 		return fmt.Errorf("unkown parser %s", flagParser)
 	}
@@ -71,7 +77,7 @@ func createSQL(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("could not create json repository parser config, %w", err)
 	}
-	immudb.SetupJsonSQLRepository(immuCli, args[0], strings.Join(primaryKey, ","), flagColumns)
+	immudb.SetupJsonSQLRepository(immuCli, args[0], strings.Join(primaryKey, ","), flagColumns, flagIndexes)
 
 	return nil
 }

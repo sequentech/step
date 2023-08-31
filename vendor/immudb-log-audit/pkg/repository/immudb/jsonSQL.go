@@ -91,7 +91,6 @@ func (jr *JsonSQLRepository) Write(jObject interface{}) (uint64, error) {
 }
 
 func (jr *JsonSQLRepository) WriteBytes(jBytesArr [][]byte) (uint64, error) {
-	log.Debug("EDU: WriteBytes")
 	var txID uint64
 	for _, jBytes := range jBytesArr {
 		// parse with gjson
@@ -140,7 +139,7 @@ func (jr *JsonSQLRepository) WriteBytes(jBytesArr [][]byte) (uint64, error) {
 		sb.WriteString("\", \"__value__\") VALUES (@")
 		sb.WriteString(strings.Join(cSlice, ",@"))
 		sb.WriteString(",@__value__);")
-		log.WithField("sql", sb.String()).WithField("collection", jr.collection).Trace("Inserting row")
+		log.WithField("sql", sb.String()).WithField("collection", jr.collection).WithField("params", params).Debug("Inserting row")
 		res, err := jr.client.SQLExec(context.TODO(), sb.String(), params)
 		if err != nil {
 			return 0, fmt.Errorf("could not insert into collection, %w", err)
@@ -264,7 +263,7 @@ func (jr *JsonSQLRepository) History(query string) ([][]byte, error) {
 	return h, nil
 }
 
-func SetupJsonSQLRepository(cli immudb.ImmuClient, collection string, primaryKey string, columns []string) error {
+func SetupJsonSQLRepository(cli immudb.ImmuClient, collection string, primaryKey string, columns []string, indexes [] string) error {
 	if collection == "" {
 		return errors.New("collection cannot be empty")
 	}
@@ -296,7 +295,6 @@ func SetupJsonSQLRepository(cli immudb.ImmuClient, collection string, primaryKey
 	sb.WriteString("CREATE TABLE IF NOT EXISTS ")
 	sb.WriteString(collection)
 	sb.WriteString(" ( ")
-	indexes := []string{}
 	for _, columnCfg := range columnsCfg {
 		sb.WriteString("\"")
 		sb.WriteString(columnCfg.Name)
@@ -304,7 +302,6 @@ func SetupJsonSQLRepository(cli immudb.ImmuClient, collection string, primaryKey
 		sb.WriteString(" ")
 		sb.WriteString(columnCfg.CType)
 		sb.WriteString(",")
-		indexes = append(indexes, columnCfg.Name)
 	}
 	sb.WriteString(" __value__ BLOB, PRIMARY KEY (")
 	sb.WriteString(primaryKey)
@@ -317,17 +314,19 @@ func SetupJsonSQLRepository(cli immudb.ImmuClient, collection string, primaryKey
 		log.Fatal(err)
 	}
 
-	sb = strings.Builder{}
-	sb.WriteString("CREATE INDEX IF NOT EXISTS ON ")
-	sb.WriteString(collection)
-	sb.WriteString("(\"")
-	sb.WriteString(strings.Join(indexes, "\",\""))
-	sb.WriteString("\");")
+	for _, indexStr := range indexes {
+		sb = strings.Builder{}
+		sb.WriteString("CREATE INDEX IF NOT EXISTS ON ")
+		sb.WriteString(collection)
+		sb.WriteString("(\"")
+		sb.WriteString(indexStr)
+		sb.WriteString("\");")
 
-	log.WithField("sql", sb.String()).Info("Creating indexes")
-	err = tx.SQLExec(context.TODO(), sb.String(), nil)
-	if err != nil {
-		log.Fatal(err)
+		log.WithField("sql", sb.String()).Info("Creating indexes")
+		err = tx.SQLExec(context.TODO(), sb.String(), nil)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	_, err = tx.Commit(context.TODO())

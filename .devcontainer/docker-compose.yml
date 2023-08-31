@@ -174,7 +174,7 @@ services:
       dockerfile: Dockerfile.immudb
     command: >
       create sql pgaudit
-       --columns "field1=INTEGER,field2=VARCHAR[256],field3=BLOB" --primary-key "field1,field2"
+      --parser pgauditjsonlog
       --log-level debug
       --immudb-host immudb
     depends_on:

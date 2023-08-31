@@ -80,7 +80,6 @@ func (as *AuditService) Run() error {
 
 			buf = append(buf, b)
 			if len(buf) == bufferSize || (len(buf) > 0 && stop) {
-				log.Debug("EDU: Writing buffer")
 				id, err := as.jsonRepository.WriteBytes(buf)
 				if err != nil {
 					return fmt.Errorf("could not store audit entry, %w", err)
@@ -92,12 +91,9 @@ func (as *AuditService) Run() error {
 				if stop {
 					as.lineProvider.SaveState()
 				}
-			} else {
-				log.Debug("EDU: Not writing buffer, still buffered")
 			}
 		case <-saveStateTicker.C:
 			if len(buf) > 0 {
-				log.Debug("EDU: ticker -> Writing buffer")
 				id, err := as.jsonRepository.WriteBytes(buf)
 				if err != nil {
 					return fmt.Errorf("could not store audit entry, %w", err)
@@ -106,8 +102,6 @@ func (as *AuditService) Run() error {
 				log.WithField("TXID", id).WithField("line", string(buf[len(buf)-1])).Trace("Stored line")
 				buf = [][]byte{}
 				as.lineProvider.SaveState()
-			} else {
-				log.Debug("EDU: ticker -> Not writing buffer, it's empty")
 			}
 
 			saveStateTicker = time.NewTicker(5 * time.Second)
