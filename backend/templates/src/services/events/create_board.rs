@@ -42,7 +42,9 @@ async fn get_client() -> Result<BoardClient> {
         .expect(&format!("IMMUDB_PASSWORD must be set"));
     let server_url = env::var("IMMUDB_SERVER_URL")
         .expect(&format!("IMMUDB_SERVER_URL must be set"));
-    BoardClient::new(server_url.as_str(), username.as_str(), password.as_str()).await
+    let mut client = BoardClient::new(server_url.as_str(), username.as_str(), password.as_str()).await?;
+    client.login(&username, &password).await?;
+    Ok(client)
 }
 
 pub async fn create_board(
@@ -61,7 +63,7 @@ pub async fn create_board(
     let board_serializable: BoardSerializable = board.into();
     let board_value = serde_json::to_value(board_serializable.clone())?;
 
-    let hasura_response = hasura::election_event::update_election_status(
+    let hasura_response = hasura::election_event::update_election_event_board(
         auth_headers.clone(),
         tenant_id.to_string(),
         election_event_id.to_string(),

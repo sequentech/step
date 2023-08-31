@@ -98,11 +98,11 @@ pub async fn create_scheduled_event(
 
     println!("FFF payload: {}", formatted_event.event_payload.clone().unwrap());
 
-    let _ = services::worker::process_scheduled_event(
+    let process_result = services::worker::process_scheduled_event(
         auth_headers,
         formatted_event.clone(),
     )
-    .await;
+    .await?;
 
     Ok(Json(formatted_event))
 }

@@ -23,7 +23,7 @@ type timestamptz = String;
 pub struct UpdateElectionEventBoard;
 
 
-pub async fn update_election_status(
+pub async fn update_election_event_board(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,

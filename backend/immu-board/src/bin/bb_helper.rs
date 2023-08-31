@@ -12,6 +12,7 @@ use tracing::{debug, instrument};
 use immudb_rs::Client;
 
 use immu_board::util::init_log;
+use immu_board::BoardClient;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -184,7 +185,7 @@ impl BBHelper {
             self.index_dbname.clone().as_str(),
             r#"
             CREATE TABLE IF NOT EXISTS bulletin_boards (
-                id INTEGER,
+                id INTEGER AUTO_INCREMENT,
                 database_name VARCHAR[128],
                 is_archived BOOLEAN,
                 PRIMARY KEY id

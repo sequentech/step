@@ -8,7 +8,7 @@ mutation UpdateElectionEventBoard(
                 id: {_eq: $electionEventId}
                 tenant_id: {_eq: $tenantId}
             }
-            _set: {bulletin_board_reference: $bulletin_board_reference}
+            _set: {bulletin_board_reference: $board}
         ) {
             returning {
                 id

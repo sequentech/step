@@ -52,7 +52,7 @@ const ElectionEventListForm: React.FC = () => {
                 eventProcessor: ScheduledEventType.CREATE_BOARD,
                 cronConfig: undefined,
                 eventPayload: {
-                    board_name: record.id,
+                    board_name: record.id.replaceAll('-', ''),
                 },
                 createdBy: "admin",
             },

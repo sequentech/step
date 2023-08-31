@@ -115,6 +115,14 @@ impl BoardClient {
         })
     }
 
+    pub async fn login(
+        &mut self,
+        username: &str,
+        password: &str,
+    ) -> Result<()> {
+        self.client.login(&username, &password).await
+    }
+
     /// Get all messages whose id is bigger than `last_id`
     pub async fn get_messages(
         &mut self, 
@@ -241,6 +249,39 @@ impl BoardClient {
         Ok(boards)
     }
 
+    pub async fn get_board(
+        &mut self, 
+        index_db: &str,
+        board_db: &str,
+    ) -> Result<Board>
+    {
+        self.client.use_database(index_db).await?;
+        let message_sql = r#"
+        SELECT
+            id,
+            database_name,
+            is_archived
+        FROM bulletin_boards
+        WHERE database_name = @database_name;
+        "#;
+        let params = vec![
+            NamedParam {
+                name: String::from("database_name"),
+                value: Some(
+                    SqlValue { value: Some(Value::S(board_db.to_string())) }
+                ),
+            },
+        ];
+        let sql_query_response = self.client.sql_query(&message_sql, params).await?;
+        let boards = sql_query_response
+            .get_ref()
+            .rows
+            .iter()
+            .map(Board::try_from)
+            .collect::<Result<Vec<Board>>>()?;
+        Ok(boards[0].clone())
+    }
+
     pub async fn create_board(
         &mut self, 
         index_db: &str,
@@ -267,11 +308,11 @@ impl BoardClient {
         let message_sql = r#"
             INSERT INTO bulletin_boards(
                 database_name,
-                is_archived,
+                is_archived
             ) VALUES (
                 @database_name,
                 @is_archived
-            ) RETURNING id, database_name, is_archived;
+            );
         "#;
         let params = vec![
             NamedParam {
@@ -287,15 +328,9 @@ impl BoardClient {
                 ),
             },
         ];
-        let sql_query_response = self.client.sql_query(&message_sql, params).await?;
+        let sql_query_response = self.client.sql_exec(&message_sql, params).await?;
         
-        let boards = sql_query_response
-            .get_ref()
-            .rows
-            .iter()
-            .map(Board::try_from)
-            .collect::<Result<Vec<Board>>>()?;
-        Ok(boards[0].clone())
+        self.get_board(index_db, board_db).await
     }
 
 }
