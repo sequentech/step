@@ -39,13 +39,21 @@ impl<C: Ctx> Configuration<C> {
         let unique: HashSet<StrandSignaturePk> = HashSet::from_iter(trustees.clone());
         assert_eq!(unique.len(), trustees.len());
 
-        Configuration {
+        let c = Configuration {
             id,
             protocol_manager,
             trustees,
             threshold,
             phantom: PhantomData,
-        }
+        };
+        c.validate()
+    }
+
+    pub fn validate(self) -> Self {
+        assert!(self.trustees.len() > 1 && self.trustees.len() <= crate::protocol2::MAX_TRUSTEES);
+        assert!(self.threshold > 1 && self.threshold <= self.trustees.len());
+
+        self
     }
 
     pub fn get_trustee_position(&self, trustee_pk: &StrandSignaturePk) -> Option<usize> {
@@ -68,8 +76,11 @@ impl<C: Ctx> Configuration<C> {
 }
 #[derive(BorshSerialize, BorshDeserialize)]
 pub(crate) struct Commitments<C: Ctx> {
+    // Commitments to the coefficients of the generated polynomial
     pub(crate) commitments: Vec<C::E>,
+    // Encryption of the serialization of the vector of coefficients of the polynomial (C::X's)
     pub(crate) encrypted_coefficients: EncryptedCoefficients,
+    // Channel with which to send shares privately to the originator of these Commitments
     pub(crate) share_transport: ShareTransport<C>,
 }
 impl<C: Ctx> Commitments<C> {
@@ -106,8 +117,11 @@ impl EncryptedCoefficients {
 #[derive(BorshSerialize, BorshDeserialize)]
 // ElGamal key information used to send shares confidentially
 pub(crate) struct ShareTransport<C: Ctx> {
+    // The public key with which other trustees will encrypt shares sent to the originator of this ShareTransport
     pub(crate) pk: C::E,
+    // The encrypted (symmetric) private key corresponding to the above
     pub(crate) encrypted_sk: Vec<u8>,
+    // The nonce used for symmetric encryption
     pub(crate) nonce: Vec<u8>,
 }
 impl<C: Ctx> ShareTransport<C> {
@@ -156,27 +170,12 @@ pub struct Ballots<C: Ctx> {
     // Each trustee is a number starting at 1 up to the the number of eligible
     // trustees as per the configuration. 0 is not a valid trustee. Remaining
     // slots of this fixed size array must be padded with Datalog::NULL_TRUSTEE
-    pub selected_trustees: TrusteeSet,
+    // pub selected_trustees: TrusteeSet,
 }
 impl<C: Ctx> Ballots<C> {
-    pub fn new(
-        ciphertexts: Vec<Ciphertext<C>>,
-        selected_trustees: TrusteeSet,
-        cfg: &Configuration<C>,
-    ) -> Ballots<C> {
-        let mut selected = 0;
-        selected_trustees.iter().for_each(|s| {
-            if *s != NULL_TRUSTEE {
-                assert!(*s > 0 && *s <= cfg.trustees.len());
-                selected += 1;
-            }
-        });
-
-        assert!(selected == cfg.threshold);
-
+    pub fn new(ciphertexts: Vec<Ciphertext<C>>) -> Ballots<C> {
         Ballots {
             ciphertexts: StrandVectorC(ciphertexts),
-            selected_trustees,
         }
     }
 }

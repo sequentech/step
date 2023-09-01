@@ -55,6 +55,10 @@ crepe! {
     #[derive(Debug)]
     pub struct A(pub(crate) Action);
 
+    @output
+    #[derive(Debug)]
+    pub struct DErr(DatalogError);
+
     A(Action::GenCommitments(cfg_h, num_t, threshold)) <-
     ConfigurationSignedAll(cfg_h, self_position, num_t, threshold),
     !Commitments(cfg_h, _, self_position);
@@ -147,7 +151,10 @@ crepe! {
 pub(crate) struct S;
 
 impl S {
-    pub(crate) fn run(&self, predicates: &Vec<Predicate>) -> (HashSet<Predicate>, HashSet<Action>) {
+    pub(crate) fn run(
+        &self,
+        predicates: &Vec<Predicate>,
+    ) -> (HashSet<Predicate>, HashSet<Action>, HashSet<DatalogError>) {
         trace!(
             "Datalog: state dkg running with {} predicates, {:?}",
             predicates.len(),
@@ -158,11 +165,16 @@ impl S {
         let inputs: Vec<InP> = predicates.iter().map(|p| InP(*p)).collect();
         runtime.extend(&inputs);
 
-        let result: (HashSet<OutP>, HashSet<A>) = runtime.run();
+        let result: (HashSet<OutP>, HashSet<A>, HashSet<DErr>) = runtime.run();
 
         (
             result.0.iter().map(|a| a.0).collect::<HashSet<Predicate>>(),
             result.1.iter().map(|i| i.0).collect::<HashSet<Action>>(),
+            result
+                .2
+                .iter()
+                .map(|i| i.0)
+                .collect::<HashSet<DatalogError>>(),
         )
     }
 }

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use tracing::{debug, instrument};
 use std::fmt::Debug;
 use tonic::{
@@ -27,12 +27,16 @@ use crate::schema::{
     SqlQueryResult,
     TxMode,
     UnloadDatabaseRequest,
+    OpenSessionRequest,
 };
 
 #[derive(Debug)]
 pub struct Client {
     client: ImmuServiceClient<Channel>,
+    username: String,
+    password: String,
     auth_token: Option<String>,
+    session_id: Option<String>
 }
 
 pub type AsyncResponse<T> = Result<Response<T>>;
@@ -40,18 +44,23 @@ pub type AsyncResponse<T> = Result<Response<T>>;
 /// Represents a Immudb Client.
 /// Allows you to handle operations in an easier manner.
 impl Client {
-    #[instrument]
+    #[instrument(skip(password))]
     pub async fn new(
         server_url: &str,
+        username: &str,
+        password: &str
     ) -> Result<Client> {
         let client = ImmuServiceClient::connect(String::from(server_url)).await?;
         Ok(Client {
             client: client,
+            username: username.to_string(),
+            password: password.to_string(),
             auth_token: None,
+            session_id: None,
         })
     }
 
-    #[instrument]
+    #[instrument(skip(password))]
     pub async fn login(
         &mut self, username: &str, password: &str
     ) -> Result<()> {
@@ -66,18 +75,29 @@ impl Client {
     }
 
     /// Creates an Authenticated request, with the proper Auth token
-    #[instrument]
     fn get_request<T: Debug>(
         &self,
         data: T
     ) -> Result<Request<T>>
     {
         let mut request = Request::new(data);
-        let token: MetadataValue<_> = self.auth_token
+        
+        if self.session_id.is_some() {
+            let session_id: MetadataValue<_> = self.session_id
+                .clone()
+                .expect("impossible")
+                .parse()?;
+            request.metadata_mut().insert("sessionid", session_id);
+        }
+        
+        if self.auth_token.is_some() {
+            let auth_token: MetadataValue<_> = self.auth_token
             .clone()
-            .ok_or(anyhow!("not logged in",))?
+            .expect("impossible")
             .parse()?;
-        request.metadata_mut().insert("authorization", token);
+            request.metadata_mut().insert("authorization", auth_token);
+        }
+        
         Ok(request)
     }
 
@@ -119,10 +139,9 @@ impl Client {
             .list_tables(list_tables_request)
             .await?;
         debug!("list-tables-response={:?}", list_tables_response);
-        Ok(list_tables_response.get_ref().rows.is_empty())
+        Ok(!list_tables_response.get_ref().rows.is_empty())
     }
 
-    #[instrument]
     pub async fn sql_exec(
         &mut self,
         sql: &str,
@@ -142,7 +161,6 @@ impl Client {
         Ok(())
     }
 
-    #[instrument]
     pub async fn sql_query(
         &mut self,
         sql: &str,
@@ -164,7 +182,6 @@ impl Client {
     }
 
     /// Creates a new transaction, returning the transaction id
-    #[instrument]
     pub async fn new_tx(
         &mut self,
         mode: TxMode,
@@ -183,8 +200,12 @@ impl Client {
     #[instrument]
     pub async fn commit(
         &mut self,
+        transaction_id: &String
     ) -> Result<CommittedSqlTx> {
-        let commit_request = self.get_request( () )?;
+        let mut commit_request = self.get_request( () )?;
+        let tx_id: MetadataValue<_> = transaction_id
+            .parse()?;
+        commit_request.metadata_mut().insert("transactionid", tx_id);
         let commit_response = self.client
             .commit(commit_request)
             .await?;
@@ -192,13 +213,16 @@ impl Client {
         Ok(commit_response.get_ref().clone())
     }
 
-
     /// Rollsback a transaction
     #[instrument]
     pub async fn rollback(
         &mut self,
+        transaction_id: &String
     ) -> Result<()> {
-        let rollback_request = self.get_request( () )?;
+        let mut rollback_request = self.get_request( () )?;
+        let tx_id: MetadataValue<_> = transaction_id
+            .parse()?;
+        rollback_request.metadata_mut().insert("transactionid", tx_id);
         let rollback_response = self.client
             .rollback(rollback_request)
             .await?;
@@ -206,19 +230,23 @@ impl Client {
         Ok(())
     }
 
-    #[instrument]
     pub async fn tx_sql_exec(
         &mut self,
         sql: &str,
+        transaction_id: &String,
         params: Vec<NamedParam>
     ) -> Result<()> {
-        let sql_exec_request = self.get_request(
+        let mut sql_exec_request = self.get_request(
             SqlExecRequest {
                 sql: sql.clone().into(),
                 no_wait: false,
                 params: params,
             }
         )?;
+        let tx_id: MetadataValue<_> = transaction_id
+            .parse()?;
+        sql_exec_request.metadata_mut().insert("transactionid", tx_id);
+
         let sql_exec_response = self.client
             .tx_sql_exec(sql_exec_request)
             .await?;
@@ -226,20 +254,23 @@ impl Client {
         Ok(())
     }
 
-    #[instrument]
     pub async fn tx_sql_query(
         &mut self,
         sql: &str,
+        transaction_id: &String,
         params: Vec<NamedParam>
     ) -> AsyncResponse<SqlQueryResult>
     {
-        let sql_query_request = self.get_request(
+        let mut sql_query_request = self.get_request(
             SqlQueryRequest {
                 sql: sql.clone().into(),
                 reuse_snapshot: false,
                 params: params,
             }
         )?;
+        let tx_id: MetadataValue<_> = transaction_id
+            .parse()?;
+        sql_query_request.metadata_mut().insert("transactionid", tx_id);
         let sql_query_response = self.client
             .tx_sql_query(sql_query_request)
             .await?;
@@ -251,17 +282,14 @@ impl Client {
     #[instrument]
     pub async fn create_database(&mut self, database_name: &str) -> Result<()> {
         let create_db_request = self.get_request(
-            Database { database_name: database_name.to_string() }
+            crate::CreateDatabaseRequest { name: database_name.to_string(), settings: None, if_not_exists: true }
         )?;
 
-        let create_db_response = self.client.use_database(create_db_request).await?;
+        let create_db_response = self.client.create_database_v2(create_db_request).await?;
         debug!("grpc-create-database-response={:?}", create_db_response);
-        self.auth_token =  Some(create_db_response.get_ref().token.clone());
-
         Ok(())
     }
 
-    #[instrument]
     pub async fn use_database(&mut self, database_name: &str) -> Result<()> {
         let use_db_request = self.get_request(
             Database { database_name: database_name.to_string() }
@@ -275,8 +303,7 @@ impl Client {
     }
 
     #[instrument]
-    pub async fn delete_database(&mut self, database_name: &str) -> Result<()>
-    {
+    pub async fn delete_database(&mut self, database_name: &str) -> Result<()> {
         let unload_db_request = self.get_request(
             UnloadDatabaseRequest { database: database_name.to_string() },
         )?;
@@ -289,6 +316,30 @@ impl Client {
         let delete_db_response = self.client
             .delete_database(delete_db_request).await?;
         debug!("grpc-delete-database-response={:?}", delete_db_response);
+        Ok(())
+    }
+
+    pub async fn open_session(&mut self, database_name: &str) -> Result<()> {
+        let open_session_request = Request::new(
+            OpenSessionRequest { 
+                database_name: database_name.to_string(),
+                username: self.username.clone().into(),
+                password: self.password.clone().into()
+            },
+        );
+        let open_session_response = self.client
+            .open_session(open_session_request).await?;
+        debug!("grpc-open-session-response={:?}", open_session_response);
+        self.session_id = Some(open_session_response.get_ref().session_id.clone());
+        Ok(())
+    }
+    
+    pub async fn close_session(&mut self) -> Result<()> {
+        let close_session_request = self.get_request( () )?;
+        let close_session_response = self.client
+            .close_session(close_session_request).await?;
+        debug!("grpc-open-session-response={:?}", close_session_response);
+        self.session_id = None;
         Ok(())
     }
 }

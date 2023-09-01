@@ -1,34 +1,49 @@
-use crate::protocol2::board::trillian::TrillianBoard;
+use crate::protocol2::action::Message;
+use crate::protocol2::artifact::Configuration;
+use crate::protocol2::board::immudb::ImmudbBoard;
+use crate::protocol2::datalog::{
+    BatchNumber, ConfigurationHash, MixingHashes, PlaintextsHash, Predicate,
+};
+use crate::protocol2::predicate::CiphertextsHash;
+use crate::protocol2::statement::{Batch, CiphertextsH, PlaintextsH, Statement, StatementType};
 use crate::protocol2::trustee::Trustee;
-use anyhow::Result;
-use bulletin_board::client::CacheStore;
+use anyhow::{anyhow, Result};
 use strand::context::Ctx;
-use tracing::info;
+use strand::serialization::StrandDeserialize;
+use tracing::{error, info};
 
-pub struct Session<C: Ctx, CS: CacheStore> {
+pub struct Session<C: Ctx> {
     trustee: Trustee<C>,
-    board: TrillianBoard<CS>,
+    board: ImmudbBoard,
+    dry_run: bool,
+    last_message_id: i64,
 }
-impl<C: Ctx, CS: CacheStore> Session<C, CS> {
-    pub fn new(trustee: Trustee<C>, board: TrillianBoard<CS>) -> Session<C, CS> {
-        Session { trustee, board }
+impl<C: Ctx> Session<C> {
+    pub fn new(trustee: Trustee<C>, board: ImmudbBoard) -> Session<C> {
+        Session {
+            trustee,
+            board,
+            dry_run: false,
+            last_message_id: -1,
+        }
+    }
+
+    pub fn new_dry(trustee: Trustee<C>, board: ImmudbBoard) -> Session<C> {
+        Session {
+            trustee,
+            board,
+            dry_run: true,
+            last_message_id: -1,
+        }
     }
 
     pub async fn step(&mut self) -> Result<()> {
         info!("Trustee {:?} step..", self.trustee.get_pk());
 
-        if let Ok(messages) = self.board.get_messages().await {
-            let step_result = self.trustee.step(messages);
-            if let Ok((send_messages, _actions)) = step_result {
-                let sent = self.board.send_messages(send_messages).await;
-                if sent.is_err() {
-                    info!("Could not send messages");
-                }
-            } else {
-                info!("Step returns error {:?}", step_result);
-            }
-        } else {
-            info!("Could not retrieve messages");
+        let messages = self.board.get_messages(self.last_message_id).await?;
+        let (send_messages, _actions) = self.trustee.step(messages)?;
+        if !self.dry_run {
+            self.board.insert_messages(send_messages).await?;
         }
 
         Ok(())

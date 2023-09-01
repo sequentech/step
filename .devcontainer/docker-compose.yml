@@ -77,6 +77,7 @@ services:
       # keycloak jwks endpoint
       HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url": "http://keycloak:8090/realms/electoral-process/protocol/openid-connect/certs"}'
       HASURA_GRAPHQL_ADMIN_SECRET: 'admin'
+      ACTIONS_ADMIN_SECRET: 'admin'
     #depends_on:
     #  data-connector-agent:
     #    condition: service_healthy
@@ -167,6 +168,33 @@ services:
     volumes:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
+  
+  templates:
+    stdin_open: true
+    build:
+      context: ../backend/
+      dockerfile: ./templates/Dockerfile
+    ports:
+      - 8400:8400 # templates service
+
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_storage:/data
+    environment:
+      MINIO_ROOT_USER: minio_user
+      MINIO_ROOT_PASSWORD: minio_pass
+      MINIO_ACCESS_KEY: LZAw7hwBziRjwAhfP6Xi
+      MINIO_ACCESS_SECRET: 4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct
+    #entrypoint: sh
+    #command: -c 'mc config host add minio http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD && mc admin user svcacct add --access-key "$MINIO_ACCESS_KEY" --secret-key "$MINIO_ACCESS_SECRET" minio $MINIO_ROOT_USER && server --console-address ":9001" /data'
+    command: server --console-address ":9001" /data
+    #entrypoint: /bin/bash
+    #command: -c 'echo FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF && minio server --console-address ":9001" /data'
+    #restart: always
 
   # Create collection in immudb
   immudb-log-audit-init:
@@ -209,3 +237,4 @@ volumes:
   keycloak_db_data:
   immudb_data:
   immudb_logs:
+  minio_storage:

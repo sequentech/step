@@ -1,6 +1,4 @@
-use log::{error, warn};
-
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use strand::context::Ctx;
 use strand::serialization::StrandSerialize;
@@ -10,7 +8,7 @@ use crate::protocol2::artifact::*;
 use crate::protocol2::statement::ArtifactType;
 use crate::protocol2::statement::Statement;
 use crate::protocol2::statement::StatementType;
-use crate::protocol2::trustee::Sender;
+use crate::protocol2::trustee::Signer;
 
 use crate::protocol2::artifact::Configuration;
 use crate::protocol2::datalog::PublicKeyHash;
@@ -25,6 +23,8 @@ use crate::protocol2::trustee::ProtocolManager;
 use crate::protocol2::trustee::Trustee;
 
 use crate::protocol2::statement::*;
+
+use super::datalog::TrusteeSet;
 
 ///////////////////////////////////////////////////////////////////////////
 // Message
@@ -157,6 +157,7 @@ impl Message {
         cfg: &Configuration<C>,
         batch: BatchNumber,
         ballots: &Ballots<C>,
+        selected_trustees: TrusteeSet,
         pk_h: PublicKeyHash,
         pm: &ProtocolManager<C>,
     ) -> Result<Message> {
@@ -170,8 +171,7 @@ impl Message {
             CiphertextsH(bb_h),
             PublicKeyH(pk_h.0),
             Batch(batch),
-            ballots.selected_trustees[0],
-            ballots.selected_trustees,
+            selected_trustees,
         );
         pm.sign(statement, Some(ballots_bytes))
     }
@@ -217,7 +217,7 @@ impl Message {
             CiphertextsH(previous_ciphertexts_h.0),
             CiphertextsH(mix_h.0),
             Batch(batch),
-            MixSignatureNumber(mix_number),
+            mix_number,
         );
         trustee.sign(statement, None)
     }
@@ -252,6 +252,7 @@ impl Message {
         batch: BatchNumber,
         plaintexts: Plaintexts<C>,
         dfactors_hs: DecryptionFactorsHashes,
+        cipher_h: CiphertextsHash,
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
@@ -265,6 +266,7 @@ impl Message {
             Batch(batch),
             PlaintextsH(plaintexts_h),
             DecryptionFactorsHs(dfactors_hs.0),
+            CiphertextsH(cipher_h.0),
         );
 
         trustee.sign(statement, Some(plaintexts_bytes))
@@ -275,6 +277,7 @@ impl Message {
         batch: BatchNumber,
         plaintexts_h: PlaintextsHash,
         dfactors_hs: DecryptionFactorsHashes,
+        cipher_h: CiphertextsHash,
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
@@ -285,6 +288,7 @@ impl Message {
             Batch(batch),
             PlaintextsH(plaintexts_h.0),
             DecryptionFactorsHs(dfactors_hs.0),
+            CiphertextsH(cipher_h.0),
         );
 
         trustee.sign(statement, None)
@@ -301,49 +305,51 @@ impl Message {
     pub(crate) fn verify<C: Ctx>(
         self,
         configuration: &Configuration<C>,
-    ) -> Option<VerifiedMessage> {
-        let (kind, st_cfg_h, _, mix_sno, artifact_type) = self.statement.get_data();
+    ) -> Result<VerifiedMessage> {
+        let (kind, st_cfg_h, _, mix_no, artifact_type, _) = self.statement.get_data();
 
-        if mix_sno > configuration.trustees.len() {
-            error!("Received a message whose statement signature number is out of range");
-            return None;
+        if mix_no > configuration.trustees.len() {
+            return Err(anyhow!(
+                "Received a message whose statement signature number is out of range"
+            ));
         }
 
         // We don't care about doing a sequential search here as the size is small
-        let index = configuration.get_trustee_position(&self.signer_key);
-        if index.is_none() {
-            error!(
+        let index: usize = configuration
+            .get_trustee_position(&self.signer_key)
+            .ok_or(anyhow!(
                 "Received a message from a trustee that is not part of the configuration {:?}",
                 self.signer_key
-            );
-            return None;
-        }
+            ))?;
 
-        let bytes = self.statement.strand_serialize().ok()?;
+        let bytes = self.statement.strand_serialize()?;
         // Verify signature
         let trustee_ = self
             .signer_key
             .verify(&self.signature, &bytes)
-            .map(|_| index.expect("impossible"))
+            .map(|_| index)
             .ok();
 
         if trustee_.is_none() {
-            error!("Signature verification failed for message {:?}", self);
-            return None;
+            return Err(anyhow!(
+                "Signature verification failed for message {:?}",
+                self
+            ));
         }
         let trustee = trustee_.expect("impossible");
 
         // The message must belong to the same context as the configuration
-        let config_hash = strand::util::hash(&configuration.strand_serialize().ok()?);
+        let config_hash = strand::util::hash(&configuration.strand_serialize()?);
         if config_hash != st_cfg_h {
-            warn!("Received message with mismatched configuration hash");
-            return None;
+            return Err(anyhow!(
+                "Received message with mismatched configuration hash"
+            ));
         }
         assert_eq!(config_hash, st_cfg_h);
 
         // Statement-only message
         if self.artifact.is_none() {
-            return Some(VerifiedMessage::new(trustee, self.statement, None));
+            return Ok(VerifiedMessage::new(trustee, self.statement, None));
         }
         let artifact = self.artifact.expect("impossible");
 
@@ -354,7 +360,7 @@ impl Message {
         if st_cfg_h == artifact_hash {
             assert!(kind == StatementType::Configuration);
             let artifact_field = Some((ArtifactType::Configuration, artifact));
-            Some(VerifiedMessage::new(
+            Ok(VerifiedMessage::new(
                 trustee,
                 self.statement,
                 artifact_field,
@@ -365,18 +371,37 @@ impl Message {
 
             // Set the type of the artifact field
             if let Some(artifact_type) = artifact_type {
+                let _ = verify_artifact(&configuration, &artifact_type, &artifact)?;
                 let artifact_field = Some((artifact_type, artifact));
-                Some(VerifiedMessage::new(
+                Ok(VerifiedMessage::new(
                     trustee,
                     self.statement,
                     artifact_field,
                 ))
             } else {
-                warn!("Could not find parameter pointing to artifact");
-                None
+                return Err(anyhow!("Could not find parameter pointing to artifact"));
             }
         }
     }
+}
+
+fn verify_artifact<C: Ctx>(
+    _cfg: &Configuration<C>,
+    kind: &ArtifactType,
+    _data: &Vec<u8>,
+) -> Result<()> {
+    match kind {
+        ArtifactType::Ballots => {}
+        ArtifactType::Commitments => {}
+        ArtifactType::DecryptionFactors => {}
+        ArtifactType::Mix => {}
+        ArtifactType::Plaintexts => {}
+        ArtifactType::PublicKey => {}
+        ArtifactType::Shares => {}
+        ArtifactType::Configuration => {}
+    }
+
+    Ok(())
 }
 
 ///////////////////////////////////////////////////////////////////////////

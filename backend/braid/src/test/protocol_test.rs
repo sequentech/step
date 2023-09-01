@@ -106,13 +106,13 @@ fn run_protocol_test<C: Ctx>(
                 pk.encrypt(&encoded)
             })
             .collect();
-        let ballot_batch =
-            crate::protocol2::artifact::Ballots::new(ballots, selected_trustees, &test.cfg);
+        let ballot_batch = crate::protocol2::artifact::Ballots::new(ballots);
 
         let message = crate::protocol2::message::Message::ballots_msg(
             &test.cfg,
             i + 1,
             &ballot_batch,
+            selected_trustees,
             PublicKeyHash(crate::protocol2::hash_from_vec(&pk_h).unwrap()),
             &test.protocol_manager,
         )?;
@@ -128,8 +128,9 @@ fn run_protocol_test<C: Ctx>(
             t.step();
         });
 
+        let decryptor = selected_trustees[0] - 1;
         let plaintexts: Vec<Plaintexts<C>> = (0..batches)
-            .filter_map(|b| sessions[0].get_plaintexts_nohash(b + 1))
+            .filter_map(|b| sessions[decryptor].get_plaintexts_nohash(b + 1, decryptor))
             .collect();
 
         if plaintexts.len() == batches {

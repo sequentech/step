@@ -58,10 +58,9 @@ fn encrypt_malachite(
 }
 
 cfg_if::cfg_if! {
-    if #[cfg(feature = "rug")] {
+    if #[cfg(unix)] {
         use strand::backend::rug::RugCtx;
         use strand::backend::rug::P2048 as RP2048;
-        #[cfg(feature = "rug")]
         fn encrypt_rug(ctx: &RugCtx<RP2048>, pk: &PublicKey<RugCtx<RP2048>>, n: usize) {
             let plaintext = ctx.rnd_plaintext();
             encrypt(ctx, pk, plaintext, n);
@@ -83,7 +82,7 @@ fn bench_encrypt(c: &mut Criterion) {
     let mpk = msk.get_pk();
 
     cfg_if::cfg_if! {
-        if #[cfg(feature = "rug")] {
+        if #[cfg(unix)] {
             use strand::backend::rug::P2048 as RP2048;
             let gctx: RugCtx::<RP2048> = Default::default();
             let gsk = PrivateKey::gen(&gctx);

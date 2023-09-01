@@ -6,11 +6,11 @@
 //! ```
 //! // This example shows different operations related to ElGamal encryption.
 //! use strand::context::Ctx;
-//! use strand::backend::num_bigint::{BigintCtx, P2048};
+//! use strand::backend::ristretto::RistrettoCtx;
 //! use strand::elgamal::{PrivateKey, PublicKey};
 //! use strand::zkp::Zkp;
 //!
-//! let ctx: BigintCtx::<P2048> = Default::default();
+//! let ctx = RistrettoCtx;
 //! // generate an ElGamal keypair
 //! let sk1 = PrivateKey::gen(&ctx);
 //! let pk1 = sk1.get_pk();

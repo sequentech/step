@@ -1,4 +1,43 @@
 actions:
+  - name: createScheduledEvent
+    definition:
+      kind: synchronous
+      handler: http://templates:8400/scheduled-event
+      forward_client_headers: true
+      headers:
+        - name: X-Hasura-Admin-Secret
+          value_from_env: ACTIONS_ADMIN_SECRET
+      request_transform:
+        body:
+          action: transform
+          template: '{{$body.input}}'
+        template_engine: Kriti
+        version: 2
+    permissions:
+      - role: admin-user
+    comment: create scheduled event
+  - name: fetchDocument
+    definition:
+      kind: ""
+      handler: http://templates:8400/fetch-document
+      forward_client_headers: true
+      headers:
+        - name: X-Hasura-Admin-Secret
+          value_from_env: ACTIONS_ADMIN_SECRET
+      request_transform:
+        body:
+          action: transform
+          template: |-
+            {
+                "tenant_id": {{$body.input.tenant_id}},
+                "election_event_id": {{$body.input.election_event_id}},
+                "document_id": {{$body.input.document_id}}
+            }
+        template_engine: Kriti
+        version: 2
+    permissions:
+      - role: admin-user
+    comment: fetch document
   - name: helloWorld
     definition:
       kind: ""
@@ -13,5 +52,9 @@ custom_types:
   enums: []
   input_objects:
     - name: InputParams
-  objects: []
+    - name: TemplateInput
+  objects:
+    - name: TemplateOutput
+    - name: FetchDocumentOutput
+    - name: ScheduledEventOutput
   scalars: []

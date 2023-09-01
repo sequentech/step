@@ -35,6 +35,14 @@
     # For protocol buffers
     pkgs.protobuf
     pkgs.iputils
+    pkgs.chromium
+
+    # to build the rug backend in strand/braid
+    pkgs.gcc
+    pkgs.m4
+
+    # for development of immudb local store
+    pkgs.sqlite
   ];
 
   # https://devenv.sh/scripts/
@@ -58,6 +66,7 @@
     enable = true;
     # https://devenv.sh/reference/options/#languagesrustversion
     version = "latest";
+    packages.rust-src = pkgs.rustPlatform.rustLibSrc;
   };
 
   # https://devenv.sh/pre-commit-hooks/

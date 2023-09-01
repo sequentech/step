@@ -7,12 +7,14 @@
     "workspaces": [
       "ui-essentials",
       "test-app",
-      "voting-portal"
+      "voting-portal",
+      "admin-portal"
     ],
     "scripts": {
       "dev": "yarn --cwd ./test-app dev",
       "start:test-app": "yarn --cwd ./test-app start",
       "start": "yarn --cwd ./voting-portal start",
+      "start:admin": "yarn --cwd ./admin-portal start",
       "storybook:ui-essentials": "yarn --cwd ./ui-essentials storybook",
       "build": "yarn workspaces run build",
       "build:ui-essentials": "yarn --cwd ./ui-essentials build",

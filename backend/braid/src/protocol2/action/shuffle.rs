@@ -150,7 +150,7 @@ pub(crate) fn sign_mix<C: Ctx>(
     info!("Verifying shuffle..");
     let label = cfg.label(*batch, format!("shuffle{mix_number}"));
     let ok = shuffler.check_proof(&mix.proof, &source_cs.0, &mix.ciphertexts.0, &label)?;
-    info!("**************** Verify shuffle = {} ****************", ok);
+    info!("Verify shuffle..{}", ok);
     assert!(ok);
     let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
     Ok(vec![m])

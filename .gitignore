@@ -26,6 +26,7 @@ output.txt
 result
 /pkg/
 .env
+pkg
 .direnv
 
 # Devenv

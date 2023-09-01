@@ -12,6 +12,7 @@ use crate::protocol2::artifact::Configuration;
 use crate::protocol2::artifact::DecryptionFactors;
 use crate::protocol2::artifact::Plaintexts;
 use crate::protocol2::artifact::Shares;
+use crate::protocol2::datalog::MixNumber;
 use crate::protocol2::hash_from_vec;
 use crate::protocol2::message::VerifiedMessage;
 use crate::protocol2::predicate::CommitmentsHash;
@@ -29,13 +30,14 @@ use crate::protocol2::predicate::{CiphertextsHash, DecryptionFactorsHash};
 // LocalBoard
 ///////////////////////////////////////////////////////////////////////////
 
-// A LocalBoard is specific to a protocol session_id, referenced in the configuration
+// A LocalBoard is a trustee's local copy of a bulletin board. It is specific to a protocol
+// execution (session_id), referenced in the configuration
 //
 // Messages are composed of statements and optionally artifacts
 //
 #[derive(Clone)] // FIXME used by dbg
 pub struct LocalBoard<C: Ctx> {
-    pub configuration: Option<Configuration<C>>, // FIXME pub used by dbg
+    pub(crate) configuration: Option<Configuration<C>>,
     cfg_hash: Option<Hash>,
 
     // All keys contain a statement type and a sender. For multi instance predicates
@@ -43,7 +45,7 @@ pub struct LocalBoard<C: Ctx> {
     //
     // We put the hash in the value so that we can detect overwrite attempt,
     // the statement hash is checked on retrieval (it's not in the key)
-    pub statements: HashMap<StatementEntryIdentifier, (Hash, Statement)>, // FIXME pub used by dbg
+    pub(crate) statements: HashMap<StatementEntryIdentifier, (Hash, Statement)>,
 
     // Artifacts entries include their source statement plus adding the ArtifactType
     // We put the hash in the value so that we can distinguish
@@ -55,7 +57,7 @@ pub struct LocalBoard<C: Ctx> {
     // This access to artifacts is done through specific type safe methods
     // that construct the keys to the underlying key value store, the hash is
     // checked on retrieval (it's not in the key)
-    pub artifacts: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>, // FIXME pub used by dbg
+    pub(crate) artifacts: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>,
 }
 
 impl<C: Ctx> LocalBoard<C> {
@@ -94,7 +96,6 @@ impl<C: Ctx> LocalBoard<C> {
         let cfg_hash = message.statement.get_cfg_h();
 
         if self.configuration.is_none() {
-            // impossible: is_some checked by caller
             let artifact_bytes = &message
                 .artifact
                 .ok_or(anyhow!("Missing artifact in configuration message"))?
@@ -171,8 +172,6 @@ impl<C: Ctx> LocalBoard<C> {
                     "Artifact found with hash {}",
                     hex::encode(artifact_hash)[0..10].to_string()
                 );
-
-                // self.insert_artifact(&artifact_identifier, &artifact);
 
                 let artifact_entry = self.artifacts.get(&artifact_identifier);
 
@@ -413,7 +412,7 @@ impl<C: Ctx> LocalBoard<C> {
 
     // FIXME "outside" function
     // Used to get the public key from the outside
-    pub fn get_dkg_public_key_nohash(
+    pub(crate) fn get_dkg_public_key_nohash(
         &self,
         signer_position: TrusteePosition,
     ) -> Option<DkgPublicKey<C>> {
@@ -430,7 +429,7 @@ impl<C: Ctx> LocalBoard<C> {
 
     // // FIXME "outside" function
     // Used to get the plaintexts from the outside
-    pub fn get_plaintexts_nohash(
+    pub(crate) fn get_plaintexts_nohash(
         &self,
         batch: BatchNumber,
         signer_position: TrusteePosition,
@@ -456,13 +455,13 @@ impl<C: Ctx> LocalBoard<C> {
         statement: &Statement,
         signer_position: usize,
     ) -> StatementEntryIdentifier {
-        let (kind, _, batch, mix_signature_number, _) = statement.get_data();
+        let (kind, _, batch, mix_number, _, _) = statement.get_data();
 
         StatementEntryIdentifier {
             kind,
             signer_position,
             batch,
-            mix_signature_number,
+            mix_number,
         }
     }
     pub(crate) fn get_artifact_entry_identifier(
@@ -474,7 +473,7 @@ impl<C: Ctx> LocalBoard<C> {
             statement_entry.kind.clone(),
             statement_entry.signer_position,
             statement_entry.batch,
-            statement_entry.mix_signature_number,
+            statement_entry.mix_number,
             &artifact_type.clone(),
         )
     }
@@ -483,15 +482,15 @@ impl<C: Ctx> LocalBoard<C> {
         &self,
         statement_type: StatementType,
         signer_position: usize,
-        batch: usize,
-        mix_signature_number: usize,
+        batch: BatchNumber,
+        mix_number: MixNumber,
         artifact_type: &ArtifactType,
     ) -> ArtifactEntryIdentifier {
         let sti = StatementEntryIdentifier {
             kind: statement_type,
             signer_position,
             batch,
-            mix_signature_number,
+            mix_number,
         };
         ArtifactEntryIdentifier {
             statement_entry: sti,
@@ -500,9 +499,9 @@ impl<C: Ctx> LocalBoard<C> {
     }
 }
 
-pub struct BoardEntry {
-    pub key: StatementEntryIdentifier,
-    pub value: (Hash, Statement),
+pub(crate) struct BoardEntry {
+    pub(crate) key: StatementEntryIdentifier,
+    pub(crate) value: (Hash, Statement),
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -515,14 +514,14 @@ pub struct StatementEntryIdentifier {
     pub signer_position: usize,
     // the batch number
     pub batch: usize,
-    // When storing mix signature statementents in the local board we need to distinguish between
-    // mix signatures, which will not be unique with the above fields only.
+    // When storing mix signature statementents in the local board they
+    // will not be unique with the above fields only.
     // (mixes themselves are, since only one mix is produced by each trustee, so the signer position
     // is sufficient; on the other hand each trustee signs _all other mixes_).
     // The need to make this distinction is only for the purposes of storage in the local board,
     // without this field, the different signature statements would be rejected as duplicates.
     // The field is not used explicitly besides this purpose.
-    pub mix_signature_number: usize,
+    pub mix_number: usize,
 }
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]

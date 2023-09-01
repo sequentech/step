@@ -40,8 +40,6 @@ pub enum Statement {
         Batch,
         CiphertextsH,
         PublicKeyH,
-        // first_mixer (ballots.trustees[0] - 1 in Ballots artifact)
-        TrusteePosition,
         // the trustees to participate in mixing + decryption (ballots.trustees in Ballots artifact)
         [usize; crate::protocol2::MAX_TRUSTEES],
     ),
@@ -56,12 +54,12 @@ pub enum Statement {
         // the next mixing trustee (mix.target_trustee in Mix artifact)
         TrusteePosition,
     ),
-    // See local::StatementEntryIdentifier::mix_signature_number regarding MixSignatureNumber
+    // See also local::StatementEntryIdentifier::mix_number
     MixSigned(
         Timestamp,
         ConfigurationH,
         Batch,
-        MixSignatureNumber,
+        MixNumber,
         CiphertextsH,
         CiphertextsH,
     ),
@@ -79,6 +77,7 @@ pub enum Statement {
         Batch,
         PlaintextsH,
         DecryptionFactorsHs,
+        CiphertextsH,
     ),
     PlaintextsSigned(
         Timestamp,
@@ -86,6 +85,7 @@ pub enum Statement {
         Batch,
         PlaintextsH,
         DecryptionFactorsHs,
+        CiphertextsH,
     ),
 }
 
@@ -143,7 +143,6 @@ impl Statement {
         ballots_h: CiphertextsH,
         pk_h: PublicKeyH,
         batch: Batch,
-        first_mixer: usize,
         trustees: [usize; crate::protocol2::MAX_TRUSTEES],
     ) -> Statement {
         Statement::Ballots(
@@ -152,7 +151,6 @@ impl Statement {
             batch,
             ballots_h,
             pk_h,
-            first_mixer,
             trustees,
         )
     }
@@ -163,7 +161,7 @@ impl Statement {
         source_ciphertexts_h: CiphertextsH,
         mix_h: CiphertextsH,
         batch: Batch,
-        mix_number: usize,
+        mix_number: MixNumber,
         target_trustee: usize,
     ) -> Statement {
         Statement::Mix(
@@ -183,13 +181,13 @@ impl Statement {
         source_ciphertexts_h: CiphertextsH,
         mix_h: CiphertextsH,
         batch: Batch,
-        mix_signature_number: MixSignatureNumber,
+        mix_number: MixNumber,
     ) -> Statement {
         Statement::MixSigned(
             Self::timestamp(),
             cfg_hash,
             batch,
-            mix_signature_number,
+            mix_number,
             source_ciphertexts_h,
             mix_h,
         )
@@ -217,6 +215,7 @@ impl Statement {
         batch: Batch,
         plaintexts_h: PlaintextsH,
         dfactors_hs: DecryptionFactorsHs,
+        cipher_h: CiphertextsH,
     ) -> Statement {
         Statement::Plaintexts(
             Self::timestamp(),
@@ -224,6 +223,7 @@ impl Statement {
             batch,
             plaintexts_h,
             dfactors_hs,
+            cipher_h,
         )
     }
 
@@ -232,6 +232,7 @@ impl Statement {
         batch: Batch,
         plaintexts_h: PlaintextsH,
         dfactors_hs: DecryptionFactorsHs,
+        cipher_h: CiphertextsH,
     ) -> Statement {
         Statement::PlaintextsSigned(
             Self::timestamp(),
@@ -239,6 +240,7 @@ impl Statement {
             batch,
             plaintexts_h,
             dfactors_hs,
+            cipher_h,
         )
     }
 
@@ -258,84 +260,111 @@ impl Statement {
         self.get_data().1
     }
 
-    pub fn get_data(&self) -> (StatementType, Hash, usize, usize, Option<ArtifactType>) {
+    pub fn get_timestamp(&self) -> Timestamp {
+        self.get_data().5
+    }
+
+    pub fn get_data(
+        &self,
+    ) -> (
+        StatementType,
+        Hash,
+        usize,
+        usize,
+        Option<ArtifactType>,
+        Timestamp,
+    ) {
         let kind: StatementType;
+        let ts: u64;
         let cfg: [u8; 64];
         let mut batch = 0usize;
-        let mut mix_signature_number = 0usize;
+        let mut mix_number = 0usize;
         let mut artifact_type = None;
 
         match self {
-            Self::Configuration(_, cfg_h) => {
+            Self::Configuration(ts_, cfg_h) => {
+                ts = *ts_;
                 kind = StatementType::Configuration;
                 cfg = cfg_h.0;
                 artifact_type = Some(ArtifactType::Configuration);
             }
-            Self::ConfigurationSigned(_, cfg_h) => {
+            Self::ConfigurationSigned(ts_, cfg_h) => {
+                ts = *ts_;
                 kind = StatementType::ConfigurationSigned;
                 cfg = cfg_h.0;
             }
-            Self::Commitments(_, cfg_h, _) => {
+            Self::Commitments(ts_, cfg_h, _) => {
+                ts = *ts_;
                 kind = StatementType::Commitments;
                 cfg = cfg_h.0;
                 artifact_type = Some(ArtifactType::Commitments);
             }
-            Self::CommitmentsAllSigned(_, cfg_h, _) => {
+            Self::CommitmentsAllSigned(ts_, cfg_h, _) => {
+                ts = *ts_;
                 kind = StatementType::CommitmentsAllSigned;
                 cfg = cfg_h.0;
             }
-            Self::Shares(_, cfg_h, _) => {
+            Self::Shares(ts_, cfg_h, _) => {
+                ts = *ts_;
                 kind = StatementType::Shares;
                 cfg = cfg_h.0;
                 artifact_type = Some(ArtifactType::Shares);
             }
-            Self::PublicKey(_, cfg_h, _, _, _) => {
+            Self::PublicKey(ts_, cfg_h, _, _, _) => {
+                ts = *ts_;
                 kind = StatementType::PublicKey;
                 cfg = cfg_h.0;
                 artifact_type = Some(ArtifactType::PublicKey);
             }
-            Self::PublicKeySigned(_, cfg_h, _, _, _) => {
+            Self::PublicKeySigned(ts_, cfg_h, _, _, _) => {
+                ts = *ts_;
                 kind = StatementType::PublicKeySigned;
                 cfg = cfg_h.0;
             }
-            Self::Ballots(_, cfg_h, bch, _, _, _, _) => {
+            Self::Ballots(ts_, cfg_h, bch, _, _, _) => {
+                ts = *ts_;
                 kind = StatementType::Ballots;
                 cfg = cfg_h.0;
                 batch = bch.0;
                 artifact_type = Some(ArtifactType::Ballots);
             }
-            Self::Mix(_, cfg_h, bch, _, _, _, _) => {
+            Self::Mix(ts_, cfg_h, bch, _, _, _, _) => {
+                ts = *ts_;
                 kind = StatementType::Mix;
                 cfg = cfg_h.0;
                 batch = bch.0;
                 artifact_type = Some(ArtifactType::Mix);
             }
-            Self::MixSigned(_, cfg_h, bch, mix_sno, _, _) => {
+            Self::MixSigned(ts_, cfg_h, bch, mix_no, _, _) => {
+                ts = *ts_;
                 kind = StatementType::MixSigned;
                 cfg = cfg_h.0;
                 batch = bch.0;
-                mix_signature_number = mix_sno.0;
+                mix_number = *mix_no;
             }
-            Self::DecryptionFactors(_, cfg_h, bch, _, _, _) => {
+            Self::DecryptionFactors(ts_, cfg_h, bch, _, _, _) => {
+                ts = *ts_;
                 kind = StatementType::DecryptionFactors;
                 cfg = cfg_h.0;
                 batch = bch.0;
                 artifact_type = Some(ArtifactType::DecryptionFactors);
             }
-            Self::Plaintexts(_, cfg_h, bch, _, _) => {
+            Self::Plaintexts(ts_, cfg_h, bch, _, _, _) => {
+                ts = *ts_;
                 kind = StatementType::Plaintexts;
                 cfg = cfg_h.0;
                 batch = bch.0;
                 artifact_type = Some(ArtifactType::Plaintexts);
             }
-            Self::PlaintextsSigned(_, cfg_h, bch, _, _) => {
+            Self::PlaintextsSigned(ts_, cfg_h, bch, _, _, _) => {
+                ts = *ts_;
                 kind = StatementType::PlaintextsSigned;
                 cfg = cfg_h.0;
                 batch = bch.0;
             }
         }
 
-        (kind, cfg, batch, mix_signature_number, artifact_type)
+        (kind, cfg, batch, mix_number, artifact_type, ts)
     }
 }
 
@@ -366,8 +395,6 @@ pub struct PlaintextsH(pub Hash);
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct Batch(pub usize);
-#[derive(BorshSerialize, BorshDeserialize, Clone)]
-pub struct MixSignatureNumber(pub usize);
 
 ///////////////////////////////////////////////////////////////////////////
 // Enums necessary to store statements and artifacts in LocalBoard
