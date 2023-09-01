@@ -31,7 +31,7 @@ services:
       start_period: 5s
 
   graphql-engine:
-    image: hasura/graphql-engine:v2.31.0.cli-migrations-v3
+    image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
     ports:
       - "8080:8080"
     restart: always
@@ -152,7 +152,7 @@ services:
       - graphql-engine
 
   immudb:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     image: codenotary/immudb:1.5
     restart: always
     ports:
@@ -166,7 +166,7 @@ services:
       - graphql-engine
   
   templates:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     stdin_open: true
     build:
       context: ../backend/
@@ -177,7 +177,7 @@ services:
       - graphql-engine
   
   trustee1:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     stdin_open: true
     build:
       context: ../backend/
@@ -191,7 +191,7 @@ services:
       - immudb
   
   trustee2:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     stdin_open: true
     build:
       context: ../backend/
@@ -205,7 +205,7 @@ services:
       - immudb
 
   minio:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     image: minio/minio
     ports:
       - "9000:9000"

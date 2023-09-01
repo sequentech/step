@@ -1085,7 +1085,6 @@ export type Mutation_RootUpdate_Sequent_Backend_Scheduled_EventArgs = {
   _delete_at_path?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_At_Path_Input>;
   _delete_elem?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_Elem_Input>;
   _delete_key?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_Key_Input>;
-  _inc?: InputMaybe<Sequent_Backend_Scheduled_Event_Inc_Input>;
   _prepend?: InputMaybe<Sequent_Backend_Scheduled_Event_Prepend_Input>;
   _set?: InputMaybe<Sequent_Backend_Scheduled_Event_Set_Input>;
   where: Sequent_Backend_Scheduled_Event_Bool_Exp;
@@ -1098,7 +1097,6 @@ export type Mutation_RootUpdate_Sequent_Backend_Scheduled_Event_By_PkArgs = {
   _delete_at_path?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_At_Path_Input>;
   _delete_elem?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_Elem_Input>;
   _delete_key?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_Key_Input>;
-  _inc?: InputMaybe<Sequent_Backend_Scheduled_Event_Inc_Input>;
   _prepend?: InputMaybe<Sequent_Backend_Scheduled_Event_Prepend_Input>;
   _set?: InputMaybe<Sequent_Backend_Scheduled_Event_Set_Input>;
   pk_columns: Sequent_Backend_Scheduled_Event_Pk_Columns_Input;
@@ -5404,7 +5402,6 @@ export type Sequent_Backend_Event_Execution_Updates = {
 export type Sequent_Backend_Scheduled_Event = {
   __typename?: 'sequent_backend_scheduled_event';
   annotations?: Maybe<Scalars['jsonb']['output']>;
-  board_id?: Maybe<Scalars['Int']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   created_by?: Maybe<Scalars['String']['output']>;
   cron_config?: Maybe<Scalars['String']['output']>;
@@ -5445,17 +5442,9 @@ export type Sequent_Backend_Scheduled_Event_Aggregate = {
 /** aggregate fields of "sequent_backend.scheduled_event" */
 export type Sequent_Backend_Scheduled_Event_Aggregate_Fields = {
   __typename?: 'sequent_backend_scheduled_event_aggregate_fields';
-  avg?: Maybe<Sequent_Backend_Scheduled_Event_Avg_Fields>;
   count: Scalars['Int']['output'];
   max?: Maybe<Sequent_Backend_Scheduled_Event_Max_Fields>;
   min?: Maybe<Sequent_Backend_Scheduled_Event_Min_Fields>;
-  stddev?: Maybe<Sequent_Backend_Scheduled_Event_Stddev_Fields>;
-  stddev_pop?: Maybe<Sequent_Backend_Scheduled_Event_Stddev_Pop_Fields>;
-  stddev_samp?: Maybe<Sequent_Backend_Scheduled_Event_Stddev_Samp_Fields>;
-  sum?: Maybe<Sequent_Backend_Scheduled_Event_Sum_Fields>;
-  var_pop?: Maybe<Sequent_Backend_Scheduled_Event_Var_Pop_Fields>;
-  var_samp?: Maybe<Sequent_Backend_Scheduled_Event_Var_Samp_Fields>;
-  variance?: Maybe<Sequent_Backend_Scheduled_Event_Variance_Fields>;
 };
 
 
@@ -5472,19 +5461,12 @@ export type Sequent_Backend_Scheduled_Event_Append_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
-/** aggregate avg on columns */
-export type Sequent_Backend_Scheduled_Event_Avg_Fields = {
-  __typename?: 'sequent_backend_scheduled_event_avg_fields';
-  board_id?: Maybe<Scalars['Float']['output']>;
-};
-
 /** Boolean expression to filter rows from the table "sequent_backend.scheduled_event". All fields are combined with a logical 'AND'. */
 export type Sequent_Backend_Scheduled_Event_Bool_Exp = {
   _and?: InputMaybe<Array<Sequent_Backend_Scheduled_Event_Bool_Exp>>;
   _not?: InputMaybe<Sequent_Backend_Scheduled_Event_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Scheduled_Event_Bool_Exp>>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
-  board_id?: InputMaybe<Int_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   created_by?: InputMaybe<String_Comparison_Exp>;
   cron_config?: InputMaybe<String_Comparison_Exp>;
@@ -5524,15 +5506,9 @@ export type Sequent_Backend_Scheduled_Event_Delete_Key_Input = {
   labels?: InputMaybe<Scalars['String']['input']>;
 };
 
-/** input type for incrementing numeric columns in table "sequent_backend.scheduled_event" */
-export type Sequent_Backend_Scheduled_Event_Inc_Input = {
-  board_id?: InputMaybe<Scalars['Int']['input']>;
-};
-
 /** input type for inserting data into table "sequent_backend.scheduled_event" */
 export type Sequent_Backend_Scheduled_Event_Insert_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
-  board_id?: InputMaybe<Scalars['Int']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   created_by?: InputMaybe<Scalars['String']['input']>;
   cron_config?: InputMaybe<Scalars['String']['input']>;
@@ -5548,7 +5524,6 @@ export type Sequent_Backend_Scheduled_Event_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Scheduled_Event_Max_Fields = {
   __typename?: 'sequent_backend_scheduled_event_max_fields';
-  board_id?: Maybe<Scalars['Int']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   created_by?: Maybe<Scalars['String']['output']>;
   cron_config?: Maybe<Scalars['String']['output']>;
@@ -5562,7 +5537,6 @@ export type Sequent_Backend_Scheduled_Event_Max_Fields = {
 /** aggregate min on columns */
 export type Sequent_Backend_Scheduled_Event_Min_Fields = {
   __typename?: 'sequent_backend_scheduled_event_min_fields';
-  board_id?: Maybe<Scalars['Int']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   created_by?: Maybe<Scalars['String']['output']>;
   cron_config?: Maybe<Scalars['String']['output']>;
@@ -5592,7 +5566,6 @@ export type Sequent_Backend_Scheduled_Event_On_Conflict = {
 /** Ordering options when selecting data from "sequent_backend.scheduled_event". */
 export type Sequent_Backend_Scheduled_Event_Order_By = {
   annotations?: InputMaybe<Order_By>;
-  board_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   created_by?: InputMaybe<Order_By>;
   cron_config?: InputMaybe<Order_By>;
@@ -5622,8 +5595,6 @@ export enum Sequent_Backend_Scheduled_Event_Select_Column {
   /** column name */
   Annotations = 'annotations',
   /** column name */
-  BoardId = 'board_id',
-  /** column name */
   CreatedAt = 'created_at',
   /** column name */
   CreatedBy = 'created_by',
@@ -5648,7 +5619,6 @@ export enum Sequent_Backend_Scheduled_Event_Select_Column {
 /** input type for updating data in table "sequent_backend.scheduled_event" */
 export type Sequent_Backend_Scheduled_Event_Set_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
-  board_id?: InputMaybe<Scalars['Int']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   created_by?: InputMaybe<Scalars['String']['input']>;
   cron_config?: InputMaybe<Scalars['String']['input']>;
@@ -5659,24 +5629,6 @@ export type Sequent_Backend_Scheduled_Event_Set_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   stopped_at?: InputMaybe<Scalars['timestamptz']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
-};
-
-/** aggregate stddev on columns */
-export type Sequent_Backend_Scheduled_Event_Stddev_Fields = {
-  __typename?: 'sequent_backend_scheduled_event_stddev_fields';
-  board_id?: Maybe<Scalars['Float']['output']>;
-};
-
-/** aggregate stddev_pop on columns */
-export type Sequent_Backend_Scheduled_Event_Stddev_Pop_Fields = {
-  __typename?: 'sequent_backend_scheduled_event_stddev_pop_fields';
-  board_id?: Maybe<Scalars['Float']['output']>;
-};
-
-/** aggregate stddev_samp on columns */
-export type Sequent_Backend_Scheduled_Event_Stddev_Samp_Fields = {
-  __typename?: 'sequent_backend_scheduled_event_stddev_samp_fields';
-  board_id?: Maybe<Scalars['Float']['output']>;
 };
 
 /** Streaming cursor of the table "sequent_backend_scheduled_event" */
@@ -5690,7 +5642,6 @@ export type Sequent_Backend_Scheduled_Event_Stream_Cursor_Input = {
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Scheduled_Event_Stream_Cursor_Value_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
-  board_id?: InputMaybe<Scalars['Int']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   created_by?: InputMaybe<Scalars['String']['input']>;
   cron_config?: InputMaybe<Scalars['String']['input']>;
@@ -5703,18 +5654,10 @@ export type Sequent_Backend_Scheduled_Event_Stream_Cursor_Value_Input = {
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
-/** aggregate sum on columns */
-export type Sequent_Backend_Scheduled_Event_Sum_Fields = {
-  __typename?: 'sequent_backend_scheduled_event_sum_fields';
-  board_id?: Maybe<Scalars['Int']['output']>;
-};
-
 /** update columns of table "sequent_backend.scheduled_event" */
 export enum Sequent_Backend_Scheduled_Event_Update_Column {
   /** column name */
   Annotations = 'annotations',
-  /** column name */
-  BoardId = 'board_id',
   /** column name */
   CreatedAt = 'created_at',
   /** column name */
@@ -5746,32 +5689,12 @@ export type Sequent_Backend_Scheduled_Event_Updates = {
   _delete_elem?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_Elem_Input>;
   /** delete key/value pair or string element. key/value pairs are matched based on their key value */
   _delete_key?: InputMaybe<Sequent_Backend_Scheduled_Event_Delete_Key_Input>;
-  /** increments the numeric columns with given value of the filtered values */
-  _inc?: InputMaybe<Sequent_Backend_Scheduled_Event_Inc_Input>;
   /** prepend existing jsonb value of filtered columns with new jsonb value */
   _prepend?: InputMaybe<Sequent_Backend_Scheduled_Event_Prepend_Input>;
   /** sets the columns of the filtered rows to the given values */
   _set?: InputMaybe<Sequent_Backend_Scheduled_Event_Set_Input>;
   /** filter the rows which have to be updated */
   where: Sequent_Backend_Scheduled_Event_Bool_Exp;
-};
-
-/** aggregate var_pop on columns */
-export type Sequent_Backend_Scheduled_Event_Var_Pop_Fields = {
-  __typename?: 'sequent_backend_scheduled_event_var_pop_fields';
-  board_id?: Maybe<Scalars['Float']['output']>;
-};
-
-/** aggregate var_samp on columns */
-export type Sequent_Backend_Scheduled_Event_Var_Samp_Fields = {
-  __typename?: 'sequent_backend_scheduled_event_var_samp_fields';
-  board_id?: Maybe<Scalars['Float']['output']>;
-};
-
-/** aggregate variance on columns */
-export type Sequent_Backend_Scheduled_Event_Variance_Fields = {
-  __typename?: 'sequent_backend_scheduled_event_variance_fields';
-  board_id?: Maybe<Scalars['Float']['output']>;
 };
 
 /** columns and relationships of "sequent_backend.tenant" */
@@ -6020,10 +5943,12 @@ export type Sequent_Backend_Trustee = {
   annotations?: Maybe<Scalars['jsonb']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   id: Scalars['uuid']['output'];
+  is_protocol_manager?: Maybe<Scalars['Boolean']['output']>;
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
 
 
@@ -6074,10 +5999,12 @@ export type Sequent_Backend_Trustee_Bool_Exp = {
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
+  is_protocol_manager?: InputMaybe<Boolean_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
   public_key?: InputMaybe<String_Comparison_Exp>;
+  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
 };
 
 /** unique or primary key constraints on table "sequent_backend.trustee" */
@@ -6109,10 +6036,12 @@ export type Sequent_Backend_Trustee_Insert_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
+  is_protocol_manager?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
 /** aggregate max on columns */
@@ -6123,6 +6052,7 @@ export type Sequent_Backend_Trustee_Max_Fields = {
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
 
 /** aggregate min on columns */
@@ -6133,6 +6063,7 @@ export type Sequent_Backend_Trustee_Min_Fields = {
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
 
 /** response of any mutation on the table "sequent_backend.trustee" */
@@ -6156,10 +6087,12 @@ export type Sequent_Backend_Trustee_Order_By = {
   annotations?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
+  is_protocol_manager?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   public_key?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
 };
 
 /** primary key columns input for table: sequent_backend.trustee */
@@ -6182,13 +6115,17 @@ export enum Sequent_Backend_Trustee_Select_Column {
   /** column name */
   Id = 'id',
   /** column name */
+  IsProtocolManager = 'is_protocol_manager',
+  /** column name */
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
   /** column name */
   Name = 'name',
   /** column name */
-  PublicKey = 'public_key'
+  PublicKey = 'public_key',
+  /** column name */
+  TenantId = 'tenant_id'
 }
 
 /** input type for updating data in table "sequent_backend.trustee" */
@@ -6196,10 +6133,12 @@ export type Sequent_Backend_Trustee_Set_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
+  is_protocol_manager?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
 /** Streaming cursor of the table "sequent_backend_trustee" */
@@ -6215,10 +6154,12 @@ export type Sequent_Backend_Trustee_Stream_Cursor_Value_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
+  is_protocol_manager?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
 /** update columns of table "sequent_backend.trustee" */
@@ -6230,13 +6171,17 @@ export enum Sequent_Backend_Trustee_Update_Column {
   /** column name */
   Id = 'id',
   /** column name */
+  IsProtocolManager = 'is_protocol_manager',
+  /** column name */
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
   /** column name */
   Name = 'name',
   /** column name */
-  PublicKey = 'public_key'
+  PublicKey = 'public_key',
+  /** column name */
+  TenantId = 'tenant_id'
 }
 
 export type Sequent_Backend_Trustee_Updates = {

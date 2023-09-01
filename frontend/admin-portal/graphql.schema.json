@@ -7275,18 +7275,6 @@
                 "deprecationReason": null
               },
               {
-                "name": "_inc",
-                "description": "increments the numeric columns with given value of the filtered values",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_scheduled_event_inc_input",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
                 "name": "_prepend",
                 "description": "prepend existing jsonb value of filtered columns with new jsonb value",
                 "type": {
@@ -7381,18 +7369,6 @@
                 "type": {
                   "kind": "INPUT_OBJECT",
                   "name": "sequent_backend_scheduled_event_delete_key_input",
-                  "ofType": null
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
-                "name": "_inc",
-                "description": "increments the numeric columns with given value of the filtered values",
-                "type": {
-                  "kind": "INPUT_OBJECT",
-                  "name": "sequent_backend_scheduled_event_inc_input",
                   "ofType": null
                 },
                 "defaultValue": null,
@@ -37220,18 +37196,6 @@
             "deprecationReason": null
           },
           {
-            "name": "board_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "created_at",
             "description": null,
             "args": [],
@@ -37440,18 +37404,6 @@
         "description": "aggregate fields of \"sequent_backend.scheduled_event\"",
         "fields": [
           {
-            "name": "avg",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_scheduled_event_avg_fields",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "count",
             "description": null,
             "args": [
@@ -37523,90 +37475,6 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "stddev",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_scheduled_event_stddev_fields",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "stddev_pop",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_scheduled_event_stddev_pop_fields",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "stddev_samp",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_scheduled_event_stddev_samp_fields",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "sum",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_scheduled_event_sum_fields",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "var_pop",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_scheduled_event_var_pop_fields",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "var_samp",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_scheduled_event_var_samp_fields",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "variance",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "OBJECT",
-              "name": "sequent_backend_scheduled_event_variance_fields",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
           }
         ],
         "inputFields": null,
@@ -37658,29 +37526,6 @@
           }
         ],
         "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "sequent_backend_scheduled_event_avg_fields",
-        "description": "aggregate avg on columns",
-        "fields": [
-          {
-            "name": "board_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Float",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -37748,18 +37593,6 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "jsonb_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "board_id",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "Int_comparison_exp",
               "ofType": null
             },
             "defaultValue": null,
@@ -38075,29 +37908,6 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "sequent_backend_scheduled_event_inc_input",
-        "description": "input type for incrementing numeric columns in table \"sequent_backend.scheduled_event\"",
-        "fields": null,
-        "inputFields": [
-          {
-            "name": "board_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "INPUT_OBJECT",
         "name": "sequent_backend_scheduled_event_insert_input",
         "description": "input type for inserting data into table \"sequent_backend.scheduled_event\"",
         "fields": null,
@@ -38108,18 +37918,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "board_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
               "ofType": null
             },
             "defaultValue": null,
@@ -38257,18 +38055,6 @@
         "description": "aggregate max on columns",
         "fields": [
           {
-            "name": "board_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "created_at",
             "description": null,
             "args": [],
@@ -38375,18 +38161,6 @@
         "name": "sequent_backend_scheduled_event_min_fields",
         "description": "aggregate min on columns",
         "fields": [
-          {
-            "name": "board_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
           {
             "name": "created_at",
             "description": null,
@@ -38622,18 +38396,6 @@
             "deprecationReason": null
           },
           {
-            "name": "board_id",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "created_at",
             "description": null,
             "type": {
@@ -38847,12 +38609,6 @@
             "deprecationReason": null
           },
           {
-            "name": "board_id",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "created_at",
             "description": "column name",
             "isDeprecated": false,
@@ -38934,18 +38690,6 @@
             "deprecationReason": null
           },
           {
-            "name": "board_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "created_at",
             "description": null,
             "type": {
@@ -39067,75 +38811,6 @@
           }
         ],
         "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "sequent_backend_scheduled_event_stddev_fields",
-        "description": "aggregate stddev on columns",
-        "fields": [
-          {
-            "name": "board_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Float",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "sequent_backend_scheduled_event_stddev_pop_fields",
-        "description": "aggregate stddev_pop on columns",
-        "fields": [
-          {
-            "name": "board_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Float",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "sequent_backend_scheduled_event_stddev_samp_fields",
-        "description": "aggregate stddev_samp on columns",
-        "fields": [
-          {
-            "name": "board_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Float",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -39197,18 +38872,6 @@
             "deprecationReason": null
           },
           {
-            "name": "board_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "created_at",
             "description": null,
             "type": {
@@ -39334,29 +38997,6 @@
         "possibleTypes": null
       },
       {
-        "kind": "OBJECT",
-        "name": "sequent_backend_scheduled_event_sum_fields",
-        "description": "aggregate sum on columns",
-        "fields": [
-          {
-            "name": "board_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
         "kind": "ENUM",
         "name": "sequent_backend_scheduled_event_update_column",
         "description": "update columns of table \"sequent_backend.scheduled_event\"",
@@ -39366,12 +39006,6 @@
         "enumValues": [
           {
             "name": "annotations",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "board_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -39494,18 +39128,6 @@
             "deprecationReason": null
           },
           {
-            "name": "_inc",
-            "description": "increments the numeric columns with given value of the filtered values",
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "sequent_backend_scheduled_event_inc_input",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "_prepend",
             "description": "prepend existing jsonb value of filtered columns with new jsonb value",
             "type": {
@@ -39547,75 +39169,6 @@
           }
         ],
         "interfaces": null,
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "sequent_backend_scheduled_event_var_pop_fields",
-        "description": "aggregate var_pop on columns",
-        "fields": [
-          {
-            "name": "board_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Float",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "sequent_backend_scheduled_event_var_samp_fields",
-        "description": "aggregate var_samp on columns",
-        "fields": [
-          {
-            "name": "board_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Float",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
-        "enumValues": null,
-        "possibleTypes": null
-      },
-      {
-        "kind": "OBJECT",
-        "name": "sequent_backend_scheduled_event_variance_fields",
-        "description": "aggregate variance on columns",
-        "fields": [
-          {
-            "name": "board_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Float",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          }
-        ],
-        "inputFields": null,
-        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -41188,6 +40741,18 @@
             "deprecationReason": null
           },
           {
+            "name": "is_protocol_manager",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "labels",
             "description": null,
             "args": [
@@ -41243,6 +40808,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
               "ofType": null
             },
             "isDeprecated": false,
@@ -41515,6 +41092,18 @@
             "deprecationReason": null
           },
           {
+            "name": "is_protocol_manager",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "Boolean_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "labels",
             "description": null,
             "type": {
@@ -41556,6 +41145,18 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "uuid_comparison_exp",
               "ofType": null
             },
             "defaultValue": null,
@@ -41748,6 +41349,18 @@
             "deprecationReason": null
           },
           {
+            "name": "is_protocol_manager",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "labels",
             "description": null,
             "type": {
@@ -41789,6 +41402,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null,
@@ -41864,6 +41489,18 @@
             },
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "inputFields": null,
@@ -41931,6 +41568,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
               "ofType": null
             },
             "isDeprecated": false,
@@ -42099,6 +41748,18 @@
             "deprecationReason": null
           },
           {
+            "name": "is_protocol_manager",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "labels",
             "description": null,
             "type": {
@@ -42136,6 +41797,18 @@
           },
           {
             "name": "public_key",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -42240,6 +41913,12 @@
             "deprecationReason": null
           },
           {
+            "name": "is_protocol_manager",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "labels",
             "description": "column name",
             "isDeprecated": false,
@@ -42259,6 +41938,12 @@
           },
           {
             "name": "public_key",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -42309,6 +41994,18 @@
             "deprecationReason": null
           },
           {
+            "name": "is_protocol_manager",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "labels",
             "description": null,
             "type": {
@@ -42350,6 +42047,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null,
@@ -42443,6 +42152,18 @@
             "deprecationReason": null
           },
           {
+            "name": "is_protocol_manager",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "labels",
             "description": null,
             "type": {
@@ -42489,6 +42210,18 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
           }
         ],
         "interfaces": null,
@@ -42522,6 +42255,12 @@
             "deprecationReason": null
           },
           {
+            "name": "is_protocol_manager",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "labels",
             "description": "column name",
             "isDeprecated": false,
@@ -42541,6 +42280,12 @@
           },
           {
             "name": "public_key",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "tenant_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
