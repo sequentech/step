@@ -130,6 +130,7 @@ services:
         condition: service_healthy
 
   frontend:
+    profiles: ["dev"]
     build:
       context: ../frontend/
       dockerfile: Dockerfile
@@ -141,6 +142,7 @@ services:
        - ../frontend:/usr/src/app
 
   immudb:
+    profiles: ["dev"]
     image: codenotary/immudb:1.5
     restart: always
     ports:
@@ -152,6 +154,7 @@ services:
       - immudb_logs:/var/log/immudb
   
   templates:
+    profiles: ["dev"]
     stdin_open: true
     build:
       context: ../backend/
@@ -160,6 +163,7 @@ services:
       - 8400:8400 # templates service
 
   minio:
+    profiles: ["dev"]
     image: minio/minio
     ports:
       - "9000:9000"
