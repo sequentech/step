@@ -61,11 +61,13 @@ services:
       HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url": "http://keycloak:8090/realms/electoral-process/protocol/openid-connect/certs"}'
       HASURA_GRAPHQL_ADMIN_SECRET: 'admin'
       ACTIONS_ADMIN_SECRET: 'admin'
-    #depends_on:
-    #  data-connector-agent:
-    #    condition: service_healthy
-    #  postgres:
-    #    condition: service_healthy
+    depends_on:
+      data-connector-agent:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      postgres_keycloak:
+        condition: service_healthy
 
   data-connector-agent:
     image: hasura/graphql-data-connector:v2.31.0
@@ -81,7 +83,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8081/api/v1/athena/health"]
       interval: 5s
       timeout: 10s
-      retries: 5
+      retries: 25
       start_period: 5s
 
   postgres_keycloak:
@@ -128,9 +130,15 @@ services:
     depends_on:
       postgres_keycloak:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/realms/electoral-process/protocol/openid-connect/certs"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 5s
 
   frontend:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     build:
       context: ../frontend/
       dockerfile: Dockerfile
@@ -140,9 +148,11 @@ services:
     stdin_open: true
     volumes:
        - ../frontend:/usr/src/app
+    depends_on:
+      - graphql-engine
 
   immudb:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     image: codenotary/immudb:1.5
     restart: always
     ports:
@@ -152,18 +162,22 @@ services:
     volumes:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
+    depends_on:
+      - graphql-engine
   
   templates:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     build:
       context: ../backend/
       dockerfile: ./templates/Dockerfile
     ports:
       - 8400:8400 # templates service
+    depends_on:
+      - graphql-engine
 
   minio:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     image: minio/minio
     ports:
       - "9000:9000"
@@ -181,6 +195,8 @@ services:
     #entrypoint: /bin/bash
     #command: -c 'echo FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF && minio server --console-address ":9001" /data'
     #restart: always
+    depends_on:
+      - graphql-engine
 
 volumes:
   db_data:
