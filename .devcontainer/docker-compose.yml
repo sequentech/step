@@ -138,7 +138,7 @@ services:
       start_period: 5s
 
   frontend:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     build:
       context: ../frontend/
       dockerfile: Dockerfile
@@ -166,7 +166,7 @@ services:
       - graphql-engine
   
   templates:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     stdin_open: true
     build:
       context: ../backend/
@@ -177,7 +177,7 @@ services:
       - graphql-engine
   
   trustee1:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     stdin_open: true
     build:
       context: ../backend/
@@ -191,7 +191,7 @@ services:
       - immudb
   
   trustee2:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     stdin_open: true
     build:
       context: ../backend/
@@ -200,7 +200,7 @@ services:
       - immudb
 
   minio:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     image: minio/minio
     ports:
       - "9000:9000"
