@@ -11,8 +11,8 @@ use generic_array::GenericArray;
 use std::fs;
 use std::path::PathBuf;
 use tokio::time::{sleep, Duration};
-use tracing::info;
 use tracing::instrument;
+use tracing::{error, info};
 
 use braid::protocol2::board::immudb::{ImmudbBoard, ImmudbBoardIndex};
 use braid::protocol2::session::Session;
@@ -60,27 +60,56 @@ async fn main() -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     loop {
         info!(">");
-        let boards: Vec<String> = board_index.get_board_names().await?;
+        let boards_result = board_index.get_board_names().await;
+        let boards: Vec<String> = match boards_result {
+            Ok(boards) => boards,
+            Err(error) => {
+                error!("Error listing board names: '{}'", error);
+                sleep(Duration::from_millis(1000)).await;
+                continue;
+            }
+        };
 
         for board_name in boards {
             info!("Connecting to board '{}'..", board_name.clone());
             let trustee: Trustee<RistrettoCtx> = Trustee::new(sk.clone(), ek.clone());
-            let board = ImmudbBoard::new(
+            let board_result = ImmudbBoard::new(
                 &args.server_url,
                 IMMUDB_USER,
                 IMMUDB_PW,
                 board_name.clone(),
                 store_root.clone(),
             )
-            .await?;
+            .await;
+            let board = match board_result {
+                Ok(board) => board,
+                Err(error) => {
+                    error!(
+                        "Error connecting to board '{}': '{}'",
+                        board_name.clone(),
+                        error
+                    );
+                    continue;
+                }
+            };
 
             // FIXME error should be handled to prevent loop termination
             let mut session = Session::new(trustee, board);
             info!("Running trustee for board '{}'..", board_name);
-            session.step().await?;
+            let session_result = session.step().await;
+            match session_result {
+                Ok(value) => value,
+                Err(error) => {
+                    error!(
+                        "Error executing step for board '{}': '{}'",
+                        board_name.clone(),
+                        error
+                    );
+                    continue;
+                }
+            };
         }
         sleep(Duration::from_millis(1000)).await;
-        break;
     }
 
     Ok(())
