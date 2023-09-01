@@ -230,6 +230,29 @@ to the wrong instance of Hasura. Possibly, you're running VS Code with Codespace
 and a local Hasura client as well, so the container port is being forwarded to
 a different port than 8080.
 
+## Tamper-evident logging
+
+Here are some helpful random commands for development of the tamper-evident 
+logging implemented using immudb:
+
+```bash
+cd /workspace/.devcontainer && docker compose build immudb-log-audit immudb-log-audit-init && docker compose up -d immudb-log-audit immudb-log-audit-init && docker compose logs -f immudb-log-audit
+cd /workspace/.devcontainer && docker compose build postgres && docker compose up -d postgres && docker compose logs -f postgres
+
+docker compose exec postgres bash
+docker compose run  --entrypoint /bin/sh immudb-log-audit
+
+docker compose exec \
+  -e PGPASSWORD=postgrespassword \
+  postgres \
+  psql \
+  -h postgres \
+  -U postgres
+
+CREATE TABLE table1_with_pk (a SERIAL, b VARCHAR(30), c TIMESTAMP NOT NULL, PRIMARY KEY(a, c));
+INSERT INTO table1_with_pk (b, c) VALUES('Backup and Restore', now());
+```
+
 ### The disk/codespace runs out of space
 
 Clean the disk with:
