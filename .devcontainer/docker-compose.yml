@@ -155,10 +155,11 @@ services:
     stdin_open: true
     volumes:
        - ../frontend:/usr/src/app
-
   immudb:
     image: codenotary/immudb:1.5
     restart: always
+    environment:
+      - IMMUDB_PGSQL_SERVER=true
     ports:
       - 3322:3322 # immudb service
       - 3324:9497 # prometheus
