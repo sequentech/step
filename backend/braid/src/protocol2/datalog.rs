@@ -1,6 +1,5 @@
 pub use log::{debug, error, info, trace};
 pub use std::collections::HashSet;
-use tracing_attributes::instrument;
 
 use crate::protocol2::action::Action;
 use crate::protocol2::statement::THashes;
@@ -76,7 +75,6 @@ pub(crate) fn get_phases() -> Vec<Phase> {
     ]
 }
 
-#[instrument(skip_all)]
 pub(crate) fn run(predicates: &Vec<Predicate>) -> (HashSet<Action>, Vec<Predicate>) {
     let phases = get_phases();
     let mut all_predicates = vec![];

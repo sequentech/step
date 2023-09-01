@@ -80,8 +80,5 @@ async fn main() -> Result<()> {
             session.step().await?;
         }
         sleep(Duration::from_millis(1000)).await;
-        break;
     }
-
-    Ok(())
 }

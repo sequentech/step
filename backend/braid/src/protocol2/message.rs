@@ -4,7 +4,7 @@ use strand::context::Ctx;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignature, StrandSignaturePk};
 
-use crate::protocol2::artifact::*;
+use crate::protocol2::{artifact::*, PROTOCOL_MANAGER_INDEX};
 use crate::protocol2::statement::ArtifactType;
 use crate::protocol2::statement::Statement;
 use crate::protocol2::statement::StatementType;
@@ -195,7 +195,6 @@ impl Message {
             CiphertextsH(mix_h),
             Batch(batch),
             mix.mix_number,
-            mix.target_trustee,
         );
         trustee.sign(statement, Some(mix_bytes))
     }
@@ -253,6 +252,7 @@ impl Message {
         plaintexts: Plaintexts<C>,
         dfactors_hs: DecryptionFactorsHashes,
         cipher_h: CiphertextsHash,
+        pk_h: PublicKeyHash,
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
@@ -267,6 +267,7 @@ impl Message {
             PlaintextsH(plaintexts_h),
             DecryptionFactorsHs(dfactors_hs.0),
             CiphertextsH(cipher_h.0),
+            PublicKeyH(pk_h.0)
         );
 
         trustee.sign(statement, Some(plaintexts_bytes))
@@ -278,6 +279,7 @@ impl Message {
         plaintexts_h: PlaintextsHash,
         dfactors_hs: DecryptionFactorsHashes,
         cipher_h: CiphertextsHash,
+        pk_h: PublicKeyHash,
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
@@ -289,6 +291,7 @@ impl Message {
             PlaintextsH(plaintexts_h.0),
             DecryptionFactorsHs(dfactors_hs.0),
             CiphertextsH(cipher_h.0),
+            PublicKeyH(pk_h.0)
         );
 
         trustee.sign(statement, None)
@@ -359,6 +362,12 @@ impl Message {
         // In the case of a Configuration statement, the cfg_h field should match the artifact
         if st_cfg_h == artifact_hash {
             assert!(kind == StatementType::Configuration);
+            if trustee != PROTOCOL_MANAGER_INDEX {
+                return Err(anyhow!(
+                    "Configuration must be signed by protocol manager"
+                ));
+            }
+
             let artifact_field = Some((ArtifactType::Configuration, artifact));
             Ok(VerifiedMessage::new(
                 trustee,
@@ -368,6 +377,14 @@ impl Message {
         } else {
             // If the statement type were configuration, cfg_hash should have matched the artifact
             assert!(kind != StatementType::Configuration);
+
+            if kind == StatementType::Ballots {
+                if trustee != PROTOCOL_MANAGER_INDEX {
+                    return Err(anyhow!(
+                        "Ballots must be signed by protocol manager"
+                    ));
+                }
+            }
 
             // Set the type of the artifact field
             if let Some(artifact_type) = artifact_type {
@@ -379,7 +396,7 @@ impl Message {
                     artifact_field,
                 ))
             } else {
-                return Err(anyhow!("Could not find parameter pointing to artifact"));
+                return Err(anyhow!("Could not set artifact type"));
             }
         }
     }

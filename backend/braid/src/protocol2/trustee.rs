@@ -84,9 +84,9 @@ impl<C: Ctx> Trustee<C> {
     ) -> Result<(Vec<Message>, HashSet<Action>)> {
         let added_messages = self.update_local_board(messages)?;
 
-        debug!("Update added {} messages", added_messages);
+        info!("Update added {} messages", added_messages);
         let predicates = self.derive_predicates(false)?;
-        debug!("Derived {} predicates {:?}", predicates.len(), predicates);
+        info!("Derived {} predicates {:?}", predicates.len(), predicates);
         let (messages, actions, _) = self.infer_and_run_actions(&predicates, false)?;
 
         debug!(
@@ -113,7 +113,7 @@ impl<C: Ctx> Trustee<C> {
     // Update
     ///////////////////////////////////////////////////////////////////////////
 
-    #[instrument(name = "Trustee::update", skip_all)]
+    #[instrument(name = "Trustee::update_local_board", skip_all)]
     fn update_local_board(&mut self, messages: Vec<Message>) -> Result<i32> {
         info!("Updating with {} messages", messages.len());
 
@@ -215,8 +215,7 @@ impl<C: Ctx> Trustee<C> {
     ///////////////////////////////////////////////////////////////////////////
     // derive
     ///////////////////////////////////////////////////////////////////////////
-
-    #[instrument(name = "Trustee::derive_predicates", skip_all)]
+    #[instrument(name = "Trustee::derive_predicates", skip(self))]
     fn derive_predicates(&self, verifying_mode: bool) -> Result<Vec<Predicate>> {
         let mut predicates = vec![];
 
@@ -262,7 +261,6 @@ impl<C: Ctx> Trustee<C> {
     // infer&run
     ///////////////////////////////////////////////////////////////////////////
 
-    #[instrument(name = "Trustee::infer_and_run_actions", skip_all)]
     fn infer_and_run_actions(
         &self,
         predicates: &Vec<Predicate>,
@@ -274,7 +272,7 @@ impl<C: Ctx> Trustee<C> {
             .ok_or(anyhow!("Cannot run actions without a configuration"))?;
 
         let (actions, predicates) = crate::protocol2::datalog::run(predicates);
-        debug!("Datalog returns {} actions, {:?}", actions.len(), actions);
+        info!("Datalog returns {} actions, {:?}", actions.len(), actions);
 
         let ret_actions = actions.clone();
 
@@ -299,7 +297,6 @@ impl<C: Ctx> Trustee<C> {
 
         // flatten all messages
         let result = results?.into_iter().flatten().collect();
-        info!("{} actions executed", ret_actions.len());
 
         Ok((result, ret_actions, predicates))
     }
@@ -308,7 +305,6 @@ impl<C: Ctx> Trustee<C> {
     // Trustee verifying mode
     ///////////////////////////////////////////////////////////////////////////
 
-    #[instrument(name = "Trustee::verify", skip(messages))]
     pub(crate) fn verify(
         &mut self,
         messages: Vec<Message>,

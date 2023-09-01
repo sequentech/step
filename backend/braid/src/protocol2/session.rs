@@ -1,15 +1,7 @@
-use crate::protocol2::action::Message;
-use crate::protocol2::artifact::Configuration;
 use crate::protocol2::board::immudb::ImmudbBoard;
-use crate::protocol2::datalog::{
-    BatchNumber, ConfigurationHash, MixingHashes, PlaintextsHash, Predicate,
-};
-use crate::protocol2::predicate::CiphertextsHash;
-use crate::protocol2::statement::{Batch, CiphertextsH, PlaintextsH, Statement, StatementType};
 use crate::protocol2::trustee::Trustee;
 use anyhow::{anyhow, Result};
 use strand::context::Ctx;
-use strand::serialization::StrandDeserialize;
 use tracing::{error, info};
 
 pub struct Session<C: Ctx> {

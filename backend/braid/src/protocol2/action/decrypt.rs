@@ -114,6 +114,7 @@ pub(super) fn compute_plaintexts<C: Ctx>(
         plaintexts,
         *dfactors_hs,
         *ciphertexts_h,
+        *pk_h,
         trustee,
     )?;
 
@@ -156,6 +157,7 @@ pub(super) fn sign_plaintexts<C: Ctx>(
             *plaintexts_h,
             *dfactors_hs,
             *ciphertexts_h,
+            *pk_h,
             trustee,
         )?;
         Ok(vec![m])
