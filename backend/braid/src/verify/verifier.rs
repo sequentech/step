@@ -34,7 +34,7 @@ impl<C: Ctx> Verifier<C> {
         vr.add_target("Configuration valid");
         vr.add_target("Message signatures verified");
 
-        info!("*** Verifying board {} ***", self.board.board_dbname);
+        info!("*** Verifying board '{}' ***", self.board.board_dbname);
 
         let messages = self.board.get_messages(-1).await?;
 

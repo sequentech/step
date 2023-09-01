@@ -146,10 +146,8 @@ impl<C: Ctx> Trustee<C> {
                 panic!();
             }
 
-            let added_ = self.local_board.add(verified);
-            if added_.is_ok() {
-                added += 1;
-            }
+            let _ = self.local_board.add(verified)?;
+            added += 1;
         }
 
         Ok(added)
