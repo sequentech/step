@@ -30,7 +30,7 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
 
     let ciphertexts = trustee
         .get_mix(ciphertexts_h, *batch, *mix_signer)
-        .ok_or(anyhow!("Could not retrieve mix"))?;
+        .ok_or(anyhow!("Could not retrieve mix ciphertexts for decryption"))?;
 
     let commitments = trustee
         .get_commitments(&CommitmentsHash(commitments_hs.0[*self_p]), *self_p)
@@ -199,7 +199,9 @@ fn compute_plaintexts_<C: Ctx>(
 
     let mix = trustee
         .get_mix(ciphertexts_h, *batch, *mix_signer)
-        .ok_or(anyhow!("Could not retrieve mix".to_string()))?;
+        .ok_or(anyhow!(
+            "Could not retrieve mix ciphertexts for decryption".to_string()
+        ))?;
     let num_ciphertexts = mix.ciphertexts.0.len();
     let mut divider = vec![C::E::mul_identity(); num_ciphertexts];
 

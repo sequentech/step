@@ -276,6 +276,10 @@ impl<C: Ctx> Trustee<C> {
 
         let ret_actions = actions.clone();
 
+        if actions.len() == 0 {
+            info!("-- Idle --");
+        }
+
         // Cross-Action parallelism (which in effect is cross-batch parallelism)
         let results: Result<Vec<Vec<Message>>> = actions
             .into_par_iter()
