@@ -34,16 +34,15 @@ use crate::protocol2::{action::Action, artifact::EncryptedCoefficients};
 // Represents the instantiation of a trustee within a specific protocol
 // session. Runs the main loop for the trustee's participation in the session.
 //
-// 1) Retrieve messages from RemoteBoard
+// 1) Receive messages from RemoteBoard
 // 2) Update LocalBoard with Statements and Artifacts
 // 3) Derive Predicates from Statements on LocalBoard
 // 4) Invoke Datalog with input predicates
-//      4.1) Pass output predicates from 4) to subsequent MachinePhases
+//      4.1) Pass output predicates from 4) to subsequent datalog Phases
 // 5) Run Actions resulting from 4)
 // 6) Return resulting Messages for subsequent posting on RemoteBoard
 //
-// Does not post the messages itself, to abstract from protocol level
-// parallelization concerns handled elsewhere.
+// Does not post the messages itself.
 ///////////////////////////////////////////////////////////////////////////
 
 pub struct Trustee<C: Ctx> {

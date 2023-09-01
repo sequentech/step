@@ -1,3 +1,7 @@
+use anyhow::Result;
+use serde::Serialize;
+use tracing::info;
+
 use crate::protocol2::action::Message;
 use crate::protocol2::artifact::Configuration;
 use crate::protocol2::board::immudb::ImmudbBoard;
@@ -5,11 +9,14 @@ use crate::protocol2::message::VerifiedMessage;
 use crate::protocol2::predicate::Predicate;
 use crate::protocol2::statement::StatementType;
 use crate::protocol2::trustee::Trustee;
-use anyhow::Result;
-use serde::Serialize;
+
+use crate::util::dbg_hash;
+use crate::util::dbg_hashes;
+use crate::verify::datalog::Target;
+use crate::verify::datalog::Verified;
+
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
-use tracing::info;
 
 pub struct Verifier<C: Ctx> {
     trustee: Trustee<C>,
@@ -74,7 +81,7 @@ impl<C: Ctx> Verifier<C> {
         predicates.push(Predicate::get_verifier_bootstrap_predicate(&cfg).unwrap());
 
         info!("Deriving verification targets..");
-        let (targets, _) = crate::verify::v::S.run(&predicates);
+        let (targets, _) = crate::verify::datalog::S.run(&predicates);
         for t in &targets {
             let mut tvr = t.get_verification_target();
             tvr.add_result("Configuration matches parent", || {
@@ -100,7 +107,7 @@ impl<C: Ctx> Verifier<C> {
         // Collect verification results
 
         info!("Collecting verification results");
-        let (_targets, verified) = crate::verify::v::S.run(&predicates);
+        let (_targets, verified) = crate::verify::datalog::S.run(&predicates);
         for v in verified {
             v.add_results(&mut vr, targets.iter().find(|t| t.1 == v.1).unwrap(), &cfg);
         }
@@ -112,11 +119,6 @@ impl<C: Ctx> Verifier<C> {
         Ok(())
     }
 }
-
-use crate::util::dbg_hash;
-use crate::util::dbg_hashes;
-use crate::verify::v::Target;
-use crate::verify::v::Verified;
 
 impl std::fmt::Debug for Target {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

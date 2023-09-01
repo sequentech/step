@@ -1,2 +1,2 @@
-pub(crate) mod v;
+pub(crate) mod datalog;
 pub mod verifier;
