@@ -165,7 +165,7 @@ impl<C: Ctx> Trustee<C> {
     fn update_bootstrap(&mut self, mut messages: Vec<Message>) -> Result<i32> {
         let mut added = 0;
 
-        info!("Configuration not present in board, getting first remote message");
+        trace!("Configuration not present in board, getting first remote message");
         if messages.is_empty() {
             return Err(anyhow!(
                 "Zero messages received, cannot retrieve configuration"
@@ -184,7 +184,7 @@ impl<C: Ctx> Trustee<C> {
         let artifact = zero.artifact.as_ref().expect("impossible");
         let configuration = Configuration::strand_deserialize(artifact)?;
         // FIXME will crash on bad data
-        let configuration = configuration.validate();
+        assert!(configuration.is_valid());
 
         let verified = zero.verify(&configuration)?;
 

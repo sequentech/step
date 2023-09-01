@@ -203,7 +203,7 @@ fn compute_plaintexts_<C: Ctx>(
     let mut divider = vec![C::E::mul_identity(); num_ciphertexts];
 
     info!(
-        "ComputePlaintexts [{}] ({})",
+        "ComputePlaintexts [{}] ({})..",
         dbg_hash(&ciphertexts_h.0),
         num_ciphertexts,
     );

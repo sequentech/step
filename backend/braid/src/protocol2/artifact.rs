@@ -31,12 +31,6 @@ impl<C: Ctx> Configuration<C> {
         threshold: usize,
         _phantom: PhantomData<C>,
     ) -> Configuration<C> {
-        assert!(trustees.len() > 1 && trustees.len() <= crate::protocol2::MAX_TRUSTEES);
-        assert!(threshold > 1 && threshold <= trustees.len());
-
-        let unique: HashSet<StrandSignaturePk> = HashSet::from_iter(trustees.clone());
-        assert_eq!(unique.len(), trustees.len());
-
         let c = Configuration {
             id,
             protocol_manager,
@@ -44,14 +38,17 @@ impl<C: Ctx> Configuration<C> {
             threshold,
             phantom: PhantomData,
         };
-        c.validate()
+        assert!(c.is_valid());
+
+        c
     }
 
-    pub fn validate(self) -> Self {
-        assert!(self.trustees.len() > 1 && self.trustees.len() <= crate::protocol2::MAX_TRUSTEES);
-        assert!(self.threshold > 1 && self.threshold <= self.trustees.len());
+    pub fn is_valid(&self) -> bool {
+        let unique: HashSet<StrandSignaturePk> = HashSet::from_iter(self.trustees.clone());
 
-        self
+        (unique.len() == self.trustees.len())
+            && (self.trustees.len() > 1 && self.trustees.len() <= crate::protocol2::MAX_TRUSTEES)
+            && (self.threshold > 1 && self.threshold <= self.trustees.len())
     }
 
     pub fn get_trustee_position(&self, trustee_pk: &StrandSignaturePk) -> Option<usize> {

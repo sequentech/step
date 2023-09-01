@@ -12,7 +12,7 @@ use braid::protocol2::board::immudb::ImmudbBoard;
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
 use braid::util::init_log;
-use braid::verify::verifier::VerifyingSession;
+use braid::verify::verifier::Verifier;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
@@ -61,7 +61,7 @@ async fn main() -> Result<()> {
         store_root.clone(),
     )
     .await?;
-    let mut session = VerifyingSession::new(trustee, board);
+    let mut session = Verifier::new(trustee, board);
     session.run().await?;
 
     Ok(())
