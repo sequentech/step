@@ -2,7 +2,6 @@ use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::protocol2::trustee::Trustee;
 use anyhow::Result;
 use strand::context::Ctx;
-use tracing::info;
 
 pub struct Session<C: Ctx> {
     trustee: Trustee<C>,
@@ -30,8 +29,6 @@ impl<C: Ctx> Session<C> {
     }
 
     pub async fn step(&mut self) -> Result<()> {
-        info!("Trustee {:?} step..", self.trustee.get_pk());
-
         let messages = self.board.get_messages(self.last_message_id).await?;
         let (send_messages, _actions) = self.trustee.step(messages)?;
         if !self.dry_run {

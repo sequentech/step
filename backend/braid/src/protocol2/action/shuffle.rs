@@ -23,9 +23,11 @@ pub(crate) fn mix<C: Ctx>(
         let cs = trustee.get_ballots(source_h, *batch, PROTOCOL_MANAGER_INDEX);
         if let Some(ballots) = cs {
             info!(
-                "Mix source is ballots, size={}",
+                "Mix computing shuffle [{} (ballots)] ({})..",
+                dbg_hash(&source_h.0),
                 ballots.ciphertexts.0.len()
             );
+
             Some(ballots.ciphertexts)
         } else {
             error!("Could not retrieve ciphertexts for mixing");
@@ -42,9 +44,11 @@ pub(crate) fn mix<C: Ctx>(
         let mix = trustee.get_mix(source_h, *batch, signer_t);
         if let Some(cs) = mix {
             info!(
-                "Mix source is previous mix, size={}",
+                "Mix computing shuffle [{} (mix)] ({})..",
+                dbg_hash(&source_h.0),
                 cs.ciphertexts.0.len()
             );
+
             Some(cs.ciphertexts)
         } else {
             error!("Could not retrieve ciphertexts for mixing");
@@ -60,12 +64,12 @@ pub(crate) fn mix<C: Ctx>(
     let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &ctx);
 
     let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
-    info!("Generators..");
+    info!("Mix computing Generators..");
 
     let hs = ctx.generators(cs.0.len() + 1, &seed);
     let shuffler = strand::shuffler::Shuffler::new(&pk, &hs, &ctx);
 
-    info!("Shuffling..");
+    info!("Mix computing shuffle..");
     let (e_primes, rs, perm) = shuffler.gen_shuffle(&cs.0);
 
     let label = cfg.label(*batch, format!("shuffle{mix_no}"));
@@ -75,17 +79,7 @@ pub(crate) fn mix<C: Ctx>(
     // let ok = shuffler.check_proof(&proof, &cs, &e_primes, &label);
     // assert!(ok);
 
-    // Fixes #64: array index out of bounds when trustees = threshold = 12 (max value)
-    let target_trustee = if *mix_no < crate::protocol2::MAX_TRUSTEES {
-        // mix_no is 1-based and therefore points to the _next_ trustee, since trustees[] is 0-based,
-        // eg mix #2 is performed by trustee at index 1.
-        // trustees[] elements are 1-based, so n - 1
-        trustees[*mix_no] - 1
-    } else {
-        // There is no next trustee
-        crate::protocol2::datalog::NULL_TRUSTEE
-    };
-    let mix = Mix::new(e_primes, proof, *mix_no, target_trustee);
+    let mix = Mix::new(e_primes, proof, *mix_no);
     let m = Message::mix_msg(cfg, *batch, *source_h, &mix, trustee)?;
     Ok(vec![m])
 }

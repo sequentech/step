@@ -133,7 +133,7 @@ impl Action {
     // Action dispatch to target functions
     ///////////////////////////////////////////////////////////////////////////
     pub(crate) fn run<C: Ctx>(&self, trustee: &Trustee<C>) -> Result<Vec<Message>> {
-        info!("Running action {:?}", &self);
+        info!("Running action {}..", &self);
         match self {
             Self::SignConfiguration(cfg_h) => cfg::sign_config(cfg_h, trustee),
             Self::GenCommitments(cfg_h, _num_t, threshold) => {

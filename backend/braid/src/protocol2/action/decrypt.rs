@@ -55,8 +55,9 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
     }
 
     info!(
-        "Computing {} decryption factors..",
-        ciphertexts.ciphertexts.0.len()
+        "ComputeDecryptionFactors [{}] ({})..",
+        dbg_hash(&ciphertexts_h.0),
+        ciphertexts.ciphertexts.0.len(),
     );
 
     let suffix = format!("decryption_factor{self_p}");

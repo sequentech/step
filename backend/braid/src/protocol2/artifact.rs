@@ -6,7 +6,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use chacha20poly1305::consts::U12;
 use generic_array::GenericArray;
 
-use crate::protocol2::predicate::{BatchNumber, MixNumber, TrusteePosition};
+use crate::protocol2::predicate::{BatchNumber, MixNumber};
 use crate::protocol2::PROTOCOL_MANAGER_INDEX;
 
 use strand::serialization::StrandSerialize;
@@ -180,20 +180,20 @@ pub(crate) struct Mix<C: Ctx> {
     pub ciphertexts: StrandVectorC<C>,
     pub proof: ShuffleProof<C>,
     pub mix_number: MixNumber,
-    pub target_trustee: TrusteePosition,
+    // pub target_trustee: TrusteePosition,
 }
 impl<C: Ctx> Mix<C> {
     pub fn new(
         ciphertexts: Vec<Ciphertext<C>>,
         proof: ShuffleProof<C>,
         mix_number: MixNumber,
-        target_trustee: TrusteePosition,
+        // target_trustee: TrusteePosition,
     ) -> Mix<C> {
         Mix {
             ciphertexts: StrandVectorC(ciphertexts),
             proof,
             mix_number,
-            target_trustee,
+            // target_trustee,
         }
     }
 }
@@ -245,10 +245,6 @@ impl<C: Ctx> std::fmt::Debug for Commitments<C> {
 
 impl<C: Ctx> std::fmt::Debug for Mix<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "mix_number={:?}, target_trustee={:?}",
-            self.mix_number, self.target_trustee
-        )
+        write!(f, "mix_number={:?}", self.mix_number)
     }
 }

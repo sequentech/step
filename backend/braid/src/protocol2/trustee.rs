@@ -86,7 +86,7 @@ impl<C: Ctx> Trustee<C> {
 
         info!("Update added {} messages", added_messages);
         let predicates = self.derive_predicates(false)?;
-        info!("Derived {} predicates {:?}", predicates.len(), predicates);
+        info!("Derived {} predicates", predicates.len());
         let (messages, actions, _) = self.infer_and_run_actions(&predicates, false)?;
 
         // Sanity check: ensure that all outgoing messages' cfg field matches that of the local board
