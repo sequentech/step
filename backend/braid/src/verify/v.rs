@@ -10,9 +10,12 @@ crepe! {
     pub struct InP(Predicate);
 
     // Input relations, used to convert from InP predicates to crepe relations
-
+    struct Configuration(ConfigurationHash, TrusteePosition, TrusteeCount, Threshold);
+    struct ConfigurationSigned(ConfigurationHash, TrusteePosition);
     struct ConfigurationSignedAll(ConfigurationHash, TrusteePosition, TrusteeCount, Threshold);
     struct PublicKeySignedAll(ConfigurationHash, PublicKeyHash, SharesHashes);
+    struct PublicKey(ConfigurationHash, PublicKeyHash, SharesHashes, CommitmentsHashes, TrusteePosition);
+    struct PublicKeySigned(ConfigurationHash, PublicKeyHash, SharesHashes, CommitmentsHashes, TrusteePosition);
     struct CommitmentsAllSignedAll(ConfigurationHash, CommitmentsHashes);
     struct Ballots(ConfigurationHash, BatchNumber, CiphertextsHash, PublicKeyHash, TrusteeSet);
     struct MixComplete(ConfigurationHash, BatchNumber, MixNumber, CiphertextsHash, TrusteePosition);
@@ -39,7 +42,7 @@ crepe! {
 
     Mix(cfg_h, batch, source_h, mix_h, mix_number, signer_t) <- InP(p),
     let Predicate::Mix(cfg_h, batch, source_h, mix_h, mix_number, signer_t) = p;
-    
+
     MixSigned(cfg_h, batch, source_h, ciphertexts_h, signer_t) <- InP(p),
     let Predicate::MixSigned(cfg_h, batch, source_h, ciphertexts_h, signer_t) = p;
 
@@ -52,8 +55,22 @@ crepe! {
     PlaintextsSigned(cfg_h, batch, plaintexts_h, df_hs, cipher_h, pk_h, signer_t) <- InP(p),
     let Predicate::PlaintextsSigned(cfg_h, batch, plaintexts_h, df_hs, cipher_h, pk_h, signer_t) = p;
 
+    ConfigurationSigned(cfg_h, signer_t) <- InP(p),
+    let Predicate::ConfigurationSigned(cfg_h, signer_t) = p;
+
+    PublicKey(config_hash, pk_hash, shares_hs, commitments_hs, signer_t) <- InP(p),
+    let Predicate::PublicKey(config_hash, pk_hash, shares_hs, commitments_hs, signer_t) = p;
+
+    PublicKeySigned(config_hash, pk_hash, shares_hs, commitments_hs, signer_t) <- InP(p),
+    let Predicate::PublicKeySigned(config_hash, pk_hash, shares_hs, commitments_hs, signer_t) = p;
+
+    Configuration(cfg_h, self_position, num_t, threshold) <- InP(p),
+    let Predicate::Configuration(cfg_h, self_position, num_t, threshold) = p;
+
     // Intermediate relations
 
+    struct ConfigurationSignedUpTo(ConfigurationHash, TrusteePosition);
+    struct PublicKeySignedUpTo(ConfigurationHash, PublicKeyHash, SharesHashes, TrusteePosition);
     struct MixVerifiedUpto(ConfigurationHash, BatchNumber, CiphertextsHash, MixingHashes, TrusteeCount);
     struct MixRepeat(ConfigurationHash, BatchNumber);
 
@@ -84,6 +101,32 @@ crepe! {
     PublicKeySignedAll(cfg_h, pk_h, _shares_hs),
     Ballots(cfg_h, batch, ballots_h, pk_h, _),
     Plaintexts(cfg_h, batch, plaintexts_h, _, _, _, _);
+
+    ConfigurationSignedUpTo(cfg_h, n + 1) <-
+    ConfigurationSignedUpTo(cfg_h, n),
+    ConfigurationSigned(cfg_h, n + 1);
+
+    ConfigurationSignedUpTo(cfg_h, 0) <-
+    ConfigurationSigned(cfg_h, 0);
+
+    PublicKeySigned(cfg_h, pk_h, shares_hs, commitments_hs, 0) <-
+    PublicKey(cfg_h, pk_h, shares_hs, commitments_hs, 0);
+
+    PublicKeySignedUpTo(cfg_h, pk_h, shares_hs, n + 1) <-
+    PublicKeySignedUpTo(cfg_h, pk_h, shares_hs, n),
+    PublicKeySigned(cfg_h, pk_h, shares_hs, _commitments_hs, n + 1);
+
+    PublicKeySignedUpTo(cfg_h, pk_h, shares_hs, 0) <-
+    PublicKeySigned(cfg_h, pk_h, shares_hs, _commitments_hs, 0);
+
+    PublicKeySignedAll(cfg_h, pk_h, shares_hs) <-
+    ConfigurationSignedAll(cfg_h, _self_p, num_t, _threshold),
+    PublicKeySignedUpTo(cfg_h, pk_h, shares_hs, num_t - 1);
+
+    ConfigurationSignedAll(cfg_h, self_position, num_t, threshold) <-
+    Configuration(cfg_h, self_position, num_t, threshold),
+    // We subtract 1 since trustees positions are 0 based
+    ConfigurationSignedUpTo(cfg_h, num_t - 1);
 
     MixVerifiedUpto(cfg_h, batch, target_h, mixing_hs, 1) <-
     ConfigurationSignedAll(cfg_h, _, _num_t, _),

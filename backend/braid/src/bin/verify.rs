@@ -51,7 +51,6 @@ async fn main() -> Result<()> {
 
     let store_root = std::env::current_dir().unwrap().join("message_store");
 
-    info!(">");
     info!("Connecting to board '{}'..", args.board);
     let trustee: Trustee<RistrettoCtx> = Trustee::new(sk.clone(), ek.clone());
     let board = ImmudbBoard::new(

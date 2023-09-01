@@ -1,11 +1,9 @@
 use crate::protocol2::action::Message;
 use crate::protocol2::artifact::Configuration;
 use crate::protocol2::board::immudb::ImmudbBoard;
-use crate::protocol2::datalog::{
-    BatchNumber, ConfigurationHash, MixingHashes, PlaintextsHash, Predicate, DecryptionFactorsHashes, PublicKeyHash,
-};
-use crate::protocol2::predicate::CiphertextsHash;
-use crate::protocol2::statement::{Batch, CiphertextsH, PlaintextsH, Statement, StatementType, DecryptionFactorsHs, ConfigurationH};
+use crate::protocol2::message::VerifiedMessage;
+use crate::protocol2::predicate::Predicate;
+use crate::protocol2::statement::StatementType;
 use crate::protocol2::trustee::Trustee;
 use anyhow::{anyhow, Result};
 use strand::context::Ctx;
@@ -29,13 +27,12 @@ impl<C: Ctx> VerifyingSession<C> {
         // 1) The PK was correctly generated from the information published by the TRUSTEES
         // 2) The PK is associated to the BALLOTS according to the protocol managers signature
         // 3) The BALLOTS link to some output ciphertexts with verified mixes
-        // 4) The output ciphertexts are correctly decrypted to the PLAINTEXTS with respect to the PK (the verification keys) 
+        // 4) The output ciphertexts are correctly decrypted to the PLAINTEXTS with respect to the PK (the verification keys)
 
-        
-        
-        info!("Verifying..");
+        info!("Verifying board {}", self.board.board_dbname);
 
         let messages = self.board.get_messages(-1).await?;
+
         let cfg_message: Vec<Message> = messages
             .clone()
             .into_iter()
@@ -53,28 +50,50 @@ impl<C: Ctx> VerifyingSession<C> {
             .unwrap();
         let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
 
-        let (messages, mut predicates) = self.trustee.verify(messages)?;
+        info!("Verifying signatures for {} messages..", messages.len());
+        let vmessages: Result<Vec<VerifiedMessage>> = messages
+            .clone()
+            .into_iter()
+            .map(|m| m.verify(&cfg))
+            .collect();
 
+        // Obtain verification targets
+        let mut predicates = vec![];
+        // Skip the configuration message
+        for message in &vmessages?[1..] {
+            let predicate =
+                Predicate::from_statement::<C>(&message.statement, message.signer_position, &cfg);
+            predicates.push(predicate);
+        }
+        predicates.push(Predicate::get_verifier_bootstrap_predicate(&cfg).unwrap());
+
+        info!("Deriving verification targets..");
+        let (targets, _) = crate::verify::v::S.run(&predicates);
+        info!("Verification targets: {:?}", targets);
+
+        info!("Verifying session..");
+        let (messages, _) = self.trustee.verify(messages)?;
         for message in messages.clone() {
             let predicate = Predicate::from_statement::<C>(
                 &message.statement,
                 crate::protocol2::VERIFIER_INDEX,
                 &cfg,
             );
+            info!("Verifying session yields [{}]", predicate);
             predicates.push(predicate);
         }
 
-        let (targets, verified) = crate::verify::v::S.run(&predicates);
-
-        info!("Targets: {:?}", targets);
-        info!("Verified: {:?}", verified);
+        info!("Collecting verification..");
+        let (_targets, verified) = crate::verify::v::S.run(&predicates);
+        info!("Verifications: {:?}", verified);
 
         Ok(())
     }
 }
 
 use crate::util::dbg_hash;
-impl std::fmt::Debug for crate::verify::v::Target  {
+use crate::util::dbg_hashes;
+impl std::fmt::Debug for crate::verify::v::Target {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -84,7 +103,11 @@ impl std::fmt::Debug for crate::verify::v::Target  {
             Public Key = {}, 
             Ballots = {}, 
             Plaintexts = {}",
-            dbg_hash(&self.0.0),self.1,dbg_hash(&self.2.0),dbg_hash(&self.3.0),dbg_hash(&self.4.0),
+            dbg_hash(&self.0 .0),
+            self.1,
+            dbg_hash(&self.2 .0),
+            dbg_hash(&self.3 .0),
+            dbg_hash(&self.4 .0),
         )
     }
 }
@@ -103,7 +126,15 @@ impl std::fmt::Debug for crate::verify::v::Verified {
             Decryption proofs with respect to PublicKey = {}, 
             Plaintexts = {}, 
             Mixes = {:?}",
-            dbg_hash(&self.0.0),self.1,dbg_hash(&self.2.0),dbg_hash(&self.3.0),dbg_hash(&self.4.0),dbg_hash(&self.5.0),dbg_hash(&self.6.0),dbg_hash(&self.7.0),self.8.0.map(|h| hex::encode(h)[0..10].to_string()),    
+            dbg_hash(&self.0 .0),
+            self.1,
+            dbg_hash(&self.2 .0),
+            dbg_hash(&self.3 .0),
+            dbg_hash(&self.4 .0),
+            dbg_hash(&self.5 .0),
+            dbg_hash(&self.6 .0),
+            dbg_hash(&self.7 .0),
+            dbg_hashes(&self.8 .0),
         )
     }
 }

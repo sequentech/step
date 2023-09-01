@@ -6,7 +6,6 @@ use crate::protocol2::Hash;
 pub type THashes = [Hash; crate::protocol2::MAX_TRUSTEES];
 
 use crate::protocol2::predicate::MixNumber;
-use crate::protocol2::predicate::TrusteePosition;
 
 ///////////////////////////////////////////////////////////////////////////
 // Statement
@@ -214,7 +213,7 @@ impl Statement {
         plaintexts_h: PlaintextsH,
         dfactors_hs: DecryptionFactorsHs,
         cipher_h: CiphertextsH,
-        pk_h: PublicKeyH
+        pk_h: PublicKeyH,
     ) -> Statement {
         Statement::Plaintexts(
             Self::timestamp(),
@@ -233,7 +232,7 @@ impl Statement {
         plaintexts_h: PlaintextsH,
         dfactors_hs: DecryptionFactorsHs,
         cipher_h: CiphertextsH,
-        pk_h: PublicKeyH
+        pk_h: PublicKeyH,
     ) -> Statement {
         Statement::PlaintextsSigned(
             Self::timestamp(),
@@ -242,7 +241,7 @@ impl Statement {
             plaintexts_h,
             dfactors_hs,
             cipher_h,
-            pk_h
+            pk_h,
         )
     }
 
@@ -330,7 +329,7 @@ impl Statement {
                 batch = bch.0;
                 artifact_type = Some(ArtifactType::Ballots);
             }
-            Self::Mix(ts_, cfg_h, bch, _, _, _,) => {
+            Self::Mix(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::Mix;
                 cfg = cfg_h.0;

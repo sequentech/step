@@ -14,9 +14,9 @@ use strand::serialization::StrandSerialize;
 use crate::protocol2::message::Message;
 
 pub struct ImmudbBoard {
-    board_client: BoardClient,
-    board_dbname: String,
-    store_root: PathBuf,
+    pub(crate) board_client: BoardClient,
+    pub(crate) board_dbname: String,
+    pub(crate) store_root: PathBuf,
 }
 
 impl TryFrom<Message> for BoardMessage {

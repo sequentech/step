@@ -6,9 +6,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use chacha20poly1305::consts::U12;
 use generic_array::GenericArray;
 
-use crate::protocol2::datalog::NULL_TRUSTEE;
-use crate::protocol2::datalog::{BatchNumber, MixNumber, TrusteePosition};
-use crate::protocol2::predicate::TrusteeSet;
+use crate::protocol2::predicate::{BatchNumber, MixNumber, TrusteePosition};
 use crate::protocol2::PROTOCOL_MANAGER_INDEX;
 
 use strand::serialization::StrandSerialize;

@@ -4,7 +4,9 @@ pub use std::collections::HashSet;
 use crate::protocol2::action::Action;
 use crate::protocol2::statement::THashes;
 use crate::protocol2::Hash;
+
 pub(crate) const NULL_HASH: [u8; 64] = [0u8; 64];
+// used by bb_client
 pub const NULL_TRUSTEE: usize = 1001;
 
 pub(crate) use crate::protocol2::predicate::*;

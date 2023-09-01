@@ -12,11 +12,10 @@ use crate::protocol2::artifact::Configuration;
 use crate::protocol2::artifact::DecryptionFactors;
 use crate::protocol2::artifact::Plaintexts;
 use crate::protocol2::artifact::Shares;
-use crate::protocol2::datalog::MixNumber;
-use crate::protocol2::hash_from_vec;
 use crate::protocol2::message::VerifiedMessage;
 use crate::protocol2::predicate::CommitmentsHash;
 use crate::protocol2::predicate::ConfigurationHash;
+use crate::protocol2::predicate::MixNumber;
 use crate::protocol2::predicate::PublicKeyHash;
 use crate::protocol2::predicate::SharesHash;
 use crate::protocol2::statement::{ArtifactType, Statement, StatementType};
@@ -192,7 +191,10 @@ impl<C: Ctx> LocalBoard<C> {
                     // Both statement and artifact are new, insert
                     self.statements.insert(
                         statement_identifier,
-                        (hash_from_vec(&statement_hash)?, message.statement),
+                        (
+                            crate::util::hash_from_vec(&statement_hash)?,
+                            message.statement,
+                        ),
                     );
 
                     self.artifacts
@@ -205,7 +207,10 @@ impl<C: Ctx> LocalBoard<C> {
                 // Only a statement was sent, insert
                 self.statements.insert(
                     statement_identifier,
-                    (hash_from_vec(&statement_hash)?, message.statement),
+                    (
+                        crate::util::hash_from_vec(&statement_hash)?,
+                        message.statement,
+                    ),
                 );
                 debug!("Pure statement inserted");
                 Ok(())

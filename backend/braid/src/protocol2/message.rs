@@ -4,27 +4,27 @@ use strand::context::Ctx;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignature, StrandSignaturePk};
 
-use crate::protocol2::{artifact::*, PROTOCOL_MANAGER_INDEX};
 use crate::protocol2::statement::ArtifactType;
 use crate::protocol2::statement::Statement;
 use crate::protocol2::statement::StatementType;
 use crate::protocol2::trustee::Signer;
+use crate::protocol2::{artifact::*, PROTOCOL_MANAGER_INDEX};
 
 use crate::protocol2::artifact::Configuration;
-use crate::protocol2::datalog::PublicKeyHash;
 use crate::protocol2::predicate::BatchNumber;
 use crate::protocol2::predicate::CiphertextsHash;
 use crate::protocol2::predicate::CommitmentsHashes;
 use crate::protocol2::predicate::DecryptionFactorsHashes;
 use crate::protocol2::predicate::MixNumber;
 use crate::protocol2::predicate::PlaintextsHash;
+use crate::protocol2::predicate::PublicKeyHash;
 use crate::protocol2::predicate::SharesHashes;
 use crate::protocol2::trustee::ProtocolManager;
 use crate::protocol2::trustee::Trustee;
 
 use crate::protocol2::statement::*;
 
-use super::datalog::TrusteeSet;
+use crate::protocol2::predicate::TrusteeSet;
 
 ///////////////////////////////////////////////////////////////////////////
 // Message
@@ -267,7 +267,7 @@ impl Message {
             PlaintextsH(plaintexts_h),
             DecryptionFactorsHs(dfactors_hs.0),
             CiphertextsH(cipher_h.0),
-            PublicKeyH(pk_h.0)
+            PublicKeyH(pk_h.0),
         );
 
         trustee.sign(statement, Some(plaintexts_bytes))
@@ -291,7 +291,7 @@ impl Message {
             PlaintextsH(plaintexts_h.0),
             DecryptionFactorsHs(dfactors_hs.0),
             CiphertextsH(cipher_h.0),
-            PublicKeyH(pk_h.0)
+            PublicKeyH(pk_h.0),
         );
 
         trustee.sign(statement, None)
@@ -363,9 +363,7 @@ impl Message {
         if st_cfg_h == artifact_hash {
             assert!(kind == StatementType::Configuration);
             if trustee != PROTOCOL_MANAGER_INDEX {
-                return Err(anyhow!(
-                    "Configuration must be signed by protocol manager"
-                ));
+                return Err(anyhow!("Configuration must be signed by protocol manager"));
             }
 
             let artifact_field = Some((ArtifactType::Configuration, artifact));
@@ -380,9 +378,7 @@ impl Message {
 
             if kind == StatementType::Ballots {
                 if trustee != PROTOCOL_MANAGER_INDEX {
-                    return Err(anyhow!(
-                        "Ballots must be signed by protocol manager"
-                    ));
+                    return Err(anyhow!("Ballots must be signed by protocol manager"));
                 }
             }
 

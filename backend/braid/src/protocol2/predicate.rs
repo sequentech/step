@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use strum::Display;
 
 use anyhow::Result;
 use log::trace;
@@ -23,7 +24,7 @@ use crate::protocol2::PROTOCOL_MANAGER_INDEX;
 // Predicate::from_statement method.
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Display)]
 pub(crate) enum Predicate {
     // Input predicates
     /// Bootstrap //////////////////////////////////////////////////////////////////
@@ -185,16 +186,14 @@ impl Predicate {
                 )
             }
             // Mix(Timestamp, ConfigurationH, usize, CiphertextsH, CiphertextsH)
-            Statement::Mix(_ts, cfg_h, batch, source_h, mix_h, mix_number) => {
-                Self::Mix(
-                    ConfigurationHash(cfg_h.0),
-                    batch.0,
-                    CiphertextsHash(source_h.0),
-                    CiphertextsHash(mix_h.0),
-                    *mix_number,
-                    signer_position,
-                )
-            }
+            Statement::Mix(_ts, cfg_h, batch, source_h, mix_h, mix_number) => Self::Mix(
+                ConfigurationHash(cfg_h.0),
+                batch.0,
+                CiphertextsHash(source_h.0),
+                CiphertextsHash(mix_h.0),
+                *mix_number,
+                signer_position,
+            ),
             // MixSigned(Timestamp, ConfigurationH, usize, usize, CiphertextsH, CiphertextsH)
             Statement::MixSigned(_ts, cfg_h, batch, _mix_no, source_h, mix_h) => Self::MixSigned(
                 ConfigurationHash(cfg_h.0),
@@ -287,7 +286,7 @@ impl ConfigurationHash {
     ) -> Result<ConfigurationHash> {
         let bytes = configuration.strand_serialize()?;
         let hash = strand::util::hash(&bytes);
-        Ok(ConfigurationHash(crate::protocol2::hash_from_vec(&hash)?))
+        Ok(ConfigurationHash(crate::util::hash_from_vec(&hash)?))
     }
 }
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
@@ -425,13 +424,9 @@ impl std::fmt::Debug for Predicate {
         }
     }
 }
-
+use crate::util::dbg_hashes;
 impl std::fmt::Debug for CommitmentsHashes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "hashes={:?}",
-            self.0.map(|h| hex::encode(h)[0..10].to_string())
-        )
+        write!(f, "hashes={:?}", dbg_hashes(&self.0))
     }
 }

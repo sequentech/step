@@ -7,8 +7,8 @@ use strand::context::Ctx;
 
 use crate::protocol2::{
     artifact::{DkgPublicKey, Plaintexts},
-    datalog::BatchNumber,
-    datalog::TrusteePosition,
+    predicate::BatchNumber,
+    predicate::TrusteePosition,
 };
 
 // Implements cross-session parallelism as well as simulates cross-trustee parallelism

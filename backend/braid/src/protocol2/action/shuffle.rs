@@ -110,7 +110,9 @@ pub(crate) fn sign_mix<C: Ctx>(
         let cs = trustee.get_ballots(source_h, *batch, PROTOCOL_MANAGER_INDEX);
         if let Some(ballots) = cs {
             info!(
-                "Mix source is ballots, size={}",
+                "SignMix verifying shuffle [{} (ballots)] => [{}] ({})..",
+                dbg_hash(&source_h.0),
+                dbg_hash(&cipher_h.0),
                 ballots.ciphertexts.0.len()
             );
             Some(ballots.ciphertexts)
@@ -122,7 +124,9 @@ pub(crate) fn sign_mix<C: Ctx>(
         let mix = trustee.get_mix(source_h, *batch, signers_t);
         if let Some(cs) = mix {
             info!(
-                "Mix source is previous mix, size={}",
+                "SignMix verifying shuffle [{} (mix)] => [{}] ({})..",
+                dbg_hash(&source_h.0),
+                dbg_hash(&cipher_h.0),
                 cs.ciphertexts.0.len()
             );
             Some(cs.ciphertexts)
@@ -147,10 +151,14 @@ pub(crate) fn sign_mix<C: Ctx>(
     let hs = ctx.generators(source_cs.0.len() + 1, &seed);
     let shuffler = strand::shuffler::Shuffler::new(&pk, &hs, &ctx);
 
-    info!("Verifying shuffle..");
     let label = cfg.label(*batch, format!("shuffle{mix_number}"));
     let ok = shuffler.check_proof(&mix.proof, &source_cs.0, &mix.ciphertexts.0, &label)?;
-    info!("Verify shuffle..{}", ok);
+    info!(
+        "SignMix verifying shuffle [{}] => [{}] ok = {}",
+        dbg_hash(&source_h.0),
+        dbg_hash(&cipher_h.0),
+        ok
+    );
     assert!(ok);
     let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
     Ok(vec![m])

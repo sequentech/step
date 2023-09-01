@@ -1,8 +1,8 @@
 use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::protocol2::trustee::Trustee;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use strand::context::Ctx;
-use tracing::{error, info};
+use tracing::info;
 
 pub struct Session<C: Ctx> {
     trustee: Trustee<C>,

@@ -89,12 +89,6 @@ impl<C: Ctx> Trustee<C> {
         info!("Derived {} predicates {:?}", predicates.len(), predicates);
         let (messages, actions, _) = self.infer_and_run_actions(&predicates, false)?;
 
-        debug!(
-            "Actions yielded {} messages, {:?}",
-            messages.len(),
-            messages
-        );
-
         // Sanity check: ensure that all outgoing messages' cfg field matches that of the local board
         for m in messages.iter() {
             info!("Returning message {:?}", m);
@@ -113,9 +107,9 @@ impl<C: Ctx> Trustee<C> {
     // Update
     ///////////////////////////////////////////////////////////////////////////
 
-    #[instrument(name = "Trustee::update_local_board", skip_all)]
+    #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
     fn update_local_board(&mut self, messages: Vec<Message>) -> Result<i32> {
-        info!("Updating with {} messages", messages.len());
+        trace!("Updating with {} messages", messages.len());
 
         let configuration = self.local_board.get_configuration_raw();
         if let Some(configuration) = configuration {
@@ -215,7 +209,7 @@ impl<C: Ctx> Trustee<C> {
     ///////////////////////////////////////////////////////////////////////////
     // derive
     ///////////////////////////////////////////////////////////////////////////
-    #[instrument(name = "Trustee::derive_predicates", skip(self))]
+    #[instrument(name = "Trustee::derive_predicates", skip(self), level = "trace")]
     fn derive_predicates(&self, verifying_mode: bool) -> Result<Vec<Predicate>> {
         let mut predicates = vec![];
 
@@ -252,7 +246,7 @@ impl<C: Ctx> Trustee<C> {
             predicates.push(next);
         }
 
-        info!("Derived {} predicates", predicates.len());
+        trace!("Derived {} predicates", predicates.len());
 
         Ok(predicates)
     }
@@ -272,7 +266,14 @@ impl<C: Ctx> Trustee<C> {
             .ok_or(anyhow!("Cannot run actions without a configuration"))?;
 
         let (actions, predicates) = crate::protocol2::datalog::run(predicates);
-        info!("Datalog returns {} actions, {:?}", actions.len(), actions);
+        trace!(
+            "Datalog derived {} actions, {:?}",
+            actions.len(),
+            actions
+                .iter()
+                .map(|a| a.to_string())
+                .collect::<Vec<String>>()
+        );
 
         let ret_actions = actions.clone();
 
