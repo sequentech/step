@@ -166,7 +166,7 @@ services:
       - graphql-engine
   
   templates:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     build:
       context: ../backend/
@@ -177,30 +177,35 @@ services:
       - graphql-engine
   
   trustee1:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     build:
       context: ../backend/
       dockerfile: ./braid/Dockerfile
     environment:
-        IMMUDB_USER: password
-        IMMUDB_PASSWORD: password
+        IMMUDB_USER: immudb
+        IMMUDB_PASSWORD: immudb
         IMMUDB_URL: http://immudb:3322
-        IMMUDB_INDEX_DB: http://immudb:3322
+        IMMUDB_INDEX_DB: indexdb
     depends_on:
       - immudb
   
   trustee2:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     build:
       context: ../backend/
       dockerfile: ./braid/Dockerfile
+    environment:
+        IMMUDB_USER: immudb
+        IMMUDB_PASSWORD: immudb
+        IMMUDB_URL: http://immudb:3322
+        IMMUDB_INDEX_DB: indexdb
     depends_on:
       - immudb
 
   minio:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     image: minio/minio
     ports:
       - "9000:9000"

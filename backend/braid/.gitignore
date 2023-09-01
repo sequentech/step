@@ -10,5 +10,4 @@ result
 /tla
 Cargo.lock
 *.pdf
-*.sh
 *.ps1

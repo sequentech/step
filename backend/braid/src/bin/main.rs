@@ -37,10 +37,10 @@ struct Cli {
     #[arg(short, long)]
     trustee_config: PathBuf,
 
-    #[arg(short, long, default_value_t = IMMUDB_USER)]
+    #[arg(short, long, default_value_t = IMMUDB_USER.to_string())]
     user: String,
 
-    #[arg(short, long, default_value_t = IMMUDB_PW)]
+    #[arg(short, long, default_value_t = IMMUDB_PW.to_string())]
     password: String,
 
 
