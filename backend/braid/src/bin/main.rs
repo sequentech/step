@@ -28,14 +28,22 @@ const IMMUDB_PW: &str = "immudb";
 
 #[derive(Parser)]
 struct Cli {
-    #[arg(long)]
+    #[arg(short, long)]
     server_url: String,
 
-    #[arg(long)]
+    #[arg(short, long)]
     board_index: String,
 
-    #[arg(long)]
+    #[arg(short, long)]
     trustee_config: PathBuf,
+
+    #[arg(short, long, default_value_t = IMMUDB_USER)]
+    user: String,
+
+    #[arg(short, long, default_value_t = IMMUDB_PW)]
+    password: String,
+
+
 }
 
 #[tokio::main]
@@ -56,7 +64,7 @@ async fn main() -> Result<()> {
     let ek = GenericArray::<u8, U32>::from_slice(&bytes).to_owned();
 
     let mut board_index =
-        ImmudbBoardIndex::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, args.board_index).await?;
+        ImmudbBoardIndex::new(&args.server_url, &args.user, &args.password, args.board_index).await?;
     let store_root = std::env::current_dir().unwrap().join("message_store");
     loop {
         info!(">");

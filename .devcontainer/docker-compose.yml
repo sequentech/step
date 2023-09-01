@@ -175,6 +175,29 @@ services:
       - 8400:8400 # templates service
     depends_on:
       - graphql-engine
+  
+  trustee1:
+    #profiles: ["dev"]
+    stdin_open: true
+    build:
+      context: ../backend/
+      dockerfile: ./braid/Dockerfile
+    environment:
+        IMMUDB_USER: password
+        IMMUDB_PASSWORD: password
+        IMMUDB_URL: http://immudb:3322
+        IMMUDB_INDEX_DB: http://immudb:3322
+    depends_on:
+      - immudb
+  
+  trustee2:
+    #profiles: ["dev"]
+    stdin_open: true
+    build:
+      context: ../backend/
+      dockerfile: ./braid/Dockerfile
+    depends_on:
+      - immudb
 
   minio:
     #profiles: ["dev"]
