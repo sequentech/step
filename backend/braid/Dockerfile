@@ -15,14 +15,14 @@ WORKDIR /app/immu-board
 RUN cargo build --release
 RUN cp /app/target/release/bb_helper /usr/bin
 WORKDIR /app/braid
-RUN cargo build --release
+RUN cargo build --release --features protocol-manager
 RUN cp /app/target/release/main /usr/bin/trustee
 RUN cp /app/target/release/gen_trustee_config /usr/bin
+RUN cp /app/target/release/protocol_manager /usr/bin
 RUN cp /app/target/release/main /usr/bin/trustee
-RUN mkdir /opt/braid
-RUN cp /app/braid/scripts/trustee.sh /opt/braid
+RUN cp /app/braid/scripts/*.sh /usr/bin/*.sh
 
 # init index db
 RUN mkdir /tmp/cache
 
-ENTRYPOINT ["/opt/braid/trustee.sh"]
+CMD ["/usr/bin/trustee.sh"]
