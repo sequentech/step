@@ -1,4 +1,5 @@
 use anyhow::Result;
+use colored::*;
 use serde::Serialize;
 use tracing::info;
 
@@ -11,7 +12,6 @@ use crate::protocol2::statement::StatementType;
 use crate::protocol2::trustee::Trustee;
 
 use crate::util::dbg_hash;
-use crate::util::dbg_hashes;
 use crate::verify::datalog::Target;
 use crate::verify::datalog::Verified;
 
@@ -34,7 +34,10 @@ impl<C: Ctx> Verifier<C> {
         vr.add_target("Configuration valid");
         vr.add_target("Message signatures verified");
 
-        info!("*** Verifying board '{}' ***", self.board.board_dbname);
+        info!(
+            "{}",
+            format!("Verifying board '{}'", self.board.board_dbname).bold()
+        );
 
         let messages = self.board.get_messages(-1).await?;
 
@@ -55,6 +58,7 @@ impl<C: Ctx> Verifier<C> {
             .unwrap();
         let cfg_h = crate::util::hash_from_vec(&strand::util::hash(&cfg_bytes)).unwrap();
         let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
+        info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 
         vr.add_result("Configuration valid", || (cfg.is_valid(), dbg_hash(&cfg_h)));
 
@@ -80,20 +84,22 @@ impl<C: Ctx> Verifier<C> {
         }
         predicates.push(Predicate::get_verifier_bootstrap_predicate(&cfg).unwrap());
 
-        info!("Deriving verification targets..");
+        info!("{}", "Deriving verification targets..".blue());
         let (targets, _) = crate::verify::datalog::S.run(&predicates);
         for t in &targets {
             let mut tvr = t.get_verification_target();
             tvr.add_result("Configuration matches parent", || {
                 (t.0 .0 == cfg_h, dbg_hash(&cfg_h))
             });
+            info!("Add verification target [{}]", t.get_batch());
             vr.add_child(tvr);
         }
 
         // Run verifying actions
 
-        info!("Running verifying actions..");
+        info!("{}", "Running verifying actions..".blue());
         let (messages, _) = self.trustee.verify(messages)?;
+        info!("{}", "Verifying actions complete".blue());
         for message in messages.clone() {
             let predicate = Predicate::from_statement::<C>(
                 &message.statement,
@@ -106,7 +112,7 @@ impl<C: Ctx> Verifier<C> {
 
         // Collect verification results
 
-        info!("Collecting verification results");
+        info!("{}", "Collecting verification results".blue());
         let (_targets, verified) = crate::verify::datalog::S.run(&predicates);
         for v in verified {
             v.add_results(&mut vr, targets.iter().find(|t| t.1 == v.1).unwrap(), &cfg);
@@ -120,19 +126,8 @@ impl<C: Ctx> Verifier<C> {
     }
 }
 
-impl std::fmt::Debug for Target {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Verification Target Configuration = {}, Batch = {}, Public Key = {}, Ballots = {}, Plaintexts = {}",
-            dbg_hash(&self.0 .0),
-            self.1,
-            dbg_hash(&self.2 .0),
-            dbg_hash(&self.3 .0),
-            dbg_hash(&self.4 .0),
-        )
-    }
-}
+use crate::protocol2::predicate::*;
+
 impl Target {
     fn get_verification_target(&self) -> VerificationResult {
         let mut vr = VerificationResult::new(&self.1.to_string());
@@ -150,23 +145,20 @@ impl Target {
 
         vr
     }
-}
-
-impl std::fmt::Debug for Verified {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Verification Result Configuration = {}, Batch = {}, Verified constructed PublicKey = {}, Verified ballots PublicKey = {}, Signed Ballots = {}, Decryption target = {},  Decryption proofs with respect to PublicKey = {}, Plaintexts = {}, Mixes = {:?}",
-            dbg_hash(&self.0 .0),
-            self.1,
-            dbg_hash(&self.2 .0),
-            dbg_hash(&self.3 .0),
-            dbg_hash(&self.4 .0),
-            dbg_hash(&self.5 .0),
-            dbg_hash(&self.6 .0),
-            dbg_hash(&self.7 .0),
-            dbg_hashes(&self.8 .0),
-        )
+    fn get_cfg_h(&self) -> ConfigurationHash {
+        self.0
+    }
+    fn get_batch(&self) -> BatchNumber {
+        self.1
+    }
+    fn get_pk_h(&self) -> PublicKeyHash {
+        self.2
+    }
+    fn get_ballots_h(&self) -> CiphertextsHash {
+        self.3
+    }
+    fn get_plaintexts_h(&self) -> PlaintextsHash {
+        self.4
     }
 }
 
@@ -177,16 +169,19 @@ impl Verified {
         target: &Target,
         cfg: &Configuration<C>,
     ) {
-        let mixing_hs = self.8 .0;
-        let filtered_mixes: Vec<[u8; 64]> =
-            mixing_hs.into_iter().filter(|h| *h != [0u8; 64]).collect();
+        let mixing_hs = self.get_mixing_hs();
+        let filtered_mixes: Vec<[u8; 64]> = mixing_hs
+            .0
+            .into_iter()
+            .filter(|h| *h != [0u8; 64])
+            .collect();
 
         let child = vr.children.get_mut(&self.1.to_string()).unwrap();
         child.add_result("Configuration matches", || {
-            (self.0 == target.0, dbg_hash(&self.0 .0))
+            (self.get_cfg_h() == target.get_cfg_h(), dbg_hash(&self.0 .0))
         });
         child.add_result("Batch matches", || {
-            (self.0 == target.0, dbg_hash(&self.0 .0))
+            (self.get_batch() == target.get_batch(), dbg_hash(&self.0 .0))
         });
         // This is already certified by the datalog predicates
         child.add_result("Mixing chain no duplicate signers", || {
@@ -197,23 +192,70 @@ impl Verified {
             (filtered_mixes.len() - 1 == cfg.threshold, cfg.threshold)
         });
         child.add_result("Mixing chain start matches ballots", || {
-            (filtered_mixes[0] == target.3 .0, dbg_hash(&target.3 .0))
+            (
+                filtered_mixes[0] == target.get_ballots_h().0
+                    && filtered_mixes[0] == self.get_ballots_h().0,
+                dbg_hash(&target.3 .0),
+            )
         });
         child.add_result("Mixing chain end matches decrypting ballots", || {
-            (filtered_mixes[cfg.threshold] == self.5 .0, cfg.threshold)
+            (
+                filtered_mixes[cfg.threshold] == self.get_decryption_input_h().0,
+                cfg.threshold,
+            )
         });
         child.add_result("Public key is verified", || {
-            (self.2 .0 == target.2 .0, dbg_hash(&self.2 .0))
+            (
+                self.get_verified_pk_h() == target.get_pk_h(),
+                dbg_hash(&self.2 .0),
+            )
         });
         child.add_result("Ballots' public key matches", || {
-            (self.3 .0 == target.2 .0, dbg_hash(&self.3 .0))
+            (
+                self.get_ballots_pk_h() == target.get_pk_h(),
+                dbg_hash(&self.3 .0),
+            )
         });
         child.add_result("Decryption validated with respect to public key", || {
-            (self.6 .0 == target.2 .0, dbg_hash(&self.5 .0))
+            (
+                self.get_decryption_pk_h() == target.get_pk_h(),
+                dbg_hash(&self.5 .0),
+            )
         });
         child.add_result("Plaintexts match", || {
-            (self.7 .0 == target.4 .0, dbg_hash(&self.7 .0))
+            (
+                self.get_plaintexts_h() == target.get_plaintexts_h(),
+                dbg_hash(&self.7 .0),
+            )
         });
+    }
+
+    fn get_cfg_h(&self) -> ConfigurationHash {
+        self.0
+    }
+    fn get_batch(&self) -> BatchNumber {
+        self.1
+    }
+    fn get_verified_pk_h(&self) -> PublicKeyHash {
+        self.2
+    }
+    fn get_ballots_pk_h(&self) -> PublicKeyHash {
+        self.3
+    }
+    fn get_ballots_h(&self) -> CiphertextsHash {
+        self.4
+    }
+    fn get_decryption_input_h(&self) -> CiphertextsHash {
+        self.5
+    }
+    fn get_decryption_pk_h(&self) -> PublicKeyHash {
+        self.6
+    }
+    fn get_plaintexts_h(&self) -> PlaintextsHash {
+        self.7
+    }
+    fn get_mixing_hs(&self) -> MixingHashes {
+        self.8
     }
 }
 
@@ -279,19 +321,22 @@ impl VerificationItem {
         }
     }
 }
-impl std::fmt::Debug for VerificationResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)
-    }
-}
 
 impl std::fmt::Display for VerificationResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let json = serde_json::to_string_pretty(&self);
-        writeln!(f, "=== Verification Result ===")?;
-        writeln!(f, "{}", json.unwrap())?;
+        writeln!(f, "VerificationResult:")?;
+        let json = json.unwrap();
+        let json_color = json.replace("true", &"true".green().to_string());
+        let json_color = json_color.replace("false", &"false".red().to_string());
+        writeln!(f, "{}", json_color)?;
         let (ok, not_ok) = self.totals();
-        writeln!(f, "{} / {} checks pass", ok, (ok + not_ok))?;
+        let checks = format!("{} / {}", ok, (ok + not_ok));
+        if not_ok == 0 {
+            writeln!(f, "[{}] checks pass", checks.green())?;
+        } else {
+            writeln!(f, "[{}] checks pass", checks.red())?;
+        }
 
         Ok(())
     }
