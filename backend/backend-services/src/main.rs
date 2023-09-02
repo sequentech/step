@@ -44,10 +44,6 @@ pub struct InsertTenant;
 #[post("/hello-world", format = "json", data="<body>")]
 async fn hello_world(body: Json<Body>) -> Result<&'static str, Debug<reqwest::Error>> {
     println!("{:#?}", body.into_inner());
-    // 
-    
-    // let variables = query::Variables {};
-    // perform_my_query(variables).await?;
 
     let variables = query::Variables {};
     perform_my_query(variables).await?;
