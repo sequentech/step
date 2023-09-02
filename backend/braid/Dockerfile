@@ -17,10 +17,10 @@ RUN cp /app/target/release/bb_helper /usr/bin
 WORKDIR /app/braid
 RUN cargo build --release --features protocol-manager
 RUN cp /app/target/release/main /usr/bin/trustee
-RUN cp /app/target/release/gen_trustee_config /usr/bin
-RUN cp /app/target/release/protocol_manager /usr/bin
+RUN cp /app/target/release/gen_trustee_config /usr/bin/
+RUN cp /app/target/release/protocol_manager /usr/bin/
 RUN cp /app/target/release/main /usr/bin/trustee
-RUN cp /app/braid/scripts/*.sh /usr/bin/*.sh
+RUN cp /app/braid/scripts/*.sh /usr/bin/
 
 # init index db
 RUN mkdir /tmp/cache

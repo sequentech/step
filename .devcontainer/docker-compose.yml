@@ -162,8 +162,6 @@ services:
     volumes:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
-    depends_on:
-      - graphql-engine
   
   templates:
     profiles: ["dev"]
@@ -172,9 +170,9 @@ services:
       context: ../backend/
       dockerfile: ./templates/Dockerfile
     ports:
-      - 8400:8400 # templates service
-    depends_on:
-      - graphql-engine
+      - 8400:8400
+    #depends_on:
+    #  - graphql-engine
   
   trustee1:
     profiles: ["dev"]
@@ -244,10 +242,10 @@ services:
     #command: -c 'mc config host add minio http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD && mc admin user svcacct add --access-key "$MINIO_ACCESS_KEY" --secret-key "$MINIO_ACCESS_SECRET" minio $MINIO_ROOT_USER && server --console-address ":9001" /data'
     command: server --console-address ":9001" /data
     #entrypoint: /bin/bash
-    #command: -c 'echo FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF && minio server --console-address ":9001" /data'
+    #command: -c 'minio server --console-address ":9001" /data'
     #restart: always
-    depends_on:
-      - graphql-engine
+    #depends_on:
+    #  - graphql-engine
 
 volumes:
   db_data:
