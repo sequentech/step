@@ -38,8 +38,6 @@ use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 const IMMUDB_USER: &str = "immudb";
 const IMMUDB_PW: &str = "immudb";
-const PROTOCOL_MANAGER: &str = "pm.toml";
-const BOARD_NAME: &str = "33f18502a67c48538333a58630663559";
 
 #[derive(Parser)]
 struct Cli {
