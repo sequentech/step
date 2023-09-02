@@ -25,6 +25,7 @@ pub enum EventProcessors {
     CREATE_REPORT,
     UPDATE_VOTING_STATUS,
     CREATE_BOARD,
+    CREATE_KEYS,
 }
 
 #[derive(Deserialize, Debug)]
