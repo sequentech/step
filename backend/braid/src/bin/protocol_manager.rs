@@ -13,6 +13,8 @@ use rocket::response::Debug;
 use rocket::serde::json::Json;
 use rocket::serde::json::Value;
 use rocket::serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::format;
 use std::fs;
 use std::marker::PhantomData;
@@ -32,8 +34,7 @@ use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
-use strand::signature::StrandSignaturePk;
-use strand::signature::StrandSignatureSk;
+use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 const IMMUDB_USER: &str = "immudb";
 const IMMUDB_PW: &str = "immudb";
@@ -82,7 +83,7 @@ async fn create_config(body: Json<CreateKeysBody>) -> Result<(), Debug<anyhow::E
 async fn call_method<C: Ctx>(input: CreateKeysBody) -> Result<()> {
     let trustee_pks = input
         .trustee_pks
-        .iter()
+        .into_iter()
         .map(|public_key_string| {
             let public_key: StrandSignaturePk = public_key_string.try_into().unwrap();
             public_key
