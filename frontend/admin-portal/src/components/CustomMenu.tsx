@@ -134,6 +134,11 @@ export const CustomMenu = () => {
                 leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
             />
             <StyledItem
+                to="/sequent_backend_trustee"
+                primaryText="Trustees"
+                leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
+            />
+            <StyledItem
                 to="/user-roles"
                 primaryText="User and Roles"
                 leftIcon={<IconButton icon={faUsers} fontSize="24px" />}

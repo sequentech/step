@@ -42,8 +42,6 @@ struct Cli {
 
     #[arg(short, long, default_value_t = IMMUDB_PW.to_string())]
     password: String,
-
-
 }
 
 #[tokio::main]
@@ -63,8 +61,13 @@ async fn main() -> Result<()> {
     let bytes = braid::util::decode_base64(&tc.encryption_key)?;
     let ek = GenericArray::<u8, U32>::from_slice(&bytes).to_owned();
 
-    let mut board_index =
-        ImmudbBoardIndex::new(&args.server_url, &args.user, &args.password, args.board_index).await?;
+    let mut board_index = ImmudbBoardIndex::new(
+        &args.server_url,
+        &args.user,
+        &args.password,
+        args.board_index,
+    )
+    .await?;
     let store_root = std::env::current_dir().unwrap().join("message_store");
     loop {
         info!(">");
