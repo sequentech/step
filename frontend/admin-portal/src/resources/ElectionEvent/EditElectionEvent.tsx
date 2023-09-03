@@ -53,6 +53,42 @@ const ElectionEventListForm: React.FC = () => {
                 cronConfig: undefined,
                 eventPayload: {
                     board_name: record.id.replaceAll('-', ''),
+                    trustee_pks: [
+                        "1uPVrX1ZRmSfRsw8DIGCLzpV4sZYBHEh0zJojLHffrA",
+                        "NSEzWRG05+35Fo8b7n1Ci+WtP9uKgGJ1+DxLtXKQdS4"
+                    ],
+                    threshold: 2
+                },
+                createdBy: "admin",
+            },
+        })
+        if (errors) {
+            console.log(errors)
+        }
+        if (data) {
+            console.log(data)
+        }
+        setShowProgress(false)
+        refresh()
+    }
+
+    const createKeysAction = async () => {
+        setShowMenu(false)
+        setShowProgress(true)
+
+        const {data, errors} = await createScheduledEvent({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: record.id,
+                eventProcessor: ScheduledEventType.CREATE_KEYS,
+                cronConfig: undefined,
+                eventPayload: {
+                    board_name: record.id.replaceAll('-', ''),
+                    trustee_pks: [
+                        "1uPVrX1ZRmSfRsw8DIGCLzpV4sZYBHEh0zJojLHffrA",
+                        "NSEzWRG05+35Fo8b7n1Ci+WtP9uKgGJ1+DxLtXKQdS4"
+                    ],
+                    threshold: 2
                 },
                 createdBy: "admin",
             },
@@ -91,6 +127,11 @@ const ElectionEventListForm: React.FC = () => {
                     disabled={!!record.bulletin_board_reference}
                 >
                     Create Bulletin Board
+                </MenuItem>
+                <MenuItem
+                    onClick={createKeysAction}
+                >
+                    Create Keys
                 </MenuItem>
             </Menu>
             <Typography variant="h5">ID</Typography>

@@ -18,7 +18,7 @@ use braid::protocol2::board::immudb::{ImmudbBoard, ImmudbBoardIndex};
 use braid::protocol2::session::Session;
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
-use braid::util::init_log;
+use braid::util::{init_log, assert_folder};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
@@ -69,6 +69,7 @@ async fn main() -> Result<()> {
     )
     .await?;
     let store_root = std::env::current_dir().unwrap().join("message_store");
+    assert_folder(store_root.clone())?;
     loop {
         info!(">");
         let boards_result = board_index.get_board_names().await;

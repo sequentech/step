@@ -70,6 +70,12 @@ criterion = {version = "0.4", features=["html_reports"]}
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+
+[[bin]]
+name = "protocol_manager"
+path = "src/bin/rotocol_manager.rs"
+required-features = ["protocol-manager"]
+
 [features]
 wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-rayon", "dep:tracing-wasm", "instant/wasm-bindgen"]
 protocol-manager = ["dep:rocket"]
