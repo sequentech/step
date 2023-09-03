@@ -151,41 +151,20 @@ created.
 If you want to make changes to hasura, or if you want the Hasura console to
 automatically add migrations to the code, first run this project in Codespaces
 and open it in VS Code Desktop (not from the web). Then, in your local machine
-install the hasura client:
-
-    curl -L https://github.com/hasura/graphql-engine/raw/stable/cli/get.sh | bash
+ensure that the `graphql-engine` server name is aliased to `127.0.0.1` in 
+`/etc/hosts`, or else this won't work.
 
 Also clone this github project on your local machine (so this is apart from running
 it on Codespaces), and from the `backend-services/hasura` folder, run this:
 
-    hasura console --endpoint "http://127.0.0.1:8080" --admin-secret "admin"
+    hasura console
   
 Then open `http://localhost:9695` on the browser and make the changes you need.
-Those changes will be tracked with file changes on your local github, then
+Those changes will be tracked with file changes on the Github Codespaces, then
 commit the changes.
 
 Note that you can insert rows as a migration by clicking on the 
 `This is a migration` option at the bottom of the `Insert Row` form.
-
-#### Or do it inside the codespace
-
-Alternatively you could run the local console inside the `graphql-engine container`.
-For that you need to add ports `9693` and `9695` to `forwardPorts` in the file
-`.devcontainer/devcontainer.json` and add them to `graphql-engine.ports` in
-file `.devcontainer/docker-compose.yml`.
-
-You'll need to rebuild the container:
-
-    docker compose stop graphql-engine
-    docker compose build graphql-engine  && docker compose up -d --no-deps graphql-engine
-
-Then you get inside the container with:
-
-    docker compose exec graphql-engine /bin/sh
-
-And run the hasura console with something like:
-
-    /usr/bin/hasura-cli console --endpoint "http://127.0.0.1:8080" --admin-secret "admin" --address 0.0.0.0 --console-hge-endpoint http://127.0.0.1:8080
 
 ## templates
 ### Update graphql JSON schema

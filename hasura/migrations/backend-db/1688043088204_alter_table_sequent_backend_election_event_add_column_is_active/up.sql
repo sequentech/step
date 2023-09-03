@@ -1,2 +1,0 @@
-alter table "sequent_backend"."election_event" add column "is_active" boolean
- not null default 'false';
