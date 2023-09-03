@@ -8,8 +8,9 @@ use rocket::serde::{Deserialize, Serialize};
 use std::env;
 
 use crate::connection;
+use crate::services::protocol_manager::ProtocolManagerClient;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct CreateKeysBody {
     pub board_name: String,
@@ -18,8 +19,8 @@ pub struct CreateKeysBody {
 }
 
 pub async fn create_keys(
-    auth_headers: connection::AuthHeaders,
     body: CreateKeysBody,
 ) -> Result<()> {
-    Ok(())
+    let mut client = ProtocolManagerClient::new()?;
+    client.create_keys(body).await
 }
