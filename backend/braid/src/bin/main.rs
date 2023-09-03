@@ -42,6 +42,11 @@ struct Cli {
 #[instrument]
 async fn main() -> Result<()> {
     init_log(true);
+
+    // PROJECT_VERSION=$(git rev-parse HEAD) cargo run --bin main -- --server-url http://immudb:3322 --board-index defaultboardindex --trustee-config trustee1.toml
+    // let version = option_env!("PROJECT_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
+    // info!("Running braid version = {}", version);
+
     let args = Cli::parse();
 
     let contents = fs::read_to_string(args.trustee_config)

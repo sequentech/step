@@ -462,7 +462,7 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
         let t = value.parse::<u8>()?;
         let trustee_: Option<&mut Trustee<C>> = context.trustees.get_mut(t as usize);
         if let Some(trustee) = trustee_ {
-            let (messages, actions) = trustee.step(context.remote.get(0)).unwrap();
+            let (messages, actions) = trustee.step(context.remote.get(-1)).unwrap();
             send(&messages, &mut context.remote);
             context.last_messages = messages;
             context.last_actions = actions;
@@ -476,7 +476,7 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
                 "====================== Running trustee {} ======================",
                 position.unwrap()
             );
-            let (mut messages, actions) = t.step(context.remote.get(0)).unwrap();
+            let (mut messages, actions) = t.step(context.remote.get(-1)).unwrap();
             send(&messages, &mut context.remote);
             context.last_messages.append(&mut messages);
             context.last_actions.extend(&actions);

@@ -91,9 +91,14 @@ impl ImmudbBoard {
             .get_messages(&self.board_dbname, last_id)
             .await?;
 
+        let mut monotonic = -1;
         for message in messages {
             // new messages must always be appended to the store in ascending order
             assert!(message.id > last_id);
+            if monotonic != -1 {
+                assert_eq!(message.id, monotonic + 1);
+                monotonic = message.id;
+            }
             connection.execute(
                 "INSERT INTO MESSAGES VALUES(?1, ?2)",
                 params![message.id, message.message],

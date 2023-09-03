@@ -1,11 +1,14 @@
+use crate::protocol2::Hash;
 use borsh::{BorshDeserialize, BorshSerialize};
 use strum::Display;
 
 type Timestamp = u64;
-use crate::protocol2::Hash;
 pub type THashes = [Hash; crate::protocol2::MAX_TRUSTEES];
 
+// FIXME replace these three with our own newtypes, don't use predicate::*
+use crate::protocol2::predicate::BatchNumber;
 use crate::protocol2::predicate::MixNumber;
+use crate::protocol2::predicate::TrusteeSet;
 
 ///////////////////////////////////////////////////////////////////////////
 // Statement
@@ -40,7 +43,7 @@ pub enum Statement {
         CiphertextsH,
         PublicKeyH,
         // the trustees to participate in mixing + decryption (ballots.trustees in Ballots artifact)
-        [usize; crate::protocol2::MAX_TRUSTEES],
+        TrusteeSet,
     ),
     Mix(
         Timestamp,
@@ -270,8 +273,8 @@ impl Statement {
     ) -> (
         StatementType,
         Hash,
-        usize,
-        usize,
+        BatchNumber,
+        MixNumber,
         Option<ArtifactType>,
         Timestamp,
     ) {

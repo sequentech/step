@@ -33,6 +33,7 @@ impl<C: Ctx> Verifier<C> {
         let mut vr = VerificationResult::new(&self.board.board_dbname);
         vr.add_target("Configuration valid");
         vr.add_target("Message signatures verified");
+        vr.add_target("All messages have correct configuration");
 
         info!(
             "{}",
@@ -60,7 +61,7 @@ impl<C: Ctx> Verifier<C> {
         let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
         info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 
-        vr.add_result("Configuration valid", || (cfg.is_valid(), dbg_hash(&cfg_h)));
+        vr.add_result("Configuration valid", cfg.is_valid(), &dbg_hash(&cfg_h));
 
         // Verify message signatures
 
@@ -71,7 +72,18 @@ impl<C: Ctx> Verifier<C> {
             .map(|m| m.verify(&cfg))
             .collect();
         let vmessages = vmessages?;
-        vr.add_result("Message signatures verified", || (true, vmessages.len()));
+        vr.add_result("Message signatures verified", true, &vmessages.len());
+
+        let correct_cfg = messages
+            .clone()
+            .into_iter()
+            .filter(|m| m.statement.get_cfg_h() == cfg_h)
+            .count();
+        vr.add_result(
+            "All messages have correct configuration",
+            correct_cfg == messages.len(),
+            &dbg_hash(&cfg_h),
+        );
 
         // Obtain verification targets
 
@@ -88,9 +100,12 @@ impl<C: Ctx> Verifier<C> {
         let (targets, _) = crate::verify::datalog::S.run(&predicates);
         for t in &targets {
             let mut tvr = t.get_verification_target();
-            tvr.add_result("Configuration matches parent", || {
-                (t.0 .0 == cfg_h, dbg_hash(&cfg_h))
-            });
+            tvr.add_result(
+                "Configuration matches parent",
+                t.0 .0 == cfg_h,
+                &dbg_hash(&cfg_h),
+            );
+
             info!("Add verification target [{}]", t.get_batch());
             vr.add_child(tvr);
         }
@@ -177,57 +192,59 @@ impl Verified {
             .collect();
 
         let child = vr.children.get_mut(&self.1.to_string()).unwrap();
-        child.add_result("Configuration matches", || {
-            (self.get_cfg_h() == target.get_cfg_h(), dbg_hash(&self.0 .0))
-        });
-        child.add_result("Batch matches", || {
-            (self.get_batch() == target.get_batch(), dbg_hash(&self.0 .0))
-        });
+        child.add_result(
+            "Configuration matches",
+            self.get_cfg_h() == target.get_cfg_h(),
+            &dbg_hash(&self.0 .0),
+        );
+        child.add_result(
+            "Batch matches",
+            self.get_batch() == target.get_batch(),
+            &dbg_hash(&self.0 .0),
+        );
         // This is already certified by the datalog predicates
-        child.add_result("Mixing chain no duplicate signers", || {
-            (true, filtered_mixes.len())
-        });
+        child.add_result(
+            "Mixing chain no duplicate signers",
+            true,
+            &filtered_mixes.len(),
+        );
         // subtract one since the number of hashes includes the source and the target, eg ballots => mix1 => mix2 has length 3, but threshold = 2
-        child.add_result("Mixing chain correct length", || {
-            (filtered_mixes.len() - 1 == cfg.threshold, cfg.threshold)
-        });
-        child.add_result("Mixing chain start matches ballots", || {
-            (
-                filtered_mixes[0] == target.get_ballots_h().0
-                    && filtered_mixes[0] == self.get_ballots_h().0,
-                dbg_hash(&target.3 .0),
-            )
-        });
-        child.add_result("Mixing chain end matches decrypting ballots", || {
-            (
-                filtered_mixes[cfg.threshold] == self.get_decryption_input_h().0,
-                cfg.threshold,
-            )
-        });
-        child.add_result("Public key is verified", || {
-            (
-                self.get_verified_pk_h() == target.get_pk_h(),
-                dbg_hash(&self.2 .0),
-            )
-        });
-        child.add_result("Ballots' public key matches", || {
-            (
-                self.get_ballots_pk_h() == target.get_pk_h(),
-                dbg_hash(&self.3 .0),
-            )
-        });
-        child.add_result("Decryption validated with respect to public key", || {
-            (
-                self.get_decryption_pk_h() == target.get_pk_h(),
-                dbg_hash(&self.5 .0),
-            )
-        });
-        child.add_result("Plaintexts match", || {
-            (
-                self.get_plaintexts_h() == target.get_plaintexts_h(),
-                dbg_hash(&self.7 .0),
-            )
-        });
+        child.add_result(
+            "Mixing chain correct length",
+            filtered_mixes.len() - 1 == cfg.threshold,
+            &cfg.threshold,
+        );
+        child.add_result(
+            "Mixing chain start matches ballots",
+            filtered_mixes[0] == target.get_ballots_h().0
+                && filtered_mixes[0] == self.get_ballots_h().0,
+            &dbg_hash(&target.3 .0),
+        );
+        child.add_result(
+            "Mixing chain end matches decrypting ballots",
+            filtered_mixes[cfg.threshold] == self.get_decryption_input_h().0,
+            &cfg.threshold,
+        );
+        child.add_result(
+            "Public key is verified",
+            self.get_verified_pk_h() == target.get_pk_h(),
+            &dbg_hash(&self.2 .0),
+        );
+        child.add_result(
+            "Ballots' public key matches",
+            self.get_ballots_pk_h() == target.get_pk_h(),
+            &dbg_hash(&self.3 .0),
+        );
+        child.add_result(
+            "Decryption validated with respect to public key",
+            self.get_decryption_pk_h() == target.get_pk_h(),
+            &dbg_hash(&self.5 .0),
+        );
+        child.add_result(
+            "Plaintexts match",
+            self.get_plaintexts_h() == target.get_plaintexts_h(),
+            &dbg_hash(&self.7 .0),
+        );
     }
 
     fn get_cfg_h(&self) -> ConfigurationHash {
@@ -278,9 +295,8 @@ impl VerificationResult {
         self.targets
             .insert(name.to_string(), VerificationItem::new());
     }
-    fn add_result<F: Fn() -> (bool, D), D: std::fmt::Display>(&mut self, name: &str, eval: F) {
+    fn add_result<D: std::fmt::Display>(&mut self, name: &str, result: bool, metadata: &D) {
         let value = self.targets.get_mut(name).unwrap();
-        let (result, metadata) = eval();
         value.result = result;
         value.metadata = metadata.to_string();
     }

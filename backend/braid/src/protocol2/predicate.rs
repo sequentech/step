@@ -319,6 +319,7 @@ pub struct PlaintextsHash(pub crate::protocol2::Hash);
 pub(crate) type TrusteePosition = usize;
 // 1-based
 pub(crate) type Threshold = usize;
+pub(crate) type TrusteeCount = usize;
 // 1-based _elements_
 pub(crate) type TrusteeSet = [usize; crate::protocol2::MAX_TRUSTEES];
 // 1-based, the position in the mixing chain (note this is not the same as the
@@ -326,7 +327,6 @@ pub(crate) type TrusteeSet = [usize; crate::protocol2::MAX_TRUSTEES];
 pub(crate) type MixNumber = usize;
 
 pub(crate) type BatchNumber = usize;
-pub(crate) type TrusteeCount = usize;
 
 ///////////////////////////////////////////////////////////////////////////
 // Debug

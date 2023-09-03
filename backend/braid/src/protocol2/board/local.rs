@@ -35,7 +35,7 @@ use crate::protocol2::predicate::{CiphertextsHash, DecryptionFactorsHash};
 // Messages are composed of statements and optionally artifacts
 //
 #[derive(Clone)] // FIXME used by dbg
-pub struct LocalBoard<C: Ctx> {
+pub(crate) struct LocalBoard<C: Ctx> {
     pub(crate) configuration: Option<Configuration<C>>,
     cfg_hash: Option<Hash>,
 
@@ -121,11 +121,11 @@ impl<C: Ctx> LocalBoard<C> {
 
         if message_hash == cfg_hash {
             warn!("Configuration received when identical present, ignored");
+            Ok(())
         } else {
-            error!("Configuration overwrite attempt, ignored");
+            error!("Configuration overwrite attempt");
+            Err(anyhow!("Configuration overwrite attempt"))
         }
-
-        Err(anyhow!("Artifact already present"))
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -148,14 +148,14 @@ impl<C: Ctx> LocalBoard<C> {
                     "Statement identifier already exists (identical): {:?}",
                     statement_identifier
                 );
+                Ok(())
             } else {
                 error!(
                     "Statement identifier already exists (overwrite): {:?}, message was {:?}",
                     statement_identifier, message
                 );
+                Err(anyhow!("Statement already present (overwrite)"))
             }
-
-            Err(anyhow!("Statement already present"))
         } else {
             debug!(
                 "Statement identifier is new: {:?}",
@@ -177,11 +177,11 @@ impl<C: Ctx> LocalBoard<C> {
                 if let Some((existing_hash, _)) = artifact_entry {
                     if artifact_hash == *existing_hash {
                         warn!("Artifact identical, ignored");
+                        Ok(())
                     } else {
-                        error!("Artifact overwrite attempt, ignored");
+                        error!("Artifact already present (overwrite)");
+                        Err(anyhow!("Artifact already present (overwrite)"))
                     }
-
-                    Err(anyhow!("Artifact already present"))
                 } else {
                     debug!(
                         "Artifact identifier is new: {:?}",
@@ -465,7 +465,7 @@ impl<C: Ctx> LocalBoard<C> {
         StatementEntryIdentifier {
             kind,
             signer_position,
-            batch,
+            batch: batch,
             mix_number,
         }
     }
