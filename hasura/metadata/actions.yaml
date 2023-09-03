@@ -2,7 +2,7 @@ actions:
 - name: createScheduledEvent
   definition:
     kind: synchronous
-    handler: http://templates:8400/scheduled-event
+    handler: http://harvest:8400/scheduled-event
     forward_client_headers: true
     headers:
     - name: X-Hasura-Admin-Secret
@@ -19,7 +19,7 @@ actions:
 - name: fetchDocument
   definition:
     kind: ""
-    handler: http://templates:8400/fetch-document
+    handler: http://harvest:8400/fetch-document
     forward_client_headers: true
     headers:
     - name: X-Hasura-Admin-Secret
@@ -38,20 +38,9 @@ actions:
   permissions:
   - role: admin-user
   comment: fetch document
-- name: helloWorld
-  definition:
-    kind: ""
-    handler: http://127.0.0.1:8000/hello-world
-    request_transform:
-      body:
-        action: transform
-        template: "$body.input \n"
-      template_engine: Kriti
-      version: 2
 custom_types:
   enums: []
   input_objects:
-  - name: InputParams
   - name: TemplateInput
   objects:
   - name: TemplateOutput

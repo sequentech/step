@@ -171,13 +171,13 @@ services:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
   
-  templates:
+  harvest:
     stdin_open: true
     build:
       context: ../backend/
-      dockerfile: ./templates/Dockerfile
+      dockerfile: ./harvest/Dockerfile
     ports:
-      - 8400:8400 # templates service
+      - 8400:8400 # harvest service
 
   minio:
     image: minio/minio

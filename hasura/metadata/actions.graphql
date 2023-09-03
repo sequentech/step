@@ -17,16 +17,6 @@ type Query {
   ): FetchDocumentOutput
 }
 
-type Query {
-  helloWorld (
-    input: InputParams!
-  ): String!
-}
-
-input InputParams {
-  string : String
-}
-
 input TemplateInput {
   template : String!
   format : String!

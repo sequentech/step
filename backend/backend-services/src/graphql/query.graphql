@@ -1,6 +1,0 @@
-query Query {
-  sequent_backend_tenant {
-    username
-    id
-  }
-}
