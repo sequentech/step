@@ -73,7 +73,7 @@ crate-type = ["cdylib", "rlib"]
 
 [[bin]]
 name = "protocol_manager"
-path = "src/bin/rotocol_manager.rs"
+path = "src/bin/protocol_manager.rs"
 required-features = ["protocol-manager"]
 
 [features]

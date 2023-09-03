@@ -86,7 +86,7 @@ const ElectionEventListForm: React.FC = () => {
                     board_name: record.id.replaceAll('-', ''),
                     trustee_pks: [
                         "1uPVrX1ZRmSfRsw8DIGCLzpV4sZYBHEh0zJojLHffrA",
-                        "NSEzWRG05+35Fo8b7n1Ci+WtP9uKgGJ1+DxLtXKQdS4"
+                        "xDO0LdOBRejUpXZ+EFWka1Q9jxbkqJLYea4jkRHAQMw"
                     ],
                     threshold: 2
                 },
