@@ -57,6 +57,18 @@ Additionally, this dev container comes with:
  - `cargo run` and `yarn install` pre-run so that you don't have to spend time
    waiting for setting up the enviroment the first time.
 
+### Workspaces
+
+When you open a new terminal, typically the current working directory (CWD) is
+`/workspaces` if you are using Github Codespaces. However, all the commands
+below are assuming you start with the CWD `/workspaces/backend-services`.
+
+This is important especially if you are for example relaunching a docker service
+(for example `docker compose up -d graphql-engine`). If you do it from within
+`/workspace/.devcontainer` it will fail, but if you do it within
+`/workspaces/backend-services/.devcontainer` it should work, even if those two
+are typically a symlink to the other directory and are essentially the same.
+
 ### Launch the backend rust service
 
 Since we have not yet setup a docker container to automatically launch the
@@ -70,7 +82,7 @@ cd backend/backend-services && cargo run
 This should output something like:
 
 ```bash
-@edulix ➜ /workspace/backend/backend-services (main ✗) $ cargo run
+@edulix ➜ /workspaces/backend-services/backend/backend-services (main ✗) $ cargo run
     Updating crates.io index
   Downloaded async-trait v0.1.68
   ....
@@ -236,8 +248,8 @@ Here are some helpful random commands for development of the tamper-evident
 logging implemented using immudb:
 
 ```bash
-cd /workspace/.devcontainer && docker compose build immudb-log-audit immudb-log-audit-init && docker compose up -d immudb-log-audit immudb-log-audit-init && docker compose logs -f immudb-log-audit
-cd /workspace/.devcontainer && docker compose build postgres && docker compose up -d postgres && docker compose logs -f postgres
+cd /workspaces/backend-services/.devcontainer && docker compose build immudb-log-audit immudb-log-audit-init && docker compose up -d immudb-log-audit immudb-log-audit-init && docker compose logs -f immudb-log-audit
+cd /workspaces/backend-services/.devcontainer && docker compose build postgres && docker compose up -d postgres && docker compose logs -f postgres
 
 docker compose exec postgres bash
 docker compose run  --entrypoint /bin/sh immudb-log-audit

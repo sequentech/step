@@ -7,7 +7,7 @@ services:
   devcontainer:
     image: ghcr.io/cachix/devenv:latest
     volumes:
-      - ../:/workspace:cached
+      - ../..:/workspaces:cached
     security_opt:
       - label:disable
     environment:
