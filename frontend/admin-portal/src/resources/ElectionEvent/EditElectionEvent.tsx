@@ -20,18 +20,21 @@ import {HorizontalBox} from "../../components/HorizontalBox"
 import {ChipList} from "../../components/ChipList"
 import {Link} from "react-router-dom"
 import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
-import {IconButton, isUndefined} from "@sequentech/ui-essentials"
+import {IconButton} from "@sequentech/ui-essentials"
 import {faPieChart, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
 import {useTenantStore} from "../../components/CustomMenu"
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {useMutation} from "@apollo/client"
+import {KeysGenerationDialog} from "../../components/KeysGenerationDialog"
+import {IKeysGenerationStatus, getKeysGenerationStatus} from "../../services/ElectionEventStatus"
 
 const ElectionEventListForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const [showMenu, setShowMenu] = useState(false)
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const [showProgress, setShowProgress] = useState(false)
+    const [showCreateKeysDialog, setShowCreateKeysDialog] = useState(false)
     const [tenantId] = useTenantStore()
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const refresh = useRefresh()
@@ -52,12 +55,7 @@ const ElectionEventListForm: React.FC = () => {
                 eventProcessor: ScheduledEventType.CREATE_BOARD,
                 cronConfig: undefined,
                 eventPayload: {
-                    board_name: record.id.replaceAll('-', ''),
-                    trustee_pks: [
-                        "1uPVrX1ZRmSfRsw8DIGCLzpV4sZYBHEh0zJojLHffrA",
-                        "NSEzWRG05+35Fo8b7n1Ci+WtP9uKgGJ1+DxLtXKQdS4"
-                    ],
-                    threshold: 2
+                    board_name: record.id.replaceAll("-", ""),
                 },
                 createdBy: "admin",
             },
@@ -72,36 +70,12 @@ const ElectionEventListForm: React.FC = () => {
         refresh()
     }
 
-    const createKeysAction = async () => {
-        setShowMenu(false)
-        setShowProgress(true)
-
-        const {data, errors} = await createScheduledEvent({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: record.id,
-                eventProcessor: ScheduledEventType.CREATE_KEYS,
-                cronConfig: undefined,
-                eventPayload: {
-                    board_name: record.id.replaceAll('-', ''),
-                    trustee_pks: [
-                        "1uPVrX1ZRmSfRsw8DIGCLzpV4sZYBHEh0zJojLHffrA",
-                        "xDO0LdOBRejUpXZ+EFWka1Q9jxbkqJLYea4jkRHAQMw"
-                    ],
-                    threshold: 2
-                },
-                createdBy: "admin",
-            },
-        })
-        if (errors) {
-            console.log(errors)
-        }
-        if (data) {
-            console.log(data)
-        }
-        setShowProgress(false)
-        refresh()
+    const openKeysDialog = () => {
+        console.log("opening...")
+        setShowCreateKeysDialog(true)
     }
+
+    let keysGenerationStatus = getKeysGenerationStatus(record.status)
 
     return (
         <SimpleForm>
@@ -129,11 +103,20 @@ const ElectionEventListForm: React.FC = () => {
                     Create Bulletin Board
                 </MenuItem>
                 <MenuItem
-                    onClick={createKeysAction}
+                    onClick={openKeysDialog}
+                    disabled={
+                        !record.bulletin_board_reference ||
+                        keysGenerationStatus === IKeysGenerationStatus.CREATED
+                    }
                 >
                     Create Keys
                 </MenuItem>
             </Menu>
+            <KeysGenerationDialog
+                show={showCreateKeysDialog}
+                handleClose={() => setShowCreateKeysDialog(false)}
+                electionEvent={record}
+            />
             <Typography variant="h5">ID</Typography>
             <TextField source="id" />
             <TextInput source="name" />

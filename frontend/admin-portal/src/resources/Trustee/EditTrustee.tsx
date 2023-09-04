@@ -3,13 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Typography} from "@mui/material"
 import React from "react"
-import {
-    BooleanInput,
-    Edit,
-    SimpleForm,
-    TextField,
-    TextInput,
-} from "react-admin"
+import {BooleanInput, Edit, SimpleForm, TextField, TextInput} from "react-admin"
 import {ListTrustee} from "./ListTrustee"
 import {JsonInput} from "react-admin-json-view"
 

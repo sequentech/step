@@ -2,12 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement} from "react"
-import {
-    DatagridConfigurable,
-    List,
-    TextField,
-    TextInput,
-} from "react-admin"
+import {DatagridConfigurable, List, TextField, TextInput} from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
