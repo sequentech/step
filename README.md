@@ -76,20 +76,20 @@ rust&rocket based backend service, you can launch it manually by executing the
 following command in a dedicated terminal:
 
 ```bash
-cd backend/backend-services && cargo run
+cd backend/harvest && cargo run
 ```
 
 This should output something like:
 
 ```bash
-@edulix ➜ /workspaces/backend-services/backend/backend-services (main ✗) $ cargo run
+@edulix ➜ /workspaces/backend-services/backend/harvest (main ✗) $ cargo run
     Updating crates.io index
   Downloaded async-trait v0.1.68
   ....
   Downloaded 102 crates (7.9 MB) in 0.93s (largest was `encoding_rs` at 1.4 MB)
-   Compiling backend-services v0.1.0 (/workspace)
+   Compiling harvest v0.1.0 (/workspace)
     Finished dev [unoptimized + debuginfo] target(s) in 28.50s
-     Running `target/debug/backend-services`
+     Running `target/debug/harvest`
 🔧 Configured for debug.
    >> address: 127.0.0.1
    >> port: 8000
