@@ -9,6 +9,8 @@ use tracing_subscriber::reload::Handle;
 use tracing_subscriber::{filter, reload};
 use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use tracing_tree::HierarchicalLayer;
+use std::fs;
+use std::path::PathBuf;
 
 pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     let layer = HierarchicalLayer::default()
@@ -48,4 +50,17 @@ pub fn decode_base64(s: &String) -> Result<Vec<u8>> {
     general_purpose::STANDARD_NO_PAD
         .decode(&s)
         .map_err(|error| anyhow!(error))
+}
+
+pub fn assert_folder(folder: PathBuf) -> Result<()> {
+    let path = folder.as_path();
+    if path.exists() {
+        if path.is_dir() {
+            Ok(())
+        } else {
+            Err(anyhow!("Path is not a folder: {}", path.display()))
+        }
+    } else {
+        fs::create_dir(path).map_err(|err| anyhow!(err))
+    }
 }

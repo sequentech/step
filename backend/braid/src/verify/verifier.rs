@@ -28,8 +28,6 @@ impl<C: Ctx> Verifier<C> {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        // A verification result is function of 4 inputs
-        // (public key, ballots, plaintexts, trustees)
         let mut vr = VerificationResult::new(&self.board.board_dbname);
         vr.add_target("Configuration valid");
         vr.add_target("Message signatures verified");
@@ -85,7 +83,7 @@ impl<C: Ctx> Verifier<C> {
             &dbg_hash(&cfg_h),
         );
 
-        // Obtain verification targets
+        // Derive per-batch verification targets
 
         let mut predicates = vec![];
         // Skip the configuration message

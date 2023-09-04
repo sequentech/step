@@ -191,7 +191,7 @@ impl Predicate {
                 batch.0,
                 CiphertextsHash(source_h.0),
                 CiphertextsHash(mix_h.0),
-                *mix_number,
+                mix_number.0,
                 signer_position,
             ),
             // MixSigned(Timestamp, ConfigurationH, usize, usize, CiphertextsH, CiphertextsH)

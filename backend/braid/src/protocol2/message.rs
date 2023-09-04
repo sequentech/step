@@ -194,7 +194,7 @@ impl Message {
             CiphertextsH(previous_ciphertexts_h.0),
             CiphertextsH(mix_h),
             Batch(batch),
-            mix.mix_number,
+            MixNo(mix.mix_number),
         );
         trustee.sign(statement, Some(mix_bytes))
     }
@@ -216,7 +216,7 @@ impl Message {
             CiphertextsH(previous_ciphertexts_h.0),
             CiphertextsH(mix_h.0),
             Batch(batch),
-            mix_number,
+            MixNo(mix_number),
         );
         trustee.sign(statement, None)
     }
@@ -311,7 +311,7 @@ impl Message {
     ) -> Result<VerifiedMessage> {
         let (kind, st_cfg_h, _, mix_no, artifact_type, _) = self.statement.get_data();
 
-        if mix_no > configuration.trustees.len() {
+        if mix_no.0 > configuration.trustees.len() {
             return Err(anyhow!(
                 "Received a message whose statement signature number is out of range"
             ));

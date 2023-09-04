@@ -209,7 +209,7 @@ impl<C: Ctx> Status<C> {
                 format!("{:?}", m.statement.get_kind()),
                 format!("{}", sender),
                 m.artifact.is_some().to_string(),
-                format!("{}", m.statement.get_data().3),
+                format!("{}", m.statement.get_data().3.0),
             ])
         }
         boards.push("Remote".to_string());

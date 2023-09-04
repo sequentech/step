@@ -2,14 +2,6 @@ use crate::protocol2::Hash;
 use borsh::{BorshDeserialize, BorshSerialize};
 use strum::Display;
 
-type Timestamp = u64;
-pub type THashes = [Hash; crate::protocol2::MAX_TRUSTEES];
-
-// FIXME replace these three with our own newtypes, don't use predicate::*
-use crate::protocol2::predicate::BatchNumber;
-use crate::protocol2::predicate::MixNumber;
-use crate::protocol2::predicate::TrusteeSet;
-
 ///////////////////////////////////////////////////////////////////////////
 // Statement
 ///////////////////////////////////////////////////////////////////////////
@@ -52,14 +44,14 @@ pub enum Statement {
         CiphertextsH,
         CiphertextsH,
         // the mix number (mix.mix_number in Mix artifact)
-        MixNumber,
+        MixNo,
     ),
     // See also local::StatementEntryIdentifier::mix_number
     MixSigned(
         Timestamp,
         ConfigurationH,
         Batch,
-        MixNumber,
+        MixNo,
         CiphertextsH,
         CiphertextsH,
     ),
@@ -163,7 +155,7 @@ impl Statement {
         source_ciphertexts_h: CiphertextsH,
         mix_h: CiphertextsH,
         batch: Batch,
-        mix_number: MixNumber,
+        mix_number: MixNo,
     ) -> Statement {
         Statement::Mix(
             Self::timestamp(),
@@ -181,7 +173,7 @@ impl Statement {
         source_ciphertexts_h: CiphertextsH,
         mix_h: CiphertextsH,
         batch: Batch,
-        mix_number: MixNumber,
+        mix_number: MixNo,
     ) -> Statement {
         Statement::MixSigned(
             Self::timestamp(),
@@ -273,16 +265,16 @@ impl Statement {
     ) -> (
         StatementType,
         Hash,
-        BatchNumber,
-        MixNumber,
+        Batch,
+        MixNo,
         Option<ArtifactType>,
         Timestamp,
     ) {
         let kind: StatementType;
         let ts: u64;
         let cfg: [u8; 64];
-        let mut batch = 0usize;
-        let mut mix_number = 0usize;
+        let mut batch = Batch(0);
+        let mut mix_number = MixNo(0);
         let mut artifact_type = None;
 
         match self {
@@ -329,42 +321,42 @@ impl Statement {
                 ts = *ts_;
                 kind = StatementType::Ballots;
                 cfg = cfg_h.0;
-                batch = bch.0;
+                batch = bch.clone();
                 artifact_type = Some(ArtifactType::Ballots);
             }
             Self::Mix(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::Mix;
                 cfg = cfg_h.0;
-                batch = bch.0;
+                batch = bch.clone();
                 artifact_type = Some(ArtifactType::Mix);
             }
             Self::MixSigned(ts_, cfg_h, bch, mix_no, _, _) => {
                 ts = *ts_;
                 kind = StatementType::MixSigned;
                 cfg = cfg_h.0;
-                batch = bch.0;
-                mix_number = *mix_no;
+                batch = bch.clone();
+                mix_number = mix_no.clone();
             }
             Self::DecryptionFactors(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::DecryptionFactors;
                 cfg = cfg_h.0;
-                batch = bch.0;
+                batch = bch.clone();
                 artifact_type = Some(ArtifactType::DecryptionFactors);
             }
             Self::Plaintexts(ts_, cfg_h, bch, _, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::Plaintexts;
                 cfg = cfg_h.0;
-                batch = bch.0;
+                batch = bch.clone();
                 artifact_type = Some(ArtifactType::Plaintexts);
             }
             Self::PlaintextsSigned(ts_, cfg_h, bch, _, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::PlaintextsSigned;
                 cfg = cfg_h.0;
-                batch = bch.0;
+                batch = bch.clone();
             }
         }
 
@@ -399,6 +391,13 @@ pub struct PlaintextsH(pub Hash);
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct Batch(pub usize);
+
+#[derive(BorshSerialize, BorshDeserialize, Clone)]
+pub struct MixNo(pub usize);
+pub(crate) type TrusteeSet = [usize; crate::protocol2::MAX_TRUSTEES];
+
+type Timestamp = u64;
+pub type THashes = [Hash; crate::protocol2::MAX_TRUSTEES];
 
 ///////////////////////////////////////////////////////////////////////////
 // Enums necessary to store statements and artifacts in LocalBoard
