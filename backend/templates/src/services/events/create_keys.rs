@@ -31,12 +31,13 @@ pub async fn create_keys(
         body.election_event_id.clone(),
     )
     .await?;
-    let status = hasura_response
+    let election_event = &hasura_response
         .data
         .expect("expected data".into())
-        .sequent_backend_election_event[0]
-        .status
-        .clone();
+        .sequent_backend_election_event[0];
+    let status = election_event.status.clone();
+    let bulletin_board_reference =
+        election_event.bulletin_board_reference.clone();
 
     let mut client = ProtocolManagerClient::new()?;
     client.create_keys(body).await
