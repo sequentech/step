@@ -1,11 +1,12 @@
 pub use log::{debug, error, info, trace};
 pub use std::collections::HashSet;
-use tracing_attributes::instrument;
 
 use crate::protocol2::action::Action;
 use crate::protocol2::statement::THashes;
 use crate::protocol2::Hash;
+
 pub(crate) const NULL_HASH: [u8; 64] = [0u8; 64];
+// used by bb_client
 pub const NULL_TRUSTEE: usize = 1001;
 
 pub(crate) use crate::protocol2::predicate::*;
@@ -76,7 +77,6 @@ pub(crate) fn get_phases() -> Vec<Phase> {
     ]
 }
 
-#[instrument(skip_all)]
 pub(crate) fn run(predicates: &Vec<Predicate>) -> (HashSet<Action>, Vec<Predicate>) {
     let phases = get_phases();
     let mut all_predicates = vec![];
@@ -143,5 +143,3 @@ pub(crate) mod cfg;
 pub(crate) mod decrypt;
 pub(crate) mod dkg;
 pub(crate) mod shuffle;
-
-pub(crate) mod v;

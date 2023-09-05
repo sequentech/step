@@ -45,7 +45,3 @@ pub const PROTOCOL_MANAGER_INDEX: usize = 1000;
 pub const VERIFIER_INDEX: usize = 2000;
 
 pub type Hash = [u8; 64];
-
-pub fn hash_from_vec(bytes: &[u8]) -> anyhow::Result<Hash> {
-    strand::util::to_hash_array(bytes).map_err(|e| e.into())
-}

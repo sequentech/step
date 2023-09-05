@@ -55,6 +55,8 @@ const App = () => {
         buildDataProvider()
     }, [])
 
+    if (!dataProvider) return <p>Loading data provider...</p>;
+
     return (
         <Admin dataProvider={dataProvider || undefined} layout={CustomLayout}>
             <CustomRoutes>

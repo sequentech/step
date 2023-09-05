@@ -7,28 +7,45 @@ services:
   devcontainer:
     image: ghcr.io/cachix/devenv:latest
     volumes:
-      - ../:/workspace:cached
+      - ../..:/workspaces:cached
     security_opt:
       - label:disable
     environment:
-      ## postgres database to store Hasura metadata
+      # postgres database to store Hasura metadata
       HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
-      ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
+      # this env var can be used to add the above postgres database to Hasura 
+      # as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
 
+  # Needed to set up proper permissions for non root user in postgres
+  postgres-volume-init:
+    image: alpine
+    volumes: 
+      - db_logs:/logs
+    user: root
+    group_add:
+      - '999'
+    command: chown -R 999:999 /logs
+
   postgres:
-    image: postgres:15
-    restart: always
+    build:
+      context: ./postgresql
+      dockerfile: Dockerfile
+    restart: unless-stopped
     volumes:
       - db_data:/var/lib/postgresql/data
+      - db_logs:/logs
     environment:
       POSTGRES_PASSWORD: postgrespassword
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 10s
       retries: 15
       start_period: 5s
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
+    depends_on:
+      - postgres-volume-init
 
   graphql-engine:
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
@@ -51,6 +68,8 @@ services:
       ## enable debugging mode. It is recommended to disable this in production
       HASURA_GRAPHQL_DEV_MODE: "true"
       BACKEND_SERVICE_HOSTNAME: "http://localhost:8000"
+      # https://hasura.io/docs/latest/deployment/graphql-engine-flags/config-examples/#console-assets-on-server
+      HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: "/srv/console-assets"
       HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
       ## uncomment next line to run console offline (i.e load console assets from server instead of CDN)
       # HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: /srv/console-assets
@@ -94,7 +113,7 @@ services:
     environment:
       POSTGRES_PASSWORD: postgrespassword
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: ["CMD-SHELL", "pg_isready  -U postgres"]
       interval: 5s
       timeout: 10s
       retries: 15
@@ -150,11 +169,12 @@ services:
        - ../frontend:/usr/src/app
     depends_on:
       - graphql-engine
-
   immudb:
     profiles: ["dev"]
     image: codenotary/immudb:1.5
     restart: always
+    environment:
+      - IMMUDB_PGSQL_SERVER=true
     ports:
       - 3322:3322 # immudb service
       - 3324:9497 # prometheus
@@ -163,12 +183,12 @@ services:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
   
-  templates:
+  harvest:
     profiles: ["dev"]
     stdin_open: true
     build:
       context: ../backend/
-      dockerfile: ./templates/Dockerfile
+      dockerfile: ./harvest/Dockerfile
     ports:
       - 8400:8400
     #depends_on:
@@ -247,8 +267,78 @@ services:
     #depends_on:
     #  - graphql-engine
 
+  # Create collection in immudb
+  immudb-log-audit-init:
+    build:
+      context: ../vendor/immudb-log-audit
+      dockerfile: Dockerfile.immudb
+    command: >
+      create sql pgaudit
+      --parser pgauditjsonlog
+      --log-level debug
+      --immudb-host immudb
+    depends_on:
+      - postgres
+      - immudb
+
+  # Send audit logs to immudb
+  immudb-log-audit:
+    build:
+      context: ../vendor/immudb-log-audit
+      dockerfile: Dockerfile.immudb
+    command: >
+      tail file pgaudit "/logs/*.json"
+      --follow
+      --parser pgauditjsonlog
+      --file-registry-dir=/data
+      --log-level debug
+      --immudb-host immudb
+    volumes: 
+      - 'immudb_log_audit_data:/data'
+      - 'db_logs:/logs'
+    depends_on:
+      - postgres
+      - immudb
+      - immudb-log-audit-init
+
+  # Create collection in immudb
+  immudb-log-audit-init:
+    build:
+      context: ../vendor/immudb-log-audit
+      dockerfile: Dockerfile.immudb
+    command: >
+      create sql pgaudit
+      --parser pgauditjsonlog
+      --log-level debug
+      --immudb-host immudb
+    depends_on:
+      - postgres
+      - immudb
+
+  # Send audit logs to immudb
+  immudb-log-audit:
+    build:
+      context: ../vendor/immudb-log-audit
+      dockerfile: Dockerfile.immudb
+    command: >
+      tail file pgaudit "/logs/*.json"
+      --follow
+      --parser pgauditjsonlog
+      --file-registry-dir=/data
+      --log-level debug
+      --immudb-host immudb
+    volumes: 
+      - 'immudb_log_audit_data:/data'
+      - 'db_logs:/logs'
+    depends_on:
+      - postgres
+      - immudb
+      - immudb-log-audit-init
+
 volumes:
   db_data:
+  db_logs:
+  immudb_log_audit_data:
   keycloak_db_data:
   immudb_data:
   immudb_logs:

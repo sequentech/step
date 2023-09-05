@@ -14,7 +14,7 @@ crepe! {
     struct ConfigurationSignedAll(ConfigurationHash, TrusteePosition, TrusteeCount, Threshold);
     struct PublicKeySignedAll(ConfigurationHash, PublicKeyHash, SharesHashes);
     struct Ballots(ConfigurationHash, BatchNumber, CiphertextsHash, PublicKeyHash, TrusteeSet);
-    struct Mix(ConfigurationHash, BatchNumber, CiphertextsHash, CiphertextsHash, MixNumber, TrusteePosition, TrusteePosition);
+    struct Mix(ConfigurationHash, BatchNumber, CiphertextsHash, CiphertextsHash, MixNumber, TrusteePosition);
     struct MixSigned(ConfigurationHash, BatchNumber, CiphertextsHash, CiphertextsHash, TrusteePosition);
 
     ConfigurationSignedAll(cfg_h, self_position, num_t, threshold) <- InP(p),
@@ -26,8 +26,8 @@ crepe! {
     Ballots(cfg_h, batch, ballots_h, pk_h, trustees) <- InP(p),
     let Predicate::Ballots(cfg_h, batch, ballots_h, pk_h, trustees) = p;
 
-    Mix(cfg_h, batch, source_h, mix_h, mix_number, signer_t, target_t) <- InP(p),
-    let Predicate::Mix(cfg_h, batch, source_h, mix_h, mix_number, signer_t, target_t) = p;
+    Mix(cfg_h, batch, source_h, mix_h, mix_number, signer_t) <- InP(p),
+    let Predicate::Mix(cfg_h, batch, source_h, mix_h, mix_number, signer_t) = p;
 
     MixSigned(cfg_h, batch, source_h, ciphertexts_h, signer_t) <- InP(p),
     let Predicate::MixSigned(cfg_h, batch, source_h, ciphertexts_h, signer_t) = p;
@@ -55,7 +55,7 @@ crepe! {
     ConfigurationSignedAll(cfg_h, self_p, _num_t, _threshold),
     PublicKeySignedAll(cfg_h, pk_h, _shares_h),
     Ballots(cfg_h, batch, source_h, pk_h, trustees),
-    !Mix(cfg_h, batch, source_h, _, 1, self_p, _),
+    !Mix(cfg_h, batch, source_h, _, 1, self_p),
     // Detects that we (self_p) are the trustee assigned to perform the first mix
     (trustees[0] - 1 == self_p);
 
@@ -64,10 +64,10 @@ crepe! {
     ConfigurationSignedAll(cfg_h, self_p, _num_t, threshold),
     PublicKeySignedAll(cfg_h, pk_h, _shares_h),
     Ballots(cfg_h, batch, _ciphertext_h, pk_h, trustees),
-    Mix(cfg_h, batch, _, ciphertexts_h, mix_number, signer_t, _),
+    Mix(cfg_h, batch, _, ciphertexts_h, mix_number, signer_t),
     // Previous mix must have been signed by all selected trustees before next mix
     MixNumberSignedUpTo(cfg_h, batch, mix_number, threshold - 1),
-    !Mix(cfg_h, batch, ciphertexts_h, _, mix_number + 1, self_p, _),
+    !Mix(cfg_h, batch, ciphertexts_h, _, mix_number + 1, self_p),
     // Detects that we (self_p) are the trustee assigned to perform the next mix
     (trustees[mix_number] - 1 == self_p),
     // Sanity check, the previous signer must be the expected one
@@ -78,7 +78,7 @@ crepe! {
     A(Action::SignMix(cfg_h, batch, source_h, PROTOCOL_MANAGER_INDEX, ciphertexts_h, signert_t, pk_h, mix_number)) <-
     ConfigurationSignedAll(cfg_h, self_p, _num_t, _threshold),
     PublicKeySignedAll(cfg_h, pk_h, _shares_h),
-    Mix(cfg_h, batch, source_h, ciphertexts_h, mix_number, signert_t, _target_t),
+    Mix(cfg_h, batch, source_h, ciphertexts_h, mix_number, signert_t),
     // The first mix starts from the ballots
     Ballots(cfg_h, batch, source_h, pk_h, trustees),
     !MixSigned(cfg_h, batch, source_h, ciphertexts_h, self_p),
@@ -91,10 +91,10 @@ crepe! {
     ConfigurationSignedAll(cfg_h, self_p, _num_t, _threshold),
     PublicKeySignedAll(cfg_h, pk_h, _shares_h),
     Ballots(cfg_h, batch, _source_h, pk_h, trustees),
-    Mix(cfg_h, batch, source_h, ciphertexts_h, mix_number, signert_t, _),
+    Mix(cfg_h, batch, source_h, ciphertexts_h, mix_number, signert_t),
     // Get the signer for the source, necessary to retrieve the source artifact
     // as it is part of the StatementEntryIdentifier.
-    Mix(cfg_h, batch, _, source_h, _, signers_t, _),
+    Mix(cfg_h, batch, _, source_h, _, signers_t),
     !MixSigned(cfg_h, batch, source_h, ciphertexts_h, self_p),
     // Only selected trustees participate (using TrusteeSet parameters from Ballots predicate)
     // Also include a verifier trustee
@@ -102,14 +102,14 @@ crepe! {
 
     // The producer of a mix already counts as a signature
     MixSigned(cfg_h, batch, source_h, ciphertexts_h, signer_t) <-
-    Mix(cfg_h, batch, source_h, ciphertexts_h, _mix_number, signer_t, _target_t);
+    Mix(cfg_h, batch, source_h, ciphertexts_h, _mix_number, signer_t);
 
     // This predicate adds the mix number to the MixSigned predicate,
     // to detect when a mix number has reached all its threshold signatures.
     // This is used above mix action block (mix => mix)
     MixNumberSigned(cfg_h, batch, mix_number, signer_position) <-
     MixSigned(cfg_h, batch, source_h, ciphertexts_h, signer_t),
-    Mix(cfg_h, batch, source_h, ciphertexts_h, mix_number, _, _target_t),
+    Mix(cfg_h, batch, source_h, ciphertexts_h, mix_number, _),
     Ballots(cfg_h, batch, _, _pk_h, trustees),
     // Because threshold selected trustees are not contiguous (there are holes)
     // we need to arrange them into a continuous sequence so that the
@@ -129,8 +129,8 @@ crepe! {
     // Extra checks to ensure that all mixing trustees are unique
     MixRepeat(cfg_h, batch) <-
     ConfigurationSignedAll(cfg_h, _, _num_t, _threshold),
-    Mix(cfg_h, batch, _, _, mix_number1, signer_t1, _),
-    Mix(cfg_h, batch, _, _, mix_number2, signer_t2, _),
+    Mix(cfg_h, batch, _, _, mix_number1, signer_t1),
+    Mix(cfg_h, batch, _, _, mix_number2, signer_t2),
     (mix_number1 != mix_number2),
     (signer_t1 == signer_t2);
 
@@ -138,7 +138,7 @@ crepe! {
     ConfigurationSignedAll(cfg_h, _self_p, _num_t, threshold),
     MixNumberSignedUpTo(cfg_h, batch, threshold, threshold - 1),
     !MixRepeat(cfg_h, batch),
-    Mix(cfg_h, batch, _, ciphertexts_h, threshold, signer_t, _);
+    Mix(cfg_h, batch, _, ciphertexts_h, threshold, signer_t);
 
     // Fail if not all mixing trustees are unique
     DErr(DatalogError::MixRepeat(cfg_h, batch)) <-

@@ -4,3 +4,4 @@
 pub mod create_keys;
 pub mod fetch_document;
 pub mod scheduled_event;
+pub mod immudb_log_audit;

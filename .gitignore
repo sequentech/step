@@ -24,8 +24,9 @@ output.txt
 
 # Nix
 result
+/pkg/
+.env
 pkg
-#.env
 .direnv
 
 # Devenv

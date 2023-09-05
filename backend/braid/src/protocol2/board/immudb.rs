@@ -14,9 +14,9 @@ use strand::serialization::StrandSerialize;
 use crate::protocol2::message::Message;
 
 pub struct ImmudbBoard {
-    board_client: BoardClient,
-    board_dbname: String,
-    store_root: PathBuf,
+    pub(crate) board_client: BoardClient,
+    pub(crate) board_dbname: String,
+    pub(crate) store_root: PathBuf,
 }
 
 impl TryFrom<Message> for BoardMessage {
@@ -91,9 +91,14 @@ impl ImmudbBoard {
             .get_messages(&self.board_dbname, last_id)
             .await?;
 
+        let mut monotonic = -1;
         for message in messages {
             // new messages must always be appended to the store in ascending order
             assert!(message.id > last_id);
+            if monotonic != -1 {
+                assert_eq!(message.id, monotonic + 1);
+                monotonic = message.id;
+            }
             connection.execute(
                 "INSERT INTO MESSAGES VALUES(?1, ?2)",
                 params![message.id, message.message],
@@ -112,7 +117,7 @@ impl ImmudbBoard {
             connection.prepare("SELECT id,message FROM MESSAGES where id > ?1 order by id asc")?;
         let rows = stmt.query_map([last_id], |row| {
             Ok(MessageRow {
-                id: row.get(0)?,
+                _id: row.get(0)?,
                 message: row.get(1)?,
             })
         })?;
@@ -155,6 +160,6 @@ impl ImmudbBoardIndex {
 }
 
 struct MessageRow {
-    id: u64,
+    _id: u64,
     message: Vec<u8>,
 }

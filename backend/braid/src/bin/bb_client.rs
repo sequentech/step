@@ -167,7 +167,7 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, ctx: C) -> Result<()> {
             let pm = get_pm(PhantomData);
             let message = braid::protocol2::message::Message::ballots_msg(
                 &configuration,
-                1,
+                2,
                 &ballot_batch,
                 selected_trustees,
                 PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()),
