@@ -22,6 +22,14 @@ type timestamptz = String;
 )]
 pub struct UpdateElectionEventBoard;
 
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/get_election_event.graphql",
+    response_derives = "Debug"
+)]
+pub struct GetElectionEvent;
+
 pub async fn update_election_event_board(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -47,4 +55,30 @@ pub async fn update_election_event_board(
     let _response_body: Response<update_election_event_board::ResponseData> =
         res.json().await?;
     Ok(())
+}
+
+pub async fn get_election_event(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    board: Value,
+) -> Result<Response<get_election_event::ResponseData>> {
+    let variables = get_election_event::Variables {
+        tenant_id: tenant_id,
+        election_event_id: election_event_id,
+    };
+    let hasura_endpoint = env::var("HASURA_ENDPOINT")
+        .expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = GetElectionEvent::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<get_election_event::ResponseData> =
+        res.json().await?;
+    Ok(response_body)
 }

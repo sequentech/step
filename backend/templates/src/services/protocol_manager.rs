@@ -28,10 +28,11 @@ impl ProtocolManagerClient {
 
     pub async fn create_keys(
         &mut self,
-        create_keys_body: create_keys::CreateKeysBody
+        create_keys_body: create_keys::CreateKeysBody,
     ) -> Result<()> {
         let pm_endpoint = format!("{}/create-keys", self.pm_url);
-        let _res = self.client
+        let _res = self
+            .client
             .post(pm_endpoint)
             .json(&create_keys_body)
             .send()

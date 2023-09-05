@@ -16,11 +16,27 @@ pub struct CreateKeysBody {
     pub board_name: String,
     pub trustee_pks: Vec<String>,
     pub threshold: usize,
+    pub tenant_id: String,
+    pub election_event_id: String,
 }
 
 pub async fn create_keys(
+    auth_headers: connection::AuthHeaders,
     body: CreateKeysBody,
 ) -> Result<()> {
+    let hasura_response = hasura::election_event::get_election_event(
+        auth_headers.clone(),
+        input.tenant_id.clone(),
+        input.election_event_id.clone(),
+    )
+    .await?;
+    let status = hasura_response
+        .data
+        .expect("expected data".into())
+        .sequent_backend_election_event[0]
+        .status
+        .clone();
+
     let mut client = ProtocolManagerClient::new()?;
     client.create_keys(body).await
 }
