@@ -113,7 +113,7 @@ fn run_protocol_test<C: Ctx>(
             i + 1,
             &ballot_batch,
             selected_trustees,
-            PublicKeyHash(crate::protocol2::hash_from_vec(&pk_h).unwrap()),
+            PublicKeyHash(crate::util::hash_from_vec(&pk_h).unwrap()),
             &test.protocol_manager,
         )?;
         plaintexts_in.push(next_p);

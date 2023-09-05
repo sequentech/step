@@ -12,11 +12,10 @@ use crate::protocol2::artifact::Configuration;
 use crate::protocol2::artifact::DecryptionFactors;
 use crate::protocol2::artifact::Plaintexts;
 use crate::protocol2::artifact::Shares;
-use crate::protocol2::datalog::MixNumber;
-use crate::protocol2::hash_from_vec;
 use crate::protocol2::message::VerifiedMessage;
 use crate::protocol2::predicate::CommitmentsHash;
 use crate::protocol2::predicate::ConfigurationHash;
+use crate::protocol2::predicate::MixNumber;
 use crate::protocol2::predicate::PublicKeyHash;
 use crate::protocol2::predicate::SharesHash;
 use crate::protocol2::statement::{ArtifactType, Statement, StatementType};
@@ -36,7 +35,7 @@ use crate::protocol2::predicate::{CiphertextsHash, DecryptionFactorsHash};
 // Messages are composed of statements and optionally artifacts
 //
 #[derive(Clone)] // FIXME used by dbg
-pub struct LocalBoard<C: Ctx> {
+pub(crate) struct LocalBoard<C: Ctx> {
     pub(crate) configuration: Option<Configuration<C>>,
     cfg_hash: Option<Hash>,
 
@@ -122,11 +121,11 @@ impl<C: Ctx> LocalBoard<C> {
 
         if message_hash == cfg_hash {
             warn!("Configuration received when identical present, ignored");
+            Ok(())
         } else {
-            error!("Configuration overwrite attempt, ignored");
+            error!("Configuration overwrite attempt");
+            Err(anyhow!("Configuration overwrite attempt"))
         }
-
-        Err(anyhow!("Artifact already present"))
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -149,14 +148,14 @@ impl<C: Ctx> LocalBoard<C> {
                     "Statement identifier already exists (identical): {:?}",
                     statement_identifier
                 );
+                Ok(())
             } else {
                 error!(
                     "Statement identifier already exists (overwrite): {:?}, message was {:?}",
                     statement_identifier, message
                 );
+                Err(anyhow!("Statement already present (overwrite)"))
             }
-
-            Err(anyhow!("Statement already present"))
         } else {
             debug!(
                 "Statement identifier is new: {:?}",
@@ -178,11 +177,11 @@ impl<C: Ctx> LocalBoard<C> {
                 if let Some((existing_hash, _)) = artifact_entry {
                     if artifact_hash == *existing_hash {
                         warn!("Artifact identical, ignored");
+                        Ok(())
                     } else {
-                        error!("Artifact overwrite attempt, ignored");
+                        error!("Artifact already present (overwrite)");
+                        Err(anyhow!("Artifact already present (overwrite)"))
                     }
-
-                    Err(anyhow!("Artifact already present"))
                 } else {
                     debug!(
                         "Artifact identifier is new: {:?}",
@@ -192,7 +191,10 @@ impl<C: Ctx> LocalBoard<C> {
                     // Both statement and artifact are new, insert
                     self.statements.insert(
                         statement_identifier,
-                        (hash_from_vec(&statement_hash)?, message.statement),
+                        (
+                            crate::util::hash_from_vec(&statement_hash)?,
+                            message.statement,
+                        ),
                     );
 
                     self.artifacts
@@ -205,7 +207,10 @@ impl<C: Ctx> LocalBoard<C> {
                 // Only a statement was sent, insert
                 self.statements.insert(
                     statement_identifier,
-                    (hash_from_vec(&statement_hash)?, message.statement),
+                    (
+                        crate::util::hash_from_vec(&statement_hash)?,
+                        message.statement,
+                    ),
                 );
                 debug!("Pure statement inserted");
                 Ok(())
@@ -460,8 +465,8 @@ impl<C: Ctx> LocalBoard<C> {
         StatementEntryIdentifier {
             kind,
             signer_position,
-            batch,
-            mix_number,
+            batch: batch.0,
+            mix_number: mix_number.0,
         }
     }
     pub(crate) fn get_artifact_entry_identifier(

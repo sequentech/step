@@ -17,8 +17,8 @@ crepe! {
     struct Ballots(ConfigurationHash, BatchNumber, CiphertextsHash, PublicKeyHash, TrusteeSet);
     struct MixComplete(ConfigurationHash, BatchNumber, MixNumber, CiphertextsHash, TrusteePosition);
     struct DecryptionFactors(ConfigurationHash, BatchNumber, DecryptionFactorsHash, CiphertextsHash, SharesHashes, TrusteePosition);
-    struct Plaintexts(ConfigurationHash, BatchNumber,PlaintextsHash, DecryptionFactorsHashes, CiphertextsHash, TrusteePosition);
-    struct PlaintextsSigned(ConfigurationHash, BatchNumber, PlaintextsHash, DecryptionFactorsHashes, CiphertextsHash, TrusteePosition);
+    struct Plaintexts(ConfigurationHash, BatchNumber,PlaintextsHash, DecryptionFactorsHashes, CiphertextsHash, PublicKeyHash, TrusteePosition);
+    struct PlaintextsSigned(ConfigurationHash, BatchNumber, PlaintextsHash, DecryptionFactorsHashes, CiphertextsHash, PublicKeyHash, TrusteePosition);
 
     ConfigurationSignedAll(config_hash, self_position, num_t, threshold) <- InP(p),
     let Predicate::ConfigurationSignedAll(config_hash, self_position, num_t, threshold) = p;
@@ -38,11 +38,11 @@ crepe! {
     DecryptionFactors(cfg_h, batch, dfactors_h, ciphertexts_h, shares_hs, signer_t) <- InP(p),
     let Predicate::DecryptionFactors(cfg_h, batch, dfactors_h, ciphertexts_h, shares_hs, signer_t) = p;
 
-    Plaintexts(ch, batch, plaintexts_h, dfactors_hs, cipher_h, signer_t) <- InP(p),
-    let Predicate::Plaintexts(ch, batch, plaintexts_h, dfactors_hs, cipher_h, signer_t) = p;
+    Plaintexts(ch, batch, plaintexts_h, dfactors_hs, cipher_h, pk_h, signer_t) <- InP(p),
+    let Predicate::Plaintexts(ch, batch, plaintexts_h, dfactors_hs, cipher_h, pk_h, signer_t) = p;
 
-    PlaintextsSigned(ch, batch, plaintexts_h, df_hs, cipher_h, signer_t) <- InP(p),
-    let Predicate::PlaintextsSigned(ch, batch, plaintexts_h, df_hs, cipher_h, signer_t) = p;
+    PlaintextsSigned(ch, batch, plaintexts_h, df_hs, cipher_h, pk_h, signer_t) <- InP(p),
+    let Predicate::PlaintextsSigned(ch, batch, plaintexts_h, df_hs, cipher_h, pk_h, signer_t) = p;
 
     // Intermediate relations
 
@@ -103,19 +103,19 @@ crepe! {
     ConfigurationSignedAll(cfg_h, selected[0] - 1, _num_t, threshold),
     PublicKeySignedAll(cfg_h, pk_h, _shares_hs),
     DecryptionFactorsAll(cfg_h, batch, dfactors_hs, ciphertexts_h, mix_signer, _, threshold),
-    !Plaintexts(cfg_h, batch, _, dfactors_hs, _, selected[0] - 1);
+    !Plaintexts(cfg_h, batch, _, dfactors_hs, _, _, selected[0] - 1);
 
-    PlaintextsSigned(cfg_h, batch, plaintexts_h, dfactors_hs, cipher_h, selected[0] - 1) <-
+    PlaintextsSigned(cfg_h, batch, plaintexts_h, dfactors_hs, cipher_h, pk_h, selected[0] - 1) <-
     Ballots(cfg_h, batch, _, _, selected),
-    Plaintexts(cfg_h, batch, plaintexts_h, dfactors_hs, cipher_h, selected[0] - 1);
+    Plaintexts(cfg_h, batch, plaintexts_h, dfactors_hs, cipher_h, pk_h, selected[0] - 1);
 
     A(Action::SignPlaintexts(cfg_h, batch, pk_h, plaintexts_h, dfactors_hs, ciphertexts_h, mix_signer, selected, threshold)) <-
     ConfigurationSignedAll(cfg_h, self_p, _num_t, threshold),
     PublicKeySignedAll(cfg_h, pk_h, _shares_hs),
     Ballots(cfg_h, batch, _, pk_h, selected),
     MixComplete(cfg_h, batch, _mix_n, ciphertexts_h, mix_signer),
-    Plaintexts(cfg_h, batch, plaintexts_h, dfactors_hs, cipher_h, selected[0] - 1),
-    !PlaintextsSigned(cfg_h, batch, plaintexts_h, dfactors_hs, cipher_h, self_p);
+    Plaintexts(cfg_h, batch, plaintexts_h, dfactors_hs, cipher_h, _pk_h, selected[0] - 1),
+    !PlaintextsSigned(cfg_h, batch, plaintexts_h, dfactors_hs, cipher_h, _pk_h, self_p);
 
 }
 

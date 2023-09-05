@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use strum::Display;
 
 use anyhow::Result;
 use log::trace;
@@ -23,7 +24,7 @@ use crate::protocol2::PROTOCOL_MANAGER_INDEX;
 // Predicate::from_statement method.
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Display)]
 pub(crate) enum Predicate {
     // Input predicates
     /// Bootstrap //////////////////////////////////////////////////////////////////
@@ -58,16 +59,13 @@ pub(crate) enum Predicate {
         PublicKeyHash,
         TrusteeSet,
     ),
-    // A mix predicate describes the mix itself but also specifies its position (starting at 1) and which mixing trustee is next. The
-    // next mixing trustee is determined from the TrusteeSet parameter in the Ballots predicate. If it is the last mix,
-    // this value will be crate::protocol2::datalog::NULL_TRUSTEE
+    // A mix predicate describes the mix itself but also specifies its position (starting at 1)
     Mix(
         ConfigurationHash,
         BatchNumber,
         CiphertextsHash,
         CiphertextsHash,
         MixNumber,
-        TrusteePosition,
         TrusteePosition,
     ),
     MixSigned(
@@ -93,6 +91,7 @@ pub(crate) enum Predicate {
         PlaintextsHash,
         DecryptionFactorsHashes,
         CiphertextsHash,
+        PublicKeyHash,
         TrusteePosition,
     ),
     PlaintextsSigned(
@@ -101,6 +100,7 @@ pub(crate) enum Predicate {
         PlaintextsHash,
         DecryptionFactorsHashes,
         CiphertextsHash,
+        PublicKeyHash,
         TrusteePosition,
     ),
 
@@ -113,13 +113,6 @@ pub(crate) enum Predicate {
         MixNumber,
         CiphertextsHash,
         TrusteePosition,
-    ),
-    Z(
-        ConfigurationHash,
-        BatchNumber,
-        CiphertextsHash,
-        PlaintextsHash,
-        MixingHashes,
     ),
 }
 impl Predicate {
@@ -193,17 +186,14 @@ impl Predicate {
                 )
             }
             // Mix(Timestamp, ConfigurationH, usize, CiphertextsH, CiphertextsH)
-            Statement::Mix(_ts, cfg_h, batch, source_h, mix_h, mix_number, target_trustee) => {
-                Self::Mix(
-                    ConfigurationHash(cfg_h.0),
-                    batch.0,
-                    CiphertextsHash(source_h.0),
-                    CiphertextsHash(mix_h.0),
-                    *mix_number,
-                    signer_position,
-                    *target_trustee,
-                )
-            }
+            Statement::Mix(_ts, cfg_h, batch, source_h, mix_h, mix_number) => Self::Mix(
+                ConfigurationHash(cfg_h.0),
+                batch.0,
+                CiphertextsHash(source_h.0),
+                CiphertextsHash(mix_h.0),
+                mix_number.0,
+                signer_position,
+            ),
             // MixSigned(Timestamp, ConfigurationH, usize, usize, CiphertextsH, CiphertextsH)
             Statement::MixSigned(_ts, cfg_h, batch, _mix_no, source_h, mix_h) => Self::MixSigned(
                 ConfigurationHash(cfg_h.0),
@@ -223,23 +213,25 @@ impl Predicate {
                     signer_position,
                 )
             }
-            // Plaintexts(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs)
-            Statement::Plaintexts(_ts, cfg_h, batch, pl_h, df_hs, c_h) => Self::Plaintexts(
+            // Plaintexts(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs, PublicKeyH)
+            Statement::Plaintexts(_ts, cfg_h, batch, pl_h, df_hs, c_h, pk_h) => Self::Plaintexts(
                 ConfigurationHash(cfg_h.0),
                 batch.0,
                 PlaintextsHash(pl_h.0),
                 DecryptionFactorsHashes(df_hs.0),
                 CiphertextsHash(c_h.0),
+                PublicKeyHash(pk_h.0),
                 signer_position,
             ),
-            // PlaintextsSigned(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs)
-            Statement::PlaintextsSigned(_ts, cfg_h, batch, pl_h, df_hs, c_h) => {
+            // PlaintextsSigned(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs, PublicKeyH)
+            Statement::PlaintextsSigned(_ts, cfg_h, batch, pl_h, df_hs, c_h, pk_h) => {
                 Self::PlaintextsSigned(
                     ConfigurationHash(cfg_h.0),
                     batch.0,
                     PlaintextsHash(pl_h.0),
                     DecryptionFactorsHashes(df_hs.0),
                     CiphertextsHash(c_h.0),
+                    PublicKeyHash(pk_h.0),
                     signer_position,
                 )
             }
@@ -294,7 +286,7 @@ impl ConfigurationHash {
     ) -> Result<ConfigurationHash> {
         let bytes = configuration.strand_serialize()?;
         let hash = strand::util::hash(&bytes);
-        Ok(ConfigurationHash(crate::protocol2::hash_from_vec(&hash)?))
+        Ok(ConfigurationHash(crate::util::hash_from_vec(&hash)?))
     }
 }
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
@@ -327,6 +319,7 @@ pub struct PlaintextsHash(pub crate::protocol2::Hash);
 pub(crate) type TrusteePosition = usize;
 // 1-based
 pub(crate) type Threshold = usize;
+pub(crate) type TrusteeCount = usize;
 // 1-based _elements_
 pub(crate) type TrusteeSet = [usize; crate::protocol2::MAX_TRUSTEES];
 // 1-based, the position in the mixing chain (note this is not the same as the
@@ -334,7 +327,6 @@ pub(crate) type TrusteeSet = [usize; crate::protocol2::MAX_TRUSTEES];
 pub(crate) type MixNumber = usize;
 
 pub(crate) type BatchNumber = usize;
-pub(crate) type TrusteeCount = usize;
 
 ///////////////////////////////////////////////////////////////////////////
 // Debug
@@ -400,10 +392,10 @@ impl std::fmt::Debug for Predicate {
                 "Ballots{{ cfg hash={:?}, batch={:?}, pk_h={:?} cipher_h={:?} }}",
                 dbg_hash(&cfg_h.0), batch, dbg_hash(&pk_h.0), dbg_hash(&cipher_h.0),
             ),
-            Predicate::Mix(_cfg_h, _batch, source_h, cipher_h, mix_n, signer_t, target_t) => write!(
+            Predicate::Mix(_cfg_h, _batch, source_h, cipher_h, mix_n, signer_t) => write!(
                 f,
-                "Mix{{ source_h={:?} cipher_h={:?} mix_n={:?} signer_t={:?} target_t={:?} }}",
-                dbg_hash(&source_h.0), dbg_hash(&cipher_h.0), mix_n, signer_t, target_t
+                "Mix{{ source_h={:?} cipher_h={:?} mix_n={:?} signer_t={:?} }}",
+                dbg_hash(&source_h.0), dbg_hash(&cipher_h.0), mix_n, signer_t
             ),
             Predicate::MixSigned(_cfg_h, _batchh, source_h, cipher_h, signer_t) => write!(
                 f,
@@ -419,31 +411,22 @@ impl std::fmt::Debug for Predicate {
                 f,
                 "DecryptionFactors{{ dfactors_h={dfactors_h:?} signer_t={signer_t:?} }}"
             ),
-            Predicate::Plaintexts(cfg_h, batch, plaintexts_h, _dfactors_hs, _ciph_h, signer_t) => write!(
+            Predicate::Plaintexts(cfg_h, batch, plaintexts_h, _dfactors_hs, _ciph_h, _pk_h, signer_t) => write!(
                 f,
                 "Plaintexts{{ cfg hash={:?}, batch={:?}, plaintexts_h={:?}, signer_t={:?} }}",
                 dbg_hash(&cfg_h.0), batch, plaintexts_h, signer_t
             ),
-            Predicate::PlaintextsSigned(cfg_h, batch, plaintexts_h, _df_hs, _ciph_h, signer_t) => write!(
+            Predicate::PlaintextsSigned(cfg_h, batch, plaintexts_h, _df_hs, _ciph_h, _pk_h, signer_t) => write!(
                 f,
                 "PlaintextsSigned{{ cfg hash={:?}, batch={:?}, plaintexts_h={:?}, signer_t={:?} }}",
                 dbg_hash(&cfg_h.0), batch, plaintexts_h, signer_t
             ),
-            Predicate::Z(cfg, batch, ciph, pl, m_hs) => write!(
-                f,
-                "cfg {:?}, batch {}, ballots {:?}, pl {:?}, mixes {:?}",
-                dbg_hash(&cfg.0), batch, dbg_hash(&ciph.0), dbg_hash(&pl.0), m_hs
-            ),
         }
     }
 }
-
+use crate::util::dbg_hashes;
 impl std::fmt::Debug for CommitmentsHashes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "hashes={:?}",
-            self.0.map(|h| hex::encode(h)[0..10].to_string())
-        )
+        write!(f, "hashes={:?}", dbg_hashes(&self.0))
     }
 }

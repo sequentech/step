@@ -11,14 +11,14 @@ use generic_array::GenericArray;
 use std::fs;
 use std::path::PathBuf;
 use tokio::time::{sleep, Duration};
-use tracing::info;
 use tracing::instrument;
+use tracing::{error, info};
 
 use braid::protocol2::board::immudb::{ImmudbBoard, ImmudbBoardIndex};
 use braid::protocol2::session::Session;
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
-use braid::util::init_log;
+use braid::util::{init_log, assert_folder};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
@@ -28,15 +28,25 @@ const IMMUDB_PW: &str = "immudb";
 
 #[derive(Parser)]
 struct Cli {
-    #[arg(long)]
+    #[arg(short, long)]
     server_url: String,
 
-    #[arg(long)]
+    #[arg(short, long)]
     board_index: String,
 
-    #[arg(long)]
+    #[arg(short, long)]
     trustee_config: PathBuf,
+
+    #[arg(short, long, default_value_t = IMMUDB_USER.to_string())]
+    user: String,
+
+    #[arg(short, long, default_value_t = IMMUDB_PW.to_string())]
+    password: String,
 }
+
+// PROJECT_VERSION=$(git rev-parse HEAD) cargo run --bin main -- --server-url http://immudb:3322 --board-index defaultboardindex --trustee-config trustee1.toml
+// let version = option_env!("PROJECT_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
+// info!("Running braid version = {}", version);
 
 #[tokio::main]
 #[instrument]
@@ -55,32 +65,67 @@ async fn main() -> Result<()> {
     let bytes = braid::util::decode_base64(&tc.encryption_key)?;
     let ek = GenericArray::<u8, U32>::from_slice(&bytes).to_owned();
 
-    let mut board_index =
-        ImmudbBoardIndex::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, args.board_index).await?;
+    let mut board_index = ImmudbBoardIndex::new(
+        &args.server_url,
+        &args.user,
+        &args.password,
+        args.board_index,
+    )
+    .await?;
     let store_root = std::env::current_dir().unwrap().join("message_store");
+    assert_folder(store_root.clone())?;
     loop {
         info!(">");
-        let boards: Vec<String> = board_index.get_board_names().await?;
+        let boards_result = board_index.get_board_names().await;
+        let boards: Vec<String> = match boards_result {
+            Ok(boards) => boards,
+            Err(error) => {
+                error!("Error listing board names: '{}'", error);
+                sleep(Duration::from_millis(1000)).await;
+                continue;
+            }
+        };
 
         for board_name in boards {
             info!("Connecting to board '{}'..", board_name.clone());
             let trustee: Trustee<RistrettoCtx> = Trustee::new(sk.clone(), ek.clone());
-            let board = ImmudbBoard::new(
+            let board_result = ImmudbBoard::new(
                 &args.server_url,
                 IMMUDB_USER,
                 IMMUDB_PW,
                 board_name.clone(),
                 store_root.clone(),
             )
-            .await?;
+            .await;
+            let board = match board_result {
+                Ok(board) => board,
+                Err(error) => {
+                    error!(
+                        "Error connecting to board '{}': '{}'",
+                        board_name.clone(),
+                        error
+                    );
+                    continue;
+                }
+            };
 
             // FIXME error should be handled to prevent loop termination
             let mut session = Session::new(trustee, board);
             info!("Running trustee for board '{}'..", board_name);
-            session.step().await?;
+            let session_result = session.step().await;
+            match session_result {
+                Ok(value) => value,
+                Err(error) => {
+                    error!(
+                        "Error executing step for board '{}': '{}'",
+                        board_name.clone(),
+                        error
+                    );
+                    continue;
+                }
+            };
         }
         sleep(Duration::from_millis(1000)).await;
-        break;
     }
 
     Ok(())

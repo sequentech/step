@@ -30,7 +30,7 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
 
     let ciphertexts = trustee
         .get_mix(ciphertexts_h, *batch, *mix_signer)
-        .ok_or(anyhow!("Could not retrieve mix"))?;
+        .ok_or(anyhow!("Could not retrieve mix ciphertexts for decryption"))?;
 
     let commitments = trustee
         .get_commitments(&CommitmentsHash(commitments_hs.0[*self_p]), *self_p)
@@ -55,8 +55,9 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
     }
 
     info!(
-        "Computing {} decryption factors..",
-        ciphertexts.ciphertexts.0.len()
+        "ComputeDecryptionFactors [{}] ({})..",
+        dbg_hash(&ciphertexts_h.0),
+        ciphertexts.ciphertexts.0.len(),
     );
 
     let suffix = format!("decryption_factor{self_p}");
@@ -114,6 +115,7 @@ pub(super) fn compute_plaintexts<C: Ctx>(
         plaintexts,
         *dfactors_hs,
         *ciphertexts_h,
+        *pk_h,
         trustee,
     )?;
 
@@ -133,6 +135,12 @@ pub(super) fn sign_plaintexts<C: Ctx>(
     trustee: &Trustee<C>,
 ) -> Result<Vec<Message>> {
     let cfg = trustee.get_configuration(cfg_h)?;
+    info!(
+        "SignPlaintexts verifying decryption [{}] => [{}]",
+        dbg_hash(&ciphertexts_h.0),
+        dbg_hash(&plaintexts_h.0),
+    );
+
     let expected = compute_plaintexts_(
         cfg_h,
         batch,
@@ -149,13 +157,18 @@ pub(super) fn sign_plaintexts<C: Ctx>(
         .ok_or(anyhow!("Could not retrieve plaintexts".to_string(),))?;
 
     if expected.0 .0 == actual.0 .0 {
-        info!("Plaintexts match..ok");
+        info!(
+            "SignPlaintexts verifying decryption [{}] => [{}], ok",
+            dbg_hash(&ciphertexts_h.0),
+            dbg_hash(&plaintexts_h.0),
+        );
         let m = Message::plaintexts_signed_msg(
             cfg,
             *batch,
             *plaintexts_h,
             *dfactors_hs,
             *ciphertexts_h,
+            *pk_h,
             trustee,
         )?;
         Ok(vec![m])
@@ -186,9 +199,17 @@ fn compute_plaintexts_<C: Ctx>(
 
     let mix = trustee
         .get_mix(ciphertexts_h, *batch, *mix_signer)
-        .ok_or(anyhow!("Could not retrieve mix".to_string()))?;
+        .ok_or(anyhow!(
+            "Could not retrieve mix ciphertexts for decryption".to_string()
+        ))?;
     let num_ciphertexts = mix.ciphertexts.0.len();
     let mut divider = vec![C::E::mul_identity(); num_ciphertexts];
+
+    info!(
+        "ComputePlaintexts [{}] ({})..",
+        dbg_hash(&ciphertexts_h.0),
+        num_ciphertexts,
+    );
 
     // Decryption factors for each trustee
     for (t, df_h) in dfactors_hs.0.iter().enumerate() {
@@ -235,12 +256,16 @@ fn compute_plaintexts_<C: Ctx>(
                 divider[index] = divider[index].mul(next).modp(&ctx);
             }
         } else {
-            info!("Processed all decryption factors (t = {})", t);
+            debug!("Processed all decryption factors (t = {})", t);
             break;
         }
     }
 
-    info!("Computing {} plaintexts..", num_ciphertexts);
+    info!(
+        "ComputePlaintexts applying decryption factors[{}] ({})..",
+        dbg_hash(&ciphertexts_h.0),
+        num_ciphertexts,
+    );
     let ps = mix
         .ciphertexts
         .0

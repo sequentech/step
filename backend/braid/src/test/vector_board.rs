@@ -29,8 +29,7 @@ Persistence implementation:
 #[derive(Clone)]
 pub struct VectorBoard {
     session_id: u128,
-    // pub required by dbg
-    pub messages: Vec<Message>,
+    pub(crate) messages: Vec<Message>,
 }
 
 impl VectorBoard {
@@ -47,8 +46,9 @@ impl VectorBoard {
         self.messages.push(message);
     }
 
-    pub fn get(&self, from: usize) -> Vec<Message> {
-        self.messages[from..self.messages.len()].to_vec()
+    pub fn get(&self, last_message: i64) -> Vec<Message> {
+        let next: usize = (last_message + 1) as usize;
+        self.messages[next..self.messages.len()].to_vec()
     }
 }
 
