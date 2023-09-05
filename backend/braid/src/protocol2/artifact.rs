@@ -6,9 +6,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use chacha20poly1305::consts::U12;
 use generic_array::GenericArray;
 
-use crate::protocol2::datalog::NULL_TRUSTEE;
-use crate::protocol2::datalog::{BatchNumber, MixNumber, TrusteePosition};
-use crate::protocol2::predicate::TrusteeSet;
+use crate::protocol2::predicate::{BatchNumber, MixNumber};
 use crate::protocol2::PROTOCOL_MANAGER_INDEX;
 
 use strand::serialization::StrandSerialize;
@@ -33,12 +31,6 @@ impl<C: Ctx> Configuration<C> {
         threshold: usize,
         _phantom: PhantomData<C>,
     ) -> Configuration<C> {
-        assert!(trustees.len() > 1 && trustees.len() <= crate::protocol2::MAX_TRUSTEES);
-        assert!(threshold > 1 && threshold <= trustees.len());
-
-        let unique: HashSet<StrandSignaturePk> = HashSet::from_iter(trustees.clone());
-        assert_eq!(unique.len(), trustees.len());
-
         let c = Configuration {
             id,
             protocol_manager,
@@ -46,14 +38,17 @@ impl<C: Ctx> Configuration<C> {
             threshold,
             phantom: PhantomData,
         };
-        c.validate()
+        assert!(c.is_valid());
+
+        c
     }
 
-    pub fn validate(self) -> Self {
-        assert!(self.trustees.len() > 1 && self.trustees.len() <= crate::protocol2::MAX_TRUSTEES);
-        assert!(self.threshold > 1 && self.threshold <= self.trustees.len());
+    pub fn is_valid(&self) -> bool {
+        let unique: HashSet<StrandSignaturePk> = HashSet::from_iter(self.trustees.clone());
 
-        self
+        (unique.len() == self.trustees.len())
+            && (self.trustees.len() > 1 && self.trustees.len() <= crate::protocol2::MAX_TRUSTEES)
+            && (self.threshold > 1 && self.threshold <= self.trustees.len())
     }
 
     pub fn get_trustee_position(&self, trustee_pk: &StrandSignaturePk) -> Option<usize> {
@@ -185,20 +180,20 @@ pub(crate) struct Mix<C: Ctx> {
     pub ciphertexts: StrandVectorC<C>,
     pub proof: ShuffleProof<C>,
     pub mix_number: MixNumber,
-    pub target_trustee: TrusteePosition,
+    // pub target_trustee: TrusteePosition,
 }
 impl<C: Ctx> Mix<C> {
     pub fn new(
         ciphertexts: Vec<Ciphertext<C>>,
         proof: ShuffleProof<C>,
         mix_number: MixNumber,
-        target_trustee: TrusteePosition,
+        // target_trustee: TrusteePosition,
     ) -> Mix<C> {
         Mix {
             ciphertexts: StrandVectorC(ciphertexts),
             proof,
             mix_number,
-            target_trustee,
+            // target_trustee,
         }
     }
 }
@@ -250,10 +245,6 @@ impl<C: Ctx> std::fmt::Debug for Commitments<C> {
 
 impl<C: Ctx> std::fmt::Debug for Mix<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "mix_number={:?}, target_trustee={:?}",
-            self.mix_number, self.target_trustee
-        )
+        write!(f, "mix_number={:?}", self.mix_number)
     }
 }

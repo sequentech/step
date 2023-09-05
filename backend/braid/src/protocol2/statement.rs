@@ -1,12 +1,6 @@
+use crate::protocol2::Hash;
 use borsh::{BorshDeserialize, BorshSerialize};
 use strum::Display;
-
-type Timestamp = u64;
-use crate::protocol2::Hash;
-pub type THashes = [Hash; crate::protocol2::MAX_TRUSTEES];
-
-use crate::protocol2::predicate::MixNumber;
-use crate::protocol2::predicate::TrusteePosition;
 
 ///////////////////////////////////////////////////////////////////////////
 // Statement
@@ -41,7 +35,7 @@ pub enum Statement {
         CiphertextsH,
         PublicKeyH,
         // the trustees to participate in mixing + decryption (ballots.trustees in Ballots artifact)
-        [usize; crate::protocol2::MAX_TRUSTEES],
+        TrusteeSet,
     ),
     Mix(
         Timestamp,
@@ -50,16 +44,14 @@ pub enum Statement {
         CiphertextsH,
         CiphertextsH,
         // the mix number (mix.mix_number in Mix artifact)
-        MixNumber,
-        // the next mixing trustee (mix.target_trustee in Mix artifact)
-        TrusteePosition,
+        MixNo,
     ),
     // See also local::StatementEntryIdentifier::mix_number
     MixSigned(
         Timestamp,
         ConfigurationH,
         Batch,
-        MixNumber,
+        MixNo,
         CiphertextsH,
         CiphertextsH,
     ),
@@ -78,6 +70,7 @@ pub enum Statement {
         PlaintextsH,
         DecryptionFactorsHs,
         CiphertextsH,
+        PublicKeyH,
     ),
     PlaintextsSigned(
         Timestamp,
@@ -86,6 +79,7 @@ pub enum Statement {
         PlaintextsH,
         DecryptionFactorsHs,
         CiphertextsH,
+        PublicKeyH,
     ),
 }
 
@@ -161,8 +155,7 @@ impl Statement {
         source_ciphertexts_h: CiphertextsH,
         mix_h: CiphertextsH,
         batch: Batch,
-        mix_number: MixNumber,
-        target_trustee: usize,
+        mix_number: MixNo,
     ) -> Statement {
         Statement::Mix(
             Self::timestamp(),
@@ -171,7 +164,6 @@ impl Statement {
             source_ciphertexts_h,
             mix_h,
             mix_number,
-            target_trustee,
         )
     }
 
@@ -181,7 +173,7 @@ impl Statement {
         source_ciphertexts_h: CiphertextsH,
         mix_h: CiphertextsH,
         batch: Batch,
-        mix_number: MixNumber,
+        mix_number: MixNo,
     ) -> Statement {
         Statement::MixSigned(
             Self::timestamp(),
@@ -216,6 +208,7 @@ impl Statement {
         plaintexts_h: PlaintextsH,
         dfactors_hs: DecryptionFactorsHs,
         cipher_h: CiphertextsH,
+        pk_h: PublicKeyH,
     ) -> Statement {
         Statement::Plaintexts(
             Self::timestamp(),
@@ -224,6 +217,7 @@ impl Statement {
             plaintexts_h,
             dfactors_hs,
             cipher_h,
+            pk_h,
         )
     }
 
@@ -233,6 +227,7 @@ impl Statement {
         plaintexts_h: PlaintextsH,
         dfactors_hs: DecryptionFactorsHs,
         cipher_h: CiphertextsH,
+        pk_h: PublicKeyH,
     ) -> Statement {
         Statement::PlaintextsSigned(
             Self::timestamp(),
@@ -241,6 +236,7 @@ impl Statement {
             plaintexts_h,
             dfactors_hs,
             cipher_h,
+            pk_h,
         )
     }
 
@@ -269,16 +265,16 @@ impl Statement {
     ) -> (
         StatementType,
         Hash,
-        usize,
-        usize,
+        Batch,
+        MixNo,
         Option<ArtifactType>,
         Timestamp,
     ) {
         let kind: StatementType;
         let ts: u64;
         let cfg: [u8; 64];
-        let mut batch = 0usize;
-        let mut mix_number = 0usize;
+        let mut batch = Batch(0);
+        let mut mix_number = MixNo(0);
         let mut artifact_type = None;
 
         match self {
@@ -325,42 +321,42 @@ impl Statement {
                 ts = *ts_;
                 kind = StatementType::Ballots;
                 cfg = cfg_h.0;
-                batch = bch.0;
+                batch = bch.clone();
                 artifact_type = Some(ArtifactType::Ballots);
             }
-            Self::Mix(ts_, cfg_h, bch, _, _, _, _) => {
+            Self::Mix(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::Mix;
                 cfg = cfg_h.0;
-                batch = bch.0;
+                batch = bch.clone();
                 artifact_type = Some(ArtifactType::Mix);
             }
             Self::MixSigned(ts_, cfg_h, bch, mix_no, _, _) => {
                 ts = *ts_;
                 kind = StatementType::MixSigned;
                 cfg = cfg_h.0;
-                batch = bch.0;
-                mix_number = *mix_no;
+                batch = bch.clone();
+                mix_number = mix_no.clone();
             }
             Self::DecryptionFactors(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::DecryptionFactors;
                 cfg = cfg_h.0;
-                batch = bch.0;
+                batch = bch.clone();
                 artifact_type = Some(ArtifactType::DecryptionFactors);
             }
-            Self::Plaintexts(ts_, cfg_h, bch, _, _, _) => {
+            Self::Plaintexts(ts_, cfg_h, bch, _, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::Plaintexts;
                 cfg = cfg_h.0;
-                batch = bch.0;
+                batch = bch.clone();
                 artifact_type = Some(ArtifactType::Plaintexts);
             }
-            Self::PlaintextsSigned(ts_, cfg_h, bch, _, _, _) => {
+            Self::PlaintextsSigned(ts_, cfg_h, bch, _, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::PlaintextsSigned;
                 cfg = cfg_h.0;
-                batch = bch.0;
+                batch = bch.clone();
             }
         }
 
@@ -395,6 +391,13 @@ pub struct PlaintextsH(pub Hash);
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct Batch(pub usize);
+
+#[derive(BorshSerialize, BorshDeserialize, Clone)]
+pub struct MixNo(pub usize);
+pub(crate) type TrusteeSet = [usize; crate::protocol2::MAX_TRUSTEES];
+
+type Timestamp = u64;
+pub type THashes = [Hash; crate::protocol2::MAX_TRUSTEES];
 
 ///////////////////////////////////////////////////////////////////////////
 // Enums necessary to store statements and artifacts in LocalBoard

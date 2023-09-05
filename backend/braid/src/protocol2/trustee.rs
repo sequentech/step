@@ -34,16 +34,15 @@ use crate::protocol2::{action::Action, artifact::EncryptedCoefficients};
 // Represents the instantiation of a trustee within a specific protocol
 // session. Runs the main loop for the trustee's participation in the session.
 //
-// 1) Retrieve messages from RemoteBoard
+// 1) Receive messages from RemoteBoard
 // 2) Update LocalBoard with Statements and Artifacts
 // 3) Derive Predicates from Statements on LocalBoard
 // 4) Invoke Datalog with input predicates
-//      4.1) Pass output predicates from 4) to subsequent MachinePhases
+//      4.1) Pass output predicates from 4) to subsequent datalog Phases
 // 5) Run Actions resulting from 4)
 // 6) Return resulting Messages for subsequent posting on RemoteBoard
 //
-// Does not post the messages itself, to abstract from protocol level
-// parallelization concerns handled elsewhere.
+// Does not post the messages itself.
 ///////////////////////////////////////////////////////////////////////////
 
 pub struct Trustee<C: Ctx> {
@@ -84,16 +83,10 @@ impl<C: Ctx> Trustee<C> {
     ) -> Result<(Vec<Message>, HashSet<Action>)> {
         let added_messages = self.update_local_board(messages)?;
 
-        debug!("Update added {} messages", added_messages);
+        info!("Update added {} messages", added_messages);
         let predicates = self.derive_predicates(false)?;
-        debug!("Derived {} predicates {:?}", predicates.len(), predicates);
+        info!("Derived {} predicates", predicates.len());
         let (messages, actions, _) = self.infer_and_run_actions(&predicates, false)?;
-
-        debug!(
-            "Actions yielded {} messages, {:?}",
-            messages.len(),
-            messages
-        );
 
         // Sanity check: ensure that all outgoing messages' cfg field matches that of the local board
         for m in messages.iter() {
@@ -113,9 +106,9 @@ impl<C: Ctx> Trustee<C> {
     // Update
     ///////////////////////////////////////////////////////////////////////////
 
-    #[instrument(name = "Trustee::update", skip_all)]
+    #[instrument(name = "Trustee::update_local_board", skip_all, level = "trace")]
     fn update_local_board(&mut self, messages: Vec<Message>) -> Result<i32> {
-        info!("Updating with {} messages", messages.len());
+        trace!("Updating with {} messages", messages.len());
 
         let configuration = self.local_board.get_configuration_raw();
         if let Some(configuration) = configuration {
@@ -153,10 +146,8 @@ impl<C: Ctx> Trustee<C> {
                 panic!();
             }
 
-            let added_ = self.local_board.add(verified);
-            if added_.is_ok() {
-                added += 1;
-            }
+            let _ = self.local_board.add(verified)?;
+            added += 1;
         }
 
         Ok(added)
@@ -171,7 +162,7 @@ impl<C: Ctx> Trustee<C> {
     fn update_bootstrap(&mut self, mut messages: Vec<Message>) -> Result<i32> {
         let mut added = 0;
 
-        info!("Configuration not present in board, getting first remote message");
+        trace!("Configuration not present in board, getting first remote message");
         if messages.is_empty() {
             return Err(anyhow!(
                 "Zero messages received, cannot retrieve configuration"
@@ -190,7 +181,7 @@ impl<C: Ctx> Trustee<C> {
         let artifact = zero.artifact.as_ref().expect("impossible");
         let configuration = Configuration::strand_deserialize(artifact)?;
         // FIXME will crash on bad data
-        let configuration = configuration.validate();
+        assert!(configuration.is_valid());
 
         let verified = zero.verify(&configuration)?;
 
@@ -215,8 +206,7 @@ impl<C: Ctx> Trustee<C> {
     ///////////////////////////////////////////////////////////////////////////
     // derive
     ///////////////////////////////////////////////////////////////////////////
-
-    #[instrument(name = "Trustee::derive_predicates", skip_all)]
+    #[instrument(name = "Trustee::derive_predicates", skip(self), level = "trace")]
     fn derive_predicates(&self, verifying_mode: bool) -> Result<Vec<Predicate>> {
         let mut predicates = vec![];
 
@@ -253,7 +243,7 @@ impl<C: Ctx> Trustee<C> {
             predicates.push(next);
         }
 
-        info!("Derived {} predicates", predicates.len());
+        trace!("Derived {} predicates", predicates.len());
 
         Ok(predicates)
     }
@@ -262,7 +252,6 @@ impl<C: Ctx> Trustee<C> {
     // infer&run
     ///////////////////////////////////////////////////////////////////////////
 
-    #[instrument(name = "Trustee::infer_and_run_actions", skip_all)]
     fn infer_and_run_actions(
         &self,
         predicates: &Vec<Predicate>,
@@ -274,9 +263,20 @@ impl<C: Ctx> Trustee<C> {
             .ok_or(anyhow!("Cannot run actions without a configuration"))?;
 
         let (actions, predicates) = crate::protocol2::datalog::run(predicates);
-        debug!("Datalog returns {} actions, {:?}", actions.len(), actions);
+        trace!(
+            "Datalog derived {} actions, {:?}",
+            actions.len(),
+            actions
+                .iter()
+                .map(|a| a.to_string())
+                .collect::<Vec<String>>()
+        );
 
         let ret_actions = actions.clone();
+
+        if actions.len() == 0 {
+            info!("-- Idle --");
+        }
 
         // Cross-Action parallelism (which in effect is cross-batch parallelism)
         let results: Result<Vec<Vec<Message>>> = actions
@@ -299,7 +299,6 @@ impl<C: Ctx> Trustee<C> {
 
         // flatten all messages
         let result = results?.into_iter().flatten().collect();
-        info!("{} actions executed", ret_actions.len());
 
         Ok((result, ret_actions, predicates))
     }
@@ -308,7 +307,6 @@ impl<C: Ctx> Trustee<C> {
     // Trustee verifying mode
     ///////////////////////////////////////////////////////////////////////////
 
-    #[instrument(name = "Trustee::verify", skip(messages))]
     pub(crate) fn verify(
         &mut self,
         messages: Vec<Message>,

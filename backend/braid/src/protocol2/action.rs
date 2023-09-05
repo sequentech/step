@@ -1,12 +1,11 @@
 use anyhow::Result;
+use strum::Display;
 
 pub(crate) use log::{debug, error, info, trace};
 pub(crate) use strand::context::Ctx;
 pub(crate) use strand::context::Element;
 pub(crate) use strand::context::Exponent;
 
-pub(crate) use crate::protocol2::datalog::DecryptionFactorsHash;
-pub(crate) use crate::protocol2::datalog::DecryptionFactorsHashes;
 pub(crate) use crate::protocol2::datalog::NULL_HASH;
 pub(crate) use crate::protocol2::message::Message;
 pub(crate) use crate::protocol2::predicate::BatchNumber;
@@ -14,6 +13,8 @@ pub(crate) use crate::protocol2::predicate::CiphertextsHash;
 pub(crate) use crate::protocol2::predicate::CommitmentsHash;
 pub(crate) use crate::protocol2::predicate::CommitmentsHashes;
 pub(crate) use crate::protocol2::predicate::ConfigurationHash;
+pub(crate) use crate::protocol2::predicate::DecryptionFactorsHash;
+pub(crate) use crate::protocol2::predicate::DecryptionFactorsHashes;
 pub(crate) use crate::protocol2::predicate::PlaintextsHash;
 pub(crate) use crate::protocol2::predicate::PublicKeyHash;
 pub(crate) use crate::protocol2::predicate::SharesHash;
@@ -42,7 +43,7 @@ use crate::util::dbg_hash;
 //      4.2) Trustee::<message> Signs the statement and returns Message
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Display)]
 pub enum Action {
     SignConfiguration(ConfigurationHash),
     GenCommitments(ConfigurationHash, TrusteeCount, TrusteeCount),
@@ -132,7 +133,7 @@ impl Action {
     // Action dispatch to target functions
     ///////////////////////////////////////////////////////////////////////////
     pub(crate) fn run<C: Ctx>(&self, trustee: &Trustee<C>) -> Result<Vec<Message>> {
-        info!("Running action {:?}", &self);
+        info!("Running action {}..", &self);
         match self {
             Self::SignConfiguration(cfg_h) => cfg::sign_config(cfg_h, trustee),
             Self::GenCommitments(cfg_h, _num_t, threshold) => {

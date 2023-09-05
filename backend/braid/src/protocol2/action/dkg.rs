@@ -150,6 +150,12 @@ pub(super) fn sign_pk<C: Ctx>(
     trustee: &Trustee<C>,
 ) -> Result<Vec<Message>> {
     let cfg = trustee.get_configuration(cfg_h)?;
+    info!(
+        "SignPk verifying public key [{}] ({})..",
+        dbg_hash(&pk_h.0),
+        num_t,
+    );
+
     let expected = compute_pk_(
         cfg_h,
         shares_hs,
@@ -165,7 +171,11 @@ pub(super) fn sign_pk<C: Ctx>(
         .ok_or(anyhow!("Could not retrieve dkg public key",))?;
 
     if (expected.0 == actual.pk) && (expected.1 == actual.verification_keys) {
-        debug!("Pk matches expected value");
+        info!(
+            "SignPk verifying public key [{}] ({}), ok",
+            dbg_hash(&pk_h.0),
+            num_t,
+        );
         let m = Message::public_key_msg(cfg, &actual, shares_hs, commitments_hs, false, trustee)?;
         Ok(vec![m])
     } else {
