@@ -6,6 +6,7 @@ use anyhow::Result;
 use immu_board::Board;
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::value::Value;
+use std::convert::TryInto;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
