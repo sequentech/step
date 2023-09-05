@@ -8,6 +8,7 @@ use rocket::serde::{Deserialize, Serialize};
 use std::env;
 
 use crate::connection;
+use crate::hasura;
 use crate::services::protocol_manager::ProtocolManagerClient;
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -26,8 +27,8 @@ pub async fn create_keys(
 ) -> Result<()> {
     let hasura_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
-        input.tenant_id.clone(),
-        input.election_event_id.clone(),
+        body.tenant_id.clone(),
+        body.election_event_id.clone(),
     )
     .await?;
     let status = hasura_response

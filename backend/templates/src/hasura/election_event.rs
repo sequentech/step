@@ -61,7 +61,6 @@ pub async fn get_election_event(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
-    board: Value,
 ) -> Result<Response<get_election_event::ResponseData>> {
     let variables = get_election_event::Variables {
         tenant_id: tenant_id,

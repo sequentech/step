@@ -1,4 +1,4 @@
-query GetElectionevent(
+query GetElectionEvent(
     $tenantId: uuid!,
     $electionEventId: uuid!,
 ) {
