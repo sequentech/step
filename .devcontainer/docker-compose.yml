@@ -269,6 +269,7 @@ services:
 
   # Create collection in immudb
   immudb-log-audit-init:
+    profiles: ["dev"]
     build:
       context: ../vendor/immudb-log-audit
       dockerfile: Dockerfile.immudb
@@ -283,40 +284,7 @@ services:
 
   # Send audit logs to immudb
   immudb-log-audit:
-    build:
-      context: ../vendor/immudb-log-audit
-      dockerfile: Dockerfile.immudb
-    command: >
-      tail file pgaudit "/logs/*.json"
-      --follow
-      --parser pgauditjsonlog
-      --file-registry-dir=/data
-      --log-level debug
-      --immudb-host immudb
-    volumes: 
-      - 'immudb_log_audit_data:/data'
-      - 'db_logs:/logs'
-    depends_on:
-      - postgres
-      - immudb
-      - immudb-log-audit-init
-
-  # Create collection in immudb
-  immudb-log-audit-init:
-    build:
-      context: ../vendor/immudb-log-audit
-      dockerfile: Dockerfile.immudb
-    command: >
-      create sql pgaudit
-      --parser pgauditjsonlog
-      --log-level debug
-      --immudb-host immudb
-    depends_on:
-      - postgres
-      - immudb
-
-  # Send audit logs to immudb
-  immudb-log-audit:
+    profiles: ["dev"]
     build:
       context: ../vendor/immudb-log-audit
       dockerfile: Dockerfile.immudb
