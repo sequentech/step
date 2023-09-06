@@ -4,7 +4,7 @@
 import {Box} from "@mui/system"
 import React, {useContext, useEffect} from "react"
 import {AuthContext} from "../providers/AuthContextProvider"
-import {useNavigate} from "react-router"
+import {useNavigate} from "react-router-dom"
 import {CircularProgress} from "@mui/material"
 
 export const LoginScreen: React.FC = () => {
