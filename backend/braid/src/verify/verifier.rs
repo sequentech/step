@@ -18,17 +18,88 @@ use crate::verify::datalog::Verified;
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
 
+/*
+Verifies the election data published on the bulletin board to implement universal verifiability. The key steps
+that need to be checked are:
+
+1) Public key verification
+    1.1 The public key was correctly constructed (given the public data).
+    1.2 The individual trustee verification keys were correctly constructed (given the public data).
+2) Ballots
+    2.1 The ballots are associated to the public key by the protocol manager.
+3) Mixing
+    3.1 The ballots are the source of ciphertexts in the first link in the mixing chain.
+    3.2 The proof of shuffle for each link in the mixing chain verifies.
+    3.3 The number of links in the mixing chain is equal to the specified threshold.
+    3.4 There are no duplicate trustees in the mixing chain.
+4) Decryption
+    4.1 The ciphertexts used as the input to decryption correspond to the output of the last link in the mixing chain.
+    4.2 The proof of decryption linking the decryption ciphertexts to the plaintexts verifies with respect to the trustee verification keys.
+    4.3 The combination of decryption factors matches the published plaintexts.
+
+The verifier performs checks that map to these steps, as well as additional consistency checks. See below.
+*/
+
+///////////////////////////////////////////////////////////////////////////
+// Check symbolic constants
+///////////////////////////////////////////////////////////////////////////
+
+/*
+The configuration is valid as per Configuration::is_valid:
+
+    1) The number of trustees ranges from 2 to 12 (crate::protocol2::MAX_TRUSTEES).
+    2) The threshold is ranges from 2 to the number of trustees.
+    3) There are no duplicate trustees.
+
+*/
 const CONFIGURATION_VALID: &str = "Configuration valid";
+/*
+All message signatures verify, with respect to their specified signing public key.
+*/
 const MESSAGES_VALID: &str = "All message signatures verified";
+/*
+All messages refer to the same configuration file that is checked
+with CONFIGURATION_VALID.
+*/
 const MESSAGES_CFG_VALID: &str = "All messages refer to correct configuration";
+/*
+The public key information has been correctly constructed (given public data):
+    1) The public key has been correctly constructed.
+    2) The trustee verification keys have been correctly constructed.
+    3) All trustees have signed the public key statement, which asserts correctness
+    of private shares (VSS).
+*/
 const PK_VALID: &str = "Public key verified";
-const BATCH_VALID: &str = "Batch matches";
+/*
+The protocol manager's signature that associates the ballots to the public key verifies.
+*/
 const BALLOTS_PK_VALID: &str = "Ballot public key matches root public key";
+/*
+The first link in the mixing chain takes the ballots as input.
+*/
 const MIX_START_VALID: &str = "Mixing chain start matches ballots";
+/*
+The last link in the mixing chain outputs the ciphertexts inputted to decryption.
+*/
 const MIX_END_VALID: &str = "Mixing chain end matches decrypting ballots";
+/*
+1) The number of links in the mixing chain is equal to the threshold specified
+in the configuration.
+2) The proof of shuffle for each link in the chain verifies.
+*/
 const MIX_SIZE_VALID: &str = "Mixing chain correct length";
+/*
+Each of the links in the mixing chain was produced by a different trustee.
+*/
 const MIX_UNIQUE_VALID: &str = "Mixing chain no duplicate signers";
+/*
+The proof of decryption linking the decryption ciphertexts to the decryption factors verifies
+with respect to the public key information.
+*/
 const DECRYPTION_VALID: &str = "Decryption validated with respect to ballot public key";
+/*
+The combination of decryption factors matches the published plaintexts.
+ */
 const PLAINTEXTS_VALID: &str = "Plaintexts match";
 
 pub struct Verifier<C: Ctx> {
@@ -149,7 +220,7 @@ impl<C: Ctx> Verifier<C> {
                 targets.iter().find(|t| t.1 == v.1).unwrap(),
                 &cfg,
                 &pk_h,
-            );
+            )?;
         }
 
         // Summary
@@ -165,7 +236,6 @@ use crate::protocol2::predicate::*;
 impl Target {
     fn get_verification_result(&self) -> VerificationResult {
         let mut vr = VerificationResult::new(&self.1.to_string());
-        vr.add_target(BATCH_VALID);
         vr.add_target(BALLOTS_PK_VALID);
         vr.add_target(MIX_START_VALID);
         vr.add_target(MIX_END_VALID);
@@ -200,7 +270,7 @@ impl Verified {
         target: &Target,
         cfg: &Configuration<C>,
         pk_h: &Option<PublicKeyHash>,
-    ) {
+    ) -> Result<()> {
         let mixing_hs = self.get_mixing_hs();
         let filtered_mixes: Vec<[u8; 64]> = mixing_hs
             .0
@@ -214,11 +284,8 @@ impl Verified {
             .get_mut(b)
             .expect(&format!("no target for batch '{}'", b));
 
-        child.add_result(
-            BATCH_VALID,
-            self.get_batch() == target.get_batch(),
-            &self.get_batch(),
-        );
+        assert_eq!(self.get_batch(), target.get_batch());
+
         child.add_result(
             BALLOTS_PK_VALID,
             *pk_h == Some(target.get_pk_h()),
@@ -253,6 +320,8 @@ impl Verified {
             self.get_plaintexts_h() == target.get_plaintexts_h(),
             &dbg_hash(&self.get_plaintexts_h().0),
         );
+
+        Ok(())
     }
 
     fn _get_cfg_h(&self) -> ConfigurationHash {
@@ -354,9 +423,9 @@ impl std::fmt::Display for VerificationResult {
         let (ok, not_ok, batches) = self.totals();
         let checks = format!("{} / {}", ok, (ok + not_ok));
         if not_ok == 0 {
-            writeln!(f, "[{}] checks pass (batches={})", checks.green(), batches)?;
+            writeln!(f, "[{}] checks pass ({} batches)", checks.green(), batches)?;
         } else {
-            writeln!(f, "[{}] checks pass (batches={})", checks.red(), batches)?;
+            writeln!(f, "[{}] checks pass ({} batches)", checks.red(), batches)?;
         }
 
         Ok(())
