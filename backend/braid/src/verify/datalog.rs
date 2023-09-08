@@ -75,6 +75,12 @@ crepe! {
     struct MixRepeat(ConfigurationHash, BatchNumber);
 
     @output
+    pub struct RootVerified(
+        pub(crate) ConfigurationHash,
+        pub(crate) PublicKeyHash,
+    );
+
+    @output
     pub struct Target(
         pub(crate) ConfigurationHash,
         pub(crate) BatchNumber,
@@ -87,8 +93,6 @@ crepe! {
     pub struct Verified(
         pub(crate) ConfigurationHash,
         pub(crate) BatchNumber,
-        pub(crate) PublicKeyHash,
-        pub(crate) PublicKeyHash,
         pub(crate) CiphertextsHash,
         pub(crate) CiphertextsHash,
         pub(crate) PublicKeyHash,
@@ -96,10 +100,14 @@ crepe! {
         pub(crate) MixingHashes,
     );
 
-    Target(cfg_h, batch, pk_h, ballots_h, plaintexts_h, ) <-
+    RootVerified(cfg_h, pk_h) <-
     ConfigurationSignedAll(cfg_h, _, _num_t, _),
     PublicKeySignedAll(cfg_h, pk_h, _shares_hs),
-    Ballots(cfg_h, batch, ballots_h, _pk_h, _),
+    PublicKeySigned(cfg_h, pk_h, _, _, VERIFIER_INDEX);
+
+    Target(cfg_h, batch, pk_h, ballots_h, plaintexts_h, ) <-
+    ConfigurationSignedAll(cfg_h, _, _num_t, _),
+    Ballots(cfg_h, batch, ballots_h, pk_h, _),
     Plaintexts(cfg_h, batch, plaintexts_h, _, _, _, _);
 
     ConfigurationSignedUpTo(cfg_h, n + 1) <-
@@ -150,13 +158,12 @@ crepe! {
     (mix_number1 != mix_number2),
     (signer_t1 == signer_t2);
 
-    Verified(cfg_h, batch, verified_pk_h, ballots_pk_h, ballots_h, decrypted_ciphertexts_h, decryption_pk_h, plaintexts_h, new_mixing_hs) <-
+    Verified(cfg_h, batch, ballots_h, decrypted_ciphertexts_h, decryption_pk_h, plaintexts_h, new_mixing_hs) <-
     ConfigurationSignedAll(cfg_h, _, _num_t, threshold),
     MixVerifiedUpto(cfg_h, batch, last_ciphertexts_h, mixing_hs, threshold),
     MixVerifiedUpto(cfg_h, batch, _, _, 1),
     MixSigned(cfg_h, batch, ballots_h, _target_h, VERIFIER_INDEX),
-    PublicKeySignedAll(cfg_h, verified_pk_h, _shares_hs),
-    Ballots(cfg_h, batch, ballots_h, ballots_pk_h, selected),
+    Ballots(cfg_h, batch, ballots_h, _, selected),
     Plaintexts(cfg_h, batch, plaintexts_h, _dfactors_hs, decrypted_ciphertexts_h, decryption_pk_h, selected[0] - 1),
     !MixRepeat(cfg_h, batch),
     let new_mixing_hs = MixingHashes(hashes_add(mixing_hs.0, last_ciphertexts_h.0));
@@ -167,7 +174,10 @@ crepe! {
 pub(crate) struct S;
 
 impl S {
-    pub(crate) fn run(&self, predicates: &Vec<Predicate>) -> (HashSet<Target>, HashSet<Verified>) {
+    pub(crate) fn run(
+        &self,
+        predicates: &Vec<Predicate>,
+    ) -> (HashSet<RootVerified>, HashSet<Target>, HashSet<Verified>) {
         let mut runtime = Crepe::new();
         let inputs: Vec<InP> = predicates.iter().map(|p| InP(*p)).collect();
         runtime.extend(&inputs);
