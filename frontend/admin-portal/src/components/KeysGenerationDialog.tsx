@@ -78,6 +78,8 @@ export const KeysGenerationDialog: React.FC<KeysGenerationDialogProps> = ({
                     board_name: boardName,
                     trustee_pks: selectedTrustees.map((trustee) => trustee.public_key),
                     threshold: threshold,
+                    tenant_id:  electionEvent.tenant_id,
+                    election_event_id: electionEvent.id,
                 },
                 createdBy: "admin",
             },
@@ -108,7 +110,10 @@ export const KeysGenerationDialog: React.FC<KeysGenerationDialogProps> = ({
 
     const handleTrusteeChange = (event: SelectChangeEvent<Sequent_Backend_Trustee | null>) => {
         let id = event.target.value
-        setTrustee(null)
+        let trustee: Sequent_Backend_Trustee | undefined = (data as Array<Sequent_Backend_Trustee> | undefined)?.find(t => t.id === id)
+        if (trustee) {
+            setTrustee(trustee)
+        }
     }
 
     const onAddTrustee = () => {
@@ -140,9 +145,6 @@ export const KeysGenerationDialog: React.FC<KeysGenerationDialogProps> = ({
             variant="info"
         >
             <Typography variant="body1">Generate Keys for Event</Typography>
-            {selectedTrustees.map((trustee) => (
-                <StyledChip label={trustee.name} key={trustee.id} />
-            ))}
             <TextField
                 value={threshold}
                 error={!isValidThreshold(threshold)}
@@ -153,11 +155,17 @@ export const KeysGenerationDialog: React.FC<KeysGenerationDialogProps> = ({
                 variant="filled"
                 onChange={handleThresholdChange}
             />
+            <Box>
+                {selectedTrustees.map((trustee) => (
+                    <StyledChip label={trustee.name} key={trustee.id} />
+                ))}
+            </Box>
             <Horizontal>
                 <Select
                     labelId="trustee-select-label"
                     id="trustee-select"
                     value={trustee}
+                    renderValue={value => value?.name}
                     onChange={handleTrusteeChange}
                 >
                     {data

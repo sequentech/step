@@ -169,8 +169,9 @@ services:
        - ../frontend:/usr/src/app
     depends_on:
       - graphql-engine
+
   immudb:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     image: codenotary/immudb:1.5
     restart: always
     environment:
@@ -184,7 +185,7 @@ services:
       - immudb_logs:/var/log/immudb
   
   harvest:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     build:
       context: ../backend/
@@ -195,7 +196,7 @@ services:
     #  - graphql-engine
   
   trustee1:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     volumes:
       - trustee1_data:/opt/braid
@@ -211,7 +212,7 @@ services:
       - immudb
   
   trustee2:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     volumes:
       - trustee2_data:/opt/braid
@@ -227,7 +228,7 @@ services:
       - immudb
   
   protocol_manager:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     expose:
       - "8000"

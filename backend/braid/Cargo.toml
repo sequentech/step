@@ -28,7 +28,6 @@ rusqlite = { version = "0.29.0", features = ["bundled"] }
 anyhow = "1.0"
 
 # only needed for verifier
-serde_json = "1.0"
 colored = "2.0.4"
 
 # daemon
@@ -66,7 +65,7 @@ async-trait = "0.1.73"
 
 # protocol-manager
 rocket = { version = "=0.5.0-rc.3", features = ["json"], optional = true}
-serde_json = { version = "1.0.105", optional = true}
+serde_json = "1.0.105"
 
 [dev-dependencies]
 criterion = {version = "0.4", features=["html_reports"]}
