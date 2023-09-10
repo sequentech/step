@@ -303,6 +303,29 @@ services:
       - postgres
       - immudb
       - immudb-log-audit-init
+  # hashicorp vault to store secrets
+  vault:
+    build:
+      context: ./vault
+      dockerfile: Dockerfile
+    container_name: vault
+    restart: on-failure:10
+    ports:
+      - "8202:8202"
+      - "8201:8201"
+      - "8200:8200"
+    environment:
+      VAULT_API_ADDR: 'https://0.0.0.0:8200'
+      VAULT_ADDR: 'https://0.0.0.0:8201'
+      #VAULT_DEV_ROOT_TOKEN_ID: '00000000-0000-0000-0000-000000000000'
+      VAULT_TOKEN: '00000000-0000-0000-0000-000000000000'
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-volume:/vault
+    healthcheck:
+      retries: 5
+    entrypoint: vault server -config /opt/config.hcl
 
 volumes:
   db_data:
@@ -315,3 +338,4 @@ volumes:
   trustee1_data:
   trustee2_data:
   protocol_manager_data:
+  vault-volume:
