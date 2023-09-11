@@ -7,7 +7,7 @@ use rocket::serde::{Deserialize, Serialize};
 
 use crate::connection;
 use crate::hasura;
-use crate::services::protocol_manager::ProtocolManagerClient;
+use crate::services::protocol_manager;
 
 #[derive(Deserialize, Debug, Serialize)]
 #[serde(crate = "rocket::serde")]
@@ -37,6 +37,5 @@ pub async fn create_keys(
     let bulletin_board_reference =
         election_event.bulletin_board_reference.clone();
 
-    let mut client = ProtocolManagerClient::new()?;
-    client.create_keys(body).await
+    protocol_manager::create_keys(body).await
 }

@@ -5,6 +5,7 @@
 use crate::protocol2::artifact::Configuration;
 use crate::protocol2::message::Message;
 use crate::protocol2::trustee::ProtocolManager;
+use crate::run::config::ProtocolManagerConfig;
 
 use strand::context::Ctx;
 use strand::rnd::StrandRng;
@@ -25,6 +26,11 @@ pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
         phantom: PhantomData,
     };
     pm
+}
+
+pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> String {
+    let pmc = ProtocolManagerConfig::from(&pm);
+    toml::to_string(&pmc).unwrap()
 }
 
 #[instrument]
