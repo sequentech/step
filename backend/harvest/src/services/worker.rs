@@ -123,7 +123,12 @@ pub async fn process_scheduled_event(
         scheduled_event::EventProcessors::CREATE_KEYS => {
             let payload: create_keys::CreateKeysBody =
                 serde_json::from_value(event.event_payload.clone().unwrap())?;
-            create_keys::create_keys(auth_headers.clone(), payload).await?;
+            create_keys::create_keys(
+                auth_headers.clone(),
+                payload,
+                event.clone(),
+            )
+            .await?;
 
             insert_event_execution_with_result(auth_headers, event, None).await
         }

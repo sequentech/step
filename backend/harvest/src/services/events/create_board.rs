@@ -4,14 +4,14 @@
 
 use anyhow::Result;
 use immu_board::BoardClient;
-use rocket::serde::Deserialize;
+use rocket::serde::{Deserialize, Serialize};
 use std::env;
 
 use crate::connection;
 use crate::hasura;
 use crate::services::election_event_board::BoardSerializable;
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct CreateBoardPayload {
     pub board_name: String,

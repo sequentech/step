@@ -18,7 +18,7 @@ pub fn print_to_pdf(
         .build()
         .expect("Default should not panic");
     let browser = Browser::new(options)?;
-    browser.wait_for_initial_tab()?;
+    //browser.wait_for_initial_tab()?;
     let tab = browser.new_tab()?;
     //tab.set_default_timeout(Duration::from_secs(99999999));
     println!("path: {}", file_path);

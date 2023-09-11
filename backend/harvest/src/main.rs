@@ -22,7 +22,6 @@ fn rocket() -> _ {
         routes![
             routes::fetch_document::fetch_document,
             routes::scheduled_event::create_scheduled_event,
-            routes::create_keys::create_keys,
             routes::immudb_log_audit::list_pgaudit,
         ],
     )
