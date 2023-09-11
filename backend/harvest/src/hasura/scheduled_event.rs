@@ -5,8 +5,7 @@ use crate::connection;
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
-use rocket::response::Debug;
-use rocket::serde::json::{Json, Value};
+use rocket::serde::json::Value;
 use serde::Deserialize;
 use std::env;
 

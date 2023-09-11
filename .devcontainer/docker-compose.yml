@@ -315,17 +315,17 @@ services:
       - "8201:8201"
       - "8200:8200"
     environment:
-      VAULT_API_ADDR: 'https://0.0.0.0:8200'
-      VAULT_ADDR: 'https://0.0.0.0:8201'
+      VAULT_API_ADDR: 'http://0.0.0.0:8200'
+      VAULT_ADDR: 'http://0.0.0.0:8201'
       #VAULT_DEV_ROOT_TOKEN_ID: '00000000-0000-0000-0000-000000000000'
-      VAULT_TOKEN: '00000000-0000-0000-0000-000000000000'
+      #VAULT_TOKEN: '00000000-0000-0000-0000-000000000000'
     cap_add:
       - IPC_LOCK
     volumes:
       - vault-volume:/vault
     healthcheck:
       retries: 5
-    entrypoint: vault server -config /opt/config.hcl
+    entrypoint: vault server -config /opt/vault/config.hcl
 
 volumes:
   db_data:

@@ -5,9 +5,7 @@
 use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
-use rocket::serde::json::Value;
-use rocket::serde::{Deserialize, Serialize};
-use serde_json::json;
+use rocket::serde::Deserialize;
 
 use crate::connection;
 
@@ -21,7 +19,7 @@ pub struct CreateKeysBody {
 #[post("/create-keys", format = "json", data = "<body>")]
 pub async fn create_keys(
     body: Json<CreateKeysBody>,
-    auth_headers: connection::AuthHeaders,
+    _auth_headers: connection::AuthHeaders,
 ) -> Result<(), Debug<anyhow::Error>> {
     Ok(())
 }

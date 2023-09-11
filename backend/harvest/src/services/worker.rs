@@ -3,13 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use reqwest;
 use rocket::serde::json::Json;
 use rocket::serde::json::Value;
 use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
-use strum_macros::EnumString;
 
 use crate::connection;
 use crate::hasura::event_execution;

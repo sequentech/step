@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use immu_board::{Board, BoardClient, BoardMessage};
-use rocket::serde::{Deserialize, Serialize};
+use immu_board::BoardClient;
+use rocket::serde::Deserialize;
 use std::env;
 
 use crate::connection;

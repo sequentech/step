@@ -5,9 +5,7 @@
 use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
-use rocket::serde::json::Value;
 use rocket::serde::{Deserialize, Serialize};
-use serde_json::json;
 
 use crate::connection;
 use crate::hasura;
@@ -41,7 +39,7 @@ pub async fn fetch_document(
     )
     .await?;
 
-    let document = &document_result
+    let _document = &document_result
         .data
         .expect("expected data".into())
         .sequent_backend_document[0];

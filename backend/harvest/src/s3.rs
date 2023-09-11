@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use std::{error::Error, str};
+use std::str;
 
 use anyhow::Result;
 use s3::bucket::Bucket;
@@ -22,8 +22,8 @@ pub async fn upload_to_s3(
         .expect(&format!("MINIO_ROOT_PASSWORD must be set"));
     let minio_private_uri = env::var("MINIO_PRIVATE_URI")
         .expect(&format!("MINIO_PRIVATE_URI must be set"));
-    let minio_public_uri = env::var("MINIO_PUBLIC_URI")
-        .expect(&format!("MINIO_PUBLIC_URI must be set"));
+    //let minio_public_uri = env::var("MINIO_PUBLIC_URI")
+    //    .expect(&format!("MINIO_PUBLIC_URI must be set"));
     let minio_region =
         env::var("MINIO_REGION").expect(&format!("MINIO_REGION must be set"));
     let minio_bucket =
@@ -53,11 +53,11 @@ pub async fn upload_to_s3(
 
     // 2) Create bucket if does not exist
     let result = bucket.head_object("/").await;
-    let is404Error = match result {
+    let is_404_error = match result {
         Err(S3Error::Http(404, _)) => true,
         _ => false,
     };
-    if is404Error {
+    if is_404_error {
         println!("=== Bucket creation");
         let create_result = Bucket::create_with_path_style(
             minio_bucket.as_str(),
@@ -97,8 +97,6 @@ pub async fn get_document_url(key: String) -> Result<String> {
         .expect(&format!("MINIO_ROOT_USER must be set"));
     let key_secret = env::var("MINIO_ROOT_PASSWORD")
         .expect(&format!("MINIO_ROOT_PASSWORD must be set"));
-    let minio_private_uri = env::var("MINIO_PRIVATE_URI")
-        .expect(&format!("MINIO_PRIVATE_URI must be set"));
     let minio_public_uri = env::var("MINIO_PUBLIC_URI")
         .expect(&format!("MINIO_PUBLIC_URI must be set"));
     let minio_region =

@@ -5,11 +5,9 @@ use crate::connection;
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
-use rocket::response::Debug;
-use rocket::serde::json::{Json, Value};
+use rocket::serde::json::Value;
 use rocket::serde::{Deserialize, Serialize};
 use std::env;
-use std::str::FromStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
 

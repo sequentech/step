@@ -2,13 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
-use dotenv::dotenv;
-use either::*;
 use handlebars::Handlebars;
 use headless_chrome::types::PrintToPdfOptions;
-use rocket::response::Debug;
 use rocket::serde::json::Json;
-use rocket::serde::json::Value;
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs::File;

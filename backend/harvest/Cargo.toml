@@ -30,4 +30,5 @@ strum_macros = "0.25"
 immu-board = { path="../immu-board" }
 immudb-rs = { path="../immudb-rs" }
 braid = { path="../braid" }
+strand = { path="../strand" }
 

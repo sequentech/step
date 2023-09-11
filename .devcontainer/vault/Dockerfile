@@ -1,3 +1,5 @@
 FROM hashicorp/vault:latest
 
-COPY config.hcl /opt
+RUN mkdir -p /opt/vault
+COPY config.hcl /opt/vault
+COPY init.sh /opt/vault
