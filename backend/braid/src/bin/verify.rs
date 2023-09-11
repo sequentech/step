@@ -15,13 +15,20 @@ use strand::signature::StrandSignatureSk;
 const IMMUDB_USER: &str = "immudb";
 const IMMUDB_PW: &str = "immudb";
 
+/// Verifies election data on a bulletin board
 #[derive(Parser)]
 struct Cli {
+    /// URL of the bulletin board server
     #[arg(long)]
     server_url: String,
 
+    /// Name of the board to audit
     #[arg(long)]
     board: String,
+
+    /// Checks inclusion of the given ballot
+    #[arg(long)]
+    ballot_hash: Option<String>,
 }
 
 #[tokio::main]

@@ -1,3 +1,4 @@
+#![allow(non_camel_case_types)]
 use anyhow::Result;
 use colored::*;
 use serde::Serialize;
@@ -19,8 +20,8 @@ use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
 
 /*
-Verifies the election data published on the bulletin board to implement universal verifiability. The key steps
-that need to be checked are:
+Verifies the election data published on the bulletin board to implement universal verifiability. The key elements
+that need to be verified are:
 
 1) Public key verification
     1.1 The public key was correctly constructed (given the public data).
@@ -44,24 +45,38 @@ The verifier performs checks that map to these steps, as well as additional cons
 // Check symbolic constants
 ///////////////////////////////////////////////////////////////////////////
 
+enum Checks {
+    CONFIGURATION_VALID,
+    MESSAGE_SIGNATURES_VALID,
+    MESSAGES_CFG_VALID,
+    PK_VALID,
+    BALLOTS_PK_VALID,
+    MIX_START_VALID,
+    MIX_END_VALID,
+    MIX_VALID,
+    MIX_UNIQUE_VALID,
+    DECRYPTION_VALID,
+    PLAINTEXTS_VALID,
+}
 /*
 The configuration is valid as per Configuration::is_valid:
-
     1) The number of trustees ranges from 2 to 12 (crate::protocol2::MAX_TRUSTEES).
-    2) The threshold is ranges from 2 to the number of trustees.
+    2) The threshold ranges from 2 to the number of trustees.
     3) There are no duplicate trustees.
-
 */
 const CONFIGURATION_VALID: &str = "Configuration valid";
+
 /*
-All message signatures verify, with respect to their specified signing public key.
+All message signatures verify, with respect to their specified sender public key.
 */
-const MESSAGES_VALID: &str = "All message signatures verified";
+const MESSAGE_SIGNATURES_VALID: &str = "All message signatures verified";
+
 /*
 All messages refer to the same configuration file that is checked
 with CONFIGURATION_VALID.
 */
 const MESSAGES_CFG_VALID: &str = "All messages refer to correct configuration";
+
 /*
 The public key information has been correctly constructed (given public data):
     1) The public key has been correctly constructed.
@@ -70,33 +85,40 @@ The public key information has been correctly constructed (given public data):
     of private shares (VSS).
 */
 const PK_VALID: &str = "Public key verified";
+
 /*
-The protocol manager's signature that associates the ballots to the public key verifies.
+The protocol manager's signature on the ballots and public key verifies.
 */
 const BALLOTS_PK_VALID: &str = "Ballot public key matches root public key";
+
 /*
 The first link in the mixing chain takes the ballots as input.
 */
 const MIX_START_VALID: &str = "Mixing chain start matches ballots";
+
 /*
 The last link in the mixing chain outputs the ciphertexts inputted to decryption.
 */
 const MIX_END_VALID: &str = "Mixing chain end matches decrypting ballots";
+
 /*
 1) The number of links in the mixing chain is equal to the threshold specified
 in the configuration.
 2) The proof of shuffle for each link in the chain verifies.
 */
-const MIX_SIZE_VALID: &str = "Mixing chain correct length";
+const MIX_VALID: &str = "Mixing chain correct length";
+
 /*
 Each of the links in the mixing chain was produced by a different trustee.
 */
 const MIX_UNIQUE_VALID: &str = "Mixing chain no duplicate signers";
+
 /*
 The proof of decryption linking the decryption ciphertexts to the decryption factors verifies
 with respect to the public key information.
 */
 const DECRYPTION_VALID: &str = "Decryption validated with respect to ballot public key";
+
 /*
 The combination of decryption factors matches the published plaintexts.
  */
@@ -114,7 +136,7 @@ impl<C: Ctx> Verifier<C> {
     pub async fn run(&mut self) -> Result<()> {
         let mut vr = VerificationResult::new(&self.board.board_dbname);
         vr.add_target(CONFIGURATION_VALID);
-        vr.add_target(MESSAGES_VALID);
+        vr.add_target(MESSAGE_SIGNATURES_VALID);
         vr.add_target(MESSAGES_CFG_VALID);
         vr.add_target(PK_VALID);
 
@@ -144,7 +166,7 @@ impl<C: Ctx> Verifier<C> {
         let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
         info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 
-        vr.add_result("Configuration valid", cfg.is_valid(), &dbg_hash(&cfg_h));
+        vr.add_result(CONFIGURATION_VALID, cfg.is_valid(), &dbg_hash(&cfg_h));
 
         // Verify message signatures
 
@@ -155,7 +177,7 @@ impl<C: Ctx> Verifier<C> {
             .map(|m| m.verify(&cfg))
             .collect();
         let vmessages = vmessages?;
-        vr.add_result("All message signatures verified", true, &vmessages.len());
+        vr.add_result(MESSAGE_SIGNATURES_VALID, true, &vmessages.len());
 
         let correct_cfg = messages
             .clone()
@@ -163,7 +185,7 @@ impl<C: Ctx> Verifier<C> {
             .filter(|m| m.statement.get_cfg_h() == cfg_h)
             .count();
         vr.add_result(
-            "All messages refer to correct configuration",
+            MESSAGES_CFG_VALID,
             correct_cfg == messages.len(),
             &dbg_hash(&cfg_h),
         );
@@ -183,7 +205,7 @@ impl<C: Ctx> Verifier<C> {
         let (_, targets, _) = crate::verify::datalog::S.run(&predicates);
         for t in &targets {
             let tvr = t.get_verification_result();
-            info!("Add verification target [{}]", t.get_batch());
+            info!("Add verification target [batch {}]", t.get_batch());
             vr.add_child(tvr);
         }
 
@@ -235,11 +257,11 @@ use crate::protocol2::predicate::*;
 
 impl Target {
     fn get_verification_result(&self) -> VerificationResult {
-        let mut vr = VerificationResult::new(&self.1.to_string());
+        let mut vr = VerificationResult::new(&self.get_batch().to_string());
         vr.add_target(BALLOTS_PK_VALID);
         vr.add_target(MIX_START_VALID);
         vr.add_target(MIX_END_VALID);
-        vr.add_target(MIX_SIZE_VALID);
+        vr.add_target(MIX_VALID);
         vr.add_target(MIX_UNIQUE_VALID);
         vr.add_target(DECRYPTION_VALID);
         vr.add_target(PLAINTEXTS_VALID);
@@ -304,7 +326,7 @@ impl Verified {
         );
         // subtract one since the number of hashes includes the source and the target, eg ballots => mix1 => mix2 has length 3, but threshold = 2
         child.add_result(
-            MIX_SIZE_VALID,
+            MIX_VALID,
             filtered_mixes.len() - 1 == cfg.threshold,
             &cfg.threshold,
         );
