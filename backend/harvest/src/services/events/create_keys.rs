@@ -10,7 +10,9 @@ use crate::connection;
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
 use crate::routes::scheduled_event::ScheduledEvent;
-use crate::services::election_event_board::BoardSerializable;
+use crate::services::election_event_board::{
+    get_election_event_board, BoardSerializable,
+};
 use crate::services::election_event_status;
 use crate::services::protocol_manager;
 
@@ -53,18 +55,14 @@ pub async fn create_keys(
     if election_event_status::is_config_created(status) {
         bail!("bulletin board config already created");
     }
-    let bulletin_board_reference = election_event
-        .bulletin_board_reference
-        .clone()
-        .with_context(|| "missing bulletin board")?;
 
-    let board_value: Value = bulletin_board_reference.into();
-
-    let board_serializable: BoardSerializable =
-        serde_json::from_value(board_value)?;
+    let board_name = get_election_event_board(
+        election_event.bulletin_board_reference.clone(),
+    )
+    .with_context(|| "missing bulletin board")?;
 
     protocol_manager::create_keys(
-        board_serializable.database_name.as_str(),
+        board_name.as_str(),
         body.trustee_pks.clone(),
         body.threshold.clone(),
     )
