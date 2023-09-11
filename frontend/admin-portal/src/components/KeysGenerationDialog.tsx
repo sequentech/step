@@ -57,9 +57,6 @@ export const KeysGenerationDialog: React.FC<KeysGenerationDialogProps> = ({
             tenant_id: electionEvent.tenant_id,
         },
     })
-    const boardName =
-        electionEvent.bulletin_board_reference?.database_name ||
-        electionEvent.id.replaceAll("-", "")
 
     if (isLoading || error) {
         return null
@@ -75,11 +72,8 @@ export const KeysGenerationDialog: React.FC<KeysGenerationDialogProps> = ({
                 eventProcessor: ScheduledEventType.CREATE_KEYS,
                 cronConfig: undefined,
                 eventPayload: {
-                    board_name: boardName,
                     trustee_pks: selectedTrustees.map((trustee) => trustee.public_key),
                     threshold: threshold,
-                    tenant_id:  electionEvent.tenant_id,
-                    election_event_id: electionEvent.id,
                 },
                 createdBy: "admin",
             },
