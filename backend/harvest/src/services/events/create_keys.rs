@@ -28,6 +28,7 @@ pub async fn create_keys(
     body: CreateKeysBody,
     event: ScheduledEvent,
 ) -> Result<()> {
+    // read tenant_id and election_event_id
     let tenant_id = event
         .tenant_id
         .clone()
@@ -36,6 +37,7 @@ pub async fn create_keys(
         .election_event_id
         .clone()
         .with_context(|| "scheduled event is missing election_event_id")?;
+    // fetch election_event
     let hasura_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -47,6 +49,7 @@ pub async fn create_keys(
         .expect("expected data".into())
         .sequent_backend_election_event[0];
 
+    // check config is not already created
     let status: Option<election_event_status::ElectionEventStatus> =
         match election_event.status.clone() {
             Some(value) => serde_json::from_value(value)?,
@@ -61,6 +64,7 @@ pub async fn create_keys(
     )
     .with_context(|| "missing bulletin board")?;
 
+    // create config/keys for board
     protocol_manager::create_keys(
         board_name.as_str(),
         body.trustee_pks.clone(),
@@ -68,6 +72,8 @@ pub async fn create_keys(
     )
     .await?;
 
+
+    // update election event with status: keys created
     let new_status =
         serde_json::to_value(election_event_status::ElectionEventStatus {
             config_created: Some(true),
