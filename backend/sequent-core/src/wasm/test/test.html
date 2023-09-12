@@ -1,0 +1,26 @@
+<!--
+SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>sequent-core wasm test</title>
+  </head>
+  <body style="background-color:black;">
+    <script type="module">
+        import init, {hash_ballot} from '../../../pkg/index.js';
+        const ballotFixture = await fetch('../../../fixtures/ballot.json').then(res => res.json());
+    
+        async function run() {
+            await init();
+            const hashResult = hash_ballot(ballotFixture);
+            document.getElementById("lognew").textContent += 'hash: ' + hashResult;
+        }
+        run();
+    </script>
+    <span id="lognew" style="color:cyan;white-space: pre;font-size: 20px;"></span>
+  </body>
+</html>
