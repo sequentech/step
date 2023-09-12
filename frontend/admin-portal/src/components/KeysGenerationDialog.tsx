@@ -53,7 +53,6 @@ export const KeysGenerationDialog: React.FC<KeysGenerationDialogProps> = ({
         pagination: {page: 1, perPage: 10},
         sort: {field: "last_updated_at", order: "DESC"},
         filter: {
-            is_protocol_manager: false,
             tenant_id: electionEvent.tenant_id,
         },
     })
@@ -92,9 +91,11 @@ export const KeysGenerationDialog: React.FC<KeysGenerationDialogProps> = ({
         if (val) {
             try {
                 await generateKeys()
+                setShowProgress(false)
                 handleClose(true)
             } catch (error) {
                 console.log(`Error trying to create keys: ${error}`)
+                setShowProgress(false)
                 handleClose(false)
             }
         } else {

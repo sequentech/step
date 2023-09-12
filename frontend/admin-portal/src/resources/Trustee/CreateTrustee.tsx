@@ -14,7 +14,6 @@ export const CreateTrustee: React.FC = () => {
                 <Typography variant="body2">Area Trustee</Typography>
                 <TextInput source="name" />
                 <TextInput source="public_key" />
-                <BooleanInput source="is_protocol_manager" />
                 <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                     <SelectInput optionText="username" />
                 </ReferenceInput>

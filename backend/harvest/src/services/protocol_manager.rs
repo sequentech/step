@@ -50,7 +50,6 @@ pub async fn create_keys(
         .collect();
 
     // 5. add config to board on immudb
-    /*
     add_config_to_board::<RistrettoCtx>(
         server_url.as_str(),
         user.as_str(),
@@ -61,7 +60,6 @@ pub async fn create_keys(
         pm,
     )
     .await?;
-    */
 
     Ok(())
 }

@@ -198,6 +198,7 @@ services:
   trustee1:
     #profiles: ["dev"]
     stdin_open: true
+    container_name: trustee1
     volumes:
       - trustee1_data:/opt/braid
     build:
@@ -214,6 +215,7 @@ services:
   trustee2:
     #profiles: ["dev"]
     stdin_open: true
+    container_name: trustee2
     volumes:
       - trustee2_data:/opt/braid
     build:
@@ -224,25 +226,6 @@ services:
         IMMUDB_PASSWORD: immudb
         IMMUDB_URL: http://immudb:3322
         IMMUDB_INDEX_DB: indexdb
-    depends_on:
-      - immudb
-  
-  protocol_manager:
-    #profiles: ["dev"]
-    stdin_open: true
-    expose:
-      - "8000"
-    volumes:
-      - protocol_manager_data:/opt/braid
-    build:
-      context: ../backend/
-      dockerfile: ./braid/Dockerfile
-    environment:
-        IMMUDB_USER: immudb
-        IMMUDB_PASSWORD: immudb
-        IMMUDB_URL: http://immudb:3322
-        IMMUDB_INDEX_DB: indexdb
-    command: ["/usr/bin/protocol_manager.sh"]
     depends_on:
       - immudb
 

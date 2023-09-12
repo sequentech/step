@@ -63,8 +63,6 @@ reedline-repl-rs = { version = "1.0.7" }
 ascii_table = { version = "4.0.2" }
 async-trait = "0.1.73"
 
-# protocol-manager
-rocket = { version = "=0.5.0-rc.3", features = ["json"], optional = true}
 serde_json = "1.0.105"
 
 [dev-dependencies]
@@ -73,12 +71,5 @@ criterion = {version = "0.4", features=["html_reports"]}
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-
-[[bin]]
-name = "protocol_manager"
-path = "src/bin/protocol_manager.rs"
-required-features = ["protocol-manager"]
-
 [features]
 wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-rayon", "dep:tracing-wasm", "instant/wasm-bindgen"]
-protocol-manager = ["dep:rocket"]

@@ -12,7 +12,6 @@ const OMIT_FIELDS = ["id", "ballot_eml"]
 const Filters: Array<ReactElement> = [
     <TextInput label="Name" source="name" key={0} />,
     <TextInput label="ID" source="id" key={1} />,
-    <TextInput label="Is Protocol Manager" source="is_protocol_manager" key={2} />,
 ]
 
 export interface ListTrusteeProps {
@@ -37,7 +36,6 @@ export const ListTrustee: React.FC<ListTrusteeProps> = ({aside}) => {
                 <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="name" />
-                    <TextField source="is_protocol_manager" />
                 </DatagridConfigurable>
             </List>
         </>

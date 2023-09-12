@@ -16,7 +16,6 @@ const TrusteeForm: React.FC = () => {
             <TextField source="id" />
             <TextInput source="name" />
             <TextInput source="public_key" />
-            <BooleanInput source="is_protocol_manager" />
             <JsonInput
                 source="labels"
                 jsonString={false}
