@@ -193,13 +193,24 @@ We use Hashicorp Vault to store secrets. We run it in production mode as otherwi
 the data would only be stored in memory and it would be lost each time the container
 is restarted.
 
-Once the container is started, you can log in here:
+Once the `vault`container is started, you can log in here:
 
     http://127.0.0.1:8201/ui/vault/auth?with=token
 
 The first time you enter you'll have to note down the `initial root token` and the
-`keys`. Then you need to enter those `keys`` to unseal the vault and finally login
-with the `initial root token`.
+`keys`. Then you need to enter that `key` (supposing you use only one key) to unseal
+the vault and finally login with the `initial root token`.
+
+Also in order for the `harvest` service to work, you'll first need to execute this:
+
+    docker exec -it vault vault secrets enable --version=1 --path=secrets kv
+
+That will enable the /secrets path for the v1 key value secrets store in the `vault``.
+
+You'll also need to configure the environment variables for `harvest` to connect
+with the `vault`. Specifically, set the `VAULT_TOKEN` to the `initial root token`
+and the `VAULT_UNSEAL_KEY` to the `keys`
+
 
 ## Common issues
 
