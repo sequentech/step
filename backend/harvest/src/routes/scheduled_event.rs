@@ -96,7 +96,7 @@ pub async fn create_scheduled_event(
     };
 
     println!(
-        "FFF payload: {}",
+        "formatted_event payload: {}",
         formatted_event.event_payload.clone().unwrap()
     );
 

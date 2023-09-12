@@ -39,7 +39,7 @@ pub async fn create_keys(
     .await?;
 
     // 4. create trustees keys from input strings
-    let trustee_pks = trustee_pks
+    let trustee_pks: Vec<StrandSignaturePk> = trustee_pks
         .clone()
         .into_iter()
         .map(|public_key_string| {
@@ -50,6 +50,7 @@ pub async fn create_keys(
         .collect();
 
     // 5. add config to board on immudb
+    /*
     add_config_to_board::<RistrettoCtx>(
         server_url.as_str(),
         user.as_str(),
@@ -60,6 +61,7 @@ pub async fn create_keys(
         pm,
     )
     .await?;
+    */
 
     Ok(())
 }

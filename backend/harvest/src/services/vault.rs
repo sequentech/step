@@ -5,6 +5,7 @@
 use anyhow::Result;
 use reqwest;
 use std::env;
+use serde_json::json;
 
 pub async fn save_secret(key: String, value: String) -> Result<()> {
     let server_url = env::var("VAULT_SERVER_URL")
@@ -12,14 +13,14 @@ pub async fn save_secret(key: String, value: String) -> Result<()> {
     let token =
         env::var("VAULT_TOKEN").expect(&format!("VAULT_TOKEN must be set"));
     let client = reqwest::Client::new();
-    let pm_endpoint = format!("{}/v1/{}", &server_url, &key);
-    let json_body = serde_json::from_str(value.as_str())?;
-    let _res = client
+    let pm_endpoint = format!("{}/v1/secrets/{}", &server_url, &key);
+    let json_value = json!({"data": value});
+    let res = client
         .post(pm_endpoint)
-        .header("Content-Type", "application/json")
-        .header("Authorization", format!("Bearer {}", token))
-        .json(&json_body)
+        .bearer_auth(token)
+        .json(&json_value)
         .send()
-        .await?;
+        .await?
+        .error_for_status()?;
     Ok(())
 }
