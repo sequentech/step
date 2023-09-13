@@ -1,9 +1,0 @@
-[workspace]
-
-members = [
-    "braid",
-    "harvest",
-    "strand",
-    "immu-board",
-    "immudb-rs",
-]
