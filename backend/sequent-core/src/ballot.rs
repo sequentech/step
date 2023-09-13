@@ -141,8 +141,8 @@ pub struct QuestionExtra {
     pub enable_checkable_lists: Option<String>, // default = "disabled"
     pub allow_writeins: Option<bool>,   // default = false
     pub invalid_vote_policy: Option<String>, /* allowed, warn, not-allowed, warn-invalid-implicit-and-explicit */
-    pub review_screen__show_question_description: Option<bool>, /* default =
-                                              * false */
+    pub review_screen__show_question_description: Option<bool>, /* default = false */
+    pub base32_writeins: Option<bool>,
 }
 
 impl QuestionExtra {
@@ -178,6 +178,7 @@ impl QuestionExtra {
             allow_writeins: None,
             invalid_vote_policy: None,
             review_screen__show_question_description: None,
+            base32_writeins: None,
         }
     }
 }
@@ -253,6 +254,13 @@ impl Question {
             .unwrap_or(false)
     }
 
+    pub fn base32_writeins(&self) -> bool {
+        self.extra_options
+            .as_ref()
+            .map(|options| options.base32_writeins.unwrap_or(false))
+            .unwrap_or(false)
+    }
+
     pub fn allow_explicit_invalid(&self) -> bool {
         self.extra_options
             .as_ref()
@@ -285,6 +293,7 @@ impl Question {
             .map(|options| options.show_points.unwrap_or(false))
             .unwrap_or(false)
     }
+
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]

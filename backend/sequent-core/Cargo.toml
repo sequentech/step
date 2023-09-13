@@ -48,6 +48,9 @@ console_error_panic_hook = "0.1.7"
 # character mapping for write-ins
 phf = { version = "0.11", features = ["macros"], default-features = false }
 
+[dev-dependencies]
+rand = { package="rand", version = "0.8" }
+
 [features]
 wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]
 wasm = ["wasm-bindgen"]

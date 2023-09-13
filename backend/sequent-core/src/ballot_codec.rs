@@ -45,15 +45,6 @@ pub trait BallotCodec {
         raw_ballot: &RawBallotQuestion,
     ) -> Result<DecodedVoteQuestion, String>;
 
-    fn encode_bigint_to_bytes(&self, b: &BigUint) -> Result<Vec<u8>, String> {
-        Ok(b.to_radix_le(256))
-    }
-    fn decode_bigint_from_bytes(&self, b: &[u8]) -> Result<BigUint, String> {
-        BigUint::from_radix_le(b, 256).ok_or(format!("Conversion failed for bytes {:?}", b))
-    }
-}
-
-impl Question {
     fn encode_plaintext_question_bigint(
         &self,
         plaintext: &DecodedVoteQuestion,
@@ -76,6 +67,25 @@ impl Question {
 
         let raw_ballot = RawBallotQuestion { bases, choices };
         self.decode_from_raw_ballot(&raw_ballot)
+    }
+
+}
+
+fn encode_bigint_to_bytes(b: &BigUint) -> Result<Vec<u8>, String> {
+    Ok(b.to_radix_le(256))
+}
+fn decode_bigint_from_bytes(b: &[u8]) -> Result<BigUint, String> {
+    BigUint::from_radix_le(b, 256).ok_or(format!("Conversion failed for bytes {:?}", b))
+}
+
+impl Question {
+    pub(crate) fn get_char_map(&self) -> Box<dyn CharacterMap> {
+        if self.base32_writeins() {
+            Box::new(Base32Map)
+        }
+        else {
+            Box::new(Utf8Map)
+        }
     }
 }
 
@@ -104,14 +114,14 @@ impl BallotCodec for Question {
         plaintext: &DecodedVoteQuestion,
     ) -> Result<Vec<u8>, String> {
         let bigint = self.encode_plaintext_question_bigint(plaintext)?;
-        self.encode_bigint_to_bytes(&bigint)
+        encode_bigint_to_bytes(&bigint)
     }
 
     fn decode_plaintext_question_from_bytes(
         &self,
         bytes: &[u8],
     ) -> Result<DecodedVoteQuestion, String> {
-        let bigint = self.decode_bigint_from_bytes(&bytes)?;
+        let bigint = decode_bigint_from_bytes(&bytes)?;
         self.decode_plaintext_question_bigint(&bigint)
     }
 
@@ -122,7 +132,7 @@ impl BallotCodec for Question {
         let mut bases = self.get_bases();
         let mut choices: Vec<u64> = vec![];
 
-        let char_map = Base256Map;
+        let char_map = self.get_char_map();
 
         let answers_map = self
             .answers
@@ -219,7 +229,7 @@ impl BallotCodec for Question {
         let choices = raw_ballot.choices.clone();
         let is_explicit_invalid: bool = !choices.is_empty() && (choices[0] > 0);
         let mut invalid_errors: Vec<InvalidPlaintextError> = vec![];
-        let char_map = Base256Map;
+        let char_map = self.get_char_map();
 
         // 1. clone the question and reset the selections
         let mut sorted_answers = self.answers.clone();
@@ -456,16 +466,16 @@ impl BallotCodec for Question {
     }
 }
 
-trait CharacterMap {
-    fn to_bytes(&self, ch: &str) -> Result<Vec<u8>, String>;
+pub(crate) trait CharacterMap {
+    fn to_bytes(&self, s: &str) -> Result<Vec<u8>, String>;
     fn to_string(&self, bytes: &[u8]) -> Result<String, String>;
     fn base(&self) -> u64;
 }
 
-struct Base256Map;
+struct Utf8Map;
 struct Base32Map;
 
-impl CharacterMap for Base256Map {
+impl CharacterMap for Utf8Map {
     fn to_bytes(&self, s: &str) -> Result<Vec<u8>, String> {
         Ok(s.as_bytes().to_vec())
     }
@@ -573,6 +583,7 @@ mod tests {
     use crate::fixtures::ballot_codec::bases_fixture;
     use crate::fixtures::ballot_codec::get_fixtures;
     use std::cmp;
+    use rand::{thread_rng, Rng};
 
     #[test]
     fn test_question_bases() {
@@ -802,7 +813,7 @@ mod tests {
 
             assert_eq!(s, backward);
         }
-        let map = Base256Map;
+        let map = Utf8Map;
         // arbitrary range
         for i in 0u32..1024u32 {
             let char = char::from_u32(i);
@@ -815,6 +826,34 @@ mod tests {
                 
             }
         }
+    }
+    
+    #[test]
+    fn test_write_in_limit() {
+        DecodedVoteQuestion {
+            is_explicit_invalid: true,
+            invalid_errors: vec![],
+            choices: vec![
+                DecodedVoteChoice {
+                    id: 0,
+                    selected: 0,
+                    write_in_text: None,
+                },
+            ]
+        };
+        
+        
+        const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ )(.,";
+        const MAX_LEN: usize = 40;
+        let mut rng = rand::thread_rng();
 
+        let password: String = (0..MAX_LEN)
+            .map(|_| {
+                let idx = rng.gen_range(0..CHARSET.len());
+                CHARSET[idx] as char
+            })
+            .collect();
+
+        println!("{:?}", password);
     }
 }
