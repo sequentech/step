@@ -6,7 +6,9 @@ use headless_chrome::types::PrintToPdfOptions;
 use headless_chrome::{Browser, LaunchOptionsBuilder};
 use std::thread::sleep;
 use std::time::Duration;
+use tracing::instrument;
 
+#[instrument(skip_all)]
 pub fn print_to_pdf(
     file_path: &str,
     pdf_options: PrintToPdfOptions,

@@ -5,6 +5,7 @@
 use anyhow::{bail, Context, Result};
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
@@ -23,6 +24,7 @@ pub struct CreateKeysBody {
     pub threshold: usize,
 }
 
+#[instrument(skip(auth_headers))]
 pub async fn create_keys(
     auth_headers: connection::AuthHeaders,
     body: CreateKeysBody,

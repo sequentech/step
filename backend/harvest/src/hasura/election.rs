@@ -7,6 +7,7 @@ use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use rocket::serde::json::Value;
 use std::env;
+use tracing::instrument;
 
 type uuid = String;
 type jsonb = Value;
@@ -20,6 +21,7 @@ type timestamptz = String;
 )]
 pub struct UpdateElectionStatus;
 
+#[instrument(skip_all)]
 pub async fn update_election_status(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

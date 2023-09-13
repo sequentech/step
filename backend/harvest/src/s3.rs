@@ -10,7 +10,9 @@ use s3::error::S3Error;
 use s3::region::Region;
 use s3::BucketConfiguration;
 use std::env;
+use tracing::instrument;
 
+#[instrument(skip(data))]
 pub async fn upload_to_s3(
     data: &Vec<u8>,
     key: String,
@@ -84,6 +86,7 @@ pub async fn upload_to_s3(
     Ok(())
 }
 
+#[instrument]
 pub fn get_document_key(
     tenant_id: String,
     election_event_id: String,

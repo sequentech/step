@@ -6,7 +6,9 @@ use anyhow::Result;
 use reqwest;
 use serde_json::json;
 use std::env;
+use tracing::instrument;
 
+#[instrument(skip(value))]
 pub async fn save_secret(key: String, value: String) -> Result<()> {
     let server_url = env::var("VAULT_SERVER_URL")
         .expect(&format!("VAULT_SERVER_URL must be set"));

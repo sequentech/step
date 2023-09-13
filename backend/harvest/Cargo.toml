@@ -27,6 +27,9 @@ tokio = { version = "1.32.0", features = ["full"] }
 strum = "0.25"
 strum_macros = "0.25"
 
+# logging 
+tracing = "0.1.37"
+
 immu-board = { path="../immu-board" }
 immudb-rs = { path="../immudb-rs" }
 braid = { path="../braid" }

@@ -6,6 +6,7 @@ use anyhow::Result;
 use immu_board::BoardClient;
 use rocket::serde::{Deserialize, Serialize};
 use std::env;
+use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
@@ -34,6 +35,7 @@ async fn get_client() -> Result<BoardClient> {
     Ok(client)
 }
 
+#[instrument(skip(auth_headers))]
 pub async fn create_board(
     auth_headers: connection::AuthHeaders,
     tenant_id: &str,

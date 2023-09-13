@@ -3,17 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use reqwest;
-
-use crate::services::events::create_keys;
-use crate::services::vault;
 use braid::protocol_manager::{
     add_config_to_board, gen_protocol_manager, serialize_protocol_manager,
 };
+use reqwest;
 use std::env;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignaturePk;
+use tracing::instrument;
 
+use crate::services::events::create_keys;
+use crate::services::vault;
+
+#[instrument(skip(trustee_pks, threshold))]
 pub async fn create_keys(
     board_name: &str,
     trustee_pks: Vec<String>,

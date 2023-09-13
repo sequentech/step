@@ -10,6 +10,7 @@ use rocket::serde::{Deserialize, Serialize};
 use std::env;
 use strum_macros::Display;
 use strum_macros::EnumString;
+use tracing::instrument;
 
 type uuid = String;
 type jsonb = Value;
@@ -49,6 +50,7 @@ pub struct EventExecution {
 )]
 pub struct InsertEventExecution;
 
+#[instrument(skip_all)]
 pub async fn insert_event_execution(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

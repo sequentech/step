@@ -7,6 +7,7 @@ use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use rocket::serde::json::Value;
 use std::env;
+use tracing::instrument;
 
 type uuid = String;
 type jsonb = Value;
@@ -36,6 +37,7 @@ pub struct UpdateElectionEventStatus;
 )]
 pub struct GetElectionEvent;
 
+#[instrument(skip_all)]
 pub async fn update_election_event_board(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -63,6 +65,7 @@ pub async fn update_election_event_board(
     Ok(())
 }
 
+#[instrument(skip_all)]
 pub async fn update_election_event_status(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -90,6 +93,7 @@ pub async fn update_election_event_status(
     Ok(())
 }
 
+#[instrument(skip_all)]
 pub async fn get_election_event(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

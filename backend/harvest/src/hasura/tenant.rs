@@ -6,6 +6,7 @@ use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use std::env;
+use tracing::instrument;
 
 type uuid = String;
 
@@ -36,6 +37,7 @@ pub async fn perform_get_tenant(
     Ok(response_body)
 }
 
+#[instrument(skip_all)]
 pub async fn get_tenant(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

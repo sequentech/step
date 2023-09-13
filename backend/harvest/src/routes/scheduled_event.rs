@@ -10,6 +10,7 @@ use rocket::serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
+use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
@@ -53,6 +54,7 @@ pub struct ScheduledEvent {
     pub created_by: Option<String>,
 }
 
+#[instrument(skip(auth_headers))]
 #[post("/scheduled-event", format = "json", data = "<body>")]
 pub async fn create_scheduled_event(
     body: Json<CreateScheduledEventBody>,

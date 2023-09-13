@@ -6,6 +6,7 @@ use anyhow::Result;
 use rocket::serde::{Deserialize, Serialize};
 use strum_macros::Display;
 use strum_macros::EnumString;
+use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
@@ -34,6 +35,7 @@ pub struct ElectionStatus {
     pub voting_status: VotingStatus,
 }
 
+#[instrument(skip(auth_headers))]
 pub async fn update_voting_status(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

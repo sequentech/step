@@ -8,6 +8,7 @@ use rocket::serde::json::Value;
 use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
+use tracing::instrument;
 
 use crate::connection;
 use crate::hasura::event_execution;
@@ -28,6 +29,7 @@ impl fmt::Display for CustomError {
 
 impl Error for CustomError {}
 
+#[instrument(skip_all)]
 async fn insert_event_execution_with_result(
     auth_headers: connection::AuthHeaders,
     event: scheduled_event::ScheduledEvent,
@@ -67,6 +69,7 @@ async fn insert_event_execution_with_result(
     })
 }
 
+#[instrument(skip(auth_headers))]
 pub async fn process_scheduled_event(
     auth_headers: connection::AuthHeaders,
     event: scheduled_event::ScheduledEvent,

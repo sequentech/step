@@ -8,6 +8,7 @@ use reqwest;
 use rocket::serde::json::Value;
 use serde::Deserialize;
 use std::env;
+use tracing::instrument;
 
 type uuid = String;
 type jsonb = Value;
@@ -21,6 +22,7 @@ type timestamptz = String;
 )]
 pub struct InsertScheduledEvent;
 
+#[instrument(skip_all)]
 pub async fn insert_scheduled_event(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
