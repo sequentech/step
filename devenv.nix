@@ -12,6 +12,9 @@
     pkgs.openssl
     pkgs.postgresql_15
 
+    # immudb
+    pkgs.go
+
     # To be able to use vim in the terminal
     pkgs.vim
   
@@ -32,6 +35,7 @@
     # For protocol buffers
     pkgs.protobuf
     pkgs.iputils
+    pkgs.chromium
 
     # to build the rug backend in strand/braid
     pkgs.gcc
@@ -55,6 +59,8 @@
     export IMMUDB_SERVER_URL=http://immudb:3322
     export IMMUDB_INDEX_DBNAME=boardsindex
     export IMMUDB_BOARD_DBNAME=bulletin_board
+    export HASURA_GRAPHQL_ADMIN_SECRET=admin
+    export HASURA_GRAPHQL_ENDPOINT=http://graphql-engine:8080
   '';
 
   # https://devenv.sh/languages/

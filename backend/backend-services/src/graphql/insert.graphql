@@ -1,5 +1,0 @@
-mutation InsertTenant($username: String) {
-  insert_sequent_backend_tenant_one(object: {username: $username}) {
-    id
-  }
-}

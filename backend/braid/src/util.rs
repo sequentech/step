@@ -11,6 +11,8 @@ use tracing_subscriber::reload::Handle;
 use tracing_subscriber::{filter, reload};
 use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use tracing_tree::HierarchicalLayer;
+use std::fs;
+use std::path::PathBuf;
 
 pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     let layer = HierarchicalLayer::default()

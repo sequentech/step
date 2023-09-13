@@ -41,6 +41,8 @@ RUN /opt/keycloak/bin/kc.sh build
 
 FROM quay.io/keycloak/keycloak:22.0
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
+COPY --from=builder /bin/curl /bin/curl
+COPY --from=builder /usr/bin/curl /usr/bin/curl
 
 ENV KC_DB=postgres
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]

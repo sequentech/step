@@ -1,8 +1,8 @@
 [workspace]
 
 members = [
-    "backend-services",
     "braid",
+    "harvest",
     "strand",
     "immu-board",
     "immudb-rs",

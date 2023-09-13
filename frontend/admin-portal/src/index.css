@@ -1,0 +1,16 @@
+/*
+SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+*/
+body {
+  margin: 0;
+  font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}

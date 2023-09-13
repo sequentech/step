@@ -50,12 +50,26 @@ using them and continue development:
   - Default admin
     - Username: `immudb`
     - Password: `immudb`
+  - To create the index db, run:
+      `/workspaces/backend-services/backend/target/debug/bb_helper --cache-dir /tmp/cache -s http://immudb:3322 -i indexdb -u immudb -p immudb upsert-init-db -l debug`
 - \[TODO\] **Rust Rocket service** at [http://127.0.0.1:8000]
 
 Additionally, this dev container comes with:
  - Relevant VS Code plugins installed
  - `cargo run` and `yarn install` pre-run so that you don't have to spend time
    waiting for setting up the enviroment the first time.
+
+### Workspaces
+
+When you open a new terminal, typically the current working directory (CWD) is
+`/workspaces` if you are using Github Codespaces. However, all the commands
+below are assuming you start with the CWD `/workspaces/backend-services`.
+
+This is important especially if you are for example relaunching a docker service
+(for example `docker compose up -d graphql-engine`). If you do it from within
+`/workspace/.devcontainer` it will fail, but if you do it within
+`/workspaces/backend-services/.devcontainer` it should work, even if those two
+are typically a symlink to the other directory and are essentially the same.
 
 ### Launch the backend rust service
 
@@ -64,20 +78,20 @@ rust&rocket based backend service, you can launch it manually by executing the
 following command in a dedicated terminal:
 
 ```bash
-cd backend/backend-services && cargo run
+cd backend/harvest && cargo run
 ```
 
 This should output something like:
 
 ```bash
-@edulix ➜ /workspace/backend/backend-services (main ✗) $ cargo run
+@edulix ➜ /workspaces/backend-services/backend/harvest (main ✗) $ cargo run
     Updating crates.io index
   Downloaded async-trait v0.1.68
   ....
   Downloaded 102 crates (7.9 MB) in 0.93s (largest was `encoding_rs` at 1.4 MB)
-   Compiling backend-services v0.1.0 (/workspace)
+   Compiling harvest v0.1.0 (/workspace)
     Finished dev [unoptimized + debuginfo] target(s) in 28.50s
-     Running `target/debug/backend-services`
+     Running `target/debug/harvest`
 🔧 Configured for debug.
    >> address: 127.0.0.1
    >> port: 8000
@@ -126,6 +140,10 @@ automatically run docker compose logs on start up, for convenience.
 [direnv]: https://direnv.net/
 [devenv]: https://devenv.sh/
 
+## Immudb
+
+You can enter the Immudb web console at http://localhost:3325 and the user/pass is `immudb:immudb`.
+
 ### Export keycloak realm with users
 
 If you want to export a realm configuration but you don't need the users,
@@ -147,9 +165,8 @@ created.
 If you want to make changes to hasura, or if you want the Hasura console to
 automatically add migrations to the code, first run this project in Codespaces
 and open it in VS Code Desktop (not from the web). Then, in your local machine
-install the hasura client:
-
-    curl -L https://github.com/hasura/graphql-engine/raw/stable/cli/get.sh | bash
+ensure that the `graphql-engine` server name is aliased to `127.0.0.1` in 
+`/etc/hosts`, or else this won't work.
 
 Also clone this github project on your local machine (so this is apart from running
 it on Codespaces), and from the `backend-services/hasura` folder, run this:
@@ -157,31 +174,58 @@ it on Codespaces), and from the `backend-services/hasura` folder, run this:
     hasura console --endpoint "http://127.0.0.1:8080" --admin-secret "admin"
   
 Then open `http://localhost:9695` on the browser and make the changes you need.
-Those changes will be tracked with file changes on your local github, then
+Those changes will be tracked with file changes on the Github Codespaces, then
 commit the changes.
 
 Note that you can insert rows as a migration by clicking on the 
 `This is a migration` option at the bottom of the `Insert Row` form.
 
-#### Or do it inside the codespace
+## harvest
+### Update graphql JSON schema
 
-Alternatively you could run the local console inside the `graphql-engine container`.
-For that you need to add ports `9693` and `9695` to `forwardPorts` in the file
-`.devcontainer/devcontainer.json` and add them to `graphql-engine.ports` in
-file `.devcontainer/docker-compose.yml`.
+The file `backend/templates/src/graphql/schema.json` contains the GraphQL/Hasura schema. If the schema changes you might need to update this file. In order to do so, [follow this guide](https://hasura.io/docs/latest/schema/common-patterns/export-graphql-schema/
+) to export the json schema from Hasura, specifically you'll need to run something like:
 
-You'll need to rebuild the container:
+    npm install -g graphqurl
+    gq http://127.0.0.1:8080/v1/graphql -H "X-Hasura-Admin-Secret: admin" --introspect  --format json > schema.json
 
-    docker compose stop graphql-engine
-    docker compose build graphql-engine  && docker compose up -d --no-deps graphql-engine
+## Trustees
 
-Then you get inside the container with:
+In order to create the election keys you need to add the trustees to the hasura db.
+First get the keys from the trustee:
 
-    docker compose exec graphql-engine /bin/sh
+    docker exec -it trustee1 cat /opt/braid/trustee.toml | grep pk
+  
+Which will give a result similar to:
 
-And run the hasura console with something like:
+    signing_key_pk = "YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k"
 
-    /usr/bin/hasura-cli console --endpoint "http://127.0.0.1:8080" --admin-secret "admin" --address 0.0.0.0 --console-hge-endpoint http://127.0.0.1:8080
+Then add the trustee in the admin portal with the key, in this case `YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k`.
+
+## Vault
+
+We use Hashicorp Vault to store secrets. We run it in production mode as otherwise
+the data would only be stored in memory and it would be lost each time the container
+is restarted.
+
+Once the `vault`container is started, you can log in here:
+
+    http://127.0.0.1:8201/ui/vault/auth?with=token
+
+The first time you enter you'll have to note down the `initial root token` and the
+`keys`. Then you need to enter that `key` (supposing you use only one key) to unseal
+the vault and finally login with the `initial root token`.
+
+Also in order for the `harvest` service to work, you'll first need to execute this:
+
+    docker exec -it vault vault secrets enable --version=1 --path=secrets kv
+
+That will enable the /secrets path for the v1 key value secrets store in the `vault``.
+
+You'll also need to configure the environment variables for `harvest` to connect
+with the `vault`. Specifically, set the `VAULT_TOKEN` to the `initial root token`
+and the `VAULT_UNSEAL_KEY` to the `keys`
+
 
 ## Common issues
 
@@ -216,3 +260,33 @@ and that inspecting it further, the Hasura/Graphql POST gives an error similar t
 to the wrong instance of Hasura. Possibly, you're running VS Code with Codespaces
 and a local Hasura client as well, so the container port is being forwarded to
 a different port than 8080.
+
+## Tamper-evident logging
+
+Here are some helpful random commands for development of the tamper-evident 
+logging implemented using immudb:
+
+```bash
+cd /workspaces/backend-services/.devcontainer && docker compose build immudb-log-audit immudb-log-audit-init && docker compose up -d immudb-log-audit immudb-log-audit-init && docker compose logs -f immudb-log-audit
+cd /workspaces/backend-services/.devcontainer && docker compose build postgres && docker compose up -d postgres && docker compose logs -f postgres
+
+docker compose exec postgres bash
+docker compose run  --entrypoint /bin/sh immudb-log-audit
+
+docker compose exec \
+  -e PGPASSWORD=postgrespassword \
+  postgres \
+  psql \
+  -h postgres \
+  -U postgres
+
+CREATE TABLE table1_with_pk (a SERIAL, b VARCHAR(30), c TIMESTAMP NOT NULL, PRIMARY KEY(a, c));
+INSERT INTO table1_with_pk (b, c) VALUES('Backup and Restore', now());
+```
+
+### The disk/codespace runs out of space
+
+Clean the disk with:
+
+    docker system prune --all
+    nix-collect-garbage

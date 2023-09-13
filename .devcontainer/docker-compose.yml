@@ -7,31 +7,48 @@ services:
   devcontainer:
     image: ghcr.io/cachix/devenv:latest
     volumes:
-      - ../:/workspace:cached
+      - ../..:/workspaces:cached
     security_opt:
       - label:disable
     environment:
-      ## postgres database to store Hasura metadata
+      # postgres database to store Hasura metadata
       HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
-      ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
+      # this env var can be used to add the above postgres database to Hasura 
+      # as a data source. this can be removed/updated based on your needs
       PG_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
 
+  # Needed to set up proper permissions for non root user in postgres
+  postgres-volume-init:
+    image: alpine
+    volumes: 
+      - db_logs:/logs
+    user: root
+    group_add:
+      - '999'
+    command: chown -R 999:999 /logs
+
   postgres:
-    image: postgres:15
-    restart: always
+    build:
+      context: ./postgresql
+      dockerfile: Dockerfile
+    restart: unless-stopped
     volumes:
       - db_data:/var/lib/postgresql/data
+      - db_logs:/logs
     environment:
       POSTGRES_PASSWORD: postgrespassword
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 10s
       retries: 15
       start_period: 5s
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
+    depends_on:
+      - postgres-volume-init
 
   graphql-engine:
-    image: hasura/graphql-engine:v2.31.0.cli-migrations-v3
+    image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
     ports:
       - "8080:8080"
     restart: always
@@ -51,6 +68,8 @@ services:
       ## enable debugging mode. It is recommended to disable this in production
       HASURA_GRAPHQL_DEV_MODE: "true"
       BACKEND_SERVICE_HOSTNAME: "http://localhost:8000"
+      # https://hasura.io/docs/latest/deployment/graphql-engine-flags/config-examples/#console-assets-on-server
+      HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: "/srv/console-assets"
       HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
       ## uncomment next line to run console offline (i.e load console assets from server instead of CDN)
       # HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: /srv/console-assets
@@ -60,11 +79,14 @@ services:
       # keycloak jwks endpoint
       HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url": "http://keycloak:8090/realms/electoral-process/protocol/openid-connect/certs"}'
       HASURA_GRAPHQL_ADMIN_SECRET: 'admin'
-    #depends_on:
-    #  data-connector-agent:
-    #    condition: service_healthy
-    #  postgres:
-    #    condition: service_healthy
+      ACTIONS_ADMIN_SECRET: 'admin'
+    depends_on:
+      data-connector-agent:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      postgres_keycloak:
+        condition: service_healthy
 
   data-connector-agent:
     image: hasura/graphql-data-connector:v2.31.0
@@ -80,7 +102,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8081/api/v1/athena/health"]
       interval: 5s
       timeout: 10s
-      retries: 5
+      retries: 25
       start_period: 5s
 
   postgres_keycloak:
@@ -91,7 +113,7 @@ services:
     environment:
       POSTGRES_PASSWORD: postgrespassword
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: ["CMD-SHELL", "pg_isready  -U postgres"]
       interval: 5s
       timeout: 10s
       retries: 15
@@ -127,8 +149,15 @@ services:
     depends_on:
       postgres_keycloak:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/realms/electoral-process/protocol/openid-connect/certs"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 5s
 
   frontend:
+    profiles: ["dev"]
     build:
       context: ../frontend/
       dockerfile: Dockerfile
@@ -138,10 +167,15 @@ services:
     stdin_open: true
     volumes:
        - ../frontend:/usr/src/app
+    depends_on:
+      - graphql-engine
 
   immudb:
+    #profiles: ["dev"]
     image: codenotary/immudb:1.5
     restart: always
+    environment:
+      - IMMUDB_PGSQL_SERVER=true
     ports:
       - 3322:3322 # immudb service
       - 3324:9497 # prometheus
@@ -149,9 +183,139 @@ services:
     volumes:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
+  
+  harvest:
+    #profiles: ["dev"]
+    stdin_open: true
+    build:
+      context: ../backend/
+      dockerfile: ./harvest/Dockerfile
+    ports:
+      - 8400:8400
+    #depends_on:
+    #  - graphql-engine
+  
+  trustee1:
+    #profiles: ["dev"]
+    stdin_open: true
+    container_name: trustee1
+    volumes:
+      - trustee1_data:/opt/braid
+    build:
+      context: ../backend/
+      dockerfile: ./braid/Dockerfile
+    environment:
+        IMMUDB_USER: immudb
+        IMMUDB_PASSWORD: immudb
+        IMMUDB_URL: http://immudb:3322
+        IMMUDB_INDEX_DB: indexdb
+    depends_on:
+      - immudb
+  
+  trustee2:
+    #profiles: ["dev"]
+    stdin_open: true
+    container_name: trustee2
+    volumes:
+      - trustee2_data:/opt/braid
+    build:
+      context: ../backend/
+      dockerfile: ./braid/Dockerfile
+    environment:
+        IMMUDB_USER: immudb
+        IMMUDB_PASSWORD: immudb
+        IMMUDB_URL: http://immudb:3322
+        IMMUDB_INDEX_DB: indexdb
+    depends_on:
+      - immudb
+
+  minio:
+    profiles: ["dev"]
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_storage:/data
+    environment:
+      MINIO_ROOT_USER: minio_user
+      MINIO_ROOT_PASSWORD: minio_pass
+      MINIO_ACCESS_KEY: LZAw7hwBziRjwAhfP6Xi
+      MINIO_ACCESS_SECRET: 4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct
+    #entrypoint: sh
+    #command: -c 'mc config host add minio http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD && mc admin user svcacct add --access-key "$MINIO_ACCESS_KEY" --secret-key "$MINIO_ACCESS_SECRET" minio $MINIO_ROOT_USER && server --console-address ":9001" /data'
+    command: server --console-address ":9001" /data
+    #entrypoint: /bin/bash
+    #command: -c 'minio server --console-address ":9001" /data'
+    #restart: always
+    #depends_on:
+    #  - graphql-engine
+
+  # Create collection in immudb
+  immudb-log-audit-init:
+    profiles: ["dev"]
+    build:
+      context: ../vendor/immudb-log-audit
+      dockerfile: Dockerfile.immudb
+    command: >
+      create sql pgaudit
+      --parser pgauditjsonlog
+      --log-level debug
+      --immudb-host immudb
+    depends_on:
+      - postgres
+      - immudb
+
+  # Send audit logs to immudb
+  immudb-log-audit:
+    profiles: ["dev"]
+    build:
+      context: ../vendor/immudb-log-audit
+      dockerfile: Dockerfile.immudb
+    command: >
+      tail file pgaudit "/logs/*.json"
+      --follow
+      --parser pgauditjsonlog
+      --file-registry-dir=/data
+      --log-level debug
+      --immudb-host immudb
+    volumes: 
+      - 'immudb_log_audit_data:/data'
+      - 'db_logs:/logs'
+    depends_on:
+      - postgres
+      - immudb
+      - immudb-log-audit-init
+  # hashicorp vault to store secrets
+  vault:
+    build:
+      context: ./vault
+      dockerfile: Dockerfile
+    container_name: vault
+    restart: on-failure:10
+    ports:
+      - "8201:8201"
+      - "8200:8200"
+    environment:
+      VAULT_API_ADDR: 'http://0.0.0.0:8200'
+      VAULT_ADDR: 'http://0.0.0.0:8201'
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-volume:/vault
+    healthcheck:
+      retries: 5
+    entrypoint: vault server -config /opt/vault/config.hcl
 
 volumes:
   db_data:
+  db_logs:
+  immudb_log_audit_data:
   keycloak_db_data:
   immudb_data:
   immudb_logs:
+  minio_storage:
+  trustee1_data:
+  trustee2_data:
+  protocol_manager_data:
+  vault-volume:

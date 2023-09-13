@@ -4,5 +4,5 @@
 
 pub use board_client::*;
 
-pub mod util;
 pub mod board_client;
+pub mod util;
