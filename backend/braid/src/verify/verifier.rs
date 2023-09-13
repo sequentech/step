@@ -135,16 +135,10 @@ impl<C: Ctx> Verifier<C> {
 
     pub async fn run(&mut self) -> Result<()> {
         let mut vr = VerificationResult::new(&self.board.board_dbname);
-<<<<<<< HEAD
         vr.add_target(CONFIGURATION_VALID);
         vr.add_target(MESSAGE_SIGNATURES_VALID);
         vr.add_target(MESSAGES_CFG_VALID);
         vr.add_target(PK_VALID);
-=======
-        vr.add_target("Configuration valid");
-        vr.add_target("Message signatures verified");
-        vr.add_target("All messages have correct configuration");
->>>>>>> main
 
         info!(
             "{}",
