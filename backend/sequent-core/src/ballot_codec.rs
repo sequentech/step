@@ -456,9 +456,11 @@ impl BallotCodec for Question {
             bases.push(answer_base);
         }
         if self.allow_writeins() {
+            let char_map = self.get_char_map();
+            let write_in_base = char_map.base();
             for question in self.answers.iter() {
                 if question.is_write_in() {
-                    bases.push(256);
+                    bases.push(write_in_base);
                 }
             }
         }
