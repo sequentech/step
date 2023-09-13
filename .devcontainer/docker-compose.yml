@@ -159,14 +159,14 @@ services:
   frontend:
     profiles: ["dev"]
     build:
-      context: ../frontend/
+      context: ../packages/
       dockerfile: Dockerfile
     #restart: always
     ports:
       - 3000:3000
     stdin_open: true
     volumes:
-       - ../frontend:/usr/src/app
+       - ../packages:/usr/src/app
     depends_on:
       - graphql-engine
 
@@ -188,7 +188,7 @@ services:
     #profiles: ["dev"]
     stdin_open: true
     build:
-      context: ../backend/
+      context: ../packages/
       dockerfile: ./harvest/Dockerfile
     ports:
       - 8400:8400
@@ -202,7 +202,7 @@ services:
     volumes:
       - trustee1_data:/opt/braid
     build:
-      context: ../backend/
+      context: ../packages/
       dockerfile: ./braid/Dockerfile
     environment:
         IMMUDB_USER: immudb
@@ -219,7 +219,7 @@ services:
     volumes:
       - trustee2_data:/opt/braid
     build:
-      context: ../backend/
+      context: ../packages/
       dockerfile: ./braid/Dockerfile
     environment:
         IMMUDB_USER: immudb
