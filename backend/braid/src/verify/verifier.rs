@@ -172,11 +172,7 @@ impl<C: Ctx> Verifier<C> {
         let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
         info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 
-<<<<<<< HEAD
         vr.add_result(CONFIGURATION_VALID, cfg.is_valid(), &dbg_hash(&cfg_h));
-=======
-        vr.add_result("Configuration valid", cfg.is_valid(), &dbg_hash(&cfg_h));
->>>>>>> main
 
         // Verify message signatures
 
@@ -187,11 +183,7 @@ impl<C: Ctx> Verifier<C> {
             .map(|m| m.verify(&cfg))
             .collect();
         let vmessages = vmessages?;
-<<<<<<< HEAD
         vr.add_result(MESSAGE_SIGNATURES_VALID, true, &vmessages.len());
-=======
-        vr.add_result("Message signatures verified", true, &vmessages.len());
->>>>>>> main
 
         let correct_cfg = messages
             .clone()
@@ -199,11 +191,7 @@ impl<C: Ctx> Verifier<C> {
             .filter(|m| m.statement.get_cfg_h() == cfg_h)
             .count();
         vr.add_result(
-<<<<<<< HEAD
             MESSAGES_CFG_VALID,
-=======
-            "All messages have correct configuration",
->>>>>>> main
             correct_cfg == messages.len(),
             &dbg_hash(&cfg_h),
         );
@@ -220,23 +208,10 @@ impl<C: Ctx> Verifier<C> {
         predicates.push(Predicate::get_verifier_bootstrap_predicate(&cfg).unwrap());
 
         info!("{}", "Deriving verification targets..".blue());
-<<<<<<< HEAD
         let (_, targets, _) = crate::verify::datalog::S.run(&predicates);
         for t in &targets {
             let tvr = t.get_verification_result();
             info!("Add verification target [batch {}]", t.get_batch());
-=======
-        let (targets, _) = crate::verify::datalog::S.run(&predicates);
-        for t in &targets {
-            let mut tvr = t.get_verification_target();
-            tvr.add_result(
-                "Configuration matches parent",
-                t.0 .0 == cfg_h,
-                &dbg_hash(&cfg_h),
-            );
-
-            info!("Add verification target [{}]", t.get_batch());
->>>>>>> main
             vr.add_child(tvr);
         }
 
@@ -258,7 +233,6 @@ impl<C: Ctx> Verifier<C> {
         // Collect verification results
 
         info!("{}", "Collecting verification results".blue());
-<<<<<<< HEAD
         let (root, _targets, verified) = crate::verify::datalog::S.run(&predicates);
 
         let mut pk_h = None;
@@ -279,15 +253,6 @@ impl<C: Ctx> Verifier<C> {
 
         // Summary
 
-=======
-        let (_targets, verified) = crate::verify::datalog::S.run(&predicates);
-        for v in verified {
-            v.add_results(&mut vr, targets.iter().find(|t| t.1 == v.1).unwrap(), &cfg);
-        }
-
-        // Summary
-
->>>>>>> main
         info!("{}", vr);
 
         Ok(())
@@ -297,7 +262,6 @@ impl<C: Ctx> Verifier<C> {
 use crate::protocol2::predicate::*;
 
 impl Target {
-<<<<<<< HEAD
     fn get_verification_result(&self) -> VerificationResult {
         let mut vr = VerificationResult::new(&self.get_batch().to_string());
         vr.add_target(BALLOTS_PK_VALID);
@@ -311,25 +275,6 @@ impl Target {
         vr
     }
     fn _get_cfg_h(&self) -> ConfigurationHash {
-=======
-    fn get_verification_target(&self) -> VerificationResult {
-        let mut vr = VerificationResult::new(&self.1.to_string());
-        vr.add_target("Configuration matches parent");
-        vr.add_target("Configuration matches");
-        vr.add_target("Batch matches");
-        vr.add_target("Public key is verified");
-        vr.add_target("Ballots' public key matches");
-        vr.add_target("Decryption validated with respect to public key");
-        vr.add_target("Plaintexts match");
-        vr.add_target("Mixing chain start matches ballots");
-        vr.add_target("Mixing chain end matches decrypting ballots");
-        vr.add_target("Mixing chain correct length");
-        vr.add_target("Mixing chain no duplicate signers");
-
-        vr
-    }
-    fn get_cfg_h(&self) -> ConfigurationHash {
->>>>>>> main
         self.0
     }
     fn get_batch(&self) -> BatchNumber {
@@ -352,12 +297,8 @@ impl Verified {
         vr: &mut VerificationResult,
         target: &Target,
         cfg: &Configuration<C>,
-<<<<<<< HEAD
         pk_h: &Option<PublicKeyHash>,
     ) -> Result<()> {
-=======
-    ) {
->>>>>>> main
         let mixing_hs = self.get_mixing_hs();
         let filtered_mixes: Vec<[u8; 64]> = mixing_hs
             .0
@@ -365,7 +306,6 @@ impl Verified {
             .filter(|h| *h != [0u8; 64])
             .collect();
 
-<<<<<<< HEAD
         let b = &self.get_batch().to_string();
         let child = vr
             .children
@@ -413,71 +353,11 @@ impl Verified {
     }
 
     fn _get_cfg_h(&self) -> ConfigurationHash {
-=======
-        let child = vr.children.get_mut(&self.1.to_string()).unwrap();
-        child.add_result(
-            "Configuration matches",
-            self.get_cfg_h() == target.get_cfg_h(),
-            &dbg_hash(&self.0 .0),
-        );
-        child.add_result(
-            "Batch matches",
-            self.get_batch() == target.get_batch(),
-            &dbg_hash(&self.0 .0),
-        );
-        // This is already certified by the datalog predicates
-        child.add_result(
-            "Mixing chain no duplicate signers",
-            true,
-            &filtered_mixes.len(),
-        );
-        // subtract one since the number of hashes includes the source and the target, eg ballots => mix1 => mix2 has length 3, but threshold = 2
-        child.add_result(
-            "Mixing chain correct length",
-            filtered_mixes.len() - 1 == cfg.threshold,
-            &cfg.threshold,
-        );
-        child.add_result(
-            "Mixing chain start matches ballots",
-            filtered_mixes[0] == target.get_ballots_h().0
-                && filtered_mixes[0] == self.get_ballots_h().0,
-            &dbg_hash(&target.3 .0),
-        );
-        child.add_result(
-            "Mixing chain end matches decrypting ballots",
-            filtered_mixes[cfg.threshold] == self.get_decryption_input_h().0,
-            &cfg.threshold,
-        );
-        child.add_result(
-            "Public key is verified",
-            self.get_verified_pk_h() == target.get_pk_h(),
-            &dbg_hash(&self.2 .0),
-        );
-        child.add_result(
-            "Ballots' public key matches",
-            self.get_ballots_pk_h() == target.get_pk_h(),
-            &dbg_hash(&self.3 .0),
-        );
-        child.add_result(
-            "Decryption validated with respect to public key",
-            self.get_decryption_pk_h() == target.get_pk_h(),
-            &dbg_hash(&self.5 .0),
-        );
-        child.add_result(
-            "Plaintexts match",
-            self.get_plaintexts_h() == target.get_plaintexts_h(),
-            &dbg_hash(&self.7 .0),
-        );
-    }
-
-    fn get_cfg_h(&self) -> ConfigurationHash {
->>>>>>> main
         self.0
     }
     fn get_batch(&self) -> BatchNumber {
         self.1
     }
-<<<<<<< HEAD
     fn get_ballots_h(&self) -> CiphertextsHash {
         self.2
     }
@@ -493,29 +373,6 @@ impl Verified {
     fn get_mixing_hs(&self) -> MixingHashes {
         self.6
     }
-=======
-    fn get_verified_pk_h(&self) -> PublicKeyHash {
-        self.2
-    }
-    fn get_ballots_pk_h(&self) -> PublicKeyHash {
-        self.3
-    }
-    fn get_ballots_h(&self) -> CiphertextsHash {
-        self.4
-    }
-    fn get_decryption_input_h(&self) -> CiphertextsHash {
-        self.5
-    }
-    fn get_decryption_pk_h(&self) -> PublicKeyHash {
-        self.6
-    }
-    fn get_plaintexts_h(&self) -> PlaintextsHash {
-        self.7
-    }
-    fn get_mixing_hs(&self) -> MixingHashes {
-        self.8
-    }
->>>>>>> main
 }
 
 use std::collections::HashMap;
@@ -538,14 +395,10 @@ impl VerificationResult {
             .insert(name.to_string(), VerificationItem::new());
     }
     fn add_result<D: std::fmt::Display>(&mut self, name: &str, result: bool, metadata: &D) {
-<<<<<<< HEAD
         let value = self
             .targets
             .get_mut(name)
             .expect(&format!("no target for '{}'", &name));
-=======
-        let value = self.targets.get_mut(name).unwrap();
->>>>>>> main
         value.result = result;
         value.metadata = metadata.to_string();
     }
@@ -553,11 +406,7 @@ impl VerificationResult {
         self.children.insert(child.name.clone(), child);
     }
 
-<<<<<<< HEAD
     fn totals(&self) -> (u64, u64, usize) {
-=======
-    fn totals(&self) -> (u64, u64) {
->>>>>>> main
         let mut ok = 0;
         let mut not_ok = 0;
         for (_name, value) in &self.targets {
@@ -568,20 +417,12 @@ impl VerificationResult {
             }
         }
         for (_name, child) in &self.children {
-<<<<<<< HEAD
             let (ok_, not_ok_, _) = child.totals();
-=======
-            let (ok_, not_ok_) = child.totals();
->>>>>>> main
             ok += ok_;
             not_ok += not_ok_;
         }
 
-<<<<<<< HEAD
         (ok, not_ok, self.children.len())
-=======
-        (ok, not_ok)
->>>>>>> main
     }
 }
 
@@ -607,21 +448,12 @@ impl std::fmt::Display for VerificationResult {
         let json_color = json.replace("true", &"true".green().to_string());
         let json_color = json_color.replace("false", &"false".red().to_string());
         writeln!(f, "{}", json_color)?;
-<<<<<<< HEAD
         let (ok, not_ok, batches) = self.totals();
         let checks = format!("{} / {}", ok, (ok + not_ok));
         if not_ok == 0 {
             writeln!(f, "[{}] checks pass ({} batches)", checks.green(), batches)?;
         } else {
             writeln!(f, "[{}] checks pass ({} batches)", checks.red(), batches)?;
-=======
-        let (ok, not_ok) = self.totals();
-        let checks = format!("{} / {}", ok, (ok + not_ok));
-        if not_ok == 0 {
-            writeln!(f, "[{}] checks pass", checks.green())?;
-        } else {
-            writeln!(f, "[{}] checks pass", checks.red())?;
->>>>>>> main
         }
 
         Ok(())
