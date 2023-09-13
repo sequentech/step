@@ -235,7 +235,7 @@ extern "C" {
 #[wasm_bindgen(typescript_custom_section)]
 const IANSWER: &'static str = r#"
 interface IAnswer {
-    id: number;
+    id: string;
     category: string;
     details: string;
     sort_order: number;
@@ -253,6 +253,7 @@ extern "C" {
 #[wasm_bindgen(typescript_custom_section)]
 const IQUESTION: &'static str = r#"
 interface IQuestion {
+    id: string;
     description: string;
     layout: string;
     max: number;
@@ -275,7 +276,7 @@ extern "C" {
 #[wasm_bindgen(typescript_custom_section)]
 const IELECTION_CONFIG: &'static str = r#"
 interface IElectionConfig {
-    id: number;
+    id: string;
     layout: string;
     director: string;
     authorities: Array<string>;
@@ -323,7 +324,7 @@ extern "C" {
 #[wasm_bindgen(typescript_custom_section)]
 const IELECTION_DTO: &'static str = r#"
 interface IElectionDTO {
-    id: number;
+    id: string;
     configuration: IElectionConfig;
     state: string;
     startDate?: string;

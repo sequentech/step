@@ -6,6 +6,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use crate::hasura_types::Uuid;
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct BallotChoice {
@@ -191,7 +192,7 @@ impl Default for QuestionExtra {
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct Answer {
-    pub id: i64,
+    pub id: Uuid,
     pub category: String,
     pub details: String,
     pub sort_order: i64,
@@ -234,6 +235,7 @@ impl Answer {
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct Question {
+    pub id: Uuid,
     pub description: String,
     pub layout: String,
     pub max: i64,
@@ -297,7 +299,7 @@ impl Question {
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionConfig {
-    pub id: i64,
+    pub id: Uuid,
     pub layout: String,
     pub director: String,
     pub authorities: Vec<String>,
@@ -329,7 +331,7 @@ pub struct Pk {
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionDTO {
-    pub id: i64,
+    pub id: Uuid,
     pub configuration: ElectionConfig,
     pub state: String,
     pub startDate: Option<String>,
