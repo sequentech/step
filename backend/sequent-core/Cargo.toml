@@ -24,7 +24,7 @@ wasm-bindgen = {version = "=0.2.79", features = ['serde-serialize'], optional = 
 serde-wasm-bindgen = "0.4"
 web-sys = { version = "0.3.4", features = ['Performance'], optional = true}
 cfg-if = "1.0"
-# aes
+# signatures
 ed25519-dalek = {version = "1", features = ["serde"]}
 
 # time
@@ -44,6 +44,9 @@ quick-error = "2.0.0"
 
 # error logging
 console_error_panic_hook = "0.1.7"
+
+# character mapping for write-ins
+phf = { version = "0.11", features = ["macros"], default-features = false }
 
 [features]
 wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]
