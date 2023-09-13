@@ -13,7 +13,6 @@ pub struct BallotChoice {
     pub beta: String,  // mhr
 }
 
-
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ReplicationChoice {
     pub alpha: String, // gr
@@ -141,7 +140,8 @@ pub struct QuestionExtra {
     pub enable_checkable_lists: Option<String>, // default = "disabled"
     pub allow_writeins: Option<bool>,   // default = false
     pub invalid_vote_policy: Option<String>, /* allowed, warn, not-allowed, warn-invalid-implicit-and-explicit */
-    pub review_screen__show_question_description: Option<bool>, /* default = false */
+    pub review_screen__show_question_description: Option<bool>, /* default =
+                                              * false */
     pub base32_writeins: Option<bool>,
 }
 
@@ -293,7 +293,6 @@ impl Question {
             .map(|options| options.show_points.unwrap_or(false))
             .unwrap_or(false)
     }
-
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
@@ -383,7 +382,7 @@ impl From<ReplicationChoice> for BallotChoice {
     fn from(value: ReplicationChoice) -> BallotChoice {
         BallotChoice {
             alpha: value.alpha.clone(), // gr
-            beta: value.beta.clone(),  // mhr
+            beta: value.beta.clone(),   // mhr
         }
     }
 }
@@ -391,7 +390,12 @@ impl From<ReplicationChoice> for BallotChoice {
 impl From<AuditableBallot> for HashableBallot {
     fn from(value: AuditableBallot) -> HashableBallot {
         HashableBallot {
-            choices: value.choices.clone().into_iter().map(|choice| BallotChoice::from(choice)).collect(),
+            choices: value
+                .choices
+                .clone()
+                .into_iter()
+                .map(|choice| BallotChoice::from(choice))
+                .collect(),
             issue_date: value.issue_date.clone(),
             proofs: value.proofs.clone(),
         }

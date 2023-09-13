@@ -6,8 +6,8 @@ use crate::encrypt::*;
 use crate::plaintext::DecodedVoteQuestion;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
-use std::panic;
 use serde_wasm_bindgen;
+use std::panic;
 
 #[wasm_bindgen]
 extern "C" {
@@ -22,33 +22,38 @@ pub fn set_hooks() {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
 }
 
-
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn hash_cyphertext_js(cyphertext_json: JsValue) -> Result<String, String> {
     // parse input
-    let cyphertext: HashableBallot = serde_wasm_bindgen::from_value(cyphertext_json)
-        .map_err(|err| format!("Error parsing cyphertext: {}", err))?;
+    let cyphertext: HashableBallot =
+        serde_wasm_bindgen::from_value(cyphertext_json)
+            .map_err(|err| format!("Error parsing cyphertext: {}", err))?;
 
     // return hash
     hash_cyphertext(&cyphertext).map_err(|err| format!("{:?}", err))
 }
 
-
 #[allow(clippy::all)]
 #[wasm_bindgen]
-pub fn encrypt_decoded_question_js(decoded_questions_json: JsValue, election_json: JsValue) -> Result<JsValue, String> {
+pub fn encrypt_decoded_question_js(
+    decoded_questions_json: JsValue,
+    election_json: JsValue,
+) -> Result<JsValue, String> {
     // parse inputs
-    let decoded_questions: Vec<DecodedVoteQuestion> = serde_wasm_bindgen::from_value(decoded_questions_json)
-        .map_err(|err| format!("Error parsing cyphertext: {}", err))?;
-    let election: ElectionDTO = serde_wasm_bindgen::from_value(election_json)
-        .map_err(|err| format!("Error parsing election: {}", err))?;
+    let decoded_questions: Vec<DecodedVoteQuestion> =
+        serde_wasm_bindgen::from_value(decoded_questions_json)
+            .map_err(|err| format!("Error parsing cyphertext: {}", err))?;
+    let election: ElectionDTO =
+        serde_wasm_bindgen::from_value(election_json)
+            .map_err(|err| format!("Error parsing election: {}", err))?;
 
     // encrypt ballot
-    let auditable_ballot = encrypt_decoded_question(&decoded_questions, &election).map_err(|err| format!("{:?}", err))?;
+    let auditable_ballot =
+        encrypt_decoded_question(&decoded_questions, &election)
+            .map_err(|err| format!("{:?}", err))?;
 
     // convert to json output
-    serde_wasm_bindgen::to_value(&auditable_ballot).map_err(|err| format!("{:?}", err))
+    serde_wasm_bindgen::to_value(&auditable_ballot)
+        .map_err(|err| format!("{:?}", err))
 }
-
-

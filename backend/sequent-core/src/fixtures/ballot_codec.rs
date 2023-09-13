@@ -36,7 +36,7 @@ fn get_question_borda() -> Question {
     question
 }
 
-fn get_configurable_question(
+pub(crate) fn get_configurable_question(
     max: i64,
     num_answers: usize,
     tally_type: String,

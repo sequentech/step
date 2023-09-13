@@ -44,6 +44,24 @@ pub trait BallotCodec {
         &self,
         raw_ballot: &RawBallotQuestion,
     ) -> Result<DecodedVoteQuestion, String>;
+}
+
+fn encode_bigint_to_bytes(b: &BigUint) -> Result<Vec<u8>, String> {
+    Ok(b.to_radix_le(256))
+}
+fn decode_bigint_from_bytes(b: &[u8]) -> Result<BigUint, String> {
+    BigUint::from_radix_le(b, 256)
+        .ok_or(format!("Conversion failed for bytes {:?}", b))
+}
+
+impl Question {
+    pub(crate) fn get_char_map(&self) -> Box<dyn CharacterMap> {
+        if self.base32_writeins() {
+            Box::new(Base32Map)
+        } else {
+            Box::new(Utf8Map)
+        }
+    }
 
     fn encode_plaintext_question_bigint(
         &self,
@@ -58,7 +76,7 @@ pub trait BallotCodec {
         bigint: &BigUint,
     ) -> Result<DecodedVoteQuestion, String> {
         let mut bases = self.get_bases();
-        let last_base = 256u64;
+        let last_base = self.get_char_map().base();
         let choices = decode(&bases, &bigint, last_base)?;
 
         while bases.len() < choices.len() {
@@ -66,26 +84,8 @@ pub trait BallotCodec {
         }
 
         let raw_ballot = RawBallotQuestion { bases, choices };
+
         self.decode_from_raw_ballot(&raw_ballot)
-    }
-
-}
-
-fn encode_bigint_to_bytes(b: &BigUint) -> Result<Vec<u8>, String> {
-    Ok(b.to_radix_le(256))
-}
-fn decode_bigint_from_bytes(b: &[u8]) -> Result<BigUint, String> {
-    BigUint::from_radix_le(b, 256).ok_or(format!("Conversion failed for bytes {:?}", b))
-}
-
-impl Question {
-    pub(crate) fn get_char_map(&self) -> Box<dyn CharacterMap> {
-        if self.base32_writeins() {
-            Box::new(Base32Map)
-        }
-        else {
-            Box::new(Utf8Map)
-        }
     }
 }
 
@@ -105,7 +105,7 @@ impl BallotCodec for Question {
     ) -> Result<DecodedVoteQuestion, String> {
         let encoded_bigint = BigUint::from_str_radix(code, 10)
             .map_err(|_| "Error parsing code".to_string())?;
-        
+
         self.decode_plaintext_question_bigint(&encoded_bigint)
     }
 
@@ -196,11 +196,6 @@ impl BallotCodec for Question {
                         // getBases() to end it with a zero
                         choices.push(0);
                     } else {
-                        /*
-                        for byte in text.into_bytes().iter() {
-                            choices.push(*byte as u64);
-                            bases.push(256);
-                        }*/
                         // MAPPER
                         let base = char_map.base();
                         let bytes = char_map.to_bytes(&text)?;
@@ -335,12 +330,6 @@ impl BallotCodec for Question {
                 write_in_index += 1;
             }
 
-            
-            /*
-            let write_in_str_res = str::from_utf8(&write_in_bytes)
-                .map_err(|e| format!("{}", e))
-                .map(|s| s.to_string());*/
-
             // MAPPER
             let write_in_str_res = char_map.to_string(&write_in_bytes);
 
@@ -455,6 +444,8 @@ impl BallotCodec for Question {
         for _i in 0..num_valid_answers {
             bases.push(answer_base);
         }
+
+        // Add bases for null terminators.
         if self.allow_writeins() {
             let char_map = self.get_char_map();
             let write_in_base = char_map.base();
@@ -493,16 +484,29 @@ impl CharacterMap for Utf8Map {
 
 impl CharacterMap for Base32Map {
     fn to_bytes(&self, s: &str) -> Result<Vec<u8>, String> {
-        s.chars().map(|c| {
-            TO_BYTE.get(&c).ok_or(format!("Character '{}' cannot be mapped to byte", c)).copied() 
-        })
-        .collect()
+        s.to_uppercase()
+            .chars()
+            .map(|c| {
+                TO_BYTE
+                    .get(&c)
+                    .ok_or(format!(
+                        "Character '{}' cannot be mapped to byte",
+                        c
+                    ))
+                    .copied()
+            })
+            .collect()
     }
     fn to_string(&self, bytes: &[u8]) -> Result<String, String> {
-        let chars: Result<Vec<char>, String> = bytes.iter().map(|b| {
-            TO_CHAR.get(&b).ok_or(format!("Byte '{}' cannot be mapped to char", b)).copied() 
-        })
-        .collect();
+        let chars: Result<Vec<char>, String> = bytes
+            .iter()
+            .map(|b| {
+                TO_CHAR
+                    .get(&b)
+                    .ok_or(format!("Byte '{}' cannot be mapped to char", b))
+                    .copied()
+            })
+            .collect();
 
         Ok(String::from_iter(chars?))
     }
@@ -513,6 +517,7 @@ impl CharacterMap for Base32Map {
 
 use phf::phf_map;
 static TO_BYTE: phf::Map<char, u8> = phf_map! {
+    // 0 is reserved for null terminator
     'A' => 1u8,
     'B' => 2u8,
     'C' => 3u8,
@@ -546,6 +551,7 @@ static TO_BYTE: phf::Map<char, u8> = phf_map! {
     ',' => 31u8,
 };
 static TO_CHAR: phf::Map<u8, char> = phf_map! {
+    // 0 is reserved for null terminator
     1u8 => 'A',
     2u8 => 'B',
     3u8 => 'C',
@@ -584,8 +590,8 @@ mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::bases_fixture;
     use crate::fixtures::ballot_codec::get_fixtures;
+    use rand::Rng;
     use std::cmp;
-    use rand::{thread_rng, Rng};
 
     #[test]
     fn test_question_bases() {
@@ -823,39 +829,91 @@ mod tests {
                 let char = char.unwrap().to_string();
                 let forward = map.to_bytes(&char).unwrap();
                 let backward = map.to_string(&forward).unwrap();
-                    
+
                 assert_eq!(char, backward);
-                
             }
         }
     }
-    
+
     #[test]
-    fn test_write_in_limit() {
-        DecodedVoteQuestion {
-            is_explicit_invalid: true,
-            invalid_errors: vec![],
-            choices: vec![
-                DecodedVoteChoice {
-                    id: 0,
-                    selected: 0,
-                    write_in_text: None,
-                },
-            ]
-        };
-        
-        
+    fn test_write_in_base32() {
         const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ )(.,";
         const MAX_LEN: usize = 40;
         let mut rng = rand::thread_rng();
 
-        let password: String = (0..MAX_LEN)
+        let writein: String = (0..MAX_LEN)
             .map(|_| {
                 let idx = rng.gen_range(0..CHARSET.len());
                 CHARSET[idx] as char
             })
             .collect();
 
-        println!("{:?}", password);
+        let ballot = DecodedVoteQuestion {
+            is_explicit_invalid: false,
+            invalid_errors: vec![],
+            choices: vec![
+                DecodedVoteChoice {
+                    id: 0,
+                    selected: 1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 1,
+                    selected: 1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 2,
+                    selected: 5,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 3,
+                    selected: 3,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 4,
+                    selected: 1,
+                    //                   123456789012345679012345678901234567890
+                    // write_in_text:
+                    // Some("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ".
+                    // to_string()),
+                    write_in_text: Some(writein.clone()),
+                },
+            ],
+        };
+
+        let mut question =
+            crate::fixtures::ballot_codec::get_configurable_question(
+                1,
+                5,
+                "plurality-at-large".to_string(),
+                true,
+                Some(vec![4]),
+            );
+        let result = question
+            .encode_plaintext_question_to_bytes(&ballot)
+            .unwrap();
+        let bytes_large = result.len();
+
+        let mut extra_options =
+            question.extra_options.as_ref().unwrap().clone();
+        extra_options.base32_writeins = Some(true);
+        question.extra_options = Some(extra_options);
+
+        let result = question
+            .encode_plaintext_question_to_bytes(&ballot)
+            .unwrap();
+        let bytes_small = result.len();
+
+        let result = question
+            .decode_plaintext_question_from_bytes(&result)
+            .unwrap();
+        println!("************* {:?} ************", result);
+        let back = result.choices[4].write_in_text.as_ref().unwrap();
+        assert_eq!(*back, writein);
+        assert!(bytes_small < 27);
+        assert!(bytes_small < bytes_large);
     }
 }

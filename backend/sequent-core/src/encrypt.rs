@@ -7,10 +7,12 @@ use num_bigint::BigUint;
 use num_traits::Num;
 use sha2::{Digest, Sha256};
 
-use strand::backend::num_bigint::{SerializeNumber, BigintCtx, P2048, DeserializeNumber, BigUintP};
+use chrono::prelude::*;
+use strand::backend::num_bigint::{
+    BigUintP, BigintCtx, DeserializeNumber, SerializeNumber, P2048,
+};
 use strand::context::Ctx;
 use strand::elgamal::*;
-use chrono::prelude::*;
 
 quick_error! {
     #[derive(Debug, PartialEq, Eq)]
@@ -54,15 +56,12 @@ pub fn encrypt_plaintext_answer(
                 String::from("Error parsing plaintext"),
             )
         })?;
-    let plaintext_e = ctx
-        .encode(&plaintext)
-        .map_err(|error| {
-            BallotError::CryptographicCheck(format!(
-                "Error parsing plaintext as an element: {}, error: {}",
-                plaintext_str,
-                error
-            ))
-        })?;
+    let plaintext_e = ctx.encode(&plaintext).map_err(|error| {
+        BallotError::CryptographicCheck(format!(
+            "Error parsing plaintext as an element: {}, error: {}",
+            plaintext_str, error
+        ))
+    })?;
 
     /*
     if KeyType::P2048 != public_key.key_type {
@@ -74,9 +73,8 @@ pub fn encrypt_plaintext_answer(
 
     // encrypt / create cyphertext
     let label = vec![];
-    let (cyphertext, proof, randomness) = pk
-        .encrypt_and_pok(&plaintext_e, &label)
-        .map_err(|_| {
+    let (cyphertext, proof, randomness) =
+        pk.encrypt_and_pok(&plaintext_e, &label).map_err(|_| {
             BallotError::CryptographicCheck(String::from(
                 "Error encrypting plaintext",
             ))
@@ -94,7 +92,7 @@ pub fn encrypt_plaintext_answer(
             challenge: proof.challenge.to_str_radix(10),
             commitment: proof.commitment.to_str_radix(10),
             response: proof.response.to_str_radix(10),
-        }
+        },
     ))
 }
 
@@ -130,13 +128,11 @@ fn recreate_encrypt_answer(
                 String::from("Error parsing plaintext"),
             )
         })?;
-    let plaintext_e = ctx
-        .encode(&plaintext)
-        .map_err(|_| {
-            BallotError::CryptographicCheck(String::from(
-                "Error parsing plaintext as an element",
-            ))
-        })?;
+    let plaintext_e = ctx.encode(&plaintext).map_err(|_| {
+        BallotError::CryptographicCheck(String::from(
+            "Error parsing plaintext as an element",
+        ))
+    })?;
 
     // parse randomness
     let randomness =
@@ -207,7 +203,9 @@ pub fn recreate_encrypt_cyphertext(
     Ok(choices)
 }
 
-pub fn hash_cyphertext(cyphertext: &HashableBallot) -> Result<String, BallotError> {
+pub fn hash_cyphertext(
+    cyphertext: &HashableBallot,
+) -> Result<String, BallotError> {
     let ballot_str = serde_json::to_string(&cyphertext).map_err(|_| {
         BallotError::Serialization(String::from("Error serializing cyphertext"))
     })?;
@@ -232,7 +230,7 @@ fn get_current_date() -> String {
 
 pub fn encrypt_decoded_question(
     decoded_questions: &Vec<DecodedVoteQuestion>,
-    config: &ElectionDTO
+    config: &ElectionDTO,
 ) -> Result<AuditableBallot, BallotError> {
     use crate::ballot_codec::BallotCodec;
     if config.configuration.questions.len() != decoded_questions.len() {
@@ -244,15 +242,17 @@ pub fn encrypt_decoded_question(
     }
 
     let pks = parse_public_keys(&config)?;
-    
+
     let mut choices: Vec<ReplicationChoice> = vec![];
-    let mut proofs: Vec<CyphertextProof>= vec![];
+    let mut proofs: Vec<CyphertextProof> = vec![];
     for i in 0..decoded_questions.len() {
         let question = config.configuration.questions[i].clone();
         let decoded_question = decoded_questions[i].clone();
         let plaintext = question
             .encode_plaintext_question(&decoded_question)
-            .map_err(|_err| BallotError::Serialization(format!("Error encoding vote choice")))?;
+            .map_err(|_err| {
+            BallotError::Serialization(format!("Error encoding vote choice"))
+        })?;
 
         let (choice, proof) = encrypt_plaintext_answer(&pks[i], plaintext)?;
         choices.push(choice);

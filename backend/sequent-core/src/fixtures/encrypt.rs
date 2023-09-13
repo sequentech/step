@@ -1,6 +1,7 @@
 use crate::{plaintext::DecodedVoteQuestion, ElectionDTO};
 
-pub fn get_encrypt_decoded_test_fixture() -> (Vec<DecodedVoteQuestion>, ElectionDTO) {
+pub fn get_encrypt_decoded_test_fixture(
+) -> (Vec<DecodedVoteQuestion>, ElectionDTO) {
     let election_str = r#"{
         "id":34570002,
         "configuration":{
@@ -139,7 +140,8 @@ pub fn get_encrypt_decoded_test_fixture() -> (Vec<DecodedVoteQuestion>, Election
         }
     ]"#;
     let election: ElectionDTO = serde_json::from_str(election_str).unwrap();
-    let decoded_questions: Vec<DecodedVoteQuestion> = serde_json::from_str(decoded_questions_str).unwrap();
+    let decoded_questions: Vec<DecodedVoteQuestion> =
+        serde_json::from_str(decoded_questions_str).unwrap();
 
     (decoded_questions, election)
 }
