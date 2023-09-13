@@ -6,6 +6,7 @@ extern crate quick_error;
 extern crate cfg_if;
 
 pub mod ballot;
+pub mod hasura_types;
 pub use ballot::*;
 pub mod ballot_codec;
 pub mod encrypt;
