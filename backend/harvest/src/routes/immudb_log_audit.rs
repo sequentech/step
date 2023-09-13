@@ -2,14 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result, Context};
+use anyhow::{anyhow, Context, Result};
+use immudb_rs::{
+    sql_value::Value as SqlValue, Client, NamedParam, Row, TxMode,
+};
 use rocket::response::Debug;
 use rocket::serde::json::{Json, Value};
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::json;
-use immudb_rs::{
-    sql_value::Value as SqlValue, Client, NamedParam, Row, TxMode
-};
 use std::env;
 
 use crate::connection;
@@ -50,7 +50,7 @@ pub struct PgAuditRow {
     server_timestamp: i64,
     session_id: String,
     statement: String,
-    user: String
+    user: String,
 }
 
 impl TryFrom<&Row> for PgAuditRow {
@@ -72,16 +72,33 @@ impl TryFrom<&Row> for PgAuditRow {
             // FIXME for some reason columns names appear with parentheses
             match column.as_str() {
                 "(pgaudit.id)" => assign_value!(SqlValue::N, value, id),
-                "(pgaudit.audit_type)" => assign_value!(SqlValue::S, value, audit_type),
+                "(pgaudit.audit_type)" => {
+                    assign_value!(SqlValue::S, value, audit_type)
+                }
                 "(pgaudit.class)" => assign_value!(SqlValue::S, value, class),
-                "(pgaudit.command)" => assign_value!(SqlValue::S, value, command),
+                "(pgaudit.command)" => {
+                    assign_value!(SqlValue::S, value, command)
+                }
                 "(pgaudit.dbname)" => assign_value!(SqlValue::S, value, dbname),
-                "(pgaudit.server_timestamp)" => assign_value!(SqlValue::Ts, value, server_timestamp),
-                "(pgaudit.session_id)" => assign_value!(SqlValue::S, value, session_id),
-                "(pgaudit.statement)" => assign_value!(SqlValue::S, value, statement),
+                "(pgaudit.server_timestamp)" => {
+                    assign_value!(SqlValue::Ts, value, server_timestamp)
+                }
+                "(pgaudit.session_id)" => {
+                    assign_value!(SqlValue::S, value, session_id)
+                }
+                "(pgaudit.statement)" => {
+                    assign_value!(SqlValue::S, value, statement)
+                }
                 "(pgaudit.user)" => assign_value!(SqlValue::S, value, user),
-                "(pgaudit.audit_type)" => assign_value!(SqlValue::S, value, audit_type),
-                _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
+                "(pgaudit.audit_type)" => {
+                    assign_value!(SqlValue::S, value, audit_type)
+                }
+                _ => {
+                    return Err(anyhow!(
+                        "invalid column found '{}'",
+                        column.as_str()
+                    ))
+                }
             }
         }
         Ok(PgAuditRow {
@@ -97,8 +114,6 @@ impl TryFrom<&Row> for PgAuditRow {
         })
     }
 }
-
-
 
 #[post("/immudb/pgaudit-list", format = "json", data = "<body>")]
 pub async fn list_pgaudit(

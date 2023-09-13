@@ -2,77 +2,77 @@ table:
   name: area
   schema: sequent_backend
 insert_permissions:
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - name
-    - type
-    - annotations
-    - labels
-    - description
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-  role: admin-user
+  - role: admin-user
+    permission:
+      check: {}
+      columns:
+        - name
+        - type
+        - annotations
+        - labels
+        - description
+        - created_at
+        - last_updated_at
+        - election_event_id
+        - id
+        - tenant_id
+    comment: ""
 select_permissions:
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - name
-    - type
-    - annotations
-    - labels
-    - description
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter: {}
-  role: admin-user
-- comment: ""
-  permission:
-    columns:
-    - name
-    - type
-    - annotations
-    - labels
-    - description
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
-      - id:
-          _eq: X-Hasura-Area-Id
-  role: user
+  - role: admin-user
+    permission:
+      columns:
+        - name
+        - type
+        - annotations
+        - labels
+        - description
+        - created_at
+        - last_updated_at
+        - election_event_id
+        - id
+        - tenant_id
+      filter: {}
+      allow_aggregations: true
+    comment: ""
+  - role: user
+    permission:
+      columns:
+        - name
+        - type
+        - annotations
+        - labels
+        - description
+        - created_at
+        - last_updated_at
+        - election_event_id
+        - id
+        - tenant_id
+      filter:
+        _and:
+          - tenant_id:
+              _eq: X-Hasura-Tenant-Id
+          - id:
+              _eq: X-Hasura-Area-Id
+    comment: ""
 update_permissions:
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - name
-    - type
-    - annotations
-    - labels
-    - description
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter: {}
-  role: admin-user
+  - role: admin-user
+    permission:
+      columns:
+        - name
+        - type
+        - annotations
+        - labels
+        - description
+        - created_at
+        - last_updated_at
+        - election_event_id
+        - id
+        - tenant_id
+      filter: {}
+      check: {}
+    comment: ""
 delete_permissions:
-- comment: ""
-  permission:
-    filter: {}
-  role: admin-user
+  - role: admin-user
+    permission:
+      filter: {}
+    comment: ""

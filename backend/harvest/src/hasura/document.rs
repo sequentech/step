@@ -5,10 +5,9 @@ use crate::connection;
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
-use rocket::response::Debug;
-use rocket::serde::json::{Json, Value};
-use serde::Deserialize;
+use rocket::serde::json::Value;
 use std::env;
+use tracing::instrument;
 
 type uuid = String;
 type jsonb = Value;
@@ -42,6 +41,7 @@ pub async fn perform_insert_document(
     Ok(response_body)
 }
 
+#[instrument(skip_all)]
 pub async fn insert_document(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -68,6 +68,7 @@ pub async fn insert_document(
 )]
 pub struct GetDocument;
 
+#[instrument(skip_all)]
 pub async fn find_document(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

@@ -13,7 +13,7 @@ import {ConfirmationScreen} from "./screens/ConfirmationScreen"
 import {AuditScreen} from "./screens/AuditScreen"
 import {ElectionSelectionScreen} from "./screens/ElectionSelectionScreen"
 import {LoginScreen} from "./screens/LoginScreen"
-import {useNavigate} from "react-router"
+import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
 
 const StyledApp = styled(Stack)`

@@ -7,14 +7,13 @@ use rocket::response::Debug;
 use rocket::serde::json::Json;
 use rocket::serde::json::Value;
 use rocket::serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::str::FromStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
+use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
-use crate::s3;
 use crate::services;
 
 #[derive(
@@ -25,6 +24,7 @@ pub enum EventProcessors {
     CREATE_REPORT,
     UPDATE_VOTING_STATUS,
     CREATE_BOARD,
+    CREATE_KEYS,
 }
 
 #[derive(Deserialize, Debug)]
@@ -54,6 +54,7 @@ pub struct ScheduledEvent {
     pub created_by: Option<String>,
 }
 
+#[instrument(skip(auth_headers))]
 #[post("/scheduled-event", format = "json", data = "<body>")]
 pub async fn create_scheduled_event(
     body: Json<CreateScheduledEventBody>,
@@ -97,11 +98,11 @@ pub async fn create_scheduled_event(
     };
 
     println!(
-        "FFF payload: {}",
+        "formatted_event payload: {}",
         formatted_event.event_payload.clone().unwrap()
     );
 
-    let process_result = services::worker::process_scheduled_event(
+    services::worker::process_scheduled_event(
         auth_headers,
         formatted_event.clone(),
     )

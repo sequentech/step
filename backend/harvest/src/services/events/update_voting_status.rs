@@ -3,14 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use rocket::response::Debug;
-use rocket::serde::json::Json;
-use rocket::serde::json::Value;
 use rocket::serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::str::FromStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
+use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
@@ -39,6 +35,7 @@ pub struct ElectionStatus {
     pub voting_status: VotingStatus,
 }
 
+#[instrument(skip(auth_headers))]
 pub async fn update_voting_status(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -58,7 +55,7 @@ pub async fn update_voting_status(
     )
     .await?;
 
-    let election_response_id = &hasura_response
+    let _election_response_id = &hasura_response
         .data
         .expect("expected data".into())
         .update_sequent_backend_election

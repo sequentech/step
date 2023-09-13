@@ -48,7 +48,7 @@ services:
       - postgres-volume-init
 
   graphql-engine:
-    image: hasura/graphql-engine:v2.31.0.cli-migrations-v3
+    image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
     ports:
       - "8080:8080"
     restart: always
@@ -80,11 +80,13 @@ services:
       HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url": "http://keycloak:8090/realms/electoral-process/protocol/openid-connect/certs"}'
       HASURA_GRAPHQL_ADMIN_SECRET: 'admin'
       ACTIONS_ADMIN_SECRET: 'admin'
-    #depends_on:
-    #  data-connector-agent:
-    #    condition: service_healthy
-    #  postgres:
-    #    condition: service_healthy
+    depends_on:
+      data-connector-agent:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      postgres_keycloak:
+        condition: service_healthy
 
   data-connector-agent:
     image: hasura/graphql-data-connector:v2.31.0
@@ -100,7 +102,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8081/api/v1/athena/health"]
       interval: 5s
       timeout: 10s
-      retries: 5
+      retries: 25
       start_period: 5s
 
   postgres_keycloak:
@@ -147,8 +149,15 @@ services:
     depends_on:
       postgres_keycloak:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/realms/electoral-process/protocol/openid-connect/certs"]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 5s
 
   frontend:
+    profiles: ["dev"]
     build:
       context: ../frontend/
       dockerfile: Dockerfile
@@ -158,7 +167,11 @@ services:
     stdin_open: true
     volumes:
        - ../frontend:/usr/src/app
+    depends_on:
+      - graphql-engine
+
   immudb:
+    #profiles: ["dev"]
     image: codenotary/immudb:1.5
     restart: always
     environment:
@@ -172,14 +185,52 @@ services:
       - immudb_logs:/var/log/immudb
   
   harvest:
+    #profiles: ["dev"]
     stdin_open: true
     build:
       context: ../backend/
       dockerfile: ./harvest/Dockerfile
     ports:
-      - 8400:8400 # harvest service
+      - 8400:8400
+    #depends_on:
+    #  - graphql-engine
+  
+  trustee1:
+    #profiles: ["dev"]
+    stdin_open: true
+    container_name: trustee1
+    volumes:
+      - trustee1_data:/opt/braid
+    build:
+      context: ../backend/
+      dockerfile: ./braid/Dockerfile
+    environment:
+        IMMUDB_USER: immudb
+        IMMUDB_PASSWORD: immudb
+        IMMUDB_URL: http://immudb:3322
+        IMMUDB_INDEX_DB: indexdb
+    depends_on:
+      - immudb
+  
+  trustee2:
+    #profiles: ["dev"]
+    stdin_open: true
+    container_name: trustee2
+    volumes:
+      - trustee2_data:/opt/braid
+    build:
+      context: ../backend/
+      dockerfile: ./braid/Dockerfile
+    environment:
+        IMMUDB_USER: immudb
+        IMMUDB_PASSWORD: immudb
+        IMMUDB_URL: http://immudb:3322
+        IMMUDB_INDEX_DB: indexdb
+    depends_on:
+      - immudb
 
   minio:
+    profiles: ["dev"]
     image: minio/minio
     ports:
       - "9000:9000"
@@ -195,11 +246,14 @@ services:
     #command: -c 'mc config host add minio http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD && mc admin user svcacct add --access-key "$MINIO_ACCESS_KEY" --secret-key "$MINIO_ACCESS_SECRET" minio $MINIO_ROOT_USER && server --console-address ":9001" /data'
     command: server --console-address ":9001" /data
     #entrypoint: /bin/bash
-    #command: -c 'echo FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF && minio server --console-address ":9001" /data'
+    #command: -c 'minio server --console-address ":9001" /data'
     #restart: always
+    #depends_on:
+    #  - graphql-engine
 
   # Create collection in immudb
   immudb-log-audit-init:
+    profiles: ["dev"]
     build:
       context: ../vendor/immudb-log-audit
       dockerfile: Dockerfile.immudb
@@ -214,6 +268,7 @@ services:
 
   # Send audit logs to immudb
   immudb-log-audit:
+    profiles: ["dev"]
     build:
       context: ../vendor/immudb-log-audit
       dockerfile: Dockerfile.immudb
@@ -231,6 +286,26 @@ services:
       - postgres
       - immudb
       - immudb-log-audit-init
+  # hashicorp vault to store secrets
+  vault:
+    build:
+      context: ./vault
+      dockerfile: Dockerfile
+    container_name: vault
+    restart: on-failure:10
+    ports:
+      - "8201:8201"
+      - "8200:8200"
+    environment:
+      VAULT_API_ADDR: 'http://0.0.0.0:8200'
+      VAULT_ADDR: 'http://0.0.0.0:8201'
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-volume:/vault
+    healthcheck:
+      retries: 5
+    entrypoint: vault server -config /opt/vault/config.hcl
 
 volumes:
   db_data:
@@ -240,3 +315,7 @@ volumes:
   immudb_data:
   immudb_logs:
   minio_storage:
+  trustee1_data:
+  trustee2_data:
+  protocol_manager_data:
+  vault-volume:

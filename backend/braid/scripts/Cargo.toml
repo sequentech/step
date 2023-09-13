@@ -1,0 +1,8 @@
+[workspace]
+
+members = [
+    "strand",
+    "braid",
+    "immu-board",
+    "immudb-rs",
+]

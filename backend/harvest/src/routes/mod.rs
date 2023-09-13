@@ -2,5 +2,5 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 pub mod fetch_document;
-pub mod scheduled_event;
 pub mod immudb_log_audit;
+pub mod scheduled_event;

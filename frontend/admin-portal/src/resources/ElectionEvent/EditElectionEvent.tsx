@@ -20,18 +20,21 @@ import {HorizontalBox} from "../../components/HorizontalBox"
 import {ChipList} from "../../components/ChipList"
 import {Link} from "react-router-dom"
 import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
-import {IconButton, isUndefined} from "@sequentech/ui-essentials"
+import {IconButton} from "@sequentech/ui-essentials"
 import {faPieChart, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
 import {useTenantStore} from "../../components/CustomMenu"
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {useMutation} from "@apollo/client"
+import {KeysGenerationDialog} from "../../components/KeysGenerationDialog"
+import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
 
 const ElectionEventListForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const [showMenu, setShowMenu] = useState(false)
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const [showProgress, setShowProgress] = useState(false)
+    const [showCreateKeysDialog, setShowCreateKeysDialog] = useState(false)
     const [tenantId] = useTenantStore()
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const refresh = useRefresh()
@@ -52,7 +55,7 @@ const ElectionEventListForm: React.FC = () => {
                 eventProcessor: ScheduledEventType.CREATE_BOARD,
                 cronConfig: undefined,
                 eventPayload: {
-                    board_name: record.id.replaceAll('-', ''),
+                    board_name: record.id.replaceAll("-", ""),
                 },
                 createdBy: "admin",
             },
@@ -66,6 +69,13 @@ const ElectionEventListForm: React.FC = () => {
         setShowProgress(false)
         refresh()
     }
+
+    const openKeysDialog = () => {
+        console.log("opening...")
+        setShowCreateKeysDialog(true)
+    }
+
+    let configCreatedStatus = getConfigCreatedStatus(record.status)
 
     return (
         <SimpleForm>
@@ -92,7 +102,21 @@ const ElectionEventListForm: React.FC = () => {
                 >
                     Create Bulletin Board
                 </MenuItem>
+                <MenuItem
+                    onClick={openKeysDialog}
+                    disabled={
+                        !record.bulletin_board_reference ||
+                        configCreatedStatus
+                    }
+                >
+                    Create Keys
+                </MenuItem>
             </Menu>
+            <KeysGenerationDialog
+                show={showCreateKeysDialog}
+                handleClose={() => setShowCreateKeysDialog(false)}
+                electionEvent={record}
+            />
             <Typography variant="h5">ID</Typography>
             <TextField source="id" />
             <TextInput source="name" />

@@ -50,6 +50,8 @@ using them and continue development:
   - Default admin
     - Username: `immudb`
     - Password: `immudb`
+  - To create the index db, run:
+      `/workspaces/backend-services/backend/target/debug/bb_helper --cache-dir /tmp/cache -s http://immudb:3322 -i indexdb -u immudb -p immudb upsert-init-db -l debug`
 - \[TODO\] **Rust Rocket service** at [http://127.0.0.1:8000]
 
 Additionally, this dev container comes with:
@@ -169,7 +171,7 @@ ensure that the `graphql-engine` server name is aliased to `127.0.0.1` in
 Also clone this github project on your local machine (so this is apart from running
 it on Codespaces), and from the `backend-services/hasura` folder, run this:
 
-    hasura console
+    hasura console --endpoint "http://127.0.0.1:8080" --admin-secret "admin"
   
 Then open `http://localhost:9695` on the browser and make the changes you need.
 Those changes will be tracked with file changes on the Github Codespaces, then
@@ -178,7 +180,7 @@ commit the changes.
 Note that you can insert rows as a migration by clicking on the 
 `This is a migration` option at the bottom of the `Insert Row` form.
 
-## templates
+## harvest
 ### Update graphql JSON schema
 
 The file `backend/templates/src/graphql/schema.json` contains the GraphQL/Hasura schema. If the schema changes you might need to update this file. In order to do so, [follow this guide](https://hasura.io/docs/latest/schema/common-patterns/export-graphql-schema/
@@ -186,6 +188,44 @@ The file `backend/templates/src/graphql/schema.json` contains the GraphQL/Hasura
 
     npm install -g graphqurl
     gq http://127.0.0.1:8080/v1/graphql -H "X-Hasura-Admin-Secret: admin" --introspect  --format json > schema.json
+
+## Trustees
+
+In order to create the election keys you need to add the trustees to the hasura db.
+First get the keys from the trustee:
+
+    docker exec -it trustee1 cat /opt/braid/trustee.toml | grep pk
+  
+Which will give a result similar to:
+
+    signing_key_pk = "YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k"
+
+Then add the trustee in the admin portal with the key, in this case `YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k`.
+
+## Vault
+
+We use Hashicorp Vault to store secrets. We run it in production mode as otherwise
+the data would only be stored in memory and it would be lost each time the container
+is restarted.
+
+Once the `vault`container is started, you can log in here:
+
+    http://127.0.0.1:8201/ui/vault/auth?with=token
+
+The first time you enter you'll have to note down the `initial root token` and the
+`keys`. Then you need to enter that `key` (supposing you use only one key) to unseal
+the vault and finally login with the `initial root token`.
+
+Also in order for the `harvest` service to work, you'll first need to execute this:
+
+    docker exec -it vault vault secrets enable --version=1 --path=secrets kv
+
+That will enable the /secrets path for the v1 key value secrets store in the `vault``.
+
+You'll also need to configure the environment variables for `harvest` to connect
+with the `vault`. Specifically, set the `VAULT_TOKEN` to the `initial root token`
+and the `VAULT_UNSEAL_KEY` to the `keys`
+
 
 ## Common issues
 

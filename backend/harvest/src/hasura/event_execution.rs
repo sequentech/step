@@ -5,13 +5,12 @@ use crate::connection;
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
-use rocket::response::Debug;
-use rocket::serde::json::{Json, Value};
+use rocket::serde::json::Value;
 use rocket::serde::{Deserialize, Serialize};
 use std::env;
-use std::str::FromStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
+use tracing::instrument;
 
 type uuid = String;
 type jsonb = Value;
@@ -51,6 +50,7 @@ pub struct EventExecution {
 )]
 pub struct InsertEventExecution;
 
+#[instrument(skip_all)]
 pub async fn insert_event_execution(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

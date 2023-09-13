@@ -8,6 +8,7 @@ pub mod run;
 pub mod test;
 pub mod util;
 pub mod verify;
+pub mod protocol_manager;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;

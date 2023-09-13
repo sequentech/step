@@ -5,9 +5,8 @@
 use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
-use rocket::serde::json::Value;
 use rocket::serde::{Deserialize, Serialize};
-use serde_json::json;
+use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
@@ -27,6 +26,7 @@ pub struct GetDocumentUrlResponse {
     url: String,
 }
 
+#[instrument(skip_all)]
 #[post("/fetch-document", format = "json", data = "<body>")]
 pub async fn fetch_document(
     body: Json<GetDocumentUrlBody>,
@@ -41,7 +41,7 @@ pub async fn fetch_document(
     )
     .await?;
 
-    let document = &document_result
+    let _document = &document_result
         .data
         .expect("expected data".into())
         .sequent_backend_document[0];

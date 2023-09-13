@@ -3,18 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use reqwest;
 use rocket::serde::json::Json;
 use rocket::serde::json::Value;
 use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
-use strum_macros::EnumString;
+use tracing::instrument;
 
 use crate::connection;
 use crate::hasura::event_execution;
 use crate::routes::scheduled_event;
 use crate::services::events::create_board;
+use crate::services::events::create_keys;
 use crate::services::events::render_report;
 use crate::services::events::update_voting_status;
 
@@ -29,6 +29,7 @@ impl fmt::Display for CustomError {
 
 impl Error for CustomError {}
 
+#[instrument(skip_all)]
 async fn insert_event_execution_with_result(
     auth_headers: connection::AuthHeaders,
     event: scheduled_event::ScheduledEvent,
@@ -68,6 +69,7 @@ async fn insert_event_execution_with_result(
     })
 }
 
+#[instrument(skip(auth_headers))]
 pub async fn process_scheduled_event(
     auth_headers: connection::AuthHeaders,
     event: scheduled_event::ScheduledEvent,
@@ -120,6 +122,18 @@ pub async fn process_scheduled_event(
                 Some(board_value),
             )
             .await
+        }
+        scheduled_event::EventProcessors::CREATE_KEYS => {
+            let payload: create_keys::CreateKeysBody =
+                serde_json::from_value(event.event_payload.clone().unwrap())?;
+            create_keys::create_keys(
+                auth_headers.clone(),
+                payload,
+                event.clone(),
+            )
+            .await?;
+
+            insert_event_execution_with_result(auth_headers, event, None).await
         }
     }
 }

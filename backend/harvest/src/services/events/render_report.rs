@@ -2,19 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
-use dotenv::dotenv;
-use either::*;
 use handlebars::Handlebars;
 use headless_chrome::types::PrintToPdfOptions;
-use rocket::response::Debug;
 use rocket::serde::json::Json;
-use rocket::serde::json::Value;
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
 use tempfile::tempdir;
+use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
@@ -93,6 +90,7 @@ async fn upload_and_return_document(
     }))
 }
 
+#[instrument(skip_all)]
 pub async fn render_report(
     body: Json<RenderTemplateBody>,
     auth_headers: connection::AuthHeaders,

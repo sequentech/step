@@ -38,6 +38,9 @@ import {ShowElectionEvent} from "./resources/ElectionEvent/ShowElectionEvent"
 import {ShowDocument} from "./resources/Document/ShowDocument"
 import {ListDocument} from "./resources/Document/ListDocument"
 import {CreateDocument} from "./resources/Document/CreateDocument"
+import {EditTrustee} from "./resources/Trustee/EditTrustee"
+import {ListTrustee} from "./resources/Trustee/ListTrustee"
+import {CreateTrustee} from "./resources/Trustee/CreateTrustee"
 
 const App = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
@@ -124,6 +127,13 @@ const App = () => {
                 list={ListDocument}
                 create={CreateDocument}
                 options={{label: "Document"}}
+            />
+            <Resource
+                name="sequent_backend_trustee"
+                edit={EditTrustee}
+                list={ListTrustee}
+                create={CreateTrustee}
+                options={{label: "Trustee"}}
             />
         </Admin>
     )

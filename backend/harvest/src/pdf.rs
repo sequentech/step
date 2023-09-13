@@ -6,7 +6,9 @@ use headless_chrome::types::PrintToPdfOptions;
 use headless_chrome::{Browser, LaunchOptionsBuilder};
 use std::thread::sleep;
 use std::time::Duration;
+use tracing::instrument;
 
+#[instrument(skip_all)]
 pub fn print_to_pdf(
     file_path: &str,
     pdf_options: PrintToPdfOptions,
@@ -18,7 +20,7 @@ pub fn print_to_pdf(
         .build()
         .expect("Default should not panic");
     let browser = Browser::new(options)?;
-    let _tab0 = browser.wait_for_initial_tab()?;
+    //browser.wait_for_initial_tab()?;
     let tab = browser.new_tab()?;
     //tab.set_default_timeout(Duration::from_secs(99999999));
     println!("path: {}", file_path);

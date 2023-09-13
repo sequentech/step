@@ -3,35 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use immu_board::{Board, BoardClient, BoardMessage};
+use immu_board::BoardClient;
 use rocket::serde::{Deserialize, Serialize};
 use std::env;
+use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
+use crate::services::election_event_board::BoardSerializable;
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct CreateBoardPayload {
     pub board_name: String,
-}
-
-#[derive(Serialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
-pub struct BoardSerializable {
-    pub id: i64,
-    pub database_name: String,
-    pub is_archived: bool,
-}
-
-impl Into<BoardSerializable> for Board {
-    fn into(self) -> BoardSerializable {
-        BoardSerializable {
-            id: self.id,
-            database_name: self.database_name,
-            is_archived: self.is_archived,
-        }
-    }
 }
 
 async fn get_client() -> Result<BoardClient> {
@@ -51,6 +35,7 @@ async fn get_client() -> Result<BoardClient> {
     Ok(client)
 }
 
+#[instrument(skip(auth_headers))]
 pub async fn create_board(
     auth_headers: connection::AuthHeaders,
     tenant_id: &str,

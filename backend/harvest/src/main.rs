@@ -5,6 +5,7 @@
 #[macro_use]
 extern crate rocket;
 
+use braid::util::init_log;
 use dotenv::dotenv;
 
 mod connection;
@@ -17,6 +18,7 @@ mod services;
 #[launch]
 fn rocket() -> _ {
     dotenv().ok();
+    init_log(true);
     rocket::build().mount(
         "/",
         routes![
