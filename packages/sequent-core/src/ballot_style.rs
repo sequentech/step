@@ -5,47 +5,29 @@ use crate::ballot;
 use crate::hasura_types;
 
 fn create_ballot_style(
-    election_event: hasura_types::ElectionEvent,
-    elections: Vec<hasura_types::Election>,
-    contests: Vec<hasura_types::Contest>,
-    candidates: Vec<hasura_types::Candidate>,
+    election_event: hasura_types::ElectionEvent, // Election
+    election: hasura_types::Election,            // Election
+    contests: Vec<hasura_types::Contest>,        // Question
+    candidates: Vec<hasura_types::Candidate>,    // Answer
 ) -> ballot::ElectionDTO {
     ballot::ElectionDTO {
-        id: election_event.id.clone(),
+        id: election.id.clone(),
         configuration: ballot::ElectionConfig {
-            id: election_event.id.clone(),
+            id: election.id.clone(),
             layout: "simultaneous-questions".to_string(),
             director: "protocol-manager".to_string(),
             authorities: vec![],
-            title: election_event.name.clone(),
-            description: election_event
-                .description
-                .clone()
-                .unwrap_or("".to_string()),
-            questions: elections
+            title: election.name.clone(),
+            description: election.description.clone().unwrap_or("".to_string()),
+            questions: contests
                 .into_iter()
-                .map(|election| {
-                    let election_contests = contests
-                        .clone()
-                        .into_iter()
-                        .filter(|c| c.election_id == election.id)
-                        .collect::<Vec<hasura_types::Contest>>();
-                    let election_contest_ids = election_contests
-                        .iter()
-                        .map(|c| c.id.clone())
-                        .collect::<Vec<hasura_types::Uuid>>();
+                .map(|contest| {
                     let election_candidates = candidates
                         .clone()
                         .into_iter()
-                        .filter(|c| {
-                            election_contest_ids.contains(&c.contest_id)
-                        })
+                        .filter(|c| c.contest_id == contest.id)
                         .collect::<Vec<hasura_types::Candidate>>();
-                    create_question(
-                        election,
-                        election_contests,
-                        election_candidates,
-                    )
+                    create_question(contest, election_candidates)
                 })
                 .collect(),
             start_date: None,
@@ -92,21 +74,34 @@ fn create_ballot_style(
 }
 
 fn create_question(
-    election: hasura_types::Election,
-    contests: Vec<hasura_types::Contest>,
+    contest: hasura_types::Contest,
     candidates: Vec<hasura_types::Candidate>,
 ) -> ballot::Question {
     ballot::Question {
-        id: election.id,
-        description: election.description.unwrap_or("".to_string()),
+        id: contest.id,
+        description: contest.description.unwrap_or("".to_string()),
         layout: "".to_string(),
-        max: 0,
-        min: 0,
-        num_winners: 0,
-        title: election.name,
-        tally_type: "".to_string(),
+        max: contest.max_votes.unwrap_or(0),
+        min: contest.min_votes.unwrap_or(0),
+        num_winners: 1,
+        title: contest.name,
+        tally_type: contest.counting_algorithm.unwrap_or("".to_string()),
         answer_total_votes_percentage: "".to_string(),
-        answers: vec![],
+        answers: candidates
+            .iter()
+            .enumerate()
+            .map(|(i, candidate)| ballot::Answer {
+                id: candidate.id.clone(),
+                category: candidate.r#type.clone().unwrap_or("".to_string()),
+                details: candidate
+                    .description
+                    .clone()
+                    .unwrap_or("".to_string()),
+                sort_order: i as i64,
+                urls: vec![],
+                text: candidate.name.clone(),
+            })
+            .collect(),
         extra_options: None,
     }
 }
