@@ -69,9 +69,13 @@ pub trait Ctx: Send + Sync + Sized + Clone + Default + Debug {
 
     fn encode(&self, plaintext: &Self::P) -> Result<Self::E, StrandError>;
     fn decode(&self, element: &Self::E) -> Self::P;
+    // Needed to perform context dependent validation on incoming bytes
     fn element_from_bytes(&self, bytes: &[u8]) -> Result<Self::E, StrandError>;
+    // Needed to perform context dependent validation on incoming bytes
     fn exp_from_bytes(&self, bytes: &[u8]) -> Result<Self::X, StrandError>;
+    // Used to convert exponents in threshold cryptography
     fn exp_from_u64(&self, value: u64) -> Self::X;
+    // Used to compute challenges in zk proofs
     fn hash_to_exp(&self, bytes: &[u8]) -> Self::X;
 
     // In braid, used to encrypt shares (evaluations of the polynomial in Zp)
@@ -109,7 +113,7 @@ pub trait Element<C: Ctx>:
     /// Modulo operation using group order / not necessary, applied
     /// automatically.
     fn modp(&self, ctx: &C) -> C::E;
-    /// Division (a div b = a * b^1) using group order / point subtraction.
+    /// Division (a div b = a * b^-1) using group order / point subtraction.
     fn divp(&self, other: &C::E, ctx: &C) -> C::E;
     /// Modular inverse using group order / point negation.
     fn invp(&self, ctx: &C) -> C::E;
