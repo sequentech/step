@@ -27,7 +27,7 @@ import {useTenantStore} from "../../components/CustomMenu"
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {useMutation} from "@apollo/client"
 import {KeysGenerationDialog} from "../../components/KeysGenerationDialog"
-import {IKeysGenerationStatus, getKeysGenerationStatus} from "../../services/ElectionEventStatus"
+import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
 
 const ElectionEventListForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -75,7 +75,7 @@ const ElectionEventListForm: React.FC = () => {
         setShowCreateKeysDialog(true)
     }
 
-    let keysGenerationStatus = getKeysGenerationStatus(record.status)
+    let configCreatedStatus = getConfigCreatedStatus(record.status)
 
     return (
         <SimpleForm>
@@ -106,7 +106,7 @@ const ElectionEventListForm: React.FC = () => {
                     onClick={openKeysDialog}
                     disabled={
                         !record.bulletin_board_reference ||
-                        keysGenerationStatus === IKeysGenerationStatus.CREATED
+                        configCreatedStatus
                     }
                 >
                     Create Keys
