@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::ballot::*;
+use crate::hasura_types::Uuid;
+use crate::mixed_radix::{decode, encode};
+use crate::plaintext::*;
 use num_bigint::BigUint;
 use num_traits::{Num, ToPrimitive};
 use std::collections::HashMap;
 use std::str;
-use crate::ballot::*;
-use crate::mixed_radix::{decode, encode};
-use crate::plaintext::*;
-use crate::hasura_types::Uuid;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawBallotQuestion {

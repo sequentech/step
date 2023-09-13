@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-mod hasura_types;
 mod ballot;
+mod hasura_types;
 use crate::ballot::AuditableBallot;
 use schemars::schema_for;
 

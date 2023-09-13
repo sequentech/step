@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_snake_case)]
 #![allow(dead_code)]
+use crate::hasura_types::Uuid;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::hasura_types::Uuid;
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct BallotChoice {
