@@ -42,3 +42,6 @@ pub mod util;
 pub mod wasm;
 /// Schnorr and Chaum-Pedersen zero knowledge proofs.
 pub mod zkp;
+// Symmetric encryption.
+#[cfg(feature = "openssl")]
+pub mod symmetric;

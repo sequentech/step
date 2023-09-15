@@ -45,7 +45,7 @@ fn gen_trustee_config<C: Ctx>() {
 
     let sk = StrandSignatureSk::new(&mut csprng);
     let pk = StrandSignaturePk::from(&sk);
-    let encryption_key = ChaCha20Poly1305::generate_key(&mut chacha20poly1305::aead::OsRng);
+    let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
 
     let sk_bytes = sk.strand_serialize().unwrap();
     let pk_bytes = pk.strand_serialize().unwrap();

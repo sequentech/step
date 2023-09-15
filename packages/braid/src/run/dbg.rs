@@ -238,7 +238,7 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
         .into_iter()
         .map(|_| {
             let kp = StrandSignatureSk::new(&mut csprng);
-            let encryption_key = ChaCha20Poly1305::generate_key(&mut chacha20poly1305::aead::OsRng);
+            let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             Trustee::new(kp, encryption_key)
         })
         .collect();

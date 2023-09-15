@@ -45,7 +45,7 @@ fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
     let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|_| {
             let sk = StrandSignatureSk::new(&mut csprng);
-            let encryption_key = ChaCha20Poly1305::generate_key(&mut chacha20poly1305::aead::OsRng);
+            let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             (
                 Trustee::new(sk.clone(), encryption_key),
                 StrandSignaturePk::from(&sk),

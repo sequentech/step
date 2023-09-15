@@ -24,6 +24,7 @@ wasmtest = ["wasm", "dep:web-sys"]
 wasm = ["wasm-bindgen", "serde-wasm-bindgen", "num_bigint", "malachite"]
 num_bigint = ["dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:num-modular"]
 malachite = ["dep:malachite"]
+openssl = ["dep:openssl", "dep:rand_core"]
 
 [dependencies]
 
@@ -56,6 +57,8 @@ base64 = "0.21"
 # RNG
 rand = { package="rand", version = "0.8" }
 getrandom = { version = "0.2", features = ["js"] }
+openssl = { version = "0.10.57", optional = true }
+rand_core = { version = "0.6.4", optional = true }
 
 # WASM
 wasm-bindgen-rayon = {version = "1.0.3", features = ["no-bundler"], optional = true}
