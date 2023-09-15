@@ -11,7 +11,7 @@ use sha2::Digest;
 
 use crate::context::{Ctx, Element, Exponent};
 use crate::elgamal::{Ciphertext, PublicKey};
-use crate::rnd::StrandRng;
+use crate::rng::StrandRng;
 use crate::serialization::StrandSerialize;
 use crate::serialization::{StrandVectorC, StrandVectorE, StrandVectorX};
 use crate::util::{Par, StrandError};

@@ -223,7 +223,7 @@ impl<C: Ctx> Status<C> {
 }
 
 fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContext<C> {
-    let mut csprng = strand::rnd::StrandRng;
+    let mut csprng = strand::rng::StrandRng;
 
     let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
     selected[0..threshold.len()].copy_from_slice(&threshold);

@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
-use strand::rnd::StrandRng;
+use strand::rng::StrandRng;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 

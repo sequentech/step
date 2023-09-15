@@ -8,7 +8,7 @@ use crate::protocol2::trustee::ProtocolManager;
 use crate::run::config::ProtocolManagerConfig;
 
 use strand::context::Ctx;
-use strand::rnd::StrandRng;
+use strand::rng::StrandRng;
 
 use anyhow::Result;
 use std::marker::PhantomData;

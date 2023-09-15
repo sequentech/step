@@ -6,6 +6,5 @@ members = [
     "strand",
     "immu-board",
     "immudb-rs",
-    "wal2immu",
     "sequent-core",
 ]

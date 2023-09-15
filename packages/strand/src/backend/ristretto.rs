@@ -34,7 +34,7 @@ use sha3::Shake256;
 use crate::context::{Ctx, Element, Exponent, Plaintext};
 use crate::elgamal::Ciphertext;
 use crate::elgamal::{PrivateKey, PublicKey};
-use crate::rnd::StrandRng;
+use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util;
 use crate::util::StrandError;

@@ -32,7 +32,7 @@ use sha2::Digest;
 use crate::backend::constants::*;
 use crate::context::{Ctx, Element, Exponent, Plaintext};
 use crate::elgamal::{Ciphertext, PrivateKey, PublicKey};
-use crate::rnd::StrandRng;
+use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
 

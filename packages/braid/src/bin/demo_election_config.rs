@@ -17,7 +17,7 @@ use std::marker::PhantomData;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
-use strand::rnd::StrandRng;
+use strand::rng::StrandRng;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 

@@ -20,7 +20,7 @@ pub mod elgamal;
 mod keymaker;
 /// Random number generation frontend.
 #[doc(hidden)]
-pub mod rnd;
+pub mod rng;
 /// Serialization frontend. StrandVectors for parallel serialization.
 #[doc(hidden)]
 pub mod serialization;
