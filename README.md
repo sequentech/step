@@ -51,7 +51,7 @@ using them and continue development:
     - Username: `immudb`
     - Password: `immudb`
   - To create the index db, run:
-      `/workspaces/backend-services/backend/target/debug/bb_helper --cache-dir /tmp/cache -s http://immudb:3322 -i indexdb -u immudb -p immudb upsert-init-db -l debug`
+      `/workspaces/backend-services/packages/target/debug/bb_helper --cache-dir /tmp/cache -s http://immudb:3322 -i indexdb -u immudb -p immudb upsert-init-db -l debug`
 - \[TODO\] **Rust Rocket service** at [http://127.0.0.1:8000]
 
 Additionally, this dev container comes with:
@@ -78,13 +78,13 @@ rust&rocket based backend service, you can launch it manually by executing the
 following command in a dedicated terminal:
 
 ```bash
-cd backend/harvest && cargo run
+cd packages/harvest && cargo run
 ```
 
 This should output something like:
 
 ```bash
-@edulix ➜ /workspaces/backend-services/backend/harvest (main ✗) $ cargo run
+@edulix ➜ /workspaces/backend-services/packages/harvest (main ✗) $ cargo run
     Updating crates.io index
   Downloaded async-trait v0.1.68
   ....

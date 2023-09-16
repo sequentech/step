@@ -19,12 +19,21 @@ mod services;
 fn rocket() -> _ {
     dotenv().ok();
     init_log(true);
-    rocket::build().mount(
-        "/",
-        routes![
-            routes::fetch_document::fetch_document,
-            routes::scheduled_event::create_scheduled_event,
-            routes::immudb_log_audit::list_pgaudit,
-        ],
-    )
+    rocket::build()
+        .register(
+            "/",
+            catchers![
+                routes::error_catchers::internal_error,
+                routes::error_catchers::not_found,
+                routes::error_catchers::default
+            ]
+        )
+        .mount(
+            "/",
+            routes![
+                routes::fetch_document::fetch_document,
+                routes::scheduled_event::create_scheduled_event,
+                routes::immudb_log_audit::list_pgaudit,
+            ],
+        )
 }

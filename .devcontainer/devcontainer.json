@@ -14,6 +14,7 @@
 
 	"onCreateCommand": "direnv allow",
 	"updateContentCommand": "direnv allow && devenv shell bash -c 'cd packages/ && cargo build && cd /workspace/frontend && yarn install' || true",
+	"postStartCommand": "rm -rf /workspaces/.codespaces/shared/editors/jetbrains",
 
 	"features": {
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
