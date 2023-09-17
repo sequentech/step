@@ -123,7 +123,7 @@ pub(crate) type RustCryptoHasher = Sha384;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "openssl")] {
-        use openssl::hash::{Hasher as HasherOpenSSL, MessageDigest};
+        use openssl::hash::{Hasher as HasherOpenSSL, MessageDigest, hash_xof};
 
         pub fn hasher_openssl() -> Result<HasherOpenSSL, StrandError> {
             let md = MessageDigest::sha512();
@@ -136,6 +136,16 @@ cfg_if::cfg_if! {
             hasher.update(bytes)?;
             let result = hasher.finish()?;
             Ok(result.to_vec())
+        }
+
+        pub fn hash_extendable(
+            length_bytes: usize,
+            prefix: &[u8],
+        ) -> Result<Vec<u8>, StrandError> {
+            let mut buf = vec![0; length_bytes];
+            hash_xof(MessageDigest::shake_256(), prefix, &mut buf)?;
+
+            Ok(buf)
         }
     }
 }

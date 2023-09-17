@@ -147,9 +147,8 @@ impl<C: Ctx> Verifier<C> {
 
         let messages = self.board.get_messages(-1).await?;
 
-        let cfg_message: Vec<Message> = messages
-            .clone()
-            .into_iter()
+        let cfg_message: Vec<&Message> = messages
+            .iter()
             .filter(|m| m.statement.get_kind() == StatementType::Configuration)
             .collect();
 
@@ -172,16 +171,14 @@ impl<C: Ctx> Verifier<C> {
 
         info!("Verifying signatures for {} messages..", messages.len());
         let vmessages: Result<Vec<VerifiedMessage>> = messages
-            .clone()
-            .into_iter()
+            .iter()
             .map(|m| m.verify(&cfg))
             .collect();
         let vmessages = vmessages?;
         vr.add_result(MESSAGE_SIGNATURES_VALID, true, &vmessages.len());
 
         let correct_cfg = messages
-            .clone()
-            .into_iter()
+            .iter()
             .filter(|m| m.statement.get_cfg_h() == cfg_h)
             .count();
         vr.add_result(
@@ -214,7 +211,7 @@ impl<C: Ctx> Verifier<C> {
         info!("{}", "Running verifying actions..".blue());
         let (messages, _) = self.trustee.verify(messages)?;
         info!("{}", "Verifying actions complete".blue());
-        for message in messages.clone() {
+        for message in messages {
             let predicate = Predicate::from_statement::<C>(
                 &message.statement,
                 crate::protocol2::VERIFIER_INDEX,

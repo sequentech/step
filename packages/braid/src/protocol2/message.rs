@@ -306,7 +306,7 @@ impl Message {
 
     // FIXME add check for timestamp not older than some threshold
     pub(crate) fn verify<C: Ctx>(
-        self,
+        &self,
         configuration: &Configuration<C>,
     ) -> Result<VerifiedMessage> {
         let (kind, st_cfg_h, _, mix_no, artifact_type, _) = self.statement.get_data();
@@ -352,9 +352,9 @@ impl Message {
 
         // Statement-only message
         if self.artifact.is_none() {
-            return Ok(VerifiedMessage::new(trustee, self.statement, None));
+            return Ok(VerifiedMessage::new(trustee, self.statement.clone(), None));
         }
-        let artifact = self.artifact.expect("impossible");
+        let artifact = self.artifact.as_ref().expect("impossible");
 
         // Artifact present, get the type from the statement
 
@@ -366,10 +366,10 @@ impl Message {
                 return Err(anyhow!("Configuration must be signed by protocol manager"));
             }
 
-            let artifact_field = Some((ArtifactType::Configuration, artifact));
+            let artifact_field = Some((ArtifactType::Configuration, artifact.clone()));
             Ok(VerifiedMessage::new(
                 trustee,
-                self.statement,
+                self.statement.clone(),
                 artifact_field,
             ))
         } else {
@@ -385,10 +385,10 @@ impl Message {
             // Set the type of the artifact field
             if let Some(artifact_type) = artifact_type {
                 let _ = verify_artifact(&configuration, &artifact_type, &artifact)?;
-                let artifact_field = Some((artifact_type, artifact));
+                let artifact_field = Some((artifact_type, artifact.clone()));
                 Ok(VerifiedMessage::new(
                     trustee,
-                    self.statement,
+                    self.statement.clone(),
                     artifact_field,
                 ))
             } else {

@@ -13,10 +13,6 @@ impl CryptoRng for StrandRng {}
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "openssl")] {
-        // OpenSSL needs to be configured to operate in FIPS mode
-        // https://github.com/sfackler/rust-openssl/issues/1924
-        // https://www.openssl.org/docs/man3.0/man7/fips_module.html
-
         use openssl::rand::rand_bytes;
 
         impl RngCore for StrandRng {

@@ -26,12 +26,12 @@ use crate::util::StrandError;
 type Curve = NistP384;
 
 /// An rustcrypto ecdsa backed signature.
-// #[derive(Clone)]
+#[derive(Clone)]
 pub struct StrandSignature(Signature<Curve>);
 
 /// An rustcrypto ecdsa signature verification key.
 // Clone: Allows Configuration to be Clonable in Braid
-// #[derive(Clone)]
+#[derive(Clone)]
 pub struct StrandSignaturePk(VerifyingKey<Curve>);
 impl StrandSignaturePk {
     pub fn from(

@@ -26,9 +26,20 @@ const CURVE: Nid = Nid::SECP384R1;
 // #[derive(Clone)]
 pub struct StrandSignature(EcdsaSig);
 
+impl StrandSignature {
+    fn try_clone(&self) -> Result<Self, StrandError> { 
+        let r = self.0.r().to_owned()?;
+        let s = self.0.s().to_owned()?;
+
+        let sig = EcdsaSig::from_private_components(r, s);
+        
+        Ok(StrandSignature(sig?))
+    }
+}
+
 /// An openssl ecdsa signature verification key.
 // Clone: Allows Configuration to be Clonable in Braid
-// #[derive(Clone)]
+#[derive(Clone)]
 pub struct StrandSignaturePk(EcKey<Public>, Vec<u8>);
 impl StrandSignaturePk {
     pub fn from(

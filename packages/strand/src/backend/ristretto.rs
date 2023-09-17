@@ -27,8 +27,6 @@ use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
 use rand::RngCore;
-use sha3::digest::{ExtendableOutput, Update, XofReader};
-use sha3::Shake256;
 
 use crate::context::{Ctx, Element, Exponent, Plaintext};
 use crate::elgamal::Ciphertext;
@@ -50,6 +48,35 @@ pub struct RistrettoPointS(pub(crate) RistrettoPoint);
 // Scalar for Strand
 pub struct ScalarS(pub(crate) Scalar);
 
+cfg_if::cfg_if! {
+    if #[cfg(feature = "openssl")] {
+
+impl RistrettoCtx {
+    fn generators_shake(
+        &self,
+        size: usize,
+        seed: &[u8],
+    ) -> Vec<RistrettoPointS> {
+        let seed_ = seed.to_vec();
+
+        let mut ret: Vec<RistrettoPointS> = Vec::with_capacity(size);
+        let reader = util::hash_extendable(64 * size, &seed_).unwrap();
+        let mut uniform_bytes = [0u8; 64];
+        for _ in 0..size {
+            let bytes_read = std::io::Read::read(&mut reader.as_slice(), &mut uniform_bytes)
+                .expect("impossible: we are reading from a byte slice, any out of bounds programming error should panic");
+            assert_eq!(bytes_read, 64);
+            let g = RistrettoPoint::from_uniform_bytes(&uniform_bytes);
+            ret.push(RistrettoPointS(g));
+        }
+
+        ret
+    }
+}
+} else {
+use sha3::digest::{ExtendableOutput, Update, XofReader};
+use sha3::Shake256;
+
 impl RistrettoCtx {
     // https://docs.rs/bulletproofs/4.0.0/src/bulletproofs/generators.rs.html
     fn generators_shake(
@@ -64,8 +91,8 @@ impl RistrettoCtx {
         shake.update(&seed_);
 
         let mut reader = shake.finalize_xof();
+        let mut uniform_bytes = [0u8; 64];
         for _ in 0..size {
-            let mut uniform_bytes = [0u8; 64];
             reader.read(&mut uniform_bytes);
             let g = RistrettoPoint::from_uniform_bytes(&uniform_bytes);
             ret.push(RistrettoPointS(g));
@@ -73,6 +100,8 @@ impl RistrettoCtx {
 
         ret
     }
+}
+}
 }
 
 impl Ctx for RistrettoCtx {

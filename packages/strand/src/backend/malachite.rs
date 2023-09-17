@@ -252,12 +252,14 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
     }
     fn element_from_bytes(&self, bytes: &[u8]) -> Result<Self::E, StrandError> {
         let u16s = bytes.iter().map(|b| *b as u16);
-        let num = Natural::from_digits_desc(&256, u16s).expect("impossible");
+        let num = Natural::from_digits_desc(&256, u16s)
+            .ok_or(StrandError::Generic("from_digits_desc returned None".to_string()))?;
         self.element_from_natural(num)
     }
     fn exp_from_bytes(&self, bytes: &[u8]) -> Result<Self::X, StrandError> {
         let u16s = bytes.iter().map(|b| *b as u16);
-        let ret = Natural::from_digits_desc(&256u16, u16s).expect("impossible");
+        let ret = Natural::from_digits_desc(&256u16, u16s)
+            .ok_or(StrandError::Generic("from_digits_desc returned None".to_string()))?;
         let zero: Natural = Natural::from(0u8);
         if (ret < zero) || ret >= self.params.exp_modulus().0 {
             Err(StrandError::Generic("Out of range".to_string()))
@@ -536,7 +538,8 @@ impl BorshDeserialize for NaturalP {
         let bytes = <Vec<u16>>::deserialize(bytes)?;
 
         let num = Natural::from_digits_desc(&256u16, bytes.into_iter())
-            .expect("impossible");
+            .ok_or(Error::new(ErrorKind::Other, "from_digits_desc returned None"))?;
+        
         Ok(NaturalP(num))
     }
 }
