@@ -120,3 +120,22 @@ pub fn rust_crypto_ecdsa_hasher() -> RustCryptoHasher {
     Sha384::new()
 }
 pub(crate) type RustCryptoHasher = Sha384;
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "openssl")] {
+        use openssl::hash::{Hasher as Hasher_, MessageDigest};
+    
+        pub fn hasheropenssl() -> Result<Hasher_, StrandError> {
+            let md = MessageDigest::sha512();
+            let hasher = Hasher_::new(md)?;
+            Ok(hasher)
+        }
+        
+        pub fn hashopenssl(bytes: &[u8]) -> Result<Vec<u8>, StrandError> {
+            let mut hasher = hasheropenssl()?;
+            hasher.update(bytes)?;
+            let result = hasher.finish()?;
+            Ok(result.to_vec())
+        }
+    }
+}

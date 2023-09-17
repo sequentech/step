@@ -12,7 +12,6 @@ use crate::elgamal::{Ciphertext, PublicKey};
 use crate::rng::StrandRng;
 use crate::serialization::StrandSerialize;
 use crate::serialization::{StrandVectorC, StrandVectorE, StrandVectorX};
-use crate::util::Digest;
 use crate::util::{Par, StrandError};
 use crate::zkp::ChallengeInput;
 
