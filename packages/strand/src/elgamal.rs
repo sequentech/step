@@ -78,7 +78,7 @@ pub struct PublicKey<C: Ctx> {
 }
 
 /// An ElGamal private key.
-#[derive(Eq, PartialEq, Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Eq, PartialEq, BorshSerialize, BorshDeserialize)]
 pub struct PrivateKey<C: Ctx> {
     pub(crate) value: C::X,
     pub(crate) pk_element: C::E,

@@ -27,7 +27,6 @@ use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
 use rand::RngCore;
-use sha2::Digest;
 use sha3::digest::{ExtendableOutput, Update, XofReader};
 use sha3::Shake256;
 
@@ -38,6 +37,7 @@ use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util;
 use crate::util::StrandError;
+use crate::util::Digest;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 // Ristretto context

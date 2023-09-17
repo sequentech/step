@@ -27,7 +27,7 @@ use num_bigint::{BigUint, ParseBigIntError};
 use num_integer::Integer;
 use num_modular::{ModularSymbols, ModularUnaryOps};
 use num_traits::{Num, One, Zero};
-use sha2::Digest;
+
 
 use crate::backend::constants::*;
 use crate::context::{Ctx, Element, Exponent, Plaintext};
@@ -35,6 +35,7 @@ use crate::elgamal::{Ciphertext, PrivateKey, PublicKey};
 use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
+use crate::util::Digest;
 
 pub trait SerializeNumber {
     fn to_str_radix(&self, radix: u32) -> String;
@@ -118,9 +119,7 @@ impl<P: BigintCtxParams> BigintCtx<P> {
     }
 
     fn hash_to_element(&self, bytes: &[u8]) -> BigUint {
-        let mut hasher = crate::util::hasher();
-        hasher.update(bytes);
-        let hashed = hasher.finalize();
+        let hashed = crate::util::hash(bytes);
 
         let num = BigUint::from_bytes_le(&hashed);
         num.mod_floor(&self.params.modulus().0)
@@ -264,9 +263,7 @@ impl<P: BigintCtxParams> Ctx for BigintCtx<P> {
         BigUintX::new(BigUint::from(value))
     }
     fn hash_to_exp(&self, bytes: &[u8]) -> Self::X {
-        let mut hasher = crate::util::hasher();
-        hasher.update(bytes);
-        let hashed = hasher.finalize();
+        let hashed = crate::util::hash(bytes);
 
         let num = BigUint::from_bytes_le(&hashed);
         BigUintX::new(num.mod_floor(&self.params.exp_modulus().0))

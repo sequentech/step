@@ -28,6 +28,9 @@ openssl = ["dep:openssl", "dep:rand_core"]
 
 [dependencies]
 
+# RNG, ecdsa
+openssl = { version = "0.10.57", optional = true }
+
 # Backends
 # See https://docs.rs/curve25519-dalek/latest/curve25519_dalek/#simd-backend to select simd backend
 curve25519-dalek = {version = "4", features = []}
@@ -43,6 +46,8 @@ rug = { version = "1.19.2", default-features = false, features = ["integer", "ra
 # Signatures
 ed25519-zebra = "3.1.0"
 ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
+ecdsa = {version = "0.16.8", features = ["signing"] }
+p384 = "0.13.0"
 
 # Hashing 
 sha2 = "0.10.7"
@@ -57,7 +62,6 @@ base64 = "0.21"
 # RNG
 rand = { package="rand", version = "0.8" }
 getrandom = { version = "0.2", features = ["js"] }
-openssl = { version = "0.10.57", optional = true }
 rand_core = { version = "0.6.4", optional = true }
 
 # WASM

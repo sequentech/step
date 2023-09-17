@@ -6,8 +6,6 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use rand::seq::SliceRandom;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
-// use sha3::{Digest, Sha3_512 as Sha512};
-use sha2::Digest;
 
 use crate::context::{Ctx, Element, Exponent};
 use crate::elgamal::{Ciphertext, PublicKey};
@@ -16,6 +14,7 @@ use crate::serialization::StrandSerialize;
 use crate::serialization::{StrandVectorC, StrandVectorE, StrandVectorX};
 use crate::util::{Par, StrandError};
 use crate::zkp::ChallengeInput;
+use crate::util::Digest;
 
 pub(crate) struct YChallengeInput<'a, C: Ctx> {
     pub es: &'a [Ciphertext<C>],
@@ -556,9 +555,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         // optimization: instead of calculating u = H(prefix || i),
         // we do u = H(H(prefix) || i)
         // that way we avoid allocating prefix-size bytes n times
-        let mut hasher = crate::util::hasher();
-        hasher.update(prefix_bytes);
-        let prefix_hash = hasher.finalize().to_vec();
+        let prefix_hash = crate::util::hash(&prefix_bytes);
 
         let us: Result<Vec<C::X>, StrandError> = (0..n)
             .par()

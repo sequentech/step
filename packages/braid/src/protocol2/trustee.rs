@@ -506,12 +506,12 @@ pub(crate) trait Signer {
 
 impl<C: Ctx> std::fmt::Debug for Trustee<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Trustee{{ pk={:?} }}", self.signing_key)
+        write!(f, "Trustee{{ No info }}")
     }
 }
 
 impl<C: Ctx> std::fmt::Debug for ProtocolManager<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ProtcolManager{{ pk={:?} }}", self.signing_key)
+        write!(f, "ProtcolManager{{ No info }}")
     }
 }

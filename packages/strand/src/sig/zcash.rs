@@ -6,11 +6,9 @@
 
 use base64::{engine::general_purpose, Engine as _};
 use borsh::{BorshDeserialize, BorshSerialize};
-use ed25519_dalek::Signature;
-use ed25519_dalek::Signer;
-use ed25519_dalek::SigningKey;
-use ed25519_dalek::Verifier;
-use ed25519_dalek::VerifyingKey;
+use ed25519_zebra::Signature;
+use ed25519_zebra::SigningKey;
+use ed25519_zebra::VerificationKey;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
@@ -19,17 +17,17 @@ use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
 
-/// An ed25519 backed signature.
+/// An ed25519-zebra backed signature.
 #[derive(Clone)]
 pub struct StrandSignature(Signature);
 
-/// An ed25519 backed signature verification key.
+/// An ed25519-zebra backed signature verification key.
 // Clone: Allows Configuration to be Clonable in Braid
 #[derive(Clone)]
-pub struct StrandSignaturePk(VerifyingKey);
+pub struct StrandSignaturePk(VerificationKey);
 impl StrandSignaturePk {
     pub fn from(sk: &StrandSignatureSk) -> StrandSignaturePk {
-        StrandSignaturePk(VerifyingKey::from(&sk.0))
+        StrandSignaturePk(VerificationKey::from(&sk.0))
     }
     pub fn verify(
         &self,
@@ -37,7 +35,7 @@ impl StrandSignaturePk {
         msg: &[u8],
     ) -> Result<(), &'static str> {
         self.0
-            .verify(msg, &signature.0)
+            .verify(&signature.0, msg)
             .map_err(|_| "Failed to verify signature")
     }
 }
@@ -76,21 +74,16 @@ impl TryFrom<StrandSignaturePk> for String {
     }
 }
 
-/// An ed25519 backed signing key.
+/// An ed25519-zebra backed signing key.
 #[derive(Clone)]
 pub struct StrandSignatureSk(SigningKey);
 impl StrandSignatureSk {
     pub fn new(rng: &mut StrandRng) -> StrandSignatureSk {
-        let sk = SigningKey::generate(rng);
+        let sk = SigningKey::new(rng);
         StrandSignatureSk(sk)
     }
     pub fn sign(&self, msg: &[u8]) -> StrandSignature {
         StrandSignature(self.0.sign(msg))
-    }
-}
-impl std::fmt::Debug for StrandSignatureSk {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", &hex::encode(self.0.as_ref())[0..10])
     }
 }
 
@@ -99,7 +92,7 @@ impl BorshSerialize for StrandSignatureSk {
         &self,
         writer: &mut W,
     ) -> std::io::Result<()> {
-        let bytes: [u8; 32] = self.0.to_bytes();
+        let bytes: [u8; 32] = self.0.into();
         bytes.serialize(writer)
     }
 }
@@ -119,7 +112,7 @@ impl BorshSerialize for StrandSignaturePk {
         &self,
         writer: &mut W,
     ) -> std::io::Result<()> {
-        let bytes: [u8; 32] = self.0.to_bytes();
+        let bytes: [u8; 32] = self.0.into();
         bytes.serialize(writer)
     }
 }
@@ -127,7 +120,7 @@ impl BorshSerialize for StrandSignaturePk {
 impl BorshDeserialize for StrandSignaturePk {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <[u8; 32]>::deserialize(buf)?;
-        let pk = VerifyingKey::from_bytes(&bytes)
+        let pk = VerificationKey::try_from(bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         Ok(StrandSignaturePk(pk))
@@ -195,7 +188,6 @@ pub(crate) mod tests {
     use super::*;
     use crate::serialization::{StrandDeserialize, StrandSerialize};
 
-    // Adapted from ed25519-zebra (MIT)
     #[test]
     pub fn test_signature() {
         let msg = b"ok";
@@ -203,7 +195,7 @@ pub(crate) mod tests {
         let mut rng = StrandRng;
 
         let (vk_bytes, sig_bytes) = {
-            let sk = StrandSignatureSk(SigningKey::generate(&mut rng));
+            let sk = StrandSignatureSk(SigningKey::new(&mut rng));
             let sk_b = sk.strand_serialize().unwrap();
             let sk_d = StrandSignatureSk::strand_deserialize(&sk_b).unwrap();
 
@@ -233,7 +225,7 @@ pub(crate) mod tests {
         let mut rng = StrandRng;
 
         let (public_key_string, signature_string) = {
-            let signing_key = StrandSignatureSk(SigningKey::generate(&mut rng));
+            let signing_key = StrandSignatureSk(SigningKey::new(&mut rng));
             let signing_key_string: String = signing_key.try_into().unwrap();
             let signing_key_deserialized: StrandSignatureSk =
                 signing_key_string.try_into().unwrap();

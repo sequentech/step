@@ -33,7 +33,6 @@ use malachite::random::Seed;
 use malachite::Natural;
 
 use rand::Rng;
-use sha2::Digest;
 
 use crate::backend::constants::*;
 use crate::context::{Ctx, Element, Exponent, Plaintext};
@@ -41,6 +40,7 @@ use crate::elgamal::{Ciphertext, PrivateKey, PublicKey};
 use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
+use crate::util::Digest;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct NaturalE<P: MalachiteCtxParams>(
@@ -94,9 +94,7 @@ impl<P: MalachiteCtxParams> MalachiteCtx<P> {
     }
 
     fn hash_to_element(&self, bytes: &[u8]) -> Natural {
-        let mut hasher = crate::util::hasher();
-        hasher.update(bytes);
-        let hashed = hasher.finalize();
+        let hashed = crate::util::hash(bytes);
         let u16s = hashed.into_iter().map(|b| b as u16);
         let num = Natural::from_digits_desc(&256u16, u16s).expect("impossible");
         num.rem(&self.params.modulus().0)
@@ -272,9 +270,7 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
         NaturalX::new(Natural::from(value))
     }
     fn hash_to_exp(&self, bytes: &[u8]) -> Self::X {
-        let mut hasher = crate::util::hasher();
-        hasher.update(bytes);
-        let hashed = hasher.finalize();
+        let hashed = crate::util::hash(bytes);
         let u16s = hashed.into_iter().map(|b| b as u16);
 
         let num = Natural::from_digits_desc(&256, u16s).expect("impossible");

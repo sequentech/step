@@ -28,9 +28,7 @@ pub mod serialization;
 #[doc(hidden)]
 pub mod shuffler;
 /// Signature frontend (Zcash).
-pub mod signature;
-/// Signature frontend (Dalek).
-pub mod signature2;
+mod sig;
 /// Support for threshold ElGamal.
 #[doc(hidden)]
 pub mod threshold;
@@ -45,3 +43,13 @@ pub mod zkp;
 // Symmetric encryption.
 #[cfg(feature = "openssl")]
 pub mod symmetric;
+
+cfg_if::cfg_if! {
+    if #[cfg(feature = "openssl")] {
+        pub use sig::openssl as signature;
+    }
+    else {
+        pub use sig::zcash as signature;
+    }
+}
+

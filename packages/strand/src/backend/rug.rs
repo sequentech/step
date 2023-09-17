@@ -23,7 +23,7 @@ use rug::{
     rand::{RandGen, RandState},
     Integer,
 };
-use sha2::Digest;
+
 use std::fmt::Debug;
 use std::io::{Error, ErrorKind};
 use std::marker::PhantomData;
@@ -34,6 +34,7 @@ use crate::elgamal::{Ciphertext, PrivateKey, PublicKey};
 use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
+use crate::util::Digest;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct RugCtx<P: RugCtxParams> {
@@ -75,9 +76,7 @@ impl<P: RugCtxParams> RugCtx<P> {
     }
 
     fn hash_to_element(&self, bytes: &[u8]) -> Integer {
-        let mut hasher = crate::util::hasher();
-        hasher.update(bytes);
-        let hashed = hasher.finalize();
+        let hashed = crate::util::hash(bytes);
 
         let (_, rem) = Integer::from_digits(&hashed, Order::Lsf)
             .div_rem(self.params.modulus().0.clone());
@@ -200,9 +199,7 @@ impl<P: RugCtxParams> Ctx for RugCtx<P> {
         IntegerX::new(Integer::from(value))
     }
     fn hash_to_exp(&self, bytes: &[u8]) -> Self::X {
-        let mut hasher = crate::util::hasher();
-        hasher.update(bytes);
-        let hashed = hasher.finalize();
+        let hashed = crate::util::hash(bytes);
 
         let (_, rem) = Integer::from_digits(&hashed, Order::Lsf)
             .div_rem(self.params.exp_modulus().0.clone());
