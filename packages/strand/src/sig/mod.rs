@@ -10,7 +10,6 @@ pub mod openssl;
 pub(crate) mod tests {
     use super::openssl::{
         StrandSignature as Ssl_sig, StrandSignaturePk as Ssl_pk,
-        StrandSignatureSk as Ssl_sk,
     };
 
     use super::rustcrypto::{
@@ -31,7 +30,7 @@ pub(crate) mod tests {
             let sk_b = sk.strand_serialize().unwrap();
             let sk_d = RCrypto_sk::strand_deserialize(&sk_b).unwrap();
 
-            let sig = sk_d.sign(msg).unwrap();
+            let sig: RCrypto_sig = sk_d.sign(msg).unwrap();
 
             let sig_bytes = sig.strand_serialize().unwrap();
             let vk_bytes =

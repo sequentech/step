@@ -51,9 +51,14 @@ mod tests {
     use super::*;
     #[test]
     fn test_aes() {
+        let mut csprng = StrandRng;
+
         let key = gen_key();
-        let data = [0u8; 256];
-        let aad = [0u8; 256];
+        let mut data = [0u8; 256];
+        let mut aad = [0u8; 256];
+        csprng.fill_bytes(&mut data);
+        csprng.fill_bytes(&mut aad);
+
         let (encrypted, tag, iv) = encrypt(&key, &data, &aad).unwrap();
 
         let decrypted = decrypt(&key, &encrypted, &aad, &tag, &iv).unwrap();
