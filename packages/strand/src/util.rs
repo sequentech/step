@@ -1,8 +1,7 @@
-
 // SPDX-FileCopyrightText: 2022 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use sha2::{Sha512, Sha384};
+use sha2::{Sha384, Sha512};
 use thiserror::Error;
 
 use crate::context::Ctx;
@@ -40,7 +39,6 @@ cfg_if::cfg_if! {
     }
 }
 
-
 #[derive(Error, Debug)]
 pub enum StrandError {
     #[error("{0}")]
@@ -56,7 +54,7 @@ pub enum StrandError {
     EcdsaError(#[from] ecdsa::Error),
     #[cfg(feature = "openssl")]
     #[error("openssl error: {0}")]
-    OpenSSLError(#[from]  openssl::error::ErrorStack),
+    OpenSSLError(#[from] openssl::error::ErrorStack),
 }
 
 /// Converts a slice into a hash-sized array.
@@ -113,9 +111,9 @@ pub fn hasher() -> Hasher {
     Sha512::new()
 }
 
-// Calling verify_digest on a RustCrypto ecdsa VerifyingKey<P384> fails to compile this error unless
-// the digest passed is Sha384:
-/*  
+// Calling verify_digest on a RustCrypto ecdsa VerifyingKey<P384> fails to
+// compile this error unless the digest passed is Sha384:
+/*
     the trait `DigestVerifier<CoreWrapper<CtVariableCoreWrapper<Sha256VarCore, UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>, OidSha256>>, _>` is not implemented for `ecdsa::VerifyingKey<NistP384>`
 */
 pub fn rust_crypto_ecdsa_hasher() -> RustCryptoHasher {

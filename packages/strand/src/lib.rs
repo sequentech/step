@@ -52,4 +52,3 @@ cfg_if::cfg_if! {
         pub use sig::zcash as signature;
     }
 }
-

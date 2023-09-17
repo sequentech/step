@@ -1,6 +1,6 @@
-pub mod zcash;
 pub mod dalek;
 pub mod rustcrypto;
+pub mod zcash;
 
 #[cfg(feature = "openssl")]
 pub mod openssl;
@@ -8,15 +8,17 @@ pub mod openssl;
 #[cfg(feature = "openssl")]
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::openssl::{StrandSignature as Ssl_sig, 
-        StrandSignatureSk as Ssl_sk, 
-        StrandSignaturePk as Ssl_pk};
+    use super::openssl::{
+        StrandSignature as Ssl_sig, StrandSignaturePk as Ssl_pk,
+        StrandSignatureSk as Ssl_sk,
+    };
 
-    use super::rustcrypto::{StrandSignature as RCrypto_sig, 
-            StrandSignatureSk as RCrypto_sk, 
-            StrandSignaturePk as RCrypto_pk};
-    use crate::serialization::{StrandDeserialize, StrandSerialize};
+    use super::rustcrypto::{
+        StrandSignature as RCrypto_sig, StrandSignaturePk as RCrypto_pk,
+        StrandSignatureSk as RCrypto_sk,
+    };
     use crate::rng::StrandRng;
+    use crate::serialization::{StrandDeserialize, StrandSerialize};
 
     #[test]
     pub fn test_signature_interop() {
@@ -38,7 +40,6 @@ pub(crate) mod tests {
             (vk_bytes, sig_bytes)
         };
 
-        
         let vk = Ssl_pk::strand_deserialize(&vk_bytes).unwrap();
         vk.check_key().unwrap();
         let sig = Ssl_sig::strand_deserialize(&sig_bytes).unwrap();

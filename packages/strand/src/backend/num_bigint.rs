@@ -28,14 +28,13 @@ use num_integer::Integer;
 use num_modular::{ModularSymbols, ModularUnaryOps};
 use num_traits::{Num, One, Zero};
 
-
 use crate::backend::constants::*;
 use crate::context::{Ctx, Element, Exponent, Plaintext};
 use crate::elgamal::{Ciphertext, PrivateKey, PublicKey};
 use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
-use crate::util::StrandError;
 use crate::util::Digest;
+use crate::util::StrandError;
 
 pub trait SerializeNumber {
     fn to_str_radix(&self, radix: u32) -> String;

@@ -39,8 +39,8 @@ use crate::context::{Ctx, Element, Exponent, Plaintext};
 use crate::elgamal::{Ciphertext, PrivateKey, PublicKey};
 use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
-use crate::util::StrandError;
 use crate::util::Digest;
+use crate::util::StrandError;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct NaturalE<P: MalachiteCtxParams>(

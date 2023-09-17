@@ -6,19 +6,19 @@
 
 use base64::{engine::general_purpose, Engine as _};
 use borsh::{BorshDeserialize, BorshSerialize};
-use openssl::ecdsa::EcdsaSig;
-use openssl::pkey::{Public, Private};
-use openssl::nid::Nid;
 use openssl::ec::{EcGroup, EcKey};
+use openssl::ecdsa::EcdsaSig;
+use openssl::nid::Nid;
+use openssl::pkey::{Private, Public};
 
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
 
 use crate::serialization::{StrandDeserialize, StrandSerialize};
-use crate::util::StrandError;
-use crate::util::RustCryptoHasher;
 use crate::util::Digest;
+use crate::util::RustCryptoHasher;
+use crate::util::StrandError;
 
 const CURVE: Nid = Nid::SECP384R1;
 
@@ -31,9 +31,11 @@ pub struct StrandSignature(EcdsaSig);
 // #[derive(Clone)]
 pub struct StrandSignaturePk(EcKey<Public>, Vec<u8>);
 impl StrandSignaturePk {
-    pub fn from(sk: &StrandSignatureSk) -> Result<StrandSignaturePk, StrandError> {
+    pub fn from(
+        sk: &StrandSignatureSk,
+    ) -> Result<StrandSignaturePk, StrandError> {
         let bytes = sk.0.public_key_to_der()?;
-        
+
         let pk = EcKey::<Public>::public_key_from_der(&bytes)?;
         Ok(StrandSignaturePk(pk, bytes))
     }
@@ -43,15 +45,17 @@ impl StrandSignaturePk {
         msg: &[u8],
     ) -> Result<(), StrandError> {
         // Compatibility with sig::rustcrypto
-        let mut digest: RustCryptoHasher = crate::util::rust_crypto_ecdsa_hasher();
+        let mut digest: RustCryptoHasher =
+            crate::util::rust_crypto_ecdsa_hasher();
         digest.update(msg);
         let hashed = digest.finalize();
-        
+
         let result = signature.0.verify(&hashed, &self.0)?;
         if !result {
-            Err(StrandError::Generic("OpenSSL signature failed to verify".to_string()))
-        }
-        else {
+            Err(StrandError::Generic(
+                "OpenSSL signature failed to verify".to_string(),
+            ))
+        } else {
             Ok(())
         }
     }
@@ -61,7 +65,6 @@ impl StrandSignaturePk {
     }
 }
 
-
 /// An openssl ecdsa signing key.
 // #[derive(Clone)]
 pub struct StrandSignatureSk(EcKey<Private>);
@@ -69,17 +72,18 @@ impl StrandSignatureSk {
     pub fn new() -> Result<StrandSignatureSk, StrandError> {
         let group = EcGroup::from_curve_name(CURVE)?;
         let key = EcKey::<Private>::generate(&group)?;
-        
+
         Ok(StrandSignatureSk(key))
     }
     pub fn sign(&self, msg: &[u8]) -> Result<StrandSignature, StrandError> {
         // Compatibility with sig::rustcrypto
-        let mut digest: RustCryptoHasher = crate::util::rust_crypto_ecdsa_hasher();
+        let mut digest: RustCryptoHasher =
+            crate::util::rust_crypto_ecdsa_hasher();
         digest.update(msg);
         let hashed = digest.finalize();
-        
+
         let sig = EcdsaSig::sign(&hashed, &self.0)?;
-        
+
         Ok(StrandSignature(sig))
     }
 }
@@ -102,7 +106,6 @@ impl std::fmt::Debug for StrandSignaturePk {
     }
 }
 
-
 impl TryFrom<String> for StrandSignaturePk {
     type Error = StrandError;
 
@@ -120,7 +123,6 @@ impl TryFrom<StrandSignaturePk> for String {
         Ok(general_purpose::STANDARD_NO_PAD.encode(bytes))
     }
 }
-
 
 impl BorshSerialize for StrandSignatureSk {
     fn serialize<W: std::io::Write>(
@@ -182,8 +184,6 @@ impl BorshDeserialize for StrandSignature {
     }
 }
 
-
-
 impl TryFrom<String> for StrandSignatureSk {
     type Error = StrandError;
 
@@ -220,7 +220,6 @@ impl TryFrom<StrandSignature> for String {
     }
 }
 
-
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -239,8 +238,10 @@ pub(crate) mod tests {
             let sig = sk_d.sign(msg).unwrap();
 
             let sig_bytes = sig.strand_serialize().unwrap();
-            let vk_bytes =
-                StrandSignaturePk::from(&sk_d).unwrap().strand_serialize().unwrap();
+            let vk_bytes = StrandSignaturePk::from(&sk_d)
+                .unwrap()
+                .strand_serialize()
+                .unwrap();
 
             (vk_bytes, sig_bytes)
         };
@@ -270,7 +271,8 @@ pub(crate) mod tests {
 
             let signature_string: String = sig.try_into().unwrap();
             let public_key_string: String =
-                StrandSignaturePk::from(&signing_key_deserialized).unwrap()
+                StrandSignaturePk::from(&signing_key_deserialized)
+                    .unwrap()
                     .try_into()
                     .unwrap();
 

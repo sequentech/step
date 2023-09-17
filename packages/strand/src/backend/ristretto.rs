@@ -36,8 +36,8 @@ use crate::elgamal::{PrivateKey, PublicKey};
 use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util;
-use crate::util::StrandError;
 use crate::util::Digest;
+use crate::util::StrandError;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 // Ristretto context
