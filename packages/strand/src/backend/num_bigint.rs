@@ -86,7 +86,7 @@ impl<P: BigintCtxParams> SerializeNumber for BigUintX<P> {
 
 impl<P: BigintCtxParams> BigintCtx<P> {
     // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf A.2.3
-    fn generators_fips(&self, size: usize, seed: &[u8]) -> Vec<BigUintE<P>> {
+    fn generators_fips(&self, size: usize, seed: &[u8]) -> Result<Vec<BigUintE<P>>, StrandError> {
         let mut ret = Vec::with_capacity(size);
         let two = BigUint::from(2u32);
 
@@ -103,7 +103,7 @@ impl<P: BigintCtxParams> BigintCtx<P> {
                 assert!(count != 0);
                 next.extend(index.to_le_bytes());
                 next.extend(count.to_le_bytes());
-                let elem: BigUint = self.hash_to_element(&next);
+                let elem: BigUint = self.hash_to_element(&next)?;
                 let g = elem
                     .modpow(self.params.co_factor(), &self.params.modulus().0);
                 if g >= two {
@@ -113,14 +113,14 @@ impl<P: BigintCtxParams> BigintCtx<P> {
             }
         }
 
-        ret
+        Ok(ret)
     }
 
-    fn hash_to_element(&self, bytes: &[u8]) -> BigUint {
-        let hashed = crate::util::hash(bytes);
+    fn hash_to_element(&self, bytes: &[u8]) -> Result<BigUint, StrandError> {
+        let hashed = crate::hash::hash(bytes)?;
 
         let num = BigUint::from_bytes_le(&hashed);
-        num.mod_floor(&self.params.modulus().0)
+        Ok(num.mod_floor(&self.params.modulus().0))
     }
 
     pub fn element_from_biguint(
@@ -260,11 +260,11 @@ impl<P: BigintCtxParams> Ctx for BigintCtx<P> {
     fn exp_from_u64(&self, value: u64) -> Self::X {
         BigUintX::new(BigUint::from(value))
     }
-    fn hash_to_exp(&self, bytes: &[u8]) -> Self::X {
-        let hashed = crate::util::hash(bytes);
+    fn hash_to_exp(&self, bytes: &[u8]) -> Result<Self::X, StrandError> {
+        let hashed = crate::hash::hash(bytes)?;
 
         let num = BigUint::from_bytes_le(&hashed);
-        BigUintX::new(num.mod_floor(&self.params.exp_modulus().0))
+        Ok(BigUintX::new(num.mod_floor(&self.params.exp_modulus().0)))
     }
     fn encrypt_exp(
         &self,
@@ -284,7 +284,7 @@ impl<P: BigintCtxParams> Ctx for BigintCtx<P> {
         Ok(BigUintX(self.decode(&decrypted).0, PhantomData))
     }
 
-    fn generators(&self, size: usize, seed: &[u8]) -> Vec<Self::E> {
+    fn generators(&self, size: usize, seed: &[u8]) -> Result<Vec<Self::E>, StrandError> {
         self.generators_fips(size, seed)
     }
 }

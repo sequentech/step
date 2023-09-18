@@ -6,94 +6,65 @@
 
 use base64::{engine::general_purpose, Engine as _};
 use borsh::{BorshDeserialize, BorshSerialize};
-use openssl::ec::{EcGroup, EcKey};
-use openssl::ecdsa::EcdsaSig;
-use openssl::nid::Nid;
-use openssl::pkey::{Private, Public};
 
-use std::hash::Hash;
-use std::hash::Hasher;
+use ecdsa::signature::{DigestSigner, DigestVerifier};
+use ecdsa::Signature;
+use ecdsa::SigningKey;
+use ecdsa::VerifyingKey;
+use p384::pkcs8::{
+    DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey,
+};
+use p384::NistP384;
 use std::io::{Error, ErrorKind};
 
+use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
-use crate::util::Digest;
-use crate::util::RustCryptoHasher;
+use crate::hashing::sha2::Digest;
+use crate::hashing::sha2::RustCryptoHasher;
 use crate::util::StrandError;
 
-const CURVE: Nid = Nid::SECP384R1;
+type Curve = NistP384;
 
-/// An openssl ecdsa backed signature.
-// #[derive(Clone)]
-pub struct StrandSignature(EcdsaSig);
+/// An rustcrypto ecdsa backed signature.
+#[derive(Clone)]
+pub struct StrandSignature(Signature<Curve>);
 
-impl StrandSignature {
-    fn try_clone(&self) -> Result<Self, StrandError> { 
-        let r = self.0.r().to_owned()?;
-        let s = self.0.s().to_owned()?;
-
-        let sig = EcdsaSig::from_private_components(r, s);
-        
-        Ok(StrandSignature(sig?))
-    }
-}
-
-/// An openssl ecdsa signature verification key.
+/// An rustcrypto ecdsa signature verification key.
 // Clone: Allows Configuration to be Clonable in Braid
 #[derive(Clone)]
-pub struct StrandSignaturePk(EcKey<Public>, Vec<u8>);
+pub struct StrandSignaturePk(VerifyingKey<Curve>);
 impl StrandSignaturePk {
     pub fn from(
         sk: &StrandSignatureSk,
     ) -> Result<StrandSignaturePk, StrandError> {
-        let bytes = sk.0.public_key_to_der()?;
-
-        let pk = EcKey::<Public>::public_key_from_der(&bytes)?;
-        Ok(StrandSignaturePk(pk, bytes))
+        Ok(StrandSignaturePk(VerifyingKey::from(&sk.0)))
     }
     pub fn verify(
         &self,
         signature: &StrandSignature,
         msg: &[u8],
     ) -> Result<(), StrandError> {
-        // Compatibility with sig::rustcrypto
         let mut digest: RustCryptoHasher =
-            crate::util::rust_crypto_ecdsa_hasher();
+            crate::hashing::sha2::rust_crypto_ecdsa_hasher();
         digest.update(msg);
-        let hashed = digest.finalize();
 
-        let result = signature.0.verify(&hashed, &self.0)?;
-        if !result {
-            Err(StrandError::Generic(
-                "OpenSSL signature failed to verify".to_string(),
-            ))
-        } else {
-            Ok(())
-        }
-    }
-
-    pub fn check_key(&self) -> Result<(), StrandError> {
-        Ok(self.0.check_key()?)
+        Ok(self.0.verify_digest(digest, &signature.0)?)
     }
 }
 
-/// An openssl ecdsa signing key.
+/// An rustcrypto ecdsa signing key.
 // #[derive(Clone)]
-pub struct StrandSignatureSk(EcKey<Private>);
+pub struct StrandSignatureSk(SigningKey<Curve>);
 impl StrandSignatureSk {
-    pub fn new() -> Result<StrandSignatureSk, StrandError> {
-        let group = EcGroup::from_curve_name(CURVE)?;
-        let key = EcKey::<Private>::generate(&group)?;
-
-        Ok(StrandSignatureSk(key))
+    pub fn new(rng: &mut StrandRng) -> Result<StrandSignatureSk, StrandError> {
+        Ok(StrandSignatureSk(SigningKey::random(rng)))
     }
     pub fn sign(&self, msg: &[u8]) -> Result<StrandSignature, StrandError> {
-        // Compatibility with sig::rustcrypto
         let mut digest: RustCryptoHasher =
-            crate::util::rust_crypto_ecdsa_hasher();
+            crate::hashing::sha2::rust_crypto_ecdsa_hasher();
         digest.update(msg);
-        let hashed = digest.finalize();
 
-        let sig = EcdsaSig::sign(&hashed, &self.0)?;
+        let (sig, _) = self.0.sign_digest(digest);
 
         Ok(StrandSignature(sig))
     }
@@ -101,19 +72,14 @@ impl StrandSignatureSk {
 
 impl PartialEq for StrandSignaturePk {
     fn eq(&self, other: &Self) -> bool {
-        self.1 == other.1
+        self.0 == other.0
     }
 }
 impl Eq for StrandSignaturePk {}
 
-impl Hash for StrandSignaturePk {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.1.hash(state);
-    }
-}
 impl std::fmt::Debug for StrandSignaturePk {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", &hex::encode(&self.1)[0..10])
+        write!(f, "{:?}", &self.0)
     }
 }
 
@@ -140,15 +106,18 @@ impl BorshSerialize for StrandSignatureSk {
         &self,
         writer: &mut W,
     ) -> std::io::Result<()> {
-        let bytes = self.0.private_key_to_der()?;
-        bytes.serialize(writer)
+        let sd = self
+            .0
+            .to_pkcs8_der()
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        sd.as_bytes().serialize(writer)
     }
 }
 
 impl BorshDeserialize for StrandSignatureSk {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = Vec::<u8>::deserialize(buf)?;
-        let sk = EcKey::<Private>::private_key_from_der(&bytes)
+        let sk = SigningKey::from_pkcs8_der(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         Ok(StrandSignatureSk(sk))
@@ -160,18 +129,21 @@ impl BorshSerialize for StrandSignaturePk {
         &self,
         writer: &mut W,
     ) -> std::io::Result<()> {
-        let bytes = self.0.public_key_to_der()?;
-        bytes.serialize(writer)
+        let d = self
+            .0
+            .to_public_key_der()
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        d.as_bytes().serialize(writer)
     }
 }
 
 impl BorshDeserialize for StrandSignaturePk {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = Vec::<u8>::deserialize(buf)?;
-        let pk = EcKey::<Public>::public_key_from_der(&bytes)
+        let pk = VerifyingKey::from_public_key_der(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-        Ok(StrandSignaturePk(pk, bytes))
+        Ok(StrandSignaturePk(pk))
     }
 }
 
@@ -180,15 +152,15 @@ impl BorshSerialize for StrandSignature {
         &self,
         writer: &mut W,
     ) -> std::io::Result<()> {
-        let bytes = self.0.to_der()?;
-        bytes.serialize(writer)
+        let s = self.0.to_der();
+        s.as_bytes().serialize(writer)
     }
 }
 
 impl BorshDeserialize for StrandSignature {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = Vec::<u8>::deserialize(buf)?;
-        let signature = EcdsaSig::from_der(&bytes)
+        let signature = Signature::from_der(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         Ok(StrandSignature(signature))
@@ -240,9 +212,10 @@ pub(crate) mod tests {
     pub fn test_signature() {
         let msg = b"ok";
         let msg2 = b"not_ok";
+        let mut rng = StrandRng;
 
         let (vk_bytes, sig_bytes) = {
-            let sk = StrandSignatureSk::new().unwrap();
+            let sk = StrandSignatureSk::new(&mut rng).unwrap();
             let sk_b = sk.strand_serialize().unwrap();
             let sk_d = StrandSignatureSk::strand_deserialize(&sk_b).unwrap();
 
@@ -271,9 +244,10 @@ pub(crate) mod tests {
     fn test_string_serialization() {
         let message = b"ok";
         let other_message = b"not_ok";
+        let mut rng = StrandRng;
 
         let (public_key_string, signature_string) = {
-            let signing_key = StrandSignatureSk::new().unwrap();
+            let signing_key = StrandSignatureSk::new(&mut rng).unwrap();
             let signing_key_string: String = signing_key.try_into().unwrap();
             let signing_key_deserialized: StrandSignatureSk =
                 signing_key_string.try_into().unwrap();

@@ -161,7 +161,7 @@ impl<C: Ctx> Verifier<C> {
             .artifact
             .as_ref()
             .unwrap();
-        let cfg_h = crate::util::hash_from_vec(&strand::util::hash(&cfg_bytes)).unwrap();
+        let cfg_h = crate::util::hash_from_vec(&strand::hash::hash(&cfg_bytes)?).unwrap();
         let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
         info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 

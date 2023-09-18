@@ -348,7 +348,7 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
     let dkgpk = context.trustees[0].get_dkg_public_key_nohash().unwrap();
 
     let pk_bytes = dkgpk.strand_serialize().unwrap();
-    let pk_h = strand::util::hash_array(&pk_bytes);
+    let pk_h = strand::hash::hash_array(&pk_bytes).unwrap();
 
     let pk_element = dkgpk.pk;
     let pk = strand::elgamal::PublicKey::from_element(&pk_element, &ctx);

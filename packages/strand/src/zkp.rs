@@ -318,7 +318,7 @@ impl<C: Ctx> Zkp<C> {
         values.add("context", &context)?;
 
         let bytes = values.get_bytes()?;
-        Ok(self.ctx.hash_to_exp(&bytes))
+        Ok(self.ctx.hash_to_exp(&bytes)?)
     }
 
     fn cp_proof_challenge(
@@ -342,7 +342,7 @@ impl<C: Ctx> Zkp<C> {
         values.add("context", &context)?;
 
         let bytes = values.get_bytes()?;
-        Ok(self.ctx.hash_to_exp(&bytes))
+        Ok(self.ctx.hash_to_exp(&bytes)?)
     }
 }
 

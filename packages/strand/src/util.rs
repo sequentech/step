@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2022 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use sha2::{Sha384, Sha512};
 use thiserror::Error;
 
 use crate::context::Ctx;
@@ -87,7 +86,7 @@ pub fn random_ciphertexts<C: Ctx>(n: usize, ctx: &C) -> Vec<Ciphertext<C>> {
         })
         .collect()
 }
-
+/*
 /// Size of all hashes.
 pub const STRAND_HASH_LENGTH_BYTES: usize = 64;
 pub type Hash = [u8; 64];
@@ -149,3 +148,4 @@ cfg_if::cfg_if! {
         }
     }
 }
+*/

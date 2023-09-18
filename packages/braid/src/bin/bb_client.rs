@@ -138,7 +138,7 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, ctx: C) -> Result<()> {
             let bytes = message.artifact.unwrap();
             let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
             let pk_bytes = dkgpk.strand_serialize()?;
-            let pk_h = strand::util::hash_array(&pk_bytes);
+            let pk_h = strand::hash::hash_array(&pk_bytes)?;
             let pk_element = dkgpk.pk;
             let pk = strand::elgamal::PublicKey::from_element(&pk_element, &ctx);
 

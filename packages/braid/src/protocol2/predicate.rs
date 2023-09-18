@@ -285,7 +285,7 @@ impl ConfigurationHash {
         configuration: &Configuration<C>,
     ) -> Result<ConfigurationHash> {
         let bytes = configuration.strand_serialize()?;
-        let hash = strand::util::hash(&bytes);
+        let hash = strand::hash::hash(&bytes)?;
         Ok(ConfigurationHash(crate::util::hash_from_vec(&hash)?))
     }
 }

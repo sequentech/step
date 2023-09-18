@@ -62,7 +62,7 @@ pub struct MalachiteCtx<P: MalachiteCtxParams> {
 
 impl<P: MalachiteCtxParams> MalachiteCtx<P> {
     // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf A.2.3
-    fn generators_fips(&self, size: usize, seed: &[u8]) -> Vec<NaturalE<P>> {
+    fn generators_fips(&self, size: usize, seed: &[u8]) -> Result<Vec<NaturalE<P>>, StrandError> {
         let mut ret = Vec::with_capacity(size);
         let two = Natural::from(2u32);
 
@@ -79,7 +79,7 @@ impl<P: MalachiteCtxParams> MalachiteCtx<P> {
                 assert!(count != 0);
                 next.extend(index.to_le_bytes());
                 next.extend(count.to_le_bytes());
-                let elem: Natural = self.hash_to_element(&next);
+                let elem: Natural = self.hash_to_element(&next)?;
                 let g = elem
                     .mod_pow(self.params.co_factor(), &self.params.modulus().0);
                 if g >= two {
@@ -89,14 +89,14 @@ impl<P: MalachiteCtxParams> MalachiteCtx<P> {
             }
         }
 
-        ret
+        Ok(ret)
     }
 
-    fn hash_to_element(&self, bytes: &[u8]) -> Natural {
-        let hashed = crate::util::hash(bytes);
+    fn hash_to_element(&self, bytes: &[u8]) -> Result<Natural, StrandError> {
+        let hashed = crate::hash::hash(bytes)?;
         let u16s = hashed.into_iter().map(|b| b as u16);
         let num = Natural::from_digits_desc(&256u16, u16s).expect("impossible");
-        num.rem(&self.params.modulus().0)
+        Ok(num.rem(&self.params.modulus().0))
     }
 
     pub fn element_from_natural(
@@ -270,12 +270,12 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
     fn exp_from_u64(&self, value: u64) -> Self::X {
         NaturalX::new(Natural::from(value))
     }
-    fn hash_to_exp(&self, bytes: &[u8]) -> Self::X {
-        let hashed = crate::util::hash(bytes);
+    fn hash_to_exp(&self, bytes: &[u8]) -> Result<Self::X, StrandError> {
+        let hashed = crate::hash::hash(bytes)?;
         let u16s = hashed.into_iter().map(|b| b as u16);
 
         let num = Natural::from_digits_desc(&256, u16s).expect("impossible");
-        NaturalX::new(num.rem(&self.params.exp_modulus().0))
+        Ok(NaturalX::new(num.rem(&self.params.exp_modulus().0)))
     }
     fn encrypt_exp(
         &self,
@@ -295,7 +295,7 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
         Ok(NaturalX(self.decode(&decrypted).0, PhantomData))
     }
 
-    fn generators(&self, size: usize, seed: &[u8]) -> Vec<Self::E> {
+    fn generators(&self, size: usize, seed: &[u8]) -> Result<Vec<Self::E>, StrandError> {
         self.generators_fips(size, seed)
     }
 }

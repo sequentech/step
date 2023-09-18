@@ -34,7 +34,6 @@ use crate::elgamal::{PrivateKey, PublicKey};
 use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util;
-use crate::util::Digest;
 use crate::util::StrandError;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -56,11 +55,11 @@ impl RistrettoCtx {
         &self,
         size: usize,
         seed: &[u8],
-    ) -> Vec<RistrettoPointS> {
+    ) -> Result<Vec<RistrettoPointS>, StrandError> {
         let seed_ = seed.to_vec();
 
         let mut ret: Vec<RistrettoPointS> = Vec::with_capacity(size);
-        let reader = util::hash_extendable(64 * size, &seed_).unwrap();
+        let reader = crate::hash::hash_xof(64 * size, &seed_)?;
         let mut uniform_bytes = [0u8; 64];
         for _ in 0..size {
             let bytes_read = std::io::Read::read(&mut reader.as_slice(), &mut uniform_bytes)
@@ -69,8 +68,7 @@ impl RistrettoCtx {
             let g = RistrettoPoint::from_uniform_bytes(&uniform_bytes);
             ret.push(RistrettoPointS(g));
         }
-
-        ret
+        Ok(ret)
     }
 }
 } else {
@@ -83,7 +81,7 @@ impl RistrettoCtx {
         &self,
         size: usize,
         seed: &[u8],
-    ) -> Vec<RistrettoPointS> {
+    ) -> Result<Vec<RistrettoPointS>, StrandError> {
         let seed_ = seed.to_vec();
 
         let mut ret: Vec<RistrettoPointS> = Vec::with_capacity(size);
@@ -98,7 +96,7 @@ impl RistrettoCtx {
             ret.push(RistrettoPointS(g));
         }
 
-        ret
+        Ok(ret)
     }
 }
 }
@@ -159,11 +157,14 @@ impl Ctx for RistrettoCtx {
 
         value
     }
-    fn hash_to_exp(&self, bytes: &[u8]) -> Self::X {
-        let mut hasher = util::hasher();
+    fn hash_to_exp(&self, bytes: &[u8]) -> Result<Self::X, StrandError> {
+        /* let mut hasher = crate::hash::hasher();
         Digest::update(&mut hasher, bytes);
 
-        ScalarS(Scalar::from_hash(hasher))
+        ScalarS(Scalar::from_hash(hasher))*/
+
+        let bytes = crate::hash::hash_array(bytes)?;
+        Ok(ScalarS(Scalar::from_bytes_mod_order_wide(&bytes)))
     }
     // see https://github.com/dalek-cryptography/curve25519-dalek/issues/322
     // see https://github.com/hdevalence/ristretto255-data-encoding/blob/master/src/main.rs
@@ -268,7 +269,7 @@ impl Ctx for RistrettoCtx {
             ))
         }
     }
-    fn generators(&self, size: usize, seed: &[u8]) -> Vec<Self::E> {
+    fn generators(&self, size: usize, seed: &[u8]) -> Result<Vec<Self::E>, StrandError> {
         self.generators_shake(size, seed)
     }
 }

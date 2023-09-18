@@ -296,7 +296,7 @@ pub(crate) mod tests {
 
         let es = util::random_ciphertexts(10, ctx);
         let seed = vec![];
-        let hs = ctx.generators(es.len() + 1, &seed);
+        let hs = ctx.generators(es.len() + 1, &seed).unwrap();
         let shuffler = Shuffler {
             pk: &pk,
             generators: &hs,
@@ -318,7 +318,7 @@ pub(crate) mod tests {
 
         let es = util::random_ciphertexts(10, ctx);
         let seed = vec![];
-        let hs = ctx.generators(es.len() + 1, &seed);
+        let hs = ctx.generators(es.len() + 1, &seed).unwrap();
         let shuffler = Shuffler {
             pk: &pk,
             generators: &hs,

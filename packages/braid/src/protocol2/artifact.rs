@@ -221,7 +221,7 @@ pub struct Plaintexts<C: Ctx>(pub StrandVectorP<C>);
 
 impl<C: Ctx> std::fmt::Debug for Configuration<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let hashed = strand::util::hash(&self.strand_serialize().unwrap());
+        let hashed = strand::hash::hash(&self.strand_serialize().unwrap()).unwrap();
         write!(
             f,
             "hash={:?}, #trustees={}, threshold={}",

@@ -87,7 +87,7 @@ fn run_protocol_test<C: Ctx>(
     let dkgpk = dkg_pk.unwrap();
 
     let pk_bytes = dkgpk.strand_serialize()?;
-    let pk_h = strand::util::hash_array(&pk_bytes);
+    let pk_h = strand::hash::hash_array(&pk_bytes)?;
 
     let pk_element = dkgpk.pk;
     let pk = strand::elgamal::PublicKey::from_element(&pk_element, &test.ctx);

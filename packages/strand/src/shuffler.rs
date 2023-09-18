@@ -554,7 +554,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         // optimization: instead of calculating u = H(prefix || i),
         // we do u = H(H(prefix) || i)
         // that way we avoid allocating prefix-size bytes n times
-        let prefix_hash = crate::util::hash(&prefix_bytes);
+        let prefix_hash = crate::hash::hash(&prefix_bytes)?;
 
         let us: Result<Vec<C::X>, StrandError> = (0..n)
             .par()
@@ -567,7 +567,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                 let bytes = next.get_bytes();
                 let z: Result<C::X, StrandError> = match bytes {
                     Err(e) => Err(e),
-                    Ok(b) => Ok(self.ctx.hash_to_exp(&b)),
+                    Ok(b) => Ok(self.ctx.hash_to_exp(&b)?),
                 };
                 z
             })
@@ -611,7 +611,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         let bytes = challenge_input.get_bytes()?;
 
-        Ok(self.ctx.hash_to_exp(&bytes))
+        Ok(self.ctx.hash_to_exp(&bytes)?)
     }
 }
 

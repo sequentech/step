@@ -42,7 +42,7 @@ pub struct RugCtx<P: RugCtxParams> {
 
 impl<P: RugCtxParams> RugCtx<P> {
     // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf A.2.3
-    fn generators_fips(&self, size: usize, seed: &[u8]) -> Vec<IntegerE<P>> {
+    fn generators_fips(&self, size: usize, seed: &[u8]) -> Result<Vec<IntegerE<P>>, StrandError> {
         let mut ret = Vec::with_capacity(size);
         let two = Integer::from(2i32);
 
@@ -59,7 +59,7 @@ impl<P: RugCtxParams> RugCtx<P> {
                 assert!(count != 0);
                 next.extend(index.to_le_bytes());
                 next.extend(count.to_le_bytes());
-                let elem: Integer = self.hash_to_element(&next);
+                let elem: Integer = self.hash_to_element(&next)?;
                 let g = elem
                     .pow_mod(self.params.co_factor(), &self.params.modulus().0)
                     .expect("an answer always exists for prime modulus p");
@@ -71,16 +71,16 @@ impl<P: RugCtxParams> RugCtx<P> {
             }
         }
 
-        ret
+        Ok(ret)
     }
 
-    fn hash_to_element(&self, bytes: &[u8]) -> Integer {
-        let hashed = crate::util::hash(bytes);
+    fn hash_to_element(&self, bytes: &[u8]) -> Result<Integer, StrandError> {
+        let hashed = crate::hash::hash(bytes)?;
 
         let (_, rem) = Integer::from_digits(&hashed, Order::Lsf)
             .div_rem(self.params.modulus().0.clone());
 
-        rem
+        Ok(rem)
     }
 }
 
@@ -197,13 +197,13 @@ impl<P: RugCtxParams> Ctx for RugCtx<P> {
     fn exp_from_u64(&self, value: u64) -> Self::X {
         IntegerX::new(Integer::from(value))
     }
-    fn hash_to_exp(&self, bytes: &[u8]) -> Self::X {
-        let hashed = crate::util::hash(bytes);
+    fn hash_to_exp(&self, bytes: &[u8]) -> Result<Self::X, StrandError> {
+        let hashed = crate::hash::hash(bytes)?;
 
         let (_, rem) = Integer::from_digits(&hashed, Order::Lsf)
             .div_rem(self.params.exp_modulus().0.clone());
 
-        IntegerX::new(rem)
+        Ok(IntegerX::new(rem))
     }
 
     fn encrypt_exp(
@@ -224,7 +224,7 @@ impl<P: RugCtxParams> Ctx for RugCtx<P> {
         Ok(IntegerX(self.decode(&decrypted).0, PhantomData))
     }
 
-    fn generators(&self, size: usize, seed: &[u8]) -> Vec<Self::E> {
+    fn generators(&self, size: usize, seed: &[u8]) ->  Result<Vec<Self::E>, StrandError> {
         self.generators_fips(size, seed)
     }
 }
@@ -668,7 +668,7 @@ mod tests {
             es.push(c);
         }
         let seed = vec![];
-        let hs = ctx.generators(es.len() + 1, &seed);
+        let hs = ctx.generators(es.len() + 1, &seed).unwrap();
 
         let shuffler = Shuffler {
             pk: &pk,

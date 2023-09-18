@@ -18,23 +18,26 @@ pub mod elgamal;
 /// Support for distributed Elgamal.
 #[allow(dead_code)]
 mod keymaker;
-/// Random number generation frontend.
-#[doc(hidden)]
-pub mod rng;
 /// Serialization frontend. StrandVectors for parallel serialization.
 #[doc(hidden)]
 pub mod serialization;
 /// Wikstrom proof of shuffle.
 #[doc(hidden)]
 pub mod shuffler;
-/// Signature frontend (Zcash).
-mod sig;
+/// Signature frontend.
+mod signatures;
 /// Support for threshold ElGamal.
 #[doc(hidden)]
 pub mod threshold;
 /// Miscellaneous functions.
 #[doc(hidden)]
 pub mod util;
+/// Hashing.
+#[doc(hidden)]
+pub mod hashing;
+/// Random number generation frontend..
+#[doc(hidden)]
+pub mod random;
 #[cfg(feature = "wasm")]
 /// Webassembly API.
 pub mod wasm;
@@ -46,9 +49,18 @@ pub mod symmetric;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "openssl")] {
-        pub use sig::openssl as signature;
+        pub use signatures::openssl as signature;
+        pub use random::openssl as rng;
+        pub use hashing::openssl as hash;
+    }
+    else if #[cfg(feature = "wasm")] {
+        pub use signatures::rustcrypto as signature;
+        pub use random::rand as rng;
+        pub use hashing::sha2 as hash;
     }
     else {
-        pub use sig::zcash as signature;
+        pub use signatures::zcash as signature;
+        pub use random::rand as rng;
+        pub use hashing::sha2 as hash;
     }
 }

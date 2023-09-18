@@ -76,7 +76,7 @@ pub trait Ctx: Send + Sync + Sized + Clone + Default + Debug {
     // Used to convert exponents in threshold cryptography
     fn exp_from_u64(&self, value: u64) -> Self::X;
     // Used to compute challenges in zk proofs
-    fn hash_to_exp(&self, bytes: &[u8]) -> Self::X;
+    fn hash_to_exp(&self, bytes: &[u8]) -> Result<Self::X, StrandError>;
 
     // In braid, used to encrypt shares (evaluations of the polynomial in Zp)
     fn encrypt_exp(
@@ -90,7 +90,7 @@ pub trait Ctx: Send + Sync + Sized + Clone + Default + Debug {
         sk: PrivateKey<Self>,
     ) -> Result<Self::X, StrandError>;
 
-    fn generators(&self, size: usize, seed: &[u8]) -> Vec<Self::E>;
+    fn generators(&self, size: usize, seed: &[u8]) -> Result<Vec<Self::E>, StrandError>;
 }
 
 /// An element of the underlying group.
