@@ -269,7 +269,11 @@ impl Ctx for RistrettoCtx {
             ))
         }
     }
-    fn generators(&self, size: usize, seed: &[u8]) -> Result<Vec<Self::E>, StrandError> {
+    fn generators(
+        &self,
+        size: usize,
+        seed: &[u8],
+    ) -> Result<Vec<Self::E>, StrandError> {
         self.generators_shake(size, seed)
     }
 }

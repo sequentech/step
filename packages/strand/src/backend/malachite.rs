@@ -62,7 +62,11 @@ pub struct MalachiteCtx<P: MalachiteCtxParams> {
 
 impl<P: MalachiteCtxParams> MalachiteCtx<P> {
     // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf A.2.3
-    fn generators_fips(&self, size: usize, seed: &[u8]) -> Result<Vec<NaturalE<P>>, StrandError> {
+    fn generators_fips(
+        &self,
+        size: usize,
+        seed: &[u8],
+    ) -> Result<Vec<NaturalE<P>>, StrandError> {
         let mut ret = Vec::with_capacity(size);
         let two = Natural::from(2u32);
 
@@ -252,14 +256,16 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
     }
     fn element_from_bytes(&self, bytes: &[u8]) -> Result<Self::E, StrandError> {
         let u16s = bytes.iter().map(|b| *b as u16);
-        let num = Natural::from_digits_desc(&256, u16s)
-            .ok_or(StrandError::Generic("from_digits_desc returned None".to_string()))?;
+        let num = Natural::from_digits_desc(&256, u16s).ok_or(
+            StrandError::Generic("from_digits_desc returned None".to_string()),
+        )?;
         self.element_from_natural(num)
     }
     fn exp_from_bytes(&self, bytes: &[u8]) -> Result<Self::X, StrandError> {
         let u16s = bytes.iter().map(|b| *b as u16);
-        let ret = Natural::from_digits_desc(&256u16, u16s)
-            .ok_or(StrandError::Generic("from_digits_desc returned None".to_string()))?;
+        let ret = Natural::from_digits_desc(&256u16, u16s).ok_or(
+            StrandError::Generic("from_digits_desc returned None".to_string()),
+        )?;
         let zero: Natural = Natural::from(0u8);
         if (ret < zero) || ret >= self.params.exp_modulus().0 {
             Err(StrandError::Generic("Out of range".to_string()))
@@ -295,7 +301,11 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
         Ok(NaturalX(self.decode(&decrypted).0, PhantomData))
     }
 
-    fn generators(&self, size: usize, seed: &[u8]) -> Result<Vec<Self::E>, StrandError> {
+    fn generators(
+        &self,
+        size: usize,
+        seed: &[u8],
+    ) -> Result<Vec<Self::E>, StrandError> {
         self.generators_fips(size, seed)
     }
 }
@@ -537,9 +547,10 @@ impl BorshDeserialize for NaturalP {
     fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <Vec<u16>>::deserialize(bytes)?;
 
-        let num = Natural::from_digits_desc(&256u16, bytes.into_iter())
-            .ok_or(Error::new(ErrorKind::Other, "from_digits_desc returned None"))?;
-        
+        let num = Natural::from_digits_desc(&256u16, bytes.into_iter()).ok_or(
+            Error::new(ErrorKind::Other, "from_digits_desc returned None"),
+        )?;
+
         Ok(NaturalP(num))
     }
 }

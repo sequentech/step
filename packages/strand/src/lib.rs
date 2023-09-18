@@ -15,9 +15,15 @@ pub mod backend;
 pub mod context;
 /// ElGamal encryption.
 pub mod elgamal;
+/// Hashing.
+#[doc(hidden)]
+pub mod hashing;
 /// Support for distributed Elgamal.
 #[allow(dead_code)]
 mod keymaker;
+/// Random number generation frontend..
+#[doc(hidden)]
+pub mod random;
 /// Serialization frontend. StrandVectors for parallel serialization.
 #[doc(hidden)]
 pub mod serialization;
@@ -32,12 +38,6 @@ pub mod threshold;
 /// Miscellaneous functions.
 #[doc(hidden)]
 pub mod util;
-/// Hashing.
-#[doc(hidden)]
-pub mod hashing;
-/// Random number generation frontend..
-#[doc(hidden)]
-pub mod random;
 #[cfg(feature = "wasm")]
 /// Webassembly API.
 pub mod wasm;

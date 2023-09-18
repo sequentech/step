@@ -17,10 +17,10 @@ use p384::pkcs8::{
 use p384::NistP384;
 use std::io::{Error, ErrorKind};
 
-use crate::rng::StrandRng;
-use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::hashing::sha2::Digest;
 use crate::hashing::sha2::RustCryptoHasher;
+use crate::rng::StrandRng;
+use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
 
 type Curve = NistP384;

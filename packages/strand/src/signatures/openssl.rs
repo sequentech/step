@@ -15,8 +15,8 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
 
-use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::hash::RustCryptoHasher;
+use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
 
 const CURVE: Nid = Nid::SECP384R1;
@@ -26,12 +26,12 @@ const CURVE: Nid = Nid::SECP384R1;
 pub struct StrandSignature(EcdsaSig);
 
 impl StrandSignature {
-    fn try_clone(&self) -> Result<Self, StrandError> { 
+    fn try_clone(&self) -> Result<Self, StrandError> {
         let r = self.0.r().to_owned()?;
         let s = self.0.s().to_owned()?;
 
         let sig = EcdsaSig::from_private_components(r, s);
-        
+
         Ok(StrandSignature(sig?))
     }
 }

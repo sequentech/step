@@ -42,7 +42,11 @@ pub struct RugCtx<P: RugCtxParams> {
 
 impl<P: RugCtxParams> RugCtx<P> {
     // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf A.2.3
-    fn generators_fips(&self, size: usize, seed: &[u8]) -> Result<Vec<IntegerE<P>>, StrandError> {
+    fn generators_fips(
+        &self,
+        size: usize,
+        seed: &[u8],
+    ) -> Result<Vec<IntegerE<P>>, StrandError> {
         let mut ret = Vec::with_capacity(size);
         let two = Integer::from(2i32);
 
@@ -224,7 +228,11 @@ impl<P: RugCtxParams> Ctx for RugCtx<P> {
         Ok(IntegerX(self.decode(&decrypted).0, PhantomData))
     }
 
-    fn generators(&self, size: usize, seed: &[u8]) ->  Result<Vec<Self::E>, StrandError> {
+    fn generators(
+        &self,
+        size: usize,
+        seed: &[u8],
+    ) -> Result<Vec<Self::E>, StrandError> {
         self.generators_fips(size, seed)
     }
 }

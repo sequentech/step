@@ -90,7 +90,11 @@ pub trait Ctx: Send + Sync + Sized + Clone + Default + Debug {
         sk: PrivateKey<Self>,
     ) -> Result<Self::X, StrandError>;
 
-    fn generators(&self, size: usize, seed: &[u8]) -> Result<Vec<Self::E>, StrandError>;
+    fn generators(
+        &self,
+        size: usize,
+        seed: &[u8],
+    ) -> Result<Vec<Self::E>, StrandError>;
 }
 
 /// An element of the underlying group.
