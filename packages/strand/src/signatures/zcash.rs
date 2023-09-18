@@ -39,6 +39,20 @@ impl StrandSignaturePk {
             .map_err(|_| "Failed to verify signature")
     }
 }
+
+/// An ed25519-zebra backed signing key.
+#[derive(Clone)]
+pub struct StrandSignatureSk(SigningKey);
+impl StrandSignatureSk {
+    pub fn new(rng: &mut StrandRng) -> StrandSignatureSk {
+        let sk = SigningKey::new(rng);
+        StrandSignatureSk(sk)
+    }
+    pub fn sign(&self, msg: &[u8]) -> StrandSignature {
+        StrandSignature(self.0.sign(msg))
+    }
+}
+
 impl PartialEq for StrandSignaturePk {
     fn eq(&self, other: &Self) -> bool {
         self.0.as_ref() == other.0.as_ref()
@@ -71,19 +85,6 @@ impl TryFrom<StrandSignaturePk> for String {
     fn try_from(value: StrandSignaturePk) -> Result<Self, Self::Error> {
         let bytes = value.strand_serialize()?;
         Ok(general_purpose::STANDARD_NO_PAD.encode(bytes))
-    }
-}
-
-/// An ed25519-zebra backed signing key.
-#[derive(Clone)]
-pub struct StrandSignatureSk(SigningKey);
-impl StrandSignatureSk {
-    pub fn new(rng: &mut StrandRng) -> StrandSignatureSk {
-        let sk = SigningKey::new(rng);
-        StrandSignatureSk(sk)
-    }
-    pub fn sign(&self, msg: &[u8]) -> StrandSignature {
-        StrandSignature(self.0.sign(msg))
     }
 }
 

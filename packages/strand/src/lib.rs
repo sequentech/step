@@ -59,7 +59,8 @@ cfg_if::cfg_if! {
         pub use hashing::sha2 as hash;
     }
     else {
-        pub use signatures::zcash as signature;
+        // pub use signatures::zcash as signature;
+        pub use signatures::dalek as signature;
         pub use random::rand as rng;
         pub use hashing::sha2 as hash;
     }
