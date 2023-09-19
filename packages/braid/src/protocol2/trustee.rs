@@ -419,7 +419,8 @@ impl<C: Ctx> Trustee<C> {
     }
 
     pub fn get_pk(&self) -> StrandSignaturePk {
-        StrandSignaturePk::from(&self.signing_key)
+        // FIXME unwrap
+        StrandSignaturePk::from(&self.signing_key).unwrap()
     }
 
     pub(crate) fn encrypt_coefficients(
@@ -468,7 +469,6 @@ impl<C: Ctx> Trustee<C> {
 // ProtocolManager
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(Clone)]
 pub struct ProtocolManager<C: Ctx> {
     pub signing_key: StrandSignatureSk,
     pub phantom: PhantomData<C>,
@@ -489,10 +489,10 @@ pub(crate) trait Signer {
     fn sign(&self, statement: Statement, artifact: Option<Vec<u8>>) -> Result<Message> {
         let sk = self.get_signing_key();
         let bytes = statement.strand_serialize()?;
-        let signature: StrandSignature = sk.sign(&bytes);
+        let signature: StrandSignature = sk.sign(&bytes)?;
 
         Ok(Message {
-            signer_key: StrandSignaturePk::from(sk),
+            signer_key: StrandSignaturePk::from(sk)?,
             signature,
             statement,
             artifact,

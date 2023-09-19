@@ -8,10 +8,11 @@
 //! use strand::context::{Ctx, Element};
 //! use strand::backend::ristretto::RistrettoCtx;
 //! let ctx = RistrettoCtx;
+//! let mut rng = ctx.get_rng();
 //! // do some stuff..
 //! let g = ctx.generator();
-//! let a = ctx.rnd_exp();
-//! let b = ctx.rnd_exp();
+//! let a = ctx.rnd_exp(&mut rng);
+//! let b = ctx.rnd_exp(&mut rng);
 //! let g_ab = ctx.emod_pow(&ctx.emod_pow(g, &a), &b);
 //! let g_ba = ctx.emod_pow(&ctx.emod_pow(g, &b), &a);
 //! assert_eq!(g_ab, g_ba);
@@ -72,8 +73,8 @@ impl RistrettoCtx {
     }
 }
 } else {
-use sha3::digest::{ExtendableOutput, Update, XofReader};
-use sha3::Shake256;
+
+use crate::hash::{ExtendableOutput, Update, XofReader};
 
 impl RistrettoCtx {
     // https://docs.rs/bulletproofs/4.0.0/src/bulletproofs/generators.rs.html
@@ -85,7 +86,7 @@ impl RistrettoCtx {
         let seed_ = seed.to_vec();
 
         let mut ret: Vec<RistrettoPointS> = Vec::with_capacity(size);
-        let mut shake = Shake256::default();
+        let mut shake = crate::hash::hasher_xof();
         shake.update(&seed_);
 
         let mut reader = shake.finalize_xof();
@@ -106,6 +107,7 @@ impl Ctx for RistrettoCtx {
     type E = RistrettoPointS;
     type X = ScalarS;
     type P = [u8; 30];
+    type R = StrandRng;
 
     #[inline(always)]
     fn generator(&self) -> &Self::E {
@@ -135,25 +137,26 @@ impl Ctx for RistrettoCtx {
     }
 
     #[inline(always)]
-    fn rnd(&self) -> Self::E {
-        let mut rng = StrandRng;
+    fn get_rng(&self) -> StrandRng {
+        StrandRng
+    }
+    #[inline(always)]
+    fn rnd(&self, rng: &mut Self::R) -> Self::E {
         let mut uniform_bytes = [0u8; 64];
         rng.fill_bytes(&mut uniform_bytes);
 
         RistrettoPointS(RistrettoPoint::from_uniform_bytes(&uniform_bytes))
     }
     #[inline(always)]
-    fn rnd_exp(&self) -> Self::X {
-        let mut rng = StrandRng;
+    fn rnd_exp(&self, rng: &mut Self::R) -> Self::X {
         let mut uniform_bytes = [0u8; 64];
         rng.fill_bytes(&mut uniform_bytes);
 
         ScalarS(Scalar::from_bytes_mod_order_wide(&uniform_bytes))
     }
-    fn rnd_plaintext(&self) -> Self::P {
-        let mut csprng = StrandRng;
+    fn rnd_plaintext(&self, rng: &mut Self::R) -> Self::P {
         let mut value = [0u8; 30];
-        csprng.fill_bytes(&mut value);
+        rng.fill_bytes(&mut value);
 
         value
     }
@@ -163,7 +166,7 @@ impl Ctx for RistrettoCtx {
 
         ScalarS(Scalar::from_hash(hasher))*/
 
-        let bytes = crate::hash::hash_array(bytes)?;
+        let bytes = crate::hash::hash_to_array(bytes)?;
         Ok(ScalarS(Scalar::from_bytes_mod_order_wide(&bytes)))
     }
     // see https://github.com/dalek-cryptography/curve25519-dalek/issues/322

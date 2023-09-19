@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use sha2::{Sha384, Sha512};
+use sha3::Shake256;
 
 use crate::util::StrandError;
 
@@ -15,27 +16,33 @@ pub(crate) use sha2::Digest;
 /// Single entry point for all hashing, vector version.
 pub fn hash(bytes: &[u8]) -> Result<Vec<u8>, StrandError> {
     let mut hasher = hasher();
-    hasher.update(bytes);
+    curve25519_dalek::digest::Update::update(&mut hasher, bytes);
     Ok(hasher.finalize().to_vec())
 }
 /// Single entry point for all hashing, array version.
-pub fn hash_array(bytes: &[u8]) -> Result<Hash, StrandError> {
+pub fn hash_to_array(bytes: &[u8]) -> Result<Hash, StrandError> {
     let mut hasher = hasher();
-    hasher.update(bytes);
+    curve25519_dalek::digest::Update::update(&mut hasher, bytes);
     let ret: Hash = hasher.finalize().into();
     Ok(ret)
 }
 /// Single access point for all hashing.
-pub fn hasher() -> Hasher {
+pub(crate) fn hasher() -> Hasher {
     Sha512::new()
 }
 
-// Calling verify_digest on a RustCrypto ecdsa VerifyingKey<P384> fails to
-// compile, unless the digest passed is Sha384:
+// The rustcrypto signature backend requires 384 bit hashes. Calling
+// verify_digest on a RustCrypto ecdsa VerifyingKey<P384> fails to compile,
+// unless the digest passed is Sha384:
 /*
     the trait `DigestVerifier<CoreWrapper<CtVariableCoreWrapper<Sha256VarCore, UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>, OidSha256>>, _>` is not implemented for `ecdsa::VerifyingKey<NistP384>`
 */
-pub fn rust_crypto_ecdsa_hasher() -> RustCryptoHasher {
+pub(crate) fn rust_crypto_ecdsa_hasher() -> RustCryptoHasher {
     Sha384::new()
 }
 pub(crate) type RustCryptoHasher = Sha384;
+
+pub(crate) use sha3::digest::{ExtendableOutput, Update, XofReader};
+pub(crate) fn hasher_xof() -> Shake256 {
+    Shake256::default()
+}

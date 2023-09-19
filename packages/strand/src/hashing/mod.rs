@@ -3,4 +3,4 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #[cfg(feature = "openssl")]
 pub mod openssl;
-pub mod sha2;
+pub mod rustcrypto;

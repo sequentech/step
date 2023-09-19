@@ -1,4 +1,6 @@
 #![allow(clippy::type_complexity)]
+use std::sync::{Arc, Mutex};
+
 use borsh::{BorshDeserialize, BorshSerialize};
 // SPDX-FileCopyrightText: 2021 David Ruescas <david@sequentech.io>
 //
@@ -98,11 +100,15 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         assert!(perm.len() == ciphertexts.len());
 
         let ctx = &self.ctx;
+        let rng = Arc::new(Mutex::new(ctx.get_rng()));
 
         let (e_primes, rs): (Vec<Ciphertext<C>>, Vec<C::X>) = ciphertexts
             .par()
             .map(|c| {
-                let r = ctx.rnd_exp();
+                // It is idiomatic to unwrap on lock
+                let mut rng_ = rng.lock().unwrap();
+
+                let r = ctx.rnd_exp(&mut rng_);
 
                 let a =
                     c.mhr.mul(&ctx.emod_pow(&self.pk.element, &r)).modp(ctx);
@@ -159,6 +165,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         label: &[u8],
     ) -> Result<(ShuffleProof<C>, Vec<C::X>, C::X), StrandError> {
         let ctx = &self.ctx;
+        let mut rng = ctx.get_rng();
 
         #[allow(non_snake_case)]
         let N = es.len();
@@ -222,9 +229,11 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         r_tilde = r_tilde.modq(ctx);
         r_prime = r_prime.modq(ctx);
 
-        let omegas: Vec<C::X> = (0..4).map(|_| ctx.rnd_exp()).collect();
-        let omega_hats: Vec<C::X> = (0..N).map(|_| ctx.rnd_exp()).collect();
-        let omega_primes: Vec<C::X> = (0..N).map(|_| ctx.rnd_exp()).collect();
+        let omegas: Vec<C::X> = (0..4).map(|_| ctx.rnd_exp(&mut rng)).collect();
+        let omega_hats: Vec<C::X> =
+            (0..N).map(|_| ctx.rnd_exp(&mut rng)).collect();
+        let omega_primes: Vec<C::X> =
+            (0..N).map(|_| ctx.rnd_exp(&mut rng)).collect();
 
         let t1 = ctx.gmod_pow(&omegas[0]);
         let t2 = ctx.gmod_pow(&omegas[1]);
@@ -474,6 +483,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         perm: &[usize],
         ctx: &C,
     ) -> (Vec<C::E>, Vec<C::X>) {
+        let rng = Arc::new(Mutex::new(ctx.get_rng()));
         let generators = &self.generators[1..];
 
         assert!(generators.len() == perm.len());
@@ -481,7 +491,9 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let (cs, rs): (Vec<C::E>, Vec<C::X>) = generators
             .par()
             .map(|h| {
-                let r = ctx.rnd_exp();
+                // It is idiomatic to unwrap on lock
+                let mut rng_ = rng.lock().unwrap();
+                let r = ctx.rnd_exp(&mut rng_);
                 let c = h.mul(&ctx.gmod_pow(&r)).modp(ctx);
 
                 (c, r)
@@ -505,12 +517,16 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         us: &[&C::X],
         ctx: &C,
     ) -> (Vec<C::E>, Vec<C::X>) {
+        let rng = Arc::new(Mutex::new(ctx.get_rng()));
+
         let mut cs: Vec<C::E> = Vec::with_capacity(us.len());
 
         let (firsts, rs): (Vec<C::E>, Vec<C::X>) = (0..us.len())
             .par()
             .map(|_| {
-                let r = ctx.rnd_exp();
+                // It is idiomatic to unwrap on lock
+                let mut rng_ = rng.lock().unwrap();
+                let r = ctx.rnd_exp(&mut rng_);
                 // let first = ctx.gmod_pow(&r).modulo(ctx.modulus());
                 let first = ctx.gmod_pow(&r);
 

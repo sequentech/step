@@ -63,23 +63,23 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
     let suffix = format!("decryption_factor{self_p}");
     let label = cfg.label(*batch, suffix);
 
-    let (factors, proofs): (Vec<C::E>, Vec<ChaumPedersen<C>>) = ciphertexts
+    let result: Result<Vec<(C::E, ChaumPedersen<C>)>> = ciphertexts
         .ciphertexts
         .0
         .into_par_iter()
         .map(|c| {
-            // FIXME unwrap
             let (base, proof) =
-                strand::threshold::decryption_factor(&c, &secret, &vk, &label, ctx.clone())
-                    .unwrap();
+                strand::threshold::decryption_factor(&c, &secret, &vk, &label, ctx.clone())?;
 
             // FIXME removed self-verify
             // let ok = zkp.verify_decryption(&vk, &base, &c.mhr, &c.gr, &proof, &label);
             // assert!(ok);
 
-            (base, proof)
+            Ok((base, proof))
         })
-        .unzip();
+        .collect();
+
+    let (factors, proofs): (Vec<C::E>, Vec<ChaumPedersen<C>>) = result?.into_iter().unzip();
 
     let df = DecryptionFactors::new(factors, StrandVectorCP(proofs));
     let m = Message::decryption_factors_msg(cfg, *batch, df, *ciphertexts_h, *shares_hs, trustee)?;
@@ -239,20 +239,23 @@ fn compute_plaintexts_<C: Ctx>(
             let suffix = format!("decryption_factor{}", ts[t] - 1);
             let label = cfg.label(*batch, suffix);
 
-            let values: Vec<C::E> = it2
+            let values: Result<Vec<C::E>> = it2
                 .into_par_iter()
                 .map(|((df, proof), c)| {
-                    // FIXME unwrap
                     let ok = zkp
-                        .verify_decryption(&vk, &df, &c.mhr, &c.gr, &proof, &label)
-                        .unwrap();
-                    // FIXME assert
-                    assert!(ok);
-                    ctx.emod_pow(&df, &lagrange)
+                        .verify_decryption(&vk, &df, &c.mhr, &c.gr, &proof, &label)?;
+                    if ok {
+                        Ok(ctx.emod_pow(&df, &lagrange))
+                    }
+                    else {
+                        Err(anyhow!(
+                            "Failed to verify decryption proof",
+                        ))
+                    }
                 })
                 .collect();
 
-            for (index, next) in values.iter().enumerate() {
+            for (index, next) in values?.iter().enumerate() {
                 divider[index] = divider[index].mul(next).modp(&ctx);
             }
         } else {

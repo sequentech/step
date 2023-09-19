@@ -26,11 +26,12 @@
 //! use strand::elgamal::{PrivateKey, PublicKey};
 //!
 //! let ctx = RistrettoCtx;
+//! let mut rng = ctx.get_rng();
 //! // generate an ElGamal keypair
 //! let sk = PrivateKey::gen(&ctx);
 //! let pk = sk.get_pk();
 //! // encrypt and decrypt
-//! let plaintext = ctx.rnd_plaintext();
+//! let plaintext = ctx.rnd_plaintext(&mut rng);
 //! let encoded = ctx.encode(&plaintext).unwrap();
 //! let ciphertext = pk.encrypt(&encoded);
 //! let decrypted = sk.decrypt(&ciphertext);
@@ -55,6 +56,7 @@ pub trait Ctx: Send + Sync + Sized + Clone + Default + Debug {
     type E: Element<Self>;
     type X: Exponent<Self>;
     type P: Plaintext;
+    type R: Send + Sync;
 
     fn generator(&self) -> &Self::E;
     fn gmod_pow(&self, other: &Self::X) -> Self::E;
@@ -63,9 +65,10 @@ pub trait Ctx: Send + Sync + Sized + Clone + Default + Debug {
     fn modulo(&self, value: &Self::E) -> Self::E;
     fn exp_modulo(&self, value: &Self::X) -> Self::X;
 
-    fn rnd(&self) -> Self::E;
-    fn rnd_exp(&self) -> Self::X;
-    fn rnd_plaintext(&self) -> Self::P;
+    fn get_rng(&self) -> Self::R;
+    fn rnd(&self, rng: &mut Self::R) -> Self::E;
+    fn rnd_exp(&self, rng: &mut Self::R) -> Self::X;
+    fn rnd_plaintext(&self, rng: &mut Self::R) -> Self::P;
 
     fn encode(&self, plaintext: &Self::P) -> Result<Self::E, StrandError>;
     fn decode(&self, element: &Self::E) -> Self::P;

@@ -8,7 +8,6 @@ use crate::protocol2::trustee::ProtocolManager;
 use crate::run::config::ProtocolManagerConfig;
 
 use strand::context::Ctx;
-use strand::rng::StrandRng;
 
 use anyhow::Result;
 use std::marker::PhantomData;
@@ -18,9 +17,7 @@ use immu_board::{BoardClient, BoardMessage};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
-    let mut csprng = StrandRng;
-
-    let pmkey: StrandSignatureSk = StrandSignatureSk::new(&mut csprng);
+    let pmkey: StrandSignatureSk = StrandSignatureSk::new().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
@@ -56,7 +53,7 @@ pub async fn add_config_to_board<C: Ctx>(
 ) -> Result<()> {
     let configuration = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from(&pm.signing_key),
+        StrandSignaturePk::from(&pm.signing_key)?,
         trustee_pks,
         threshold,
         PhantomData,

@@ -130,6 +130,7 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, ctx: C) -> Result<()> {
             Ok(Message::strand_deserialize(&board_message.message)?)
         })
         .collect::<Result<Vec<Message>>>()?;
+    let mut rng = ctx.get_rng();
 
     for message in messages {
         let kind = message.statement.get_kind();
@@ -138,11 +139,11 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, ctx: C) -> Result<()> {
             let bytes = message.artifact.unwrap();
             let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
             let pk_bytes = dkgpk.strand_serialize()?;
-            let pk_h = strand::hash::hash_array(&pk_bytes)?;
+            let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
             let pk_element = dkgpk.pk;
             let pk = strand::elgamal::PublicKey::from_element(&pk_element, &ctx);
 
-            let ps: Vec<C::P> = (0..100).map(|_| ctx.rnd_plaintext()).collect();
+            let ps: Vec<C::P> = (0..100).map(|_| ctx.rnd_plaintext(&mut rng)).collect();
             let ballots: Vec<Ciphertext<C>> = ps
                 .par_iter()
                 .map(|p| {

@@ -17,8 +17,10 @@ use p384::pkcs8::{
 use p384::NistP384;
 use std::io::{Error, ErrorKind};
 
-use crate::hashing::sha2::Digest;
-use crate::hashing::sha2::RustCryptoHasher;
+// The rustcrypto signature backend does not support FIPS,
+// we use the rustcrypto hashing backend.
+use crate::hashing::rustcrypto::Digest;
+use crate::hashing::rustcrypto::RustCryptoHasher;
 use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
@@ -45,7 +47,7 @@ impl StrandSignaturePk {
         msg: &[u8],
     ) -> Result<(), StrandError> {
         let mut digest: RustCryptoHasher =
-            crate::hashing::sha2::rust_crypto_ecdsa_hasher();
+            crate::hashing::rustcrypto::rust_crypto_ecdsa_hasher();
         digest.update(msg);
 
         Ok(self.0.verify_digest(digest, &signature.0)?)
@@ -61,7 +63,7 @@ impl StrandSignatureSk {
     }
     pub fn sign(&self, msg: &[u8]) -> Result<StrandSignature, StrandError> {
         let mut digest: RustCryptoHasher =
-            crate::hashing::sha2::rust_crypto_ecdsa_hasher();
+            crate::hashing::rustcrypto::rust_crypto_ecdsa_hasher();
         digest.update(msg);
 
         let (sig, _) = self.0.sign_digest(digest);

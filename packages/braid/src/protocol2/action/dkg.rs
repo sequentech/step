@@ -16,7 +16,8 @@ pub(super) fn gen_commitments<C: Ctx>(
     let ec = trustee.encrypt_coefficients(coefficients)?;
 
     // Generate a public key for share transport
-    let sk = ctx.rnd_exp();
+    let mut rng = ctx.get_rng();
+    let sk = ctx.rnd_exp(&mut rng);
     let pk = ctx.gmod_pow(&sk);
     let st = trustee.encrypt_share_sk(pk, sk)?;
 

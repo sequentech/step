@@ -8,10 +8,11 @@
 //! use strand::context::{Ctx, Element};
 //! use strand::backend::rug::{RugCtx, P2048};
 //! let ctx = RugCtx::<P2048>::default();
+//! let mut rng = ctx.get_rng();
 //! // do some stuff..
 //! let g = ctx.generator();
-//! let a = ctx.rnd_exp();
-//! let b = ctx.rnd_exp();
+//! let a = ctx.rnd_exp(&mut rng);
+//! let b = ctx.rnd_exp(&mut rng);
 //! let g_ab = ctx.emod_pow(&ctx.emod_pow(g, &a), &b);
 //! let g_ba = ctx.emod_pow(&ctx.emod_pow(g, &b), &a);
 //! assert_eq!(g_ab, g_ba);
@@ -92,6 +93,7 @@ impl<P: RugCtxParams> Ctx for RugCtx<P> {
     type E = IntegerE<P>;
     type X = IntegerX<P>;
     type P = IntegerP;
+    type R = RandState<'static>;
 
     #[inline(always)]
     fn generator(&self) -> &Self::E {
@@ -121,28 +123,25 @@ impl<P: RugCtxParams> Ctx for RugCtx<P> {
     fn exp_sub_mod(&self, value: &Self::X, other: &Self::X) -> Self::X {
         value.sub(other).modulo(self.params.exp_modulus())
     }
-
     #[inline(always)]
-    fn rnd(&self) -> Self::E {
-        let mut gen = StrandRandgen(StrandRng);
-        let mut state = RandState::new_custom(&mut gen);
-
+    fn get_rng(&self) -> RandState<'static> {
+        let gen = StrandRandgen(StrandRng);
+        let b = Box::new(gen);
+        RandState::new_custom_boxed(b)
+    }
+    #[inline(always)]
+    fn rnd(&self, rng: &mut Self::R) -> Self::E {
         self.encode(&IntegerP(
-            self.params.exp_modulus().0.clone().random_below(&mut state),
+            self.params.exp_modulus().0.clone().random_below(rng),
         ))
         .expect("0..(q-1) should always be encodable")
     }
     #[inline(always)]
-    fn rnd_exp(&self) -> Self::X {
-        let mut gen = StrandRandgen(StrandRng);
-        let mut state = RandState::new_custom(&mut gen);
-
-        IntegerX::new(
-            self.params.exp_modulus().0.clone().random_below(&mut state),
-        )
+    fn rnd_exp(&self, rng: &mut Self::R) -> Self::X {
+        IntegerX::new(self.params.exp_modulus().0.clone().random_below(rng))
     }
-    fn rnd_plaintext(&self) -> Self::P {
-        IntegerP(self.rnd_exp().0)
+    fn rnd_plaintext(&self, rng: &mut Self::R) -> Self::P {
+        IntegerP(self.rnd_exp(rng).0)
     }
     fn encode(&self, plaintext: &Self::P) -> Result<Self::E, StrandError> {
         if plaintext.0 >= (self.params.exp_modulus().0.clone() - 1i32) {
@@ -527,14 +526,16 @@ mod tests {
     #[test]
     fn test_elgamal() {
         let ctx = RugCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_elgamal_generic(&ctx, plaintext);
     }
 
     #[test]
     fn test_elgamal_enc_pok() {
         let ctx = RugCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_elgamal_enc_pok_generic(&ctx, plaintext);
     }
 
@@ -559,23 +560,26 @@ mod tests {
     #[test]
     fn test_vdecryption() {
         let ctx = RugCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_vdecryption_generic(&ctx, plaintext);
     }
 
     #[test]
     fn test_distributed() {
         let ctx = RugCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_distributed_generic(&ctx, plaintext);
     }
 
     #[test]
     fn test_distributed_serialization() {
         let ctx = RugCtx::<P2048>::default();
+        let mut rng = ctx.get_rng();
         let mut ps = vec![];
         for _ in 0..10 {
-            let p = ctx.rnd_plaintext();
+            let p = ctx.rnd_plaintext(&mut rng);
             ps.push(p);
         }
         test_distributed_serialization_generic(&ctx, ps);
@@ -600,7 +604,8 @@ mod tests {
         let trustees = rand::thread_rng().gen_range(2..11);
         let threshold = rand::thread_rng().gen_range(2..trustees + 1);
         let ctx = RugCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
 
         test_threshold_generic(&ctx, trustees, threshold, plaintext);
     }
@@ -662,6 +667,7 @@ mod tests {
     #[test]
     fn test_gen_coq_data() {
         let ctx = RugCtx::<P2048>::default();
+        let mut rng = ctx.get_rng();
 
         let sk = PrivateKey::gen(&ctx);
         let pk = sk.get_pk();
@@ -670,7 +676,7 @@ mod tests {
         let mut es: Vec<Ciphertext<RugCtx<P2048>>> = Vec::with_capacity(n);
 
         for _ in 0..n {
-            let plaintext: IntegerP = ctx.rnd_plaintext();
+            let plaintext: IntegerP = ctx.rnd_plaintext(&mut rng);
             let element = ctx.encode(&plaintext).unwrap();
             let c = pk.encrypt(&element);
             es.push(c);

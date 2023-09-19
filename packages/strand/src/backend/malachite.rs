@@ -9,10 +9,11 @@
 //! use strand::backend::malachite::{MalachiteCtx, P2048};
 //! use strand::backend::malachite::NaturalE;
 //! let ctx = MalachiteCtx::<P2048>::default();
+//! let mut rng = ctx.get_rng();
 //! // do some stuff..
 //! let g = ctx.generator();
-//! let a = ctx.rnd_exp();
-//! let b = ctx.rnd_exp();
+//! let a = ctx.rnd_exp(&mut rng);
+//! let b = ctx.rnd_exp(&mut rng);
 //! let g_ab = ctx.emod_pow(&ctx.emod_pow(g, &a), &b);
 //! let g_ba = ctx.emod_pow(&ctx.emod_pow(g, &b), &a);
 //! assert_eq!(g_ab, g_ba);
@@ -129,10 +130,10 @@ impl<P: MalachiteCtxParams> MalachiteCtx<P> {
         self.element_from_natural(natural)
     }
 
-    pub fn get_seed() -> Seed {
-        let mut gen = StrandRng;
+    #[inline(always)]
+    fn get_random_seed(&self, rng: &mut StrandRng) -> Seed {
         let mut seed_bytes = [0u8; 32];
-        gen.fill(&mut seed_bytes);
+        rng.fill(&mut seed_bytes);
         Seed::from_bytes(seed_bytes)
     }
 }
@@ -141,6 +142,7 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
     type E = NaturalE<P>;
     type X = NaturalX<P>;
     type P = NaturalP;
+    type R = StrandRng;
 
     #[inline(always)]
     fn generator(&self) -> &Self::E {
@@ -184,10 +186,16 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
         }
     }
 
+    // Malachite does not support using _our_ rng, the best we can do is to
+    // seed _its_ internal rng (chacha20) with random data generated with our
+    // rng See https://docs.rs/malachite-base/0.4.0/src/malachite_base/random/mod.rs.html#46
     #[inline(always)]
-    fn rnd(&self) -> Self::E {
-        let seed = Self::get_seed();
-
+    fn get_rng(&self) -> Self::R {
+        StrandRng
+    }
+    #[inline(always)]
+    fn rnd(&self, rng: &mut Self::R) -> Self::E {
+        let seed = self.get_random_seed(rng);
         let one: Natural = Natural::from(1u8);
         let num = uniform_random_natural_inclusive_range(
             seed,
@@ -203,9 +211,8 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
             .expect("0..(q-1) should always be encodable")
     }
     #[inline(always)]
-    fn rnd_exp(&self) -> Self::X {
-        let seed = Self::get_seed();
-
+    fn rnd_exp(&self, rng: &mut Self::R) -> Self::X {
+        let seed = self.get_random_seed(rng);
         let num = uniform_random_natural_inclusive_range(
             seed,
             Natural::from(0u8),
@@ -216,8 +223,8 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
 
         NaturalX::new(num)
     }
-    fn rnd_plaintext(&self) -> Self::P {
-        NaturalP(self.rnd_exp().0)
+    fn rnd_plaintext(&self, rng: &mut Self::R) -> Self::P {
+        NaturalP(self.rnd_exp(rng).0)
     }
 
     fn encode(&self, plaintext: &Self::P) -> Result<Self::E, StrandError> {
@@ -566,14 +573,16 @@ mod tests {
     #[test]
     fn test_elgamal() {
         let ctx = MalachiteCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_elgamal_generic(&ctx, plaintext);
     }
 
     #[test]
     fn test_elgamal_enc_pok() {
         let ctx = MalachiteCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_elgamal_enc_pok_generic(&ctx, plaintext);
     }
 
@@ -598,23 +607,26 @@ mod tests {
     #[test]
     fn test_vdecryption() {
         let ctx = MalachiteCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_vdecryption_generic(&ctx, plaintext);
     }
 
     #[test]
     fn test_distributed() {
         let ctx = MalachiteCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_distributed_generic(&ctx, plaintext);
     }
 
     #[test]
     fn test_distributed_serialization() {
         let ctx = MalachiteCtx::<P2048>::default();
+        let mut rng = ctx.get_rng();
         let mut ps = vec![];
         for _ in 0..10 {
-            let p = ctx.rnd_plaintext();
+            let p = ctx.rnd_plaintext(&mut rng);
             ps.push(p);
         }
         test_distributed_serialization_generic(&ctx, ps);
@@ -639,7 +651,8 @@ mod tests {
         let trustees = rand::thread_rng().gen_range(2..11);
         let threshold = rand::thread_rng().gen_range(2..trustees + 1);
         let ctx = MalachiteCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
 
         test_threshold_generic(&ctx, trustees, threshold, plaintext);
     }

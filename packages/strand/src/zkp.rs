@@ -11,8 +11,9 @@
 //! use strand::zkp::Zkp;
 //!
 //! let ctx = RistrettoCtx;
+//! let mut rng = ctx.get_rng();
 //! let zkp = Zkp::new(&ctx);
-//! let exponent = ctx.rnd_exp();
+//! let exponent = ctx.rnd_exp(&mut rng);
 //! let g = ctx.generator();
 //! let power = ctx.gmod_pow(&exponent);
 //! // prove knowledge of discrete logarithm
@@ -20,7 +21,7 @@
 //! let verified = zkp.schnorr_verify(&power, Some(&g), &proof, &vec![]);
 //! assert!(verified);
 //! // prove equality of discrete logarithms, using default generator (None)
-//! let g2 = ctx.rnd();
+//! let g2 = ctx.rnd(&mut rng);
 //! let power2 = ctx.emod_pow(&g2, &exponent);
 //! let proof = zkp.cp_prove(&exponent, &power, &power2, None, &g2, &vec![]).unwrap();
 //! let verified = zkp.cp_verify(&power, &power2, None, &g2, &proof, &vec![]);
@@ -171,7 +172,8 @@ impl<C: Ctx> Zkp<C> {
         g: Option<&C::E>,
         context: ChallengeInput,
     ) -> Result<Schnorr<C>, StrandError> {
-        let r = self.ctx.rnd_exp();
+        let mut rng = self.ctx.get_rng();
+        let r = self.ctx.rnd_exp(&mut rng);
         let commitment = if let Some(g) = g {
             self.ctx.emod_pow(g, &r)
         } else {
@@ -233,7 +235,8 @@ impl<C: Ctx> Zkp<C> {
         g2: &C::E,
         context: ChallengeInput,
     ) -> Result<ChaumPedersen<C>, StrandError> {
-        let r = self.ctx.rnd_exp();
+        let mut rng = self.ctx.get_rng();
+        let r = self.ctx.rnd_exp(&mut rng);
         let commitment1 = if let Some(g1) = g1 {
             self.ctx.emod_pow(g1, &r)
         } else {

@@ -24,7 +24,7 @@ pub fn hash(bytes: &[u8]) -> Result<Vec<u8>, StrandError> {
     let result = hasher.finish()?;
     Ok(result.to_vec())
 }
-pub fn hash_array(bytes: &[u8]) -> Result<Hash, StrandError> {
+pub fn hash_to_array(bytes: &[u8]) -> Result<Hash, StrandError> {
     let mut hasher = hasher()?;
     hasher.update(bytes)?;
     let result = hasher.finish()?;

@@ -11,21 +11,22 @@
 //! use strand::zkp::Zkp;
 //!
 //! let ctx = RistrettoCtx;
+//! let mut rng = ctx.get_rng();
 //! // generate an ElGamal keypair
 //! let sk1 = PrivateKey::gen(&ctx);
 //! let pk1 = sk1.get_pk();
 //! // or construct a public key from a provided element
-//! let pk2_element = ctx.rnd();
+//! let pk2_element = ctx.rnd(&mut rng);
 //! let pk2 = PublicKey::from_element(&pk2_element, &ctx);
 //!
-//! let plaintext = ctx.rnd_plaintext();
+//! let plaintext = ctx.rnd_plaintext(&mut rng);
 //! let encoded = ctx.encode(&plaintext).unwrap();
 //!
 //! // encrypt, generates randomness internally
 //! let ciphertext = pk1.encrypt(&encoded);
 //!
 //! // or encrypt with provided randomness
-//! let randomness = ctx.rnd_exp();
+//! let randomness = ctx.rnd_exp(&mut rng);
 //! let ciphertext = pk1.encrypt_with_randomness(&encoded, &randomness);
 //!
 //! // encrypt and prove knowledge of plaintext (enc + pok)
@@ -89,7 +90,8 @@ pub struct PrivateKey<C: Ctx> {
 
 impl<C: Ctx> PublicKey<C> {
     pub fn encrypt(&self, plaintext: &C::E) -> Ciphertext<C> {
-        let randomness = self.ctx.rnd_exp();
+        let mut rng = self.ctx.get_rng();
+        let randomness = self.ctx.rnd_exp(&mut rng);
         self.encrypt_with_randomness(plaintext, &randomness)
     }
     pub fn encrypt_and_pok(
@@ -97,8 +99,9 @@ impl<C: Ctx> PublicKey<C> {
         plaintext: &C::E,
         label: &[u8],
     ) -> Result<(Ciphertext<C>, Schnorr<C>, C::X), StrandError> {
+        let mut rng = self.ctx.get_rng();
         let zkp = Zkp::new(&self.ctx);
-        let randomness = self.ctx.rnd_exp();
+        let randomness = self.ctx.rnd_exp(&mut rng);
         let c = self.encrypt_with_randomness(plaintext, &randomness);
         let proof = zkp.encryption_popk(&randomness, &c.mhr, &c.gr, label);
 
@@ -160,7 +163,8 @@ impl<C: Ctx> PrivateKey<C> {
         self.ctx.emod_pow(&c.gr, &self.value)
     }
     pub fn gen(ctx: &C) -> PrivateKey<C> {
-        let secret = ctx.rnd_exp();
+        let mut rng = ctx.get_rng();
+        let secret = ctx.rnd_exp(&mut rng);
         PrivateKey::from(&secret, ctx)
     }
     pub fn from(secret: &C::X, ctx: &C) -> PrivateKey<C> {
