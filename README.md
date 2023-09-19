@@ -18,7 +18,7 @@ Implemented using:
 - **Keycloak** as the IAM service.
 - **PostgreSQL** for database storage for both Hasura and Keycloak.
 - **React** for the frontend UI.
-- \[TODO\] Shared **Rust** libraries for logic shared by both frontend and
+- Shared **Rust** libraries for logic shared by both frontend and
   backend.
 - **Immudb** for tamper-evident logging.
 
@@ -70,6 +70,42 @@ This is important especially if you are for example relaunching a docker service
 `/workspace/.devcontainer` it will fail, but if you do it within
 `/workspaces/backend-services/.devcontainer` it should work, even if those two
 are typically a symlink to the other directory and are essentially the same.
+
+### Directory tree file organization
+
+The directory tree is structured as follows:
+
+```bash
+.
+├── hasura                      <--- Hasura metadata and migrations in YAML 
+│   ├── metadata
+│   └── migrations
+├── packages                    <--- Main code of the application
+│   ├── admin-portal
+│   ├── braid
+│   ├── harvest
+│   ├── immu-board
+│   ├── immudb-rs
+│   ├── new-ballot-verifier
+│   ├── sequent-core
+│   ├── strand
+│   ├── target
+│   ├── test-app
+│   ├── ui-essentials
+│   └── voting-portal
+└── vendor                      <--- External cloned dependencies
+    └── immudb-log-audit
+```
+
+The `packages/` directory contains both `Cargo` and `Yarn` managed packages:
+In that directory you can find both a `package.json` and a `Cargo.toml`. It's
+at the same time a [cargo workspace] and a [yarn workspace]. 
+
+This superimposed workspaces structure allows us to build the same module both
+in yarn and cargo, depending on the use-case. For example, `sequent-core` is 
+both used in:
+a. Frontend code, compiled to WASM with Yarn.
+b. Backend code, compiled to native code with Cargo.
 
 ### Launch the backend rust service
 
@@ -288,5 +324,10 @@ INSERT INTO table1_with_pk (b, c) VALUES('Backup and Restore', now());
 
 Clean the disk with:
 
-    docker system prune --all
-    nix-collect-garbage
+```bash
+docker system prune --all --prune
+nix-collect-garbage
+```
+
+[cargo workspace]: https://doc.rust-lang.org/cargo/reference/workspaces.html
+[yarn workspace]: https://yarnpkg.com/features/workspaces
