@@ -45,6 +45,7 @@ The verifier performs checks that map to these steps, as well as additional cons
 // Check symbolic constants
 ///////////////////////////////////////////////////////////////////////////
 
+// TODO use this instead of strings
 enum Checks {
     CONFIGURATION_VALID,
     MESSAGE_SIGNATURES_VALID,
@@ -161,7 +162,7 @@ impl<C: Ctx> Verifier<C> {
             .artifact
             .as_ref()
             .unwrap();
-        let cfg_h = crate::util::hash_from_vec(&strand::hash::hash(&cfg_bytes)?).unwrap();
+        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
         info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 

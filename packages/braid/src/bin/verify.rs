@@ -1,4 +1,4 @@
-// cargo run --bin verify -- --server-url http://immudb:3322 --board defaultboard --trustee-config trustee1.toml
+// cargo run --bin verify -- --server-url http://immudb:3322 --board defaultboard
 use anyhow::Result;
 use chacha20poly1305::KeyInit;
 use clap::Parser;
