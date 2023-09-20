@@ -37,8 +37,7 @@ async fn main() -> Result<()> {
     // generate dummy values, these are not important
     let mut csprng = strand::rng::StrandRng;
     let dummy_sk = StrandSignatureSk::new().unwrap();
-    let dummy_encryption_key =
-        chacha20poly1305::ChaCha20Poly1305::generate_key(&mut csprng);
+    let dummy_encryption_key = chacha20poly1305::ChaCha20Poly1305::generate_key(&mut csprng);
 
     init_log(true);
     let args = Cli::parse();

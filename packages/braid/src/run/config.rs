@@ -17,8 +17,9 @@ pub struct TrusteeConfig {
 impl TrusteeConfig {
     pub fn from<C: Ctx>(trustee: &Trustee<C>) -> TrusteeConfig {
         let sk_bytes = trustee.signing_key.strand_serialize().unwrap();
-        // FIXME unwrap
-        let pk_bytes = StrandSignaturePk::from(&trustee.signing_key).unwrap()
+
+        let pk_bytes = StrandSignaturePk::from(&trustee.signing_key)
+            .unwrap()
             .strand_serialize()
             .unwrap();
         let ek_bytes = trustee.encryption_key.as_slice();

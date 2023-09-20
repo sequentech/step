@@ -354,7 +354,9 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
     let pk = strand::elgamal::PublicKey::from_element(&pk_element, &ctx);
 
     let mut rng = ctx.get_rng();
-    let ps: Vec<C::P> = (0..ballot_no).map(|_| ctx.rnd_plaintext(&mut rng)).collect();
+    let ps: Vec<C::P> = (0..ballot_no)
+        .map(|_| ctx.rnd_plaintext(&mut rng))
+        .collect();
     let ballots: Vec<Ciphertext<C>> = ps
         .iter()
         .map(|p| {
@@ -472,7 +474,7 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
         }
     } else {
         for t in context.trustees.iter_mut() {
-            let position = context.cfg.get_trustee_position(&t.get_pk());
+            let position = context.cfg.get_trustee_position(&t.get_pk().unwrap());
             info!(
                 "====================== Running trustee {} ======================",
                 position.unwrap()

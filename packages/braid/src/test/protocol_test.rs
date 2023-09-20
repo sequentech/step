@@ -187,11 +187,8 @@ pub fn create_protocol_test<C: Ctx>(
         .map(|_| {
             let sk = StrandSignatureSk::new().unwrap();
             let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
-            let pk = StrandSignaturePk::from(&sk).unwrap(); 
-            (
-                Trustee::new(sk, encryption_key),
-                pk
-            )
+            let pk = StrandSignaturePk::from(&sk).unwrap();
+            (Trustee::new(sk, encryption_key), pk)
         })
         .unzip();
 

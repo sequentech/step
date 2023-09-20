@@ -49,7 +49,7 @@ pub async fn add_config_to_board<C: Ctx>(
     threshold: usize,
     board_name: &str,
     trustee_pks: Vec<StrandSignaturePk>,
-    pm: ProtocolManager<C>
+    pm: ProtocolManager<C>,
 ) -> Result<()> {
     let configuration = Configuration::<C>::new(
         0,
@@ -63,4 +63,3 @@ pub async fn add_config_to_board<C: Ctx>(
 
     init(&mut board, configuration, pm, board_name).await
 }
-

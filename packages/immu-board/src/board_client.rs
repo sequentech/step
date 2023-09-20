@@ -308,7 +308,7 @@ impl BoardClient {
                 }),
             },
         ];
-        let sql_query_response = self.client.sql_exec(&message_sql, params).await?;
+        let _ = self.client.sql_exec(&message_sql, params).await?;
 
         self.get_board(index_db, board_db).await
     }

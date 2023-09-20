@@ -170,10 +170,8 @@ impl<C: Ctx> Verifier<C> {
         // Verify message signatures
 
         info!("Verifying signatures for {} messages..", messages.len());
-        let vmessages: Result<Vec<VerifiedMessage>> = messages
-            .iter()
-            .map(|m| m.verify(&cfg))
-            .collect();
+        let vmessages: Result<Vec<VerifiedMessage>> =
+            messages.iter().map(|m| m.verify(&cfg)).collect();
         let vmessages = vmessages?;
         vr.add_result(MESSAGE_SIGNATURES_VALID, true, &vmessages.len());
 

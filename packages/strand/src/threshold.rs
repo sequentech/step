@@ -60,7 +60,8 @@ pub fn compute_peer_share<C: Ctx>(
 }
 
 /// Computes the factor of the verification key for the receiving trustee using
-/// the sender commitments.
+/// the sender commitments. Note also that this value must equal g^share_ij from i to j,
+/// this is checked when verifying received shares.
 pub fn verification_key_factor<C: Ctx>(
     sender_commitments: &[C::E],
     threshold: usize,

@@ -11,9 +11,9 @@ use std::collections::HashSet;
 use std::marker::PhantomData;
 use tracing_attributes::instrument;
 
-use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignature, StrandSignaturePk, StrandSignatureSk};
+use strand::{context::Ctx, elgamal::PrivateKey};
 
 use crate::protocol2::artifact::Commitments;
 use crate::protocol2::artifact::Configuration;
@@ -215,7 +215,7 @@ impl<C: Ctx> Trustee<C> {
             configuration.ok_or(anyhow!("Cannot derive predicates without a configuration"))?;
 
         let configuration_p_ = if !verifying_mode {
-            Predicate::get_bootstrap_predicate(&configuration, &self.get_pk())
+            Predicate::get_bootstrap_predicate(&configuration, &self.get_pk()?)
         } else {
             Predicate::get_verifier_bootstrap_predicate(&configuration)
         };
@@ -418,9 +418,9 @@ impl<C: Ctx> Trustee<C> {
         true
     }
 
-    pub fn get_pk(&self) -> StrandSignaturePk {
+    pub fn get_pk(&self) -> Result<StrandSignaturePk> {
         // FIXME unwrap
-        StrandSignaturePk::from(&self.signing_key).unwrap()
+        Ok(StrandSignaturePk::from(&self.signing_key)?)
     }
 
     pub(crate) fn encrypt_coefficients(
@@ -445,7 +445,7 @@ impl<C: Ctx> Trustee<C> {
         Vec::<C::X>::strand_deserialize(&decrypted).ok()
     }
 
-    pub(crate) fn encrypt_share_sk(&self, pk: C::E, sk: C::X) -> Result<ShareTransport<C>> {
+    pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>) -> Result<ShareTransport<C>> {
         let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
         let cipher = ChaCha20Poly1305::new(&self.encryption_key);
         let bytes: &[u8] = &sk.strand_serialize()?;
@@ -453,15 +453,19 @@ impl<C: Ctx> Trustee<C> {
             .encrypt(&nonce, bytes)
             .map_err(|e| anyhow!("chacha error {e}"));
 
-        Ok(ShareTransport::new(pk, encrypted?, nonce))
+        Ok(ShareTransport::new(
+            sk.pk_element().clone(),
+            encrypted?,
+            nonce,
+        ))
     }
 
-    pub(crate) fn decrypt_share_sk(&self, st: &ShareTransport<C>) -> Option<C::X> {
+    pub(crate) fn decrypt_share_sk(&self, st: &ShareTransport<C>) -> Option<PrivateKey<C>> {
         let cipher = ChaCha20Poly1305::new(&self.encryption_key);
         let nonce = GenericArray::<u8, U12>::from_slice(&st.nonce);
         let bytes: &[u8] = &st.encrypted_sk;
         let decrypted = cipher.decrypt(nonce, bytes).ok()?;
-        C::X::strand_deserialize(&decrypted).ok()
+        PrivateKey::<C>::strand_deserialize(&decrypted).ok()
     }
 }
 

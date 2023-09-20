@@ -3,10 +3,7 @@ use super::*;
 use anyhow::anyhow;
 use anyhow::Result;
 use rayon::prelude::*;
-use strand::{
-    elgamal::PrivateKey, serialization::StrandVectorCP, serialization::StrandVectorP,
-    zkp::ChaumPedersen,
-};
+use strand::{serialization::StrandVectorCP, serialization::StrandVectorP, zkp::ChaumPedersen};
 
 pub(super) fn compute_decryption_factors<C: Ctx>(
     cfg_h: &ConfigurationHash,
@@ -46,7 +43,6 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
         let sk = trustee
             .decrypt_share_sk(&commitments.share_transport)
             .ok_or(anyhow!("Could not decrypt share transport",))?;
-        let sk = PrivateKey::from(&sk, &ctx);
 
         let share = ctx.decrypt_exp(&share_.0[*self_p], sk)?;
 
@@ -242,15 +238,11 @@ fn compute_plaintexts_<C: Ctx>(
             let values: Result<Vec<C::E>> = it2
                 .into_par_iter()
                 .map(|((df, proof), c)| {
-                    let ok = zkp
-                        .verify_decryption(&vk, &df, &c.mhr, &c.gr, &proof, &label)?;
+                    let ok = zkp.verify_decryption(&vk, &df, &c.mhr, &c.gr, &proof, &label)?;
                     if ok {
                         Ok(ctx.emod_pow(&df, &lagrange))
-                    }
-                    else {
-                        Err(anyhow!(
-                            "Failed to verify decryption proof",
-                        ))
+                    } else {
+                        Err(anyhow!("Failed to verify decryption proof",))
                     }
                 })
                 .collect();
