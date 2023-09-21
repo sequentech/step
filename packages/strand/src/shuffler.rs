@@ -92,7 +92,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         (result, rs, perm)
     }
 
-    pub fn apply_permutation(
+    pub(crate) fn apply_permutation(
         &self,
         perm: &[usize],
         ciphertexts: &[Ciphertext<C>],

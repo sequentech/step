@@ -23,7 +23,7 @@ pub mod hashing;
 mod keymaker;
 /// Random number generation frontend..
 #[doc(hidden)]
-pub mod random;
+pub(crate) mod random;
 /// Serialization frontend. StrandVectors for parallel serialization.
 #[doc(hidden)]
 pub mod serialization;
@@ -50,12 +50,12 @@ pub mod symmetric;
 cfg_if::cfg_if! {
     if #[cfg(feature = "openssl")] {
         pub use signatures::openssl as signature;
-        pub use random::openssl as rng;
+        pub(crate) use random::openssl as rng;
         pub use hashing::openssl as hash;
     }
     else if #[cfg(feature = "wasm")] {
         pub use signatures::rustcrypto as signature;
-        pub use random::rand as rng;
+        pub(crate) use random::rand as rng;
         pub use hashing::sha2 as hash;
     }
     else {
