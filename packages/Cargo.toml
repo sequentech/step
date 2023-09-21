@@ -6,7 +6,7 @@ members = [
     "strand",
     "immu-board",
     "immudb-rs",
-    "wal2immu",
+    # "wal2immu",
     "sequent-core",
-    "new-ballot-verifier",
+    # "new-ballot-verifier",
 ]

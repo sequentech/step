@@ -17,7 +17,7 @@ pub mod context;
 pub mod elgamal;
 /// Hashing.
 #[doc(hidden)]
-pub mod hashing;
+pub(crate) mod hashing;
 /// Support for distributed Elgamal.
 #[allow(dead_code)]
 mod keymaker;
