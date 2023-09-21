@@ -66,7 +66,7 @@ pub(crate) fn mix<C: Ctx>(
     let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
     info!("Mix computing generators..");
 
-    let hs = ctx.generators(cs.0.len() + 1, &seed);
+    let hs = ctx.generators(cs.0.len() + 1, &seed)?;
     let shuffler = strand::shuffler::Shuffler::new(&pk, &hs, &ctx);
 
     info!("Mix computing shuffle..");
@@ -142,7 +142,7 @@ pub(crate) fn sign_mix<C: Ctx>(
     let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &ctx);
 
     let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
-    let hs = ctx.generators(source_cs.0.len() + 1, &seed);
+    let hs = ctx.generators(source_cs.0.len() + 1, &seed)?;
     let shuffler = strand::shuffler::Shuffler::new(&pk, &hs, &ctx);
 
     let label = cfg.label(*batch, format!("shuffle{mix_number}"));

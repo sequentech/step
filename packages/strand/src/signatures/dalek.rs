@@ -15,32 +15,47 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
 
-use crate::rnd::StrandRng;
+use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
 
-/// An ed25519 backed signature.
+/// An ed25519-dalek backed signature.
 #[derive(Clone)]
 pub struct StrandSignature(Signature);
 
-/// An ed25519 backed signature verification key.
+/// An ed25519-dalek backed signature verification key.
 // Clone: Allows Configuration to be Clonable in Braid
 #[derive(Clone)]
 pub struct StrandSignaturePk(VerifyingKey);
 impl StrandSignaturePk {
-    pub fn from(sk: &StrandSignatureSk) -> StrandSignaturePk {
-        StrandSignaturePk(VerifyingKey::from(&sk.0))
+    pub fn from(
+        sk: &StrandSignatureSk,
+    ) -> Result<StrandSignaturePk, StrandError> {
+        Ok(StrandSignaturePk(VerifyingKey::from(&sk.0)))
     }
     pub fn verify(
         &self,
         signature: &StrandSignature,
         msg: &[u8],
-    ) -> Result<(), &'static str> {
-        self.0
-            .verify(msg, &signature.0)
-            .map_err(|_| "Failed to verify signature")
+    ) -> Result<(), StrandError> {
+        Ok(self.0.verify(msg, &signature.0)?)
     }
 }
+
+/// An ed25519-dalek backed signing key.
+#[derive(Clone)]
+pub struct StrandSignatureSk(SigningKey);
+impl StrandSignatureSk {
+    pub fn new() -> Result<StrandSignatureSk, StrandError> {
+        let mut rng = StrandRng;
+        let sk = SigningKey::generate(&mut rng);
+        Ok(StrandSignatureSk(sk))
+    }
+    pub fn sign(&self, msg: &[u8]) -> Result<StrandSignature, StrandError> {
+        Ok(StrandSignature(self.0.sign(msg)))
+    }
+}
+
 impl PartialEq for StrandSignaturePk {
     fn eq(&self, other: &Self) -> bool {
         self.0.as_ref() == other.0.as_ref()
@@ -73,24 +88,6 @@ impl TryFrom<StrandSignaturePk> for String {
     fn try_from(value: StrandSignaturePk) -> Result<Self, Self::Error> {
         let bytes = value.strand_serialize()?;
         Ok(general_purpose::STANDARD_NO_PAD.encode(bytes))
-    }
-}
-
-/// An ed25519 backed signing key.
-#[derive(Clone)]
-pub struct StrandSignatureSk(SigningKey);
-impl StrandSignatureSk {
-    pub fn new(rng: &mut StrandRng) -> StrandSignatureSk {
-        let sk = SigningKey::generate(rng);
-        StrandSignatureSk(sk)
-    }
-    pub fn sign(&self, msg: &[u8]) -> StrandSignature {
-        StrandSignature(self.0.sign(msg))
-    }
-}
-impl std::fmt::Debug for StrandSignatureSk {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", &hex::encode(self.0.as_ref())[0..10])
     }
 }
 
@@ -195,7 +192,6 @@ pub(crate) mod tests {
     use super::*;
     use crate::serialization::{StrandDeserialize, StrandSerialize};
 
-    // Adapted from ed25519-zebra (MIT)
     #[test]
     pub fn test_signature() {
         let msg = b"ok";
@@ -209,9 +205,11 @@ pub(crate) mod tests {
 
             let sig = sk_d.sign(msg);
 
-            let sig_bytes = sig.strand_serialize().unwrap();
-            let vk_bytes =
-                StrandSignaturePk::from(&sk_d).strand_serialize().unwrap();
+            let sig_bytes = sig.unwrap().strand_serialize().unwrap();
+            let vk_bytes = StrandSignaturePk::from(&sk_d)
+                .unwrap()
+                .strand_serialize()
+                .unwrap();
 
             (vk_bytes, sig_bytes)
         };
@@ -240,9 +238,10 @@ pub(crate) mod tests {
 
             let sig = signing_key_deserialized.sign(message);
 
-            let signature_string: String = sig.try_into().unwrap();
+            let signature_string: String = sig.unwrap().try_into().unwrap();
             let public_key_string: String =
                 StrandSignaturePk::from(&signing_key_deserialized)
+                    .unwrap()
                     .try_into()
                     .unwrap();
 

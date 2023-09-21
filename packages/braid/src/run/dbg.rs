@@ -223,12 +223,12 @@ impl<C: Ctx> Status<C> {
 }
 
 fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContext<C> {
-    let mut csprng = strand::rnd::StrandRng;
+    let mut csprng = strand::rng::StrandRng;
 
     let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
     selected[0..threshold.len()].copy_from_slice(&threshold);
 
-    let pmkey: StrandSignatureSk = StrandSignatureSk::new(&mut csprng);
+    let pmkey: StrandSignatureSk = StrandSignatureSk::new().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
@@ -237,20 +237,20 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
     let trustees: Vec<Trustee<C>> = (0..n_trustees)
         .into_iter()
         .map(|_| {
-            let kp = StrandSignatureSk::new(&mut csprng);
-            let encryption_key = ChaCha20Poly1305::generate_key(&mut chacha20poly1305::aead::OsRng);
+            let kp = StrandSignatureSk::new().unwrap();
+            let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             Trustee::new(kp, encryption_key)
         })
         .collect();
 
     let trustee_pks: Vec<StrandSignaturePk> = trustees
         .iter()
-        .map(|t| StrandSignaturePk::from(&t.signing_key))
+        .map(|t| StrandSignaturePk::from(&t.signing_key).unwrap())
         .collect();
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from(&pm.signing_key),
+        StrandSignaturePk::from(&pm.signing_key).unwrap(),
         trustee_pks.clone(),
         threshold.len(),
         PhantomData,
@@ -348,12 +348,15 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
     let dkgpk = context.trustees[0].get_dkg_public_key_nohash().unwrap();
 
     let pk_bytes = dkgpk.strand_serialize().unwrap();
-    let pk_h = strand::util::hash_array(&pk_bytes);
+    let pk_h = strand::hash::hash_to_array(&pk_bytes).unwrap();
 
     let pk_element = dkgpk.pk;
     let pk = strand::elgamal::PublicKey::from_element(&pk_element, &ctx);
 
-    let ps: Vec<C::P> = (0..ballot_no).map(|_| ctx.rnd_plaintext()).collect();
+    let mut rng = ctx.get_rng();
+    let ps: Vec<C::P> = (0..ballot_no)
+        .map(|_| ctx.rnd_plaintext(&mut rng))
+        .collect();
     let ballots: Vec<Ciphertext<C>> = ps
         .iter()
         .map(|p| {
@@ -471,7 +474,7 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
         }
     } else {
         for t in context.trustees.iter_mut() {
-            let position = context.cfg.get_trustee_position(&t.get_pk());
+            let position = context.cfg.get_trustee_position(&t.get_pk().unwrap());
             info!(
                 "====================== Running trustee {} ======================",
                 position.unwrap()

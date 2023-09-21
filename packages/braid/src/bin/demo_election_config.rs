@@ -17,7 +17,7 @@ use std::marker::PhantomData;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
-use strand::rnd::StrandRng;
+use strand::rng::StrandRng;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
@@ -37,25 +37,25 @@ fn main() {
 fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
     let mut csprng = StrandRng;
 
-    let pmkey: StrandSignatureSk = StrandSignatureSk::new(&mut csprng);
+    let pmkey: StrandSignatureSk = StrandSignatureSk::new().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
     let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|_| {
-            let sk = StrandSignatureSk::new(&mut csprng);
-            let encryption_key = ChaCha20Poly1305::generate_key(&mut chacha20poly1305::aead::OsRng);
+            let sk = StrandSignatureSk::new().unwrap();
+            let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             (
                 Trustee::new(sk.clone(), encryption_key),
-                StrandSignaturePk::from(&sk),
+                StrandSignaturePk::from(&sk).unwrap(),
             )
         })
         .unzip();
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from(&pm.signing_key),
+        StrandSignaturePk::from(&pm.signing_key).unwrap(),
         trustee_pks,
         threshold.len(),
         PhantomData,

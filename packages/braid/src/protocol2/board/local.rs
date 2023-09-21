@@ -136,7 +136,7 @@ impl<C: Ctx> LocalBoard<C> {
 
     fn add_message(&mut self, message: VerifiedMessage) -> Result<()> {
         let bytes = message.statement.strand_serialize()?;
-        let statement_hash = strand::util::hash(&bytes);
+        let statement_hash = strand::hash::hash(&bytes)?;
 
         let statement_identifier =
             self.get_statement_entry_identifier(&message.statement, message.signer_position);
@@ -166,7 +166,7 @@ impl<C: Ctx> LocalBoard<C> {
             if let Some((artifact_type, artifact)) = message.artifact {
                 let artifact_identifier =
                     self.get_artifact_entry_identifier(&statement_identifier, &artifact_type);
-                let artifact_hash = strand::util::hash_array(&artifact);
+                let artifact_hash = strand::hash::hash_to_array(&artifact)?;
                 trace!(
                     "Artifact found with hash {}",
                     hex::encode(artifact_hash)[0..10].to_string()

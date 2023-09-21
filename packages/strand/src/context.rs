@@ -26,11 +26,12 @@
 //! use strand::elgamal::{PrivateKey, PublicKey};
 //!
 //! let ctx = RistrettoCtx;
+//! let mut rng = ctx.get_rng();
 //! // generate an ElGamal keypair
 //! let sk = PrivateKey::gen(&ctx);
 //! let pk = sk.get_pk();
 //! // encrypt and decrypt
-//! let plaintext = ctx.rnd_plaintext();
+//! let plaintext = ctx.rnd_plaintext(&mut rng);
 //! let encoded = ctx.encode(&plaintext).unwrap();
 //! let ciphertext = pk.encrypt(&encoded);
 //! let decrypted = sk.decrypt(&ciphertext);
@@ -55,6 +56,7 @@ pub trait Ctx: Send + Sync + Sized + Clone + Default + Debug {
     type E: Element<Self>;
     type X: Exponent<Self>;
     type P: Plaintext;
+    type R: Send + Sync;
 
     fn generator(&self) -> &Self::E;
     fn gmod_pow(&self, other: &Self::X) -> Self::E;
@@ -63,16 +65,21 @@ pub trait Ctx: Send + Sync + Sized + Clone + Default + Debug {
     fn modulo(&self, value: &Self::E) -> Self::E;
     fn exp_modulo(&self, value: &Self::X) -> Self::X;
 
-    fn rnd(&self) -> Self::E;
-    fn rnd_exp(&self) -> Self::X;
-    fn rnd_plaintext(&self) -> Self::P;
+    fn get_rng(&self) -> Self::R;
+    fn rnd(&self, rng: &mut Self::R) -> Self::E;
+    fn rnd_exp(&self, rng: &mut Self::R) -> Self::X;
+    fn rnd_plaintext(&self, rng: &mut Self::R) -> Self::P;
 
     fn encode(&self, plaintext: &Self::P) -> Result<Self::E, StrandError>;
     fn decode(&self, element: &Self::E) -> Self::P;
+    // Needed to perform context dependent validation on incoming bytes
     fn element_from_bytes(&self, bytes: &[u8]) -> Result<Self::E, StrandError>;
+    // Needed to perform context dependent validation on incoming bytes
     fn exp_from_bytes(&self, bytes: &[u8]) -> Result<Self::X, StrandError>;
+    // Used to convert exponents in threshold cryptography
     fn exp_from_u64(&self, value: u64) -> Self::X;
-    fn hash_to_exp(&self, bytes: &[u8]) -> Self::X;
+    // Used to compute challenges in zk proofs
+    fn hash_to_exp(&self, bytes: &[u8]) -> Result<Self::X, StrandError>;
 
     // In braid, used to encrypt shares (evaluations of the polynomial in Zp)
     fn encrypt_exp(
@@ -86,7 +93,11 @@ pub trait Ctx: Send + Sync + Sized + Clone + Default + Debug {
         sk: PrivateKey<Self>,
     ) -> Result<Self::X, StrandError>;
 
-    fn generators(&self, size: usize, seed: &[u8]) -> Vec<Self::E>;
+    fn generators(
+        &self,
+        size: usize,
+        seed: &[u8],
+    ) -> Result<Vec<Self::E>, StrandError>;
 }
 
 /// An element of the underlying group.
@@ -109,7 +120,7 @@ pub trait Element<C: Ctx>:
     /// Modulo operation using group order / not necessary, applied
     /// automatically.
     fn modp(&self, ctx: &C) -> C::E;
-    /// Division (a div b = a * b^1) using group order / point subtraction.
+    /// Division (a div b = a * b^-1) using group order / point subtraction.
     fn divp(&self, other: &C::E, ctx: &C) -> C::E;
     /// Modular inverse using group order / point negation.
     fn invp(&self, ctx: &C) -> C::E;

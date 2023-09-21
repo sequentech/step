@@ -8,10 +8,11 @@
 //! use strand::context::{Ctx, Element};
 //! use strand::backend::ristretto::RistrettoCtx;
 //! let ctx = RistrettoCtx;
+//! let mut rng = ctx.get_rng();
 //! // do some stuff..
 //! let g = ctx.generator();
-//! let a = ctx.rnd_exp();
-//! let b = ctx.rnd_exp();
+//! let a = ctx.rnd_exp(&mut rng);
+//! let b = ctx.rnd_exp(&mut rng);
 //! let g_ab = ctx.emod_pow(&ctx.emod_pow(g, &a), &b);
 //! let g_ba = ctx.emod_pow(&ctx.emod_pow(g, &b), &a);
 //! assert_eq!(g_ab, g_ba);
@@ -27,14 +28,11 @@ use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
 use rand::RngCore;
-use sha2::Digest;
-use sha3::digest::{ExtendableOutput, Update, XofReader};
-use sha3::Shake256;
 
 use crate::context::{Ctx, Element, Exponent, Plaintext};
 use crate::elgamal::Ciphertext;
 use crate::elgamal::{PrivateKey, PublicKey};
-use crate::rnd::StrandRng;
+use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util;
 use crate::util::StrandError;
@@ -50,35 +48,66 @@ pub struct RistrettoPointS(pub(crate) RistrettoPoint);
 // Scalar for Strand
 pub struct ScalarS(pub(crate) Scalar);
 
+cfg_if::cfg_if! {
+    if #[cfg(feature = "openssl")] {
+
+impl RistrettoCtx {
+    fn generators_shake(
+        &self,
+        size: usize,
+        seed: &[u8],
+    ) -> Result<Vec<RistrettoPointS>, StrandError> {
+        let seed_ = seed.to_vec();
+
+        let mut ret: Vec<RistrettoPointS> = Vec::with_capacity(size);
+        let reader = crate::hash::hash_xof(64 * size, &seed_)?;
+        let mut uniform_bytes = [0u8; 64];
+        for _ in 0..size {
+            let bytes_read = std::io::Read::read(&mut reader.as_slice(), &mut uniform_bytes)
+                .expect("impossible: we are reading from a byte slice, any out of bounds programming error should panic");
+            assert_eq!(bytes_read, 64);
+            let g = RistrettoPoint::from_uniform_bytes(&uniform_bytes);
+            ret.push(RistrettoPointS(g));
+        }
+        Ok(ret)
+    }
+}
+} else {
+
+use crate::hash::{ExtendableOutput, Update, XofReader};
+
 impl RistrettoCtx {
     // https://docs.rs/bulletproofs/4.0.0/src/bulletproofs/generators.rs.html
     fn generators_shake(
         &self,
         size: usize,
         seed: &[u8],
-    ) -> Vec<RistrettoPointS> {
+    ) -> Result<Vec<RistrettoPointS>, StrandError> {
         let seed_ = seed.to_vec();
 
         let mut ret: Vec<RistrettoPointS> = Vec::with_capacity(size);
-        let mut shake = Shake256::default();
+        let mut shake = crate::hash::hasher_xof();
         shake.update(&seed_);
 
         let mut reader = shake.finalize_xof();
+        let mut uniform_bytes = [0u8; 64];
         for _ in 0..size {
-            let mut uniform_bytes = [0u8; 64];
             reader.read(&mut uniform_bytes);
             let g = RistrettoPoint::from_uniform_bytes(&uniform_bytes);
             ret.push(RistrettoPointS(g));
         }
 
-        ret
+        Ok(ret)
     }
+}
+}
 }
 
 impl Ctx for RistrettoCtx {
     type E = RistrettoPointS;
     type X = ScalarS;
     type P = [u8; 30];
+    type R = StrandRng;
 
     #[inline(always)]
     fn generator(&self) -> &Self::E {
@@ -108,33 +137,37 @@ impl Ctx for RistrettoCtx {
     }
 
     #[inline(always)]
-    fn rnd(&self) -> Self::E {
-        let mut rng = StrandRng;
+    fn get_rng(&self) -> StrandRng {
+        StrandRng
+    }
+    #[inline(always)]
+    fn rnd(&self, rng: &mut Self::R) -> Self::E {
         let mut uniform_bytes = [0u8; 64];
         rng.fill_bytes(&mut uniform_bytes);
 
         RistrettoPointS(RistrettoPoint::from_uniform_bytes(&uniform_bytes))
     }
     #[inline(always)]
-    fn rnd_exp(&self) -> Self::X {
-        let mut rng = StrandRng;
+    fn rnd_exp(&self, rng: &mut Self::R) -> Self::X {
         let mut uniform_bytes = [0u8; 64];
         rng.fill_bytes(&mut uniform_bytes);
 
         ScalarS(Scalar::from_bytes_mod_order_wide(&uniform_bytes))
     }
-    fn rnd_plaintext(&self) -> Self::P {
-        let mut csprng = StrandRng;
+    fn rnd_plaintext(&self, rng: &mut Self::R) -> Self::P {
         let mut value = [0u8; 30];
-        csprng.fill_bytes(&mut value);
+        rng.fill_bytes(&mut value);
 
         value
     }
-    fn hash_to_exp(&self, bytes: &[u8]) -> Self::X {
-        let mut hasher = util::hasher();
+    fn hash_to_exp(&self, bytes: &[u8]) -> Result<Self::X, StrandError> {
+        /* let mut hasher = crate::hash::hasher();
         Digest::update(&mut hasher, bytes);
 
-        ScalarS(Scalar::from_hash(hasher))
+        ScalarS(Scalar::from_hash(hasher))*/
+
+        let bytes = crate::hash::hash_to_array(bytes)?;
+        Ok(ScalarS(Scalar::from_bytes_mod_order_wide(&bytes)))
     }
     // see https://github.com/dalek-cryptography/curve25519-dalek/issues/322
     // see https://github.com/hdevalence/ristretto255-data-encoding/blob/master/src/main.rs
@@ -239,7 +272,11 @@ impl Ctx for RistrettoCtx {
             ))
         }
     }
-    fn generators(&self, size: usize, seed: &[u8]) -> Vec<Self::E> {
+    fn generators(
+        &self,
+        size: usize,
+        seed: &[u8],
+    ) -> Result<Vec<Self::E>, StrandError> {
         self.generators_shake(size, seed)
     }
 }

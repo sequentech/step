@@ -112,9 +112,9 @@ impl EncryptedCoefficients {
 #[derive(BorshSerialize, BorshDeserialize)]
 // ElGamal key information used to send shares confidentially
 pub(crate) struct ShareTransport<C: Ctx> {
-    // The public key with which other trustees will encrypt shares sent to the originator of this ShareTransport
+    // The public key (as an element) with which other trustees will encrypt shares sent to the originator of this ShareTransport
     pub(crate) pk: C::E,
-    // The encrypted (symmetric) private key corresponding to the above
+    // The encrypted (symmetric) PrivateKey corresponding to the above
     pub(crate) encrypted_sk: Vec<u8>,
     // The nonce used for symmetric encryption
     pub(crate) nonce: Vec<u8>,
@@ -221,7 +221,7 @@ pub struct Plaintexts<C: Ctx>(pub StrandVectorP<C>);
 
 impl<C: Ctx> std::fmt::Debug for Configuration<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let hashed = strand::util::hash(&self.strand_serialize().unwrap());
+        let hashed = strand::hash::hash(&self.strand_serialize().unwrap()).unwrap();
         write!(
             f,
             "hash={:?}, #trustees={}, threshold={}",

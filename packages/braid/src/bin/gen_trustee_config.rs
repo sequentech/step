@@ -15,7 +15,7 @@ use std::marker::PhantomData;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
-use strand::rnd::StrandRng;
+use strand::rng::StrandRng;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
@@ -43,12 +43,12 @@ fn main() {
 fn gen_trustee_config<C: Ctx>() {
     let mut csprng = StrandRng;
 
-    let sk = StrandSignatureSk::new(&mut csprng);
+    let sk = StrandSignatureSk::new().unwrap();
     let pk = StrandSignaturePk::from(&sk);
-    let encryption_key = ChaCha20Poly1305::generate_key(&mut chacha20poly1305::aead::OsRng);
+    let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
 
     let sk_bytes = sk.strand_serialize().unwrap();
-    let pk_bytes = pk.strand_serialize().unwrap();
+    let pk_bytes = pk.unwrap().strand_serialize().unwrap();
     let ek_bytes = encryption_key.as_slice();
 
     let sk_string: String = general_purpose::STANDARD_NO_PAD.encode(sk_bytes);
@@ -66,9 +66,7 @@ fn gen_trustee_config<C: Ctx>() {
 }
 
 fn gen_protocol_manager_config<C: Ctx>() {
-    let mut csprng = StrandRng;
-
-    let pmkey: StrandSignatureSk = StrandSignatureSk::new(&mut csprng);
+    let pmkey: StrandSignatureSk = StrandSignatureSk::new().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,

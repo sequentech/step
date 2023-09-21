@@ -9,10 +9,11 @@
 //! use strand::backend::malachite::{MalachiteCtx, P2048};
 //! use strand::backend::malachite::NaturalE;
 //! let ctx = MalachiteCtx::<P2048>::default();
+//! let mut rng = ctx.get_rng();
 //! // do some stuff..
 //! let g = ctx.generator();
-//! let a = ctx.rnd_exp();
-//! let b = ctx.rnd_exp();
+//! let a = ctx.rnd_exp(&mut rng);
+//! let b = ctx.rnd_exp(&mut rng);
 //! let g_ab = ctx.emod_pow(&ctx.emod_pow(g, &a), &b);
 //! let g_ba = ctx.emod_pow(&ctx.emod_pow(g, &b), &a);
 //! assert_eq!(g_ab, g_ba);
@@ -33,12 +34,11 @@ use malachite::random::Seed;
 use malachite::Natural;
 
 use rand::Rng;
-use sha2::Digest;
 
 use crate::backend::constants::*;
 use crate::context::{Ctx, Element, Exponent, Plaintext};
 use crate::elgamal::{Ciphertext, PrivateKey, PublicKey};
-use crate::rnd::StrandRng;
+use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
 
@@ -63,7 +63,11 @@ pub struct MalachiteCtx<P: MalachiteCtxParams> {
 
 impl<P: MalachiteCtxParams> MalachiteCtx<P> {
     // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf A.2.3
-    fn generators_fips(&self, size: usize, seed: &[u8]) -> Vec<NaturalE<P>> {
+    fn generators_fips(
+        &self,
+        size: usize,
+        seed: &[u8],
+    ) -> Result<Vec<NaturalE<P>>, StrandError> {
         let mut ret = Vec::with_capacity(size);
         let two = Natural::from(2u32);
 
@@ -80,7 +84,7 @@ impl<P: MalachiteCtxParams> MalachiteCtx<P> {
                 assert!(count != 0);
                 next.extend(index.to_le_bytes());
                 next.extend(count.to_le_bytes());
-                let elem: Natural = self.hash_to_element(&next);
+                let elem: Natural = self.hash_to_element(&next)?;
                 let g = elem
                     .mod_pow(self.params.co_factor(), &self.params.modulus().0);
                 if g >= two {
@@ -90,16 +94,14 @@ impl<P: MalachiteCtxParams> MalachiteCtx<P> {
             }
         }
 
-        ret
+        Ok(ret)
     }
 
-    fn hash_to_element(&self, bytes: &[u8]) -> Natural {
-        let mut hasher = crate::util::hasher();
-        hasher.update(bytes);
-        let hashed = hasher.finalize();
+    fn hash_to_element(&self, bytes: &[u8]) -> Result<Natural, StrandError> {
+        let hashed = crate::hash::hash(bytes)?;
         let u16s = hashed.into_iter().map(|b| b as u16);
         let num = Natural::from_digits_desc(&256u16, u16s).expect("impossible");
-        num.rem(&self.params.modulus().0)
+        Ok(num.rem(&self.params.modulus().0))
     }
 
     pub fn element_from_natural(
@@ -128,10 +130,10 @@ impl<P: MalachiteCtxParams> MalachiteCtx<P> {
         self.element_from_natural(natural)
     }
 
-    pub fn get_seed() -> Seed {
-        let mut gen = StrandRng;
+    #[inline(always)]
+    fn get_random_seed(&self, rng: &mut StrandRng) -> Seed {
         let mut seed_bytes = [0u8; 32];
-        gen.fill(&mut seed_bytes);
+        rng.fill(&mut seed_bytes);
         Seed::from_bytes(seed_bytes)
     }
 }
@@ -140,6 +142,7 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
     type E = NaturalE<P>;
     type X = NaturalX<P>;
     type P = NaturalP;
+    type R = StrandRng;
 
     #[inline(always)]
     fn generator(&self) -> &Self::E {
@@ -183,10 +186,16 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
         }
     }
 
+    // Malachite does not support using _our_ rng, the best we can do is to
+    // seed _its_ internal rng (chacha20) with random data generated with our
+    // rng See https://docs.rs/malachite-base/0.4.0/src/malachite_base/random/mod.rs.html#46
     #[inline(always)]
-    fn rnd(&self) -> Self::E {
-        let seed = Self::get_seed();
-
+    fn get_rng(&self) -> Self::R {
+        StrandRng
+    }
+    #[inline(always)]
+    fn rnd(&self, rng: &mut Self::R) -> Self::E {
+        let seed = self.get_random_seed(rng);
         let one: Natural = Natural::from(1u8);
         let num = uniform_random_natural_inclusive_range(
             seed,
@@ -202,9 +211,8 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
             .expect("0..(q-1) should always be encodable")
     }
     #[inline(always)]
-    fn rnd_exp(&self) -> Self::X {
-        let seed = Self::get_seed();
-
+    fn rnd_exp(&self, rng: &mut Self::R) -> Self::X {
+        let seed = self.get_random_seed(rng);
         let num = uniform_random_natural_inclusive_range(
             seed,
             Natural::from(0u8),
@@ -215,8 +223,8 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
 
         NaturalX::new(num)
     }
-    fn rnd_plaintext(&self) -> Self::P {
-        NaturalP(self.rnd_exp().0)
+    fn rnd_plaintext(&self, rng: &mut Self::R) -> Self::P {
+        NaturalP(self.rnd_exp(rng).0)
     }
 
     fn encode(&self, plaintext: &Self::P) -> Result<Self::E, StrandError> {
@@ -255,12 +263,16 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
     }
     fn element_from_bytes(&self, bytes: &[u8]) -> Result<Self::E, StrandError> {
         let u16s = bytes.iter().map(|b| *b as u16);
-        let num = Natural::from_digits_desc(&256, u16s).expect("impossible");
+        let num = Natural::from_digits_desc(&256, u16s).ok_or(
+            StrandError::Generic("from_digits_desc returned None".to_string()),
+        )?;
         self.element_from_natural(num)
     }
     fn exp_from_bytes(&self, bytes: &[u8]) -> Result<Self::X, StrandError> {
         let u16s = bytes.iter().map(|b| *b as u16);
-        let ret = Natural::from_digits_desc(&256u16, u16s).expect("impossible");
+        let ret = Natural::from_digits_desc(&256u16, u16s).ok_or(
+            StrandError::Generic("from_digits_desc returned None".to_string()),
+        )?;
         let zero: Natural = Natural::from(0u8);
         if (ret < zero) || ret >= self.params.exp_modulus().0 {
             Err(StrandError::Generic("Out of range".to_string()))
@@ -271,14 +283,12 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
     fn exp_from_u64(&self, value: u64) -> Self::X {
         NaturalX::new(Natural::from(value))
     }
-    fn hash_to_exp(&self, bytes: &[u8]) -> Self::X {
-        let mut hasher = crate::util::hasher();
-        hasher.update(bytes);
-        let hashed = hasher.finalize();
+    fn hash_to_exp(&self, bytes: &[u8]) -> Result<Self::X, StrandError> {
+        let hashed = crate::hash::hash(bytes)?;
         let u16s = hashed.into_iter().map(|b| b as u16);
 
         let num = Natural::from_digits_desc(&256, u16s).expect("impossible");
-        NaturalX::new(num.rem(&self.params.exp_modulus().0))
+        Ok(NaturalX::new(num.rem(&self.params.exp_modulus().0)))
     }
     fn encrypt_exp(
         &self,
@@ -298,7 +308,11 @@ impl<P: MalachiteCtxParams> Ctx for MalachiteCtx<P> {
         Ok(NaturalX(self.decode(&decrypted).0, PhantomData))
     }
 
-    fn generators(&self, size: usize, seed: &[u8]) -> Vec<Self::E> {
+    fn generators(
+        &self,
+        size: usize,
+        seed: &[u8],
+    ) -> Result<Vec<Self::E>, StrandError> {
         self.generators_fips(size, seed)
     }
 }
@@ -540,8 +554,10 @@ impl BorshDeserialize for NaturalP {
     fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <Vec<u16>>::deserialize(bytes)?;
 
-        let num = Natural::from_digits_desc(&256u16, bytes.into_iter())
-            .expect("impossible");
+        let num = Natural::from_digits_desc(&256u16, bytes.into_iter()).ok_or(
+            Error::new(ErrorKind::Other, "from_digits_desc returned None"),
+        )?;
+
         Ok(NaturalP(num))
     }
 }
@@ -557,14 +573,16 @@ mod tests {
     #[test]
     fn test_elgamal() {
         let ctx = MalachiteCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_elgamal_generic(&ctx, plaintext);
     }
 
     #[test]
     fn test_elgamal_enc_pok() {
         let ctx = MalachiteCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_elgamal_enc_pok_generic(&ctx, plaintext);
     }
 
@@ -589,23 +607,26 @@ mod tests {
     #[test]
     fn test_vdecryption() {
         let ctx = MalachiteCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_vdecryption_generic(&ctx, plaintext);
     }
 
     #[test]
     fn test_distributed() {
         let ctx = MalachiteCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_distributed_generic(&ctx, plaintext);
     }
 
     #[test]
     fn test_distributed_serialization() {
         let ctx = MalachiteCtx::<P2048>::default();
+        let mut rng = ctx.get_rng();
         let mut ps = vec![];
         for _ in 0..10 {
-            let p = ctx.rnd_plaintext();
+            let p = ctx.rnd_plaintext(&mut rng);
             ps.push(p);
         }
         test_distributed_serialization_generic(&ctx, ps);
@@ -630,7 +651,8 @@ mod tests {
         let trustees = rand::thread_rng().gen_range(2..11);
         let threshold = rand::thread_rng().gen_range(2..trustees + 1);
         let ctx = MalachiteCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
 
         test_threshold_generic(&ctx, trustees, threshold, plaintext);
     }

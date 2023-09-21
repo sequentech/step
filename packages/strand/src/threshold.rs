@@ -16,11 +16,12 @@ pub fn gen_coefficients<C: Ctx>(
     threshold: usize,
     ctx: &C,
 ) -> (Vec<C::X>, Vec<C::E>) {
+    let mut rng = ctx.get_rng();
     let mut coefficients = vec![];
     let mut commitments = vec![];
 
     for _ in 0..threshold {
-        let coeff = ctx.rnd_exp();
+        let coeff = ctx.rnd_exp(&mut rng);
         let commitment = ctx.gmod_pow(&coeff);
         coefficients.push(coeff);
         commitments.push(commitment);
@@ -59,7 +60,8 @@ pub fn compute_peer_share<C: Ctx>(
 }
 
 /// Computes the factor of the verification key for the receiving trustee using
-/// the sender commitments.
+/// the sender commitments. Note also that this value must equal g^share_ij from i to j,
+/// this is checked when verifying received shares.
 pub fn verification_key_factor<C: Ctx>(
     sender_commitments: &[C::E],
     threshold: usize,

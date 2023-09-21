@@ -1,4 +1,6 @@
 #![allow(clippy::type_complexity)]
+use std::sync::{Arc, Mutex};
+
 use borsh::{BorshDeserialize, BorshSerialize};
 // SPDX-FileCopyrightText: 2021 David Ruescas <david@sequentech.io>
 //
@@ -6,12 +8,10 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use rand::seq::SliceRandom;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
-// use sha3::{Digest, Sha3_512 as Sha512};
-use sha2::Digest;
 
 use crate::context::{Ctx, Element, Exponent};
 use crate::elgamal::{Ciphertext, PublicKey};
-use crate::rnd::StrandRng;
+use crate::rng::StrandRng;
 use crate::serialization::StrandSerialize;
 use crate::serialization::{StrandVectorC, StrandVectorE, StrandVectorX};
 use crate::util::{Par, StrandError};
@@ -92,7 +92,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         (result, rs, perm)
     }
 
-    pub fn apply_permutation(
+    pub(crate) fn apply_permutation(
         &self,
         perm: &[usize],
         ciphertexts: &[Ciphertext<C>],
@@ -100,11 +100,15 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         assert!(perm.len() == ciphertexts.len());
 
         let ctx = &self.ctx;
+        let rng = Arc::new(Mutex::new(ctx.get_rng()));
 
         let (e_primes, rs): (Vec<Ciphertext<C>>, Vec<C::X>) = ciphertexts
             .par()
             .map(|c| {
-                let r = ctx.rnd_exp();
+                // It is idiomatic to unwrap on lock
+                let mut rng_ = rng.lock().unwrap();
+
+                let r = ctx.rnd_exp(&mut rng_);
 
                 let a =
                     c.mhr.mul(&ctx.emod_pow(&self.pk.element, &r)).modp(ctx);
@@ -161,6 +165,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         label: &[u8],
     ) -> Result<(ShuffleProof<C>, Vec<C::X>, C::X), StrandError> {
         let ctx = &self.ctx;
+        let mut rng = ctx.get_rng();
 
         #[allow(non_snake_case)]
         let N = es.len();
@@ -224,9 +229,11 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         r_tilde = r_tilde.modq(ctx);
         r_prime = r_prime.modq(ctx);
 
-        let omegas: Vec<C::X> = (0..4).map(|_| ctx.rnd_exp()).collect();
-        let omega_hats: Vec<C::X> = (0..N).map(|_| ctx.rnd_exp()).collect();
-        let omega_primes: Vec<C::X> = (0..N).map(|_| ctx.rnd_exp()).collect();
+        let omegas: Vec<C::X> = (0..4).map(|_| ctx.rnd_exp(&mut rng)).collect();
+        let omega_hats: Vec<C::X> =
+            (0..N).map(|_| ctx.rnd_exp(&mut rng)).collect();
+        let omega_primes: Vec<C::X> =
+            (0..N).map(|_| ctx.rnd_exp(&mut rng)).collect();
 
         let t1 = ctx.gmod_pow(&omegas[0]);
         let t2 = ctx.gmod_pow(&omegas[1]);
@@ -476,6 +483,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         perm: &[usize],
         ctx: &C,
     ) -> (Vec<C::E>, Vec<C::X>) {
+        let rng = Arc::new(Mutex::new(ctx.get_rng()));
         let generators = &self.generators[1..];
 
         assert!(generators.len() == perm.len());
@@ -483,7 +491,9 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let (cs, rs): (Vec<C::E>, Vec<C::X>) = generators
             .par()
             .map(|h| {
-                let r = ctx.rnd_exp();
+                // It is idiomatic to unwrap on lock
+                let mut rng_ = rng.lock().unwrap();
+                let r = ctx.rnd_exp(&mut rng_);
                 let c = h.mul(&ctx.gmod_pow(&r)).modp(ctx);
 
                 (c, r)
@@ -507,12 +517,16 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         us: &[&C::X],
         ctx: &C,
     ) -> (Vec<C::E>, Vec<C::X>) {
+        let rng = Arc::new(Mutex::new(ctx.get_rng()));
+
         let mut cs: Vec<C::E> = Vec::with_capacity(us.len());
 
         let (firsts, rs): (Vec<C::E>, Vec<C::X>) = (0..us.len())
             .par()
             .map(|_| {
-                let r = ctx.rnd_exp();
+                // It is idiomatic to unwrap on lock
+                let mut rng_ = rng.lock().unwrap();
+                let r = ctx.rnd_exp(&mut rng_);
                 // let first = ctx.gmod_pow(&r).modulo(ctx.modulus());
                 let first = ctx.gmod_pow(&r);
 
@@ -556,9 +570,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         // optimization: instead of calculating u = H(prefix || i),
         // we do u = H(H(prefix) || i)
         // that way we avoid allocating prefix-size bytes n times
-        let mut hasher = crate::util::hasher();
-        hasher.update(prefix_bytes);
-        let prefix_hash = hasher.finalize().to_vec();
+        let prefix_hash = crate::hash::hash(&prefix_bytes)?;
 
         let us: Result<Vec<C::X>, StrandError> = (0..n)
             .par()
@@ -571,7 +583,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                 let bytes = next.get_bytes();
                 let z: Result<C::X, StrandError> = match bytes {
                     Err(e) => Err(e),
-                    Ok(b) => Ok(self.ctx.hash_to_exp(&b)),
+                    Ok(b) => Ok(self.ctx.hash_to_exp(&b)?),
                 };
                 z
             })
@@ -615,7 +627,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         let bytes = challenge_input.get_bytes()?;
 
-        Ok(self.ctx.hash_to_exp(&bytes))
+        Ok(self.ctx.hash_to_exp(&bytes)?)
     }
 }
 

@@ -45,6 +45,7 @@ The verifier performs checks that map to these steps, as well as additional cons
 // Check symbolic constants
 ///////////////////////////////////////////////////////////////////////////
 
+// TODO use this instead of strings
 enum Checks {
     CONFIGURATION_VALID,
     MESSAGE_SIGNATURES_VALID,
@@ -147,9 +148,8 @@ impl<C: Ctx> Verifier<C> {
 
         let messages = self.board.get_messages(-1).await?;
 
-        let cfg_message: Vec<Message> = messages
-            .clone()
-            .into_iter()
+        let cfg_message: Vec<&Message> = messages
+            .iter()
             .filter(|m| m.statement.get_kind() == StatementType::Configuration)
             .collect();
 
@@ -162,7 +162,7 @@ impl<C: Ctx> Verifier<C> {
             .artifact
             .as_ref()
             .unwrap();
-        let cfg_h = crate::util::hash_from_vec(&strand::util::hash(&cfg_bytes)).unwrap();
+        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
         info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 
@@ -171,17 +171,13 @@ impl<C: Ctx> Verifier<C> {
         // Verify message signatures
 
         info!("Verifying signatures for {} messages..", messages.len());
-        let vmessages: Result<Vec<VerifiedMessage>> = messages
-            .clone()
-            .into_iter()
-            .map(|m| m.verify(&cfg))
-            .collect();
+        let vmessages: Result<Vec<VerifiedMessage>> =
+            messages.iter().map(|m| m.verify(&cfg)).collect();
         let vmessages = vmessages?;
         vr.add_result(MESSAGE_SIGNATURES_VALID, true, &vmessages.len());
 
         let correct_cfg = messages
-            .clone()
-            .into_iter()
+            .iter()
             .filter(|m| m.statement.get_cfg_h() == cfg_h)
             .count();
         vr.add_result(
@@ -214,7 +210,7 @@ impl<C: Ctx> Verifier<C> {
         info!("{}", "Running verifying actions..".blue());
         let (messages, _) = self.trustee.verify(messages)?;
         info!("{}", "Verifying actions complete".blue());
-        for message in messages.clone() {
+        for message in messages {
             let predicate = Predicate::from_statement::<C>(
                 &message.statement,
                 crate::protocol2::VERIFIER_INDEX,

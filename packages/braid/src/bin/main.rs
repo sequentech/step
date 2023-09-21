@@ -109,13 +109,13 @@ async fn main() -> Result<()> {
                 }
             };
 
-            // FIXME error should be handled to prevent loop termination
             let mut session = Session::new(trustee, board);
             info!("Running trustee for board '{}'..", board_name);
             let session_result = session.step().await;
             match session_result {
                 Ok(value) => value,
                 Err(error) => {
+                    // FIXME should handle a bulletin board refusing messages maliciously
                     error!(
                         "Error executing step for board '{}': '{}'",
                         board_name.clone(),

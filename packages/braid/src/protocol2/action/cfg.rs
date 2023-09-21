@@ -10,7 +10,7 @@ pub(super) fn sign_config<C: Ctx>(
     assert!(trustee.is_config_approved(cfg));
     trace!("Configuration is valid");
 
-    let self_index = cfg.get_trustee_position(&trustee.get_pk());
+    let self_index = cfg.get_trustee_position(&trustee.get_pk()?);
     assert!(self_index.is_some());
 
     let m = Message::configuration_msg(cfg, trustee)?;

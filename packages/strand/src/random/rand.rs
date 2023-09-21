@@ -2,15 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use rand::rngs::OsRng;
 use rand::CryptoRng;
 use rand::Error;
 use rand::RngCore;
 
-/// Random number generation frontend. Currently wraps OsRng.
+/// Random number generation frontend.
 pub struct StrandRng;
 
 impl CryptoRng for StrandRng {}
+
+use rand::rngs::OsRng;
 
 impl RngCore for StrandRng {
     #[inline(always)]

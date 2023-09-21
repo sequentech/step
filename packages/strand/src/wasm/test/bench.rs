@@ -10,7 +10,7 @@ use crate::backend::ristretto;
 use crate::backend::ristretto::RistrettoCtx;
 use crate::context::Ctx;
 use crate::elgamal::{PrivateKey, PublicKey};
-use crate::rnd::StrandRng;
+use crate::rng::StrandRng;
 use crate::serialization::StrandSerialize;
 use crate::shuffler::Shuffler;
 use crate::util;

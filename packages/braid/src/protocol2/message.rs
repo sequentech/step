@@ -51,7 +51,7 @@ impl Message {
         manager: &ProtocolManager<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
-        let cfg_h = strand::util::hash_array(&cfg_bytes);
+        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let statement = Statement::configuration_stmt(ConfigurationH(cfg_h));
 
         manager.sign(statement, Some(cfg_bytes))
@@ -62,7 +62,7 @@ impl Message {
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
-        let cfg_h = strand::util::hash_array(&cfg_bytes);
+        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
         let statement = Statement::configuration_signed_stmt(ConfigurationH(cfg_h));
 
@@ -76,9 +76,9 @@ impl Message {
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
-        let cfg_h = strand::util::hash_array(&cfg_bytes);
+        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let commitments_bytes = commitments.strand_serialize()?;
-        let commitments_hash = strand::util::hash_array(&commitments_bytes);
+        let commitments_hash = strand::hash::hash_to_array(&commitments_bytes)?;
         let statement =
             Statement::commitments_stmt(ConfigurationH(cfg_h), CommitmentsH(commitments_hash));
 
@@ -96,7 +96,7 @@ impl Message {
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
-        let cfg_h = strand::util::hash_array(&cfg_bytes);
+        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
         let statement =
             Statement::commitments_all_stmt(ConfigurationH(cfg_h), CommitmentsHs(commitments_hs.0));
@@ -111,9 +111,9 @@ impl Message {
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
-        let cfg_h = strand::util::hash_array(&cfg_bytes);
+        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let share_bytes = shares.strand_serialize()?;
-        let shares_h = strand::util::hash_array(&share_bytes);
+        let shares_h = strand::hash::hash_to_array(&share_bytes)?;
 
         let statement = Statement::shares_stmt(ConfigurationH(cfg_h), SharesH(shares_h));
 
@@ -129,9 +129,9 @@ impl Message {
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
-        let cfg_h = strand::util::hash_array(&cfg_bytes);
+        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let pk_bytes = dkgpk.strand_serialize()?;
-        let pk_h = strand::util::hash_array(&pk_bytes);
+        let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
 
         // The messages are the same except for the artifact and the statement type
         if artifact {
@@ -162,9 +162,9 @@ impl Message {
         pm: &ProtocolManager<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
-        let cfg_h = strand::util::hash_array(&cfg_bytes);
+        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let ballots_bytes = ballots.strand_serialize()?;
-        let bb_h = strand::util::hash_array(&ballots_bytes);
+        let bb_h = strand::hash::hash_to_array(&ballots_bytes)?;
 
         let statement = Statement::ballots_stmt(
             ConfigurationH(cfg_h),
@@ -185,9 +185,9 @@ impl Message {
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
-        let cfg_h = strand::util::hash_array(&cfg_bytes);
+        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let mix_bytes = mix.strand_serialize()?;
-        let mix_h = strand::util::hash_array(&mix_bytes);
+        let mix_h = strand::hash::hash_to_array(&mix_bytes)?;
 
         let statement = Statement::mix_stmt(
             ConfigurationH(cfg_h),
@@ -209,7 +209,7 @@ impl Message {
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
-        let cfg_h = strand::util::hash_array(&cfg_bytes);
+        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
         let statement = Statement::mix_signed_stmt(
             ConfigurationH(cfg_h),
@@ -230,10 +230,10 @@ impl Message {
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
-        let cfg_h = strand::util::hash_array(&cfg_bytes);
+        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
         let dfactors_bytes = dfactors.strand_serialize()?;
-        let dfactors_h = strand::util::hash_array(&dfactors_bytes);
+        let dfactors_h = strand::hash::hash_to_array(&dfactors_bytes)?;
 
         let statement = Statement::decryption_factors_stmt(
             ConfigurationH(cfg_h),
@@ -256,10 +256,10 @@ impl Message {
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
-        let cfg_h = strand::util::hash_array(&cfg_bytes);
+        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
         let plaintexts_bytes = plaintexts.strand_serialize()?;
-        let plaintexts_h = strand::util::hash_array(&plaintexts_bytes);
+        let plaintexts_h = strand::hash::hash_to_array(&plaintexts_bytes)?;
 
         let statement = Statement::plaintexts_stmt(
             ConfigurationH(cfg_h),
@@ -283,7 +283,7 @@ impl Message {
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
-        let cfg_h = strand::util::hash_array(&cfg_bytes);
+        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
         let statement = Statement::plaintexts_signed_stmt(
             ConfigurationH(cfg_h),
@@ -306,7 +306,7 @@ impl Message {
 
     // FIXME add check for timestamp not older than some threshold
     pub(crate) fn verify<C: Ctx>(
-        self,
+        &self,
         configuration: &Configuration<C>,
     ) -> Result<VerifiedMessage> {
         let (kind, st_cfg_h, _, mix_no, artifact_type, _) = self.statement.get_data();
@@ -342,7 +342,7 @@ impl Message {
         let trustee = trustee_.expect("impossible");
 
         // The message must belong to the same context as the configuration
-        let config_hash = strand::util::hash(&configuration.strand_serialize()?);
+        let config_hash = strand::hash::hash(&configuration.strand_serialize()?)?;
         if config_hash != st_cfg_h {
             return Err(anyhow!(
                 "Received message with mismatched configuration hash"
@@ -352,13 +352,13 @@ impl Message {
 
         // Statement-only message
         if self.artifact.is_none() {
-            return Ok(VerifiedMessage::new(trustee, self.statement, None));
+            return Ok(VerifiedMessage::new(trustee, self.statement.clone(), None));
         }
-        let artifact = self.artifact.expect("impossible");
+        let artifact = self.artifact.as_ref().expect("impossible");
 
         // Artifact present, get the type from the statement
 
-        let artifact_hash = strand::util::hash_array(&artifact);
+        let artifact_hash = strand::hash::hash_to_array(&artifact)?;
         // In the case of a Configuration statement, the cfg_h field should match the artifact
         if st_cfg_h == artifact_hash {
             assert!(kind == StatementType::Configuration);
@@ -366,10 +366,10 @@ impl Message {
                 return Err(anyhow!("Configuration must be signed by protocol manager"));
             }
 
-            let artifact_field = Some((ArtifactType::Configuration, artifact));
+            let artifact_field = Some((ArtifactType::Configuration, artifact.clone()));
             Ok(VerifiedMessage::new(
                 trustee,
-                self.statement,
+                self.statement.clone(),
                 artifact_field,
             ))
         } else {
@@ -385,10 +385,10 @@ impl Message {
             // Set the type of the artifact field
             if let Some(artifact_type) = artifact_type {
                 let _ = verify_artifact(&configuration, &artifact_type, &artifact)?;
-                let artifact_field = Some((artifact_type, artifact));
+                let artifact_field = Some((artifact_type, artifact.clone()));
                 Ok(VerifiedMessage::new(
                     trustee,
-                    self.statement,
+                    self.statement.clone(),
                     artifact_field,
                 ))
             } else {

@@ -8,10 +8,11 @@
 //! use strand::context::{Ctx, Element};
 //! use strand::backend::rug::{RugCtx, P2048};
 //! let ctx = RugCtx::<P2048>::default();
+//! let mut rng = ctx.get_rng();
 //! // do some stuff..
 //! let g = ctx.generator();
-//! let a = ctx.rnd_exp();
-//! let b = ctx.rnd_exp();
+//! let a = ctx.rnd_exp(&mut rng);
+//! let b = ctx.rnd_exp(&mut rng);
 //! let g_ab = ctx.emod_pow(&ctx.emod_pow(g, &a), &b);
 //! let g_ba = ctx.emod_pow(&ctx.emod_pow(g, &b), &a);
 //! assert_eq!(g_ab, g_ba);
@@ -23,7 +24,7 @@ use rug::{
     rand::{RandGen, RandState},
     Integer,
 };
-use sha2::Digest;
+
 use std::fmt::Debug;
 use std::io::{Error, ErrorKind};
 use std::marker::PhantomData;
@@ -31,7 +32,7 @@ use std::marker::PhantomData;
 use crate::backend::constants::*;
 use crate::context::{Ctx, Element, Exponent, Plaintext};
 use crate::elgamal::{Ciphertext, PrivateKey, PublicKey};
-use crate::rnd::StrandRng;
+use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
 
@@ -42,7 +43,11 @@ pub struct RugCtx<P: RugCtxParams> {
 
 impl<P: RugCtxParams> RugCtx<P> {
     // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf A.2.3
-    fn generators_fips(&self, size: usize, seed: &[u8]) -> Vec<IntegerE<P>> {
+    fn generators_fips(
+        &self,
+        size: usize,
+        seed: &[u8],
+    ) -> Result<Vec<IntegerE<P>>, StrandError> {
         let mut ret = Vec::with_capacity(size);
         let two = Integer::from(2i32);
 
@@ -59,7 +64,7 @@ impl<P: RugCtxParams> RugCtx<P> {
                 assert!(count != 0);
                 next.extend(index.to_le_bytes());
                 next.extend(count.to_le_bytes());
-                let elem: Integer = self.hash_to_element(&next);
+                let elem: Integer = self.hash_to_element(&next)?;
                 let g = elem
                     .pow_mod(self.params.co_factor(), &self.params.modulus().0)
                     .expect("an answer always exists for prime modulus p");
@@ -71,18 +76,16 @@ impl<P: RugCtxParams> RugCtx<P> {
             }
         }
 
-        ret
+        Ok(ret)
     }
 
-    fn hash_to_element(&self, bytes: &[u8]) -> Integer {
-        let mut hasher = crate::util::hasher();
-        hasher.update(bytes);
-        let hashed = hasher.finalize();
+    fn hash_to_element(&self, bytes: &[u8]) -> Result<Integer, StrandError> {
+        let hashed = crate::hash::hash(bytes)?;
 
         let (_, rem) = Integer::from_digits(&hashed, Order::Lsf)
             .div_rem(self.params.modulus().0.clone());
 
-        rem
+        Ok(rem)
     }
 }
 
@@ -90,6 +93,7 @@ impl<P: RugCtxParams> Ctx for RugCtx<P> {
     type E = IntegerE<P>;
     type X = IntegerX<P>;
     type P = IntegerP;
+    type R = RandState<'static>;
 
     #[inline(always)]
     fn generator(&self) -> &Self::E {
@@ -119,28 +123,25 @@ impl<P: RugCtxParams> Ctx for RugCtx<P> {
     fn exp_sub_mod(&self, value: &Self::X, other: &Self::X) -> Self::X {
         value.sub(other).modulo(self.params.exp_modulus())
     }
-
     #[inline(always)]
-    fn rnd(&self) -> Self::E {
-        let mut gen = StrandRandgen(StrandRng);
-        let mut state = RandState::new_custom(&mut gen);
-
+    fn get_rng(&self) -> RandState<'static> {
+        let gen = StrandRandgen(StrandRng);
+        let b = Box::new(gen);
+        RandState::new_custom_boxed(b)
+    }
+    #[inline(always)]
+    fn rnd(&self, rng: &mut Self::R) -> Self::E {
         self.encode(&IntegerP(
-            self.params.exp_modulus().0.clone().random_below(&mut state),
+            self.params.exp_modulus().0.clone().random_below(rng),
         ))
         .expect("0..(q-1) should always be encodable")
     }
     #[inline(always)]
-    fn rnd_exp(&self) -> Self::X {
-        let mut gen = StrandRandgen(StrandRng);
-        let mut state = RandState::new_custom(&mut gen);
-
-        IntegerX::new(
-            self.params.exp_modulus().0.clone().random_below(&mut state),
-        )
+    fn rnd_exp(&self, rng: &mut Self::R) -> Self::X {
+        IntegerX::new(self.params.exp_modulus().0.clone().random_below(rng))
     }
-    fn rnd_plaintext(&self) -> Self::P {
-        IntegerP(self.rnd_exp().0)
+    fn rnd_plaintext(&self, rng: &mut Self::R) -> Self::P {
+        IntegerP(self.rnd_exp(rng).0)
     }
     fn encode(&self, plaintext: &Self::P) -> Result<Self::E, StrandError> {
         if plaintext.0 >= (self.params.exp_modulus().0.clone() - 1i32) {
@@ -199,15 +200,13 @@ impl<P: RugCtxParams> Ctx for RugCtx<P> {
     fn exp_from_u64(&self, value: u64) -> Self::X {
         IntegerX::new(Integer::from(value))
     }
-    fn hash_to_exp(&self, bytes: &[u8]) -> Self::X {
-        let mut hasher = crate::util::hasher();
-        hasher.update(bytes);
-        let hashed = hasher.finalize();
+    fn hash_to_exp(&self, bytes: &[u8]) -> Result<Self::X, StrandError> {
+        let hashed = crate::hash::hash(bytes)?;
 
         let (_, rem) = Integer::from_digits(&hashed, Order::Lsf)
             .div_rem(self.params.exp_modulus().0.clone());
 
-        IntegerX::new(rem)
+        Ok(IntegerX::new(rem))
     }
 
     fn encrypt_exp(
@@ -228,7 +227,11 @@ impl<P: RugCtxParams> Ctx for RugCtx<P> {
         Ok(IntegerX(self.decode(&decrypted).0, PhantomData))
     }
 
-    fn generators(&self, size: usize, seed: &[u8]) -> Vec<Self::E> {
+    fn generators(
+        &self,
+        size: usize,
+        seed: &[u8],
+    ) -> Result<Vec<Self::E>, StrandError> {
         self.generators_fips(size, seed)
     }
 }
@@ -523,14 +526,16 @@ mod tests {
     #[test]
     fn test_elgamal() {
         let ctx = RugCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_elgamal_generic(&ctx, plaintext);
     }
 
     #[test]
     fn test_elgamal_enc_pok() {
         let ctx = RugCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_elgamal_enc_pok_generic(&ctx, plaintext);
     }
 
@@ -555,23 +560,26 @@ mod tests {
     #[test]
     fn test_vdecryption() {
         let ctx = RugCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_vdecryption_generic(&ctx, plaintext);
     }
 
     #[test]
     fn test_distributed() {
         let ctx = RugCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
         test_distributed_generic(&ctx, plaintext);
     }
 
     #[test]
     fn test_distributed_serialization() {
         let ctx = RugCtx::<P2048>::default();
+        let mut rng = ctx.get_rng();
         let mut ps = vec![];
         for _ in 0..10 {
-            let p = ctx.rnd_plaintext();
+            let p = ctx.rnd_plaintext(&mut rng);
             ps.push(p);
         }
         test_distributed_serialization_generic(&ctx, ps);
@@ -596,7 +604,8 @@ mod tests {
         let trustees = rand::thread_rng().gen_range(2..11);
         let threshold = rand::thread_rng().gen_range(2..trustees + 1);
         let ctx = RugCtx::<P2048>::default();
-        let plaintext = ctx.rnd_plaintext();
+        let mut rng = ctx.get_rng();
+        let plaintext = ctx.rnd_plaintext(&mut rng);
 
         test_threshold_generic(&ctx, trustees, threshold, plaintext);
     }
@@ -658,6 +667,7 @@ mod tests {
     #[test]
     fn test_gen_coq_data() {
         let ctx = RugCtx::<P2048>::default();
+        let mut rng = ctx.get_rng();
 
         let sk = PrivateKey::gen(&ctx);
         let pk = sk.get_pk();
@@ -666,13 +676,13 @@ mod tests {
         let mut es: Vec<Ciphertext<RugCtx<P2048>>> = Vec::with_capacity(n);
 
         for _ in 0..n {
-            let plaintext: IntegerP = ctx.rnd_plaintext();
+            let plaintext: IntegerP = ctx.rnd_plaintext(&mut rng);
             let element = ctx.encode(&plaintext).unwrap();
             let c = pk.encrypt(&element);
             es.push(c);
         }
         let seed = vec![];
-        let hs = ctx.generators(es.len() + 1, &seed);
+        let hs = ctx.generators(es.len() + 1, &seed).unwrap();
 
         let shuffler = Shuffler {
             pk: &pk,

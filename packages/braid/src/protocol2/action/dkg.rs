@@ -2,7 +2,7 @@
 use super::*;
 use anyhow::anyhow;
 use anyhow::Result;
-use strand::elgamal::{PrivateKey, PublicKey};
+use strand::elgamal::PublicKey;
 
 pub(super) fn gen_commitments<C: Ctx>(
     configuration_hash: &ConfigurationHash,
@@ -15,10 +15,9 @@ pub(super) fn gen_commitments<C: Ctx>(
     let (coefficients, commitments) = strand::threshold::gen_coefficients(threshold, &ctx);
     let ec = trustee.encrypt_coefficients(coefficients)?;
 
-    // Generate a public key for share transport
-    let sk = ctx.rnd_exp();
-    let pk = ctx.gmod_pow(&sk);
-    let st = trustee.encrypt_share_sk(pk, sk)?;
+    // Generate a keypair for share transport
+    let sk = strand::elgamal::PrivateKey::gen(&ctx);
+    let st = trustee.encrypt_share_sk(&sk)?;
 
     let commitments: Commitments<C> = Commitments::new(commitments, ec, st);
     let m = Message::commitments_msg(cfg, &commitments, true, trustee)?;
@@ -243,7 +242,6 @@ fn compute_pk_<C: Ctx>(
                 let sk = trustee
                     .decrypt_share_sk(&my_commitments.share_transport)
                     .ok_or(anyhow!("Could not decrypt share transport",))?;
-                let sk = PrivateKey::from(&sk, &ctx);
 
                 // Decrypt the share sent from i to us
                 let value = ctx.decrypt_exp(&share.0[*self_p], sk)?;

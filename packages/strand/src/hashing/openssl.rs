@@ -1,0 +1,50 @@
+// SPDX-FileCopyrightText: 2021 David Ruescas <david@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use openssl::hash::{hash_xof as hxof, Hasher as HasherOpenSSL, MessageDigest};
+
+use crate::util::StrandError;
+
+/// Size of all hashes.
+pub const STRAND_HASH_LENGTH_BYTES: usize = 64;
+pub type Hash = [u8; 64];
+pub(crate) type Hasher = HasherOpenSSL;
+pub(crate) use sha2::Digest;
+
+pub fn hasher() -> Result<Hasher, StrandError> {
+    let md = MessageDigest::sha512();
+    let hasher = HasherOpenSSL::new(md)?;
+    Ok(hasher)
+}
+
+pub fn hash(bytes: &[u8]) -> Result<Vec<u8>, StrandError> {
+    let mut hasher = hasher()?;
+    hasher.update(bytes)?;
+    let result = hasher.finish()?;
+    Ok(result.to_vec())
+}
+pub fn hash_to_array(bytes: &[u8]) -> Result<Hash, StrandError> {
+    let mut hasher = hasher()?;
+    hasher.update(bytes)?;
+    let result = hasher.finish()?;
+    let bytes = result.to_vec();
+    Ok(crate::util::to_hash_array(&bytes)?)
+}
+
+pub fn hash_xof(
+    length_bytes: usize,
+    prefix: &[u8],
+) -> Result<Vec<u8>, StrandError> {
+    let mut buf = vec![0; length_bytes];
+    hxof(MessageDigest::shake_256(), prefix, &mut buf)?;
+
+    Ok(buf)
+}
+
+pub fn rust_crypto_ecdsa_hasher() -> Result<RustCryptoHasher, StrandError> {
+    let md = MessageDigest::sha384();
+    let hasher = HasherOpenSSL::new(md)?;
+    Ok(hasher)
+}
+pub(crate) type RustCryptoHasher = HasherOpenSSL;

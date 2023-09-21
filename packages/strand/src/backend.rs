@@ -45,7 +45,8 @@ pub(crate) mod tests {
     use crate::zkp::{ChaumPedersen, Schnorr};
 
     pub(crate) fn test_encrypt_exp_generic<C: Ctx>(ctx: &C) {
-        let exp = ctx.rnd_exp();
+        let mut rng = ctx.get_rng();
+        let exp = ctx.rnd_exp(&mut rng);
         let sk = PrivateKey::<C>::gen(ctx);
 
         let encrypted = ctx.encrypt_exp(&exp, sk.get_pk()).unwrap();
@@ -88,13 +89,14 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn test_schnorr_generic<C: Ctx>(ctx: &C) {
+        let mut rng = ctx.get_rng();
         let zkp = Zkp::new(ctx);
-        let secret = ctx.rnd_exp();
+        let secret = ctx.rnd_exp(&mut rng);
         let public = ctx.gmod_pow(&secret);
         let schnorr = zkp.schnorr_prove(&secret, &public, None, &[]).unwrap();
         let verified = zkp.schnorr_verify(&public, None, &schnorr, &[]);
         assert!(verified);
-        let public_false = ctx.gmod_pow(&ctx.rnd_exp());
+        let public_false = ctx.gmod_pow(&ctx.rnd_exp(&mut rng));
         let verified_false =
             !zkp.schnorr_verify(&public_false, None, &schnorr, &[]);
         assert!(verified_false);
@@ -103,10 +105,11 @@ pub(crate) mod tests {
     use crate::zkp::Zkp;
 
     pub(crate) fn test_chaumpedersen_generic<C: Ctx>(ctx: &C) {
+        let mut rng = ctx.get_rng();
         let zkp = Zkp::new(ctx);
         let g1 = ctx.generator();
-        let g2 = ctx.rnd();
-        let secret = ctx.rnd_exp();
+        let g2 = ctx.rnd(&mut rng);
+        let secret = ctx.rnd_exp(&mut rng);
         let public1 = ctx.emod_pow(g1, &secret);
         let public2 = ctx.emod_pow(&g2, &secret);
         let proof = zkp
@@ -116,7 +119,7 @@ pub(crate) mod tests {
             zkp.cp_verify(&public1, &public2, None, &g2, &proof, &[]);
 
         assert!(verified);
-        let public_false = ctx.gmod_pow(&ctx.rnd_exp());
+        let public_false = ctx.gmod_pow(&ctx.rnd_exp(&mut rng));
         let verified_false =
             !zkp.cp_verify(&public1, &public_false, None, &g2, &proof, &[]);
         assert!(verified_false);
@@ -296,7 +299,7 @@ pub(crate) mod tests {
 
         let es = util::random_ciphertexts(10, ctx);
         let seed = vec![];
-        let hs = ctx.generators(es.len() + 1, &seed);
+        let hs = ctx.generators(es.len() + 1, &seed).unwrap();
         let shuffler = Shuffler {
             pk: &pk,
             generators: &hs,
@@ -318,7 +321,7 @@ pub(crate) mod tests {
 
         let es = util::random_ciphertexts(10, ctx);
         let seed = vec![];
-        let hs = ctx.generators(es.len() + 1, &seed);
+        let hs = ctx.generators(es.len() + 1, &seed).unwrap();
         let shuffler = Shuffler {
             pk: &pk,
             generators: &hs,

@@ -9,7 +9,7 @@ use crate::backend::num_bigint::{BigintCtx, P2048};
 use crate::backend::ristretto::RistrettoCtx;
 use crate::backend::tests::*;
 use crate::context::Ctx;
-use crate::rnd::StrandRng;
+use crate::rng::StrandRng;
 use crate::threshold::tests::test_threshold_generic;
 
 #[wasm_bindgen]

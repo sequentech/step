@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
-use strand::rnd::StrandRng;
+use strand::rng::StrandRng;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
@@ -87,15 +87,16 @@ fn run_protocol_test<C: Ctx>(
     let dkgpk = dkg_pk.unwrap();
 
     let pk_bytes = dkgpk.strand_serialize()?;
-    let pk_h = strand::util::hash_array(&pk_bytes);
+    let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
 
     let pk_element = dkgpk.pk;
     let pk = strand::elgamal::PublicKey::from_element(&pk_element, &test.ctx);
 
     let mut plaintexts_in = vec![];
+    let mut rng = ctx.get_rng();
     for i in 0..batches {
         info!("Generating {} plaintexts..", count);
-        let next_p: Vec<C::P> = (0..count).map(|_| ctx.rnd_plaintext()).collect();
+        let next_p: Vec<C::P> = (0..count).map(|_| ctx.rnd_plaintext(&mut rng)).collect();
 
         info!("Encrypting {} ciphertexts..", next_p.len());
 
@@ -177,25 +178,23 @@ pub fn create_protocol_test<C: Ctx>(
     let mut csprng = StrandRng;
     let session_id = 0;
 
-    let pmkey: StrandSignatureSk = StrandSignatureSk::new(&mut csprng);
+    let pmkey: StrandSignatureSk = StrandSignatureSk::new()?;
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
     let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|_| {
-            let sk = StrandSignatureSk::new(&mut csprng);
-            let encryption_key = ChaCha20Poly1305::generate_key(&mut chacha20poly1305::aead::OsRng);
-            (
-                Trustee::new(sk.clone(), encryption_key),
-                StrandSignaturePk::from(&sk),
-            )
+            let sk = StrandSignatureSk::new().unwrap();
+            let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
+            let pk = StrandSignaturePk::from(&sk).unwrap();
+            (Trustee::new(sk, encryption_key), pk)
         })
         .unzip();
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from(&pm.signing_key),
+        StrandSignaturePk::from(&pm.signing_key).unwrap(),
         trustee_pks,
         threshold.len(),
         PhantomData,
