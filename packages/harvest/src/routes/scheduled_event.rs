@@ -25,6 +25,7 @@ pub enum EventProcessors {
     UPDATE_VOTING_STATUS,
     CREATE_BOARD,
     CREATE_KEYS,
+    CREATE_BALLOT_STYLE,
 }
 
 #[derive(Deserialize, Debug)]

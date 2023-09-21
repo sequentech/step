@@ -8,3 +8,4 @@ pub mod election_event;
 pub mod event_execution;
 pub mod scheduled_event;
 pub mod tenant;
+pub mod ballot_style;

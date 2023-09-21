@@ -17,6 +17,7 @@ use crate::services::events::create_board;
 use crate::services::events::create_keys;
 use crate::services::events::render_report;
 use crate::services::events::update_voting_status;
+use crate::services::events::create_ballot_style;
 
 #[derive(Debug, Clone)]
 struct CustomError;
@@ -127,6 +128,18 @@ pub async fn process_scheduled_event(
             let payload: create_keys::CreateKeysBody =
                 serde_json::from_value(event.event_payload.clone().unwrap())?;
             create_keys::create_keys(
+                auth_headers.clone(),
+                payload,
+                event.clone(),
+            )
+            .await?;
+
+            insert_event_execution_with_result(auth_headers, event, None).await
+        }
+        scheduled_event::EventProcessors::CREATE_BALLOT_STYLE => {
+            let payload: create_ballot_style::CreateBallotStylePayload =
+                serde_json::from_value(event.event_payload.clone().unwrap())?;
+            create_ballot_style::create_ballot_style(
                 auth_headers.clone(),
                 payload,
                 event.clone(),

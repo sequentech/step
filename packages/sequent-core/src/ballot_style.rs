@@ -5,7 +5,7 @@ use crate::ballot;
 use crate::hasura_types;
 
 pub fn create_ballot_style(
-    election_event: hasura_types::ElectionEvent, // Election
+    election_event: hasura_types::ElectionEvent, // Election Event
     election: hasura_types::Election,            // Election
     contests: Vec<hasura_types::Contest>,        // Question
     candidates: Vec<hasura_types::Candidate>,    // Answer
