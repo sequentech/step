@@ -15,6 +15,7 @@ use crate::connection;
 use crate::hasura;
 use crate::hasura::ballot_style::get_ballot_style_area;
 use crate::routes::scheduled_event::ScheduledEvent;
+use crate::services::date::parse_iso_8601_timezone;
 
 impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
     for sequent_core::hasura_types::ElectionEvent
@@ -24,8 +25,14 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
     ) -> Self {
         sequent_core::hasura_types::ElectionEvent {
             id: election_event.id.clone(),
-            created_at: None, //election_event.created_at,
-            updated_at: None, //election_event.updated_at,
+            created_at: election_event
+                .created_at
+                .clone()
+                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()),
+            updated_at: election_event
+                .updated_at
+                .clone()
+                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()),
             labels: election_event.labels.clone(),
             annotations: election_event.annotations.clone(),
             tenant_id: election_event.tenant_id.clone(),
@@ -59,8 +66,14 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElection>
             id: election.id.clone(),
             tenant_id: election.tenant_id.clone(),
             election_event_id: election.election_event_id.clone(),
-            created_at: None,      //election.created_at,
-            last_updated_at: None, //election.last_updated_at,
+            created_at: election
+                .created_at
+                .clone()
+                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()),
+            last_updated_at: election
+                .last_updated_at
+                .clone()
+                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()),
             labels: election.labels.clone(),
             annotations: election.annotations.clone(),
             name: election.name.clone(),
@@ -89,8 +102,14 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
             tenant_id: contest.tenant_id.clone(),
             election_event_id: contest.election_event_id.clone(),
             election_id: contest.election_id.clone(),
-            created_at: None, // contest.created_at.clone(),
-            last_updated_at: None, // contest.last_updated_at.clone(),
+            created_at: contest
+                .created_at
+                .clone()
+                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()),
+            last_updated_at: contest
+                .last_updated_at
+                .clone()
+                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()),
             labels: contest.labels.clone(),
             annotations: contest.annotations.clone(),
             is_acclaimed: contest.is_acclaimed.clone(),
@@ -120,8 +139,14 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
             tenant_id: candidate.tenant_id.clone(),
             election_event_id: candidate.election_event_id.clone(),
             contest_id: candidate.contest_id.clone(),
-            created_at: None, //candidate.created_at.clone(),
-            last_updated_at: None, //candidate.last_updated_at.clone(),
+            created_at: candidate
+                .created_at
+                .clone()
+                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()),  //candidate.created_at.clone(),
+            last_updated_at: candidate
+                .last_updated_at
+                .clone()
+                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()), //candidate.last_updated_at.clone(),
             labels: candidate.labels.clone(),
             annotations: candidate.annotations.clone(),
             name: candidate.name.clone(),
@@ -266,7 +291,8 @@ pub async fn create_ballot_style(
             Some(election_dto_json_string),
             None,
             None,
-        ).await?;
+        )
+        .await?;
     }
 
     Ok(())

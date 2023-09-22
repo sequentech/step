@@ -1,3 +1,4 @@
+pub mod date;
 pub mod election_event_board;
 pub mod election_event_status;
 pub mod events;
