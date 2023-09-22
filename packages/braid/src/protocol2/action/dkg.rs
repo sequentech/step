@@ -240,8 +240,7 @@ fn compute_pk_<C: Ctx>(
                     .ok_or(anyhow!("Could not retrieve commitments for self",))?;
 
                 let sk = trustee
-                    .decrypt_share_sk(&my_commitments.share_transport)
-                    .ok_or(anyhow!("Could not decrypt share transport",))?;
+                    .decrypt_share_sk(&my_commitments.share_transport)?;
 
                 // Decrypt the share sent from i to us
                 let value = ctx.decrypt_exp(&share.0[*self_p], sk)?;

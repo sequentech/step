@@ -1,10 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit, OsRng},
-    consts::{U12, U32},
-    ChaCha20Poly1305,
-};
-use generic_array::GenericArray;
+
 use log::{debug, error, info, trace, warn};
 use rayon::prelude::*;
 use std::collections::HashSet;
@@ -19,14 +14,19 @@ use crate::protocol2::artifact::Commitments;
 use crate::protocol2::artifact::Configuration;
 use crate::protocol2::artifact::DkgPublicKey;
 use crate::protocol2::artifact::Shares;
-use crate::protocol2::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts, ShareTransport};
+use crate::protocol2::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
 use crate::protocol2::board::local::LocalBoard;
 use crate::protocol2::message::Message;
 use crate::protocol2::predicate::Predicate;
 use crate::protocol2::predicate::*;
 use crate::protocol2::statement::{Statement, StatementType};
 use crate::protocol2::PROTOCOL_MANAGER_INDEX;
-use crate::protocol2::{action::Action, artifact::EncryptedCoefficients};
+use crate::protocol2::action::Action;
+
+use super::artifact::EncryptedCoefficients2;
+use super::artifact::ShareTransport2;
+
+use strand::symm;
 
 ///////////////////////////////////////////////////////////////////////////
 // Trustee
@@ -48,7 +48,7 @@ use crate::protocol2::{action::Action, artifact::EncryptedCoefficients};
 pub struct Trustee<C: Ctx> {
     pub(crate) signing_key: StrandSignatureSk,
     // A ChaCha20Poly1305 encryption key
-    pub(crate) encryption_key: GenericArray<u8, U32>,
+    pub(crate) encryption_key: symm::SymmetricKey,
     local_board: LocalBoard<C>,
 }
 
@@ -61,7 +61,7 @@ impl<C: Ctx> Signer for Trustee<C> {
 impl<C: Ctx> Trustee<C> {
     pub fn new(
         signing_key: StrandSignatureSk,
-        encryption_key: GenericArray<u8, U32>,
+        encryption_key: symm::SymmetricKey,
     ) -> Trustee<C> {
         let local_board = LocalBoard::new();
 
@@ -426,46 +426,53 @@ impl<C: Ctx> Trustee<C> {
     pub(crate) fn encrypt_coefficients(
         &self,
         coefficients: Vec<C::X>,
-    ) -> Result<EncryptedCoefficients> {
-        let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
-        let cipher = ChaCha20Poly1305::new(&self.encryption_key);
+    ) -> Result<EncryptedCoefficients2> {
+        // let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+        // let cipher = ChaCha20Poly1305::new(&self.encryption_key);
         let bytes: &[u8] = &coefficients.strand_serialize()?;
-        let encrypted: Result<Vec<u8>> = cipher
+        /*let encrypted: Vec<u8> = cipher
             .encrypt(&nonce, bytes)
-            .map_err(|e| anyhow!("chacha error {e}"));
+            .map_err(|e| anyhow!("chacha error {e}"))?;*/
+        let ed = symm::encrypt(self.encryption_key, bytes)?;
+        let enc = EncryptedCoefficients2::new(ed);
 
-        Ok(EncryptedCoefficients::new(encrypted?, nonce))
+        Ok(enc)
     }
 
-    pub(crate) fn decrypt_coefficients(&self, ec: &EncryptedCoefficients) -> Option<Vec<C::X>> {
-        let cipher = ChaCha20Poly1305::new(&self.encryption_key);
-        let nonce = GenericArray::<u8, U12>::from_slice(&ec.nonce);
-        let bytes: &[u8] = &ec.encrypted_coefficients;
-        let decrypted = cipher.decrypt(nonce, bytes).ok()?;
+    pub(crate) fn decrypt_coefficients(&self, ec: &EncryptedCoefficients2) -> Option<Vec<C::X>> {
+        // let cipher = ChaCha20Poly1305::new(&self.encryption_key);
+        // let nonce = GenericArray::<u8, U12>::from_slice(&ec.encryption_data.nonce);
+        // let bytes: &[u8] = &ec.encryption_data.encrypted_bytes;
+        // let nonce = &ec.encryption_data.nonce;
+        let decrypted = symm::decrypt(self.encryption_key, &ec.encryption_data).ok()?;
         Vec::<C::X>::strand_deserialize(&decrypted).ok()
     }
 
-    pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>) -> Result<ShareTransport<C>> {
-        let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
-        let cipher = ChaCha20Poly1305::new(&self.encryption_key);
+    pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>) -> Result<ShareTransport2<C>> {
+        // let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+        // let cipher = ChaCha20Poly1305::new(&self.encryption_key);
         let bytes: &[u8] = &sk.strand_serialize()?;
-        let encrypted: Result<Vec<u8>> = cipher
+        /*let encrypted: Vec<u8> = cipher
             .encrypt(&nonce, bytes)
-            .map_err(|e| anyhow!("chacha error {e}"));
+            .map_err(|e| anyhow!("chacha error {e}"))?;
 
-        Ok(ShareTransport::new(
+        let ed = symm::EncryptionData::new(encrypted, nonce);*/
+        let ed = symm::encrypt(self.encryption_key, bytes)?;
+        
+        Ok(ShareTransport2::new(
             sk.pk_element().clone(),
-            encrypted?,
-            nonce,
+            ed,
         ))
     }
 
-    pub(crate) fn decrypt_share_sk(&self, st: &ShareTransport<C>) -> Option<PrivateKey<C>> {
-        let cipher = ChaCha20Poly1305::new(&self.encryption_key);
-        let nonce = GenericArray::<u8, U12>::from_slice(&st.nonce);
-        let bytes: &[u8] = &st.encrypted_sk;
-        let decrypted = cipher.decrypt(nonce, bytes).ok()?;
-        PrivateKey::<C>::strand_deserialize(&decrypted).ok()
+    pub(crate) fn decrypt_share_sk(&self, st: &ShareTransport2<C>) -> Result<PrivateKey<C>> {
+        // let cipher = ChaCha20Poly1305::new(&self.encryption_key);
+        // let nonce = GenericArray::<u8, U12>::from_slice(&st.encryption_data.nonce);
+        let decrypted = symm::decrypt(self.encryption_key, &st.encryption_data)?;
+        // let decrypted = cipher.decrypt(nonce, bytes).ok()?;
+        let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
+
+        Ok(ret)
     }
 }
 

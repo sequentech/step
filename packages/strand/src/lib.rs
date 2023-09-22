@@ -32,10 +32,6 @@ pub mod util;
 pub mod wasm;
 /// Schnorr and Chaum-Pedersen zero knowledge proofs.
 pub mod zkp;
-// Symmetric encryption.
-// #[cfg(feature = "openssl")]
-// pub mod symmetric;
-mod symmetric;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "openssl")] {
@@ -45,6 +41,8 @@ cfg_if::cfg_if! {
         pub(crate) use random::openssl as rng;
         /// SHA-2 hashing backed by [OpenSSL](https://crates.io/crates/openssl).
         pub use hashing::openssl as hash;
+        /// AES-GCM backed by [OpenSSL](https://crates.io/crates/openssl).
+        pub use symmetric::openssl as symm;
     }
     else if #[cfg(feature = "wasm")] {
         /// Ed25519 digital signatures backed by [dalek](https://github.com/dalek-cryptography/curve25519-dalek/tree/main/ed25519-dalek).
@@ -61,6 +59,8 @@ cfg_if::cfg_if! {
         pub use random::rand as rng;
         /// SHA-2 hashing backed by [rustcrypto](https://crates.io/crates/sha2).
         pub use hashing::rustcrypto as hash;
+        /// Chacha20poly1305 backed by [rustcrypto](https://docs.rs/chacha20poly1305/latest/chacha20poly1305/).
+        pub use symmetric::rustcrypto as symm;
     }
 }
 
@@ -72,3 +72,5 @@ mod keymaker;
 pub(crate) mod random;
 /// Signature frontend.
 mod signatures;
+/// Symmetric encryption frontend.
+mod symmetric;

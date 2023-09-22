@@ -5,11 +5,13 @@
 //! # Examples
 //!
 //! ```
+//! // This example shows how to shuffle ciphertexts and generate a proof.
 //! use strand::context::Ctx;
 //! use strand::backend::ristretto::RistrettoCtx;
 //! use strand::elgamal::{PrivateKey, PublicKey};
 //! use strand::util;
 //! use strand::shuffler::Shuffler;
+//!
 //! let ctx = RistrettoCtx;
 //! let sk = PrivateKey::gen(&ctx);
 //! let pk = sk.get_pk();
@@ -26,6 +28,7 @@
 //! let proof =
 //!    shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
 //! let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]).unwrap();
+//! 
 //! assert!(ok);
 //! ```
 

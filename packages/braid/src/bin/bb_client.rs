@@ -1,4 +1,4 @@
-// cargo run --bin bb_client --features=bb-test -- --server-url http://immudb:3322 <init|ballots|list|boards>
+// cargo run --bin bb_client --features=bb-test -- --server-url http://immudb:3322 --indexdb defaultboardindex --dbname defaultboard <init|ballots|list|boards>
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose, Engine as _};
 use clap::Parser;
@@ -28,6 +28,12 @@ use strand::signature::StrandSignatureSk;
 struct Cli {
     #[arg(long)]
     server_url: String,
+    
+    #[arg(short, long)]
+    dbname: String,
+    
+    #[arg(short, long)]
+    indexdb: String,
 
     #[arg(value_enum)]
     command: Command,
@@ -41,8 +47,6 @@ enum Command {
     Boards,
 }
 
-const BOARD_NAME: &str = "defaultboard";
-const INDEX_NAME: &str = "defaultboardindex";
 const PROTOCOL_MANAGER: &str = "pm.toml";
 const CONFIG: &str = "config.bin";
 const IMMUDB_USER: &str = "immudb";
@@ -64,16 +68,16 @@ async fn main() -> Result<()> {
             let configuration = Configuration::<RistrettoCtx>::strand_deserialize(&cfg_bytes)
                 .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
 
-            init(&mut board, configuration).await?;
+            init(&mut board, &args.dbname, configuration).await?;
         }
         Command::Ballots => {
-            post_ballots(&mut board, ctx).await?;
+            post_ballots(&mut board, &args.dbname, ctx).await?;
         }
         Command::Messages => {
-            list_messages(&mut board).await?;
+            list_messages(&mut board, &args.dbname,).await?;
         }
         Command::Boards => {
-            list_boards(&mut board).await?;
+            list_boards(&mut board, &args.indexdb).await?;
         }
     }
 
@@ -81,17 +85,17 @@ async fn main() -> Result<()> {
 }
 
 #[instrument]
-async fn init<C: Ctx>(board: &mut BoardClient, configuration: Configuration<C>) -> Result<()> {
+async fn init<C: Ctx>(board: &mut BoardClient, board_name: &str, configuration: Configuration<C>) -> Result<()> {
     let pm = get_pm(PhantomData);
     let message: BoardMessage = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
     info!("Adding configuration to the board..");
-    board.insert_messages(BOARD_NAME, &vec![message]).await
+    board.insert_messages(board_name, &vec![message]).await
 }
 
 #[instrument(skip(board))]
-async fn list_messages(board: &mut BoardClient) -> Result<()> {
+async fn list_messages(board: &mut BoardClient, board_name: &str) -> Result<()> {
     let messages: Result<Vec<Message>> = board
-        .get_messages(BOARD_NAME, 0)
+        .get_messages(board_name, 0)
         .await?
         .iter()
         .map(|board_message: &BoardMessage| {
@@ -106,9 +110,9 @@ async fn list_messages(board: &mut BoardClient) -> Result<()> {
 }
 
 #[instrument]
-async fn list_boards(index: &mut BoardClient) -> Result<()> {
+async fn list_boards(index: &mut BoardClient, indexdb: &str) -> Result<()> {
     let boards: Result<Vec<String>> = index
-        .get_boards(&INDEX_NAME)
+        .get_boards(&indexdb)
         .await?
         .iter()
         .map(|board: &Board| Ok(board.database_name.clone()))
@@ -121,9 +125,9 @@ async fn list_boards(index: &mut BoardClient) -> Result<()> {
 }
 
 #[instrument]
-async fn post_ballots<C: Ctx>(board: &mut BoardClient, ctx: C) -> Result<()> {
+async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: C) -> Result<()> {
     let messages: Vec<Message> = board
-        .get_messages(BOARD_NAME, 0)
+        .get_messages(&board_name, 0)
         .await?
         .iter()
         .map(|board_message: &BoardMessage| {
@@ -177,7 +181,7 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, ctx: C) -> Result<()> {
 
             info!("Adding ballots to the board..");
             let bm: BoardMessage = message.try_into()?;
-            board.insert_messages(BOARD_NAME, &vec![bm]).await?;
+            board.insert_messages(board_name, &vec![bm]).await?;
 
             break;
         }

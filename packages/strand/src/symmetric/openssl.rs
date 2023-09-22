@@ -6,6 +6,8 @@ use crate::rng::StrandRng;
 use crate::util::StrandError;
 use rand::RngCore;
 
+pub type SymmetricKey = [u8; 32];
+
 pub struct EncryptionData {
     pub encrypted_bytes: Vec<u8>,
     pub iv: [u8; 12],
@@ -57,6 +59,10 @@ fn decrypt(
     let ret = decrypt_aead(cipher, key, Some(&ed.iv), &aad, &ed.encrypted_bytes, &ed.tag);
 
     Ok(ret?)
+}
+
+pub fn sk_from_bytes(bytes: &[u8]) -> Result<SymmetricKey, StrandError> {
+    crate::util::to_u8_array(bytes)
 }
 
 #[cfg(test)]

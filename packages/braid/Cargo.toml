@@ -48,7 +48,6 @@ tracing-tree = "0.2.1"
 cfg-if = "1.0"
 config = {version = "0.13.1" }
 hex = "0.4.2"
-generic-array = "0.14.6"
 instant = "0.1.12"
 base64 = "0.21.0"
 serde = "1.0.152"

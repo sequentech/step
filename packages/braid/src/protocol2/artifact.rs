@@ -3,8 +3,6 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use chacha20poly1305::consts::U12;
-use generic_array::GenericArray;
 
 use crate::protocol2::predicate::{BatchNumber, MixNumber};
 use crate::protocol2::PROTOCOL_MANAGER_INDEX;
@@ -74,15 +72,15 @@ pub(crate) struct Commitments<C: Ctx> {
     // Commitments to the coefficients of the generated polynomial
     pub(crate) commitments: Vec<C::E>,
     // Encryption of the serialization of the vector of coefficients of the polynomial (C::X's)
-    pub(crate) encrypted_coefficients: EncryptedCoefficients,
+    pub(crate) encrypted_coefficients: EncryptedCoefficients2,
     // Channel with which to send shares privately to the originator of these Commitments
-    pub(crate) share_transport: ShareTransport<C>,
+    pub(crate) share_transport: ShareTransport2<C>,
 }
 impl<C: Ctx> Commitments<C> {
     pub(crate) fn new(
         commitments: Vec<C::E>,
-        encrypted_coefficients: EncryptedCoefficients,
-        share_transport: ShareTransport<C>,
+        encrypted_coefficients: EncryptedCoefficients2,
+        share_transport: ShareTransport2<C>,
     ) -> Commitments<C> {
         Commitments {
             commitments,
@@ -92,44 +90,28 @@ impl<C: Ctx> Commitments<C> {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize)]
-pub(crate) struct EncryptedCoefficients {
-    pub(crate) encrypted_coefficients: Vec<u8>,
-    pub(crate) nonce: Vec<u8>,
-}
-impl EncryptedCoefficients {
-    pub(crate) fn new(
-        encrypted_coefficients: Vec<u8>,
-        nonce: GenericArray<u8, U12>,
-    ) -> EncryptedCoefficients {
-        EncryptedCoefficients {
-            encrypted_coefficients,
-            nonce: nonce.to_vec(),
-        }
-    }
-}
+use strand::symm;
 
 #[derive(BorshSerialize, BorshDeserialize)]
-// ElGamal key information used to send shares confidentially
-pub(crate) struct ShareTransport<C: Ctx> {
-    // The public key (as an element) with which other trustees will encrypt shares sent to the originator of this ShareTransport
-    pub(crate) pk: C::E,
-    // The encrypted (symmetric) PrivateKey corresponding to the above
-    pub(crate) encrypted_sk: Vec<u8>,
-    // The nonce used for symmetric encryption
-    pub(crate) nonce: Vec<u8>,
+pub(crate) struct EncryptedCoefficients2 {
+    pub encryption_data: symm::EncryptionData,
 }
-impl<C: Ctx> ShareTransport<C> {
-    pub(crate) fn new(
-        pk: C::E,
-        encrypted_sk: Vec<u8>,
-        nonce: GenericArray<u8, U12>,
-    ) -> ShareTransport<C> {
-        ShareTransport {
-            pk,
-            encrypted_sk,
-            nonce: nonce.to_vec(),
-        }
+impl EncryptedCoefficients2 {
+    pub fn new(encryption_data: symm::EncryptionData) -> EncryptedCoefficients2 {
+        EncryptedCoefficients2 { encryption_data }
+    }
+}
+#[derive(BorshSerialize, BorshDeserialize)]
+// ElGamal key information used to send shares confidentially
+pub(crate) struct ShareTransport2<C: Ctx> {
+    // The public key (as an element) with which other trustees will encrypt shares sent to the originator of this ShareTransport
+    pub pk: C::E,
+    // The encrypted (symmetric) PrivateKey corresponding to the above
+    pub encryption_data: symm::EncryptionData
+}
+impl<C: Ctx> ShareTransport2<C> {
+    pub fn new(pk: C::E, encryption_data: symm::EncryptionData) -> ShareTransport2<C> {
+        ShareTransport2 { pk, encryption_data }
     }
 }
 
@@ -238,7 +220,7 @@ impl<C: Ctx> std::fmt::Debug for Commitments<C> {
             f,
             "commitments={:?}, coefficients={:?}",
             self.commitments,
-            hex::encode(&self.encrypted_coefficients.encrypted_coefficients)[0..10].to_string()
+            hex::encode(&self.encrypted_coefficients.encryption_data.encrypted_bytes)[0..10].to_string()
         )
     }
 }
