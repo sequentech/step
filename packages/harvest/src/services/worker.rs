@@ -13,11 +13,11 @@ use tracing::instrument;
 use crate::connection;
 use crate::hasura::event_execution;
 use crate::routes::scheduled_event;
+use crate::services::events::create_ballot_style;
 use crate::services::events::create_board;
 use crate::services::events::create_keys;
 use crate::services::events::render_report;
 use crate::services::events::update_voting_status;
-use crate::services::events::create_ballot_style;
 
 #[derive(Debug, Clone)]
 struct CustomError;

@@ -17,7 +17,7 @@ type timestamptz = String;
 #[graphql(
     schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/get_ballot_style_area.graphql",
-    response_derives = "Debug"
+    response_derives = "Debug,Clone"
 )]
 pub struct GetBallotStyleArea;
 
