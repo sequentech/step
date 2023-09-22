@@ -155,10 +155,10 @@ pub async fn create_ballot_style(
         .clone()
         .with_context(|| "scheduled event is missing election_event_id")?;
     let hasura_response = hasura::ballot_style::get_ballot_style_area(
-        auth_headers,
-        tenant_id,
-        election_event_id,
-        body.area_id,
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        body.area_id.clone(),
     )
     .await?
     .data
@@ -250,12 +250,23 @@ pub async fn create_ballot_style(
                 .flatten()
                 .collect();
 
-        sequent_core::ballot_style::create_ballot_style(
+        let election_dto = sequent_core::ballot_style::create_ballot_style(
             sequent_core::hasura_types::ElectionEvent::from(election_event),
             sequent_core::hasura_types::Election::from(election),
             contests,
             candidates,
         );
+        let election_dto_json_string = serde_json::to_string(&election_dto)?;
+        let hasura_response = hasura::ballot_style::insert_ballot_style(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            election.id.clone(),
+            body.area_id.clone(),
+            Some(election_dto_json_string),
+            None,
+            None,
+        ).await?;
     }
 
     Ok(())

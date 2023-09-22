@@ -1,0 +1,37 @@
+mutation InsertBallotStyle(
+  $tenantId: uuid!,
+  $electionEventId: uuid!,
+  $electionId: uuid!,
+  $areaId: uuid!,
+  $ballotEml: String,
+  $ballotSignature: String,
+  $status: String,
+) {
+  insert_sequent_backend_ballot_style(
+    objects:
+    {
+      election_id: $electionId,
+      election_event_id: $electionEventId,
+      tenant_id: $tenantId,
+      area_id: $areaId,
+      ballot_eml: $ballotEml,
+      ballot_signature: $ballotSignature,
+      status: $status,
+    }
+  ) {
+    returning {
+      id
+      tenant_id
+      election_id
+      area_id
+      created_at
+      last_updated_at
+      labels
+      annotations
+      ballot_eml
+      ballot_signature
+      status
+      election_event_id
+    }
+  }
+}
