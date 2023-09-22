@@ -308,7 +308,7 @@ pub(crate) mod tests {
 
         let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
         let proof =
-            shuffler.gen_proof(&es, &e_primes, &rs, &perm, &[]).unwrap();
+            shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
 
         let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]).unwrap();
 
@@ -329,7 +329,7 @@ pub(crate) mod tests {
         };
         let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
         let proof =
-            shuffler.gen_proof(&es, &e_primes, &rs, &perm, &[]).unwrap();
+            shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
         // in this test do this only after serialization
         // let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]);
         // assert!(ok);

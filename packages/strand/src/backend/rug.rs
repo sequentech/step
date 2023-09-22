@@ -37,6 +37,8 @@ use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
+
+/// [Rug](https://crates.io/crates/rug) implementation of a strand modular arithmetic context.
 pub struct RugCtx<P: RugCtxParams> {
     params: P,
 }
@@ -365,6 +367,7 @@ impl RandGen for StrandRandgen {
     }
 }
 
+/// Defines the parameters of a multiplicative group used in a rug context.
 pub trait RugCtxParams: Clone + Send + Sync + Eq + Debug {
     fn generator(&self) -> &IntegerE<Self>;
     fn modulus(&self) -> &IntegerE<Self>;
@@ -374,6 +377,7 @@ pub trait RugCtxParams: Clone + Send + Sync + Eq + Debug {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
+/// Parameters of the 2048 bit multiplicative group.
 pub struct P2048 {
     generator: IntegerE<Self>,
     modulus: IntegerE<Self>,
@@ -421,16 +425,19 @@ impl RugCtxParams for P2048 {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
+/// A rug integer new type corresponding to group elements.
 pub struct IntegerE<P: RugCtxParams>(
     pub(crate) Integer,
     PhantomData<RugCtx<P>>,
 );
 #[derive(PartialEq, Eq, Debug, Clone)]
+/// A rug integer new type corresponding to ring elements.
 pub struct IntegerX<P: RugCtxParams>(
     pub(crate) Integer,
     PhantomData<RugCtx<P>>,
 );
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
+/// A rug integer new type corresponding to unencoded plaintexts.
 pub struct IntegerP(pub(crate) Integer);
 
 impl<P: RugCtxParams> IntegerE<P> {
@@ -456,6 +463,7 @@ impl<P: RugCtxParams> BorshSerialize for IntegerE<P> {
 }
 
 impl<P: RugCtxParams> BorshDeserialize for IntegerE<P> {
+    /// Deserializes the given bytes into a group element, checking for membership.
     #[inline]
     fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <Vec<u8>>::deserialize(bytes)?;
@@ -479,6 +487,7 @@ impl<P: RugCtxParams> BorshSerialize for IntegerX<P> {
 
 impl<P: RugCtxParams> BorshDeserialize for IntegerX<P> {
     #[inline]
+    /// Deserializes the given bytes into a ring element, checking for membership.
     fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <Vec<u8>>::deserialize(bytes)?;
         let ctx = RugCtx::<P>::default();
@@ -699,7 +708,7 @@ mod tests {
             commitments_r: &c_rs,
         };
         let (proof, us, c) = shuffler
-            .gen_proof_ext(&es, &e_primes, &rs, &perm_data, &vec![])
+            .gen_proof_ext(&es, &e_primes, rs, perm_data, &vec![])
             .unwrap();
         let ok = shuffler
             .check_proof(&proof, &es, &e_primes, &vec![])

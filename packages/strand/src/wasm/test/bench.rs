@@ -91,7 +91,7 @@ pub fn bench_enc_pok(n: u32) {
     let mut fill = [0u8; 30];
     csprng.fill_bytes(&mut fill);
     let plaintext =
-        ristretto::to_ristretto_plaintext_array(fill.as_ref()).unwrap();
+        to_ristretto_plaintext_array(fill.as_ref()).unwrap();
     postMessage("> Ristretto enc_pok");
     bench_enc_pok_generic(ctx, plaintext, n);
 
@@ -202,4 +202,10 @@ fn bench_modpow_generic<C: Ctx>(ctx: C, n: u32) {
         let x = ctx.rnd_exp();
         let _ = ctx.gmod_pow(&x);
     }
+}
+
+fn to_ristretto_plaintext_array(
+    input: &[u8],
+) -> Result<[u8; 30], StrandError> {
+    util::to_u8_array(input)
 }

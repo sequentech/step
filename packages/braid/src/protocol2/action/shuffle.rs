@@ -73,7 +73,7 @@ pub(crate) fn mix<C: Ctx>(
     let (e_primes, rs, perm) = shuffler.gen_shuffle(&cs.0);
 
     let label = cfg.label(*batch, format!("shuffle{mix_no}"));
-    let proof = shuffler.gen_proof(&cs.0, &e_primes, &rs, &perm, &label)?;
+    let proof = shuffler.gen_proof(&cs.0, &e_primes, rs, &perm, &label)?;
 
     // FIXME removed self-verify
     // let ok = shuffler.check_proof(&proof, &cs, &e_primes, &label);

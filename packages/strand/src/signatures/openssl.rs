@@ -41,6 +41,7 @@ impl StrandSignature {
 #[derive(Clone)]
 pub struct StrandSignaturePk(EcKey<Public>, Vec<u8>);
 impl StrandSignaturePk {
+    /// Returns the verification key from this signing key.
     pub fn from(
         sk: &StrandSignatureSk,
     ) -> Result<StrandSignaturePk, StrandError> {
@@ -49,6 +50,7 @@ impl StrandSignaturePk {
         let pk = EcKey::<Public>::public_key_from_der(&bytes)?;
         Ok(StrandSignaturePk(pk, bytes))
     }
+    /// Verifies the signature given the message. Returns Ok(()) if the verification passes.
     pub fn verify(
         &self,
         signature: &StrandSignature,
@@ -70,6 +72,7 @@ impl StrandSignaturePk {
         }
     }
 
+    /// Calls the underlying [check_key](https://docs.rs/openssl/latest/openssl/ec/struct.EcKeyRef.html#method.check_key)
     pub fn check_key(&self) -> Result<(), StrandError> {
         Ok(self.0.check_key()?)
     }
@@ -79,12 +82,14 @@ impl StrandSignaturePk {
 // #[derive(Clone)]
 pub struct StrandSignatureSk(EcKey<Private>);
 impl StrandSignatureSk {
-    pub fn new() -> Result<StrandSignatureSk, StrandError> {
+    /// Generates a key using randomness from rng::StrandRng.
+    pub fn gen() -> Result<StrandSignatureSk, StrandError> {
         let group = EcGroup::from_curve_name(CURVE)?;
         let key = EcKey::<Private>::generate(&group)?;
 
         Ok(StrandSignatureSk(key))
     }
+    /// Signs the message returning a signature.
     pub fn sign(&self, msg: &[u8]) -> Result<StrandSignature, StrandError> {
         // Compatibility with sig::rustcrypto
         let mut digest: RustCryptoHasher =

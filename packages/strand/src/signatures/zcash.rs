@@ -26,11 +26,13 @@ pub struct StrandSignature(Signature);
 #[derive(Clone)]
 pub struct StrandSignaturePk(VerificationKey);
 impl StrandSignaturePk {
+    /// Returns the verification key from this signing key.
     pub fn from(
         sk: &StrandSignatureSk,
     ) -> Result<StrandSignaturePk, StrandError> {
         Ok(StrandSignaturePk(VerificationKey::from(&sk.0)))
     }
+    /// Verifies the signature given the message. Returns Ok(()) if the verification passes.
     pub fn verify(
         &self,
         signature: &StrandSignature,
@@ -44,11 +46,13 @@ impl StrandSignaturePk {
 #[derive(Clone)]
 pub struct StrandSignatureSk(SigningKey);
 impl StrandSignatureSk {
-    pub fn new() -> Result<StrandSignatureSk, StrandError> {
+    /// Generates a key using randomness from rng::StrandRng.
+    pub fn gen() -> Result<StrandSignatureSk, StrandError> {
         let mut rng = StrandRng;
         let sk = SigningKey::new(&mut rng);
         Ok(StrandSignatureSk(sk))
     }
+    /// Signs the message returning a signature.
     pub fn sign(&self, msg: &[u8]) -> Result<StrandSignature, StrandError> {
         Ok(StrandSignature(self.0.sign(msg)))
     }

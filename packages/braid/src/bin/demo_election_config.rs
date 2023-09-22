@@ -37,14 +37,14 @@ fn main() {
 fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
     let mut csprng = StrandRng;
 
-    let pmkey: StrandSignatureSk = StrandSignatureSk::new().unwrap();
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
     let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|_| {
-            let sk = StrandSignatureSk::new().unwrap();
+            let sk = StrandSignatureSk::gen().unwrap();
             let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             (
                 Trustee::new(sk.clone(), encryption_key),

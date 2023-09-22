@@ -6,8 +6,9 @@ use openssl::hash::{hash_xof as hxof, Hasher as HasherOpenSSL, MessageDigest};
 
 use crate::util::StrandError;
 
-/// Size of all hashes.
+/// Sha-512 hashes are 64 bytes.
 pub const STRAND_HASH_LENGTH_BYTES: usize = 64;
+/// Sha-512 hashes are 64 byte arrays: [u8; 64].
 pub type Hash = [u8; 64];
 pub(crate) type Hasher = HasherOpenSSL;
 pub(crate) use sha2::Digest;
@@ -42,7 +43,7 @@ pub fn hash_xof(
     Ok(buf)
 }
 
-pub fn rust_crypto_ecdsa_hasher() -> Result<RustCryptoHasher, StrandError> {
+pub(crate) fn rust_crypto_ecdsa_hasher() -> Result<RustCryptoHasher, StrandError> {
     let md = MessageDigest::sha384();
     let hasher = HasherOpenSSL::new(md)?;
     Ok(hasher)

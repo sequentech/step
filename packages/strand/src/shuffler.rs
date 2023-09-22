@@ -26,6 +26,7 @@ pub(crate) struct YChallengeInput<'a, C: Ctx> {
 }
 
 #[derive(Clone, BorshSerialize, BorshDeserialize, Debug)]
+/// Shuffle proof commitments.
 pub struct Commitments<C: Ctx> {
     pub t1: C::E,
     pub t2: C::E,
@@ -36,6 +37,7 @@ pub struct Commitments<C: Ctx> {
 }
 
 #[derive(Clone, BorshSerialize, BorshDeserialize, Debug)]
+/// Shuffle proof responses.
 pub struct Responses<C: Ctx> {
     pub(crate) s1: C::X,
     pub(crate) s2: C::X,
@@ -46,6 +48,7 @@ pub struct Responses<C: Ctx> {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
+/// A proof of shuffle.
 pub struct ShuffleProof<C: Ctx> {
     // proof commitment
     pub(crate) t: Commitments<C>,
@@ -63,6 +66,7 @@ pub(super) struct PermutationData<'a, C: Ctx> {
     pub(crate) commitments_r: &'a [C::X],
 }
 
+/// Interface to ciphertext shuffling and verifying.
 pub struct Shuffler<'a, C: Ctx> {
     pub(crate) pk: &'a PublicKey<C>,
     pub(crate) generators: &'a Vec<C::E>,
@@ -70,6 +74,7 @@ pub struct Shuffler<'a, C: Ctx> {
 }
 
 impl<'a, C: Ctx> Shuffler<'a, C> {
+    /// Constructs a new shuffler.
     pub fn new(
         pk: &'a PublicKey<C>,
         generators: &'a Vec<C::E>,
@@ -82,6 +87,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         }
     }
 
+    /// Generates a shuffle of the given ciphertexts, returning the resulting shuffle, the random re-encryption factors
+    /// and the applied permutation. NOTE: the second and third returned parameters are SECRETS.
     pub fn gen_shuffle(
         &self,
         ciphertexts: &[Ciphertext<C>],
@@ -127,11 +134,13 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         (e_primes_permuted, rs)
     }
 
+    /// Computes a proof of shuffle given the original ciphertexts, shuffled ciphertexts, and 
+    /// shuffling secrets. Called after gen_shuffle.
     pub fn gen_proof(
         &self,
         es: &[Ciphertext<C>],
         e_primes: &[Ciphertext<C>],
-        r_primes: &[C::X],
+        r_primes: Vec<C::X>,
         perm: &[usize],
         label: &[u8],
     ) -> Result<ShuffleProof<C>, StrandError> {
@@ -147,7 +156,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         // let now = Instant::now();
         let (proof, _, _) =
-            self.gen_proof_ext(es, e_primes, r_primes, &perm_data, label)?;
+            self.gen_proof_ext(es, e_primes, r_primes, perm_data, label)?;
         // println!("gen_proof_ext {}", now.elapsed().as_millis());
 
         Ok(proof)
@@ -160,8 +169,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         &self,
         es: &[Ciphertext<C>],
         e_primes: &[Ciphertext<C>],
-        r_primes: &[C::X],
-        perm_data: &PermutationData<C>,
+        r_primes: Vec<C::X>,
+        perm_data: PermutationData<C>,
         label: &[u8],
     ) -> Result<(ShuffleProof<C>, Vec<C::X>, C::X), StrandError> {
         let ctx = &self.ctx;
@@ -332,6 +341,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         let cs = cs.to_vec();
 
+        // FIXME zeroize perm_data.perm and r_primes
+
         Ok((
             ShuffleProof {
                 t,
@@ -344,6 +355,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         ))
     }
 
+    /// Checks a proof against the original ciphertexts and permuted ciphertexts. Returns true if
+    /// verification passes.
     pub fn check_proof(
         &self,
         proof: &ShuffleProof<C>,

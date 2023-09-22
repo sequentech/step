@@ -17,7 +17,7 @@ use immu_board::{BoardClient, BoardMessage};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::new().unwrap();
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,

@@ -43,7 +43,7 @@ fn main() {
 fn gen_trustee_config<C: Ctx>() {
     let mut csprng = StrandRng;
 
-    let sk = StrandSignatureSk::new().unwrap();
+    let sk = StrandSignatureSk::gen().unwrap();
     let pk = StrandSignaturePk::from(&sk);
     let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
 
@@ -66,7 +66,7 @@ fn gen_trustee_config<C: Ctx>() {
 }
 
 fn gen_protocol_manager_config<C: Ctx>() {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::new().unwrap();
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,

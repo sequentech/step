@@ -38,14 +38,14 @@ use crate::util;
 use crate::util::StrandError;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
-// Ristretto context
+/// [Ristretto](https://ristretto.group/what_is_ristretto.html) implementation of a strand modular arithmetic context.
 pub struct RistrettoCtx;
 
 #[derive(PartialEq, Eq, Clone)]
-// RistrettoPoint for Strand
+/// A ristretto [RistrettoPoint](https://docs.rs/curve25519-dalek/latest/curve25519_dalek/ristretto/struct.RistrettoPoint.html) newtype.
 pub struct RistrettoPointS(pub(crate) RistrettoPoint);
 #[derive(PartialEq, Eq, Debug, Clone)]
-// Scalar for Strand
+/// A ristretto [Scalar](https://docs.rs/curve25519-dalek/latest/curve25519_dalek/scalar/struct.Scalar.html) newtype.
 pub struct ScalarS(pub(crate) Scalar);
 
 cfg_if::cfg_if! {
@@ -389,6 +389,7 @@ impl BorshSerialize for RistrettoPointS {
 
 impl BorshDeserialize for RistrettoPointS {
     #[inline]
+    /// Deserializes the given bytes into a point, checking for membership.
     fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <[u8; 32]>::deserialize(bytes)?;
         let ctx = RistrettoCtx::default();
@@ -411,6 +412,7 @@ impl BorshSerialize for ScalarS {
 
 impl BorshDeserialize for ScalarS {
     #[inline]
+    /// Deserializes the given bytes into a scalar, checking for membership.
     fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <[u8; 32]>::deserialize(bytes)?;
         let ctx = RistrettoCtx::default();
@@ -435,7 +437,7 @@ pub(crate) fn to_ristretto_point_array(
 ) -> Result<[u8; 32], StrandError> {
     util::to_u8_array(input)
 }
-pub fn to_ristretto_plaintext_array(
+pub(crate) fn to_ristretto_plaintext_array(
     input: &[u8],
 ) -> Result<[u8; 30], StrandError> {
     util::to_u8_array(input)

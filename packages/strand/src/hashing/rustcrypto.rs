@@ -7,8 +7,9 @@ use sha3::Shake256;
 
 use crate::util::StrandError;
 
-/// Size of all hashes.
+/// /// Sha-512 hashes are 64 bytes.
 pub const STRAND_HASH_LENGTH_BYTES: usize = 64;
+/// Sha-512 hashes are 64 byte arrays: [u8; 64].
 pub type Hash = [u8; 64];
 pub(crate) type Hasher = Sha512;
 pub(crate) use sha2::Digest;

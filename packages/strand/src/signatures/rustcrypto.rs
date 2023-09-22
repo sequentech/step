@@ -36,11 +36,13 @@ pub struct StrandSignature(Signature<Curve>);
 #[derive(Clone)]
 pub struct StrandSignaturePk(VerifyingKey<Curve>);
 impl StrandSignaturePk {
+    /// Returns the verification key from this signing key.
     pub fn from(
         sk: &StrandSignatureSk,
     ) -> Result<StrandSignaturePk, StrandError> {
         Ok(StrandSignaturePk(VerifyingKey::from(&sk.0)))
     }
+    /// Verifies the signature given the message. Returns Ok(()) if the verification passes.
     pub fn verify(
         &self,
         signature: &StrandSignature,
@@ -58,9 +60,11 @@ impl StrandSignaturePk {
 // #[derive(Clone)]
 pub struct StrandSignatureSk(SigningKey<Curve>);
 impl StrandSignatureSk {
-    pub fn new(rng: &mut StrandRng) -> Result<StrandSignatureSk, StrandError> {
+    /// Generates a key using randomness from rng::StrandRng.
+    pub fn gen(rng: &mut StrandRng) -> Result<StrandSignatureSk, StrandError> {
         Ok(StrandSignatureSk(SigningKey::random(rng)))
     }
+    /// Signs the message returning a signature.
     pub fn sign(&self, msg: &[u8]) -> Result<StrandSignature, StrandError> {
         let mut digest: RustCryptoHasher =
             crate::hashing::rustcrypto::rust_crypto_ecdsa_hasher();
@@ -217,7 +221,7 @@ pub(crate) mod tests {
         let mut rng = StrandRng;
 
         let (vk_bytes, sig_bytes) = {
-            let sk = StrandSignatureSk::new(&mut rng).unwrap();
+            let sk = StrandSignatureSk::gen(&mut rng).unwrap();
             let sk_b = sk.strand_serialize().unwrap();
             let sk_d = StrandSignatureSk::strand_deserialize(&sk_b).unwrap();
 
@@ -249,7 +253,7 @@ pub(crate) mod tests {
         let mut rng = StrandRng;
 
         let (public_key_string, signature_string) = {
-            let signing_key = StrandSignatureSk::new(&mut rng).unwrap();
+            let signing_key = StrandSignatureSk::gen(&mut rng).unwrap();
             let signing_key_string: String = signing_key.try_into().unwrap();
             let signing_key_deserialized: StrandSignatureSk =
                 signing_key_string.try_into().unwrap();

@@ -6,6 +6,7 @@ use rand::CryptoRng;
 use rand::Error;
 use rand::RngCore;
 
+/// Random number generation provided by OpenSSL.
 pub struct StrandRng;
 
 impl CryptoRng for StrandRng {}
