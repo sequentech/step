@@ -40,7 +40,7 @@ using them and continue development:
   services mounted, so that you can work transparently on that and it's synced
   to and from the development environment.
 - **React Frontend** at [http://127.0.0.1:3000].
-  - This has the `frontend/test-app` directory mounted in the docker service,
+  - This has the `packages/test-app` directory mounted in the docker service,
   and has been launched with the `yarn dev` command that will automatically
   detect and rebuild changes in the code, and detect and install dependencies
   when it detects changes in `package.json` and then relaunch the service.
@@ -297,8 +297,8 @@ docker compose build frontend && docker compose up -d --no-deps frontend
 
 ### The hasura schema changed or I want to add a query/mutation to the voting-portal
 
-Add the query/mutation to the `frontend/voting-portal/src/queries/` folder and 
-then run `yarn generate` from the `frontend/` folder to update the types.
+Add the query/mutation to the `packages/voting-portal/src/queries/` folder and 
+then run `yarn generate` from the `packages/` folder to update the types.
 
 ### The voting portal will not load any elections
 

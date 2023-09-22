@@ -190,6 +190,10 @@ services:
     build:
       context: ../packages/
       dockerfile: ./harvest/Dockerfile
+    environment:
+      - IMMUDB_SERVER_URL=http://immudb:3322
+      - IMMUDB_USERNAME=immudb
+      - IMMUDB_PASSWORD=immudb
     ports:
       - 8400:8400
     #depends_on:
