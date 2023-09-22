@@ -10,16 +10,15 @@
 // * Generate a .bin config for a session, a serialized Configuration artifact
 //
 
-use chacha20poly1305::{aead::KeyInit, ChaCha20Poly1305};
 use std::fs::File;
 use std::io::prelude::*;
 use std::marker::PhantomData;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
-use strand::rng::StrandRng;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use strand::symm;
 
 use braid::protocol2::artifact::Configuration;
 use braid::protocol2::trustee::ProtocolManager;
@@ -35,8 +34,6 @@ fn main() {
 }
 
 fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
-    let mut csprng = StrandRng;
-
     let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
@@ -45,7 +42,7 @@ fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
     let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|_| {
             let sk = StrandSignatureSk::gen().unwrap();
-            let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
+            let encryption_key: symm::SymmetricKey = symm::gen_key();
             (
                 Trustee::new(sk.clone(), encryption_key),
                 StrandSignaturePk::from(&sk).unwrap(),

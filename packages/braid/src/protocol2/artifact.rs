@@ -107,11 +107,14 @@ pub(crate) struct ShareTransport2<C: Ctx> {
     // The public key (as an element) with which other trustees will encrypt shares sent to the originator of this ShareTransport
     pub pk: C::E,
     // The encrypted (symmetric) PrivateKey corresponding to the above
-    pub encryption_data: symm::EncryptionData
+    pub encryption_data: symm::EncryptionData,
 }
 impl<C: Ctx> ShareTransport2<C> {
     pub fn new(pk: C::E, encryption_data: symm::EncryptionData) -> ShareTransport2<C> {
-        ShareTransport2 { pk, encryption_data }
+        ShareTransport2 {
+            pk,
+            encryption_data,
+        }
     }
 }
 
@@ -220,7 +223,8 @@ impl<C: Ctx> std::fmt::Debug for Commitments<C> {
             f,
             "commitments={:?}, coefficients={:?}",
             self.commitments,
-            hex::encode(&self.encrypted_coefficients.encryption_data.encrypted_bytes)[0..10].to_string()
+            hex::encode(&self.encrypted_coefficients.encryption_data.encrypted_bytes)[0..10]
+                .to_string()
         )
     }
 }

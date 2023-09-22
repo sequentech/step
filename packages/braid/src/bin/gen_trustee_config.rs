@@ -9,15 +9,14 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use braid::protocol2::trustee::ProtocolManager;
 use braid::run::config::{ProtocolManagerConfig, TrusteeConfig};
-use chacha20poly1305::{aead::KeyInit, ChaCha20Poly1305};
 use clap::Parser;
 use std::marker::PhantomData;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
-use strand::rng::StrandRng;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use strand::symm;
 
 #[derive(clap::ValueEnum, Clone)]
 enum Command {
@@ -41,11 +40,9 @@ fn main() {
 }
 
 fn gen_trustee_config<C: Ctx>() {
-    let mut csprng = StrandRng;
-
     let sk = StrandSignatureSk::gen().unwrap();
     let pk = StrandSignaturePk::from(&sk);
-    let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
+    let encryption_key: symm::SymmetricKey = symm::gen_key();
 
     let sk_bytes = sk.strand_serialize().unwrap();
     let pk_bytes = pk.unwrap().strand_serialize().unwrap();

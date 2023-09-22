@@ -10,6 +10,7 @@ use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignature, StrandSignaturePk, StrandSignatureSk};
 use strand::{context::Ctx, elgamal::PrivateKey};
 
+use crate::protocol2::action::Action;
 use crate::protocol2::artifact::Commitments;
 use crate::protocol2::artifact::Configuration;
 use crate::protocol2::artifact::DkgPublicKey;
@@ -21,7 +22,6 @@ use crate::protocol2::predicate::Predicate;
 use crate::protocol2::predicate::*;
 use crate::protocol2::statement::{Statement, StatementType};
 use crate::protocol2::PROTOCOL_MANAGER_INDEX;
-use crate::protocol2::action::Action;
 
 use super::artifact::EncryptedCoefficients2;
 use super::artifact::ShareTransport2;
@@ -59,10 +59,7 @@ impl<C: Ctx> Signer for Trustee<C> {
 }
 
 impl<C: Ctx> Trustee<C> {
-    pub fn new(
-        signing_key: StrandSignatureSk,
-        encryption_key: symm::SymmetricKey,
-    ) -> Trustee<C> {
+    pub fn new(signing_key: StrandSignatureSk, encryption_key: symm::SymmetricKey) -> Trustee<C> {
         let local_board = LocalBoard::new();
 
         Trustee {
@@ -431,8 +428,8 @@ impl<C: Ctx> Trustee<C> {
         // let cipher = ChaCha20Poly1305::new(&self.encryption_key);
         let bytes: &[u8] = &coefficients.strand_serialize()?;
         /*let encrypted: Vec<u8> = cipher
-            .encrypt(&nonce, bytes)
-            .map_err(|e| anyhow!("chacha error {e}"))?;*/
+        .encrypt(&nonce, bytes)
+        .map_err(|e| anyhow!("chacha error {e}"))?;*/
         let ed = symm::encrypt(self.encryption_key, bytes)?;
         let enc = EncryptedCoefficients2::new(ed);
 
@@ -458,11 +455,8 @@ impl<C: Ctx> Trustee<C> {
 
         let ed = symm::EncryptionData::new(encrypted, nonce);*/
         let ed = symm::encrypt(self.encryption_key, bytes)?;
-        
-        Ok(ShareTransport2::new(
-            sk.pk_element().clone(),
-            ed,
-        ))
+
+        Ok(ShareTransport2::new(sk.pk_element().clone(), ed))
     }
 
     pub(crate) fn decrypt_share_sk(&self, st: &ShareTransport2<C>) -> Result<PrivateKey<C>> {

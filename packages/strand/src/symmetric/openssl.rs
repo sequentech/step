@@ -14,7 +14,7 @@ pub struct EncryptionData {
     pub tag: [u8; 16],
 }
 
-fn gen_key() -> [u8; 32] {
+pub fn gen_key() -> [u8; 32] {
     let mut csprng = StrandRng;
 
     let mut key = [0u8; 32];
@@ -23,7 +23,7 @@ fn gen_key() -> [u8; 32] {
     key
 }
 
-fn encrypt(
+pub fn encrypt(
     key: [u8; 32],
     data: &[u8],
     aad: &[u8],
@@ -49,7 +49,7 @@ fn encrypt(
     )
 }
 
-fn decrypt(
+pub fn decrypt(
     key: &[u8; 32],
     ed: &EncryptionData,
     aad: &[u8],

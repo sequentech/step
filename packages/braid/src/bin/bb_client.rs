@@ -28,10 +28,10 @@ use strand::signature::StrandSignatureSk;
 struct Cli {
     #[arg(long)]
     server_url: String,
-    
+
     #[arg(short, long)]
     dbname: String,
-    
+
     #[arg(short, long)]
     indexdb: String,
 
@@ -74,7 +74,7 @@ async fn main() -> Result<()> {
             post_ballots(&mut board, &args.dbname, ctx).await?;
         }
         Command::Messages => {
-            list_messages(&mut board, &args.dbname,).await?;
+            list_messages(&mut board, &args.dbname).await?;
         }
         Command::Boards => {
             list_boards(&mut board, &args.indexdb).await?;
@@ -85,7 +85,11 @@ async fn main() -> Result<()> {
 }
 
 #[instrument]
-async fn init<C: Ctx>(board: &mut BoardClient, board_name: &str, configuration: Configuration<C>) -> Result<()> {
+async fn init<C: Ctx>(
+    board: &mut BoardClient,
+    board_name: &str,
+    configuration: Configuration<C>,
+) -> Result<()> {
     let pm = get_pm(PhantomData);
     let message: BoardMessage = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
     info!("Adding configuration to the board..");

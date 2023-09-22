@@ -40,8 +40,7 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
             .get_shares(&SharesHash(share_h), sender)
             .ok_or(anyhow!("Could not retrieve shares",))?;
 
-        let sk = trustee
-            .decrypt_share_sk(&commitments.share_transport)?;
+        let sk = trustee.decrypt_share_sk(&commitments.share_transport)?;
 
         let share = ctx.decrypt_exp(&share_.0[*self_p], sk)?;
 
