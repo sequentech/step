@@ -43,9 +43,12 @@ ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
 ecdsa = {version = "0.16.8", features = ["signing"] }
 p384 = "0.13.0"
 
+# symmetric 
+chacha20poly1305 = "0.10.1"
+generic-array = "0.14.6"
+
 # Hashing 
 sha2 = "0.10.7"
-
 # Needed for extendable hashing function when deriving generators for ristretto
 sha3 = "0.10"
 

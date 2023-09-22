@@ -33,8 +33,9 @@ pub mod wasm;
 /// Schnorr and Chaum-Pedersen zero knowledge proofs.
 pub mod zkp;
 // Symmetric encryption.
-#[cfg(feature = "openssl")]
-pub mod symmetric;
+// #[cfg(feature = "openssl")]
+// pub mod symmetric;
+mod symmetric;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "openssl")] {

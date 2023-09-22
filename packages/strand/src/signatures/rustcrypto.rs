@@ -61,8 +61,9 @@ impl StrandSignaturePk {
 pub struct StrandSignatureSk(SigningKey<Curve>);
 impl StrandSignatureSk {
     /// Generates a key using randomness from rng::StrandRng.
-    pub fn gen(rng: &mut StrandRng) -> Result<StrandSignatureSk, StrandError> {
-        Ok(StrandSignatureSk(SigningKey::random(rng)))
+    pub fn gen() -> Result<StrandSignatureSk, StrandError> {
+        let mut rng = StrandRng;
+        Ok(StrandSignatureSk(SigningKey::random(&mut rng)))
     }
     /// Signs the message returning a signature.
     pub fn sign(&self, msg: &[u8]) -> Result<StrandSignature, StrandError> {
@@ -218,10 +219,9 @@ pub(crate) mod tests {
     pub fn test_signature() {
         let msg = b"ok";
         let msg2 = b"not_ok";
-        let mut rng = StrandRng;
 
         let (vk_bytes, sig_bytes) = {
-            let sk = StrandSignatureSk::gen(&mut rng).unwrap();
+            let sk = StrandSignatureSk::gen().unwrap();
             let sk_b = sk.strand_serialize().unwrap();
             let sk_d = StrandSignatureSk::strand_deserialize(&sk_b).unwrap();
 
@@ -250,10 +250,9 @@ pub(crate) mod tests {
     fn test_string_serialization() {
         let message = b"ok";
         let other_message = b"not_ok";
-        let mut rng = StrandRng;
 
         let (public_key_string, signature_string) = {
-            let signing_key = StrandSignatureSk::gen(&mut rng).unwrap();
+            let signing_key = StrandSignatureSk::gen().unwrap();
             let signing_key_string: String = signing_key.try_into().unwrap();
             let signing_key_deserialized: StrandSignatureSk =
                 signing_key_string.try_into().unwrap();

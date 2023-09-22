@@ -19,17 +19,15 @@ pub(crate) mod tests {
         StrandSignature as RCrypto_sig, StrandSignaturePk as RCrypto_pk,
         StrandSignatureSk as RCrypto_sk,
     };
-    use crate::rng::StrandRng;
     use crate::serialization::{StrandDeserialize, StrandSerialize};
 
     #[test]
     pub fn test_signature_interop() {
         let msg = b"ok";
         let msg2 = b"not_ok";
-        let mut rng = StrandRng;
 
         let (vk_bytes, sig_bytes) = {
-            let sk = RCrypto_sk::new(&mut rng).unwrap();
+            let sk = RCrypto_sk::gen().unwrap();
             let sk_b = sk.strand_serialize().unwrap();
             let sk_d = RCrypto_sk::strand_deserialize(&sk_b).unwrap();
 

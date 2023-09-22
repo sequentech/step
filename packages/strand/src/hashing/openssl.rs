@@ -11,7 +11,7 @@ pub const STRAND_HASH_LENGTH_BYTES: usize = 64;
 /// Sha-512 hashes are 64 byte arrays: [u8; 64].
 pub type Hash = [u8; 64];
 pub(crate) type Hasher = HasherOpenSSL;
-pub(crate) use sha2::Digest;
+// pub(crate) use openssl::hash::Hasher;
 
 pub fn hasher() -> Result<Hasher, StrandError> {
     let md = MessageDigest::sha512();

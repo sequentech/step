@@ -6,6 +6,12 @@ use crate::rng::StrandRng;
 use crate::util::StrandError;
 use rand::RngCore;
 
+pub struct EncryptionData {
+    pub encrypted_bytes: Vec<u8>,
+    pub iv: [u8; 12],
+    pub tag: [u8; 16],
+}
+
 fn gen_key() -> [u8; 32] {
     let mut csprng = StrandRng;
 
@@ -16,32 +22,39 @@ fn gen_key() -> [u8; 32] {
 }
 
 fn encrypt(
-    key: &[u8; 32],
+    key: [u8; 32],
     data: &[u8],
     aad: &[u8],
-) -> Result<(Vec<u8>, [u8; 16], [u8; 12]), StrandError> {
+) -> Result<EncryptionData, StrandError> {
     let mut csprng = StrandRng;
 
     let cipher = Cipher::aes_256_gcm();
     let mut tag = [0u8; 16];
+    // https://docs.rs/chacha20poly1305/latest/chacha20poly1305/trait.AeadCore.html#method.generate_nonce
+    // 4,294,967,296 messages with random nonces can be encrypted under a given key
+    // (We refer to chacha20 documentation above as the iv and nonce sizes for each are identical)
     let mut iv = [0u8; 12];
     csprng.fill_bytes(&mut iv);
 
-    let encrypted = encrypt_aead(cipher, key, Some(&iv), &aad, &data, &mut tag);
+    let encrypted = encrypt_aead(cipher, &key, Some(&iv), &aad, &data, &mut tag);
 
-    Ok((encrypted?, tag, iv))
+    Ok(
+        EncryptionData {
+            encrypted_bytes: encrypted?,
+            iv: iv,
+            tag: tag,
+        }
+    )
 }
 
 fn decrypt(
     key: &[u8; 32],
-    encrypted: &[u8],
+    ed: &EncryptionData,
     aad: &[u8],
-    tag: &[u8; 16],
-    iv: &[u8; 12],
 ) -> Result<Vec<u8>, StrandError> {
     let cipher = Cipher::aes_256_gcm();
 
-    let ret = decrypt_aead(cipher, key, Some(iv), &aad, &encrypted, tag);
+    let ret = decrypt_aead(cipher, key, Some(&ed.iv), &aad, &ed.encrypted_bytes, &ed.tag);
 
     Ok(ret?)
 }
@@ -59,9 +72,9 @@ mod tests {
         csprng.fill_bytes(&mut data);
         csprng.fill_bytes(&mut aad);
 
-        let (encrypted, tag, iv) = encrypt(&key, &data, &aad).unwrap();
+        let encryption_data = encrypt(key, &data, &aad).unwrap();
 
-        let decrypted = decrypt(&key, &encrypted, &aad, &tag, &iv).unwrap();
+        let decrypted = decrypt(&key, &encryption_data, &aad).unwrap();
 
         assert_eq!(data.to_vec(), decrypted);
     }
