@@ -175,7 +175,9 @@ pub async fn create_ballot_style(
         if area_contest.contest.is_none() {
             continue;
         }
-        let contest = area_contest.contest.clone().unwrap();
+        let contest = area_contest.contest.clone().with_context(|| {
+            format!("contest not found for area contest {}", area_contest.id)
+        })?;
         let election_id = contest.election_id.clone();
         election_contest_map
             .entry(contest.election_id.clone())
@@ -187,46 +189,64 @@ pub async fn create_ballot_style(
         let election = elections
             .iter()
             .find(|election| election.id == election_id)
-            .unwrap();
-        let contests: Vec<sequent_core::hasura_types::Contest> = contest_ids
+            .with_context(|| {
+                format!("election id not found {}", election_id)
+            })?;
+        let contests = contest_ids
             .clone()
             .into_iter()
-            .map(|contest_id| -> sequent_core::hasura_types::Contest {
-                let area_contest = area_contests
-                    .iter()
-                    .find(|area_contest| {
-                        area_contest.contest_id == Some(contest_id.clone())
-                    })
-                    .unwrap();
-                sequent_core::hasura_types::Contest::from(
-                    area_contest.contest.clone().unwrap(),
-                )
-            })
-            .collect();
-        let candidates: Vec<sequent_core::hasura_types::Candidate> =
-            contest_ids
-                .into_iter()
-                .map(|contest_id| -> Vec<sequent_core::hasura_types::Candidate> {
+            .map(
+                |contest_id| -> Result<sequent_core::hasura_types::Contest> {
                     let area_contest = area_contests
                         .iter()
                         .find(|area_contest| {
                             area_contest.contest_id == Some(contest_id.clone())
                         })
-                        .unwrap();
+                        .with_context(|| {
+                            format!("contest id not found {}", contest_id)
+                        })?;
+                    Ok(sequent_core::hasura_types::Contest::from(
+                        area_contest.contest.clone().unwrap(),
+                    ))
+                },
+            )
+            .collect::<Result<Vec<sequent_core::hasura_types::Contest>>>()?;
+        let candidates =
+            contest_ids
+                .into_iter()
+                .map(|contest_id| -> Result<Vec<sequent_core::hasura_types::Candidate>> {
+                    let area_contest = area_contests
+                        .iter()
+                        .find(|area_contest| {
+                            area_contest.contest_id == Some(contest_id.clone())
+                        })
+                        .with_context(|| {
+                            format!(
+                                "contest id not found {}",
+                                contest_id
+                            )
+                        })?;
                     area_contest
                         .contest
                         .clone()
-                        .unwrap()
+                        .with_context(|| {
+                            format!(
+                                "contest missing on area contest id {}",
+                                area_contest.id
+                            )
+                        })?
                         .candidates
                         .into_iter()
                         .map(|candidate| {
-                            let _c: get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestContestCandidates = candidate.clone();
-                            sequent_core::hasura_types::Candidate::from(
+                            Ok(sequent_core::hasura_types::Candidate::from(
                                 candidate.clone(),
-                            )
+                            ))
                         })
-                        .collect()
+                        .collect::<Result<Vec<sequent_core::hasura_types::Candidate>>>()
                 })
+                .into_iter()
+                .collect::<Result<Vec<Vec<sequent_core::hasura_types::Candidate>>>>()?
+                .into_iter()
                 .flatten()
                 .collect();
 
