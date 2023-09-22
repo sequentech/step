@@ -1,10 +1,36 @@
 #![allow(clippy::type_complexity)]
-use std::sync::{Arc, Mutex};
-
-use borsh::{BorshDeserialize, BorshSerialize};
 // SPDX-FileCopyrightText: 2021 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! # Examples
+//!
+//! ```
+//! use strand::context::Ctx;
+//! use strand::backend::ristretto::RistrettoCtx;
+//! use strand::elgamal::{PrivateKey, PublicKey};
+//! use strand::util;
+//! use strand::shuffler::Shuffler;
+//! let ctx = RistrettoCtx;
+//! let sk = PrivateKey::gen(&ctx);
+//! let pk = sk.get_pk();
+//!
+//! let es = util::random_ciphertexts(10, &ctx);
+//! let seed = vec![];
+//! let hs = ctx.generators(es.len() + 1, &seed).unwrap();
+//! let shuffler = Shuffler::new(
+//!    &pk,
+//!    &hs,
+//!    &ctx,
+//! );
+//! let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
+//! let proof =
+//!    shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
+//! let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]).unwrap();
+//! assert!(ok);
+//! ```
+
+use std::sync::{Arc, Mutex};
+use borsh::{BorshDeserialize, BorshSerialize};
 use rand::seq::SliceRandom;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
