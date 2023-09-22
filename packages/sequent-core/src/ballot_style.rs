@@ -25,7 +25,7 @@ pub fn create_ballot_style(
                     let election_candidates = candidates
                         .clone()
                         .into_iter()
-                        .filter(|c| c.contest_id == contest.id)
+                        .filter(|c| c.contest_id == Some(contest.id.clone()))
                         .collect::<Vec<hasura_types::Candidate>>();
                     create_question(contest, election_candidates)
                 })
@@ -84,7 +84,7 @@ fn create_question(
         max: contest.max_votes.unwrap_or(0),
         min: contest.min_votes.unwrap_or(0),
         num_winners: 1,
-        title: contest.name,
+        title: contest.name.clone().unwrap_or("".to_string()),
         tally_type: contest.counting_algorithm.unwrap_or("".to_string()),
         answer_total_votes_percentage: "".to_string(),
         answers: candidates
@@ -99,7 +99,7 @@ fn create_question(
                     .unwrap_or("".to_string()),
                 sort_order: i as i64,
                 urls: vec![],
-                text: candidate.name.clone(),
+                text: candidate.name.clone().unwrap_or("".to_string()),
             })
             .collect(),
         extra_options: None,

@@ -78,6 +78,61 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElection>
     }
 }
 
+impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestContest>
+    for sequent_core::hasura_types::Contest
+{
+    fn from(
+        contest: get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestContest,
+    ) -> Self {
+        sequent_core::hasura_types::Contest {
+            id: contest.id.clone(),
+            tenant_id: contest.tenant_id.clone(),
+            election_event_id: contest.election_event_id.clone(),
+            election_id: contest.election_id.clone(),
+            created_at: None, // contest.created_at.clone(),
+            last_updated_at: None, // contest.last_updated_at.clone(),
+            labels: contest.labels.clone(),
+            annotations: contest.annotations.clone(),
+            is_acclaimed: contest.is_acclaimed.clone(),
+            is_active: contest.is_active.clone(),
+            name: contest.name.clone(),
+            description: contest.description.clone(),
+            presentation: contest.presentation.clone(),
+            min_votes: contest.min_votes.clone(),
+            max_votes: contest.max_votes.clone(),
+            voting_type: contest.voting_type.clone(),
+            counting_algorithm: contest.counting_algorithm.clone(),
+            is_encrypted: contest.is_encrypted.clone(),
+            tally_configuration: contest.tally_configuration.clone(),
+            conditions: contest.conditions.clone(),
+        }
+    }
+}
+
+impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestContestCandidates>
+    for sequent_core::hasura_types::Candidate
+{
+    fn from(
+        candidate: get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestContestCandidates,
+    ) -> Self {
+        sequent_core::hasura_types::Candidate {
+            id: candidate.id.clone(),
+            tenant_id: candidate.tenant_id.clone(),
+            election_event_id: candidate.election_event_id.clone(),
+            contest_id: candidate.contest_id.clone(),
+            created_at: None, //candidate.created_at.clone(),
+            last_updated_at: None, //candidate.last_updated_at.clone(),
+            labels: candidate.labels.clone(),
+            annotations: candidate.annotations.clone(),
+            name: candidate.name.clone(),
+            description: candidate.description.clone(),
+            r#type: candidate.type_.clone(),
+            presentation: candidate.presentation.clone(),
+            is_public: candidate.is_public.clone(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct CreateBallotStylePayload {
@@ -133,27 +188,54 @@ pub async fn create_ballot_style(
             .iter()
             .find(|election| election.id == election_id)
             .unwrap();
-        let contests: Vec<sequent_core::ballot::ElectionDTO> = contest_ids
+        let contests: Vec<sequent_core::hasura_types::Contest> = contest_ids
+            .clone()
             .into_iter()
-            .map(|contest_id| -> sequent_core::ballot::ElectionDTO {
+            .map(|contest_id| -> sequent_core::hasura_types::Contest {
                 let area_contest = area_contests
                     .iter()
                     .find(|area_contest| {
                         area_contest.contest_id == Some(contest_id.clone())
                     })
                     .unwrap();
-                sequent_core::ballot_style::create_ballot_style(
-                    sequent_core::hasura_types::ElectionEvent::from(
-                        election_event,
-                    ),
-                    sequent_core::hasura_types::Election::from(election),
-                    vec![], /* contests: Vec<hasura_types::Contest>,
-                             * // Question */
-                    vec![], /* candidates: Vec<hasura_types::Candidate>,
-                             * // Answer */
+                sequent_core::hasura_types::Contest::from(
+                    area_contest.contest.clone().unwrap(),
                 )
             })
             .collect();
+        let candidates: Vec<sequent_core::hasura_types::Candidate> =
+            contest_ids
+                .into_iter()
+                .map(|contest_id| -> Vec<sequent_core::hasura_types::Candidate> {
+                    let area_contest = area_contests
+                        .iter()
+                        .find(|area_contest| {
+                            area_contest.contest_id == Some(contest_id.clone())
+                        })
+                        .unwrap();
+                    area_contest
+                        .contest
+                        .clone()
+                        .unwrap()
+                        .candidates
+                        .into_iter()
+                        .map(|candidate| {
+                            let _c: get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestContestCandidates = candidate.clone();
+                            sequent_core::hasura_types::Candidate::from(
+                                candidate.clone(),
+                            )
+                        })
+                        .collect()
+                })
+                .flatten()
+                .collect();
+
+        sequent_core::ballot_style::create_ballot_style(
+            sequent_core::hasura_types::ElectionEvent::from(election_event),
+            sequent_core::hasura_types::Election::from(election),
+            contests,
+            candidates,
+        );
     }
 
     Ok(())
