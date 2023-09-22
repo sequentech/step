@@ -64,5 +64,60 @@ pub async fn create_ballot_style(
             .or_insert(vec![contest.id.clone()]);
     }
 
+    for (election_id, contest_ids) in election_contest_map.into_iter() {
+        let election =
+            elections.iter().find(|election| election.id == election_id).unwrap();
+        let contests: Vec<sequent_core::ballot::ElectionDTO> = contest_ids
+            .into_iter()
+            .map(|contest_id| -> sequent_core::ballot::ElectionDTO {
+                let area_contest = area_contests.iter().find(|area_contest| {
+                    area_contest.contest_id == Some(contest_id.clone())
+                }).unwrap();
+                sequent_core::ballot_style::create_ballot_style(
+                    sequent_core::hasura_types::ElectionEvent {
+                        id: election_event.id.clone(),
+                        created_at: None,//election_event.created_at,
+                        updated_at: None,//election_event.updated_at,
+                        labels: election_event.labels.clone(),
+                        annotations: election_event.annotations.clone(),
+                        tenant_id: election_event.tenant_id.clone(),
+                        name: election_event.name.clone(),
+                        description: election_event.description.clone(),
+                        presentation: election_event.presentation.clone(),
+                        bulletin_board_reference: election_event.bulletin_board_reference.clone(),
+                        is_archived: election_event.is_archived.clone(),
+                        voting_channels: election_event.voting_channels.clone(),
+                        dates: election_event.dates.clone(),
+                        status: election_event.status.clone(),
+                        user_boards: election_event.user_boards.clone(),
+                        encryption_protocol: election_event.encryption_protocol.clone(),
+                        is_audit: election_event.is_audit.clone(),
+                        audit_election_event_id: election_event.audit_election_event_id.clone(),
+                    }, // Election Event
+                    sequent_core::hasura_types::Election {
+                        id: election.id.clone(),
+                        tenant_id: election.tenant_id.clone(),
+                        election_event_id: election.election_event_id.clone(),
+                        created_at: None,//election.created_at,
+                        last_updated_at: None,//election.last_updated_at,
+                        labels: election.labels.clone(),
+                        annotations: election.annotations.clone(),
+                        name: election.name.clone(),
+                        description: election.description.clone(),
+                        presentation: election.presentation.clone(),
+                        dates: election.dates.clone(),
+                        status: election.status.clone(),
+                        eml: election.eml.clone(),
+                        num_allowed_revotes: election.num_allowed_revotes.clone(),
+                        is_consolidated_ballot_encoding: election.is_consolidated_ballot_encoding.clone(),
+                        spoil_ballot_option: election.spoil_ballot_option.clone(),
+                    },            // Election
+                    vec![],//contests: Vec<hasura_types::Contest>,        // Question
+                    vec![],//candidates: Vec<hasura_types::Candidate>,    // Answer
+                )
+            })
+            .collect();
+    }
+
     Ok(())
 }
