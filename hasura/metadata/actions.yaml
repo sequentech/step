@@ -49,10 +49,17 @@ actions:
     request_transform:
       body:
         action: transform
-        template: '{{$body.input}}'
+        template: |-
+          {
+            "tenant_id": {{$session_variables['x-hasura-tenant-id']}},
+            "election_event_id": {{$session_variables['x-hasura-election-event-id']}},
+            "limit": {{$body.input?.limit}},
+            "after_id": {{$body.input?.after_id}}
+          }
       template_engine: Kriti
       version: 2
   permissions:
+  - role: immudb:log:read
   - role: admin-user
   comment: List PostgreSQL audit logs
 custom_types:

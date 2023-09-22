@@ -37,6 +37,8 @@ macro_rules! assign_value {
 pub struct GetPgauditBody {
     tenant_id: String,
     election_event_id: String,
+    limit: Option<i64>,
+    after_id: Option<i64>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -132,7 +134,8 @@ pub async fn list_pgaudit(
     client.login(&username, &password).await?;
 
     client.open_session(&input.election_event_id).await?;
-    let limit: u64 = 10;
+    let limit: i64 = input.limit.unwrap_or(10);
+    let after_id: i64 = input.after_id.unwrap_or(0);
     let sql = format!(
         r#"
     SELECT
@@ -146,9 +149,12 @@ pub async fn list_pgaudit(
         statement,
         user
     FROM pgaudit
+    WHERE id > {}
     LIMIT {}
+    ORDER BY id ASC
     "#,
-        limit
+        after_id,
+        limit,
     );
     let sql_query_response = client.sql_query(&sql, vec![]).await?;
     let rows = sql_query_response

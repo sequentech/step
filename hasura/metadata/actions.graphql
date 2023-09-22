@@ -19,8 +19,8 @@ type Query {
 
 type Query {
   listPgaudit (
-    tenant_id: String!
-    election_event_id: String!
+    limit: Int
+    after_id: Int
   ): [PgAuditRow]
 }
 
