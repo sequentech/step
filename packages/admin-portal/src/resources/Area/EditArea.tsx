@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Button, Typography} from "@mui/material"
-import React from "react"
+import {Button, CircularProgress, Menu, MenuItem, Typography} from "@mui/material"
+import React, {useState} from "react"
 import {
     Edit,
     ReferenceField,
@@ -11,22 +11,75 @@ import {
     TextField,
     TextInput,
     useRecordContext,
+    useRefresh,
 } from "react-admin"
 import {ListArea} from "./ListArea"
 import {JsonInput} from "react-admin-json-view"
 import {ChipList} from "../../components/ChipList"
-import {Sequent_Backend_Area} from "../../gql/graphql"
+import {CreateScheduledEventMutation, Sequent_Backend_Area} from "../../gql/graphql"
 import {Link} from "react-router-dom"
 import {IconButton} from "@sequentech/ui-essentials"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import {useTenantStore} from "../../components/CustomMenu"
+import {useMutation} from "@apollo/client"
+import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
+import {ScheduledEventType} from "../../services/ScheduledEvent"
 
 const AreaForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Area>()
+    const [showMenu, setShowMenu] = useState(false)
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+    const [showProgress, setShowProgress] = useState(false)
+    const [tenantId] = useTenantStore()
+    const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
+    const refresh = useRefresh()
+
+    const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
+        setAnchorEl(event.currentTarget)
+        setShowMenu(true)
+    }
+
+    const createBallotStylesAction = async () => {
+        setShowMenu(false)
+        setShowProgress(true)
+
+        const {data, errors} = await createScheduledEvent({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: record.election_event_id,
+                eventProcessor: ScheduledEventType.CREATE_BALLOT_STYLE,
+                cronConfig: undefined,
+                eventPayload: {
+                    area_id: record.id,
+                },
+                createdBy: "admin",
+            },
+        })
+        if (errors) {
+            console.log(errors)
+        }
+        if (data) {
+            console.log(data)
+        }
+        setShowProgress(false)
+        refresh()
+    }
 
     return (
         <SimpleForm>
             <Typography variant="h4">Area</Typography>
             <Typography variant="body2">Area configuration</Typography>
+            <Button onClick={handleActionsButtonClick}>
+                Actions {showProgress ? <CircularProgress /> : null}
+            </Button>
+            <Menu
+                id="election-event-actions-menu"
+                anchorEl={anchorEl}
+                open={showMenu}
+                onClose={() => setShowMenu(false)}
+            >
+                <MenuItem onClick={createBallotStylesAction}>Create Ballot Styles</MenuItem>
+            </Menu>
             <Typography variant="h5">ID</Typography>
             <TextField source="id" />
             <TextInput source="name" />

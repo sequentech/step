@@ -4,17 +4,16 @@
 use chrono::naive::NaiveDateTime;
 use serde_json::value::Value;
 
-pub type UUID = String;
-pub type uuid = String;
+pub type Uuid = String;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ElectionEvent {
-    pub id: UUID,
+    pub id: Uuid,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
-    pub tenant_id: UUID,
+    pub tenant_id: Uuid,
     pub name: String,
     pub description: Option<String>,
     pub presentation: Option<Value>,
@@ -26,14 +25,14 @@ pub struct ElectionEvent {
     pub user_boards: Option<String>,
     pub encryption_protocol: String,
     pub is_audit: Option<bool>,
-    pub audit_election_event_id: Option<UUID>,
+    pub audit_election_event_id: Option<Uuid>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Election {
-    pub id: UUID,
-    pub tenant_id: UUID,
-    pub election_event_id: UUID,
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub election_event_id: Uuid,
     pub created_at: Option<NaiveDateTime>,
     pub last_updated_at: Option<NaiveDateTime>,
     pub labels: Option<Value>,
@@ -51,17 +50,17 @@ pub struct Election {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Contest {
-    pub id: UUID,
-    pub tenant_id: UUID,
-    pub election_event_id: UUID,
-    pub election_id: UUID,
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub election_event_id: Uuid,
+    pub election_id: Uuid,
     pub created_at: Option<NaiveDateTime>,
     pub last_updated_at: Option<NaiveDateTime>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub is_acclaimed: Option<bool>,
     pub is_active: Option<bool>,
-    pub name: String,
+    pub name: Option<String>,
     pub description: Option<String>,
     pub presentation: Option<Value>,
     pub min_votes: Option<i64>,
@@ -75,15 +74,15 @@ pub struct Contest {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Candidate {
-    pub id: UUID,
-    pub tenant_id: UUID,
-    pub election_event_id: UUID,
-    pub contest_id: UUID,
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub election_event_id: Uuid,
+    pub contest_id: Option<Uuid>,
     pub created_at: Option<NaiveDateTime>,
     pub last_updated_at: Option<NaiveDateTime>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
-    pub name: String,
+    pub name: Option<String>,
     pub description: Option<String>,
     pub r#type: Option<String>,
     pub presentation: Option<Value>,

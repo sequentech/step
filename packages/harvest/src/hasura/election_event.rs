@@ -1,13 +1,15 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::connection;
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use rocket::serde::json::Value;
 use std::env;
 use tracing::instrument;
+
+use crate::connection;
+use crate::services::to_result::ToResult;
 
 type uuid = String;
 type jsonb = Value;
@@ -43,7 +45,7 @@ pub async fn update_election_event_board(
     tenant_id: String,
     election_event_id: String,
     board: Value,
-) -> Result<()> {
+) -> Result<Response<update_election_event_board::ResponseData>> {
     let variables = update_election_event_board::Variables {
         tenant_id: tenant_id,
         election_event_id: election_event_id,
@@ -60,9 +62,9 @@ pub async fn update_election_event_board(
         .json(&request_body)
         .send()
         .await?;
-    let _response_body: Response<update_election_event_board::ResponseData> =
+    let response_body: Response<update_election_event_board::ResponseData> =
         res.json().await?;
-    Ok(())
+    response_body.ok()
 }
 
 #[instrument(skip_all)]
@@ -71,7 +73,7 @@ pub async fn update_election_event_status(
     tenant_id: String,
     election_event_id: String,
     status: Value,
-) -> Result<()> {
+) -> Result<Response<update_election_event_status::ResponseData>> {
     let variables = update_election_event_status::Variables {
         tenant_id: tenant_id,
         election_event_id: election_event_id,
@@ -88,9 +90,9 @@ pub async fn update_election_event_status(
         .json(&request_body)
         .send()
         .await?;
-    let _response_body: Response<update_election_event_status::ResponseData> =
+    let response_body: Response<update_election_event_status::ResponseData> =
         res.json().await?;
-    Ok(())
+    response_body.ok()
 }
 
 #[instrument(skip_all)]
@@ -116,5 +118,5 @@ pub async fn get_election_event(
         .await?;
     let response_body: Response<get_election_event::ResponseData> =
         res.json().await?;
-    Ok(response_body)
+    response_body.ok()
 }

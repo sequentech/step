@@ -104,10 +104,7 @@ const ElectionEventListForm: React.FC = () => {
                 </MenuItem>
                 <MenuItem
                     onClick={openKeysDialog}
-                    disabled={
-                        !record.bulletin_board_reference ||
-                        configCreatedStatus
-                    }
+                    disabled={!record.bulletin_board_reference || configCreatedStatus}
                 >
                     Create Keys
                 </MenuItem>

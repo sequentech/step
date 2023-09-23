@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
+use crate::hasura_types::Uuid;
 use crate::mixed_radix::{decode, encode};
 use crate::plaintext::*;
 use num_bigint::BigUint;
@@ -137,12 +138,12 @@ impl BallotCodec for Question {
         let answers_map = self
             .answers
             .iter()
-            .map(|answer| (answer.id, answer))
-            .collect::<HashMap<i64, &Answer>>();
+            .map(|answer| (answer.id.clone(), answer))
+            .collect::<HashMap<Uuid, &Answer>>();
 
         // sort answers by id
         let mut sorted_choices = plaintext.choices.clone();
-        sorted_choices.sort_by_key(|q| q.id);
+        sorted_choices.sort_by_key(|q| q.id.clone());
 
         // Separate the answers between:
         // - Invalid vote answer (if any)
@@ -228,7 +229,7 @@ impl BallotCodec for Question {
 
         // 1. clone the question and reset the selections
         let mut sorted_answers = self.answers.clone();
-        sorted_answers.sort_by_key(|q| q.id);
+        sorted_answers.sort_by_key(|q| q.id.clone());
 
         // 1.2. Initialize selection
         let mut sorted_choices: Vec<DecodedVoteChoice> = vec![];
@@ -271,7 +272,7 @@ impl BallotCodec for Question {
                 .ok_or_else(|| "choice out of range".to_string())?;
 
             sorted_choices.push(DecodedVoteChoice {
-                id: answer.id,
+                id: answer.id.clone(),
                 selected: choice_value - 1,
                 write_in_text: None,
             });
@@ -299,7 +300,7 @@ impl BallotCodec for Question {
                 } else {
                     invalid_errors.push(InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::EncodingError,
-                        answer_id: Some(answer.id),
+                        answer_id: Some(answer.id.clone()),
                         message: Some(
                             "errors.encoding.writeInChoiceOutOfRange"
                                 .to_string(),
@@ -318,7 +319,7 @@ impl BallotCodec for Question {
             if write_in_index >= choices.len() {
                 invalid_errors.push(InvalidPlaintextError {
                     error_type: InvalidPlaintextErrorType::EncodingError,
-                    answer_id: Some(answer.id),
+                    answer_id: Some(answer.id.clone()),
                     message: Some(
                         "errors.encoding.writeInNotEndInZero".to_string(),
                     ),
@@ -336,7 +337,7 @@ impl BallotCodec for Question {
             if write_in_str_res.is_err() {
                 invalid_errors.push(InvalidPlaintextError {
                     error_type: InvalidPlaintextErrorType::EncodingError,
-                    answer_id: Some(answer.id),
+                    answer_id: Some(answer.id.clone()),
                     message: Some(
                         "errors.encoding.bytesToUtf8Conversion".to_string(),
                     ),

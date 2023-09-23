@@ -5,6 +5,7 @@
 use anyhow::Result;
 use immu_board::BoardClient;
 use rocket::serde::{Deserialize, Serialize};
+use sequent_core;
 use std::env;
 use tracing::instrument;
 

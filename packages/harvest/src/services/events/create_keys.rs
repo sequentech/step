@@ -86,5 +86,6 @@ pub async fn create_keys(
         election_event_id,
         new_status,
     )
-    .await
+    .await?;
+    Ok(())
 }
