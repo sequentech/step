@@ -1,6 +1,18 @@
 table:
   name: area_contest
   schema: sequent_backend
+object_relationships:
+  - name: contest
+    using:
+      manual_configuration:
+        column_mapping:
+          contest_id: id
+          election_event_id: election_event_id
+          tenant_id: tenant_id
+        insertion_order: null
+        remote_table:
+          name: contest
+          schema: sequent_backend
 insert_permissions:
 - comment: ""
   permission:

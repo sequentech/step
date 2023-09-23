@@ -105,7 +105,9 @@ export const KeysGenerationDialog: React.FC<KeysGenerationDialogProps> = ({
 
     const handleTrusteeChange = (event: SelectChangeEvent<Sequent_Backend_Trustee | null>) => {
         let id = event.target.value
-        let trustee: Sequent_Backend_Trustee | undefined = (data as Array<Sequent_Backend_Trustee> | undefined)?.find(t => t.id === id)
+        let trustee: Sequent_Backend_Trustee | undefined = (
+            data as Array<Sequent_Backend_Trustee> | undefined
+        )?.find((t) => t.id === id)
         if (trustee) {
             setTrustee(trustee)
         }
@@ -160,7 +162,7 @@ export const KeysGenerationDialog: React.FC<KeysGenerationDialogProps> = ({
                     labelId="trustee-select-label"
                     id="trustee-select"
                     value={trustee}
-                    renderValue={value => value?.name}
+                    renderValue={(value) => value?.name}
                     onChange={handleTrusteeChange}
                 >
                     {data

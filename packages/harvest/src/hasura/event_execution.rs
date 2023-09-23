@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::connection;
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
@@ -11,6 +10,9 @@ use std::env;
 use strum_macros::Display;
 use strum_macros::EnumString;
 use tracing::instrument;
+
+use crate::connection;
+use crate::services::to_result::ToResult;
 
 type uuid = String;
 type jsonb = Value;
@@ -81,5 +83,5 @@ pub async fn insert_event_execution(
         .await?;
     let response_body: Response<insert_event_execution::ResponseData> =
         res.json().await?;
-    Ok(response_body)
+    response_body.ok()
 }

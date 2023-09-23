@@ -1,13 +1,15 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::connection;
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use rocket::serde::json::Value;
 use std::env;
 use tracing::instrument;
+
+use crate::services::to_result::ToResult;
+use crate::connection;
 
 type uuid = String;
 type jsonb = Value;
@@ -38,7 +40,7 @@ pub async fn perform_insert_document(
         .await?;
     let response_body: Response<insert_document::ResponseData> =
         res.json().await?;
-    Ok(response_body)
+    response_body.ok()
 }
 
 #[instrument(skip_all)]
@@ -93,5 +95,5 @@ pub async fn find_document(
         .await?;
     let response_body: Response<get_document::ResponseData> =
         res.json().await?;
-    Ok(response_body)
+    response_body.ok()
 }

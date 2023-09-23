@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
 use crate::ballot_codec::BallotCodec;
+use crate::hasura_types::Uuid;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -17,7 +18,7 @@ pub enum InvalidPlaintextErrorType {
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct InvalidPlaintextError {
     pub error_type: InvalidPlaintextErrorType,
-    pub answer_id: Option<i64>,
+    pub answer_id: Option<Uuid>,
     pub message: Option<String>,
     pub message_map: HashMap<String, String>,
 }
@@ -31,7 +32,7 @@ pub struct DecodedVoteQuestion {
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct DecodedVoteChoice {
-    pub id: i64,
+    pub id: Uuid,
     pub selected: i64,
     pub write_in_text: Option<String>,
 }
