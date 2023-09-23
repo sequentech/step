@@ -150,8 +150,8 @@ pub async fn list_pgaudit(
         user
     FROM pgaudit
     WHERE id > {}
-    LIMIT {}
     ORDER BY id ASC
+    LIMIT {}
     "#,
         after_id,
         limit,

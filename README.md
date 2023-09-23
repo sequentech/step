@@ -337,7 +337,7 @@ INSERT INTO table1_with_pk (b, c) VALUES('Backup and Restore', now());
 Clean the disk with:
 
 ```bash
-docker system prune --all --prune
+docker system prune --all --force
 nix-collect-garbage
 ```
 
