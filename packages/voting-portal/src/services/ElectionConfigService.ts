@@ -30,7 +30,7 @@ export const checkShuffleAllOptions = (question: IQuestion): boolean =>
     !!question.extra_options?.shuffle_all_options
 
 export const checkShuffleCategoryList = (question: IQuestion): Array<string> =>
-    question.extra_options!.shuffle_category_list || []
+    question.extra_options?.shuffle_category_list || []
 
 export const getCheckableOptions = (
     question: IQuestion

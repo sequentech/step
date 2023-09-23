@@ -46,7 +46,7 @@ const AreaForm: React.FC = () => {
         const {data, errors} = await createScheduledEvent({
             variables: {
                 tenantId: tenantId,
-                electionEventId: record.id,
+                electionEventId: record.election_event_id,
                 eventProcessor: ScheduledEventType.CREATE_BALLOT_STYLE,
                 cronConfig: undefined,
                 eventPayload: {

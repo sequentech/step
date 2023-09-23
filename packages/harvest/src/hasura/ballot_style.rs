@@ -1,18 +1,24 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::connection;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use rocket::serde::json::Value;
+use rocket::serde::{Deserialize, Serialize};
 use std::env;
-use tracing::instrument;
+use tracing::{event, Level, instrument};
+
+use crate::connection;
+use crate::services::to_result::ToResult;
 
 type uuid = String;
 type jsonb = Value;
 type timestamptz = String;
 type bytea = String;
+type text = String;
+type varchar = String;
+
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -47,14 +53,14 @@ pub async fn get_ballot_style_area(
         .await?;
     let response_body: Response<get_ballot_style_area::ResponseData> =
         res.json().await?;
-    Ok(response_body)
+    response_body.ok()
 }
 
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/insert_ballot_style.graphql",
-    response_derives = "Debug,Clone"
+    response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
 pub struct InsertBallotStyle;
 
@@ -91,5 +97,5 @@ pub async fn insert_ballot_style(
         .await?;
     let response_body: Response<insert_ballot_style::ResponseData> =
         res.json().await?;
-    Ok(response_body)
+    response_body.ok()
 }

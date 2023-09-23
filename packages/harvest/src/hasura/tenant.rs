@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::connection;
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use std::env;
 use tracing::instrument;
+
+use crate::connection;
+use crate::services::to_result::ToResult;
 
 type uuid = String;
 
@@ -34,7 +36,7 @@ pub async fn perform_get_tenant(
         .send()
         .await?;
     let response_body: Response<get_tenant::ResponseData> = res.json().await?;
-    Ok(response_body)
+    response_body.ok()
 }
 
 #[instrument(skip_all)]

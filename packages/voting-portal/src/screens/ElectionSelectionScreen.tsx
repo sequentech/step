@@ -95,7 +95,7 @@ const updateBallotStyleAndSelection = (data: GetBallotStylesQuery, dispatch: App
             continue
         }
         try {
-            const electionData: IElectionDTO = JSON.parse(atob(ballotEml))
+            const electionData: IElectionDTO = JSON.parse(ballotEml)
             const formattedBallotStyle: IBallotStyle = {
                 id: ballotStyle.id,
                 election_id: ballotStyle.election_id,

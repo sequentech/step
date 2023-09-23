@@ -4,8 +4,8 @@ mutation InsertBallotStyle(
   $electionId: uuid!,
   $areaId: uuid!,
   $ballotEml: String,
-  $ballotSignature: String,
-  $status: String,
+  $ballotSignature: bytea,
+  $status: String
 ) {
   insert_sequent_backend_ballot_style(
     objects:
