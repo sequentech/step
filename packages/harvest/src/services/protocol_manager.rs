@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use braid::protocol_manager::{
-    add_config_to_board, gen_protocol_manager, serialize_protocol_manager,
-};
+use braid::protocol_manager;
 use reqwest;
 use std::env;
 use strand::backend::ristretto::RistrettoCtx;
@@ -30,10 +28,11 @@ pub async fn create_keys(
         .expect(&format!("IMMUDB_SERVER_URL must be set"));
 
     // 2. create protocol manager keys
-    let pm = gen_protocol_manager::<RistrettoCtx>();
+    let pm = protocol_manager::gen_protocol_manager::<RistrettoCtx>();
 
     // 3. save pm keys in vault
-    let pm_config = serialize_protocol_manager::<RistrettoCtx>(&pm);
+    let pm_config =
+        protocol_manager::serialize_protocol_manager::<RistrettoCtx>(&pm);
     vault::save_secret(
         format!("boards/{}/protocol-manager", board_name),
         pm_config,
@@ -52,7 +51,7 @@ pub async fn create_keys(
         .collect();
 
     // 5. add config to board on immudb
-    add_config_to_board::<RistrettoCtx>(
+    protocol_manager::add_config_to_board::<RistrettoCtx>(
         server_url.as_str(),
         user.as_str(),
         password.as_str(),
@@ -64,4 +63,22 @@ pub async fn create_keys(
     .await?;
 
     Ok(())
+}
+
+#[instrument]
+pub async fn get_public_key(board_name: String) -> Result<()> {
+    // 1. get env vars
+    let user =
+        env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
+    let password = env::var("IMMUDB_PASSWORD")
+        .expect(&format!("IMMUDB_PASSWORD must be set"));
+    let server_url = env::var("IMMUDB_SERVER_URL")
+        .expect(&format!("IMMUDB_SERVER_URL must be set"));
+    protocol_manager::get_board_public_key::<RistrettoCtx>(
+        server_url.as_str(),
+        user.as_str(),
+        password.as_str(),
+        board_name.as_str(),
+    )
+    .await
 }

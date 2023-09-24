@@ -6,6 +6,8 @@ use crate::protocol2::artifact::Configuration;
 use crate::protocol2::message::Message;
 use crate::protocol2::trustee::ProtocolManager;
 use crate::run::config::ProtocolManagerConfig;
+use crate::protocol2::board::immudb::ImmudbBoard;
+use crate::util::assert_folder;
 
 use strand::context::Ctx;
 
@@ -42,6 +44,7 @@ async fn init<C: Ctx>(
     board.insert_messages(board_name, &vec![message]).await
 }
 
+#[instrument(skip(user, password, pm))]
 pub async fn add_config_to_board<C: Ctx>(
     server_url: &str,
     user: &str,
@@ -62,4 +65,26 @@ pub async fn add_config_to_board<C: Ctx>(
     let mut board = BoardClient::new(&server_url, &user, &password).await?;
 
     init(&mut board, configuration, pm, board_name).await
+}
+
+
+#[instrument(skip(user, password))]
+pub async fn get_board_public_key<C: Ctx>(
+    server_url: &str,
+    user: &str,
+    password: &str,
+    board_name: &str
+) -> Result<()> {
+    let store_root = std::env::current_dir().unwrap().join("message_store");
+    assert_folder(store_root.clone())?;
+    let mut board = ImmudbBoard::new(
+        server_url,
+        user,
+        password,
+        board_name.to_string(),
+        store_root.clone(),
+    )
+    .await?;
+    let messages = board.get_messages(-1).await?;
+    Ok(())
 }

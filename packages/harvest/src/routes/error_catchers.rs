@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use tracing::instrument;
-use rocket::Request;
 use rocket::http::Status;
+use rocket::Request;
+use tracing::instrument;
 
 #[instrument(skip_all)]
 #[catch(500)]

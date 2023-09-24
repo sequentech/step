@@ -10,6 +10,8 @@ use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
+use crate::services::election_event_board::get_election_event_board;
+use crate::services::protocol_manager;
 
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
@@ -45,6 +47,21 @@ pub async fn update_voting_status(
     let new_status = ElectionStatus {
         voting_status: payload.status.clone(),
     };
+    let election_event_response = hasura::election_event::get_election_event(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+    )
+    .await?
+    .data
+    .expect("expected data".into());
+    let bulletin_board_reference = election_event_response
+        .sequent_backend_election_event[0]
+        .bulletin_board_reference
+        .clone();
+    let board_name = get_election_event_board(bulletin_board_reference)
+        .expect("expected bulletin board".into());
+    let public_key = protocol_manager::get_public_key(board_name).await;
     let new_status_value = serde_json::to_value(new_status)?;
     let hasura_response = hasura::election::update_election_status(
         auth_headers.clone(),

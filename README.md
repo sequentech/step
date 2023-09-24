@@ -218,6 +218,11 @@ the vault and finally login with the `initial root token`.
 
 Also in order for the `harvest` service to work, you'll first need to execute this:
 
+    docker exec -it vault vault login
+
+It will ask for the `initial root token`. This is required to authenticate for the
+next step:
+
     docker exec -it vault vault secrets enable --version=1 --path=secrets kv
 
 That will enable the /secrets path for the v1 key value secrets store in the `vault``.

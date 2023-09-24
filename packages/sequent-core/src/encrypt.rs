@@ -13,6 +13,8 @@ use strand::backend::num_bigint::{
 };
 use strand::context::Ctx;
 use strand::elgamal::*;
+use strand::backend::ristretto::RistrettoCtx;
+use strand::zkp::{Schnorr, Zkp};
 
 quick_error! {
     #[derive(Debug, PartialEq, Eq)]
@@ -22,6 +24,27 @@ quick_error! {
         ConsistencyCheck(message: String) {}
         Serialization(message: String) {}
     }
+}
+
+pub fn encrypt_plaintext_answer_ecc(
+    public_key_element: <RistrettoCtx as Ctx>::E,
+    plaintext: <RistrettoCtx as Ctx>::P,
+) -> Result<(Ciphertext<RistrettoCtx>, Schnorr<RistrettoCtx>, <RistrettoCtx as Ctx>::X), BallotError> {
+    let ctx = RistrettoCtx;
+
+    // construct a public key from a provided element
+    let pk = PublicKey::from_element(&public_key_element, &ctx);
+
+    let encoded = ctx.encode(&plaintext).unwrap();
+
+    // encrypt and prove knowledge of plaintext (enc + pok)
+    let (c, proof, randomness) = pk.encrypt_and_pok(&encoded, &vec![]).unwrap();
+    // verify
+    let zkp = Zkp::new(&ctx);
+    let proof_ok = zkp.encryption_popk_verify(c.mhr(), c.gr(), &proof, &vec![]).unwrap();
+    assert!(proof_ok);
+
+    Ok((c, proof, randomness))
 }
 
 pub fn encrypt_plaintext_answer(
