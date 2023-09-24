@@ -8,10 +8,11 @@ use crate::protocol2::trustee::ProtocolManager;
 use crate::run::config::ProtocolManagerConfig;
 use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::util::assert_folder;
+use crate::protocol2::statement::Statement;
 
 use strand::context::Ctx;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::marker::PhantomData;
 use tracing::{info, instrument};
 
@@ -86,5 +87,13 @@ pub async fn get_board_public_key<C: Ctx>(
     )
     .await?;
     let messages = board.get_messages(-1).await?;
+    let pks = messages.into_iter().find(|message|
+        match message.statement {
+            Statement::PublicKeySigned(_, _, _, _, _) => true,
+            _ => false,
+        }
+    ).with_context(|| {
+        format!("Signed Public Key not found on board {}", board_name)
+    })?;
     Ok(())
 }
