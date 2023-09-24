@@ -223,7 +223,7 @@ Note that you can insert rows as a migration by clicking on the
 ## harvest
 ### Update graphql JSON schema
 
-The file `backend/templates/src/graphql/schema.json` contains the GraphQL/Hasura schema. If the schema changes you might need to update this file. In order to do so, [follow this guide](https://hasura.io/docs/latest/schema/common-patterns/export-graphql-schema/
+The file `packages/harvest/src/graphql/schema.json` contains the GraphQL/Hasura schema. If the schema changes you might need to update this file. In order to do so, [follow this guide](https://hasura.io/docs/latest/schema/common-patterns/export-graphql-schema/
 ) to export the json schema from Hasura, specifically you'll need to run something like:
 
 ```bash

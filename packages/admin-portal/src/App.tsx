@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {Admin, DataProvider, Resource, CustomRoutes} from "react-admin"
-import buildHasuraProvider from "ra-data-hasura"
+import buildHasuraProvider, { buildFields } from "ra-data-hasura"
+import type { BuildFields } from "ra-data-hasura"
 import {apolloClient} from "./services/ApolloService"
 import {Route} from "react-router-dom"
 import {UserAndRoles} from "./screens/UserAndRoles"
@@ -42,15 +43,54 @@ import {EditTrustee} from "./resources/Trustee/EditTrustee"
 import {ListTrustee} from "./resources/Trustee/ListTrustee"
 import {CreateTrustee} from "./resources/Trustee/CreateTrustee"
 
+
 const App = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
 
     useEffect(() => {
         const buildDataProvider = async () => {
-            const dataProvider = await buildHasuraProvider({
+            const dataProviderHasura = await buildHasuraProvider({
                 client: apolloClient as any,
             })
-            setDataProvider(() => dataProvider)
+            const modifiedProvider: DataProvider = {
+              getList: async (resource, params) => {
+
+                if (resource === 'pgaudit') {
+                    // TODO
+                    let { data, ...metadata } = await dataProviderHasura.getList(
+                        resource,
+                        params
+                    );
+            
+                    return {
+                        data: data as any[],
+                        ...metadata,
+                    };                          
+                }
+                let { data, ...metadata } = await dataProviderHasura.getList(
+                  resource,
+                  params
+                );
+        
+                return {
+                  data: data as any[],
+                  ...metadata,
+                };
+              },
+              getOne: (resource, params) => dataProviderHasura.getOne(resource, params),
+              getMany: (resource, params) =>
+                dataProviderHasura.getMany(resource, params),
+              getManyReference: (resource, params) =>
+                dataProviderHasura.getManyReference(resource, params),
+              update: (resource, params) => dataProviderHasura.update(resource, params),
+              updateMany: (resource, params) =>
+                dataProviderHasura.updateMany(resource, params),
+              create: (resource, params) => dataProviderHasura.create(resource, params),
+              delete: (resource, params) => dataProviderHasura.delete(resource, params),
+              deleteMany: (resource, params) =>
+                dataProviderHasura.deleteMany(resource, params),
+            };
+            setDataProvider(() => modifiedProvider);
         }
         buildDataProvider()
     }, [])

@@ -20,8 +20,8 @@ type Query {
 type Query {
   listPgaudit (
     limit: Int
-    after_id: Int
-  ): [PgAuditRow]
+    offset: Int
+  ): DataListPgAudit
 }
 
 input TemplateInput {
@@ -66,5 +66,18 @@ type PgAuditRow {
   session_id : String!
   statement : String!
   user : String!
+}
+
+type Aggregate {
+  count : Int!
+}
+
+type DataListPgAudit {
+  items : [PgAuditRow]!
+  total : TotalAggregate!
+}
+
+type TotalAggregate {
+  aggregate : Aggregate!
 }
 
