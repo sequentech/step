@@ -129,7 +129,6 @@ pub async fn get_election_event(
     response_body.ok()
 }
 
-
 #[instrument(skip_all)]
 pub async fn update_election_event_public_key(
     auth_headers: connection::AuthHeaders,
@@ -153,7 +152,8 @@ pub async fn update_election_event_public_key(
         .json(&request_body)
         .send()
         .await?;
-    let response_body: Response<update_election_event_public_key::ResponseData> =
-        res.json().await?;
+    let response_body: Response<
+        update_election_event_public_key::ResponseData,
+    > = res.json().await?;
     response_body.ok()
 }

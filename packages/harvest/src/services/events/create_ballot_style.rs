@@ -52,6 +52,7 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
             audit_election_event_id: election_event
                 .audit_election_event_id
                 .clone(),
+            public_key: election_event.public_key.clone(),
         }
     }
 }

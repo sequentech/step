@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use rocket::serde::{Deserialize, Serialize};
 use strum_macros::Display;
 use strum_macros::EnumString;
@@ -56,8 +56,11 @@ pub async fn update_voting_status(
     .data
     .with_context(|| "can't find election event")?;
 
-    let election_event = &election_event_response.sequent_backend_election_event[0];
-    if payload.status == VotingStatus::OPEN && election_event.public_key.is_none() {
+    let election_event =
+        &election_event_response.sequent_backend_election_event[0];
+    if payload.status == VotingStatus::OPEN
+        && election_event.public_key.is_none()
+    {
         bail!("Missing public key");
     }
     let new_status_value = serde_json::to_value(new_status)?;
