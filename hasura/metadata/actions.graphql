@@ -19,9 +19,9 @@ type Query {
 
 type Query {
   listPgaudit (
-    tenant_id: String!
-    election_event_id: String!
-  ): [PgAuditRow]
+    limit: Int
+    offset: Int
+  ): DataListPgAudit
 }
 
 input TemplateInput {
@@ -66,5 +66,18 @@ type PgAuditRow {
   session_id : String!
   statement : String!
   user : String!
+}
+
+type Aggregate {
+  count : Int!
+}
+
+type DataListPgAudit {
+  items : [PgAuditRow]!
+  total : TotalAggregate!
+}
+
+type TotalAggregate {
+  aggregate : Aggregate!
 }
 

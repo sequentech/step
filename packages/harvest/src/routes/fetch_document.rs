@@ -26,7 +26,7 @@ pub struct GetDocumentUrlResponse {
     url: String,
 }
 
-#[instrument(skip_all)]
+#[instrument]
 #[post("/fetch-document", format = "json", data = "<body>")]
 pub async fn fetch_document(
     body: Json<GetDocumentUrlBody>,

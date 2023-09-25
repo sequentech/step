@@ -20,6 +20,11 @@ export type Scalars = {
   uuid: { input: any; output: any; }
 };
 
+export type Aggregate = {
+  __typename?: 'Aggregate';
+  count: Scalars['Int']['output'];
+};
+
 /** Boolean expression to compare columns of type "Boolean". All fields are combined with logical 'AND'. */
 export type Boolean_Comparison_Exp = {
   _eq?: InputMaybe<Scalars['Boolean']['input']>;
@@ -31,6 +36,12 @@ export type Boolean_Comparison_Exp = {
   _lte?: InputMaybe<Scalars['Boolean']['input']>;
   _neq?: InputMaybe<Scalars['Boolean']['input']>;
   _nin?: InputMaybe<Array<Scalars['Boolean']['input']>>;
+};
+
+export type DataListPgAudit = {
+  __typename?: 'DataListPgAudit';
+  items: Array<Maybe<PgAuditRow>>;
+  total: TotalAggregate;
 };
 
 export type FetchDocumentOutput = {
@@ -49,6 +60,19 @@ export type Int_Comparison_Exp = {
   _lte?: InputMaybe<Scalars['Int']['input']>;
   _neq?: InputMaybe<Scalars['Int']['input']>;
   _nin?: InputMaybe<Array<Scalars['Int']['input']>>;
+};
+
+export type PgAuditRow = {
+  __typename?: 'PgAuditRow';
+  audit_type: Scalars['String']['output'];
+  class: Scalars['String']['output'];
+  command: Scalars['String']['output'];
+  dbname: Scalars['String']['output'];
+  id: Scalars['Int']['output'];
+  server_timestamp: Scalars['Int']['output'];
+  session_id: Scalars['String']['output'];
+  statement: Scalars['String']['output'];
+  user: Scalars['String']['output'];
 };
 
 export type ScheduledEventOutput = {
@@ -97,6 +121,11 @@ export type String_Comparison_Exp = {
   _regex?: InputMaybe<Scalars['String']['input']>;
   /** does the column match the given SQL regular expression */
   _similar?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type TotalAggregate = {
+  __typename?: 'TotalAggregate';
+  aggregate: Aggregate;
 };
 
 /** Boolean expression to compare columns of type "bytea". All fields are combined with logical 'AND'. */
@@ -1184,6 +1213,8 @@ export type Query_Root = {
   __typename?: 'query_root';
   /** fetch document */
   fetchDocument?: Maybe<FetchDocumentOutput>;
+  /** List PostgreSQL audit logs */
+  listPgaudit?: Maybe<DataListPgAudit>;
   /** fetch data from the table: "sequent_backend.area" */
   sequent_backend_area: Array<Sequent_Backend_Area>;
   /** fetch aggregated fields from the table: "sequent_backend.area" */
@@ -1275,6 +1306,12 @@ export type Query_RootFetchDocumentArgs = {
   document_id: Scalars['String']['input'];
   election_event_id: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
+};
+
+
+export type Query_RootListPgauditArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -1694,6 +1731,8 @@ export type Sequent_Backend_Area_Contest = {
   __typename?: 'sequent_backend_area_contest';
   annotations?: Maybe<Scalars['jsonb']['output']>;
   area_id?: Maybe<Scalars['uuid']['output']>;
+  /** An object relationship */
+  contest?: Maybe<Sequent_Backend_Contest>;
   contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
@@ -1750,6 +1789,7 @@ export type Sequent_Backend_Area_Contest_Bool_Exp = {
   _or?: InputMaybe<Array<Sequent_Backend_Area_Contest_Bool_Exp>>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   area_id?: InputMaybe<Uuid_Comparison_Exp>;
+  contest?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>;
   contest_id?: InputMaybe<Uuid_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -1787,6 +1827,7 @@ export type Sequent_Backend_Area_Contest_Delete_Key_Input = {
 export type Sequent_Backend_Area_Contest_Insert_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   area_id?: InputMaybe<Scalars['uuid']['input']>;
+  contest?: InputMaybe<Sequent_Backend_Contest_Obj_Rel_Insert_Input>;
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -1840,6 +1881,7 @@ export type Sequent_Backend_Area_Contest_On_Conflict = {
 export type Sequent_Backend_Area_Contest_Order_By = {
   annotations?: InputMaybe<Order_By>;
   area_id?: InputMaybe<Order_By>;
+  contest?: InputMaybe<Sequent_Backend_Contest_Order_By>;
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
@@ -2502,6 +2544,33 @@ export type Sequent_Backend_Candidate_Aggregate = {
   nodes: Array<Sequent_Backend_Candidate>;
 };
 
+export type Sequent_Backend_Candidate_Aggregate_Bool_Exp = {
+  bool_and?: InputMaybe<Sequent_Backend_Candidate_Aggregate_Bool_Exp_Bool_And>;
+  bool_or?: InputMaybe<Sequent_Backend_Candidate_Aggregate_Bool_Exp_Bool_Or>;
+  count?: InputMaybe<Sequent_Backend_Candidate_Aggregate_Bool_Exp_Count>;
+};
+
+export type Sequent_Backend_Candidate_Aggregate_Bool_Exp_Bool_And = {
+  arguments: Sequent_Backend_Candidate_Select_Column_Sequent_Backend_Candidate_Aggregate_Bool_Exp_Bool_And_Arguments_Columns;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+  filter?: InputMaybe<Sequent_Backend_Candidate_Bool_Exp>;
+  predicate: Boolean_Comparison_Exp;
+};
+
+export type Sequent_Backend_Candidate_Aggregate_Bool_Exp_Bool_Or = {
+  arguments: Sequent_Backend_Candidate_Select_Column_Sequent_Backend_Candidate_Aggregate_Bool_Exp_Bool_Or_Arguments_Columns;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+  filter?: InputMaybe<Sequent_Backend_Candidate_Bool_Exp>;
+  predicate: Boolean_Comparison_Exp;
+};
+
+export type Sequent_Backend_Candidate_Aggregate_Bool_Exp_Count = {
+  arguments?: InputMaybe<Array<Sequent_Backend_Candidate_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+  filter?: InputMaybe<Sequent_Backend_Candidate_Bool_Exp>;
+  predicate: Int_Comparison_Exp;
+};
+
 /** aggregate fields of "sequent_backend.candidate" */
 export type Sequent_Backend_Candidate_Aggregate_Fields = {
   __typename?: 'sequent_backend_candidate_aggregate_fields';
@@ -2517,11 +2586,25 @@ export type Sequent_Backend_Candidate_Aggregate_FieldsCountArgs = {
   distinct?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
+/** order by aggregate values of table "sequent_backend.candidate" */
+export type Sequent_Backend_Candidate_Aggregate_Order_By = {
+  count?: InputMaybe<Order_By>;
+  max?: InputMaybe<Sequent_Backend_Candidate_Max_Order_By>;
+  min?: InputMaybe<Sequent_Backend_Candidate_Min_Order_By>;
+};
+
 /** append existing jsonb value of filtered columns with new jsonb value */
 export type Sequent_Backend_Candidate_Append_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** input type for inserting array relation for remote table "sequent_backend.candidate" */
+export type Sequent_Backend_Candidate_Arr_Rel_Insert_Input = {
+  data: Array<Sequent_Backend_Candidate_Insert_Input>;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Sequent_Backend_Candidate_On_Conflict>;
 };
 
 /** Boolean expression to filter rows from the table "sequent_backend.candidate". All fields are combined with a logical 'AND'. */
@@ -2602,6 +2685,19 @@ export type Sequent_Backend_Candidate_Max_Fields = {
   type?: Maybe<Scalars['String']['output']>;
 };
 
+/** order by max() on columns of table "sequent_backend.candidate" */
+export type Sequent_Backend_Candidate_Max_Order_By = {
+  contest_id?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  description?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  last_updated_at?: InputMaybe<Order_By>;
+  name?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+  type?: InputMaybe<Order_By>;
+};
+
 /** aggregate min on columns */
 export type Sequent_Backend_Candidate_Min_Fields = {
   __typename?: 'sequent_backend_candidate_min_fields';
@@ -2614,6 +2710,19 @@ export type Sequent_Backend_Candidate_Min_Fields = {
   name?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   type?: Maybe<Scalars['String']['output']>;
+};
+
+/** order by min() on columns of table "sequent_backend.candidate" */
+export type Sequent_Backend_Candidate_Min_Order_By = {
+  contest_id?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  description?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  last_updated_at?: InputMaybe<Order_By>;
+  name?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+  type?: InputMaybe<Order_By>;
 };
 
 /** response of any mutation on the table "sequent_backend.candidate" */
@@ -2691,6 +2800,18 @@ export enum Sequent_Backend_Candidate_Select_Column {
   TenantId = 'tenant_id',
   /** column name */
   Type = 'type'
+}
+
+/** select "sequent_backend_candidate_aggregate_bool_exp_bool_and_arguments_columns" columns of table "sequent_backend.candidate" */
+export enum Sequent_Backend_Candidate_Select_Column_Sequent_Backend_Candidate_Aggregate_Bool_Exp_Bool_And_Arguments_Columns {
+  /** column name */
+  IsPublic = 'is_public'
+}
+
+/** select "sequent_backend_candidate_aggregate_bool_exp_bool_or_arguments_columns" columns of table "sequent_backend.candidate" */
+export enum Sequent_Backend_Candidate_Select_Column_Sequent_Backend_Candidate_Aggregate_Bool_Exp_Bool_Or_Arguments_Columns {
+  /** column name */
+  IsPublic = 'is_public'
 }
 
 /** input type for updating data in table "sequent_backend.candidate" */
@@ -3088,6 +3209,10 @@ export type Sequent_Backend_Cast_Vote_Updates = {
 export type Sequent_Backend_Contest = {
   __typename?: 'sequent_backend_contest';
   annotations?: Maybe<Scalars['jsonb']['output']>;
+  /** An array relationship */
+  candidates: Array<Sequent_Backend_Candidate>;
+  /** An aggregate relationship */
+  candidates_aggregate: Sequent_Backend_Candidate_Aggregate;
   conditions?: Maybe<Scalars['jsonb']['output']>;
   counting_algorithm?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -3113,6 +3238,26 @@ export type Sequent_Backend_Contest = {
 /** columns and relationships of "sequent_backend.contest" */
 export type Sequent_Backend_ContestAnnotationsArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.contest" */
+export type Sequent_Backend_ContestCandidatesArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Candidate_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Candidate_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Candidate_Bool_Exp>;
+};
+
+
+/** columns and relationships of "sequent_backend.contest" */
+export type Sequent_Backend_ContestCandidates_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Candidate_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Candidate_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Candidate_Bool_Exp>;
 };
 
 
@@ -3191,6 +3336,8 @@ export type Sequent_Backend_Contest_Bool_Exp = {
   _not?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Contest_Bool_Exp>>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
+  candidates?: InputMaybe<Sequent_Backend_Candidate_Bool_Exp>;
+  candidates_aggregate?: InputMaybe<Sequent_Backend_Candidate_Aggregate_Bool_Exp>;
   conditions?: InputMaybe<Jsonb_Comparison_Exp>;
   counting_algorithm?: InputMaybe<String_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
@@ -3254,6 +3401,7 @@ export type Sequent_Backend_Contest_Inc_Input = {
 /** input type for inserting data into table "sequent_backend.contest" */
 export type Sequent_Backend_Contest_Insert_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  candidates?: InputMaybe<Sequent_Backend_Candidate_Arr_Rel_Insert_Input>;
   conditions?: InputMaybe<Scalars['jsonb']['input']>;
   counting_algorithm?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -3318,6 +3466,13 @@ export type Sequent_Backend_Contest_Mutation_Response = {
   returning: Array<Sequent_Backend_Contest>;
 };
 
+/** input type for inserting object relation for remote table "sequent_backend.contest" */
+export type Sequent_Backend_Contest_Obj_Rel_Insert_Input = {
+  data: Sequent_Backend_Contest_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Sequent_Backend_Contest_On_Conflict>;
+};
+
 /** on_conflict condition type for table "sequent_backend.contest" */
 export type Sequent_Backend_Contest_On_Conflict = {
   constraint: Sequent_Backend_Contest_Constraint;
@@ -3328,6 +3483,7 @@ export type Sequent_Backend_Contest_On_Conflict = {
 /** Ordering options when selecting data from "sequent_backend.contest". */
 export type Sequent_Backend_Contest_Order_By = {
   annotations?: InputMaybe<Order_By>;
+  candidates_aggregate?: InputMaybe<Sequent_Backend_Candidate_Aggregate_Order_By>;
   conditions?: InputMaybe<Order_By>;
   counting_algorithm?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;

@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 -->
 
-# Sequent Voting Platform
+# Sequent Voting Platform
 
 WARNING: This is a work-in-progress - not usable yet.
 
@@ -18,7 +18,7 @@ Implemented using:
 - **Keycloak** as the IAM service.
 - **PostgreSQL** for database storage for both Hasura and Keycloak.
 - **React** for the frontend UI.
-- \[TODO\] Shared **Rust** libraries for logic shared by both frontend and
+- Shared **Rust** libraries for logic shared by both frontend and
   backend.
 - **Immudb** for tamper-evident logging.
 
@@ -40,7 +40,7 @@ using them and continue development:
   services mounted, so that you can work transparently on that and it's synced
   to and from the development environment.
 - **React Frontend** at [http://127.0.0.1:3000].
-  - This has the `frontend/test-app` directory mounted in the docker service,
+  - This has the `packages/test-app` directory mounted in the docker service,
   and has been launched with the `yarn dev` command that will automatically
   detect and rebuild changes in the code, and detect and install dependencies
   when it detects changes in `package.json` and then relaunch the service.
@@ -70,6 +70,42 @@ This is important especially if you are for example relaunching a docker service
 `/workspace/.devcontainer` it will fail, but if you do it within
 `/workspaces/backend-services/.devcontainer` it should work, even if those two
 are typically a symlink to the other directory and are essentially the same.
+
+### Directory tree file organization
+
+The directory tree is structured as follows:
+
+```bash
+.
+├── hasura                      <--- Hasura metadata and migrations in YAML 
+│   ├── metadata
+│   └── migrations
+├── packages                    <--- Main code of the application
+│   ├── admin-portal
+│   ├── braid
+│   ├── harvest
+│   ├── immu-board
+│   ├── immudb-rs
+│   ├── new-ballot-verifier
+│   ├── sequent-core
+│   ├── strand
+│   ├── target
+│   ├── test-app
+│   ├── ui-essentials
+│   └── voting-portal
+└── vendor                      <--- External cloned dependencies
+    └── immudb-log-audit
+```
+
+The `packages/` directory contains both `Cargo` and `Yarn` managed packages:
+In that directory you can find both a `package.json` and a `Cargo.toml`. It's
+at the same time a [cargo workspace] and a [yarn workspace]. 
+
+This superimposed workspaces structure allows us to build the same module both
+in yarn and cargo, depending on the use-case. For example, `sequent-core` is 
+both used in:
+a. Frontend code, compiled to WASM with Yarn.
+b. Backend code, compiled to native code with Cargo.
 
 ### Launch the backend rust service
 
@@ -152,13 +188,15 @@ clicking on `Action` > `Partial export`.
 
 However that won't export users. You can export them by running this:
 
-    docker compose exec keycloak sh -c '/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm electoral-process'
-    docker compose exec keycloak sh -c 'cat /tmp/export.json' > file.json
+```bash
+docker compose exec keycloak sh -c '/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm electoral-process'
+docker compose exec keycloak sh -c 'cat /tmp/export.json' > file.json
 
 Then you'll find the export -including users- in the `file.json`. You
 can then for example update the file `.devcontainer/keycloak/import/electoral-process-realm.json`
 if you want to automatically import that data when the container is
 created.
+```
 
 ### Add Hasura migrations/changes
 
@@ -171,8 +209,10 @@ ensure that the `graphql-engine` server name is aliased to `127.0.0.1` in
 Also clone this github project on your local machine (so this is apart from running
 it on Codespaces), and from the `backend-services/hasura` folder, run this:
 
-    hasura console --endpoint "http://127.0.0.1:8080" --admin-secret "admin"
-  
+```bash
+hasura console --endpoint "http://127.0.0.1:8080" --admin-secret "admin"
+```
+
 Then open `http://localhost:9695` on the browser and make the changes you need.
 Those changes will be tracked with file changes on the Github Codespaces, then
 commit the changes.
@@ -183,22 +223,28 @@ Note that you can insert rows as a migration by clicking on the
 ## harvest
 ### Update graphql JSON schema
 
-The file `backend/templates/src/graphql/schema.json` contains the GraphQL/Hasura schema. If the schema changes you might need to update this file. In order to do so, [follow this guide](https://hasura.io/docs/latest/schema/common-patterns/export-graphql-schema/
+The file `packages/harvest/src/graphql/schema.json` contains the GraphQL/Hasura schema. If the schema changes you might need to update this file. In order to do so, [follow this guide](https://hasura.io/docs/latest/schema/common-patterns/export-graphql-schema/
 ) to export the json schema from Hasura, specifically you'll need to run something like:
 
-    npm install -g graphqurl
-    gq http://127.0.0.1:8080/v1/graphql -H "X-Hasura-Admin-Secret: admin" --introspect  --format json > schema.json
+```bash
+npm install -g graphqurl
+gq http://127.0.0.1:8080/v1/graphql -H "X-Hasura-Admin-Secret: admin" --introspect  --format json > schema.json
+```
 
 ## Trustees
 
 In order to create the election keys you need to add the trustees to the hasura db.
 First get the keys from the trustee:
 
-    docker exec -it trustee1 cat /opt/braid/trustee.toml | grep pk
-  
+```bash
+docker exec -it trustee1 cat /opt/braid/trustee.toml | grep pk
+```
+
 Which will give a result similar to:
 
-    signing_key_pk = "YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k"
+```bash
+signing_key_pk = "YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k"
+```
 
 Then add the trustee in the admin portal with the key, in this case `YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k`.
 
@@ -210,7 +256,7 @@ is restarted.
 
 Once the `vault`container is started, you can log in here:
 
-    http://127.0.0.1:8201/ui/vault/auth?with=token
+[http://127.0.0.1:8201/ui/vault/auth?with=token]
 
 The first time you enter you'll have to note down the `initial root token` and the
 `keys`. Then you need to enter that `key` (supposing you use only one key) to unseal
@@ -218,7 +264,9 @@ the vault and finally login with the `initial root token`.
 
 Also in order for the `harvest` service to work, you'll first need to execute this:
 
-    docker exec -it vault vault secrets enable --version=1 --path=secrets kv
+```bash
+docker exec -it vault vault secrets enable --version=1 --path=secrets kv
+```
 
 That will enable the /secrets path for the v1 key value secrets store in the `vault``.
 
@@ -249,8 +297,8 @@ docker compose build frontend && docker compose up -d --no-deps frontend
 
 ### The hasura schema changed or I want to add a query/mutation to the voting-portal
 
-Add the query/mutation to the `frontend/voting-portal/src/queries/` folder and 
-then run `yarn generate` from the `frontend/` folder to update the types.
+Add the query/mutation to the `packages/voting-portal/src/queries/` folder and 
+then run `yarn generate` from the `packages/` folder to update the types.
 
 ### The voting portal will not load any elections
 
@@ -288,5 +336,10 @@ INSERT INTO table1_with_pk (b, c) VALUES('Backup and Restore', now());
 
 Clean the disk with:
 
-    docker system prune --all
-    nix-collect-garbage
+```bash
+docker system prune --all --force
+nix-collect-garbage
+```
+
+[cargo workspace]: https://doc.rust-lang.org/cargo/reference/workspaces.html
+[yarn workspace]: https://yarnpkg.com/features/workspaces

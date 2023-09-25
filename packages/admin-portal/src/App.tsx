@@ -4,6 +4,7 @@
 import React, {useEffect, useState} from "react"
 import {Admin, DataProvider, Resource, CustomRoutes} from "react-admin"
 import buildHasuraProvider from "ra-data-hasura"
+import {customBuildQuery} from "./queries/customBuildQuery"
 import {apolloClient} from "./services/ApolloService"
 import {Route} from "react-router-dom"
 import {UserAndRoles} from "./screens/UserAndRoles"
@@ -41,16 +42,23 @@ import {CreateDocument} from "./resources/Document/CreateDocument"
 import {EditTrustee} from "./resources/Trustee/EditTrustee"
 import {ListTrustee} from "./resources/Trustee/ListTrustee"
 import {CreateTrustee} from "./resources/Trustee/CreateTrustee"
+import { PgAuditList } from "./resources/PgAudit/PgAuditList"
+
 
 const App = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
 
     useEffect(() => {
         const buildDataProvider = async () => {
-            const dataProvider = await buildHasuraProvider({
+            const options = {
                 client: apolloClient as any,
-            })
-            setDataProvider(() => dataProvider)
+                buildQuery : customBuildQuery as any
+            }
+            const buildGqlQueryOverrides = {}
+            const dataProviderHasura = await buildHasuraProvider(
+                options, buildGqlQueryOverrides
+            )
+            setDataProvider(() => dataProviderHasura);
         }
         buildDataProvider()
     }, [])
@@ -64,6 +72,11 @@ const App = () => {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/messages" element={<Messages />} />
             </CustomRoutes>
+            <Resource
+                name="pgaudit"
+                list={PgAuditList}
+                options={{label: "PGAudit"}}
+            />
             <Resource
                 name="sequent_backend_election_event"
                 list={ElectionEventList}

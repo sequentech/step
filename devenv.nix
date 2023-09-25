@@ -31,6 +31,7 @@
     # For frontend
     pkgs.yarn
     pkgs.nodejs_20
+    pkgs.nodePackages.graphqurl
 
     # For protocol buffers
     pkgs.protobuf

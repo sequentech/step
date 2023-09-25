@@ -4,21 +4,31 @@
 use tracing::instrument;
 use rocket::Request;
 use rocket::http::Status;
+use rocket::response::Debug;
+use rocket::serde::{Deserialize, Serialize};
+use rocket::serde::json::{Json, json, Value};
 
-#[instrument(skip_all)]
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct ErrorResponse {
+    message: String
+}
+
+
+#[instrument]
 #[catch(500)]
-pub fn internal_error() -> &'static str {
-    "Whoops! Looks like we messed up."
+pub fn internal_error() -> Json<ErrorResponse> {
+    Json(ErrorResponse { message: "Internal error".into() })
 }
 
 #[instrument(skip_all)]
 #[catch(404)]
-pub fn not_found(req: &Request) -> String {
-    format!("I couldn't find '{}'. Try something else?", req.uri())
+pub fn not_found(req: &Request) -> Json<ErrorResponse> {
+    Json(ErrorResponse { message: "Not found".into() })
 }
 
 #[instrument(skip_all)]
 #[catch(default)]
-pub fn default(status: Status, req: &Request) -> String {
-    format!("{} ({})", status, req.uri())
+pub fn default(status: Status, req: &Request) -> Json<ErrorResponse> {
+    Json(ErrorResponse { message: "Unknown Error".into() })
 }

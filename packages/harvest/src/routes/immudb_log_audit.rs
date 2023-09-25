@@ -10,6 +10,7 @@ use rocket::response::Debug;
 use rocket::serde::json::{Json, Value};
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::json;
+use tracing::instrument;
 use std::env;
 
 use crate::connection;
@@ -37,6 +38,8 @@ macro_rules! assign_value {
 pub struct GetPgauditBody {
     tenant_id: String,
     election_event_id: String,
+    limit: Option<i64>,
+    offset: Option<i64>
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -115,11 +118,49 @@ impl TryFrom<&Row> for PgAuditRow {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct Aggregate {
+    count: i64
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct TotalAggregate {
+    aggregate: Aggregate
+}
+
+impl TryFrom<&Row> for Aggregate {
+    type Error = anyhow::Error;
+
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        let mut count = 0;
+
+        for (column, value) in row.columns.iter().zip(row.values.iter()) {
+            match column.as_str() {
+                _ => assign_value!(SqlValue::N, value, count)
+            }
+        }
+        Ok(Aggregate {
+            count,
+        })
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "rocket::serde")]
+pub struct DataList<T> {
+    items: Vec<T>,
+    total: TotalAggregate
+}
+
+#[instrument]
 #[post("/immudb/pgaudit-list", format = "json", data = "<body>")]
 pub async fn list_pgaudit(
     body: Json<GetPgauditBody>,
     auth_headers: connection::AuthHeaders,
-) -> Result<Json<Vec<PgAuditRow>>, Debug<anyhow::Error>> {
+) -> Result<Json<DataList<PgAuditRow>>, Debug<anyhow::Error>> {
     let server_url = env::var("IMMUDB_SERVER_URL")
         .context("IMMUDB_SERVER_URL env var not set")?;
     let username = env::var("IMMUDB_USERNAME")
@@ -132,31 +173,58 @@ pub async fn list_pgaudit(
     client.login(&username, &password).await?;
 
     client.open_session(&input.election_event_id).await?;
-    let limit: u64 = 10;
+    let limit: i64 = input.limit.unwrap_or(10);
+    let offset: i64 = input.offset.unwrap_or(0);
     let sql = format!(
         r#"
-    SELECT
-        id,
-        audit_type,
-        class,
-        command,
-        dbname,
-        server_timestamp,
-        session_id,
-        statement,
-        user
-    FROM pgaudit
-    LIMIT {}
-    "#,
-        limit
+        SELECT
+            id,
+            audit_type,
+            class,
+            command,
+            dbname,
+            server_timestamp,
+            session_id,
+            statement,
+            user
+        FROM pgaudit
+        ORDER BY id ASC
+        LIMIT {} OFFSET {}
+        "#,
+        limit,
+        offset,
     );
     let sql_query_response = client.sql_query(&sql, vec![]).await?;
-    let rows = sql_query_response
+    let items = sql_query_response
         .get_ref()
         .rows
         .iter()
         .map(PgAuditRow::try_from)
         .collect::<Result<Vec<PgAuditRow>>>()?;
+
+    let sql = format!(
+        r#"
+        SELECT
+            COUNT(*)
+        FROM pgaudit
+        "#,
+    );
+    let sql_query_response = client.sql_query(&sql, vec![]).await?;
+    let mut rows_iter = sql_query_response
+        .get_ref()
+        .rows
+        .iter()
+        .map(Aggregate::try_from);
+    
+    let aggregate = rows_iter
+        .next() // get the first item
+        .ok_or(anyhow!("No aggregate found"))??; // unwrap the Result and Option
+
     client.close_session().await?;
-    Ok(Json(rows))
+    Ok(Json(DataList {
+        items: items,
+        total: TotalAggregate {
+            aggregate: aggregate
+        }
+    }))
 }
