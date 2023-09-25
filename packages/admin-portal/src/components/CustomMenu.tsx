@@ -14,11 +14,15 @@ import {
 import {IconButton, theme} from "@sequentech/ui-essentials"
 import {HorizontalBox} from "./HorizontalBox"
 import {Box, MenuItem, Select, SelectChangeEvent} from "@mui/material"
-import {useStore} from "ra-core"
 import {styled} from "@mui/material/styles"
 import {Link} from "react-router-dom"
 
-export const useTenantStore = () => useStore<string | null>("tenant_id", null)
+export const useTenantStore: () => [string|null, (tenantId: string|null)=>void] = () => {
+    return [
+        localStorage.getItem('tenantId'),
+        (tenantId: string|null) => localStorage.setItem('tenantId', tenantId || '')
+    ]
+}
 
 const StyledItem = styled(Menu.Item)`
     color: ${theme.palette.brandColor};

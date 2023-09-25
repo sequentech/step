@@ -15,11 +15,15 @@ export const customBuildQuery = (introspectionResults: any) =>
       return {
         query: getList({}),
         variables: params,
-        parseResponse: (response: any) => {
-          console.log(response.data)
-          return getResponseParser(response);
+        parseResponse: (res: any) => {
+          const response = res.data.listPgaudit;
+          let output = {
+              data: response.items,
+              total: response.total.aggregate.count
+          };
+          return output;
         },
-    }
+      }
     }
     return buildQuery(introspectionResults)(raFetchType, resourceName, params)
   }
