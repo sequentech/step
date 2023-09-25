@@ -330,13 +330,19 @@ pub struct Pk {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct PublicKey {
+    public_key: String,
+    is_demo: bool
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionDTO {
     pub id: Uuid,
     pub configuration: ElectionConfig,
     pub state: String,
     pub startDate: Option<String>,
     pub endDate: Option<String>,
-    pub pks: Option<String>,
+    pub public_key: Option<PublicKey>,
     pub tallyPipesConfig: Option<String>,
     pub ballotBoxesResultsConfig: Option<String>,
     pub results: Option<String>,

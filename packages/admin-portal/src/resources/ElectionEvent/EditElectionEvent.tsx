@@ -70,6 +70,31 @@ const ElectionEventListForm: React.FC = () => {
         refresh()
     }
 
+    const setPublicKeysAction = async () => {
+        setShowMenu(false)
+        setShowProgress(true)
+
+        const {data, errors} = await createScheduledEvent({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: record.id,
+                eventProcessor: ScheduledEventType.SET_PUBLIC_KEY,
+                cronConfig: undefined,
+                eventPayload: {
+                },
+                createdBy: "admin",
+            },
+        })
+        if (errors) {
+            console.log(errors)
+        }
+        if (data) {
+            console.log(data)
+        }
+        setShowProgress(false)
+        refresh()
+    }
+
     const openKeysDialog = () => {
         console.log("opening...")
         setShowCreateKeysDialog(true)

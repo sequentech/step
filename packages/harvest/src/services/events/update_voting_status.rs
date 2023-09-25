@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 use rocket::serde::{Deserialize, Serialize};
 use strum_macros::Display;
 use strum_macros::EnumString;
@@ -37,30 +37,6 @@ pub struct ElectionStatus {
     pub voting_status: VotingStatus,
 }
 
-#[instrument(skip_all)]
-pub async fn assert_public_keys(
-    auth_headers: connection::AuthHeaders,
-    election_event: &hasura::election_event::get_election_event::GetElectionEventSequentBackendElectionEvent,
-) -> Result<()> {
-    if election_event.public_key.is_some() {
-        return Ok(())
-    }
-
-    let bulletin_board_reference = election_event
-        .bulletin_board_reference
-        .clone();
-    let board_name = get_election_event_board(bulletin_board_reference)
-        .expect("expected bulletin board".into());
-    let public_key = protocol_manager::get_public_key(board_name).await?;
-    hasura::election_event::update_election_event_public_key(
-        auth_headers.clone(),
-        election_event.tenant_id.clone(),
-        election_event.id.clone(),
-        public_key
-    ).await?;
-    Ok(())
-}
-
 #[instrument(skip(auth_headers))]
 pub async fn update_voting_status(
     auth_headers: connection::AuthHeaders,
@@ -78,13 +54,11 @@ pub async fn update_voting_status(
     )
     .await?
     .data
-    .expect("expected data".into());
-    if payload.status == VotingStatus::OPEN {
-        assert_public_keys(
-            auth_headers.clone(),
-            &election_event_response.sequent_backend_election_event[0],
-        )
-        .await?;
+    .with_context(|| "can't find election event")?;
+
+    let election_event = &election_event_response.sequent_backend_election_event[0];
+    if payload.status == VotingStatus::OPEN && election_event.public_key.is_none() {
+        bail!("Missing public key");
     }
     let new_status_value = serde_json::to_value(new_status)?;
     let hasura_response = hasura::election::update_election_status(
@@ -98,7 +72,7 @@ pub async fn update_voting_status(
 
     let _election_response_id = &hasura_response
         .data
-        .expect("expected data".into())
+        .with_context(|| "can't find election")?
         .update_sequent_backend_election
         .unwrap()
         .returning[0];
