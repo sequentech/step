@@ -51,8 +51,8 @@ actions:
         action: transform
         template: |-
           {
-            "tenant_id": {{$session_variables['x-hasura-tenant-id']}},
-            "election_event_id": {{$session_variables['x-hasura-election-event-id']}},
+            "tenant_id": {{ head(removeNulls([$session_variables?['x-hasura-tenant-id'],""])) }},
+            "election_event_id": {{ head(removeNulls([$session_variables?['x-hasura-election-event-id'],"defaultdb"])) }},
             "limit": {{$body.input?.limit}},
             "offset": {{$body.input?.offset}}
           }

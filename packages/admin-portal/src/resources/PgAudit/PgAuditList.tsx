@@ -8,12 +8,13 @@ import {
     List,
     TextField,
     TextInput,
+    NumberField,
+    ExportButton,
+    SelectColumnsButton,
+    TopToolbar,
 } from "react-admin"
-import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
-
-const OMIT_FIELDS = ["id"]
 
 const Filters: Array<ReactElement> = [
     <TextInput label="Command" source="comand" key={0} />,
@@ -32,13 +33,17 @@ export const PgAuditList: React.FC<PgAuditListProps> = ({aside}) => {
         <>
             <Typography variant="h5">PG Audit</Typography>
             <List
-                actions={<ListActions withFilter={true} />}
+                actions={<TopToolbar>
+                    <SelectColumnsButton />
+                    <ExportButton />
+                </TopToolbar>}
                 filter={{tenant_id: tenantId || undefined}}
                 filters={Filters}
                 aside={aside}
             >
-                <DatagridConfigurable omit={OMIT_FIELDS}>
-                    <TextField source="id" />
+                <DatagridConfigurable>
+                    <NumberField source="id" />
+                    <TextField source="session_id" />
                     <TextField source="statement" />
                     <TextField source="command" />
                 </DatagridConfigurable>
