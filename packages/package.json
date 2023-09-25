@@ -20,7 +20,8 @@
       "build:ui-essentials": "yarn --cwd ./ui-essentials build",
       "lint:fix": "yarn --cwd ./voting-portal lint:fix",
       "prettify:fix": "yarn --cwd ./voting-portal prettify:fix",
-      "generate": "yarn --cwd ./voting-portal generate"
+      "generate": "yarn --cwd ./voting-portal generate",
+      "generate:admin": "yarn --cwd ./admin-portal generate"
     }
   }
   

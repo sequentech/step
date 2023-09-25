@@ -2,15 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::protocol2::artifact::Configuration;
+use crate::protocol2::artifact::{DkgPublicKey, Configuration};
 use crate::protocol2::message::Message;
 use crate::protocol2::trustee::ProtocolManager;
 use crate::run::config::ProtocolManagerConfig;
 use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::util::assert_folder;
-use crate::protocol2::statement::Statement;
+use crate::protocol2::statement::StatementType;
 
 use strand::context::Ctx;
+use strand::serialization::StrandDeserialize;
+use strand::serialization::StrandSerialize;
 
 use anyhow::{Context, Result};
 use std::marker::PhantomData;
@@ -75,7 +77,7 @@ pub async fn get_board_public_key<C: Ctx>(
     user: &str,
     password: &str,
     board_name: &str
-) -> Result<()> {
+) -> Result<DkgPublicKey::<C>> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     assert_folder(store_root.clone())?;
     let mut board = ImmudbBoard::new(
@@ -87,13 +89,17 @@ pub async fn get_board_public_key<C: Ctx>(
     )
     .await?;
     let messages = board.get_messages(-1).await?;
-    let pks = messages.into_iter().find(|message|
-        match message.statement {
-            Statement::PublicKeySigned(_, _, _, _, _) => true,
+    let pks_message = messages.into_iter().find(|message|
+        match message.statement.get_kind() {
+            StatementType::PublicKey => true,
             _ => false,
         }
     ).with_context(|| {
-        format!("Signed Public Key not found on board {}", board_name)
+        format!("Public Key not found on board {}", board_name)
     })?;
-    Ok(())
+    let bytes = pks_message.artifact.with_context(|| {
+        format!("Artifact missing on Public Key message on board {}", board_name)
+    })?;
+    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
+    Ok(dkgpk)
 }

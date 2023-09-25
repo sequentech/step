@@ -252,10 +252,11 @@ following:
 docker compose build frontend && docker compose up -d --no-deps frontend
 ```
 
-### The hasura schema changed or I want to add a query/mutation to the voting-portal
+### The hasura schema changed or I want to add a query/mutation to the voting-portal/admin-portal
 
-Add the query/mutation to the `frontend/voting-portal/src/queries/` folder and 
-then run `yarn generate` from the `frontend/` folder to update the types.
+Add the query/mutation to the `packages/voting-portal/src/queries/` folder and 
+then run `yarn generate` from the `packages/` folder to update the types.  Similarly,
+run `yarn generate:admin` to update the types of the `admin-portal` if you need it.
 
 ### The voting portal will not load any elections
 

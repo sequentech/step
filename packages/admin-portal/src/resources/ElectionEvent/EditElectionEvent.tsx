@@ -108,6 +108,12 @@ const ElectionEventListForm: React.FC = () => {
                 >
                     Create Keys
                 </MenuItem>
+                <MenuItem
+                    onClick={setPublicKeysAction}
+                    disabled={!!record.public_key || !configCreatedStatus}
+                >
+                    Set Public Keys
+                </MenuItem>
             </Menu>
             <KeysGenerationDialog
                 show={showCreateKeysDialog}
@@ -121,6 +127,7 @@ const ElectionEventListForm: React.FC = () => {
             <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />
             <BooleanInput source="is_archived" />
             <BooleanInput source="is_audit" />
+            <TextInput source="public_key" />
             <Typography variant="h5">Elections</Typography>
             <ReferenceManyField
                 label="Elections"
