@@ -89,6 +89,11 @@ export const CustomMenu = () => {
         >
             <CustomerSelector />
             <StyledItem
+                to="/pgaudit"
+                primaryText="PG Audit"
+                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+            />
+            <StyledItem
                 to="/sequent_backend_election_event"
                 primaryText="Election Events"
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}

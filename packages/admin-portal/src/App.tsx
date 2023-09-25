@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {Admin, DataProvider, Resource, CustomRoutes} from "react-admin"
-import buildHasuraProvider, { buildFields } from "ra-data-hasura"
-import type { BuildFields } from "ra-data-hasura"
+import buildHasuraProvider from "ra-data-hasura"
+import {customBuildQuery} from "./queries/customBuildQuery"
 import {apolloClient} from "./services/ApolloService"
 import {Route} from "react-router-dom"
 import {UserAndRoles} from "./screens/UserAndRoles"
@@ -42,6 +42,7 @@ import {CreateDocument} from "./resources/Document/CreateDocument"
 import {EditTrustee} from "./resources/Trustee/EditTrustee"
 import {ListTrustee} from "./resources/Trustee/ListTrustee"
 import {CreateTrustee} from "./resources/Trustee/CreateTrustee"
+import { PgAuditList } from "./resources/PgAudit/PgAuditList"
 
 
 const App = () => {
@@ -49,48 +50,15 @@ const App = () => {
 
     useEffect(() => {
         const buildDataProvider = async () => {
-            const dataProviderHasura = await buildHasuraProvider({
+            const options = {
                 client: apolloClient as any,
-            })
-            const modifiedProvider: DataProvider = {
-              getList: async (resource, params) => {
-
-                if (resource === 'pgaudit') {
-                    // TODO
-                    let { data, ...metadata } = await dataProviderHasura.getList(
-                        resource,
-                        params
-                    );
-            
-                    return {
-                        data: data as any[],
-                        ...metadata,
-                    };                          
-                }
-                let { data, ...metadata } = await dataProviderHasura.getList(
-                  resource,
-                  params
-                );
-        
-                return {
-                  data: data as any[],
-                  ...metadata,
-                };
-              },
-              getOne: (resource, params) => dataProviderHasura.getOne(resource, params),
-              getMany: (resource, params) =>
-                dataProviderHasura.getMany(resource, params),
-              getManyReference: (resource, params) =>
-                dataProviderHasura.getManyReference(resource, params),
-              update: (resource, params) => dataProviderHasura.update(resource, params),
-              updateMany: (resource, params) =>
-                dataProviderHasura.updateMany(resource, params),
-              create: (resource, params) => dataProviderHasura.create(resource, params),
-              delete: (resource, params) => dataProviderHasura.delete(resource, params),
-              deleteMany: (resource, params) =>
-                dataProviderHasura.deleteMany(resource, params),
-            };
-            setDataProvider(() => modifiedProvider);
+                buildQuery : customBuildQuery as any
+            }
+            const buildGqlQueryOverrides = {}
+            const dataProviderHasura = await buildHasuraProvider(
+                options, buildGqlQueryOverrides
+            )
+            setDataProvider(() => dataProviderHasura);
         }
         buildDataProvider()
     }, [])
@@ -104,6 +72,11 @@ const App = () => {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/messages" element={<Messages />} />
             </CustomRoutes>
+            <Resource
+                name="pgaudit"
+                list={PgAuditList}
+                options={{label: "PGAudit"}}
+            />
             <Resource
                 name="sequent_backend_election_event"
                 list={ElectionEventList}
