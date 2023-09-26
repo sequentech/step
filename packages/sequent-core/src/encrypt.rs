@@ -388,13 +388,35 @@ pub fn encrypt_decoded_question(
 pub fn parse_public_key_ecc(
     election: &ElectionDTO,
 ) -> Result<DkgPublicKey<RistrettoCtx>, BallotError> {
-    let public_key_config = election.public_key.ok_or(
-        BallotError::ConsistencyCheck("Missing Public Key".to_string()),
-    )?;
-    let pk_bytes =
-        general_purpose::STANDARD_NO_PAD.decode(public_key_config.public_key);
+    let public_key_config =
+        election
+            .public_key
+            .clone()
+            .ok_or(BallotError::ConsistencyCheck(
+                "Missing Public Key".to_string(),
+            ))?;
+    Base64Deserialize::deserialize(public_key_config.public_key)
+    /*let pk_bytes =
+    general_purpose::STANDARD_NO_PAD.decode(public_key_config.public_key);
 
-    pk_bytes.strand_deserialize()
+    StrandDeserialize::strand_deserialize(()pk_bytes.as_slice())*/
+}
+
+pub fn to_30bytes(plaintext: Vec<u8>) -> Result<[u8; 30], BallotError> {
+    let len = plaintext.len();
+
+    if len > 30 {
+        return Err(BallotError::Serialization(format!(
+            "Plaintext too long, length {} is longer than 30 bytes",
+            len
+        )));
+    }
+    let mut array: [u8; 30] = [0; 30];
+
+    // Copy the elements from the vector to the array
+    array[..len].copy_from_slice(&plaintext);
+
+    Ok(array)
 }
 
 pub fn encrypt_decoded_question_ecc(
@@ -423,9 +445,12 @@ pub fn encrypt_decoded_question_ecc(
                     "Error encoding vote choice"
                 ))
             })?;
+        let plaintext_30b = to_30bytes(plaintext)?;
 
-        let (choice, proof) =
-            encrypt_plaintext_answer_ecc_wrapper(&public_key, plaintext)?;
+        let (choice, proof) = encrypt_plaintext_answer_ecc_wrapper(
+            public_key.pk.clone(),
+            plaintext_30b,
+        )?;
         choices.push(choice);
         proofs.push(proof);
     }
