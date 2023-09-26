@@ -42,7 +42,8 @@ impl StrandSignaturePk {
     ) -> Result<StrandSignaturePk, StrandError> {
         Ok(StrandSignaturePk(VerifyingKey::from(&sk.0)))
     }
-    /// Verifies the signature given the message. Returns Ok(()) if the verification passes.
+    /// Verifies the signature given the message. Returns Ok(()) if the
+    /// verification passes.
     pub fn verify(
         &self,
         signature: &StrandSignature,

@@ -1,4 +1,4 @@
-use borsh::{BorshSerialize, BorshDeserialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit},
     consts::{U12, U32},
@@ -6,8 +6,8 @@ use chacha20poly1305::{
 };
 use generic_array::GenericArray;
 
-use crate::util::StrandError;
 use crate::rng::StrandRng;
+use crate::util::StrandError;
 
 pub type SymmetricKey = GenericArray<u8, U32>;
 
@@ -17,9 +17,12 @@ pub struct EncryptionData {
     pub nonce: [u8; 12],
 }
 impl EncryptionData {
-    pub fn new(encrypted_bytes: Vec<u8>, nonce: GenericArray<u8, U12>) -> EncryptionData {
+    pub fn new(
+        encrypted_bytes: Vec<u8>,
+        nonce: GenericArray<u8, U12>,
+    ) -> EncryptionData {
         EncryptionData {
-            encrypted_bytes, 
+            encrypted_bytes,
             nonce: nonce.into(),
         }
     }
@@ -30,35 +33,35 @@ pub fn gen_key() -> GenericArray<u8, U32> {
     let key = chacha20poly1305::ChaCha20Poly1305::generate_key(&mut csprng);
     key
 }
- 
+
 pub fn encrypt(
     key: GenericArray<u8, U32>,
     data: &[u8],
 ) -> Result<EncryptionData, StrandError> {
     let mut csprng = StrandRng;
     // https://docs.rs/chacha20poly1305/latest/chacha20poly1305/trait.AeadCore.html#method.generate_nonce
-    // 4,294,967,296 messages with random nonces can be encrypted under a given key
+    // 4,294,967,296 messages with random nonces can be encrypted under a given
+    // key
     let nonce = ChaCha20Poly1305::generate_nonce(&mut csprng);
     let cipher = ChaCha20Poly1305::new(&key);
-    let encrypted = cipher.encrypt(&nonce, data)
+    let encrypted = cipher
+        .encrypt(&nonce, data)
         .map_err(|e| StrandError::Chacha20Error(e))?;
 
-    Ok(        
-        EncryptionData {
-            encrypted_bytes: encrypted,
-            nonce: nonce.into(),
-        }
-    )
+    Ok(EncryptionData {
+        encrypted_bytes: encrypted,
+        nonce: nonce.into(),
+    })
 }
 
 pub fn decrypt(
     key: GenericArray<u8, U32>,
     ed: &EncryptionData,
 ) -> Result<Vec<u8>, StrandError> {
-
     let cipher = ChaCha20Poly1305::new(&key);
     let bytes: &[u8] = &ed.encrypted_bytes;
-    let decrypted = cipher.decrypt(&ed.nonce.into(), bytes)
+    let decrypted = cipher
+        .decrypt(&ed.nonce.into(), bytes)
         .map_err(|e| StrandError::Chacha20Error(e))?;
 
     Ok(decrypted)

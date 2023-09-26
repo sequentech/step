@@ -8,10 +8,12 @@
 
 extern crate cfg_if;
 
-/// Defines a generic interface to concrete modular arithmetic backends based on discrete log assumptions.
-pub mod context;
-/// Provides implementation of modular arithmetic backends based on discrete log assumptions.
+/// Provides implementation of modular arithmetic backends based on discrete log
+/// assumptions.
 pub mod backend;
+/// Defines a generic interface to concrete modular arithmetic backends based on
+/// discrete log assumptions.
+pub mod context;
 /// ElGamal encryption.
 pub mod elgamal;
 /// Hashing.

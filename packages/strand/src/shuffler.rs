@@ -28,15 +28,15 @@
 //! let proof =
 //!    shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
 //! let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]).unwrap();
-//! 
+//!
 //! assert!(ok);
 //! ```
 
-use std::sync::{Arc, Mutex};
 use borsh::{BorshDeserialize, BorshSerialize};
 use rand::seq::SliceRandom;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
+use std::sync::{Arc, Mutex};
 
 use crate::context::{Ctx, Element, Exponent};
 use crate::elgamal::{Ciphertext, PublicKey};
@@ -116,8 +116,9 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         }
     }
 
-    /// Generates a shuffle of the given ciphertexts, returning the resulting shuffle, the random re-encryption factors
-    /// and the applied permutation. NOTE: the second and third returned parameters are SECRETS.
+    /// Generates a shuffle of the given ciphertexts, returning the resulting
+    /// shuffle, the random re-encryption factors and the applied
+    /// permutation. NOTE: the second and third returned parameters are SECRETS.
     pub fn gen_shuffle(
         &self,
         ciphertexts: &[Ciphertext<C>],
@@ -163,8 +164,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         (e_primes_permuted, rs)
     }
 
-    /// Computes a proof of shuffle given the original ciphertexts, shuffled ciphertexts, and 
-    /// shuffling secrets. Called after gen_shuffle.
+    /// Computes a proof of shuffle given the original ciphertexts, shuffled
+    /// ciphertexts, and shuffling secrets. Called after gen_shuffle.
     pub fn gen_proof(
         &self,
         es: &[Ciphertext<C>],
@@ -384,8 +385,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         ))
     }
 
-    /// Checks a proof against the original ciphertexts and permuted ciphertexts. Returns true if
-    /// verification passes.
+    /// Checks a proof against the original ciphertexts and permuted
+    /// ciphertexts. Returns true if verification passes.
     pub fn check_proof(
         &self,
         proof: &ShuffleProof<C>,

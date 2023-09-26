@@ -50,7 +50,8 @@ impl StrandSignaturePk {
         let pk = EcKey::<Public>::public_key_from_der(&bytes)?;
         Ok(StrandSignaturePk(pk, bytes))
     }
-    /// Verifies the signature given the message. Returns Ok(()) if the verification passes.
+    /// Verifies the signature given the message. Returns Ok(()) if the
+    /// verification passes.
     pub fn verify(
         &self,
         signature: &StrandSignature,

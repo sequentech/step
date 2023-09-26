@@ -2,7 +2,7 @@
 //
 //  * signing_key_sk: base64 encoding of a StrandSignatureSk serialization
 //  * signing_key_pk: base64 encoding of corresponding StrandSignaturePk serialization
-//  * encryption_key: base64 encoding of a GenericArray<u8, U32>,
+//  * encryption_key: base64 encoding of a sign::SymmetricKey
 //
 
 use base64::engine::general_purpose;

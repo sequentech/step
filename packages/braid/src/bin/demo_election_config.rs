@@ -4,7 +4,7 @@
 // * Generate .toml config for each trustee, containing:
 //      * signing_key_sk: base64 encoding of a StrandSignatureSk serialization
 //      * signing_key_pk: base64 encoding of corresponding StrandSignaturePk serialization
-//      * encryption_key: base64 encoding of a GenericArray<u8, U32>,
+//      * encryption_key: base64 encoding of a sign::SymmetricKey
 // * Generate .toml config for the protocol manager:
 //      signing_key: base64 encoding of a StrandSignatureSk serialization
 // * Generate a .bin config for a session, a serialized Configuration artifact

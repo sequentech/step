@@ -33,20 +33,20 @@ pub fn encrypt(
     let cipher = Cipher::aes_256_gcm();
     let mut tag = [0u8; 16];
     // https://docs.rs/chacha20poly1305/latest/chacha20poly1305/trait.AeadCore.html#method.generate_nonce
-    // 4,294,967,296 messages with random nonces can be encrypted under a given key
-    // (We refer to chacha20 documentation above as the iv and nonce sizes for each are identical)
+    // 4,294,967,296 messages with random nonces can be encrypted under a given
+    // key (We refer to chacha20 documentation above as the iv and nonce
+    // sizes for each are identical)
     let mut iv = [0u8; 12];
     csprng.fill_bytes(&mut iv);
 
-    let encrypted = encrypt_aead(cipher, &key, Some(&iv), &aad, &data, &mut tag);
+    let encrypted =
+        encrypt_aead(cipher, &key, Some(&iv), &aad, &data, &mut tag);
 
-    Ok(
-        EncryptionData {
-            encrypted_bytes: encrypted?,
-            iv: iv,
-            tag: tag,
-        }
-    )
+    Ok(EncryptionData {
+        encrypted_bytes: encrypted?,
+        iv: iv,
+        tag: tag,
+    })
 }
 
 pub fn decrypt(
@@ -56,7 +56,14 @@ pub fn decrypt(
 ) -> Result<Vec<u8>, StrandError> {
     let cipher = Cipher::aes_256_gcm();
 
-    let ret = decrypt_aead(cipher, key, Some(&ed.iv), &aad, &ed.encrypted_bytes, &ed.tag);
+    let ret = decrypt_aead(
+        cipher,
+        key,
+        Some(&ed.iv),
+        &aad,
+        &ed.encrypted_bytes,
+        &ed.tag,
+    );
 
     Ok(ret?)
 }

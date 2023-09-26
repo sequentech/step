@@ -57,13 +57,15 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
     let suffix = format!("decryption_factor{self_p}");
     let label = cfg.label(*batch, suffix);
 
+    let zkp = strand::zkp::Zkp::new(&ctx);
+
     let result: Result<Vec<(C::E, ChaumPedersen<C>)>> = ciphertexts
         .ciphertexts
         .0
         .into_par_iter()
         .map(|c| {
             let (base, proof) =
-                strand::threshold::decryption_factor(&c, &secret, &vk, &label, ctx.clone())?;
+                strand::threshold::decryption_factor(&c, &secret, &vk, &label, &zkp, &ctx)?;
 
             // FIXME removed self-verify
             // let ok = zkp.verify_decryption(&vk, &base, &c.mhr, &c.gr, &proof, &label);
@@ -236,7 +238,7 @@ fn compute_plaintexts_<C: Ctx>(
             let values: Result<Vec<C::E>> = it2
                 .into_par_iter()
                 .map(|((df, proof), c)| {
-                    let ok = zkp.verify_decryption(&vk, &df, &c.mhr, &c.gr, &proof, &label)?;
+                    let ok = strand::threshold::verify_decryption_factor(&c, &vk, &df, &proof, &label, &zkp)?;
                     if ok {
                         Ok(ctx.emod_pow(&df, &lagrange))
                     } else {

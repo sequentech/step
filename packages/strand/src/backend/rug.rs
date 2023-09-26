@@ -463,7 +463,8 @@ impl<P: RugCtxParams> BorshSerialize for IntegerE<P> {
 }
 
 impl<P: RugCtxParams> BorshDeserialize for IntegerE<P> {
-    /// Deserializes the given bytes into a group element, checking for membership.
+    /// Deserializes the given bytes into a group element, checking for
+    /// membership.
     #[inline]
     fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <Vec<u8>>::deserialize(bytes)?;
@@ -487,7 +488,8 @@ impl<P: RugCtxParams> BorshSerialize for IntegerX<P> {
 
 impl<P: RugCtxParams> BorshDeserialize for IntegerX<P> {
     #[inline]
-    /// Deserializes the given bytes into a ring element, checking for membership.
+    /// Deserializes the given bytes into a ring element, checking for
+    /// membership.
     fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <Vec<u8>>::deserialize(bytes)?;
         let ctx = RugCtx::<P>::default();

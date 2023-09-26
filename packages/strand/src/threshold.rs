@@ -59,9 +59,18 @@ pub fn compute_peer_share<C: Ctx>(
     eval_poly(target_trustee + 1, threshold, coefficients, ctx)
 }
 
+/// Verifies received share using trustee's vkf (computed from commitments)
+pub fn verify_share<C: Ctx>(
+    share: &C::X,
+    v_key_factor: &C::E,
+    ctx: &C,
+) -> bool {
+    ctx.gmod_pow(&share) == *v_key_factor
+}
+
 /// Computes the factor of the verification key for the receiving trustee using
-/// the sender commitments. Note also that this value must equal g^share_ij from i to j,
-/// this is checked when verifying received shares.
+/// the sender commitments. Note also that this value must equal g^share_ij from
+/// i to j, this is checked when verifying received shares.
 pub fn verification_key_factor<C: Ctx>(
     sender_commitments: &[C::E],
     threshold: usize,
@@ -85,21 +94,38 @@ pub fn verification_key_factor<C: Ctx>(
 }
 
 /// Computes the decryption factor and proof for the given ciphertext using the
-/// trustee's share of the secret.
+/// trustee's share of the secret. The Zkp reference is passed as an
+/// optimization to avoid object creation for each ciphertext.
+#[inline(always)]
 pub fn decryption_factor<C: Ctx>(
     c: &Ciphertext<C>,
     share: &C::X,
     v_key: &C::E,
     label: &[u8],
-    ctx: C,
+    zkp: &Zkp<C>,
+    ctx: &C,
 ) -> Result<(C::E, ChaumPedersen<C>), StrandError> {
-    let zkp = Zkp::new(&ctx);
     let factor = ctx.emod_pow(&c.gr, share);
     let proof =
         zkp.decryption_proof(share, v_key, &factor, &c.mhr, &c.gr, label);
     // let ok = zkp.decryption_verify(&v_key, &factor, None, &c.mhr, &c.gr,
     // &proof, label); assert!(ok);
     Ok((factor, proof?))
+}
+
+/// Verify the decryption factor with respect to verification key. The Zkp
+/// reference is passed as an optimization to avoid object creation for each
+/// ciphertext
+#[inline(always)]
+pub fn verify_decryption_factor<C: Ctx>(
+    c: &Ciphertext<C>,
+    vk: &C::E,
+    df: &C::E,
+    proof: &ChaumPedersen<C>,
+    label: &[u8],
+    zkp: &Zkp<C>,
+) -> Result<bool, StrandError> {
+    zkp.verify_decryption(&vk, &df, &c.mhr, &c.gr, &proof, &label)
 }
 
 /// Computes the Lagrange coefficient for the given trustee.

@@ -70,9 +70,11 @@ pub trait Ctx: Send + Sync + Sized + Clone + Default + Debug {
     fn emod_pow(&self, base: &Self::E, exponent: &Self::X) -> Self::E;
     /// Returns the modular subtraction of the given ring elements (or scalars).
     fn exp_sub_mod(&self, value: &Self::X, other: &Self::X) -> Self::X;
-    /// Returns the result of applying the modulo operation using the group modulus.
+    /// Returns the result of applying the modulo operation using the group
+    /// modulus.
     fn modulo(&self, value: &Self::E) -> Self::E;
-    /// Returns the result of applying the modulo operation using the ring modulus.
+    /// Returns the result of applying the modulo operation using the ring
+    /// modulus.
     fn exp_modulo(&self, value: &Self::X) -> Self::X;
 
     /// Returns the random number generator associated with this backend.
@@ -84,23 +86,28 @@ pub trait Ctx: Send + Sync + Sized + Clone + Default + Debug {
     /// Returns a random plaintext.
     fn rnd_plaintext(&self, rng: &mut Self::R) -> Self::P;
 
-    /// Returns the encoding of the given plaintext into a group element (or point).
+    /// Returns the encoding of the given plaintext into a group element (or
+    /// point).
     fn encode(&self, plaintext: &Self::P) -> Result<Self::E, StrandError>;
-    /// Returns the plaintext corresponding to the given group element (or point).
+    /// Returns the plaintext corresponding to the given group element (or
+    /// point).
     fn decode(&self, element: &Self::E) -> Self::P;
 
     // Needed to perform context dependent validation on incoming bytes
     /// Constructs a group element (or point) from the given bytes. The bytes
-    /// must have been produced by a call to strand_serialize() on the type Self::E.
+    /// must have been produced by a call to strand_serialize() on the type
+    /// Self::E.
     fn element_from_bytes(&self, bytes: &[u8]) -> Result<Self::E, StrandError>;
     // Needed to perform context dependent validation on incoming bytes
     /// Constructs a ring element (or scalar) from the given bytes. The bytes
-    /// must have been produced by a call to strand_serialize() on the type Self::X.
+    /// must have been produced by a call to strand_serialize() on the type
+    /// Self::X.
     fn exp_from_bytes(&self, bytes: &[u8]) -> Result<Self::X, StrandError>;
     // Used to convert exponents in threshold cryptography
     /// Constructs a ring element (or scalar) from the given unsigned integer.
     fn exp_from_u64(&self, value: u64) -> Self::X;
-    /// Returns the result of hashing the supplied bytes into a ring element (or scalar). 
+    /// Returns the result of hashing the supplied bytes into a ring element (or
+    /// scalar).
     // Used to compute challenges in zk proofs
     /// The bytes are hashed using hash::hash_to_array.
     fn hash_to_exp(&self, bytes: &[u8]) -> Result<Self::X, StrandError>;
@@ -112,9 +119,9 @@ pub trait Ctx: Send + Sync + Sized + Clone + Default + Debug {
         exp: &Self::X,
         pk: PublicKey<Self>,
     ) -> Result<Vec<u8>, StrandError>;
-    /// Returns the ring element (or scalar) decrypted from an ElGamal encryption resulting
-    /// from the deserialization of the given bytes. Decryption is performed with the given private
-    /// key.
+    /// Returns the ring element (or scalar) decrypted from an ElGamal
+    /// encryption resulting from the deserialization of the given bytes.
+    /// Decryption is performed with the given private key.
     fn decrypt_exp(
         &self,
         bytes: &[u8],

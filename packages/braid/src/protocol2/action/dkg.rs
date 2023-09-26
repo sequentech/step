@@ -224,7 +224,7 @@ fn compute_pk_<C: Ctx>(
                 j,
                 &ctx,
             );
-            // verification_keys[j] = verification_keys[j].mul(&vkf).modulo(ctx.modulus());
+            
             *vk = vk.mul(&vkf).modp(&ctx);
 
             // Our share is sent from trustee i to j, when j = us
@@ -243,9 +243,11 @@ fn compute_pk_<C: Ctx>(
 
                 // Decrypt the share sent from i to us
                 let value = ctx.decrypt_exp(&share.0[*self_p], sk)?;
-
-                // FIXME assert
-                assert_eq!(ctx.gmod_pow(&value), vkf);
+                // Verify the share
+                let ok = strand::threshold::verify_share(&value, &vkf, &ctx);
+                if !ok {
+                    return Err(anyhow!("Trustee {} failed to verify share from {}..", j, i));
+                }
                 info!("Trustee {} verified share received from {}", j, i);
             }
         }
