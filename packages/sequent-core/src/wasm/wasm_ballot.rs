@@ -383,6 +383,7 @@ extern "C" {
 #[wasm_bindgen(typescript_custom_section)]
 const IHASHABLE_BALLOT: &'static str = r#"
 interface IHashableBallot {
+    version: number;
     choices: Array<IBallotChoice>;
     issue_date: string;
     proofs: Array<ICyphertextProof>;
@@ -398,6 +399,7 @@ extern "C" {
 #[wasm_bindgen(typescript_custom_section)]
 const IAUDITABLE_BALLOT: &'static str = r#"
 interface IAuditableBallot {
+    version: number;
     issue_date: string;
     choices: Array<IReplicationChoice>;
     proofs: Array<ICyphertextProof>;

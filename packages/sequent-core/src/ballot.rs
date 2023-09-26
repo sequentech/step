@@ -7,54 +7,63 @@ use crate::hasura_types::Uuid;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use borsh::{BorshDeserialize, BorshSerialize};
+use strand::elgamal::Ciphertext;
+use strand::context::Ctx;
+use strand::zkp::Schnorr;
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub const TYPES_VERSION: u32 = 0;
+
+/* -> Ciphertext<C: Ctx>
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct BallotChoice {
     pub alpha: String, // gr
     pub beta: String,  // mhr
 }
-
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
-pub struct ReplicationChoice {
-    pub alpha: String, // gr
-    pub beta: String,  // mhr
+*/
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct ReplicationChoice<C: Ctx> {
+    pub mhr: C::E,
+    pub gr: C::E,
     pub plaintext: String,
     pub randomness: String,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+/* -> Schnorr<C>
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct CyphertextProof {
     pub challenge: String,
     pub commitment: String,
     pub response: String,
 }
+*/
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct TrusteeKeyState {
     pub id: String,
     pub state: String,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct MixingCategorySegmentation {
     pub categoryName: String,
     pub categories: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ShareTextItem {
     pub network: String,
     pub button_text: String,
     pub social_message: String,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct Url {
     pub title: String,
     pub url: String,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionExtra {
     pub allow_voting_end_graceful_period: Option<bool>,
     pub start_screen__skip: Option<bool>,
@@ -80,19 +89,19 @@ pub struct ElectionExtra {
     pub show_skip_question_button: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct QuestionCondition {
     pub question_id: i64,
     pub answer_id: i64,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ConditionalQuestion {
     pub question_id: i64,
     pub when_any: Vec<QuestionCondition>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionPresentation {
     pub share_text: Option<Vec<ShareTextItem>>,
     pub theme: String,
@@ -110,7 +119,7 @@ pub struct ElectionPresentation {
     pub i18n_override: Option<HashMap<String, HashMap<String, String>>>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct QuestionExtra {
     pub group: Option<String>,
     pub next_button: Option<String>,
@@ -190,7 +199,7 @@ impl Default for QuestionExtra {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct Answer {
     pub id: Uuid,
     pub category: String,
@@ -233,7 +242,7 @@ impl Answer {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct Question {
     pub id: Uuid,
     pub description: String,
@@ -297,7 +306,7 @@ impl Question {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionConfig {
     pub id: Uuid,
     pub layout: String,
@@ -321,7 +330,7 @@ pub struct ElectionConfig {
     pub logo_url: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct Pk {
     pub q: String,
     pub p: String,
@@ -329,13 +338,13 @@ pub struct Pk {
     pub g: String,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct PublicKeyConfig {
     pub public_key: String,
     pub is_demo: bool,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionDTO {
     pub id: Uuid,
     pub configuration: ElectionConfig,
@@ -356,54 +365,58 @@ pub struct ElectionDTO {
     pub segmentedMixing: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct ElectionPayload {
     pub date: String,
     pub payload: ElectionDTO,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
-pub struct RawAuditableBallot {
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct RawAuditableBallot<C: Ctx> {
     pub election_url: String,
     pub issue_date: String,
-    pub choices: Vec<ReplicationChoice>,
-    pub proofs: Vec<CyphertextProof>,
+    pub choices: Vec<ReplicationChoice<C>>,
+    pub proofs: Vec<Schnorr<C>>,
     pub ballot_hash: String,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
-pub struct AuditableBallot {
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct AuditableBallot<C: Ctx> {
+    pub version: u32,
     pub issue_date: String,
-    pub choices: Vec<ReplicationChoice>,
-    pub proofs: Vec<CyphertextProof>,
+    pub choices: Vec<ReplicationChoice<C>>,
+    pub proofs: Vec<Schnorr<C>>,
     pub ballot_hash: String,
     pub config: ElectionDTO,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
-pub struct HashableBallot {
-    pub choices: Vec<BallotChoice>,
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct HashableBallot<C: Ctx> {
+    pub version: u32,
+    pub choices: Vec<Ciphertext<C>>,
     pub issue_date: String,
-    pub proofs: Vec<CyphertextProof>,
+    pub proofs: Vec<Schnorr<C>>,
 }
 
-impl From<ReplicationChoice> for BallotChoice {
-    fn from(value: ReplicationChoice) -> BallotChoice {
-        BallotChoice {
-            alpha: value.alpha.clone(), // gr
-            beta: value.beta.clone(),   // mhr
+impl<C: Ctx> From<ReplicationChoice<C>> for Ciphertext<C> {
+    fn from(value: ReplicationChoice<C>) -> Ciphertext<C> {
+        Ciphertext<C> {
+            gr: value.gr.clone(), // gr
+            mhr: value.mhr.clone(),   // mhr
         }
     }
 }
 
-impl From<AuditableBallot> for HashableBallot {
-    fn from(value: AuditableBallot) -> HashableBallot {
-        HashableBallot {
+impl<C: Ctx> From<AuditableBallot<C>> for HashableBallot<C> {
+    fn from(value: AuditableBallot<C>) -> HashableBallot<C> {
+        assert!(TYPES_VERSION == value.version);
+        HashableBallot<C> {
+            version: TYPES_VERSION,
             choices: value
                 .choices
                 .clone()
                 .into_iter()
-                .map(|choice| BallotChoice::from(choice))
+                .map(|choice| Ciphertext<C>::from(choice))
                 .collect(),
             issue_date: value.issue_date.clone(),
             proofs: value.proofs.clone(),
