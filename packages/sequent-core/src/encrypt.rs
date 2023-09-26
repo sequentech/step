@@ -5,25 +5,27 @@ use num_bigint::BigUint;
 use num_traits::Num;
 use sha2::{Digest, Sha256};
 
+use braid::protocol2::artifact::DkgPublicKey;
 use chrono::prelude::*;
 use strand::backend::num_bigint::{
     BigUintP, BigintCtx, DeserializeNumber, SerializeNumber, P2048,
 };
-use strand::serialization::StrandSerialize;
-use strand::signature::StrandSignaturePk;
+use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::*;
-use strand::backend::ristretto::RistrettoCtx;
+use strand::serialization::{StrandDeserialize, StrandSerialize};
+use strand::signature::StrandSignaturePk;
+use strand::util::StrandError;
 use strand::zkp::{Schnorr, Zkp};
-use braid::protocol2::artifact::DkgPublicKey;
 
 use base64::engine::general_purpose;
+use base64::DecodeError;
 use base64::Engine;
+use std::error::Error;
 
 use crate::ballot::*;
-use crate::plaintext::DecodedVoteQuestion;
 use crate::ballot_codec::BallotCodec;
-
+use crate::plaintext::DecodedVoteQuestion;
 
 quick_error! {
     #[derive(Debug, PartialEq, Eq)]
@@ -35,10 +37,66 @@ quick_error! {
     }
 }
 
+pub trait Base64Serialize {
+    fn serialize(&self) -> Result<String, BallotError>;
+}
+
+pub trait Base64Deserialize {
+    fn deserialize(value: String) -> Result<Self, BallotError>
+    where
+        Self: Sized;
+}
+/*
+impl Base64Serialize for <RistrettoCtx as Ctx>::P {
+    fn serialize(&self) -> String {
+        general_purpose::STANDARD_NO_PAD.encode(self)
+    }
+}
+impl Base64Deserialize for <RistrettoCtx as Ctx>::P {
+    fn deserialize(value: String) -> Result<Self, DecodeError> where Self: Sized {
+        let vec = general_purpose::STANDARD_NO_PAD.decode(value)?;
+        if vec.len() > 30 {
+            return Err(DecodeError::InvalidLength);
+        }
+        let mut array: [u8; 30] = [0; 30];
+        array[..vec.len()].copy_from_slice(&vec);
+
+        Ok(array)
+    }
+}
+*/
+
+impl<T: StrandSerialize> Base64Serialize for T {
+    fn serialize(&self) -> Result<String, BallotError> {
+        let bytes = self
+            .strand_serialize()
+            .map_err(|error| BallotError::Serialization(error.to_string()))?;
+        Ok(general_purpose::STANDARD_NO_PAD.encode(bytes))
+    }
+}
+
+impl<T: StrandDeserialize> Base64Deserialize for T {
+    fn deserialize(value: String) -> Result<Self, BallotError>
+    where
+        Self: Sized,
+    {
+        let bytes_vec = general_purpose::STANDARD_NO_PAD.decode(value).unwrap();
+        StrandDeserialize::strand_deserialize(&bytes_vec.as_slice())
+            .map_err(|error| BallotError::Serialization(error.to_string()))
+    }
+}
+
 pub fn encrypt_plaintext_answer_ecc(
     public_key_element: <RistrettoCtx as Ctx>::E,
     plaintext: <RistrettoCtx as Ctx>::P,
-) -> Result<(Ciphertext<RistrettoCtx>, Schnorr<RistrettoCtx>, <RistrettoCtx as Ctx>::X), BallotError> {
+) -> Result<
+    (
+        Ciphertext<RistrettoCtx>,
+        Schnorr<RistrettoCtx>,
+        <RistrettoCtx as Ctx>::X,
+    ),
+    BallotError,
+> {
     let ctx = RistrettoCtx;
 
     // construct a public key from a provided element
@@ -50,33 +108,34 @@ pub fn encrypt_plaintext_answer_ecc(
     let (c, proof, randomness) = pk.encrypt_and_pok(&encoded, &vec![]).unwrap();
     // verify
     let zkp = Zkp::new(&ctx);
-    let proof_ok = zkp.encryption_popk_verify(c.mhr(), c.gr(), &proof, &vec![]).unwrap();
+    let proof_ok = zkp
+        .encryption_popk_verify(c.mhr(), c.gr(), &proof, &vec![])
+        .unwrap();
     assert!(proof_ok);
 
     Ok((c, proof, randomness))
 }
 
-
 pub fn encrypt_plaintext_answer_ecc_wrapper(
     public_key_element: <RistrettoCtx as Ctx>::E,
     plaintext: <RistrettoCtx as Ctx>::P,
 ) -> Result<(ReplicationChoice, CyphertextProof), BallotError> {
-    let (ciphertext, proof, randomness) = encrypt_plaintext_answer_ecc(public_key_element, plaintext)?;
+    let (ciphertext, proof, randomness) =
+        encrypt_plaintext_answer_ecc(public_key_element, plaintext)?;
     // convert to output format
     Ok((
         ReplicationChoice {
-            alpha: "".to_string(),
+            alpha: Base64Serialize::serialize(&ciphertext)?,
             beta: "".to_string(),
-            plaintext: "".to_string(),
-            randomness: "".to_string(),
+            plaintext: Base64Serialize::serialize(&plaintext)?,
+            randomness: Base64Serialize::serialize(&randomness)?,
         },
         CyphertextProof {
-            challenge: proof.challenge.to_str_radix(10),
-            commitment: proof.commitment.to_str_radix(10),
-            response: proof.response.to_str_radix(10),
+            challenge: Base64Serialize::serialize(&proof.challenge)?,
+            commitment: Base64Serialize::serialize(&proof.commitment)?,
+            response: Base64Serialize::serialize(&proof.response)?,
         },
     ))
-
 }
 
 pub fn encrypt_plaintext_answer(
@@ -328,11 +387,12 @@ pub fn encrypt_decoded_question(
 
 pub fn parse_public_key_ecc(
     election: &ElectionDTO,
-) -> Result<DkgPublicKey::<RistrettoCtx>, BallotError> {
+) -> Result<DkgPublicKey<RistrettoCtx>, BallotError> {
     let public_key_config = election.public_key.ok_or(
-        BallotError::ConsistencyCheck("Missing Public Key".to_string())
+        BallotError::ConsistencyCheck("Missing Public Key".to_string()),
     )?;
-    let pk_bytes = general_purpose::STANDARD_NO_PAD.decode(public_key_config.public_key);
+    let pk_bytes =
+        general_purpose::STANDARD_NO_PAD.decode(public_key_config.public_key);
 
     pk_bytes.strand_deserialize()
 }
@@ -359,10 +419,13 @@ pub fn encrypt_decoded_question_ecc(
         let plaintext = question
             .encode_plaintext_question_to_bytes(&decoded_question)
             .map_err(|_err| {
-            BallotError::Serialization(format!("Error encoding vote choice"))
-        })?;
+                BallotError::Serialization(format!(
+                    "Error encoding vote choice"
+                ))
+            })?;
 
-        let (choice, proof) = encrypt_plaintext_answer_ecc_wrapper(&public_key, plaintext)?;
+        let (choice, proof) =
+            encrypt_plaintext_answer_ecc_wrapper(&public_key, plaintext)?;
         choices.push(choice);
         proofs.push(proof);
     }

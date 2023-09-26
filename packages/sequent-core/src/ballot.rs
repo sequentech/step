@@ -332,7 +332,7 @@ pub struct Pk {
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct PublicKeyConfig {
     pub public_key: String,
-    pub is_demo: bool
+    pub is_demo: bool,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]

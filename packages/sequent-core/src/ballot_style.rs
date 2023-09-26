@@ -62,17 +62,17 @@ pub fn create_ballot_style(
         startDate: None,
         endDate: None,
         pks: None,
-        public_key: Some(election_event.public_key
-            .map(|key| ballot::PublicKeyConfig { 
-                public_key: key,
-                is_demo: false,
-            })
-            .unwrap_or(
-                ballot::PublicKeyConfig { 
+        public_key: Some(
+            election_event
+                .public_key
+                .map(|key| ballot::PublicKeyConfig {
+                    public_key: key,
+                    is_demo: false,
+                })
+                .unwrap_or(ballot::PublicKeyConfig {
                     public_key: DEMO_PUBLIC_KEY.to_string(),
                     is_demo: true,
-                }
-            )
+                }),
         ),
         tallyPipesConfig: None,
         ballotBoxesResultsConfig: None,
