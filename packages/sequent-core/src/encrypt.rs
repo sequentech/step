@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::ballot::*;
-use crate::plaintext::DecodedVoteQuestion;
 use num_bigint::BigUint;
 use num_traits::Num;
 use sha2::{Digest, Sha256};
@@ -11,10 +9,21 @@ use chrono::prelude::*;
 use strand::backend::num_bigint::{
     BigUintP, BigintCtx, DeserializeNumber, SerializeNumber, P2048,
 };
+use strand::serialization::StrandSerialize;
+use strand::signature::StrandSignaturePk;
 use strand::context::Ctx;
 use strand::elgamal::*;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::zkp::{Schnorr, Zkp};
+use braid::protocol2::artifact::DkgPublicKey;
+
+use base64::engine::general_purpose;
+use base64::Engine;
+
+use crate::ballot::*;
+use crate::plaintext::DecodedVoteQuestion;
+use crate::ballot_codec::BallotCodec;
+
 
 quick_error! {
     #[derive(Debug, PartialEq, Eq)]
@@ -45,6 +54,29 @@ pub fn encrypt_plaintext_answer_ecc(
     assert!(proof_ok);
 
     Ok((c, proof, randomness))
+}
+
+
+pub fn encrypt_plaintext_answer_ecc_wrapper(
+    public_key_element: <RistrettoCtx as Ctx>::E,
+    plaintext: <RistrettoCtx as Ctx>::P,
+) -> Result<(ReplicationChoice, CyphertextProof), BallotError> {
+    let (ciphertext, proof, randomness) = encrypt_plaintext_answer_ecc(public_key_element, plaintext)?;
+    // convert to output format
+    Ok((
+        ReplicationChoice {
+            alpha: "".to_string(),
+            beta: "".to_string(),
+            plaintext: "".to_string(),
+            randomness: "".to_string(),
+        },
+        CyphertextProof {
+            challenge: proof.challenge.to_str_radix(10),
+            commitment: proof.commitment.to_str_radix(10),
+            response: proof.response.to_str_radix(10),
+        },
+    ))
+
 }
 
 pub fn encrypt_plaintext_answer(
@@ -255,7 +287,6 @@ pub fn encrypt_decoded_question(
     decoded_questions: &Vec<DecodedVoteQuestion>,
     config: &ElectionDTO,
 ) -> Result<AuditableBallot, BallotError> {
-    use crate::ballot_codec::BallotCodec;
     if config.configuration.questions.len() != decoded_questions.len() {
         return Err(BallotError::ConsistencyCheck(format!(
             "Invalid number of decoded questions {} != {}",
@@ -278,6 +309,60 @@ pub fn encrypt_decoded_question(
         })?;
 
         let (choice, proof) = encrypt_plaintext_answer(&pks[i], plaintext)?;
+        choices.push(choice);
+        proofs.push(proof);
+    }
+
+    let mut auditable_ballot = AuditableBallot {
+        issue_date: get_current_date(),
+        choices: choices,
+        proofs: proofs,
+        ballot_hash: String::from(""),
+        config: config.clone(),
+    };
+
+    auditable_ballot.ballot_hash = hash_to(&auditable_ballot)?;
+
+    Ok(auditable_ballot)
+}
+
+pub fn parse_public_key_ecc(
+    election: &ElectionDTO,
+) -> Result<DkgPublicKey::<RistrettoCtx>, BallotError> {
+    let public_key_config = election.public_key.ok_or(
+        BallotError::ConsistencyCheck("Missing Public Key".to_string())
+    )?;
+    let pk_bytes = general_purpose::STANDARD_NO_PAD.decode(public_key_config.public_key);
+
+    pk_bytes.strand_deserialize()
+}
+
+pub fn encrypt_decoded_question_ecc(
+    decoded_questions: &Vec<DecodedVoteQuestion>,
+    config: &ElectionDTO,
+) -> Result<AuditableBallot, BallotError> {
+    if config.configuration.questions.len() != decoded_questions.len() {
+        return Err(BallotError::ConsistencyCheck(format!(
+            "Invalid number of decoded questions {} != {}",
+            config.configuration.questions.len(),
+            decoded_questions.len()
+        )));
+    }
+
+    let public_key = parse_public_key_ecc(&config)?;
+
+    let mut choices: Vec<ReplicationChoice> = vec![];
+    let mut proofs: Vec<CyphertextProof> = vec![];
+    for i in 0..decoded_questions.len() {
+        let question = config.configuration.questions[i].clone();
+        let decoded_question = decoded_questions[i].clone();
+        let plaintext = question
+            .encode_plaintext_question_to_bytes(&decoded_question)
+            .map_err(|_err| {
+            BallotError::Serialization(format!("Error encoding vote choice"))
+        })?;
+
+        let (choice, proof) = encrypt_plaintext_answer_ecc_wrapper(&public_key, plaintext)?;
         choices.push(choice);
         proofs.push(proof);
     }

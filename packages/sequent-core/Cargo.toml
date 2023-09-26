@@ -19,6 +19,7 @@ crate-type = ["cdylib", "rlib"]
 # serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+base64 = "0.21.0"
 # wasm
 wasm-bindgen = {version = "=0.2.79", features = ['serde-serialize'], optional = true}
 serde-wasm-bindgen = "0.4"
@@ -37,7 +38,8 @@ hex = "0.4"
 # rust to json schema
 schemars = "0.8"
 # strand
-strand = { git = "https://github.com/sequentech/strand", rev = "fff8dc2bf0544da7101215c14b9883898ca4e7da" }
+strand = { path="../strand", features = ["num_bigint"]}
+braid = { path="../braid"}
 num-bigint = { version = "0.4", features = ["rand"] }
 num-traits = "0.2"
 quick-error = "2.0.0"
