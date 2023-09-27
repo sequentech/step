@@ -31,15 +31,16 @@ use crate::error::BallotError;
 use crate::plaintext::DecodedVoteQuestion;
 use crate::util::get_current_date;
 
-pub fn encrypt_plaintext_answer(
-    public_key_element: <RistrettoCtx as Ctx>::E,
-    plaintext: <RistrettoCtx as Ctx>::P,
-) -> Result<(ReplicationChoice<RistrettoCtx>, Schnorr<RistrettoCtx>), BallotError>
-{
-    let ctx = RistrettoCtx;
+pub fn encrypt_plaintext_answer<C: Ctx>(
+    ctx: &C,
+    public_key_element: <C>::E,
+    plaintext: <C>::P,
+) -> Result<(ReplicationChoice<C>, Schnorr<C>), BallotError> {
+    //let ctx = RistrettoCtx;
+    //let ctx: BigintCtx<P2048> = Default::default();
 
     // construct a public key from a provided element
-    let pk = PublicKey::from_element(&public_key_element, &ctx);
+    let pk = PublicKey::from_element(&public_key_element, ctx);
 
     let encoded = ctx.encode(&plaintext).unwrap();
 
@@ -47,7 +48,7 @@ pub fn encrypt_plaintext_answer(
     let (ciphertext, proof, randomness) =
         pk.encrypt_and_pok(&encoded, &vec![]).unwrap();
     // verify
-    let zkp = Zkp::new(&ctx);
+    let zkp = Zkp::new(ctx);
     let proof_ok = zkp
         .encryption_popk_verify(
             ciphertext.mhr(),
@@ -69,9 +70,9 @@ pub fn encrypt_plaintext_answer(
     ))
 }
 
-pub fn parse_public_key(
+pub fn parse_public_key<C: Ctx>(
     election: &ElectionDTO,
-) -> Result<DkgPublicKey<RistrettoCtx>, BallotError> {
+) -> Result<DkgPublicKey<C>, BallotError> {
     let public_key_config =
         election
             .public_key
@@ -81,7 +82,7 @@ pub fn parse_public_key(
             ))?;
     Base64Deserialize::deserialize(public_key_config.public_key)
 }
-
+/*
 pub fn to_30bytes(plaintext: Vec<u8>) -> Result<[u8; 30], BallotError> {
     let len = plaintext.len();
 
@@ -98,11 +99,13 @@ pub fn to_30bytes(plaintext: Vec<u8>) -> Result<[u8; 30], BallotError> {
 
     Ok(array)
 }
+*/
 
-pub fn encrypt_decoded_question(
+pub fn encrypt_decoded_question<C: Ctx>(
+    ctx: &C,
     decoded_questions: &Vec<DecodedVoteQuestion>,
     config: &ElectionDTO,
-) -> Result<AuditableBallot<RistrettoCtx>, BallotError> {
+) -> Result<AuditableBallot<C>, BallotError> {
     if config.configuration.questions.len() != decoded_questions.len() {
         return Err(BallotError::ConsistencyCheck(format!(
             "Invalid number of decoded questions {} != {}",
@@ -111,24 +114,22 @@ pub fn encrypt_decoded_question(
         )));
     }
 
-    let public_key = parse_public_key(&config)?;
+    let public_key: DkgPublicKey<C> = parse_public_key(&config)?;
 
-    let mut choices: Vec<ReplicationChoice<RistrettoCtx>> = vec![];
-    let mut proofs: Vec<Schnorr<RistrettoCtx>> = vec![];
+    let mut choices: Vec<ReplicationChoice<C>> = vec![];
+    let mut proofs: Vec<Schnorr<C>> = vec![];
     for i in 0..decoded_questions.len() {
         let question = config.configuration.questions[i].clone();
         let decoded_question = decoded_questions[i].clone();
         let plaintext = question
-            .encode_plaintext_question_to_bytes(&decoded_question)
+            .encode_plaintext_question::<C>(&decoded_question)
             .map_err(|_err| {
                 BallotError::Serialization(format!(
                     "Error encoding vote choice"
                 ))
             })?;
-        let plaintext_30b = to_30bytes(plaintext)?;
-
         let (choice, proof) =
-            encrypt_plaintext_answer(public_key.pk.clone(), plaintext_30b)?;
+            encrypt_plaintext_answer(ctx, public_key.pk.clone(), plaintext)?;
         choices.push(choice);
         proofs.push(proof);
     }

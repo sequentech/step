@@ -29,18 +29,6 @@ use crate::plaintext::DecodedVoteQuestion;
 use crate::error::BallotError;
 use crate::util::get_current_date;
 
-quick_error! {
-    #[derive(Debug, PartialEq, Eq)]
-    pub enum BallotError {
-        ParseBigUint(uint_str: String, message: String) {}
-        CryptographicCheck(message: String) {}
-        ConsistencyCheck(message: String) {}
-        Serialization(message: String) {}
-    }
-}
-
-
-
 pub fn encrypt_plaintext_answer(
     public_key: &Pk,
     plaintext_str: String,
