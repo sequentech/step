@@ -125,7 +125,7 @@ pub fn encrypt_decoded_question<C: Ctx>(
             .encode_plaintext_question::<C>(&decoded_question)
             .map_err(|_err| {
                 BallotError::Serialization(format!(
-                    "Error encoding vote choice"
+                    "Error encoding plaintext"
                 ))
             })?;
         let (choice, proof) =
@@ -143,8 +143,12 @@ pub fn encrypt_decoded_question<C: Ctx>(
         config: config.clone(),
     };
 
-    // TODO
-    // auditable_ballot.ballot_hash = hash_to(&auditable_ballot)?;
+    auditable_ballot.ballot_hash = hash_to(&auditable_ballot)?;
 
     Ok(auditable_ballot)
+}
+
+pub fn hash_to<C: Ctx>(auditable_ballot: AuditableBallot<C>) -> Result<String, BallotError> {
+    let hashable_ballot = HashableBallot::from(auditable_ballot);
+    Base64Serialize::serialize(&hashable_ballot)
 }
