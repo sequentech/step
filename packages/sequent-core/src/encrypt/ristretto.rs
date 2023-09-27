@@ -82,26 +82,42 @@ pub fn parse_public_key<C: Ctx>(
     Base64Deserialize::deserialize(public_key_config.public_key)
 }
 
+pub fn recreate_encrypt_cyphertext<C: Ctx>(
+    ctx: &C,
+    ballot: &AuditableBallot<C>,
+) -> Result<Vec<ReplicationChoice<C>>, BallotError> {
+    let public_key = parse_public_key::<C>(&ballot.config)?;
+    // check ballot version
+    // sanity checks for number of answers/choices
+    if ballot.choices.len() != ballot.config.configuration.questions.len() {
+        return Err(BallotError::ConsistencyCheck(String::from(
+            "Number of election questions should match number of answers in the ballot",
+        )));
+    }
+
+    ballot
+        .choices
+        .clone()
+        .into_iter()
+        .map(|choice| recreate_encrypt_answer(ctx, &public_key.pk, &choice))
+        .collect::<Vec<Result<ReplicationChoice<C>, BallotError>>>()
+        .into_iter()
+        .collect()
+}
+
 fn recreate_encrypt_answer<C: Ctx>(
     ctx: &C,
     public_key_element: &C::E,
     choice: &ReplicationChoice<C>,
 ) -> Result<ReplicationChoice<C>, BallotError> {
     // construct a public key from a provided element
-    let pk = PublicKey::from_element(public_key_element, ctx);
+    let public_key = PublicKey::from_element(public_key_element, ctx);
 
     let encoded = ctx.encode(&choice.plaintext).unwrap();
 
-    /*
-    if KeyType::P2048 != public_key.key_type {
-        return Err(BallotError::ConsistencyCheck(String::from(
-            "Invalid key type",
-        )));
-    }
-    */
-
     // encrypt / create ciphertext
-    let ciphertext = pk.encrypt_with_randomness(&encoded, &choice.randomness);
+    let ciphertext =
+        public_key.encrypt_with_randomness(&encoded, &choice.randomness);
 
     // convert to output format
     Ok(ReplicationChoice {
