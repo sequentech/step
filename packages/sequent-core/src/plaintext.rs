@@ -51,7 +51,7 @@ pub fn map_to_decoded_question<C: Ctx>(
     }
     for i in 0..ballot.choices.len() {
         let question = ballot.config.configuration.questions[i].clone();
-        let replication_choice: &ReplicationChoice = &ballot.choices[i];
+        let replication_choice: &ReplicationChoice<C> = &ballot.choices[i];
 
         let decoded_plaintext = question
             .decode_plaintext_question(replication_choice.plaintext.as_str())?;

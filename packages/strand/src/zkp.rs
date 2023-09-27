@@ -350,7 +350,7 @@ impl<C: Ctx> Zkp<C> {
 }
 
 /// A proof of knowledge of discrete logarithm.
-#[derive(Eq, PartialEq, BorshSerialize, BorshDeserialize, Debug)]
+#[derive(Eq, PartialEq, BorshSerialize, BorshDeserialize, Debug, Clone)]
 pub struct Schnorr<C: Ctx> {
     pub commitment: C::E,
     pub challenge: C::X,

@@ -9,6 +9,8 @@ use num_bigint::BigUint;
 use num_traits::{Num, ToPrimitive};
 use std::collections::HashMap;
 use std::str;
+use strand::context::Ctx;
+use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawBallotQuestion {
@@ -17,13 +19,13 @@ pub struct RawBallotQuestion {
 }
 
 pub trait BallotCodec {
-    fn encode_plaintext_question(
+    fn encode_plaintext_question<C: Ctx>(
         &self,
         plaintext: &DecodedVoteQuestion,
-    ) -> Result<String, String>;
-    fn decode_plaintext_question(
+    ) -> Result<C::P, String>;
+    fn decode_plaintext_question<C: Ctx>(
         &self,
-        code: &str,
+        code: &C::P,
     ) -> Result<DecodedVoteQuestion, String>;
 
     fn encode_plaintext_question_to_bytes(
@@ -91,23 +93,24 @@ impl Question {
 }
 
 impl BallotCodec for Question {
-    fn encode_plaintext_question(
+    fn encode_plaintext_question<C: Ctx>(
         &self,
         plaintext: &DecodedVoteQuestion,
-    ) -> Result<String, String> {
-        let encoded_bigint = self.encode_plaintext_question_bigint(plaintext);
-
-        encoded_bigint.map(|value| value.to_str_radix(10))
+    ) -> Result<C::P, String> {
+        let plaintext_bytes =
+            self.encode_plaintext_question_to_bytes(plaintext)?;
+        C::P::strand_deserialize(&plaintext_bytes)
+            .map_err(|error| error.to_string())
     }
 
-    fn decode_plaintext_question(
+    fn decode_plaintext_question<C: Ctx>(
         &self,
-        code: &str,
+        code: &C::P,
     ) -> Result<DecodedVoteQuestion, String> {
-        let encoded_bigint = BigUint::from_str_radix(code, 10)
-            .map_err(|_| "Error parsing code".to_string())?;
+        let plaintext_bytes =
+            code.strand_serialize().map_err(|error| error.to_string())?;
 
-        self.decode_plaintext_question_bigint(&encoded_bigint)
+        self.decode_plaintext_question_from_bytes(&plaintext_bytes)
     }
 
     fn encode_plaintext_question_to_bytes(
