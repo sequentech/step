@@ -7,6 +7,7 @@ use crate::hasura_types::Uuid;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use strand::context::Ctx;
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub enum InvalidPlaintextErrorType {
@@ -37,8 +38,8 @@ pub struct DecodedVoteChoice {
     pub write_in_text: Option<String>,
 }
 
-pub fn map_to_decoded_question(
-    ballot: &AuditableBallot,
+pub fn map_to_decoded_question<C: Ctx>(
+    ballot: &AuditableBallot<C>,
 ) -> Result<Vec<DecodedVoteQuestion>, String> {
     let mut decoded_questions = vec![];
     if ballot.config.configuration.questions.len() != ballot.choices.len() {

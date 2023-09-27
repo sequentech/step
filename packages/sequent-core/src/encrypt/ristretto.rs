@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+/*
 use num_bigint::BigUint;
 use num_traits::Num;
 use sha2::{Digest, Sha256};
@@ -63,22 +64,19 @@ pub fn encrypt_plaintext_answer_ecc(
 pub fn encrypt_plaintext_answer_ecc_wrapper(
     public_key_element: <RistrettoCtx as Ctx>::E,
     plaintext: <RistrettoCtx as Ctx>::P,
-) -> Result<(ReplicationChoice, CyphertextProof), BallotError> {
+) -> Result<(ReplicationChoice<RistrettoCtx>, Schnorr<RistrettoCtx>), BallotError>
+{
     let (ciphertext, proof, randomness) =
         encrypt_plaintext_answer_ecc(public_key_element, plaintext)?;
     // convert to output format
     Ok((
         ReplicationChoice {
-            alpha: Base64Serialize::serialize(&ciphertext)?, // gr
-            beta: "".to_string(),                            // mhr
+            gr: Base64Serialize::serialize(&ciphertext)?, // gr/alpha
+            mhr: "".to_string(),                          // mhr/beta
             plaintext: Base64Serialize::serialize(&plaintext)?,
             randomness: Base64Serialize::serialize(&randomness)?,
         },
-        CyphertextProof {
-            challenge: Base64Serialize::serialize(&proof.challenge)?,
-            commitment: Base64Serialize::serialize(&proof.commitment)?,
-            response: Base64Serialize::serialize(&proof.response)?,
-        },
+        proof,
     ))
 }
 
@@ -93,10 +91,6 @@ pub fn parse_public_key_ecc(
                 "Missing Public Key".to_string(),
             ))?;
     Base64Deserialize::deserialize(public_key_config.public_key)
-    /*let pk_bytes =
-    general_purpose::STANDARD_NO_PAD.decode(public_key_config.public_key);
-
-    StrandDeserialize::strand_deserialize(()pk_bytes.as_slice())*/
 }
 
 pub fn to_30bytes(plaintext: Vec<u8>) -> Result<[u8; 30], BallotError> {
@@ -119,7 +113,7 @@ pub fn to_30bytes(plaintext: Vec<u8>) -> Result<[u8; 30], BallotError> {
 pub fn encrypt_decoded_question_ecc(
     decoded_questions: &Vec<DecodedVoteQuestion>,
     config: &ElectionDTO,
-) -> Result<AuditableBallot, BallotError> {
+) -> Result<AuditableBallot<RistrettoCtx>, BallotError> {
     if config.configuration.questions.len() != decoded_questions.len() {
         return Err(BallotError::ConsistencyCheck(format!(
             "Invalid number of decoded questions {} != {}",
@@ -131,7 +125,7 @@ pub fn encrypt_decoded_question_ecc(
     let public_key = parse_public_key_ecc(&config)?;
 
     let mut choices: Vec<ReplicationChoice> = vec![];
-    let mut proofs: Vec<CyphertextProof> = vec![];
+    let mut proofs: Vec<Schnorr<RistrettoCtx>> = vec![];
     for i in 0..decoded_questions.len() {
         let question = config.configuration.questions[i].clone();
         let decoded_question = decoded_questions[i].clone();
@@ -166,3 +160,4 @@ pub fn encrypt_decoded_question_ecc(
 
     Ok(auditable_ballot)
 }
+*/
