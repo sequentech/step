@@ -14,6 +14,7 @@ use strand::backend::num_bigint::{
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::*;
+use strand::hashing::rustcrypto;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::StrandSignaturePk;
 use strand::util::StrandError;
@@ -36,8 +37,9 @@ pub fn encrypt_plaintext_answer<C: Ctx>(
     public_key_element: <C>::E,
     plaintext: <C>::P,
 ) -> Result<(ReplicationChoice<C>, Schnorr<C>), BallotError> {
-    //let ctx = RistrettoCtx;
-    //let ctx: BigintCtx<P2048> = Default::default();
+    // Possible contexts:
+    // let ctx = RistrettoCtx;
+    // let ctx: BigintCtx<P2048> = Default::default();
 
     // construct a public key from a provided element
     let pk = PublicKey::from_element(&public_key_element, ctx);
@@ -195,5 +197,10 @@ pub fn hash_to<C: Ctx>(
     auditable_ballot: &AuditableBallot<C>,
 ) -> Result<String, BallotError> {
     let hashable_ballot = HashableBallot::from(auditable_ballot);
-    Base64Serialize::serialize(&hashable_ballot)
+    let bytes = hashable_ballot
+        .strand_serialize()
+        .map_err(|error| BallotError::Serialization(error.to_string()))?;
+    let hash_bytes = rustcrypto::hash(bytes.as_slice())
+        .map_err(|error| BallotError::Serialization(error.to_string()))?;
+    Base64Serialize::serialize(&hash_bytes)
 }

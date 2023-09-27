@@ -15,7 +15,7 @@ pub mod backend;
 /// ElGamal encryption.
 pub mod elgamal;
 /// Hashing.
-pub(crate) mod hashing;
+pub mod hashing;
 /// Serialization frontend. StrandVectors for parallel serialization.
 #[doc(hidden)]
 pub mod serialization;
