@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-/*
+
 use num_bigint::BigUint;
 use num_traits::Num;
 use sha2::{Digest, Sha256};
@@ -31,17 +31,11 @@ use crate::error::BallotError;
 use crate::plaintext::DecodedVoteQuestion;
 use crate::util::get_current_date;
 
-pub fn encrypt_plaintext_answer_ecc(
+pub fn encrypt_plaintext_answer(
     public_key_element: <RistrettoCtx as Ctx>::E,
     plaintext: <RistrettoCtx as Ctx>::P,
-) -> Result<
-    (
-        Ciphertext<RistrettoCtx>,
-        Schnorr<RistrettoCtx>,
-        <RistrettoCtx as Ctx>::X,
-    ),
-    BallotError,
-> {
+) -> Result<(ReplicationChoice<RistrettoCtx>, Schnorr<RistrettoCtx>), BallotError>
+{
     let ctx = RistrettoCtx;
 
     // construct a public key from a provided element
@@ -50,37 +44,32 @@ pub fn encrypt_plaintext_answer_ecc(
     let encoded = ctx.encode(&plaintext).unwrap();
 
     // encrypt and prove knowledge of plaintext (enc + pok)
-    let (c, proof, randomness) = pk.encrypt_and_pok(&encoded, &vec![]).unwrap();
+    let (ciphertext, proof, randomness) =
+        pk.encrypt_and_pok(&encoded, &vec![]).unwrap();
     // verify
     let zkp = Zkp::new(&ctx);
     let proof_ok = zkp
-        .encryption_popk_verify(c.mhr(), c.gr(), &proof, &vec![])
+        .encryption_popk_verify(
+            ciphertext.mhr(),
+            ciphertext.gr(),
+            &proof,
+            &vec![],
+        )
         .unwrap();
     assert!(proof_ok);
 
-    Ok((c, proof, randomness))
-}
-
-pub fn encrypt_plaintext_answer_ecc_wrapper(
-    public_key_element: <RistrettoCtx as Ctx>::E,
-    plaintext: <RistrettoCtx as Ctx>::P,
-) -> Result<(ReplicationChoice<RistrettoCtx>, Schnorr<RistrettoCtx>), BallotError>
-{
-    let (ciphertext, proof, randomness) =
-        encrypt_plaintext_answer_ecc(public_key_element, plaintext)?;
-    // convert to output format
     Ok((
         ReplicationChoice {
-            gr: Base64Serialize::serialize(&ciphertext)?, // gr/alpha
-            mhr: "".to_string(),                          // mhr/beta
-            plaintext: Base64Serialize::serialize(&plaintext)?,
-            randomness: Base64Serialize::serialize(&randomness)?,
+            gr: ciphertext.gr,   // gr/alpha
+            mhr: ciphertext.mhr, // mhr/beta
+            plaintext: plaintext,
+            randomness: randomness,
         },
         proof,
     ))
 }
 
-pub fn parse_public_key_ecc(
+pub fn parse_public_key(
     election: &ElectionDTO,
 ) -> Result<DkgPublicKey<RistrettoCtx>, BallotError> {
     let public_key_config =
@@ -110,7 +99,7 @@ pub fn to_30bytes(plaintext: Vec<u8>) -> Result<[u8; 30], BallotError> {
     Ok(array)
 }
 
-pub fn encrypt_decoded_question_ecc(
+pub fn encrypt_decoded_question(
     decoded_questions: &Vec<DecodedVoteQuestion>,
     config: &ElectionDTO,
 ) -> Result<AuditableBallot<RistrettoCtx>, BallotError> {
@@ -122,9 +111,9 @@ pub fn encrypt_decoded_question_ecc(
         )));
     }
 
-    let public_key = parse_public_key_ecc(&config)?;
+    let public_key = parse_public_key(&config)?;
 
-    let mut choices: Vec<ReplicationChoice> = vec![];
+    let mut choices: Vec<ReplicationChoice<RistrettoCtx>> = vec![];
     let mut proofs: Vec<Schnorr<RistrettoCtx>> = vec![];
     for i in 0..decoded_questions.len() {
         let question = config.configuration.questions[i].clone();
@@ -138,10 +127,8 @@ pub fn encrypt_decoded_question_ecc(
             })?;
         let plaintext_30b = to_30bytes(plaintext)?;
 
-        let (choice, proof) = encrypt_plaintext_answer_ecc_wrapper(
-            public_key.pk.clone(),
-            plaintext_30b,
-        )?;
+        let (choice, proof) =
+            encrypt_plaintext_answer(public_key.pk.clone(), plaintext_30b)?;
         choices.push(choice);
         proofs.push(proof);
     }
@@ -160,4 +147,3 @@ pub fn encrypt_decoded_question_ecc(
 
     Ok(auditable_ballot)
 }
-*/

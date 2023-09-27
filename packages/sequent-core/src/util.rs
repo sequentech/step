@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
+use crate::base64::Base64Deserialize;
 use chrono::{DateTime, Local};
 use std::fs;
 use strand::context::Ctx;
@@ -9,7 +10,7 @@ use strand::context::Ctx;
 pub fn read_ballot_fixture<C: Ctx>() -> AuditableBallot<C> {
     let contents = fs::read_to_string("fixtures/ballot.json")
         .expect("Something went wrong reading the file");
-    serde_json::from_str(&contents).unwrap()
+    Base64Deserialize::deserialize(contents).unwrap()
 }
 
 pub fn get_current_date() -> String {
