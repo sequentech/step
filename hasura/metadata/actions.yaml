@@ -54,7 +54,8 @@ actions:
             "tenant_id": {{ head(removeNulls([$session_variables?['x-hasura-tenant-id'],""])) }},
             "election_event_id": {{ head(removeNulls([$session_variables?['x-hasura-election-event-id'],"defaultdb"])) }},
             "limit": {{$body.input?.limit}},
-            "offset": {{$body.input?.offset}}
+            "offset": {{$body.input?.offset}},
+            "order_by": {{$body.input?.order_by}}
           }
       template_engine: Kriti
       version: 2
@@ -63,9 +64,18 @@ actions:
   - role: admin-user
   comment: List PostgreSQL audit logs
 custom_types:
-  enums: []
+  enums:
+  - name: OrderDirection
+    values:
+    - description: null
+      is_deprecated: null
+      value: asc
+    - description: null
+      is_deprecated: null
+      value: desc
   input_objects:
   - name: TemplateInput
+  - name: PgAuditOrderBy
   objects:
   - name: TemplateOutput
   - name: FetchDocumentOutput

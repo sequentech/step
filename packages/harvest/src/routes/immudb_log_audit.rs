@@ -12,6 +12,7 @@ use rocket::serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::instrument;
 use std::env;
+use std::collections::HashMap;
 
 use crate::connection;
 
@@ -33,13 +34,66 @@ macro_rules! assign_value {
     };
 }
 
+// Enumeration for the valid fields in the immudb table
+#[derive(Debug, Deserialize, Hash, PartialEq, Eq)]
+#[serde(crate = "rocket::serde", rename_all = "snake_case")]
+enum OrderField {
+    Id,
+    AuditType,
+    Class,
+    Command,
+    Dbname,
+    ServerTimestamp,
+    SessionId,
+    Statement,
+    User
+}
+
+// Enumeration for the valid order directions
+#[derive(Debug, Deserialize)]
+#[serde(crate = "rocket::serde", rename_all = "lowercase")]
+enum OrderDirection {
+    Asc,
+    Desc,
+}
+
 #[derive(Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct GetPgauditBody {
     tenant_id: String,
     election_event_id: String,
     limit: Option<i64>,
-    offset: Option<i64>
+    offset: Option<i64>,
+    order_by: Option<HashMap<OrderField, OrderDirection>>
+}
+
+impl GetPgauditBody {
+    // Returns the SQL clauses related to the request
+    fn as_sql_clauses(&self) -> String {
+        let mut clauses = Vec::new();
+
+        // Handle order_by
+        if let Some(order_by_map) = &self.order_by {
+            let order_clauses: Vec<String> = order_by_map
+                .iter()
+                .map(|(field, direction)| format!("{:?} {:?}", field, direction))
+                .collect();
+            if !order_clauses.is_empty() {
+                clauses.push(format!("ORDER BY {}", order_clauses.join(", ")));
+            }
+        }
+
+        // Handle limit
+        let limit = self.limit.unwrap_or(10);
+        clauses.push(format!("LIMIT {}", std::cmp::min(limit, 500)));
+
+        // Handle offset
+        if let Some(offset) = self.offset {
+            clauses.push(format!("OFFSET {}", std::cmp::max(offset, 0)));
+        }
+
+        clauses.join(" ")
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -188,11 +242,9 @@ pub async fn list_pgaudit(
             statement,
             user
         FROM pgaudit
-        ORDER BY id ASC
-        LIMIT {} OFFSET {}
+        {}
         "#,
-        limit,
-        offset,
+        input.as_sql_clauses()
     );
     let sql_query_response = client.sql_query(&sql, vec![]).await?;
     let items = sql_query_response
@@ -227,4 +279,42 @@ pub async fn list_pgaudit(
             aggregate: aggregate
         }
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_as_sql_clauses() {
+        let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
+            "tenant_id": "some_tenant",
+            "election_event_id": "some_event",
+            "order_by": {"id":"asc"}
+        })).unwrap();
+        assert_eq!(
+            get_pgaudit_body.as_sql_clauses(),
+            "ORDER BY Id Asc LIMIT 10"
+        );
+
+        let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
+            "tenant_id": "some_tenant",
+            "election_event_id": "some_event",
+            "limit": 15,
+            "offset": 5,
+            "order_by": {"id":"asc"}
+        })).unwrap();
+        assert_eq!(
+            get_pgaudit_body.as_sql_clauses(),
+            "ORDER BY Id Asc LIMIT 15 OFFSET 5"
+        );
+
+        let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
+            "tenant_id": "some_tenant",
+            "election_event_id": "some_event",
+            "limit": 550
+        })).unwrap();
+        assert_eq!(get_pgaudit_body.as_sql_clauses(), "LIMIT 500");
+    }
 }
