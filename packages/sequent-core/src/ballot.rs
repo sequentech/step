@@ -23,8 +23,7 @@ pub struct BallotChoice {
 */
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ReplicationChoice<C: Ctx> {
-    pub mhr: C::E,
-    pub gr: C::E,
+    pub ciphertext: Ciphertext<C>,
     pub plaintext: C::P,
     pub randomness: C::X,
 }
@@ -558,15 +557,6 @@ pub struct HashableBallot<C: Ctx> {
     pub proofs: Vec<Schnorr<C>>,
 }
 
-impl<C: Ctx> From<ReplicationChoice<C>> for Ciphertext<C> {
-    fn from(value: ReplicationChoice<C>) -> Ciphertext<C> {
-        Ciphertext {
-            gr: value.gr.clone(),   // gr
-            mhr: value.mhr.clone(), // mhr
-        }
-    }
-}
-
 impl<C: Ctx> From<&AuditableBallot<C>> for HashableBallot<C> {
     fn from(value: &AuditableBallot<C>) -> HashableBallot<C> {
         assert!(TYPES_VERSION == value.version);
@@ -576,7 +566,7 @@ impl<C: Ctx> From<&AuditableBallot<C>> for HashableBallot<C> {
                 .choices
                 .clone()
                 .into_iter()
-                .map(|choice| Ciphertext::from(choice))
+                .map(|choice| choice.ciphertext)
                 .collect(),
             issue_date: value.issue_date.clone(),
             proofs: value.proofs.clone(),

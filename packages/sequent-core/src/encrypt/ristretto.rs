@@ -61,8 +61,7 @@ pub fn encrypt_plaintext_answer<C: Ctx>(
 
     Ok((
         ReplicationChoice {
-            gr: ciphertext.gr,   // gr/alpha
-            mhr: ciphertext.mhr, // mhr/beta
+            ciphertext: ciphertext,
             plaintext: plaintext,
             randomness: randomness,
         },
@@ -101,13 +100,12 @@ fn recreate_encrypt_answer<C: Ctx>(
     }
     */
 
-    // encrypt / create cyphertext
-    let cyphertext = pk.encrypt_with_randomness(&encoded, &choice.randomness);
+    // encrypt / create ciphertext
+    let ciphertext = pk.encrypt_with_randomness(&encoded, &choice.randomness);
 
     // convert to output format
     Ok(ReplicationChoice {
-        gr: cyphertext.gr.clone(),
-        mhr: cyphertext.mhr.clone(),
+        ciphertext: ciphertext,
         plaintext: choice.plaintext.clone(),
         randomness: choice.randomness.clone(),
     })
