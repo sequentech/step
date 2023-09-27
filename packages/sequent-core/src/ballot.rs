@@ -567,8 +567,8 @@ impl<C: Ctx> From<ReplicationChoice<C>> for Ciphertext<C> {
     }
 }
 
-impl<C: Ctx> From<AuditableBallot<C>> for HashableBallot<C> {
-    fn from(value: AuditableBallot<C>) -> HashableBallot<C> {
+impl<C: Ctx> From<&AuditableBallot<C>> for HashableBallot<C> {
+    fn from(value: &AuditableBallot<C>) -> HashableBallot<C> {
         assert!(TYPES_VERSION == value.version);
         HashableBallot {
             version: TYPES_VERSION,

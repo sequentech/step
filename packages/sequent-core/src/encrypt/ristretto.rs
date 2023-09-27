@@ -51,8 +51,8 @@ pub fn encrypt_plaintext_answer<C: Ctx>(
     let zkp = Zkp::new(ctx);
     let proof_ok = zkp
         .encryption_popk_verify(
-            ciphertext.mhr(),
-            ciphertext.gr(),
+            &ciphertext.mhr,
+            &ciphertext.gr,
             &proof,
             &vec![],
         )
@@ -82,6 +82,37 @@ pub fn parse_public_key<C: Ctx>(
             ))?;
     Base64Deserialize::deserialize(public_key_config.public_key)
 }
+
+fn recreate_encrypt_answer<C: Ctx>(
+    ctx: &C,
+    public_key_element: &C::E,
+    choice: &ReplicationChoice<C>,
+) -> Result<ReplicationChoice<C>, BallotError> {
+    // construct a public key from a provided element
+    let pk = PublicKey::from_element(public_key_element, ctx);
+
+    let encoded = ctx.encode(&choice.plaintext).unwrap();
+
+    /*
+    if KeyType::P2048 != public_key.key_type {
+        return Err(BallotError::ConsistencyCheck(String::from(
+            "Invalid key type",
+        )));
+    }
+    */
+
+    // encrypt / create cyphertext
+    let cyphertext = pk.encrypt_with_randomness(&encoded, &choice.randomness);
+
+    // convert to output format
+    Ok(ReplicationChoice {
+        gr: cyphertext.gr.clone(),
+        mhr: cyphertext.mhr.clone(),
+        plaintext: choice.plaintext.clone(),
+        randomness: choice.randomness.clone(),
+    })
+}
+
 /*
 pub fn to_30bytes(plaintext: Vec<u8>) -> Result<[u8; 30], BallotError> {
     let len = plaintext.len();
@@ -124,9 +155,7 @@ pub fn encrypt_decoded_question<C: Ctx>(
         let plaintext = question
             .encode_plaintext_question::<C>(&decoded_question)
             .map_err(|_err| {
-                BallotError::Serialization(format!(
-                    "Error encoding plaintext"
-                ))
+                BallotError::Serialization(format!("Error encoding plaintext"))
             })?;
         let (choice, proof) =
             encrypt_plaintext_answer(ctx, public_key.pk.clone(), plaintext)?;
@@ -148,7 +177,9 @@ pub fn encrypt_decoded_question<C: Ctx>(
     Ok(auditable_ballot)
 }
 
-pub fn hash_to<C: Ctx>(auditable_ballot: AuditableBallot<C>) -> Result<String, BallotError> {
+pub fn hash_to<C: Ctx>(
+    auditable_ballot: &AuditableBallot<C>,
+) -> Result<String, BallotError> {
     let hashable_ballot = HashableBallot::from(auditable_ballot);
     Base64Serialize::serialize(&hashable_ballot)
 }
