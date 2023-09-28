@@ -4,7 +4,9 @@
 use crate::ballot::*;
 use crate::encrypt::*;
 use crate::plaintext::DecodedVoteQuestion;
+use crate::base64::Base64Serialize;
 use wasm_bindgen::prelude::*;
+use strand::backend::ristretto::RistrettoCtx;
 extern crate console_error_panic_hook;
 use serde_wasm_bindgen;
 use std::panic;
@@ -48,12 +50,17 @@ pub fn encrypt_decoded_question_js(
         serde_wasm_bindgen::from_value(election_json)
             .map_err(|err| format!("Error parsing election: {}", err))?;
 
+    // create context
+    let ctx = RistrettoCtx;
+
     // encrypt ballot
     let auditable_ballot =
-        encrypt_decoded_question(&decoded_questions, &election)
+        encrypt_decoded_question::<RistrettoCtx>(&ctx, &decoded_questions, &election)
             .map_err(|err| format!("{:?}", err))?;
+    
+    let auditable_ballot_serialized: String = Base64Serialize::serialize(&auditable_ballot);
 
     // convert to json output
-    serde_wasm_bindgen::to_value(&auditable_ballot)
+    serde_wasm_bindgen::to_value(&auditable_ballot_serialized)
         .map_err(|err| format!("{:?}", err))
 }

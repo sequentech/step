@@ -460,24 +460,6 @@ pub struct ElectionConfig {
     Debug,
     Clone,
 )]
-pub struct Pk {
-    pub q: String,
-    pub p: String,
-    pub y: String,
-    pub g: String,
-}
-
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
-)]
 pub struct PublicKeyConfig {
     pub public_key: String,
     pub is_demo: bool,
@@ -500,7 +482,6 @@ pub struct ElectionDTO {
     pub state: String,
     pub startDate: Option<String>,
     pub endDate: Option<String>,
-    pub pks: Option<String>,
     pub public_key: Option<PublicKeyConfig>,
     pub tallyPipesConfig: Option<String>,
     pub ballotBoxesResultsConfig: Option<String>,

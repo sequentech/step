@@ -61,7 +61,6 @@ pub fn create_ballot_style(
         state: "started".to_string(),
         startDate: None,
         endDate: None,
-        pks: None,
         public_key: Some(
             election_event
                 .public_key

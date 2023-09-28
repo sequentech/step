@@ -6,7 +6,6 @@ use wasm_bindgen::prelude::*;
 
 use crate::backend::malachite::{MalachiteCtx, P2048 as MP2048};
 use crate::backend::num_bigint::{BigintCtx, P2048};
-use crate::backend::ristretto;
 use crate::backend::ristretto::RistrettoCtx;
 use crate::context::Ctx;
 use crate::elgamal::{PrivateKey, PublicKey};
@@ -15,6 +14,7 @@ use crate::serialization::StrandSerialize;
 use crate::shuffler::Shuffler;
 use crate::util;
 use crate::zkp::Zkp;
+use crate::util::StrandError;
 
 #[wasm_bindgen]
 extern "C" {
@@ -96,12 +96,13 @@ pub fn bench_enc_pok(n: u32) {
     bench_enc_pok_generic(ctx, plaintext, n);
 
     let ctx: BigintCtx<P2048> = Default::default();
-    let plaintext = ctx.rnd_plaintext();
+    let mut rng = ctx.get_rng();
+    let plaintext = ctx.rnd_plaintext(&mut rng);
     postMessage("> Bigint enc_pok");
     bench_enc_pok_generic(ctx, plaintext, n);
 
     let ctx: MalachiteCtx<MP2048> = Default::default();
-    let plaintext = ctx.rnd_plaintext();
+    let plaintext = ctx.rnd_plaintext(&mut rng);
     postMessage("> Malachite enc_pok");
     bench_enc_pok_generic(ctx, plaintext, n);
 }
@@ -116,7 +117,7 @@ fn bench_shuffle_serialization_generic<C: Ctx>(ctx: C, n: usize) {
 
     log("generators..");
     let now = performance.now();
-    let hs = ctx.generators(es.len() + 1, &seed);
+    let hs = ctx.generators(es.len() + 1, &seed).unwrap();
     let shuffler = Shuffler {
         pk: &pk,
         generators: &hs,
@@ -127,7 +128,7 @@ fn bench_shuffle_serialization_generic<C: Ctx>(ctx: C, n: usize) {
     postMessage(&format!("shuffle n = {n}, proving.."));
     let now = performance.now();
     let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
-    let proof = shuffler.gen_proof(&es, &e_primes, &rs, &perm, &[]).unwrap();
+    let proof = shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
     postMessage(&format!(
         "prove {:.3} c / s",
         n as f64 / ((performance.now() - now) / 1000.0)
@@ -155,8 +156,9 @@ fn bench_shuffle_serialization_generic<C: Ctx>(ctx: C, n: usize) {
 
     log("serialization raw");
     let mut v = vec![];
+    let mut rng = ctx.get_rng();
     for _ in 0..n {
-        v.push(ctx.rnd());
+        v.push(ctx.rnd(&mut rng));
     }
     let now = performance.now();
     for next in v {
@@ -179,10 +181,11 @@ fn bench_enc_pok_generic<C: Ctx>(ctx: C, data: C::P, n: u32) {
     log(&format!("{}", performance.now() - now));
 
     let total = performance.now();
+    let mut rng = ctx.get_rng();
     for _ in 0..n {
         log("encrypt..");
         let now = performance.now();
-        let randomness = ctx.rnd_exp();
+        let randomness = ctx.rnd_exp(&mut rng);
         let c = pk.encrypt_with_randomness(&plaintext, &randomness);
         log(&format!("{}", performance.now() - now));
         log("prove..");
@@ -198,8 +201,9 @@ fn bench_enc_pok_generic<C: Ctx>(ctx: C, data: C::P, n: u32) {
 }
 
 fn bench_modpow_generic<C: Ctx>(ctx: C, n: u32) {
+    let mut rng = ctx.get_rng();
     for _ in 0..n {
-        let x = ctx.rnd_exp();
+        let x = ctx.rnd_exp(&mut rng);
         let _ = ctx.gmod_pow(&x);
     }
 }
