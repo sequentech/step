@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
+use crate::base64::{Base64Serialize, Base64Deserialize};
 use crate::encrypt::*;
 use crate::plaintext::DecodedVoteQuestion;
-use crate::base64::Base64Serialize;
-use wasm_bindgen::prelude::*;
 use strand::backend::ristretto::RistrettoCtx;
+use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
 use serde_wasm_bindgen;
 use std::panic;
@@ -28,12 +28,15 @@ pub fn set_hooks() {
 #[wasm_bindgen]
 pub fn hash_cyphertext_js(cyphertext_json: JsValue) -> Result<String, String> {
     // parse input
-    let cyphertext: HashableBallot =
+    let cyphertext_string: String =
         serde_wasm_bindgen::from_value(cyphertext_json)
             .map_err(|err| format!("Error parsing cyphertext: {}", err))?;
+    let cyphertext: HashableBallot<RistrettoCtx> =
+        Base64Deserialize::deserialize(cyphertext_string)
+            .map_err(|err| format!("{:?}", err))?;
 
     // return hash
-    hash_cyphertext(&cyphertext).map_err(|err| format!("{:?}", err))
+    hash_to(&cyphertext).map_err(|err| format!("{:?}", err))
 }
 
 #[allow(clippy::all)]
@@ -54,11 +57,16 @@ pub fn encrypt_decoded_question_js(
     let ctx = RistrettoCtx;
 
     // encrypt ballot
-    let auditable_ballot =
-        encrypt_decoded_question::<RistrettoCtx>(&ctx, &decoded_questions, &election)
+    let auditable_ballot = encrypt_decoded_question::<RistrettoCtx>(
+        &ctx,
+        &decoded_questions,
+        &election,
+    )
+    .map_err(|err| format!("{:?}", err))?;
+
+    let auditable_ballot_serialized: String =
+        Base64Serialize::serialize(&auditable_ballot)
             .map_err(|err| format!("{:?}", err))?;
-    
-    let auditable_ballot_serialized: String = Base64Serialize::serialize(&auditable_ballot);
 
     // convert to json output
     serde_wasm_bindgen::to_value(&auditable_ballot_serialized)

@@ -77,7 +77,7 @@ pub async fn get_board_public_key<C: Ctx>(
     user: &str,
     password: &str,
     board_name: &str
-) -> Result<DkgPublicKey::<C>> {
+) -> Result<C::E> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     assert_folder(store_root.clone())?;
     let mut board = ImmudbBoard::new(
@@ -101,5 +101,5 @@ pub async fn get_board_public_key<C: Ctx>(
         format!("Artifact missing on Public Key message on board {}", board_name)
     })?;
     let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
-    Ok(dkgpk)
+    Ok(dkgpk.pk)
 }

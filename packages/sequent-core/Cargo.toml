@@ -40,7 +40,6 @@ hex = "0.4"
 schemars = "0.8"
 # strand
 strand = { path="../strand", features = ["num_bigint"]}
-braid = { path="../braid"}
 num-bigint = { version = "0.4", features = ["rand"] }
 num-traits = "0.2"
 quick-error = "2.0.0"

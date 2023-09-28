@@ -6,7 +6,6 @@ use num_bigint::BigUint;
 use num_traits::Num;
 use sha2::{Digest, Sha256};
 
-use braid::protocol2::artifact::DkgPublicKey;
 use chrono::prelude::*;
 use strand::backend::num_bigint::{
     BigUintP, BigintCtx, DeserializeNumber, SerializeNumber, P2048,
@@ -73,7 +72,7 @@ pub fn encrypt_plaintext_answer<C: Ctx>(
 
 pub fn parse_public_key<C: Ctx>(
     election: &ElectionDTO,
-) -> Result<DkgPublicKey<C>, BallotError> {
+) -> Result<C::E, BallotError> {
     let public_key_config =
         election
             .public_key
@@ -101,7 +100,7 @@ pub fn recreate_encrypt_cyphertext<C: Ctx>(
         .choices
         .clone()
         .into_iter()
-        .map(|choice| recreate_encrypt_answer(ctx, &public_key.pk, &choice))
+        .map(|choice| recreate_encrypt_answer(ctx, &public_key, &choice))
         .collect::<Vec<Result<ReplicationChoice<C>, BallotError>>>()
         .into_iter()
         .collect()
@@ -161,7 +160,7 @@ pub fn encrypt_decoded_question<C: Ctx>(
         )));
     }
 
-    let public_key: DkgPublicKey<C> = parse_public_key(&config)?;
+    let public_key: C::E = parse_public_key::<C>(&config)?;
 
     let mut choices: Vec<ReplicationChoice<C>> = vec![];
     let mut proofs: Vec<Schnorr<C>> = vec![];
@@ -174,7 +173,7 @@ pub fn encrypt_decoded_question<C: Ctx>(
                 BallotError::Serialization(format!("Error encoding plaintext"))
             })?;
         let (choice, proof) =
-            encrypt_plaintext_answer(ctx, public_key.pk.clone(), plaintext)?;
+            encrypt_plaintext_answer(ctx, public_key.clone(), plaintext)?;
         choices.push(choice);
         proofs.push(proof);
     }
@@ -188,15 +187,15 @@ pub fn encrypt_decoded_question<C: Ctx>(
         config: config.clone(),
     };
 
-    auditable_ballot.ballot_hash = hash_to(&auditable_ballot)?;
+    let hashable_ballot = HashableBallot::from(&auditable_ballot);
+    auditable_ballot.ballot_hash = hash_to(&hashable_ballot)?;
 
     Ok(auditable_ballot)
 }
 
 pub fn hash_to<C: Ctx>(
-    auditable_ballot: &AuditableBallot<C>,
+    hashable_ballot: &HashableBallot<C>,
 ) -> Result<String, BallotError> {
-    let hashable_ballot = HashableBallot::from(auditable_ballot);
     let bytes = hashable_ballot
         .strand_serialize()
         .map_err(|error| BallotError::Serialization(error.to_string()))?;

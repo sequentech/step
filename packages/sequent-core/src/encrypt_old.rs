@@ -6,7 +6,6 @@ use num_bigint::BigUint;
 use num_traits::Num;
 use sha2::{Digest, Sha256};
 
-use braid::protocol2::artifact::DkgPublicKey;
 use chrono::prelude::*;
 use strand::backend::num_bigint::{
     BigUintP, BigintCtx, DeserializeNumber, SerializeNumber, P2048,
