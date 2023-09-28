@@ -43,13 +43,13 @@
               cargoLock = let
                   fixupLockFile = path: (builtins.readFile path);
               in {
-                lockFileContents = fixupLockFile ./Cargo.lock.copy;
+                lockFileContents = fixupLockFile ./sequent-core/Cargo.lock.copy;
                   outputHashes = {
                   "strand-0.2.0" = "sha256-MBld1vxcFQ8IffKa4o0p6s++KQavYB7tcrQ4XpUxRoY=";
                 };
               };
               postPatch = ''
-                  cp ${./Cargo.lock.copy} Cargo.lock
+                  cp ${./sequent-core/Cargo.lock.copy} Cargo.lock
               '';
           };
           buildRustPackageWithCargo = cargoArgs: pkgs.rustPlatform.buildRustPackage (cargoPatches // cargoArgs);
@@ -59,7 +59,7 @@
           packages.sequent-core-wasm = buildRustPackageWithCargo {
             pname = "sequent-core-wasm";
             version = "0.0.1";
-            src = ./.;
+            src = ./sequent-core/.;
             nativeBuildInputs = [
               rust-wasm
               pkgs.nodePackages.npm
@@ -86,7 +86,7 @@
           packages.sequent-core-lib = buildRustPackageWithCargo {
             pname = "sequent-core-lib";
             version = "0.0.1";
-            src = ./.;
+            src = ./sequent-core/.;
             nativeBuildInputs = [
               rust-system
             ];
@@ -101,7 +101,14 @@
             nativeBuildInputs = 
               defaultPackage.nativeBuildInputs; 
             buildInputs = 
-              [ pkgs.bash pkgs.reuse pkgs.cargo-deny pkgs.ack ]; 
+              [ 
+                pkgs.bash pkgs.reuse pkgs.cargo-deny pkgs.ack
+                pkgs.nodePackages.npm
+                pkgs.binaryen
+                pkgs.wasm-pack
+                pkgs.wasm-bindgen-cli
+                pkgs.libiconv
+              ]; 
           };
         }
     );
