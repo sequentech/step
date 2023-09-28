@@ -1,3 +1,4 @@
+use borsh::{BorshDeserialize, BorshSerialize};
 use openssl::symm::decrypt_aead;
 use openssl::symm::encrypt_aead;
 use openssl::symm::Cipher;
@@ -8,6 +9,7 @@ use rand::RngCore;
 
 pub type SymmetricKey = [u8; 32];
 
+#[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct EncryptionData {
     pub encrypted_bytes: Vec<u8>,
     pub iv: [u8; 12],

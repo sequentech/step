@@ -37,7 +37,7 @@ cfg_if::cfg_if! {
         /// EcDSA digital signatures backed by [OpenSSL](https://crates.io/crates/openssl).
         pub use signatures::openssl as signature;
         /// Random number generation backed by [OpenSSL](https://crates.io/crates/openssl).
-        pub(crate) use random::openssl as rng;
+        pub use random::openssl as rng;
         /// SHA-2 hashing backed by [OpenSSL](https://crates.io/crates/openssl).
         pub use hashing::openssl as hash;
         /// AES-GCM backed by [OpenSSL](https://crates.io/crates/openssl).
