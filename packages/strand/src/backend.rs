@@ -42,7 +42,7 @@ pub(crate) mod tests {
     use crate::shuffler::{ShuffleProof, Shuffler};
 
     use crate::util;
-    use crate::zkp::{ChaumPedersen, Schnorr};
+    use crate::zkp::{ChaumPedersen, Schnorr, Zkp};
 
     pub(crate) fn test_encrypt_exp_generic<C: Ctx>(ctx: &C) {
         let mut rng = ctx.get_rng();
@@ -101,8 +101,6 @@ pub(crate) mod tests {
             !zkp.schnorr_verify(&public_false, None, &schnorr, &[]);
         assert!(verified_false);
     }
-
-    use crate::zkp::Zkp;
 
     pub(crate) fn test_chaumpedersen_generic<C: Ctx>(ctx: &C) {
         let mut rng = ctx.get_rng();

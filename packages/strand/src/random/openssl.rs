@@ -5,13 +5,12 @@
 use rand::CryptoRng;
 use rand::Error;
 use rand::RngCore;
+use openssl::rand::rand_bytes;
 
-/// Random number generation provided by OpenSSL.
+/// Random number generation provided by OpenSSL (CTR_DRBG).
 pub struct StrandRng;
 
 impl CryptoRng for StrandRng {}
-
-use openssl::rand::rand_bytes;
 
 impl RngCore for StrandRng {
     #[inline(always)]

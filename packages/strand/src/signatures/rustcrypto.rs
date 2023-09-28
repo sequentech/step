@@ -27,7 +27,7 @@ use crate::util::StrandError;
 
 type Curve = NistP384;
 
-/// An rustcrypto ecdsa backed signature.
+/// An rustcrypto ecdsa signature.
 #[derive(Clone)]
 pub struct StrandSignature(Signature<Curve>);
 
