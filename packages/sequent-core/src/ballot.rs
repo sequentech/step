@@ -543,18 +543,19 @@ pub struct RawAuditableBallot<C: Ctx> {
 pub struct AuditableBallot<C: Ctx> {
     pub version: u32,
     pub issue_date: String,
+    pub config: ElectionDTO,
     pub choices: Vec<ReplicationChoice<C>>,
     pub proofs: Vec<Schnorr<C>>,
     pub ballot_hash: String,
-    pub config: ElectionDTO,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct HashableBallot<C: Ctx> {
     pub version: u32,
-    pub choices: Vec<Ciphertext<C>>,
     pub issue_date: String,
+    pub choices: Vec<Ciphertext<C>>,
     pub proofs: Vec<Schnorr<C>>,
+    pub config: ElectionDTO,
 }
 
 impl<C: Ctx> From<&AuditableBallot<C>> for HashableBallot<C> {
@@ -570,6 +571,7 @@ impl<C: Ctx> From<&AuditableBallot<C>> for HashableBallot<C> {
                 .collect(),
             issue_date: value.issue_date.clone(),
             proofs: value.proofs.clone(),
+            config: value.config.clone(),
         }
     }
 }
