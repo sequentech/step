@@ -27,7 +27,7 @@ cfg-if = "1.0.0"
 console_error_panic_hook = "0.1.7"
 
 # sequent-core
-sequent-core = { git = "https://github.com/sequentech/sequent-core", rev = "211688110d36aa2c443d6127379ef52fe3da2496", features = ['wasm']}
+sequent-core = { path="../sequent-core", features = ['wasm']}
 
 [features]
 wasmtest = ["wasm", "dep:web-sys"]
