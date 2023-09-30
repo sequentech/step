@@ -283,7 +283,7 @@ impl<C: Ctx> Trustee<C> {
                 };
 
                 if m.is_err() {
-                    error!("Action {:?} returned error {:?} (propagated)", a, m);
+                    error!("Action {:?} returned error {:?} (propagating)", a, m);
                     m.with_context(|| format!("When executing Action {:?}", a))
                 } else {
                     m

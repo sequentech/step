@@ -153,7 +153,7 @@ pub(super) fn compute_pk<C: Ctx>(
             Message::public_key_msg(cfg, &public_key, shares_hs, commitments_hs, true, trustee)?;
         Ok(vec![m])
     } else {
-        Err(anyhow!("Could not compute pk"))
+        Err(anyhow!("Could not compute pk {:?}", pk_))
     }
 }
 

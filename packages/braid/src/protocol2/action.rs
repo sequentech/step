@@ -326,7 +326,7 @@ impl std::fmt::Debug for Action {
             Self::SignChannels(h, chs) => {
                 write!(
                     f,
-                    "SignChannels{{ cfg hash={:?}, commitments_hs={:?}",
+                    "SignChannels{{ cfg hash={:?}, commitments_hs={:?} }}",
                     dbg_hash(&h.0),
                     chs
                 )
@@ -342,12 +342,12 @@ impl std::fmt::Debug for Action {
                 )
             }
             Self::ComputePublicKey(cfg_h, _sh_hs, _cm_hs, _self_pos, _num_t, _th) => {
-                write!(f, "ComputePublicKey{{ cfg hash={:?}", dbg_hash(&cfg_h.0))
+                write!(f, "ComputePublicKey{{ cfg hash={:?} }}", dbg_hash(&cfg_h.0))
             }
             Self::SignPublicKey(cfg_h, pk_h, sh_hs, cm_hs, _self_pos, _num_t, _th) => {
                 write!(
                     f,
-                    "SignPublicKey{{ cfg hash={:?}, pk hash={:?}, shares_hs={:?}, commitments_hs={:?}",
+                    "SignPublicKey{{ cfg hash={:?}, pk hash={:?}, shares_hs={:?}, commitments_hs={:?} }}",
                     dbg_hash(&cfg_h.0), dbg_hash(&pk_h.0), sh_hs.0.map(|h| dbg_hash(&h)), cm_hs.0.map(|h| dbg_hash(&h))
                 )
             }
@@ -366,7 +366,7 @@ impl std::fmt::Debug for Action {
             ) => {
                 write!(
                     f,
-                    "SignMix{{ cfg_h={:?} batch={:?} source_h={:?}, cipher_h={:?} signers_t={:?}, signert_t={:?}, mix_n={:?}",
+                    "SignMix{{ cfg_h={:?} batch={:?} source_h={:?}, cipher_h={:?} signers_t={:?}, signert_t={:?}, mix_n={:?} }}",
                     dbg_hash(&cfg_h.0), batch, dbg_hash(&source_h.0), dbg_hash(&ciphertexts_h.0), signers_t, signert_t, mix_n
                 )
             }

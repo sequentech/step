@@ -1,7 +1,7 @@
 use crate::protocol2::message::Message;
 use crate::protocol2::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
-use log::{info, warn};
+use log::{info, error};
 use std::sync::{Arc, Mutex};
 use strand::context::Ctx;
 
@@ -44,7 +44,7 @@ impl<C: Ctx> VectorSession<C> {
             let mut remote = self.remote.lock().unwrap();
             send(send_messages, &mut remote);
         } else {
-            warn!("Trustee step returned err {:?}", result);
+            error!("VectorSession: Trustee step returned err {:?}", result);
         }
     }
 
