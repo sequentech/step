@@ -63,6 +63,6 @@ impl<C: Ctx> VectorSession<C> {
 fn send(messages: Vec<Message>, remote: &mut VectorBoard) {
     for m in messages.iter() {
         info!("Adding message {:?} to remote", m);
-        remote.add(m.clone());
+        remote.add(m.try_clone().unwrap());
     }
 }

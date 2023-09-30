@@ -30,7 +30,7 @@ use crate::protocol2::predicate::TrusteeSet;
 // Message
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(BorshSerialize, BorshDeserialize, Clone)]
+#[derive(BorshSerialize, BorshDeserialize)]
 pub struct Message {
     pub signer_key: StrandSignaturePk,
     pub signature: StrandSignature,
@@ -395,6 +395,18 @@ impl Message {
                 return Err(anyhow!("Could not set artifact type"));
             }
         }
+    }
+
+    pub fn try_clone(&self) -> Result<Message> {
+        let ret = Message {
+            signer_key: self.signer_key.clone(),
+            signature: self.signature.clone(),
+            statement: self.statement.clone(),
+            artifact: self.artifact.clone()
+        };
+
+        Ok(ret)
+
     }
 }
 

@@ -233,7 +233,7 @@ fn compute_pk_<C: Ctx>(
                 let my_commitments_h = commitments_hs
                     .0
                     .get(*self_p)
-                    .ok_or(anyhow!("Could not retrieve commitments hashes for self"))?;
+                    .ok_or(anyhow!("Could not retrieve commitments hash for self"))?;
 
                 let my_commitments = trustee
                     .get_commitments(&CommitmentsHash(*my_commitments_h), *self_p)

@@ -1,6 +1,5 @@
 // cargo run --bin verify -- --server-url http://immudb:3322 --board defaultboard
 use anyhow::Result;
-use chacha20poly1305::KeyInit;
 use clap::Parser;
 use tracing::info;
 use tracing::instrument;
@@ -35,9 +34,8 @@ struct Cli {
 #[instrument]
 async fn main() -> Result<()> {
     // generate dummy values, these are not important
-    let mut csprng = strand::rng::StrandRng;
     let dummy_sk = StrandSignatureSk::gen().unwrap();
-    let dummy_encryption_key = chacha20poly1305::ChaCha20Poly1305::generate_key(&mut csprng);
+    let dummy_encryption_key = strand::symm::gen_key();
 
     init_log(true);
     let args = Cli::parse();

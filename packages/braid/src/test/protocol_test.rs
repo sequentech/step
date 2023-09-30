@@ -1,5 +1,4 @@
 use anyhow::Result;
-use chacha20poly1305::{aead::KeyInit, ChaCha20Poly1305};
 use log::{error, info};
 use rand::seq::SliceRandom;
 use rand::Rng;
@@ -11,7 +10,6 @@ use std::sync::{Arc, Mutex};
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
-use strand::rng::StrandRng;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
@@ -175,7 +173,6 @@ pub fn create_protocol_test<C: Ctx>(
     threshold: &[usize],
     ctx: C,
 ) -> Result<ProtocolTest<C>> {
-    let mut csprng = StrandRng;
     let session_id = 0;
 
     let pmkey: StrandSignatureSk = StrandSignatureSk::gen()?;
@@ -186,7 +183,8 @@ pub fn create_protocol_test<C: Ctx>(
     let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|_| {
             let sk = StrandSignatureSk::gen().unwrap();
-            let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
+            // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
+            let encryption_key = strand::symm::gen_key();
             let pk = StrandSignaturePk::from(&sk).unwrap();
             (Trustee::new(sk, encryption_key), pk)
         })

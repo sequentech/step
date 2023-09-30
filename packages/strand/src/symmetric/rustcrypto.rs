@@ -55,7 +55,7 @@ pub fn encrypt(
 }
 
 pub fn decrypt(
-    key: GenericArray<u8, U32>,
+    key: &GenericArray<u8, U32>,
     ed: &EncryptionData,
 ) -> Result<Vec<u8>, StrandError> {
     let cipher = ChaCha20Poly1305::new(&key);

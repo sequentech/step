@@ -26,10 +26,23 @@ Persistence implementation:
 
 */
 
-#[derive(Clone)]
+// #[derive(Clone)]
 pub struct VectorBoard {
     session_id: u128,
     pub(crate) messages: Vec<Message>,
+}
+
+impl Clone for VectorBoard {
+    fn clone(&self) -> Self {
+        let mut ms = vec![];
+        for m in &self.messages {
+            ms.push(m.try_clone().unwrap());
+        }
+        VectorBoard {
+            session_id: self.session_id,
+            messages: ms,
+        }
+    }
 }
 
 impl VectorBoard {
@@ -48,7 +61,16 @@ impl VectorBoard {
 
     pub fn get(&self, last_message: i64) -> Vec<Message> {
         let next: usize = (last_message + 1) as usize;
-        self.messages[next..self.messages.len()].to_vec()
+        
+        let mut ret = vec![];
+        let slice = &self.messages[next..self.messages.len()];
+        for m in slice {
+            ret.push(m.try_clone().unwrap());
+        }
+        
+        ret
+
+        // self.messages[next..self.messages.len()].to_vec()
     }
 }
 

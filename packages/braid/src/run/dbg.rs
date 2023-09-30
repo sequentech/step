@@ -1,6 +1,5 @@
 use ascii_table::{Align, AsciiTable};
 
-use chacha20poly1305::{aead::KeyInit, ChaCha20Poly1305};
 use log::{info, warn};
 use reedline_repl_rs::clap::{Arg, ArgMatches, Command};
 use reedline_repl_rs::{Repl, Result};
@@ -223,7 +222,7 @@ impl<C: Ctx> Status<C> {
 }
 
 fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContext<C> {
-    let mut csprng = strand::rng::StrandRng;
+    
 
     let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
     selected[0..threshold.len()].copy_from_slice(&threshold);
@@ -238,7 +237,8 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
         .into_iter()
         .map(|_| {
             let kp = StrandSignatureSk::gen().unwrap();
-            let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
+            // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
+            let encryption_key = strand::symm::gen_key();
             Trustee::new(kp, encryption_key)
         })
         .collect();
@@ -321,7 +321,11 @@ fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
         .iter()
         .map(|t| t.copy_local_board())
         .collect();
-    let messages = context.last_messages.clone();
+    let mut messages = vec![];
+    for m in &context.last_messages {
+        messages.push(m.try_clone().unwrap());
+    }
+    // let messages = context.last_messages.clone();
     let actions = context.last_actions.clone();
 
     let status = Status::new(
@@ -492,6 +496,6 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
 fn send(messages: &Vec<Message>, remote: &mut VectorBoard) {
     for m in messages.iter() {
         info!("Adding message {:?} to remote", m);
-        remote.add(m.clone());
+        remote.add(m.try_clone().unwrap());
     }
 }

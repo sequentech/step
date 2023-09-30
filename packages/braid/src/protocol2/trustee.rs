@@ -441,7 +441,7 @@ impl<C: Ctx> Trustee<C> {
         // let nonce = GenericArray::<u8, U12>::from_slice(&ec.encryption_data.nonce);
         // let bytes: &[u8] = &ec.encryption_data.encrypted_bytes;
         // let nonce = &ec.encryption_data.nonce;
-        let decrypted = symm::decrypt(self.encryption_key, &ec.encryption_data).ok()?;
+        let decrypted = symm::decrypt(&self.encryption_key, &ec.encryption_data).ok()?;
         Vec::<C::X>::strand_deserialize(&decrypted).ok()
     }
 
@@ -462,7 +462,7 @@ impl<C: Ctx> Trustee<C> {
     pub(crate) fn decrypt_share_sk(&self, st: &ShareTransport2<C>) -> Result<PrivateKey<C>> {
         // let cipher = ChaCha20Poly1305::new(&self.encryption_key);
         // let nonce = GenericArray::<u8, U12>::from_slice(&st.encryption_data.nonce);
-        let decrypted = symm::decrypt(self.encryption_key, &st.encryption_data)?;
+        let decrypted = symm::decrypt(&self.encryption_key, &st.encryption_data)?;
         // let decrypted = cipher.decrypt(nonce, bytes).ok()?;
         let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
 
