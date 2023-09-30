@@ -88,7 +88,7 @@ mod tests {
 
         let encrypted = encrypt(key, &data).unwrap();
 
-        let decrypted = decrypt(key.into(), &encrypted).unwrap();
+        let decrypted = decrypt((&key).into(), &encrypted).unwrap();
 
         assert_eq!(data.to_vec(), decrypted);
     }

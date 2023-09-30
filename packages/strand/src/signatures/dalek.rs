@@ -22,6 +22,13 @@ use crate::util::StrandError;
 /// An ed25519-dalek backed signature.
 #[derive(Clone)]
 pub struct StrandSignature(Signature);
+impl StrandSignature {
+    // Clone is fallible when signature is implemented from OpenSSL, forcing other signature
+    // implementations to conform to the same call
+    pub fn try_clone(&self) -> Result<Self, StrandError> {
+        Ok(self.clone())
+     }
+}
 
 /// An ed25519-dalek backed signature verification key.
 // Clone: Allows Configuration to be Clonable in Braid

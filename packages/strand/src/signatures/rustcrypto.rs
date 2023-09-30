@@ -30,6 +30,13 @@ type Curve = NistP384;
 /// An rustcrypto ecdsa signature.
 #[derive(Clone)]
 pub struct StrandSignature(Signature<Curve>);
+impl StrandSignature {
+     // Clone is fallible when signature is implemented from OpenSSL, forcing other signature
+     // implementations to conform to the same call
+    pub fn try_clone(&self) -> Result<Self, StrandError> {
+        Ok(self.clone())
+     }
+}
 
 /// An rustcrypto ecdsa signature verification key.
 // Clone: Allows Configuration to be Clonable in Braid
@@ -55,6 +62,7 @@ impl StrandSignaturePk {
 
         Ok(self.0.verify_digest(digest, &signature.0)?)
     }
+
 }
 
 /// An rustcrypto ecdsa signing key.
