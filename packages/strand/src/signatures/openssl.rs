@@ -26,7 +26,7 @@ const CURVE: Nid = Nid::SECP384R1;
 pub struct StrandSignature(EcdsaSig);
 
 impl StrandSignature {
-    fn try_clone(&self) -> Result<Self, StrandError> {
+    pub fn try_clone(&self) -> Result<Self, StrandError> {
         let r = self.0.r().to_owned()?;
         let s = self.0.s().to_owned()?;
 
@@ -80,7 +80,7 @@ impl StrandSignaturePk {
 }
 
 /// An openssl ecdsa signing key.
-// #[derive(Clone)]
+#[derive(Clone)]
 pub struct StrandSignatureSk(EcKey<Private>);
 impl StrandSignatureSk {
     /// Generates a key using randomness from rng::StrandRng.

@@ -32,22 +32,22 @@ pub(crate) enum Predicate {
     ConfigurationSigned(ConfigurationHash, TrusteePosition),
 
     /// Dkg ////////////////////////////////////////////////////////////////////////
-    Commitments(ConfigurationHash, CommitmentsHash, TrusteePosition),
-    CommitmentsSigned(ConfigurationHash, CommitmentsHashes, TrusteePosition),
-    CommitmentsAllSignedAll(ConfigurationHash, CommitmentsHashes),
+    Channel(ConfigurationHash, ChannelHash, TrusteePosition),
+    ChannelsSigned(ConfigurationHash, ChannelsHashes, TrusteePosition),
+    ChannelsAllSignedAll(ConfigurationHash, ChannelsHashes),
     Shares(ConfigurationHash, SharesHash, TrusteePosition),
     PublicKey(
         ConfigurationHash,
         PublicKeyHash,
         SharesHashes,
-        CommitmentsHashes,
+        ChannelsHashes,
         TrusteePosition,
     ),
     PublicKeySigned(
         ConfigurationHash,
         PublicKeyHash,
         SharesHashes,
-        CommitmentsHashes,
+        ChannelsHashes,
         TrusteePosition,
     ),
 
@@ -130,15 +130,15 @@ impl Predicate {
                 Self::ConfigurationSigned(ConfigurationHash(cfg_h.0), signer_position)
             }
             // Commitments(Timestamp, ConfigurationH, CommitmentsH)
-            Statement::Commitments(_ts, cfg_h, cm_h) => Self::Commitments(
+            Statement::Channel(_ts, cfg_h, cm_h) => Self::Channel(
                 ConfigurationHash(cfg_h.0),
-                CommitmentsHash(cm_h.0),
+                ChannelHash(cm_h.0),
                 signer_position,
             ),
             // CommitmentsAllSigned(Timestamp, ConfigurationH, CommitmentsHs)
-            Statement::CommitmentsAllSigned(_ts, cfg_h, cm_hs) => Self::CommitmentsSigned(
+            Statement::ChannelsAllSigned(_ts, cfg_h, cm_hs) => Self::ChannelsSigned(
                 ConfigurationHash(cfg_h.0),
-                CommitmentsHashes(cm_hs.0),
+                ChannelsHashes(cm_hs.0),
                 signer_position,
             ),
             // Shares(Timestamp, ConfigurationH, SharesH)
@@ -152,7 +152,7 @@ impl Predicate {
                 ConfigurationHash(cfg_h.0),
                 PublicKeyHash(pk_h.0),
                 SharesHashes(sh_hs.0),
-                CommitmentsHashes(cm_hs.0),
+                ChannelsHashes(cm_hs.0),
                 signer_position,
             ),
             // PublicKeySigned(Timestamp, ConfigurationH, PublicKeyH, SharesHs, CommitmentsHs)
@@ -160,7 +160,7 @@ impl Predicate {
                 ConfigurationHash(cfg_h.0),
                 PublicKeyHash(pk_h.0),
                 SharesHashes(sh_hs.0),
-                CommitmentsHashes(cm_hs.0),
+                ChannelsHashes(cm_hs.0),
                 signer_position,
             ),
             // Ballots(Timestamp, ConfigurationH, usize, CiphertextsH, PublicKeyH, TrusteeSet)
@@ -290,9 +290,9 @@ impl ConfigurationHash {
     }
 }
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct CommitmentsHash(pub crate::protocol2::Hash);
+pub struct ChannelHash(pub crate::protocol2::Hash);
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub struct CommitmentsHashes(pub THashes);
+pub struct ChannelsHashes(pub THashes);
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SharesHash(pub crate::protocol2::Hash);
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
@@ -352,17 +352,17 @@ impl std::fmt::Debug for Predicate {
                 "ConfigurationSignedAll{{ cfg hash={:?}, signer={:?}, #trustees={:?}, th={:?} }}",
                 dbg_hash(&h.0), t, c, th
             ),
-            Predicate::Commitments(ch, h, t) => write!(
+            Predicate::Channel(ch, h, t) => write!(
                 f,
                 "Commitments{{ cfg hash={:?}, hash={:?}, signer={:?} }}",
                 dbg_hash(&ch.0), h.0, t
             ),
-            Predicate::CommitmentsSigned(ch, h, t) => write!(
+            Predicate::ChannelsSigned(ch, h, t) => write!(
                 f,
                 "CommitmentsSigned{{ cfg hash={:?}, hash={:?}, signer={:?} }}",
                 dbg_hash(&ch.0), h, t
             ),
-            Predicate::CommitmentsAllSignedAll(ch, h) => write!(
+            Predicate::ChannelsAllSignedAll(ch, h) => write!(
                 f,
                 "CommitmentsAllSignedAll{{ cfg hash={:?}, hash={:?} }}",
                 dbg_hash(&ch.0), h
@@ -425,7 +425,7 @@ impl std::fmt::Debug for Predicate {
     }
 }
 use crate::util::dbg_hashes;
-impl std::fmt::Debug for CommitmentsHashes {
+impl std::fmt::Debug for ChannelsHashes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "hashes={:?}", dbg_hashes(&self.0))
     }

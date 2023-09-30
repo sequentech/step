@@ -12,8 +12,8 @@ use crate::protocol2::{artifact::*, PROTOCOL_MANAGER_INDEX};
 
 use crate::protocol2::artifact::Configuration;
 use crate::protocol2::predicate::BatchNumber;
+use crate::protocol2::predicate::ChannelsHashes;
 use crate::protocol2::predicate::CiphertextsHash;
-use crate::protocol2::predicate::CommitmentsHashes;
 use crate::protocol2::predicate::DecryptionFactorsHashes;
 use crate::protocol2::predicate::MixNumber;
 use crate::protocol2::predicate::PlaintextsHash;
@@ -69,18 +69,17 @@ impl Message {
         trustee.sign(statement, None)
     }
 
-    pub(crate) fn commitments_msg<C: Ctx>(
+    pub(crate) fn channel_msg<C: Ctx>(
         cfg: &Configuration<C>,
-        commitments: &Commitments<C>,
+        channel: &Channel<C>,
         artifact: bool,
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
-        let commitments_bytes = commitments.strand_serialize()?;
+        let commitments_bytes = channel.strand_serialize()?;
         let commitments_hash = strand::hash::hash_to_array(&commitments_bytes)?;
-        let statement =
-            Statement::commitments_stmt(ConfigurationH(cfg_h), CommitmentsH(commitments_hash));
+        let statement = Statement::channel_stmt(ConfigurationH(cfg_h), ChannelH(commitments_hash));
 
         if artifact {
             trustee.sign(statement, Some(commitments_bytes))
@@ -90,16 +89,16 @@ impl Message {
     }
 
     // Signs all the commitments for all trustees
-    pub(crate) fn commitments_all_signed_msg<C: Ctx>(
+    pub(crate) fn channels_all_signed_msg<C: Ctx>(
         cfg: &Configuration<C>,
-        commitments_hs: &CommitmentsHashes,
+        commitments_hs: &ChannelsHashes,
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
         let statement =
-            Statement::commitments_all_stmt(ConfigurationH(cfg_h), CommitmentsHs(commitments_hs.0));
+            Statement::channels_all_stmt(ConfigurationH(cfg_h), ChannelsHs(commitments_hs.0));
 
         trustee.sign(statement, None)
     }
@@ -107,7 +106,7 @@ impl Message {
     // Shares sent from one trustee to all trustees
     pub(crate) fn shares_msg<C: Ctx>(
         cfg: &Configuration<C>,
-        shares: &Shares,
+        shares: &Shares<C>,
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
@@ -124,7 +123,7 @@ impl Message {
         cfg: &Configuration<C>,
         dkgpk: &DkgPublicKey<C>,
         shares_hs: &SharesHashes,
-        commitments_hs: &CommitmentsHashes,
+        commitments_hs: &ChannelsHashes,
         artifact: bool,
         trustee: &Trustee<C>,
     ) -> Result<Message> {
@@ -139,7 +138,7 @@ impl Message {
                 ConfigurationH(cfg_h),
                 PublicKeyH(pk_h),
                 SharesHs(shares_hs.0),
-                CommitmentsHs(commitments_hs.0),
+                ChannelsHs(commitments_hs.0),
             );
             trustee.sign(statement, Some(pk_bytes))
         } else {
@@ -147,7 +146,7 @@ impl Message {
                 ConfigurationH(cfg_h),
                 PublicKeyH(pk_h),
                 SharesHs(shares_hs.0),
-                CommitmentsHs(commitments_hs.0),
+                ChannelsHs(commitments_hs.0),
             );
             trustee.sign(statement, None)
         }
@@ -403,11 +402,10 @@ impl Message {
             signer_key: self.signer_key.clone(),
             signature: self.signature.try_clone()?,
             statement: self.statement.clone(),
-            artifact: self.artifact.clone()
+            artifact: self.artifact.clone(),
         };
 
         Ok(ret)
-
     }
 }
 
@@ -418,7 +416,7 @@ fn verify_artifact<C: Ctx>(
 ) -> Result<()> {
     match kind {
         ArtifactType::Ballots => {}
-        ArtifactType::Commitments => {}
+        ArtifactType::Channel => {}
         ArtifactType::DecryptionFactors => {}
         ArtifactType::Mix => {}
         ArtifactType::Plaintexts => {}

@@ -3,7 +3,7 @@ use super::*;
 use anyhow::anyhow;
 use anyhow::Result;
 use strand::elgamal::PublicKey;
-
+/*
 pub(super) fn gen_commitments<C: Ctx>(
     configuration_hash: &ConfigurationHash,
     threshold: TrusteeCount,
@@ -23,11 +23,28 @@ pub(super) fn gen_commitments<C: Ctx>(
     let m = Message::commitments_msg(cfg, &commitments, true, trustee)?;
     Ok(vec![m])
 }
+*/
 
-// FIXME Sign the commitments only if they contain our commitments in the right position
-pub(super) fn sign_commitments<C: Ctx>(
+pub(super) fn gen_channel<C: Ctx>(
+    configuration_hash: &ConfigurationHash,
+    trustee: &Trustee<C>,
+) -> Result<Vec<Message>> {
+    let ctx: C = Default::default();
+
+    let cfg = trustee.get_configuration(configuration_hash)?;
+
+    // Generate a keypair for share transport
+    let sk = strand::elgamal::PrivateKey::gen(&ctx);
+    let channel = trustee.encrypt_share_sk(&sk, &cfg)?;
+
+    let m = Message::channel_msg(cfg, &channel, true, trustee)?;
+    Ok(vec![m])
+}
+
+// FIXME Sign the channels only if they contain our channel in the right position
+pub(super) fn sign_channels<C: Ctx>(
     configuration_h: &ConfigurationHash,
-    commitments_hs: &CommitmentsHashes,
+    commitments_hs: &ChannelsHashes,
     trustee: &Trustee<C>,
 ) -> Result<Vec<Message>> {
     let cfg = trustee.get_configuration(configuration_h)?;
@@ -39,20 +56,19 @@ pub(super) fn sign_commitments<C: Ctx>(
         .enumerate()
     {
         let hash = *h;
-        let commitments = trustee.get_commitments(&CommitmentsHash(hash), i);
+        let channel = trustee.get_channel(&ChannelHash(hash), i);
         // FIXME assert
-        assert!(commitments.is_some());
+        assert!(channel.is_some());
     }
     // The commitments hashes will be grouped into one sequence of bytes when
     // constructing the parameter target.
-    let m = Message::commitments_all_signed_msg(cfg, commitments_hs, trustee)?;
+    let m = Message::channels_all_signed_msg(cfg, commitments_hs, trustee)?;
     Ok(vec![m])
 }
 
 pub(super) fn compute_shares<C: Ctx>(
     configuration_h: &ConfigurationHash,
-    commitments_hs: &CommitmentsHashes,
-    self_p: &TrusteePosition,
+    channels_hs: &ChannelsHashes,
     num_trustees: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C>,
@@ -61,19 +77,20 @@ pub(super) fn compute_shares<C: Ctx>(
     let cfg = trustee.get_configuration(configuration_h)?;
 
     // Get our own commitments
-    let my_commitments_h = commitments_hs
+    /* let my_channel_h = channels_hs
         .0
         .get(*self_p)
         .ok_or(anyhow!("Could not retrieve commitments hash for self",))?;
 
-    let hash = *my_commitments_h;
-    let commitments_ = trustee.get_commitments(&CommitmentsHash(hash), *self_p);
-    let commitments = commitments_.ok_or(anyhow!("Could not find my commitments",))?;
+    let hash = *my_channel_h;
+    let channel = trustee.get_channel(&ChannelHash(hash), *self_p);
+    let channel = channel.ok_or(anyhow!("Could not find my channel",))?;
 
-    trace!("Found commitments for self {:?}", commitments);
     let coeffs = trustee
         .decrypt_coefficients(&commitments.encrypted_coefficients)
-        .ok_or(anyhow!("Could not decrypt coefficients",))?;
+        .ok_or(anyhow!("Could not decrypt coefficients",))?;*/
+
+    let (coeffs, commitments) = strand::threshold::gen_coefficients(*threshold, &ctx);
 
     let mut s = vec![];
 
@@ -81,27 +98,29 @@ pub(super) fn compute_shares<C: Ctx>(
         let share = strand::threshold::eval_poly(i + 1, *threshold, &coeffs, &ctx);
 
         // Obtain the public key for the recipient of the share
-        let target_commitments_h = commitments_hs
+        let target_channel_h = channels_hs
             .0
             .get(i)
             .ok_or(anyhow!("Could not retrieve commitments hash",))?;
 
-        let target_hash = *target_commitments_h;
+        let target_hash = *target_channel_h;
 
-        let target_commitments = trustee
-            .get_commitments(&CommitmentsHash(target_hash), i)
+        let target_channel = trustee
+            .get_channel(&ChannelHash(target_hash), i)
             .ok_or(anyhow!("Could not retrieve commitments"))?;
 
         // Encrypt share for target trustee
-        let encryption_pk =
-            PublicKey::<C>::from_element(&target_commitments.share_transport.pk, &ctx);
+        let encryption_pk = PublicKey::<C>::from_element(&target_channel.channel_pk, &ctx);
 
         let share_bytes = ctx.encrypt_exp(&share, encryption_pk);
 
         s.push(share_bytes?)
     }
 
-    let shares = Shares(s);
+    let shares = Shares {
+        commitments: commitments,
+        encrypted_shares: s,
+    };
     let m = Message::shares_msg(cfg, &shares, trustee)?;
     Ok(vec![m])
 }
@@ -109,7 +128,7 @@ pub(super) fn compute_shares<C: Ctx>(
 pub(super) fn compute_pk<C: Ctx>(
     cfg_h: &ConfigurationHash,
     shares_hs: &SharesHashes,
-    commitments_hs: &CommitmentsHashes,
+    commitments_hs: &ChannelsHashes,
     self_pos: &TrusteePosition,
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
@@ -142,7 +161,7 @@ pub(super) fn sign_pk<C: Ctx>(
     cfg_h: &ConfigurationHash,
     pk_h: &PublicKeyHash,
     shares_hs: &SharesHashes,
-    commitments_hs: &CommitmentsHashes,
+    channels_hs: &ChannelsHashes,
     self_pos: &TrusteePosition,
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
@@ -158,7 +177,7 @@ pub(super) fn sign_pk<C: Ctx>(
     let expected = compute_pk_(
         cfg_h,
         shares_hs,
-        commitments_hs,
+        channels_hs,
         self_pos,
         num_t,
         threshold,
@@ -175,7 +194,7 @@ pub(super) fn sign_pk<C: Ctx>(
             dbg_hash(&pk_h.0),
             num_t,
         );
-        let m = Message::public_key_msg(cfg, &actual, shares_hs, commitments_hs, false, trustee)?;
+        let m = Message::public_key_msg(cfg, &actual, shares_hs, channels_hs, false, trustee)?;
         Ok(vec![m])
     } else {
         Err(anyhow!(
@@ -185,64 +204,51 @@ pub(super) fn sign_pk<C: Ctx>(
 }
 
 fn compute_pk_<C: Ctx>(
-    _cfg_h: &ConfigurationHash,
+    cfg_h: &ConfigurationHash,
     shares_hs: &SharesHashes,
-    commitments_hs: &CommitmentsHashes,
+    channels_hs: &ChannelsHashes,
     self_p: &TrusteePosition,
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
     trustee: &Trustee<C>,
 ) -> Result<(C::E, Vec<C::E>)> {
     let ctx = C::default();
+    let cfg = trustee.get_configuration(cfg_h)?;
     let mut pk = C::E::mul_identity();
     let mut verification_keys = vec![C::E::mul_identity(); *num_t];
 
-    // Iterate over sender trustee commitments
-    for (i, h) in commitments_hs
-        .0
-        .iter()
-        .filter(|h| **h != NULL_HASH)
-        .enumerate()
-    {
-        let hash = *h;
-        let commitments_ = trustee.get_commitments(&CommitmentsHash(hash), i);
-        let commitments = commitments_.ok_or(anyhow!("Failed to retrieve commitments",))?;
-
-        pk = pk.mul(&commitments.commitments[0]).modp(&ctx);
-
-        // Get share corresponding to the sender of the commitments
+    // Iterate over sender shares
+    for (i, _h) in shares_hs.0.iter().filter(|h| **h != NULL_HASH).enumerate() {
         let share_h = shares_hs.0[i];
-        let share_ = trustee.get_shares(&SharesHash(share_h), i);
+        let share = trustee.get_shares(&SharesHash(share_h), i);
 
-        let share = share_.ok_or(anyhow!("Failed to retrieve shares",))?;
+        let share = share.ok_or(anyhow!("Failed to retrieve shares",))?;
+
+        pk = pk.mul(&share.commitments[0]).modp(&ctx);
 
         // Iterate over receiver trustees to compute their verification key
         for (j, vk) in verification_keys.iter_mut().enumerate().take(*num_t) {
-            let vkf = strand::threshold::verification_key_factor(
-                &commitments.commitments,
-                *threshold,
-                j,
-                &ctx,
-            );
-            
+            let vkf =
+                strand::threshold::verification_key_factor(&share.commitments, *threshold, j, &ctx);
+
             *vk = vk.mul(&vkf).modp(&ctx);
 
             // Our share is sent from trustee i to j, when j = us
             if j == *self_p {
                 // Construct our private key to decrypt our share
-                let my_commitments_h = commitments_hs
+                let my_channel_h = channels_hs
                     .0
                     .get(*self_p)
                     .ok_or(anyhow!("Could not retrieve commitments hash for self"))?;
 
-                let my_commitments = trustee
-                    .get_commitments(&CommitmentsHash(*my_commitments_h), *self_p)
+                let my_channel = trustee
+                    .get_channel(&ChannelHash(*my_channel_h), *self_p)
                     .ok_or(anyhow!("Could not retrieve commitments for self",))?;
 
-                let sk = trustee.decrypt_share_sk(&my_commitments.share_transport)?;
+                let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
 
                 // Decrypt the share sent from i to us
-                let value = ctx.decrypt_exp(&share.0[*self_p], sk)?;
+                let value = ctx.decrypt_exp(&share.encrypted_shares[*self_p], sk)?;
                 // Verify the share
                 let ok = strand::threshold::verify_share(&value, &vkf, &ctx);
                 if !ok {

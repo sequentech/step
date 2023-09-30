@@ -10,23 +10,11 @@ use strum::Display;
 pub enum Statement {
     Configuration(Timestamp, ConfigurationH),
     ConfigurationSigned(Timestamp, ConfigurationH),
-    Commitments(Timestamp, ConfigurationH, CommitmentsH),
-    CommitmentsAllSigned(Timestamp, ConfigurationH, CommitmentsHs),
+    Channel(Timestamp, ConfigurationH, ChannelH),
+    ChannelsAllSigned(Timestamp, ConfigurationH, ChannelsHs),
     Shares(Timestamp, ConfigurationH, SharesH),
-    PublicKey(
-        Timestamp,
-        ConfigurationH,
-        PublicKeyH,
-        SharesHs,
-        CommitmentsHs,
-    ),
-    PublicKeySigned(
-        Timestamp,
-        ConfigurationH,
-        PublicKeyH,
-        SharesHs,
-        CommitmentsHs,
-    ),
+    PublicKey(Timestamp, ConfigurationH, PublicKeyH, SharesHs, ChannelsHs),
+    PublicKeySigned(Timestamp, ConfigurationH, PublicKeyH, SharesHs, ChannelsHs),
 
     Ballots(
         Timestamp,
@@ -34,7 +22,7 @@ pub enum Statement {
         Batch,
         CiphertextsH,
         PublicKeyH,
-        // the trustees to participate in mixing + decryption (ballots.trustees in Ballots artifact)
+        // the trustees to participate in mixing + decryption
         TrusteeSet,
     ),
     Mix(
@@ -96,18 +84,15 @@ impl Statement {
         Statement::ConfigurationSigned(Self::timestamp(), cfg_hash)
     }
 
-    pub(crate) fn commitments_stmt(
-        cfg_hash: ConfigurationH,
-        commitments_h: CommitmentsH,
-    ) -> Statement {
-        Statement::Commitments(Self::timestamp(), cfg_hash, commitments_h)
+    pub(crate) fn channel_stmt(cfg_hash: ConfigurationH, channel_h: ChannelH) -> Statement {
+        Statement::Channel(Self::timestamp(), cfg_hash, channel_h)
     }
 
-    pub(crate) fn commitments_all_stmt(
+    pub(crate) fn channels_all_stmt(
         cfg_hash: ConfigurationH,
-        commitments_hs: CommitmentsHs,
+        channels_hs: ChannelsHs,
     ) -> Statement {
-        Statement::CommitmentsAllSigned(Self::timestamp(), cfg_hash, commitments_hs)
+        Statement::ChannelsAllSigned(Self::timestamp(), cfg_hash, channels_hs)
     }
 
     pub(crate) fn shares_stmt(cfg_hash: ConfigurationH, shares_h: SharesH) -> Statement {
@@ -118,7 +103,7 @@ impl Statement {
         cfg_hash: ConfigurationH,
         pk_h: PublicKeyH,
         shares_hs: SharesHs,
-        commitments_hs: CommitmentsHs,
+        commitments_hs: ChannelsHs,
     ) -> Statement {
         Statement::PublicKey(Self::timestamp(), cfg_hash, pk_h, shares_hs, commitments_hs)
     }
@@ -127,11 +112,15 @@ impl Statement {
         cfg_hash: ConfigurationH,
         pk_h: PublicKeyH,
         shares_hs: SharesHs,
-        commitments_hs: CommitmentsHs,
+        commitments_hs: ChannelsHs,
     ) -> Statement {
         Statement::PublicKeySigned(Self::timestamp(), cfg_hash, pk_h, shares_hs, commitments_hs)
     }
 
+    // The trustees field indicates which trustees will participate in the mix and decryption.
+    // There must be threshold # of them. Each trustee is a number starting at 1 up to the the number of eligible
+    // trustees as per the configuration. 0 is not a valid trustee. Remaining
+    // slots of this fixed size array must be padded with Datalog::NULL_TRUSTEE
     pub(crate) fn ballots_stmt(
         cfg_hash: ConfigurationH,
         ballots_h: CiphertextsH,
@@ -289,15 +278,15 @@ impl Statement {
                 kind = StatementType::ConfigurationSigned;
                 cfg = cfg_h.0;
             }
-            Self::Commitments(ts_, cfg_h, _) => {
+            Self::Channel(ts_, cfg_h, _) => {
                 ts = *ts_;
-                kind = StatementType::Commitments;
+                kind = StatementType::Channel;
                 cfg = cfg_h.0;
-                artifact_type = Some(ArtifactType::Commitments);
+                artifact_type = Some(ArtifactType::Channel);
             }
-            Self::CommitmentsAllSigned(ts_, cfg_h, _) => {
+            Self::ChannelsAllSigned(ts_, cfg_h, _) => {
                 ts = *ts_;
-                kind = StatementType::CommitmentsAllSigned;
+                kind = StatementType::ChannelsAllSigned;
                 cfg = cfg_h.0;
             }
             Self::Shares(ts_, cfg_h, _) => {
@@ -371,9 +360,9 @@ impl Statement {
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct ConfigurationH(pub Hash);
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
-pub struct CommitmentsH(pub Hash);
+pub struct ChannelH(pub Hash);
 #[derive(Clone)]
-pub struct CommitmentsHs(pub THashes);
+pub struct ChannelsHs(pub THashes);
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct SharesH(pub Hash);
 #[derive(Clone)]
@@ -408,8 +397,8 @@ pub type THashes = [Hash; crate::protocol2::MAX_TRUSTEES];
 pub enum StatementType {
     Configuration = 0,
     ConfigurationSigned = 1,
-    Commitments = 2,
-    CommitmentsAllSigned = 3,
+    Channel = 2,
+    ChannelsAllSigned = 3,
     Shares = 4,
     PublicKey = 5,
     PublicKeySigned = 6,
@@ -424,7 +413,7 @@ pub enum StatementType {
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Display)]
 pub enum ArtifactType {
     Configuration,
-    Commitments,
+    Channel,
     Shares,
     PublicKey,
     Ballots,
@@ -437,7 +426,7 @@ pub enum ArtifactType {
 // Manual serialization necessary as [u8; 64] does not implement Default
 ///////////////////////////////////////////////////////////////////////////
 
-impl BorshSerialize for CommitmentsHs {
+impl BorshSerialize for ChannelsHs {
     fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let vector = &self.0;
 
@@ -449,7 +438,7 @@ impl BorshSerialize for CommitmentsHs {
     }
 }
 
-impl BorshDeserialize for CommitmentsHs {
+impl BorshDeserialize for ChannelsHs {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
 
@@ -461,7 +450,7 @@ impl BorshDeserialize for CommitmentsHs {
         let mut ret = [[0u8; 64]; crate::protocol2::MAX_TRUSTEES];
         ret.copy_from_slice(&inner?);
 
-        Ok(CommitmentsHs(ret))
+        Ok(ChannelsHs(ret))
     }
 }
 
@@ -534,12 +523,12 @@ pub(crate) mod tests {
     use strand::serialization::{StrandDeserialize, StrandSerialize};
 
     #[test]
-    fn test_serialize_commitmentshs() {
+    fn test_serialize_channelshs() {
         let hashes = [[0u8; 64]; crate::protocol2::MAX_TRUSTEES];
-        let cs = CommitmentsHs(hashes);
+        let cs = ChannelsHs(hashes);
         let bytes = cs.strand_serialize().unwrap();
 
-        let d_cs: CommitmentsHs = CommitmentsHs::strand_deserialize(&bytes).unwrap();
+        let d_cs: ChannelsHs = ChannelsHs::strand_deserialize(&bytes).unwrap();
 
         assert_eq!(cs.0, d_cs.0);
     }

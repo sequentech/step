@@ -10,6 +10,7 @@ use crate::protocol2::PROTOCOL_MANAGER_INDEX;
 use strand::serialization::StrandSerialize;
 use strand::shuffler::ShuffleProof;
 use strand::signature::StrandSignaturePk;
+use strand::symm;
 use strand::{context::Ctx, elgamal::Ciphertext};
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
@@ -68,61 +69,29 @@ impl<C: Ctx> Configuration<C> {
     }
 }
 #[derive(BorshSerialize, BorshDeserialize)]
-pub(crate) struct Commitments<C: Ctx> {
-    // Commitments to the coefficients of the generated polynomial
-    pub(crate) commitments: Vec<C::E>,
-    // Encryption of the serialization of the vector of coefficients of the polynomial (C::X's)
-    pub(crate) encrypted_coefficients: EncryptedCoefficients2,
-    // Channel with which to send shares privately to the originator of these Commitments
-    pub(crate) share_transport: ShareTransport2<C>,
-}
-impl<C: Ctx> Commitments<C> {
-    pub(crate) fn new(
-        commitments: Vec<C::E>,
-        encrypted_coefficients: EncryptedCoefficients2,
-        share_transport: ShareTransport2<C>,
-    ) -> Commitments<C> {
-        Commitments {
-            commitments,
-            encrypted_coefficients,
-            share_transport,
-        }
-    }
-}
-
-use strand::symm;
-
-#[derive(BorshSerialize, BorshDeserialize)]
-pub(crate) struct EncryptedCoefficients2 {
-    pub encryption_data: symm::EncryptionData,
-}
-impl EncryptedCoefficients2 {
-    pub fn new(encryption_data: symm::EncryptionData) -> EncryptedCoefficients2 {
-        EncryptedCoefficients2 { encryption_data }
-    }
-}
-#[derive(BorshSerialize, BorshDeserialize)]
-// ElGamal key information used to send shares confidentially
-pub(crate) struct ShareTransport2<C: Ctx> {
+pub(crate) struct Channel<C: Ctx> {
     // The public key (as an element) with which other trustees will encrypt shares sent to the originator of this ShareTransport
-    pub pk: C::E,
-    // The encrypted (symmetric) PrivateKey corresponding to the above
-    pub encryption_data: symm::EncryptionData,
+    pub channel_pk: C::E,
+    pub encrypted_channel_sk: symm::EncryptionData,
 }
-impl<C: Ctx> ShareTransport2<C> {
-    pub fn new(pk: C::E, encryption_data: symm::EncryptionData) -> ShareTransport2<C> {
-        ShareTransport2 {
-            pk,
-            encryption_data,
+impl<C: Ctx> Channel<C> {
+    pub(crate) fn new(channel_pk: C::E, encrypted_channel_sk: symm::EncryptionData) -> Channel<C> {
+        Channel {
+            channel_pk,
+            encrypted_channel_sk,
         }
     }
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
-// One vector of bytes per trustee, including the share sent to
-// itself. The bytes are the serialization of the ElGamal
-// encryption of the share. See Ctx::encrypt_exp.
-pub(crate) struct Shares(pub(crate) Vec<Vec<u8>>);
+pub(crate) struct Shares<C: Ctx> {
+    // Commitments to the coefficients of the generated polynomial
+    pub(crate) commitments: Vec<C::E>,
+    // One vector of bytes per trustee, including the share sent to
+    // itself. The bytes are the serialization of the ElGamal
+    // encryption of the share. See Ctx::encrypt_exp.
+    pub(crate) encrypted_shares: Vec<Vec<u8>>,
+}
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct DkgPublicKey<C: Ctx> {
@@ -146,11 +115,6 @@ use strand::serialization::StrandVectorP;
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct Ballots<C: Ctx> {
     pub ciphertexts: StrandVectorC<C>,
-    // The trustees to participate in the mix and decryption. There must be threshold # of them.
-    // Each trustee is a number starting at 1 up to the the number of eligible
-    // trustees as per the configuration. 0 is not a valid trustee. Remaining
-    // slots of this fixed size array must be padded with Datalog::NULL_TRUSTEE
-    // pub selected_trustees: TrusteeSet,
 }
 impl<C: Ctx> Ballots<C> {
     pub fn new(ciphertexts: Vec<Ciphertext<C>>) -> Ballots<C> {
@@ -217,15 +181,9 @@ impl<C: Ctx> std::fmt::Debug for Configuration<C> {
     }
 }
 
-impl<C: Ctx> std::fmt::Debug for Commitments<C> {
+impl<C: Ctx> std::fmt::Debug for Channel<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "commitments={:?}, coefficients={:?}",
-            self.commitments,
-            hex::encode(&self.encrypted_coefficients.encryption_data.encrypted_bytes)[0..10]
-                .to_string()
-        )
+        write!(f, "channel_pk={:?},", self.channel_pk,)
     }
 }
 

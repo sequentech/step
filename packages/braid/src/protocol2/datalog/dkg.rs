@@ -12,21 +12,21 @@ crepe! {
     // Input relations, used to convert from InP predicates to crepe relations
 
     struct ConfigurationSignedAll(ConfigurationHash, TrusteePosition, TrusteeCount, Threshold);
-    struct Commitments(ConfigurationHash, CommitmentsHash, TrusteePosition);
-    struct CommitmentsAllSigned(ConfigurationHash, CommitmentsHashes, TrusteePosition);
+    struct Commitments(ConfigurationHash, ChannelHash, TrusteePosition);
+    struct CommitmentsAllSigned(ConfigurationHash, ChannelsHashes, TrusteePosition);
     struct Shares(ConfigurationHash, SharesHash, TrusteePosition);
     struct SharesSigned(ConfigurationHash, SharesHash, TrusteePosition);
-    struct PublicKey(ConfigurationHash, PublicKeyHash, SharesHashes, CommitmentsHashes, TrusteePosition);
-    struct PublicKeySigned(ConfigurationHash, PublicKeyHash, SharesHashes, CommitmentsHashes, TrusteePosition);
+    struct PublicKey(ConfigurationHash, PublicKeyHash, SharesHashes, ChannelsHashes, TrusteePosition);
+    struct PublicKeySigned(ConfigurationHash, PublicKeyHash, SharesHashes, ChannelsHashes, TrusteePosition);
 
     ConfigurationSignedAll(config_hash, self_position, num_t, threshold) <- InP(p),
     let Predicate::ConfigurationSignedAll(config_hash, self_position, num_t, threshold) = p;
 
     Commitments(config_hash, hash, signer_position) <- InP(p),
-    let Predicate::Commitments(config_hash, hash, signer_position) = p;
+    let Predicate::Channel(config_hash, hash, signer_position) = p;
 
     CommitmentsAllSigned(config_hash, hash, signer_position) <- InP(p),
-    let Predicate::CommitmentsSigned(config_hash, hash, signer_position) = p;
+    let Predicate::ChannelsSigned(config_hash, hash, signer_position) = p;
 
     Shares(config_hash, hash, signer_position) <- InP(p),
     let Predicate::Shares(config_hash, hash, signer_position) = p;
@@ -39,10 +39,10 @@ crepe! {
 
     // Intermediate relations
 
-    struct CommitmentsUpTo(ConfigurationHash, CommitmentsHashes, TrusteePosition);
-    struct CommitmentsAll(ConfigurationHash, CommitmentsHashes);
-    struct CommitmentsAllSignedUpTo(ConfigurationHash, CommitmentsHashes, TrusteePosition);
-    struct CommitmentsAllSignedAll(ConfigurationHash, CommitmentsHashes);
+    struct CommitmentsUpTo(ConfigurationHash, ChannelsHashes, TrusteePosition);
+    struct CommitmentsAll(ConfigurationHash, ChannelsHashes);
+    struct CommitmentsAllSignedUpTo(ConfigurationHash, ChannelsHashes, TrusteePosition);
+    struct CommitmentsAllSignedAll(ConfigurationHash, ChannelsHashes);
     struct SharesUpTo(ConfigurationHash, SharesHashes, TrusteePosition);
     struct SharesAll(ConfigurationHash, SharesHashes);
     struct PublicKeySignedUpTo(ConfigurationHash, PublicKeyHash, SharesHashes, TrusteePosition);
@@ -59,25 +59,25 @@ crepe! {
     #[derive(Debug)]
     pub struct DErr(DatalogError);
 
-    A(Action::GenCommitments(cfg_h, num_t, threshold)) <-
-    ConfigurationSignedAll(cfg_h, self_position, num_t, threshold),
+    A(Action::GenChannel(cfg_h)) <-
+    ConfigurationSignedAll(cfg_h, self_position, _num_t, _threshold),
     !Commitments(cfg_h, _, self_position);
 
     CommitmentsUpTo(cfg_h, new_hashes, n + 1) <-
     CommitmentsUpTo(cfg_h, hashes, n),
     Commitments(cfg_h, commitments_hash, n + 1),
-    let new_hashes = CommitmentsHashes(super::hashes_set(hashes.0, n + 1, commitments_hash.0));
+    let new_hashes = ChannelsHashes(super::hashes_set(hashes.0, n + 1, commitments_hash.0));
 
-    CommitmentsUpTo(cfg_h, CommitmentsHashes(hashes), 0) <-
+    CommitmentsUpTo(cfg_h, ChannelsHashes(hashes), 0) <-
     Commitments(cfg_h, hash, 0),
     let hashes = super::hashes_init(hash.0);
 
-    CommitmentsAll(cfg_h, CommitmentsHashes(hashes.0)) <-
+    CommitmentsAll(cfg_h, ChannelsHashes(hashes.0)) <-
     ConfigurationSignedAll(_config_hash, _self_position, num_t, _threshold),
     // We subtract 1 since trustees positions are 0 based
     CommitmentsUpTo(cfg_h, hashes, num_t - 1);
 
-    A(Action::SignCommitments(cfg_h, hashes)) <-
+    A(Action::SignChannels(cfg_h, hashes)) <-
     CommitmentsAll(cfg_h, hashes),
     ConfigurationSignedAll(cfg_h, self_position, _num_t, _threshold),
     !CommitmentsAllSigned(cfg_h, hashes, self_position);
@@ -93,7 +93,7 @@ crepe! {
     ConfigurationSignedAll(cfg_h, _self_position, num_t, _threshold),
     CommitmentsAllSignedUpTo(cfg_h, commitments_hs, num_t - 1);
 
-    A(Action::ComputeShares(cfg_h, commitments_hs, self_position, num_t, threshold)) <-
+    A(Action::ComputeShares(cfg_h, commitments_hs, num_t, threshold)) <-
     CommitmentsAllSignedAll(cfg_h, commitments_hs),
     ConfigurationSignedAll(cfg_h, self_position, num_t, threshold),
     !Shares(cfg_h, _, self_position);
@@ -133,7 +133,7 @@ crepe! {
     PublicKeySignedUpTo(cfg_h, pk_h, shares_hs, 0) <-
     PublicKeySigned(cfg_h, pk_h, shares_hs, _commitments_hs, 0);
 
-    OutP(Predicate::CommitmentsAllSignedAll(cfg_h, commitments_hs)) <-
+    OutP(Predicate::ChannelsAllSignedAll(cfg_h, commitments_hs)) <-
     CommitmentsAllSignedAll(cfg_h, commitments_hs);
 
     OutP(Predicate::PublicKeySignedAll(cfg_h, pk_h, shares_hs)) <-

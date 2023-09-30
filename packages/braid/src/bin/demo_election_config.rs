@@ -44,10 +44,7 @@ fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
             let sk = StrandSignatureSk::gen().unwrap();
             let pk = StrandSignaturePk::from(&sk).unwrap();
             let encryption_key: symm::SymmetricKey = symm::gen_key();
-            (
-                Trustee::new(sk, encryption_key),
-                pk,
-            )
+            (Trustee::new(sk, encryption_key), pk)
         })
         .unzip();
 

@@ -61,13 +61,13 @@ impl VectorBoard {
 
     pub fn get(&self, last_message: i64) -> Vec<Message> {
         let next: usize = (last_message + 1) as usize;
-        
+
         let mut ret = vec![];
         let slice = &self.messages[next..self.messages.len()];
         for m in slice {
             ret.push(m.try_clone().unwrap());
         }
-        
+
         ret
 
         // self.messages[next..self.messages.len()].to_vec()

@@ -13,7 +13,7 @@ crepe! {
 
     struct ConfigurationSignedAll(ConfigurationHash, TrusteePosition, TrusteeCount, Threshold);
     struct PublicKeySignedAll(ConfigurationHash, PublicKeyHash, SharesHashes);
-    struct CommitmentsAllSignedAll(ConfigurationHash, CommitmentsHashes);
+    struct CommitmentsAllSignedAll(ConfigurationHash, ChannelsHashes);
     struct Ballots(ConfigurationHash, BatchNumber, CiphertextsHash, PublicKeyHash, TrusteeSet);
     struct MixComplete(ConfigurationHash, BatchNumber, MixNumber, CiphertextsHash, TrusteePosition);
     struct DecryptionFactors(ConfigurationHash, BatchNumber, DecryptionFactorsHash, CiphertextsHash, SharesHashes, TrusteePosition);
@@ -27,7 +27,7 @@ crepe! {
     let Predicate::PublicKeySignedAll(cfg_h, pk_h, shares_hs) = p;
 
     CommitmentsAllSignedAll(cfg_h, commitments_hs) <- InP(p),
-    let Predicate::CommitmentsAllSignedAll(cfg_h, commitments_hs) = p;
+    let Predicate::ChannelsAllSignedAll(cfg_h, commitments_hs) = p;
 
     Ballots(cfg_h, batch, ballots_h, pk_h, selected) <- InP(p),
     let Predicate::Ballots(cfg_h, batch, ballots_h, pk_h, selected) = p;

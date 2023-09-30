@@ -8,7 +8,7 @@ use strand::{serialization::StrandVectorCP, serialization::StrandVectorP, zkp::C
 pub(super) fn compute_decryption_factors<C: Ctx>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
-    commitments_hs: &CommitmentsHashes,
+    channels_hs: &ChannelsHashes,
     ciphertexts_h: &CiphertextsHash,
     mix_signer: &TrusteePosition,
     pk_h: &PublicKeyHash,
@@ -29,8 +29,8 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
         .get_mix(ciphertexts_h, *batch, *mix_signer)
         .ok_or(anyhow!("Could not retrieve mix ciphertexts for decryption"))?;
 
-    let commitments = trustee
-        .get_commitments(&CommitmentsHash(commitments_hs.0[*self_p]), *self_p)
+    let my_channel = trustee
+        .get_channel(&ChannelHash(channels_hs.0[*self_p]), *self_p)
         .ok_or(anyhow!("Could not retrieve commitments",))?;
 
     let mut secret = C::X::add_identity();
@@ -40,9 +40,9 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
             .get_shares(&SharesHash(share_h), sender)
             .ok_or(anyhow!("Could not retrieve shares",))?;
 
-        let sk = trustee.decrypt_share_sk(&commitments.share_transport)?;
+        let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
 
-        let share = ctx.decrypt_exp(&share_.0[*self_p], sk)?;
+        let share = ctx.decrypt_exp(&share_.encrypted_shares[*self_p], sk)?;
 
         secret = secret.add(&share);
         secret = secret.modq(&ctx);
@@ -238,7 +238,9 @@ fn compute_plaintexts_<C: Ctx>(
             let values: Result<Vec<C::E>> = it2
                 .into_par_iter()
                 .map(|((df, proof), c)| {
-                    let ok = strand::threshold::verify_decryption_factor(&c, &vk, &df, &proof, &label, &zkp)?;
+                    let ok = strand::threshold::verify_decryption_factor(
+                        &c, &vk, &df, &proof, &label, &zkp,
+                    )?;
                     if ok {
                         Ok(ctx.emod_pow(&df, &lagrange))
                     } else {

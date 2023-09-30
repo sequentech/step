@@ -7,13 +7,13 @@ use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 use crate::protocol2::artifact::Ballots;
-use crate::protocol2::artifact::Commitments;
+use crate::protocol2::artifact::Channel;
 use crate::protocol2::artifact::Configuration;
 use crate::protocol2::artifact::DecryptionFactors;
 use crate::protocol2::artifact::Plaintexts;
 use crate::protocol2::artifact::Shares;
 use crate::protocol2::message::VerifiedMessage;
-use crate::protocol2::predicate::CommitmentsHash;
+use crate::protocol2::predicate::ChannelHash;
 use crate::protocol2::predicate::ConfigurationHash;
 use crate::protocol2::predicate::MixNumber;
 use crate::protocol2::predicate::PublicKeyHash;
@@ -264,24 +264,24 @@ impl<C: Ctx> LocalBoard<C> {
         None
     }
 
-    pub(crate) fn get_commitments(
+    pub(crate) fn get_channel(
         &self,
-        commitments_h: &CommitmentsHash,
+        commitments_h: &ChannelHash,
         signer_position: TrusteePosition,
-    ) -> Option<Commitments<C>> {
+    ) -> Option<Channel<C>> {
         let aei = self.get_artifact_entry_identifier_ext(
-            StatementType::Commitments,
+            StatementType::Channel,
             signer_position,
             0,
             0,
-            &ArtifactType::Commitments,
+            &ArtifactType::Channel,
         );
         let entry = self.artifacts.get(&aei)?;
         if commitments_h.0 != entry.0 {
             warn!("Hash mismatch when attempting to retrieve commitments");
             None
         } else {
-            Commitments::<C>::strand_deserialize(&entry.1).ok()
+            Channel::<C>::strand_deserialize(&entry.1).ok()
         }
     }
 
@@ -289,7 +289,7 @@ impl<C: Ctx> LocalBoard<C> {
         &self,
         shares_h: &SharesHash,
         signer_position: TrusteePosition,
-    ) -> Option<Shares> {
+    ) -> Option<Shares<C>> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Shares,
             signer_position,

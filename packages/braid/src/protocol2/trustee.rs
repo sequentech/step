@@ -11,7 +11,7 @@ use strand::signature::{StrandSignature, StrandSignaturePk, StrandSignatureSk};
 use strand::{context::Ctx, elgamal::PrivateKey};
 
 use crate::protocol2::action::Action;
-use crate::protocol2::artifact::Commitments;
+use crate::protocol2::artifact::Channel;
 use crate::protocol2::artifact::Configuration;
 use crate::protocol2::artifact::DkgPublicKey;
 use crate::protocol2::artifact::Shares;
@@ -22,9 +22,6 @@ use crate::protocol2::predicate::Predicate;
 use crate::protocol2::predicate::*;
 use crate::protocol2::statement::{Statement, StatementType};
 use crate::protocol2::PROTOCOL_MANAGER_INDEX;
-
-use super::artifact::EncryptedCoefficients2;
-use super::artifact::ShareTransport2;
 
 use strand::symm;
 
@@ -331,19 +328,19 @@ impl<C: Ctx> Trustee<C> {
         self.local_board.clone()
     }
 
-    pub(crate) fn get_commitments(
+    pub(crate) fn get_channel(
         &self,
-        hash: &CommitmentsHash,
+        hash: &ChannelHash,
         signer_position: TrusteePosition,
-    ) -> Option<Commitments<C>> {
-        self.local_board.get_commitments(hash, signer_position)
+    ) -> Option<Channel<C>> {
+        self.local_board.get_channel(hash, signer_position)
     }
 
     pub(crate) fn get_shares(
         &self,
         hash: &SharesHash,
         signer_position: TrusteePosition,
-    ) -> Option<Shares> {
+    ) -> Option<Shares<C>> {
         self.local_board.get_shares(hash, signer_position)
     }
 
@@ -411,62 +408,51 @@ impl<C: Ctx> Trustee<C> {
     ///////////////////////////////////////////////////////////////////////////
 
     pub(crate) fn is_config_approved(&self, _config: &Configuration<C>) -> bool {
-        // FIXME validate
+        // FIXME validate (called by action/cfg)
         true
     }
 
     pub fn get_pk(&self) -> Result<StrandSignaturePk> {
-        // FIXME unwrap
         Ok(StrandSignaturePk::from(&self.signing_key)?)
     }
 
-    pub(crate) fn encrypt_coefficients(
-        &self,
-        coefficients: Vec<C::X>,
-    ) -> Result<EncryptedCoefficients2> {
-        // let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
-        // let cipher = ChaCha20Poly1305::new(&self.encryption_key);
-        let bytes: &[u8] = &coefficients.strand_serialize()?;
-        /*let encrypted: Vec<u8> = cipher
-        .encrypt(&nonce, bytes)
-        .map_err(|e| anyhow!("chacha error {e}"))?;*/
-        let ed = symm::encrypt(self.encryption_key, bytes)?;
-        let enc = EncryptedCoefficients2::new(ed);
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "fips")] {
+            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, cfg: &Configuration<C>) -> Result<Channel<C>> {
+                let identifier: String = self.get_pk()?.try_into()?;
+                // 0 is a dummy batch value
+                let aad = cfg.label(0, format!("encrypted by {}", identifier));
+                let bytes: &[u8] = &sk.strand_serialize()?;
+                let ed = symm::encrypt(self.encryption_key, bytes, &aad)?;
 
-        Ok(enc)
-    }
+                Ok(Channel::new(sk.pk_element().clone(), ed))
+            }
 
-    pub(crate) fn decrypt_coefficients(&self, ec: &EncryptedCoefficients2) -> Option<Vec<C::X>> {
-        // let cipher = ChaCha20Poly1305::new(&self.encryption_key);
-        // let nonce = GenericArray::<u8, U12>::from_slice(&ec.encryption_data.nonce);
-        // let bytes: &[u8] = &ec.encryption_data.encrypted_bytes;
-        // let nonce = &ec.encryption_data.nonce;
-        let decrypted = symm::decrypt(&self.encryption_key, &ec.encryption_data).ok()?;
-        Vec::<C::X>::strand_deserialize(&decrypted).ok()
-    }
+            pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, cfg: &Configuration<C>) -> Result<PrivateKey<C>> {
+                let identifier: String = self.get_pk()?.try_into()?;
+                // 0 is a dummy batch value
+                let aad = cfg.label(0, format!("encrypted by {}", identifier));
+                let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk, &aad)?;
+                let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
 
-    pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>) -> Result<ShareTransport2<C>> {
-        // let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
-        // let cipher = ChaCha20Poly1305::new(&self.encryption_key);
-        let bytes: &[u8] = &sk.strand_serialize()?;
-        /*let encrypted: Vec<u8> = cipher
-            .encrypt(&nonce, bytes)
-            .map_err(|e| anyhow!("chacha error {e}"))?;
+                Ok(ret)
+            }
+        }
+        else {
+            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<Channel<C>> {
+                let bytes: &[u8] = &sk.strand_serialize()?;
+                let ed = symm::encrypt(self.encryption_key, bytes)?;
 
-        let ed = symm::EncryptionData::new(encrypted, nonce);*/
-        let ed = symm::encrypt(self.encryption_key, bytes)?;
+                Ok(Channel::new(sk.pk_element().clone(), ed))
+            }
 
-        Ok(ShareTransport2::new(sk.pk_element().clone(), ed))
-    }
+            pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<PrivateKey<C>> {
+                let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk)?;
+                let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
 
-    pub(crate) fn decrypt_share_sk(&self, st: &ShareTransport2<C>) -> Result<PrivateKey<C>> {
-        // let cipher = ChaCha20Poly1305::new(&self.encryption_key);
-        // let nonce = GenericArray::<u8, U12>::from_slice(&st.encryption_data.nonce);
-        let decrypted = symm::decrypt(&self.encryption_key, &st.encryption_data)?;
-        // let decrypted = cipher.decrypt(nonce, bytes).ok()?;
-        let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
-
-        Ok(ret)
+                Ok(ret)
+            }
+        }
     }
 }
 
