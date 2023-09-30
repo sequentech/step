@@ -50,7 +50,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     questionIndex,
     isReview,
 }) => {
-    const categoryAnswerId = category.header?.id || -1
+    const categoryAnswerId = category.header?.id || ""
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, questionIndex, categoryAnswerId)
     )

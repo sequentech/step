@@ -26,17 +26,29 @@ pub fn set_hooks() {
 
 #[allow(clippy::all)]
 #[wasm_bindgen]
-pub fn hash_cyphertext_js(cyphertext_json: JsValue) -> Result<String, String> {
+pub fn to_hashable_ballot_js(auditable_ballot_json: JsValue) -> Result<String, String> {
     // parse input
-    let cyphertext_string: String =
-        serde_wasm_bindgen::from_value(cyphertext_json)
+    let auditable_ballot_string: String =
+        serde_wasm_bindgen::from_value(auditable_ballot_json)
             .map_err(|err| format!("Error parsing cyphertext: {}", err))?;
-    let cyphertext: HashableBallot<RistrettoCtx> =
-        Base64Deserialize::deserialize(cyphertext_string)
+        Base64Deserialize::deserialize(auditable_ballot_string)
+            .map_err(|err| format!("{:?}", err))
+}
+
+#[allow(clippy::all)]
+#[wasm_bindgen]
+pub fn hash_auditable_ballot_js(auditable_ballot_json: JsValue) -> Result<String, String> {
+    // parse input
+    let auditable_ballot_string: String =
+        serde_wasm_bindgen::from_value(auditable_ballot_json)
+            .map_err(|err| format!("Error parsing cyphertext: {}", err))?;
+    let auditable_ballot: AuditableBallot<RistrettoCtx> =
+        Base64Deserialize::deserialize(auditable_ballot_string)
             .map_err(|err| format!("{:?}", err))?;
+    let hashable_ballot = HashableBallot::from(&auditable_ballot);
 
     // return hash
-    hash_to(&cyphertext).map_err(|err| format!("{:?}", err))
+    hash_to(&hashable_ballot).map_err(|err| format!("{:?}", err))
 }
 
 #[allow(clippy::all)]

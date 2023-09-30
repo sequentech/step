@@ -29,6 +29,7 @@ import {Link as RouterLink, useParams} from "react-router-dom"
 import {Typography} from "@mui/material"
 import {useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import {provideBallotService} from "../services/BallotService"
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -114,22 +115,21 @@ export const AuditScreen: React.FC = () => {
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
     const [openStep2Help, setOpenStep2Help] = useState(false)
+    const {hashBallot} = provideBallotService()
+    const ballotHash = auditableBallot && hashBallot(auditableBallot)
 
     const downloadAuditableBallot = () => {
         if (!auditableBallot) {
             return
         }
-        let fileName = `${auditableBallot.config.id}-ballot.json`
+        let fileName = `${electionId}-ballot.json`
         let file = new File([JSON.stringify(auditableBallot)], fileName, {type: "application/json"})
         downloadBlob(file, fileName)
     }
 
     return (
         <PageLimit maxWidth="lg">
-            <BallotHash
-                hash={auditableBallot?.ballot_hash || ""}
-                onHelpClick={() => setOpenBallotIdHelp(true)}
-            />
+            <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             <Box marginTop="24px">
                 <Dialog
                     handleClose={() => setOpenBallotIdHelp(false)}

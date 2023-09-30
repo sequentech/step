@@ -4,9 +4,9 @@
 import {IElectionDTO} from "sequent-core"
 
 export const ELECTION_CATEGORIES: IElectionDTO = {
-    id: 34570004,
+    id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
     configuration: {
-        id: 34570004,
+        id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
         layout: "simple",
         director: "6xx-a1",
         authorities: ["6xx-a2"],

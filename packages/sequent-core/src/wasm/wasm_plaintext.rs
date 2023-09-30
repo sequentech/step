@@ -52,7 +52,7 @@ extern "C" {
 #[wasm_bindgen(typescript_custom_section)]
 const IDECODED_VOTE_CHOICE: &'static str = r#"
 interface IDecodedVoteChoice {
-    id: number;
+    id: string;
     selected: number;
     writein_text?: string;
 }
