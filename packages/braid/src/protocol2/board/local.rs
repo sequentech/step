@@ -465,8 +465,8 @@ impl<C: Ctx> LocalBoard<C> {
         StatementEntryIdentifier {
             kind,
             signer_position,
-            batch: batch.0,
-            mix_number: mix_number.0,
+            batch: batch,
+            mix_number: mix_number,
         }
     }
     pub(crate) fn get_artifact_entry_identifier(

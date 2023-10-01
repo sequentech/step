@@ -12,19 +12,21 @@ use crate::protocol2::{artifact::*, PROTOCOL_MANAGER_INDEX};
 
 use crate::protocol2::artifact::Configuration;
 use crate::protocol2::predicate::BatchNumber;
+use crate::protocol2::predicate::ChannelHash;
 use crate::protocol2::predicate::ChannelsHashes;
 use crate::protocol2::predicate::CiphertextsHash;
+use crate::protocol2::predicate::ConfigurationHash;
+use crate::protocol2::predicate::DecryptionFactorsHash;
 use crate::protocol2::predicate::DecryptionFactorsHashes;
 use crate::protocol2::predicate::MixNumber;
 use crate::protocol2::predicate::PlaintextsHash;
 use crate::protocol2::predicate::PublicKeyHash;
+use crate::protocol2::predicate::SharesHash;
 use crate::protocol2::predicate::SharesHashes;
+use crate::protocol2::predicate::TrusteeSet;
+
 use crate::protocol2::trustee::ProtocolManager;
 use crate::protocol2::trustee::Trustee;
-
-use crate::protocol2::statement::*;
-
-use crate::protocol2::predicate::TrusteeSet;
 
 ///////////////////////////////////////////////////////////////////////////
 // Message
@@ -52,7 +54,7 @@ impl Message {
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
-        let statement = Statement::configuration_stmt(ConfigurationH(cfg_h));
+        let statement = Statement::configuration_stmt(ConfigurationHash(cfg_h));
 
         manager.sign(statement, Some(cfg_bytes))
     }
@@ -64,7 +66,7 @@ impl Message {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
-        let statement = Statement::configuration_signed_stmt(ConfigurationH(cfg_h));
+        let statement = Statement::configuration_signed_stmt(ConfigurationHash(cfg_h));
 
         trustee.sign(statement, None)
     }
@@ -79,7 +81,7 @@ impl Message {
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let commitments_bytes = channel.strand_serialize()?;
         let commitments_hash = strand::hash::hash_to_array(&commitments_bytes)?;
-        let statement = Statement::channel_stmt(ConfigurationH(cfg_h), ChannelH(commitments_hash));
+        let statement = Statement::channel_stmt(ConfigurationHash(cfg_h), ChannelHash(commitments_hash));
 
         if artifact {
             trustee.sign(statement, Some(commitments_bytes))
@@ -98,7 +100,7 @@ impl Message {
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
         let statement =
-            Statement::channels_all_stmt(ConfigurationH(cfg_h), ChannelsHs(commitments_hs.0));
+            Statement::channels_all_stmt(ConfigurationHash(cfg_h), ChannelsHashes(commitments_hs.0));
 
         trustee.sign(statement, None)
     }
@@ -114,7 +116,7 @@ impl Message {
         let share_bytes = shares.strand_serialize()?;
         let shares_h = strand::hash::hash_to_array(&share_bytes)?;
 
-        let statement = Statement::shares_stmt(ConfigurationH(cfg_h), SharesH(shares_h));
+        let statement = Statement::shares_stmt(ConfigurationHash(cfg_h), SharesHash(shares_h));
 
         trustee.sign(statement, Some(share_bytes))
     }
@@ -135,18 +137,18 @@ impl Message {
         // The messages are the same except for the artifact and the statement type
         if artifact {
             let statement = Statement::pk_stmt(
-                ConfigurationH(cfg_h),
-                PublicKeyH(pk_h),
-                SharesHs(shares_hs.0),
-                ChannelsHs(commitments_hs.0),
+                ConfigurationHash(cfg_h),
+                PublicKeyHash(pk_h),
+                SharesHashes(shares_hs.0),
+                ChannelsHashes(commitments_hs.0),
             );
             trustee.sign(statement, Some(pk_bytes))
         } else {
             let statement = Statement::pk_signed_stmt(
-                ConfigurationH(cfg_h),
-                PublicKeyH(pk_h),
-                SharesHs(shares_hs.0),
-                ChannelsHs(commitments_hs.0),
+                ConfigurationHash(cfg_h),
+                PublicKeyHash(pk_h),
+                SharesHashes(shares_hs.0),
+                ChannelsHashes(commitments_hs.0),
             );
             trustee.sign(statement, None)
         }
@@ -166,10 +168,10 @@ impl Message {
         let bb_h = strand::hash::hash_to_array(&ballots_bytes)?;
 
         let statement = Statement::ballots_stmt(
-            ConfigurationH(cfg_h),
-            CiphertextsH(bb_h),
-            PublicKeyH(pk_h.0),
-            Batch(batch),
+            ConfigurationHash(cfg_h),
+            CiphertextsHash(bb_h),
+            PublicKeyHash(pk_h.0),
+            batch,
             selected_trustees,
         );
         pm.sign(statement, Some(ballots_bytes))
@@ -189,11 +191,11 @@ impl Message {
         let mix_h = strand::hash::hash_to_array(&mix_bytes)?;
 
         let statement = Statement::mix_stmt(
-            ConfigurationH(cfg_h),
-            CiphertextsH(previous_ciphertexts_h.0),
-            CiphertextsH(mix_h),
-            Batch(batch),
-            MixNo(mix.mix_number),
+            ConfigurationHash(cfg_h),
+            CiphertextsHash(previous_ciphertexts_h.0),
+            CiphertextsHash(mix_h),
+            batch,
+            mix.mix_number,
         );
         trustee.sign(statement, Some(mix_bytes))
     }
@@ -211,11 +213,11 @@ impl Message {
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
         let statement = Statement::mix_signed_stmt(
-            ConfigurationH(cfg_h),
-            CiphertextsH(previous_ciphertexts_h.0),
-            CiphertextsH(mix_h.0),
-            Batch(batch),
-            MixNo(mix_number),
+            ConfigurationHash(cfg_h),
+            CiphertextsHash(previous_ciphertexts_h.0),
+            CiphertextsHash(mix_h.0),
+            batch,
+            mix_number,
         );
         trustee.sign(statement, None)
     }
@@ -235,11 +237,11 @@ impl Message {
         let dfactors_h = strand::hash::hash_to_array(&dfactors_bytes)?;
 
         let statement = Statement::decryption_factors_stmt(
-            ConfigurationH(cfg_h),
-            Batch(batch),
-            DecryptionFactorsH(dfactors_h),
-            CiphertextsH(mix_h.0),
-            SharesHs(shares_hs.0),
+            ConfigurationHash(cfg_h),
+            batch,
+            DecryptionFactorsHash(dfactors_h),
+            CiphertextsHash(mix_h.0),
+            SharesHashes(shares_hs.0),
         );
 
         trustee.sign(statement, Some(dfactors_bytes))
@@ -261,12 +263,12 @@ impl Message {
         let plaintexts_h = strand::hash::hash_to_array(&plaintexts_bytes)?;
 
         let statement = Statement::plaintexts_stmt(
-            ConfigurationH(cfg_h),
-            Batch(batch),
-            PlaintextsH(plaintexts_h),
-            DecryptionFactorsHs(dfactors_hs.0),
-            CiphertextsH(cipher_h.0),
-            PublicKeyH(pk_h.0),
+            ConfigurationHash(cfg_h),
+            batch,
+            PlaintextsHash(plaintexts_h),
+            DecryptionFactorsHashes(dfactors_hs.0),
+            CiphertextsHash(cipher_h.0),
+            PublicKeyHash(pk_h.0),
         );
 
         trustee.sign(statement, Some(plaintexts_bytes))
@@ -285,12 +287,12 @@ impl Message {
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
         let statement = Statement::plaintexts_signed_stmt(
-            ConfigurationH(cfg_h),
-            Batch(batch),
-            PlaintextsH(plaintexts_h.0),
-            DecryptionFactorsHs(dfactors_hs.0),
-            CiphertextsH(cipher_h.0),
-            PublicKeyH(pk_h.0),
+            ConfigurationHash(cfg_h),
+            batch,
+            PlaintextsHash(plaintexts_h.0),
+            DecryptionFactorsHashes(dfactors_hs.0),
+            CiphertextsHash(cipher_h.0),
+            PublicKeyHash(pk_h.0),
         );
 
         trustee.sign(statement, None)
@@ -310,7 +312,7 @@ impl Message {
     ) -> Result<VerifiedMessage> {
         let (kind, st_cfg_h, _, mix_no, artifact_type, _) = self.statement.get_data();
 
-        if mix_no.0 > configuration.trustees.len() {
+        if mix_no > configuration.trustees.len() {
             return Err(anyhow!(
                 "Received a message whose statement signature number is out of range"
             ));

@@ -3,6 +3,9 @@ use strum::Display;
 
 use anyhow::Result;
 use log::trace;
+use borsh::{BorshDeserialize, BorshSerialize};
+
+
 use strand::signature::StrandSignaturePk;
 use strand::{context::Ctx, serialization::StrandSerialize};
 
@@ -179,25 +182,25 @@ impl Predicate {
 
                 Self::Ballots(
                     ConfigurationHash(cfg_h.0),
-                    batch.0,
+                    *batch,
                     CiphertextsHash(ballots_h.0),
                     PublicKeyHash(pk_h.0),
                     *trustees,
                 )
             }
             // Mix(Timestamp, ConfigurationH, usize, CiphertextsH, CiphertextsH)
-            Statement::Mix(_ts, cfg_h, batch, source_h, mix_h, mix_number) => Self::Mix(
+            Statement::Mix(_ts, cfg_h, batch, source_h, mix_h, mix_number) => Self::Mix (
                 ConfigurationHash(cfg_h.0),
-                batch.0,
+                *batch,
                 CiphertextsHash(source_h.0),
                 CiphertextsHash(mix_h.0),
-                mix_number.0,
+                *mix_number,
                 signer_position,
             ),
             // MixSigned(Timestamp, ConfigurationH, usize, usize, CiphertextsH, CiphertextsH)
             Statement::MixSigned(_ts, cfg_h, batch, _mix_no, source_h, mix_h) => Self::MixSigned(
                 ConfigurationHash(cfg_h.0),
-                batch.0,
+                *batch,
                 CiphertextsHash(source_h.0),
                 CiphertextsHash(mix_h.0),
                 signer_position,
@@ -206,7 +209,7 @@ impl Predicate {
             Statement::DecryptionFactors(_ts, cfg_h, batch, df_h, mix_h, sh_hs) => {
                 Self::DecryptionFactors(
                     ConfigurationHash(cfg_h.0),
-                    batch.0,
+                    *batch,
                     DecryptionFactorsHash(df_h.0),
                     CiphertextsHash(mix_h.0),
                     SharesHashes(sh_hs.0),
@@ -216,7 +219,7 @@ impl Predicate {
             // Plaintexts(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs, PublicKeyH)
             Statement::Plaintexts(_ts, cfg_h, batch, pl_h, df_hs, c_h, pk_h) => Self::Plaintexts(
                 ConfigurationHash(cfg_h.0),
-                batch.0,
+                *batch,
                 PlaintextsHash(pl_h.0),
                 DecryptionFactorsHashes(df_hs.0),
                 CiphertextsHash(c_h.0),
@@ -227,7 +230,7 @@ impl Predicate {
             Statement::PlaintextsSigned(_ts, cfg_h, batch, pl_h, df_hs, c_h, pk_h) => {
                 Self::PlaintextsSigned(
                     ConfigurationHash(cfg_h.0),
-                    batch.0,
+                    *batch,
                     PlaintextsHash(pl_h.0),
                     DecryptionFactorsHashes(df_hs.0),
                     CiphertextsHash(c_h.0),
@@ -278,7 +281,7 @@ impl Predicate {
 ///////////////////////////////////////////////////////////////////////////
 // Newtypes
 ///////////////////////////////////////////////////////////////////////////
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ConfigurationHash(pub crate::protocol2::Hash);
 impl ConfigurationHash {
     pub(crate) fn from_configuration<C: Ctx>(
@@ -289,30 +292,30 @@ impl ConfigurationHash {
         Ok(ConfigurationHash(crate::util::hash_from_vec(&hash)?))
     }
 }
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChannelHash(pub crate::protocol2::Hash);
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ChannelsHashes(pub THashes);
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SharesHash(pub crate::protocol2::Hash);
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SharesHashes(pub THashes);
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PublicKeyHash(pub crate::protocol2::Hash);
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
 // The ciphertexts hash is used to refer to ballots and mix artifacts.
 // This allows accessing either one when pointing to a source of
 // ciphertexts (ballots or mix). The same typed hash is propagated
 // all the way from Ballots to DecryptionFactors predicates.
 pub struct CiphertextsHash(pub crate::protocol2::Hash);
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DecryptionFactorsHash(pub crate::protocol2::Hash);
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DecryptionFactorsHashes(pub THashes);
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct MixingHashes(pub THashes);
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PlaintextsHash(pub crate::protocol2::Hash);
 
 // 0-based

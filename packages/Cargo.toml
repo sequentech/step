@@ -9,4 +9,5 @@ members = [
     "wal2immu",
     "sequent-core",
     "new-ballot-verifier",
+    "braid-messages",
 ]

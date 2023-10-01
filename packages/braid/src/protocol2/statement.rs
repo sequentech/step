@@ -8,66 +8,66 @@ use strum::Display;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub enum Statement {
-    Configuration(Timestamp, ConfigurationH),
-    ConfigurationSigned(Timestamp, ConfigurationH),
-    Channel(Timestamp, ConfigurationH, ChannelH),
-    ChannelsAllSigned(Timestamp, ConfigurationH, ChannelsHs),
-    Shares(Timestamp, ConfigurationH, SharesH),
-    PublicKey(Timestamp, ConfigurationH, PublicKeyH, SharesHs, ChannelsHs),
-    PublicKeySigned(Timestamp, ConfigurationH, PublicKeyH, SharesHs, ChannelsHs),
+    Configuration(Timestamp, ConfigurationHash),
+    ConfigurationSigned(Timestamp, ConfigurationHash),
+    Channel(Timestamp, ConfigurationHash, ChannelHash),
+    ChannelsAllSigned(Timestamp, ConfigurationHash, ChannelsHashes),
+    Shares(Timestamp, ConfigurationHash, SharesHash),
+    PublicKey(Timestamp, ConfigurationHash, PublicKeyHash, SharesHashes, ChannelsHashes),
+    PublicKeySigned(Timestamp, ConfigurationHash, PublicKeyHash, SharesHashes, ChannelsHashes),
 
     Ballots(
         Timestamp,
-        ConfigurationH,
-        Batch,
-        CiphertextsH,
-        PublicKeyH,
+        ConfigurationHash,
+        BatchNumber,
+        CiphertextsHash,
+        PublicKeyHash,
         // the trustees to participate in mixing + decryption
         TrusteeSet,
     ),
     Mix(
         Timestamp,
-        ConfigurationH,
-        Batch,
-        CiphertextsH,
-        CiphertextsH,
+        ConfigurationHash,
+        BatchNumber,
+        CiphertextsHash,
+        CiphertextsHash,
         // the mix number (mix.mix_number in Mix artifact)
-        MixNo,
+        MixNumber,
     ),
     // See also local::StatementEntryIdentifier::mix_number
     MixSigned(
         Timestamp,
-        ConfigurationH,
-        Batch,
-        MixNo,
-        CiphertextsH,
-        CiphertextsH,
+        ConfigurationHash,
+        BatchNumber,
+        MixNumber,
+        CiphertextsHash,
+        CiphertextsHash,
     ),
     DecryptionFactors(
         Timestamp,
-        ConfigurationH,
-        Batch,
-        DecryptionFactorsH,
-        CiphertextsH,
-        SharesHs,
+        ConfigurationHash,
+        BatchNumber,
+        DecryptionFactorsHash,
+        CiphertextsHash,
+        SharesHashes,
     ),
     Plaintexts(
         Timestamp,
-        ConfigurationH,
-        Batch,
-        PlaintextsH,
-        DecryptionFactorsHs,
-        CiphertextsH,
-        PublicKeyH,
+        ConfigurationHash,
+        BatchNumber,
+        PlaintextsHash,
+        DecryptionFactorsHashes,
+        CiphertextsHash,
+        PublicKeyHash,
     ),
     PlaintextsSigned(
         Timestamp,
-        ConfigurationH,
-        Batch,
-        PlaintextsH,
-        DecryptionFactorsHs,
-        CiphertextsH,
-        PublicKeyH,
+        ConfigurationHash,
+        BatchNumber,
+        PlaintextsHash,
+        DecryptionFactorsHashes,
+        CiphertextsHash,
+        PublicKeyHash,
     ),
 }
 
@@ -76,43 +76,43 @@ impl Statement {
     // Statement creation functions
     ///////////////////////////////////////////////////////////////////////////
 
-    pub(crate) fn configuration_stmt(cfg_hash: ConfigurationH) -> Statement {
+    pub(crate) fn configuration_stmt(cfg_hash: ConfigurationHash) -> Statement {
         Statement::Configuration(Self::timestamp(), cfg_hash)
     }
 
-    pub(crate) fn configuration_signed_stmt(cfg_hash: ConfigurationH) -> Statement {
+    pub(crate) fn configuration_signed_stmt(cfg_hash: ConfigurationHash) -> Statement {
         Statement::ConfigurationSigned(Self::timestamp(), cfg_hash)
     }
 
-    pub(crate) fn channel_stmt(cfg_hash: ConfigurationH, channel_h: ChannelH) -> Statement {
+    pub(crate) fn channel_stmt(cfg_hash: ConfigurationHash, channel_h: ChannelHash) -> Statement {
         Statement::Channel(Self::timestamp(), cfg_hash, channel_h)
     }
 
     pub(crate) fn channels_all_stmt(
-        cfg_hash: ConfigurationH,
-        channels_hs: ChannelsHs,
+        cfg_hash: ConfigurationHash,
+        channels_hs: ChannelsHashes,
     ) -> Statement {
         Statement::ChannelsAllSigned(Self::timestamp(), cfg_hash, channels_hs)
     }
 
-    pub(crate) fn shares_stmt(cfg_hash: ConfigurationH, shares_h: SharesH) -> Statement {
+    pub(crate) fn shares_stmt(cfg_hash: ConfigurationHash, shares_h: SharesHash) -> Statement {
         Statement::Shares(Self::timestamp(), cfg_hash, shares_h)
     }
 
     pub(crate) fn pk_stmt(
-        cfg_hash: ConfigurationH,
-        pk_h: PublicKeyH,
-        shares_hs: SharesHs,
-        commitments_hs: ChannelsHs,
+        cfg_hash: ConfigurationHash,
+        pk_h: PublicKeyHash,
+        shares_hs: SharesHashes,
+        commitments_hs: ChannelsHashes,
     ) -> Statement {
         Statement::PublicKey(Self::timestamp(), cfg_hash, pk_h, shares_hs, commitments_hs)
     }
 
     pub(crate) fn pk_signed_stmt(
-        cfg_hash: ConfigurationH,
-        pk_h: PublicKeyH,
-        shares_hs: SharesHs,
-        commitments_hs: ChannelsHs,
+        cfg_hash: ConfigurationHash,
+        pk_h: PublicKeyHash,
+        shares_hs: SharesHashes,
+        commitments_hs: ChannelsHashes,
     ) -> Statement {
         Statement::PublicKeySigned(Self::timestamp(), cfg_hash, pk_h, shares_hs, commitments_hs)
     }
@@ -122,10 +122,10 @@ impl Statement {
     // trustees as per the configuration. 0 is not a valid trustee. Remaining
     // slots of this fixed size array must be padded with Datalog::NULL_TRUSTEE
     pub(crate) fn ballots_stmt(
-        cfg_hash: ConfigurationH,
-        ballots_h: CiphertextsH,
-        pk_h: PublicKeyH,
-        batch: Batch,
+        cfg_hash: ConfigurationHash,
+        ballots_h: CiphertextsHash,
+        pk_h: PublicKeyHash,
+        batch: BatchNumber,
         trustees: [usize; crate::protocol2::MAX_TRUSTEES],
     ) -> Statement {
         Statement::Ballots(
@@ -139,12 +139,12 @@ impl Statement {
     }
 
     pub(crate) fn mix_stmt(
-        cfg_hash: ConfigurationH,
+        cfg_hash: ConfigurationHash,
         // Points to either Ballots or Mix
-        source_ciphertexts_h: CiphertextsH,
-        mix_h: CiphertextsH,
-        batch: Batch,
-        mix_number: MixNo,
+        source_ciphertexts_h: CiphertextsHash,
+        mix_h: CiphertextsHash,
+        batch: BatchNumber,
+        mix_number: MixNumber,
     ) -> Statement {
         Statement::Mix(
             Self::timestamp(),
@@ -157,12 +157,12 @@ impl Statement {
     }
 
     pub(crate) fn mix_signed_stmt(
-        cfg_hash: ConfigurationH,
+        cfg_hash: ConfigurationHash,
         // Points to either Ballots or Mix
-        source_ciphertexts_h: CiphertextsH,
-        mix_h: CiphertextsH,
-        batch: Batch,
-        mix_number: MixNo,
+        source_ciphertexts_h: CiphertextsHash,
+        mix_h: CiphertextsHash,
+        batch: BatchNumber,
+        mix_number: MixNumber,
     ) -> Statement {
         Statement::MixSigned(
             Self::timestamp(),
@@ -175,11 +175,11 @@ impl Statement {
     }
 
     pub(crate) fn decryption_factors_stmt(
-        cfg_hash: ConfigurationH,
-        batch: Batch,
-        dfactors_h: DecryptionFactorsH,
-        mix_h: CiphertextsH,
-        shares_hs: SharesHs,
+        cfg_hash: ConfigurationHash,
+        batch: BatchNumber,
+        dfactors_h: DecryptionFactorsHash,
+        mix_h: CiphertextsHash,
+        shares_hs: SharesHashes,
     ) -> Statement {
         Statement::DecryptionFactors(
             Self::timestamp(),
@@ -192,12 +192,12 @@ impl Statement {
     }
 
     pub(crate) fn plaintexts_stmt(
-        cfg_hash: ConfigurationH,
-        batch: Batch,
-        plaintexts_h: PlaintextsH,
-        dfactors_hs: DecryptionFactorsHs,
-        cipher_h: CiphertextsH,
-        pk_h: PublicKeyH,
+        cfg_hash: ConfigurationHash,
+        batch: BatchNumber,
+        plaintexts_h: PlaintextsHash,
+        dfactors_hs: DecryptionFactorsHashes,
+        cipher_h: CiphertextsHash,
+        pk_h: PublicKeyHash,
     ) -> Statement {
         Statement::Plaintexts(
             Self::timestamp(),
@@ -211,12 +211,12 @@ impl Statement {
     }
 
     pub(crate) fn plaintexts_signed_stmt(
-        cfg_hash: ConfigurationH,
-        batch: Batch,
-        plaintexts_h: PlaintextsH,
-        dfactors_hs: DecryptionFactorsHs,
-        cipher_h: CiphertextsH,
-        pk_h: PublicKeyH,
+        cfg_hash: ConfigurationHash,
+        batch: BatchNumber,
+        plaintexts_h: PlaintextsHash,
+        dfactors_hs: DecryptionFactorsHashes,
+        cipher_h: CiphertextsHash,
+        pk_h: PublicKeyHash,
     ) -> Statement {
         Statement::PlaintextsSigned(
             Self::timestamp(),
@@ -254,16 +254,16 @@ impl Statement {
     ) -> (
         StatementType,
         Hash,
-        Batch,
-        MixNo,
+        BatchNumber,
+        MixNumber,
         Option<ArtifactType>,
         Timestamp,
     ) {
         let kind: StatementType;
         let ts: u64;
         let cfg: [u8; 64];
-        let mut batch = Batch(0);
-        let mut mix_number = MixNo(0);
+        let mut batch = 0;
+        let mut mix_number = 0;
         let mut artifact_type = None;
 
         match self {
@@ -357,20 +357,20 @@ impl Statement {
 // Newtypes
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(BorshSerialize, BorshDeserialize, Clone)]
-pub struct ConfigurationH(pub Hash);
+/*#[derive(BorshSerialize, BorshDeserialize, Clone)]
+pub struct ConfigurationHash(pub Hash);
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct ChannelH(pub Hash);
 #[derive(Clone)]
-pub struct ChannelsHs(pub THashes);
+pub struct ChannelsHashes(pub THashes);
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct SharesH(pub Hash);
 #[derive(Clone)]
-pub struct SharesHs(pub THashes);
+pub struct SharesHashes(pub THashes);
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
-pub struct PublicKeyH(pub Hash);
+pub struct PublicKeyHash(pub Hash);
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
-pub struct CiphertextsH(pub Hash);
+pub struct CiphertextsHash(pub Hash);
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct DecryptionFactorsH(pub Hash);
 #[derive(Clone)]
@@ -379,11 +379,25 @@ pub struct DecryptionFactorsHs(pub THashes);
 pub struct PlaintextsH(pub Hash);
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
-pub struct Batch(pub usize);
+pub struct BatchNumber(pub usize);
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
-pub struct MixNo(pub usize);
-pub(crate) type TrusteeSet = [usize; crate::protocol2::MAX_TRUSTEES];
+pub struct MixNumber(pub usize);
+pub(crate) type TrusteeSet = [usize; crate::protocol2::MAX_TRUSTEES];*/
+
+use crate::protocol2::predicate::BatchNumber;
+use crate::protocol2::predicate::ChannelHash;
+use crate::protocol2::predicate::ChannelsHashes;
+use crate::protocol2::predicate::CiphertextsHash;
+use crate::protocol2::predicate::ConfigurationHash;
+use crate::protocol2::predicate::DecryptionFactorsHash;
+use crate::protocol2::predicate::DecryptionFactorsHashes;
+use crate::protocol2::predicate::MixNumber;
+use crate::protocol2::predicate::PlaintextsHash;
+use crate::protocol2::predicate::PublicKeyHash;
+use crate::protocol2::predicate::SharesHash;
+use crate::protocol2::predicate::SharesHashes;
+use crate::protocol2::predicate::TrusteeSet;
 
 type Timestamp = u64;
 pub type THashes = [Hash; crate::protocol2::MAX_TRUSTEES];
@@ -426,7 +440,7 @@ pub enum ArtifactType {
 // Manual serialization necessary as [u8; 64] does not implement Default
 ///////////////////////////////////////////////////////////////////////////
 
-impl BorshSerialize for ChannelsHs {
+impl BorshSerialize for ChannelsHashes {
     fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let vector = &self.0;
 
@@ -438,7 +452,7 @@ impl BorshSerialize for ChannelsHs {
     }
 }
 
-impl BorshDeserialize for ChannelsHs {
+impl BorshDeserialize for ChannelsHashes {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
 
@@ -450,11 +464,11 @@ impl BorshDeserialize for ChannelsHs {
         let mut ret = [[0u8; 64]; crate::protocol2::MAX_TRUSTEES];
         ret.copy_from_slice(&inner?);
 
-        Ok(ChannelsHs(ret))
+        Ok(ChannelsHashes(ret))
     }
 }
 
-impl BorshSerialize for SharesHs {
+impl BorshSerialize for SharesHashes {
     fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let vector = &self.0;
 
@@ -466,7 +480,7 @@ impl BorshSerialize for SharesHs {
     }
 }
 
-impl BorshDeserialize for SharesHs {
+impl BorshDeserialize for SharesHashes {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
 
@@ -478,11 +492,11 @@ impl BorshDeserialize for SharesHs {
         let mut ret = [[0u8; 64]; crate::protocol2::MAX_TRUSTEES];
         ret.copy_from_slice(&inner?);
 
-        Ok(SharesHs(ret))
+        Ok(SharesHashes(ret))
     }
 }
 
-impl BorshSerialize for DecryptionFactorsHs {
+impl BorshSerialize for DecryptionFactorsHashes {
     fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let vector = &self.0;
 
@@ -494,7 +508,7 @@ impl BorshSerialize for DecryptionFactorsHs {
     }
 }
 
-impl BorshDeserialize for DecryptionFactorsHs {
+impl BorshDeserialize for DecryptionFactorsHashes {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let vectors = <Vec<Vec<u8>>>::deserialize(buf)?;
 
@@ -506,7 +520,7 @@ impl BorshDeserialize for DecryptionFactorsHs {
         let mut ret = [[0u8; 64]; crate::protocol2::MAX_TRUSTEES];
         ret.copy_from_slice(&inner?);
 
-        Ok(DecryptionFactorsHs(ret))
+        Ok(DecryptionFactorsHashes(ret))
     }
 }
 
@@ -523,23 +537,23 @@ pub(crate) mod tests {
     use strand::serialization::{StrandDeserialize, StrandSerialize};
 
     #[test]
-    fn test_serialize_channelshs() {
+    fn test_serialize_channelshashes() {
         let hashes = [[0u8; 64]; crate::protocol2::MAX_TRUSTEES];
-        let cs = ChannelsHs(hashes);
+        let cs = ChannelsHashes(hashes);
         let bytes = cs.strand_serialize().unwrap();
 
-        let d_cs: ChannelsHs = ChannelsHs::strand_deserialize(&bytes).unwrap();
+        let d_cs: ChannelsHashes = ChannelsHashes::strand_deserialize(&bytes).unwrap();
 
         assert_eq!(cs.0, d_cs.0);
     }
 
     #[test]
-    fn test_serialize_shareshs() {
+    fn test_serialize_shareshashes() {
         let hashes = [[0u8; 64]; crate::protocol2::MAX_TRUSTEES];
-        let cs = SharesHs(hashes);
+        let cs = SharesHashes(hashes);
         let bytes = cs.strand_serialize().unwrap();
 
-        let d_cs: SharesHs = SharesHs::strand_deserialize(&bytes).unwrap();
+        let d_cs: SharesHashes = SharesHashes::strand_deserialize(&bytes).unwrap();
 
         assert_eq!(cs.0, d_cs.0);
     }
@@ -547,10 +561,10 @@ pub(crate) mod tests {
     #[test]
     fn test_serialize_decryptionfactorshs() {
         let hashes = [[0u8; 64]; crate::protocol2::MAX_TRUSTEES];
-        let cs = DecryptionFactorsHs(hashes);
+        let cs = DecryptionFactorsHashes(hashes);
         let bytes = cs.strand_serialize().unwrap();
 
-        let d_cs: DecryptionFactorsHs = DecryptionFactorsHs::strand_deserialize(&bytes).unwrap();
+        let d_cs: DecryptionFactorsHashes = DecryptionFactorsHashes::strand_deserialize(&bytes).unwrap();
 
         assert_eq!(cs.0, d_cs.0);
     }
