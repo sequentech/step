@@ -2,10 +2,11 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use openssl::symm::decrypt_aead;
 use openssl::symm::encrypt_aead;
 use openssl::symm::Cipher;
+use rand::RngCore;
 
 use crate::rng::StrandRng;
 use crate::util::StrandError;
-use rand::RngCore;
+
 
 pub type SymmetricKey = [u8; 32];
 
