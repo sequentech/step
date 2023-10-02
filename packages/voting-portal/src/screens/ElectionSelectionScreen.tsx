@@ -24,9 +24,11 @@ import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {GetBallotStylesQuery, GetElectionsQuery} from "../gql/graphql"
 import {IElectionDTO} from "sequent-core"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
-import {selectElectionById, setElection} from "../store/elections/electionsSlice"
+import {IElection, selectElectionById, setElection} from "../store/elections/electionsSlice"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {AppDispatch} from "../store/store"
+import {DISABLE_AUTH} from ".."
+import {ELECTIONS_LIST} from "../fixtures/election"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -88,6 +90,36 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     )
 }
 
+const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
+    for (let election of ELECTIONS_LIST) {
+        try {
+            const formattedBallotStyle: IBallotStyle = {
+                id: election.id,
+                election_id: election.id,
+                election_event_id: election.id,
+                status: "open",
+                tenant_id: election.id,
+                ballot_eml: election,
+                ballot_signature: null,
+                created_at: "",
+                area_id: election.id,
+                annotations: null,
+                labels: null,
+                last_updated_at: "",
+            }
+            dispatch(setBallotStyle(formattedBallotStyle))
+            dispatch(
+                resetBallotSelection({
+                    ballotStyle: formattedBallotStyle,
+                })
+            )
+        } catch (error) {
+            console.log(`Error loading fake EML: ${error}`)
+            console.log(election)
+        }
+    }
+}
+
 const updateBallotStyleAndSelection = (data: GetBallotStylesQuery, dispatch: AppDispatch) => {
     for (let ballotStyle of data.sequent_backend_ballot_style) {
         const ballotEml = ballotStyle.ballot_eml
@@ -123,6 +155,25 @@ const updateBallotStyleAndSelection = (data: GetBallotStylesQuery, dispatch: App
     }
 }
 
+const convertToElection = (input: IElectionDTO): IElection => ({
+    id: input.id,
+    annotations: null,
+    created_at: null,
+    dates: null,
+    description: input.configuration.description,
+    election_event_id: input.id,
+    eml: JSON.stringify(input),
+    is_consolidated_ballot_encoding: false,
+    labels: null,
+    last_updated_at: null,
+    name: input.configuration.title,
+    num_allowed_revotes: 1,
+    presentation: null,
+    spoil_ballot_option: true,
+    status: "OPEN",
+    tenant_id: input.id,
+})
+
 export const ElectionSelectionScreen: React.FC = () => {
     const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
     const {
@@ -150,6 +201,17 @@ export const ElectionSelectionScreen: React.FC = () => {
             updateBallotStyleAndSelection(data, dispatch)
         }
     }, [loading, error, data, dispatch])
+
+    useEffect(() => {
+        if (DISABLE_AUTH) {
+            setElectionIds(ELECTIONS_LIST.map((election) => election.id))
+        }
+
+        for (let election of ELECTIONS_LIST) {
+            dispatch(setElection(convertToElection(election)))
+            fakeUpdateBallotStyleAndSelection(dispatch)
+        }
+    }, [])
 
     return (
         <PageLimit maxWidth="lg">

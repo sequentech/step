@@ -28,18 +28,17 @@ export const ballotSelectionsSlice = createSlice({
         ): BallotSelectionsState => {
             let currentElection = state[action.payload.ballotStyle.election_id]
             if (!currentElection || action.payload.force) {
-                state[
-                    action.payload.ballotStyle.election_id
-                ] = action.payload.ballotStyle.ballot_eml.configuration.questions.map(
-                    (question) => ({
-                        is_explicit_invalid: false,
-                        invalid_errors: [],
-                        choices: question.answers.map((answer) => ({
-                            id: answer.id,
-                            selected: -1,
-                        })),
-                    })
-                )
+                state[action.payload.ballotStyle.election_id] =
+                    action.payload.ballotStyle.ballot_eml.configuration.questions.map(
+                        (question) => ({
+                            is_explicit_invalid: false,
+                            invalid_errors: [],
+                            choices: question.answers.map((answer) => ({
+                                id: answer.id,
+                                selected: -1,
+                            })),
+                        })
+                    )
             }
 
             return state
@@ -128,24 +127,18 @@ export const ballotSelectionsSlice = createSlice({
     },*/
 })
 
-export const {
-    resetBallotSelection,
-    setBallotSelectionInvalidVote,
-    setBallotSelectionVoteChoice,
-} = ballotSelectionsSlice.actions
+export const {resetBallotSelection, setBallotSelectionInvalidVote, setBallotSelectionVoteChoice} =
+    ballotSelectionsSlice.actions
 
-export const selectBallotSelectionVoteChoice = (
-    electionId: string,
-    questionIndex: number,
-    answerIndex: string
-) => (state: RootState) =>
-    state.ballotSelections[electionId]?.[questionIndex]?.choices.find(
-        (choice) => answerIndex === choice.id
-    )
+export const selectBallotSelectionVoteChoice =
+    (electionId: string, questionIndex: number, answerIndex: string) => (state: RootState) =>
+        state.ballotSelections[electionId]?.[questionIndex]?.choices.find(
+            (choice) => answerIndex === choice.id
+        )
 
-export const selectBallotSelectionQuestion = (electionId: string, questionIndex: number) => (
-    state: RootState
-) => state.ballotSelections[electionId]?.[questionIndex]
+export const selectBallotSelectionQuestion =
+    (electionId: string, questionIndex: number) => (state: RootState) =>
+        state.ballotSelections[electionId]?.[questionIndex]
 
 export const selectBallotSelectionByElectionId = (electionId: string) => (state: RootState) =>
     state.ballotSelections[electionId]
