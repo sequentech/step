@@ -19,15 +19,16 @@ use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol2::action::Action;
-use crate::protocol2::artifact::Ballots;
-use crate::protocol2::artifact::Configuration;
+use braid_messages::artifact::Ballots;
+use braid_messages::artifact::Configuration;
+use braid_messages::newtypes::PublicKeyHash;
+use braid_messages::message::Message;
 use crate::protocol2::board::local::LocalBoard;
 use crate::protocol2::datalog::NULL_TRUSTEE;
-use crate::protocol2::message::Message;
-use crate::protocol2::predicate::PublicKeyHash;
+// use crate::protocol2::predicate::PublicKeyHash;
 use crate::protocol2::trustee::ProtocolManager;
 use crate::protocol2::trustee::Trustee;
-use crate::protocol2::MAX_TRUSTEES;
+use braid_messages::newtypes::MAX_TRUSTEES;
 use crate::test::vector_board::VectorBoard;
 
 #[instrument(skip(log_reload))]

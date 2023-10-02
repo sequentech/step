@@ -1,19 +1,17 @@
 use std::collections::HashSet;
 use strum::Display;
-
-use anyhow::Result;
 use log::trace;
-use borsh::{BorshDeserialize, BorshSerialize};
-
 
 use strand::signature::StrandSignaturePk;
-use strand::{context::Ctx, serialization::StrandSerialize};
+use strand::context::Ctx;
 
-use crate::protocol2::artifact::Configuration;
+use braid_messages::artifact::Configuration;
+use braid_messages::statement::Statement;
+use braid_messages::newtypes::*;
+
 use crate::protocol2::datalog::NULL_TRUSTEE;
-use crate::protocol2::statement::Statement;
-use crate::protocol2::statement::THashes;
-use crate::protocol2::PROTOCOL_MANAGER_INDEX;
+use braid_messages::newtypes::PROTOCOL_MANAGER_INDEX;
+use braid_messages::newtypes::VERIFIER_INDEX;
 
 ///////////////////////////////////////////////////////////////////////////
 // Predicate
@@ -269,7 +267,7 @@ impl Predicate {
     ) -> Option<Predicate> {
         let p = Predicate::Configuration(
             ConfigurationHash::from_configuration(configuration).ok()?,
-            crate::protocol2::VERIFIER_INDEX,
+            VERIFIER_INDEX,
             configuration.trustees.len(),
             configuration.threshold,
         );
@@ -278,6 +276,7 @@ impl Predicate {
     }
 }
 
+/*
 ///////////////////////////////////////////////////////////////////////////
 // Newtypes
 ///////////////////////////////////////////////////////////////////////////
@@ -329,7 +328,7 @@ pub(crate) type TrusteeSet = [usize; crate::protocol2::MAX_TRUSTEES];
 // position of the mixing trustee, since active trustees are set by the ballots artifact)
 pub(crate) type MixNumber = usize;
 
-pub(crate) type BatchNumber = usize;
+pub(crate) type BatchNumber = usize;*/
 
 ///////////////////////////////////////////////////////////////////////////
 // Debug
@@ -425,11 +424,5 @@ impl std::fmt::Debug for Predicate {
                 dbg_hash(&cfg_h.0), batch, plaintexts_h, signer_t
             ),
         }
-    }
-}
-use crate::util::dbg_hashes;
-impl std::fmt::Debug for ChannelsHashes {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "hashes={:?}", dbg_hashes(&self.0))
     }
 }

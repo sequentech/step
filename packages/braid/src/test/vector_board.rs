@@ -1,4 +1,4 @@
-use crate::protocol2::{message::Message, statement::StatementType};
+use braid_messages::{message::Message, statement::StatementType};
 
 ///////////////////////////////////////////////////////////////////////////
 // VectorBoard

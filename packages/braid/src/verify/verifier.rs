@@ -4,12 +4,14 @@ use colored::*;
 use serde::Serialize;
 use tracing::info;
 
-use crate::protocol2::action::Message;
-use crate::protocol2::artifact::Configuration;
+use braid_messages::message::Message;
+use braid_messages::artifact::Configuration;
+use braid_messages::statement::StatementType;
+use braid_messages::message::VerifiedMessage;
+use braid_messages::newtypes::*;
+
 use crate::protocol2::board::immudb::ImmudbBoard;
-use crate::protocol2::message::VerifiedMessage;
 use crate::protocol2::predicate::Predicate;
-use crate::protocol2::statement::StatementType;
 use crate::protocol2::trustee::Trustee;
 
 use crate::util::dbg_hash;
@@ -213,7 +215,7 @@ impl<C: Ctx> Verifier<C> {
         for message in messages {
             let predicate = Predicate::from_statement::<C>(
                 &message.statement,
-                crate::protocol2::VERIFIER_INDEX,
+                VERIFIER_INDEX,
                 &cfg,
             );
             info!("Verifying action yields predicate [{}]", predicate);
@@ -248,8 +250,6 @@ impl<C: Ctx> Verifier<C> {
         Ok(())
     }
 }
-
-use crate::protocol2::predicate::*;
 
 impl Target {
     fn get_verification_result(&self) -> VerificationResult {

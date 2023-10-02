@@ -7,21 +7,23 @@ use std::marker::PhantomData;
 use tracing_attributes::instrument;
 
 use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::{StrandSignature, StrandSignaturePk, StrandSignatureSk};
+use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::{context::Ctx, elgamal::PrivateKey};
 
 use crate::protocol2::action::Action;
-use crate::protocol2::artifact::Channel;
-use crate::protocol2::artifact::Configuration;
-use crate::protocol2::artifact::DkgPublicKey;
-use crate::protocol2::artifact::Shares;
-use crate::protocol2::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
+use braid_messages::artifact::Channel;
+use braid_messages::artifact::Configuration;
+use braid_messages::artifact::DkgPublicKey;
+use braid_messages::artifact::Shares;
+use braid_messages::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
+use braid_messages::statement::StatementType;
+use braid_messages::message::Message;
+use braid_messages::newtypes::*;
 use crate::protocol2::board::local::LocalBoard;
-use crate::protocol2::message::Message;
+
 use crate::protocol2::predicate::Predicate;
-use crate::protocol2::predicate::*;
-use crate::protocol2::statement::{Statement, StatementType};
-use crate::protocol2::PROTOCOL_MANAGER_INDEX;
+
+use braid_messages::newtypes::PROTOCOL_MANAGER_INDEX;
 
 use strand::symm;
 
@@ -49,7 +51,7 @@ pub struct Trustee<C: Ctx> {
     local_board: LocalBoard<C>,
 }
 
-impl<C: Ctx> Signer for Trustee<C> {
+impl<C: Ctx> braid_messages::message::Signer for Trustee<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }
@@ -465,7 +467,7 @@ pub struct ProtocolManager<C: Ctx> {
     pub phantom: PhantomData<C>,
 }
 
-impl<C: Ctx> Signer for ProtocolManager<C> {
+impl<C: Ctx> braid_messages::message::Signer for ProtocolManager<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }
@@ -475,7 +477,7 @@ impl<C: Ctx> Signer for ProtocolManager<C> {
 // Signer (commonality to sign messages for Trustee and Protocolmanager)
 ///////////////////////////////////////////////////////////////////////////
 
-pub(crate) trait Signer {
+/*pub(crate) trait Signer {
     fn get_signing_key(&self) -> &StrandSignatureSk;
     fn sign(&self, statement: Statement, artifact: Option<Vec<u8>>) -> Result<Message> {
         let sk = self.get_signing_key();
@@ -489,7 +491,7 @@ pub(crate) trait Signer {
             artifact,
         })
     }
-}
+}*/
 
 ///////////////////////////////////////////////////////////////////////////
 // Debug

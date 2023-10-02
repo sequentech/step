@@ -9,9 +9,9 @@ use immu_board::{Board, BoardClient, BoardMessage};
 use rusqlite::params;
 use rusqlite::Connection;
 use strand::serialization::StrandDeserialize;
-use strand::serialization::StrandSerialize;
+// use strand::serialization::StrandSerialize;
 
-use crate::protocol2::message::Message;
+use braid_messages::message::Message;
 
 pub struct ImmudbBoard {
     pub(crate) board_client: BoardClient,
@@ -19,7 +19,7 @@ pub struct ImmudbBoard {
     pub(crate) store_root: PathBuf,
 }
 
-impl TryFrom<Message> for BoardMessage {
+/*impl TryFrom<Message> for BoardMessage {
     type Error = anyhow::Error;
 
     fn try_from(message: Message) -> Result<BoardMessage> {
@@ -32,7 +32,7 @@ impl TryFrom<Message> for BoardMessage {
             signer_key: message.signer_key.strand_serialize()?,
         })
     }
-}
+}*/
 
 impl ImmudbBoard {
     pub async fn new(

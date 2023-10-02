@@ -6,24 +6,21 @@ use std::collections::HashMap;
 use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
-use crate::protocol2::artifact::Ballots;
+/*use crate::protocol2::artifact::Ballots;
 use crate::protocol2::artifact::Channel;
 use crate::protocol2::artifact::Configuration;
 use crate::protocol2::artifact::DecryptionFactors;
 use crate::protocol2::artifact::Plaintexts;
 use crate::protocol2::artifact::Shares;
-use crate::protocol2::message::VerifiedMessage;
-use crate::protocol2::predicate::ChannelHash;
-use crate::protocol2::predicate::ConfigurationHash;
-use crate::protocol2::predicate::MixNumber;
-use crate::protocol2::predicate::PublicKeyHash;
-use crate::protocol2::predicate::SharesHash;
-use crate::protocol2::statement::{ArtifactType, Statement, StatementType};
-use crate::protocol2::Hash;
-
 use crate::protocol2::artifact::{DkgPublicKey, Mix};
-use crate::protocol2::predicate::{BatchNumber, PlaintextsHash, TrusteePosition};
-use crate::protocol2::predicate::{CiphertextsHash, DecryptionFactorsHash};
+use crate::protocol2::message::VerifiedMessage;
+use crate::protocol2::statement::{ArtifactType, Statement, StatementType};*/
+use braid_messages::artifact::*;
+use braid_messages::message::VerifiedMessage;
+use braid_messages::statement::{ArtifactType, Statement, StatementType};
+
+use braid_messages::newtypes::*;
+use strand::hash::Hash;
 
 ///////////////////////////////////////////////////////////////////////////
 // LocalBoard

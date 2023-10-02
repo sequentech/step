@@ -10,11 +10,11 @@ use tracing::{info, instrument};
 use braid::util::init_log;
 use immu_board::{Board, BoardClient, BoardMessage};
 
-use braid::protocol2::artifact::Configuration;
-use braid::protocol2::artifact::DkgPublicKey;
-use braid::protocol2::message::Message;
-use braid::protocol2::predicate::PublicKeyHash;
-use braid::protocol2::statement::StatementType;
+use braid_messages::artifact::Configuration;
+use braid_messages::artifact::DkgPublicKey;
+use braid_messages::message::Message;
+use braid_messages::newtypes::PublicKeyHash;
+use braid_messages::statement::StatementType;
 use braid::protocol2::trustee::ProtocolManager;
 use braid::run::config::ProtocolManagerConfig;
 use strand::backend::ristretto::RistrettoCtx;
@@ -90,7 +90,7 @@ async fn init<C: Ctx>(
     board_name: &str,
     configuration: Configuration<C>,
 ) -> Result<()> {
-    let pm = get_pm(PhantomData);
+    let pm = get_pm(PhantomData::<RistrettoCtx>);
     let message: BoardMessage = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
     info!("Adding configuration to the board..");
     board.insert_messages(board_name, &vec![message]).await
@@ -169,12 +169,12 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: C)
 
             let threshold = [1, 2];
             let mut selected_trustees =
-                [braid::protocol2::datalog::NULL_TRUSTEE; braid::protocol2::MAX_TRUSTEES];
+                [braid::protocol2::datalog::NULL_TRUSTEE; braid_messages::newtypes::MAX_TRUSTEES];
             selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
-            let ballot_batch = braid::protocol2::artifact::Ballots::new(ballots);
-            let pm = get_pm(PhantomData);
-            let message = braid::protocol2::message::Message::ballots_msg(
+            let ballot_batch = braid_messages::artifact::Ballots::new(ballots);
+            let pm = get_pm(PhantomData::<RistrettoCtx>);
+            let message = braid_messages::message::Message::ballots_msg(
                 &configuration,
                 2,
                 &ballot_batch,

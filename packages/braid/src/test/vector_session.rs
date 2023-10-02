@@ -1,14 +1,14 @@
-use crate::protocol2::message::Message;
+use braid_messages::message::Message;
+use braid_messages::artifact::{DkgPublicKey, Plaintexts};
 use crate::protocol2::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
 use log::{info, error};
 use std::sync::{Arc, Mutex};
 use strand::context::Ctx;
 
-use crate::protocol2::{
-    artifact::{DkgPublicKey, Plaintexts},
-    predicate::BatchNumber,
-    predicate::TrusteePosition,
+use braid_messages::newtypes::{
+    BatchNumber,
+    TrusteePosition,
 };
 
 // Implements cross-session parallelism as well as simulates cross-trustee parallelism

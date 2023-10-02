@@ -1,14 +1,20 @@
 use anyhow::Result;
 use strum::Display;
 
-pub(crate) use log::{debug, error, info, trace};
-pub(crate) use strand::context::Ctx;
-pub(crate) use strand::context::Element;
-pub(crate) use strand::context::Exponent;
+pub(self) use log::{debug, error, info, trace};
+pub(self) use strand::context::Ctx;
+pub(self) use strand::context::Element;
+pub(self) use strand::context::Exponent;
 
-pub(crate) use crate::protocol2::datalog::NULL_HASH;
-pub(crate) use crate::protocol2::message::Message;
-pub(crate) use crate::protocol2::predicate::BatchNumber;
+pub(self) use crate::protocol2::datalog::NULL_HASH;
+pub(self) use braid_messages::message::Message;
+pub(self) use braid_messages::artifact::{
+    DecryptionFactors, DkgPublicKey, Mix, Plaintexts, Shares,
+};
+pub(self) use braid_messages::newtypes::*;
+pub(self) use crate::protocol2::trustee::Trustee;
+
+/*pub(crate) use crate::protocol2::predicate::BatchNumber;
 pub(crate) use crate::protocol2::predicate::ChannelHash;
 pub(crate) use crate::protocol2::predicate::ChannelsHashes;
 pub(crate) use crate::protocol2::predicate::CiphertextsHash;
@@ -21,12 +27,10 @@ pub(crate) use crate::protocol2::predicate::SharesHash;
 pub(crate) use crate::protocol2::predicate::SharesHashes;
 pub(crate) use crate::protocol2::predicate::TrusteeSet;
 pub(crate) use crate::protocol2::predicate::{MixNumber, TrusteeCount, TrusteePosition};
-pub(crate) use crate::protocol2::trustee::Trustee;
-pub(crate) use crate::protocol2::PROTOCOL_MANAGER_INDEX;
 
-pub(crate) use crate::protocol2::artifact::{
-    DecryptionFactors, DkgPublicKey, Mix, Plaintexts, Shares,
-};
+pub(crate) use crate::protocol2::PROTOCOL_MANAGER_INDEX;*/
+
+
 
 use crate::util::dbg_hash;
 

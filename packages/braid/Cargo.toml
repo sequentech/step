@@ -17,6 +17,7 @@ rand = "0.8"
 getrandom = { version = "0.2", features = ["js"] }
 
 strand = { path="../strand", features=["rayon"] }
+braid-messages = { path="../braid-messages" }
 # chacha20poly1305 = "0.10.1"
 borsh = "0.9.3"
 crepe = "0.1.5"

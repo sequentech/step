@@ -1,4 +1,7 @@
-use crate::protocol2::datalog::*;
+use std::collections::HashSet;
+use braid_messages::newtypes::*;
+use crate::protocol2::predicate::Predicate;
+use crate::protocol2::datalog::{hashes_add, hashes_init};
 use crepe::crepe;
 
 ///////////////////////////////////////////////////////////////////////////

@@ -13,9 +13,11 @@ use strand::elgamal::Ciphertext;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-use crate::protocol2::artifact::{Configuration, Plaintexts};
-use crate::protocol2::message::Message;
-use crate::protocol2::predicate::PublicKeyHash;
+use braid_messages::artifact::{Configuration, Ballots, Plaintexts};
+use braid_messages::newtypes::PublicKeyHash;
+use braid_messages::message::Message;
+use braid_messages::newtypes::MAX_TRUSTEES;
+
 use crate::protocol2::trustee::ProtocolManager;
 use crate::protocol2::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
@@ -66,7 +68,7 @@ fn run_protocol_test<C: Ctx>(
     let count = ciphertexts;
 
     let mut selected_trustees =
-        [crate::protocol2::datalog::NULL_TRUSTEE; crate::protocol2::MAX_TRUSTEES];
+        [crate::protocol2::datalog::NULL_TRUSTEE; MAX_TRUSTEES];
     selected_trustees[0..threshold.len()].copy_from_slice(threshold);
 
     for i in 0..30 {
@@ -105,9 +107,9 @@ fn run_protocol_test<C: Ctx>(
                 pk.encrypt(&encoded)
             })
             .collect();
-        let ballot_batch = crate::protocol2::artifact::Ballots::new(ballots);
+        let ballot_batch = Ballots::new(ballots);
 
-        let message = crate::protocol2::message::Message::ballots_msg(
+        let message = Message::ballots_msg(
             &test.cfg,
             i + 1,
             &ballot_batch,
