@@ -10,6 +10,7 @@ use crate::plaintext::{
 };
 use crate::util::read_ballot_fixture;
 use std::collections::HashMap;
+use strand::backend::ristretto::RistrettoCtx;
 
 pub struct BallotCodecFixture {
     pub title: String,
@@ -25,7 +26,7 @@ pub struct BasesFixture {
 }
 
 fn get_question_plurality() -> Question {
-    let ballot = read_ballot_fixture();
+    let ballot = read_ballot_fixture::<RistrettoCtx>();
     ballot.config.configuration.questions[0].clone()
 }
 
@@ -162,27 +163,27 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
@@ -213,27 +214,27 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 2,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: 1,
                         write_in_text: None,
                     },
@@ -246,6 +247,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_3_explicit_and_implicit_invalid".to_string(),
             question: Question {
+                id: "ccdb831a-1dbf-41af-8245-65c9a8063cf9".to_string(),
                 description: "".to_string(),
                 layout: "simultaneous-questions".to_string(),
                 min: 0,
@@ -256,7 +258,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 answer_total_votes_percentage: "over-total-valid-votes".to_string(),
                 answers: vec![
                     Answer {
-                        id: 0,
+                        id: 0.to_string(),
                         category: "".to_string(),
                         text: "Chloe HUTCHISON".to_string(),
                         sort_order: 0,
@@ -264,7 +266,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 1,
+                        id: 1.to_string(),
                         category: "".to_string(),
                         text: "Helen KURGANSKY".to_string(),
                         sort_order: 0,
@@ -272,7 +274,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 2,
+                        id: 2.to_string(),
                         category: "".to_string(),
                         text: "Jamie NICHOLLS".to_string(),
                         sort_order: 0,
@@ -280,7 +282,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 3,
+                        id: 3.to_string(),
                         category: "".to_string(),
                         text: "".to_string(),
                         sort_order: 0,
@@ -307,17 +309,17 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 is_explicit_invalid: true,
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: 0,
                         write_in_text: None,
                     }
@@ -340,6 +342,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_3_explicit_invalid".to_string(),
             question: Question {
+                id: "ccdb831a-1dbf-41af-8245-65c9a8063cf9".to_string(),
                 layout: "simultaneous-questions".to_string(),
                 description: "".to_string(),
                 min: 0,
@@ -348,7 +351,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 answer_total_votes_percentage: "over-total-valid-votes".to_string(),
                 answers: vec![
                     Answer {
-                        id: 0,
+                        id: 0.to_string(),
                         category: "".to_string(),
                         text: "Chloe HUTCHISON".to_string(),
                         sort_order: 0,
@@ -356,7 +359,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 1,
+                        id: 1.to_string(),
                         category: "".to_string(),
                         text: "Helen KURGANSKY".to_string(),
                         sort_order: 0,
@@ -364,7 +367,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 2,
+                        id: 2.to_string(),
                         category: "".to_string(),
                         text: "Jamie NICHOLLS".to_string(),
                         sort_order: 0,
@@ -372,7 +375,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 3,
+                        id: 3.to_string(),
                         category: "".to_string(),
                         text: "".to_string(),
                         sort_order: 0,
@@ -401,17 +404,17 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 is_explicit_invalid: true,
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     }
@@ -424,6 +427,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_3_implicit_too_many".to_string(),
             question: Question {
+                id: "ccdb831a-1dbf-41af-8245-65c9a8063cf9".to_string(),
                 layout: "simultaneous-questions".to_string(),
                 description: "".to_string(),
                 min: 0,
@@ -431,7 +435,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 tally_type: "plurality-at-large".to_string(),
                 answers: vec![
                     Answer {
-                        id: 0,
+                        id: 0.to_string(),
                         category: "".to_string(),
                         text: "Chloe HUTCHISON".to_string(),
                         sort_order: 0,
@@ -439,7 +443,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 1,
+                        id: 1.to_string(),
                         category: "".to_string(),
                         text: "Helen KURGANSKY".to_string(),
                         sort_order: 0,
@@ -447,7 +451,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 2,
+                        id: 2.to_string(),
                         category: "".to_string(),
                         text: "Jamie NICHOLLS".to_string(),
                         sort_order: 0,
@@ -455,7 +459,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 3,
+                        id: 3.to_string(),
                         category: "".to_string(),
                         text: "".to_string(),
                         sort_order: 0,
@@ -485,17 +489,17 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: 0,
                         write_in_text: None,
                     }
@@ -518,6 +522,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_4_implicit_empty".to_string(),
             question: Question {
+                id: "ccdb831a-1dbf-41af-8245-65c9a8063cf9".to_string(),
                 layout: "accordion".to_string(),
                 description: "".to_string(),
                 min: 1,
@@ -525,7 +530,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 tally_type: "plurality-at-large".to_string(),
                 answers: vec![
                     Answer {
-                        id: 0,
+                        id: 0.to_string(),
                         category: "".to_string(),
                         text: "Example option 1".to_string(),
                         sort_order: 0,
@@ -533,7 +538,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 1,
+                        id: 1.to_string(),
                         category: "".to_string(),
                         text: "Example option 2".to_string(),
                         sort_order: 0,
@@ -541,7 +546,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 2,
+                        id: 2.to_string(),
                         category: "".to_string(),
                         text: "Example option 3".to_string(),
                         sort_order: 0,
@@ -566,17 +571,17 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     }
@@ -599,6 +604,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_4_implicit_invented_answer".to_string(),
             question: Question {
+                id: "ccdb831a-1dbf-41af-8245-65c9a8063cf9".to_string(),
                 layout: "accordion".to_string(),
                 description: "".to_string(),
                 min: 1,
@@ -606,7 +612,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 tally_type: "plurality-at-large".to_string(),
                 answers: vec![
                     Answer {
-                        id: 0,
+                        id: 0.to_string(),
                         category: "".to_string(),
                         text: "Example option 1".to_string(),
                         sort_order: 0,
@@ -614,7 +620,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 1,
+                        id: 1.to_string(),
                         category: "".to_string(),
                         text: "Example option 2".to_string(),
                         sort_order: 0,
@@ -622,7 +628,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 2,
+                        id: 2.to_string(),
                         category: "".to_string(),
                         text: "Example option 3".to_string(),
                         sort_order: 0,
@@ -647,22 +653,22 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: 0,
                         write_in_text: None,
                     }
@@ -705,37 +711,37 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: 0,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 5,
+                        id: 5.to_string(),
                         selected: 1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 6,
+                        id: 6.to_string(),
                         selected: -1,
                         write_in_text: None
                     }
@@ -758,37 +764,37 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: 0,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 5,
+                        id: 5.to_string(),
                         selected: 1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 6,
+                        id: 6.to_string(),
                         selected: -1,
                         write_in_text: None
                     }
@@ -811,37 +817,37 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: 2,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 5,
+                        id: 5.to_string(),
                         selected: 1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 6,
+                        id: 6.to_string(),
                         selected: -1,
                         write_in_text: None
                     }
@@ -869,12 +875,12 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
@@ -911,32 +917,32 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: 1,
                         write_in_text: Some("D".to_string())
                     },
                     DecodedVoteChoice {
-                        id: 5,
+                        id: 5.to_string(),
                         selected: -1,
                         write_in_text: Some("".to_string())
                     }
@@ -959,37 +965,37 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: 1,
                         write_in_text: Some("E".to_string()),
                     },
                     DecodedVoteChoice {
-                        id: 5,
+                        id: 5.to_string(),
                         selected: -1,
                         write_in_text: Some("".to_string()),
                     },
                     DecodedVoteChoice {
-                        id: 6,
+                        id: 6.to_string(),
                         selected: 1,
                         write_in_text: Some("Ä bc".to_string()),
                     }
@@ -1019,12 +1025,12 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     }
@@ -1049,7 +1055,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::EncodingError,
-                        answer_id: Some(0),
+                        answer_id: Some(0.to_string()),
                         message: Some("errors.encoding.bytesToUtf8Conversion".to_string()),
                         message_map: HashMap::from([
                             ("errorMessage".to_string(), "invalid utf-8 sequence of 1 bytes from index 0".to_string())
@@ -1058,17 +1064,17 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     }
@@ -1093,24 +1099,24 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::EncodingError,
-                        answer_id: Some(0),
+                        answer_id: Some(0.to_string()),
                         message: Some("errors.encoding.writeInNotEndInZero".to_string()),
                         message_map: HashMap::new(),
                     }
                 ],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: Some("a".to_string()),
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     }
@@ -1141,17 +1147,17 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None
                     }
@@ -1193,32 +1199,32 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: 1,
                         write_in_text: Some("🤦🏼‍♂️".to_string())
                     },
                     DecodedVoteChoice {
-                        id: 5,
+                        id: 5.to_string(),
                         selected: -1,
                         write_in_text: Some("".to_string())
                     }

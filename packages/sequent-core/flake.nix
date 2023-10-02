@@ -67,6 +67,7 @@
               pkgs.wasm-pack
               pkgs.wasm-bindgen-cli
               pkgs.libiconv
+              pkgs.m4
             ];
             buildPhase = ''
               echo 'Build: wasm-pack build'

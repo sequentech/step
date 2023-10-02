@@ -202,3 +202,11 @@ pub fn hash_to<C: Ctx>(
         .map_err(|error| BallotError::Serialization(error.to_string()))?;
     Base64Serialize::serialize(&hash_bytes)
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_elfelix() {
+        assert!(false, "false wasn't true! hehe");
+    }
+}

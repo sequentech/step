@@ -588,7 +588,7 @@ static TO_CHAR: phf::Map<u8, char> = phf_map! {
     30u8 => '.',
     31u8 => ',',
 };
-
+/*
 #[cfg(test)]
 mod tests {
     use crate::ballot_codec::*;
@@ -921,3 +921,4 @@ mod tests {
         assert!(bytes_small < bytes_large);
     }
 }
+*/

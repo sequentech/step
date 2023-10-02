@@ -1,4 +1,5 @@
-use crate::{plaintext::DecodedVoteQuestion, ElectionDTO};
+use crate::ballot::ElectionDTO;
+use crate::plaintext::DecodedVoteQuestion;
 
 pub fn get_encrypt_decoded_test_fixture(
 ) -> (Vec<DecodedVoteQuestion>, ElectionDTO) {
