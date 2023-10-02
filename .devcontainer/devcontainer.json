@@ -6,7 +6,25 @@
 	"name": "backend-services",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "devcontainer",
-	"forwardPorts": [9001, 9000, 8090, 8080, 8000, 8400, 8200, 8201, 3000, 3322, 3323, 3324, 3325],
+
+	// recommend way for docker-outside-of-docker
+	// More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+	"forwardPorts": ["graphql-engine:8080"],
+	"otherPortsAttributes": {
+		"requireLocalPort": false,
+		"elevateIfNeeded": true
+	},
+	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
+	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
+	"initializeCommand": [
+		".devcontainer/initializeCommand.sh"
+	],
+	// Use this environment variable if you need to bind mount your local source
+	// code into a new container
+	"remoteEnv": {
+		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+	},
+
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 
 	"userEnvProbe": "loginShell",
@@ -14,7 +32,6 @@
 
 	"onCreateCommand": "direnv allow",
 	"updateContentCommand": "direnv allow && devenv shell bash -c 'cd packages/ && cargo build && cd /workspace/frontend && yarn install' || true",
-	"postStartCommand": "rm -rf /workspaces/.codespaces/shared/editors/jetbrains",
 
 	"features": {
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
