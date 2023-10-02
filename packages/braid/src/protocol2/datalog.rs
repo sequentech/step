@@ -6,8 +6,6 @@ use braid_messages::newtypes::THashes;
 
 
 pub(crate) const NULL_HASH: [u8; 64] = [0u8; 64];
-// used by bb_client
-pub const NULL_TRUSTEE: usize = 1001;
 
 pub(self) use crate::protocol2::predicate::*;
 

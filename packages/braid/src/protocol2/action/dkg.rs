@@ -135,7 +135,7 @@ pub(super) fn compute_pk<C: Ctx>(
     trustee: &Trustee<C>,
 ) -> Result<Vec<Message>> {
     let cfg = trustee.get_configuration(cfg_h)?;
-    let pk_ = compute_pk_(
+    let pk = compute_pk_(
         cfg_h,
         shares_hs,
         commitments_hs,
@@ -144,7 +144,7 @@ pub(super) fn compute_pk<C: Ctx>(
         threshold,
         trustee,
     );
-    if let Ok(pk) = pk_ {
+    if let Ok(pk) = pk {
         let public_key: DkgPublicKey<C> = DkgPublicKey::new(pk.0, pk.1);
 
         // The shares and commitments hashes will be grouped into one sequence of bytes when
@@ -153,7 +153,7 @@ pub(super) fn compute_pk<C: Ctx>(
             Message::public_key_msg(cfg, &public_key, shares_hs, commitments_hs, true, trustee)?;
         Ok(vec![m])
     } else {
-        Err(anyhow!("Could not compute pk {:?}", pk_))
+        Err(anyhow!("Could not compute pk {:?}", pk))
     }
 }
 

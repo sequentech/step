@@ -3,7 +3,7 @@
 // cargo run --bin bb_helper -- --cache-dir /tmp/cache -s http://immudb:3322 -i defaultboardindex -b defaultboard  -u immudb -p immudb upsert-board-db -l debug
 // cargo run --bin bb_client -- --indexdb defaultboardindex --dbname defaultboard --server-url http://immudb:3322 init
 // cargo run --bin main -- --server-url http://immudb:3322 --board-index defaultboardindex --trustee-config trustee1.toml
-// cargo run --bin bb_client -- --server-url http://immudb:3322 ballots
+// cargo run --bin bb_client -- --server-url http://immudb:3322 --indexdb defaultboardindex --dbname defaultboard ballots
 use anyhow::Result;
 use clap::Parser;
 use std::fs;

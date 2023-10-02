@@ -169,7 +169,7 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: C)
 
             let threshold = [1, 2];
             let mut selected_trustees =
-                [braid::protocol2::datalog::NULL_TRUSTEE; braid_messages::newtypes::MAX_TRUSTEES];
+                [braid_messages::newtypes::NULL_TRUSTEE; braid_messages::newtypes::MAX_TRUSTEES];
             selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
             let ballot_batch = braid_messages::artifact::Ballots::new(ballots);

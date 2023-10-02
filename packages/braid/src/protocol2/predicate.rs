@@ -9,7 +9,7 @@ use braid_messages::artifact::Configuration;
 use braid_messages::statement::Statement;
 use braid_messages::newtypes::*;
 
-use crate::protocol2::datalog::NULL_TRUSTEE;
+use braid_messages::newtypes::NULL_TRUSTEE;
 use braid_messages::newtypes::PROTOCOL_MANAGER_INDEX;
 use braid_messages::newtypes::VERIFIER_INDEX;
 
@@ -275,60 +275,6 @@ impl Predicate {
         Some(p)
     }
 }
-
-/*
-///////////////////////////////////////////////////////////////////////////
-// Newtypes
-///////////////////////////////////////////////////////////////////////////
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ConfigurationHash(pub crate::protocol2::Hash);
-impl ConfigurationHash {
-    pub(crate) fn from_configuration<C: Ctx>(
-        configuration: &Configuration<C>,
-    ) -> Result<ConfigurationHash> {
-        let bytes = configuration.strand_serialize()?;
-        let hash = strand::hash::hash(&bytes)?;
-        Ok(ConfigurationHash(crate::util::hash_from_vec(&hash)?))
-    }
-}
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ChannelHash(pub crate::protocol2::Hash);
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub struct ChannelsHashes(pub THashes);
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct SharesHash(pub crate::protocol2::Hash);
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct SharesHashes(pub THashes);
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct PublicKeyHash(pub crate::protocol2::Hash);
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
-// The ciphertexts hash is used to refer to ballots and mix artifacts.
-// This allows accessing either one when pointing to a source of
-// ciphertexts (ballots or mix). The same typed hash is propagated
-// all the way from Ballots to DecryptionFactors predicates.
-pub struct CiphertextsHash(pub crate::protocol2::Hash);
-
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct DecryptionFactorsHash(pub crate::protocol2::Hash);
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct DecryptionFactorsHashes(pub THashes);
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct MixingHashes(pub THashes);
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct PlaintextsHash(pub crate::protocol2::Hash);
-
-// 0-based
-pub(crate) type TrusteePosition = usize;
-// 1-based
-pub(crate) type Threshold = usize;
-pub(crate) type TrusteeCount = usize;
-// 1-based _elements_
-pub(crate) type TrusteeSet = [usize; crate::protocol2::MAX_TRUSTEES];
-// 1-based, the position in the mixing chain (note this is not the same as the
-// position of the mixing trustee, since active trustees are set by the ballots artifact)
-pub(crate) type MixNumber = usize;
-
-pub(crate) type BatchNumber = usize;*/
 
 ///////////////////////////////////////////////////////////////////////////
 // Debug

@@ -17,6 +17,7 @@ use braid_messages::artifact::{Configuration, Ballots, Plaintexts};
 use braid_messages::newtypes::PublicKeyHash;
 use braid_messages::message::Message;
 use braid_messages::newtypes::MAX_TRUSTEES;
+use braid_messages::newtypes::NULL_TRUSTEE;
 
 use crate::protocol2::trustee::ProtocolManager;
 use crate::protocol2::trustee::Trustee;
@@ -67,8 +68,7 @@ fn run_protocol_test<C: Ctx>(
     let mut dkg_pk = None;
     let count = ciphertexts;
 
-    let mut selected_trustees =
-        [crate::protocol2::datalog::NULL_TRUSTEE; MAX_TRUSTEES];
+    let mut selected_trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
     selected_trustees[0..threshold.len()].copy_from_slice(threshold);
 
     for i in 0..30 {

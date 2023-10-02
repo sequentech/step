@@ -22,9 +22,10 @@ use crate::protocol2::action::Action;
 use braid_messages::artifact::Ballots;
 use braid_messages::artifact::Configuration;
 use braid_messages::newtypes::PublicKeyHash;
+use braid_messages::newtypes::NULL_TRUSTEE;
 use braid_messages::message::Message;
 use crate::protocol2::board::local::LocalBoard;
-use crate::protocol2::datalog::NULL_TRUSTEE;
+
 // use crate::protocol2::predicate::PublicKeyHash;
 use crate::protocol2::trustee::ProtocolManager;
 use crate::protocol2::trustee::Trustee;

@@ -9,6 +9,7 @@ use strand::hash::Hash;
 pub const MAX_TRUSTEES: usize = 12;
 pub const PROTOCOL_MANAGER_INDEX: usize = 1000;
 pub const VERIFIER_INDEX: usize = 2000;
+pub const NULL_TRUSTEE: usize = 1001;
 
 
 #[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
