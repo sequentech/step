@@ -99,8 +99,8 @@ impl BallotCodec for Question {
     ) -> Result<C::P, String> {
         let plaintext_bytes =
             self.encode_plaintext_question_to_bytes(plaintext)?;
-        C::P::strand_deserialize(&plaintext_bytes)
-            .map_err(|error| error.to_string())
+        Ok(C::P::strand_deserialize(&plaintext_bytes)
+            .map_err(|error| error.to_string()).unwrap())
     }
 
     fn decode_plaintext_question<C: Ctx>(
