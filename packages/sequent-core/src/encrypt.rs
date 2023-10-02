@@ -73,13 +73,12 @@ pub fn encrypt_plaintext_answer<C: Ctx>(
 pub fn parse_public_key<C: Ctx>(
     election: &ElectionDTO,
 ) -> Result<C::E, BallotError> {
-    let public_key_config =
-        election
-            .public_key
-            .clone()
-            .ok_or(BallotError::ConsistencyCheck(
-                "Missing Public Key".to_string(),
-            ))?;
+    let public_key_config: PublicKeyConfig = election
+        .public_key
+        .clone()
+        .ok_or(BallotError::ConsistencyCheck(
+            "Missing Public Key".to_string(),
+        ))?;
     Base64Deserialize::deserialize(public_key_config.public_key)
 }
 

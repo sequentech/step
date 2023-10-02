@@ -32,8 +32,21 @@ impl<T: StrandDeserialize> Base64Deserialize for T {
     where
         Self: Sized,
     {
-        let bytes_vec = general_purpose::STANDARD_NO_PAD.decode(value).unwrap();
-        StrandDeserialize::strand_deserialize(&bytes_vec.as_slice())
-            .map_err(|error| BallotError::Serialization(error.to_string()))
+        let bytes_vec = general_purpose::STANDARD_NO_PAD
+            .decode(value)
+            .map_err(|error| {
+                BallotError::Serialization(format!(
+                    "Error decoding base64 string: {}",
+                    error
+                ))
+            })?;
+        StrandDeserialize::strand_deserialize(&bytes_vec.as_slice()).map_err(
+            |error| {
+                BallotError::Serialization(format!(
+                    "Error deserializing borsh/strand bytes: {}",
+                    error
+                ))
+            },
+        )
     }
 }

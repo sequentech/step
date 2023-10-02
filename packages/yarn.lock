@@ -18709,11 +18709,11 @@ sentence-case@^3.0.4:
 
 "sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#4ec6fad5d9a1689288bdcd1d73ca25337a7d40a5"
+  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#02a866e221ea88ed67884ab9fcd7054d1a75dc08"
 
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#4ec6fad5d9a1689288bdcd1d73ca25337a7d40a5"
+  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#02a866e221ea88ed67884ab9fcd7054d1a75dc08"
 
 serialize-javascript@^4.0.0:
   version "4.0.0"
