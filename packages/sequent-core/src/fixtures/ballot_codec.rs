@@ -8,7 +8,6 @@ use crate::plaintext::{
     DecodedVoteChoice, DecodedVoteQuestion, InvalidPlaintextError,
     InvalidPlaintextErrorType,
 };
-use crate::util::read_ballot_fixture;
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 
@@ -26,8 +25,71 @@ pub struct BasesFixture {
 }
 
 fn get_question_plurality() -> Question {
-    let ballot = read_ballot_fixture::<RistrettoCtx>();
-    ballot.config.configuration.questions[0].clone()
+    let question_str = r#"{
+        "id":"1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
+        "description":"Elige quien quieres que sea tu Secretario General en tu municipio",
+         "layout":"",
+         "min":0,
+         "max":1,
+         "num_winners":1,
+         "title":"Secretario General",
+         "tally_type":"plurality-at-large",
+         "answer_total_votes_percentage":"over-total-valid-votes",
+         "answers":[
+            {
+                "id":"0",
+               "category":"Candidaturas no agrupadas",
+               "details":"",
+               "sort_order":0,
+               "urls":[
+                  
+               ],
+               "text":"José Rabano Pimiento"
+            },
+            {
+                "id":"1",
+               "category":"Candidaturas no agrupadas",
+               "details":"",
+               "sort_order":1,
+               "urls":[
+                  
+               ],
+               "text":"Miguel Pimentel Inventado"
+            },
+            {
+               "category":"Candidaturas no agrupadas",
+               "text":"Juan Iglesias Torquemada",
+               "sort_order":2,
+               "details":"",
+               "urls":[
+                  
+               ],
+               "id":"2"
+            },
+            {
+               "category":"Candidaturas no agrupadas",
+               "text":"Mari Pili Hernández Ordoñez",
+               "sort_order":3,
+               "details":"",
+               "urls":[
+                  
+               ],
+               "id":"3"
+            },
+            {
+               "category":"Candidaturas no agrupadas",
+               "text":"Juan Y Medio",
+               "sort_order":4,
+               "details":"",
+               "urls":[
+                  
+               ],
+               "id":"4"
+            }
+         ]
+      }"#;
+      let question: Question = serde_json::from_str(question_str).unwrap();
+      question
 }
 
 fn get_question_borda() -> Question {
@@ -1185,7 +1247,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             title: "Write in doesn't end on 0".to_string(),
             question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![0])),
             raw_ballot: RawBallotQuestion {
-                bases:   vec![2, 2, 2, 2, 256],
+                bases:   vec![2, 2, 2, 2, 32],
                 choices: vec![0, 1, 0, 0, 97],
             },
             plaintext: DecodedVoteQuestion {

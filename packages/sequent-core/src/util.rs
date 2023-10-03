@@ -7,12 +7,6 @@ use chrono::{DateTime, Local};
 use std::fs;
 use strand::context::Ctx;
 
-pub fn read_ballot_fixture<C: Ctx>() -> AuditableBallot<C> {
-    let contents = fs::read_to_string("fixtures/ballot.json")
-        .expect("Something went wrong reading the file");
-    Base64Deserialize::deserialize(contents).unwrap()
-}
-
 pub fn get_current_date() -> String {
     let local: DateTime<Local> = Local::now();
     local.format("%-d/%-m/%Y").to_string()
