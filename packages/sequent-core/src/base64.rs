@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use base64::engine::general_purpose;
-use base64::DecodeError;
 use base64::Engine;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 

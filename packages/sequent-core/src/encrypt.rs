@@ -2,40 +2,31 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use num_bigint::BigUint;
-use num_traits::Num;
-use sha2::{Digest, Sha256};
-
-use chrono::prelude::*;
-use strand::backend::num_bigint::{
-    BigUintP, BigintCtx, DeserializeNumber, SerializeNumber, P2048,
-};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::*;
 use strand::hashing::rustcrypto;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::StrandSignaturePk;
-use strand::util::StrandError;
 use strand::zkp::{Schnorr, Zkp};
 
 use base64::engine::general_purpose;
-use base64::DecodeError;
 use base64::Engine;
-use std::error::Error;
 
 use crate::ballot::*;
-use crate::ballot_codec::BallotCodec;
+use crate::ballot_codec::PlaintextCodec;
 use crate::base64::{Base64Deserialize, Base64Serialize};
 use crate::error::BallotError;
 use crate::plaintext::DecodedVoteQuestion;
 use crate::util::get_current_date;
 
-pub const DEFAULT_PUBLIC_KEY_RISTRETTO_STR: &str = "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4";
+pub const DEFAULT_PUBLIC_KEY_RISTRETTO_STR: &str =
+    "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4";
 
 pub fn default_public_key_ristretto() -> (String, <RistrettoCtx as Ctx>::E) {
     let pk_str: String = DEFAULT_PUBLIC_KEY_RISTRETTO_STR.to_string();
-    let pk_bytes = general_purpose::STANDARD_NO_PAD.decode(pk_str.clone()).unwrap();
+    let pk_bytes = general_purpose::STANDARD_NO_PAD
+        .decode(pk_str.clone())
+        .unwrap();
     let pk = <RistrettoCtx as Ctx>::E::strand_deserialize(&pk_bytes).unwrap();
     (pk_str, pk)
 }
@@ -178,8 +169,11 @@ pub fn encrypt_decoded_question<C: Ctx<P = [u8; 30]>>(
         let plaintext = question
             .encode_plaintext_question(&decoded_question)
             .map_err(|err| {
-                BallotError::Serialization(format!("Error encoding plaintext: {}", err))
-            })?;
+            BallotError::Serialization(format!(
+                "Error encoding plaintext: {}",
+                err
+            ))
+        })?;
         let (choice, proof) =
             encrypt_plaintext_answer(ctx, public_key.clone(), plaintext)?;
         choices.push(choice);
@@ -215,22 +209,13 @@ pub fn hash_to<C: Ctx>(
 #[cfg(test)]
 mod tests {
     use crate::encrypt;
-    use crate::ballot::*;
-    use crate::ballot_codec::BallotCodec;
-    use crate::plaintext::{DecodedVoteQuestion, DecodedVoteChoice};
 
-    use rand::RngCore;
     use strand::backend::ristretto::RistrettoCtx;
     use strand::context::Ctx;
-    use strand::elgamal::PrivateKey;
     use strand::rng::StrandRng;
-    use strand::util::to_u8_array;
-    use strand::serialization::{StrandDeserialize, StrandSerialize};
-    use base64::engine::general_purpose;
-    use base64::Engine;
 
     #[test]
-    fn test_encrypt_plaintext_answer()) {
+    fn test_encrypt_plaintext_answer() {
         let mut csprng = StrandRng;
         let ctx = RistrettoCtx;
 
@@ -239,6 +224,9 @@ mod tests {
         let plaintext = ctx.rnd_plaintext(&mut csprng);
 
         encrypt::encrypt_plaintext_answer(&ctx, pk_element, plaintext).unwrap();
-        assert_eq!(pk_string.as_str(), encrypt::DEFAULT_PUBLIC_KEY_RISTRETTO_STR);
+        assert_eq!(
+            pk_string.as_str(),
+            encrypt::DEFAULT_PUBLIC_KEY_RISTRETTO_STR
+        );
     }
 }
