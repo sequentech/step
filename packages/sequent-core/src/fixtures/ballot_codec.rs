@@ -9,7 +9,6 @@ use crate::plaintext::{
     InvalidPlaintextErrorType,
 };
 use std::collections::HashMap;
-use strand::backend::ristretto::RistrettoCtx;
 
 pub struct BallotCodecFixture {
     pub title: String,
@@ -86,10 +85,13 @@ fn get_question_plurality() -> Question {
                ],
                "id":"4"
             }
-         ]
+         ],
+         "extra_options":{
+            "base32_writeins":true
+         }
       }"#;
-      let question: Question = serde_json::from_str(question_str).unwrap();
-      question
+    let question: Question = serde_json::from_str(question_str).unwrap();
+    question
 }
 
 fn get_question_borda() -> Question {
@@ -182,7 +184,8 @@ pub fn get_test_question() -> Question {
            "shuffle_category_list":[
               
            ],
-           "show_points":false
+           "show_points":false,
+           "base32_writeins":true
         }
      }"#;
     let question: Question = serde_json::from_str(question_str).unwrap();
@@ -195,6 +198,7 @@ pub(crate) fn get_configurable_question(
     tally_type: String,
     enable_writeins: bool,
     write_in_questions: Option<Vec<usize>>,
+    base32_writeins: bool,
 ) -> Question {
     let question_str = r#"{
         "id": "fae0b09e-1b78-4118-b99c-7955f8ef2a52",
@@ -301,6 +305,12 @@ pub(crate) fn get_configurable_question(
             }
         }
     }
+    // set base32_writeins
+    let mut extra_options =
+        question.extra_options.unwrap_or(QuestionExtra::new());
+    extra_options.base32_writeins = Some(base32_writeins);
+    question.extra_options = Some(extra_options);
+
     question.answers = question.answers[0..num_answers].to_vec();
     question
 }
@@ -857,7 +867,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "plurality with two selections".to_string(),
-            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), false, None),
+            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), false, None, true),
             raw_ballot: RawBallotQuestion {
                 bases: vec![2, 2, 2, 2, 2, 2, 2, 2],
                 choices: vec![0, 0, 1, 0, 0, 0, 1, 0],
@@ -910,7 +920,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "plurality with three selections".to_string(),
-            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), false, None),
+            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), false, None, true),
             raw_ballot: RawBallotQuestion {
                 bases: vec![2, 2, 2, 2, 2, 2, 2, 2],
                 choices: vec![0, 1, 1, 0, 0, 0, 1, 0],
@@ -963,7 +973,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "borda with three selections".to_string(),
-            question: get_configurable_question(3, 7, "borda".to_string(), false, None),
+            question: get_configurable_question(3, 7, "borda".to_string(), false, None, true),
             raw_ballot: RawBallotQuestion {
                 bases: vec![2, 4, 4, 4, 4, 4, 4, 4],
                 choices: vec![0, 1, 3, 0, 0, 0, 2, 0]
@@ -1014,7 +1024,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "plurality explicit invalid and one selection".to_string(),
-            question: get_configurable_question(2, 2, "plurality-at-large".to_string(), false, None),
+            question: get_configurable_question(2, 2, "plurality-at-large".to_string(), false, None, true),
             raw_ballot: RawBallotQuestion {
                 bases: vec![2, 2, 2],
                 choices: vec![1, 1, 0]
@@ -1047,9 +1057,9 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "two write ins, an explicit invalid ballot, one of the write-ins is not selected".to_string(),
-            question: get_configurable_question(2, 6, "borda".to_string(), true, None),
+            question: get_configurable_question(2, 6, "borda".to_string(), true, None, true),
             raw_ballot: RawBallotQuestion {
-                bases: vec![2, 3, 3, 3, 3, 3, 3, 256, 256, 256],
+                bases: vec![2, 3, 3, 3, 3, 3, 3, 32, 32, 32],
                 choices: vec![1, 1, 0, 0, 1, 2, 0, 68, 0, 0]
             },
             plaintext: DecodedVoteQuestion {
@@ -1111,7 +1121,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "three write ins, a valid ballot, one of the write-ins is not selected".to_string(),
-            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), true, None),
+            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), true, None, true),
             raw_ballot: RawBallotQuestion {
                 bases: vec![2, 2, 2, 2, 2, 2, 2, 2, 256, 256, 256, 256, 256, 256, 256, 256, 256],
                 choices: vec![0, 1, 0, 0, 0, 1, 0, 1, 69, 0, 0, 195, 132, 32, 98, 99, 0]
@@ -1164,7 +1174,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "Not enough choices to decode".to_string(),
-            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, None),
+            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, None, true),
             raw_ballot: RawBallotQuestion {
                 bases: vec![2, 2, 2, 2],
                 choices: vec![0, 1, 0],
@@ -1201,7 +1211,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "invalid utf-8 sequence".to_string(),
-            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![0])),
+            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![0]), true),
             raw_ballot: RawBallotQuestion {
                 bases:   vec![2, 2, 2, 2, 256, 256],
                 choices: vec![0, 1, 0, 0, 150, 0],
@@ -1245,7 +1255,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "Write in doesn't end on 0".to_string(),
-            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![0])),
+            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![0]), true),
             raw_ballot: RawBallotQuestion {
                 bases:   vec![2, 2, 2, 2, 32],
                 choices: vec![0, 1, 0, 0, 97],
@@ -1286,7 +1296,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "Ballot larger than expected".to_string(),
-            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![])),
+            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![]), true),
             raw_ballot: RawBallotQuestion {
                 bases: vec![2, 2, 2, 2, 256],
                 choices: vec![0, 1, 0, 0, 24],
@@ -1329,7 +1339,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         // see https://hsivonen.fi/string-length/
         BallotCodecFixture {
             title: "write in fixture with utf-8 characters".to_string(),
-            question: get_configurable_question(2, 6, "borda".to_string(), true, None),
+            question: get_configurable_question(2, 6, "borda".to_string(), true, None, true),
             raw_ballot: RawBallotQuestion {
                 bases: vec![2, 3, 3, 3, 3, 3, 3, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256],
                 choices: vec![1, 1, 0, 0, 1, 2, 0, 240, 159, 164, 166, 240, 159, 143, 188, 226, 128, 141, 226, 153, 130, 239, 184, 143, 0, 0]
@@ -1403,6 +1413,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
                 "plurality-at-large".to_string(),
                 false,
                 None,
+                true,
             ),
             bases: vec![2, 2, 2, 2, 2, 2, 2, 2],
         },
@@ -1413,6 +1424,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
                 "plurality-at-large".to_string(),
                 false,
                 None,
+                true,
             ),
             bases: vec![2, 2],
         },
@@ -1423,6 +1435,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
                 "borda".to_string(),
                 false,
                 None,
+                true,
             ),
             bases: vec![2, 2],
         },
@@ -1433,6 +1446,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
                 "borda".to_string(),
                 false,
                 None,
+                true,
             ),
             bases: vec![2, 3, 3, 3],
         },
