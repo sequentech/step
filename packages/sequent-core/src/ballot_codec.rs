@@ -58,6 +58,24 @@ fn decode_bigint_from_bytes(b: &[u8]) -> Result<BigUint, String> {
         .ok_or(format!("Conversion failed for bytes {:?}", b))
 }
 
+
+// similar to ballot_codec::encode_vec_to_array but it doesn't add the size.
+pub fn vec_to_30_array(data: &Vec<u8>) -> Result<[u8; 30], String> {
+    if data.len() > 30 {
+        return Err(format!("Data too long, lenght {} is greater than 29", data.len()));
+    }
+    let mut plaintext_array = [0u8; 30];
+    for i in 0..data.len() {
+        plaintext_array[i] = data[i];
+    }
+    Ok(plaintext_array)
+}
+
+/**
+ *  Encode an input vector of bytes into an array of 30 bytes.
+ *  The first byte will indicate the size of the input bytes.
+ *. Then follows the input bytes, and the remaining are zeroed bytes.
+ */
 fn encode_vec_to_array(data: &Vec<u8>) -> Result<[u8; 30], String> {
     let plaintext_length = data.len();
     if plaintext_length > 29 {
@@ -71,6 +89,11 @@ fn encode_vec_to_array(data: &Vec<u8>) -> Result<[u8; 30], String> {
     Ok(plaintext_array)
 }
 
+/**
+ * Decode an array of 30 bytes into a vector of bytes.
+ * This is the inverse of encode_vec_to_array and in that way
+ * the first byte indicates the size of the data.
+ */
 fn decode_array_to_vec(code: &[u8; 30]) -> Vec<u8> {
     let plaintext_length = code[0] as usize;
     
@@ -628,6 +651,107 @@ mod tests {
     }
 
     #[test]
+    fn test_encoding_plaintext() {
+        let decoded_question = get_test_decoded_vote_question();
+        let question = get_test_question();
+        let encoded_plaintext = question
+            .encode_plaintext_question(&decoded_question).unwrap();
+        let decoded_plaintext = question
+            .decode_plaintext_question(&encoded_plaintext).unwrap();
+        assert_eq!(decoded_question, decoded_plaintext)
+    }
+
+    fn get_test_decoded_vote_question() -> DecodedVoteQuestion {
+        DecodedVoteQuestion {
+            is_explicit_invalid: false,
+            invalid_errors: vec![],
+            choices: vec![
+                DecodedVoteChoice {
+                    id: "38df9caf-2dc8-472c-87f2-f003241e9510".to_string(),
+                    selected: 0,
+                    write_in_text: None
+                },
+                DecodedVoteChoice {
+                    id: "97ac7d0a-e0f5-4e51-a1ee-6614c0836fec".to_string(),
+                    selected: -1,
+                    write_in_text: None
+                },
+                DecodedVoteChoice {
+                    id: "94c9eafa-ebc6-4594-a176-24788f761ced".to_string(),
+                    selected: 0,
+                    write_in_text: None
+                },
+            ]
+        }
+    }
+
+    fn get_test_question() -> Question {
+        let question_str = r#"{
+            "id":"1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
+            "description":"This is the description of this question. You can have multiple questions. You can add simple html like.",
+            "layout":"simultaneous-questions",
+            "max":3,
+            "min":1,
+            "num_winners":1,
+            "title":"Test question title",
+            "tally_type":"plurality-at-large",
+            "answer_total_votes_percentage":"over-total-valid-votes",
+            "answers":[
+               {
+                  "id":"38df9caf-2dc8-472c-87f2-f003241e9510",
+                  "category":"",
+                  "details":"This is an option with an simple example description.",
+                  "sort_order":0,
+                  "urls":[
+                     {
+                        "title":"Image URL",
+                        "url":"https://i.imgur.com/XFQwVFL.jpg"
+                     }
+                  ],
+                  "text":"Example option 1"
+               },
+               {
+                  "id":"97ac7d0a-e0f5-4e51-a1ee-6614c0836fec",
+                  "category":"",
+                  "details":"An option can contain a description. You can add simple html like ",
+                  "sort_order":1,
+                  "urls":[
+                     {
+                        "title":"URL",
+                        "url":"https://sequentech.io"
+                     },
+                     {
+                        "title":"Image URL",
+                        "url":"/XFQwVFL.jpg"
+                     }
+                  ],
+                  "text":"Example option 2"
+               },
+               {
+                  "id":"94c9eafa-ebc6-4594-a176-24788f761ced",
+                  "category":"",
+                  "details":"",
+                  "sort_order":2,
+                  "urls":[
+                     
+                  ],
+                  "text":"Example option 3"
+               }
+            ],
+            "extra_options":{
+               "shuffle_categories":true,
+               "shuffle_all_options":true,
+               "shuffle_category_list":[
+                  
+               ],
+               "show_points":false
+            }
+         }"#;
+        let question: Question = serde_json::from_str(question_str).unwrap();
+        question
+    }
+
+    #[test]
     fn test_question_bases() {
         let fixtures = get_fixtures();
         for fixture in fixtures {
@@ -651,7 +775,7 @@ mod tests {
             }
         }
     }
-/*
+
     #[test]
     fn test_question_encode_plaintext() {
         let fixtures = get_fixtures();
@@ -682,7 +806,7 @@ mod tests {
             }
         }
     }
-*/
+
     #[test]
     fn test_question_encode_to_raw_ballot() {
         let fixtures = get_fixtures();
@@ -715,8 +839,8 @@ mod tests {
             println!("fixture: {}", &fixture.title);
             let encoded_bigint =
                 encode(&fixture.raw_ballot.choices, &fixture.raw_ballot.bases);
-            let encoded_ballot =
-                encoded_bigint.map(|value| value.to_str_radix(10));
+            let encoded_ballot = encoded_bigint.map(|value| encode_bigint_to_bytes(&value).unwrap());
+            let encoded_byte_array = encoded_ballot.clone().map(|value| vec_to_30_array(&value).unwrap());
 
             let expected_error =
                 fixture.expected_errors.and_then(|expected_map| {
@@ -731,12 +855,12 @@ mod tests {
             } else {
                 assert_eq!(
                     &fixture.encoded_ballot,
-                    &encoded_ballot.expect("Expected value")
+                    &encoded_byte_array.expect("Expected value")
                 );
             }
         }
     }
-/*
+
     #[test]
     fn test_question_decode_plaintext() {
         let fixtures = get_fixtures();
@@ -791,7 +915,7 @@ mod tests {
             }
         }
     }
-*/
+
     #[test]
     fn test_question_decode_raw_ballot() {
         let fixtures = get_fixtures();
@@ -839,7 +963,7 @@ mod tests {
     #[test]
     fn test_bases() {
         let fixtures = bases_fixture();
-        for fixture in fixtures.iter() {
+        for (i, fixture) in fixtures.iter().enumerate() {
             let bases = fixture.question.get_bases();
             assert_eq!(bases, fixture.bases);
         }

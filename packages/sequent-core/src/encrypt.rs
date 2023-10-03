@@ -230,7 +230,7 @@ mod tests {
     use base64::Engine;
 
     #[test]
-    fn test_elfelix() {
+    fn test_encrypt_plaintext_answer()) {
         let mut csprng = StrandRng;
         let ctx = RistrettoCtx;
 
@@ -240,108 +240,5 @@ mod tests {
 
         encrypt::encrypt_plaintext_answer(&ctx, pk_element, plaintext).unwrap();
         assert_eq!(pk_string.as_str(), encrypt::DEFAULT_PUBLIC_KEY_RISTRETTO_STR);
-    }
-
-    #[test]
-    fn test_encoding_plaintext() {
-        let decoded_question = get_test_decoded_vote_question();
-        let question = get_test_question();
-        let encoded_plaintext = question
-            .encode_plaintext_question(&decoded_question).unwrap();
-        let decoded_plaintext = question
-            .decode_plaintext_question(&encoded_plaintext).unwrap();
-        assert_eq!(decoded_question, decoded_plaintext)
-    }
-
-    fn get_test_decoded_vote_question() -> DecodedVoteQuestion {
-        DecodedVoteQuestion {
-            is_explicit_invalid: false,
-            invalid_errors: vec![],
-            choices: vec![
-                DecodedVoteChoice {
-                    id: "38df9caf-2dc8-472c-87f2-f003241e9510".to_string(),
-                    selected: 0,
-                    write_in_text: None
-                },
-                DecodedVoteChoice {
-                    id: "97ac7d0a-e0f5-4e51-a1ee-6614c0836fec".to_string(),
-                    selected: -1,
-                    write_in_text: None
-                },
-                DecodedVoteChoice {
-                    id: "94c9eafa-ebc6-4594-a176-24788f761ced".to_string(),
-                    selected: 0,
-                    write_in_text: None
-                },
-            ]
-        }
-    }
-
-
-
-    fn get_test_question() -> Question {
-        let question_str = r#"{
-            "id":"1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
-            "description":"This is the description of this question. You can have multiple questions. You can add simple html like.",
-            "layout":"simultaneous-questions",
-            "max":3,
-            "min":1,
-            "num_winners":1,
-            "title":"Test question title",
-            "tally_type":"plurality-at-large",
-            "answer_total_votes_percentage":"over-total-valid-votes",
-            "answers":[
-               {
-                  "id":"38df9caf-2dc8-472c-87f2-f003241e9510",
-                  "category":"",
-                  "details":"This is an option with an simple example description.",
-                  "sort_order":0,
-                  "urls":[
-                     {
-                        "title":"Image URL",
-                        "url":"https://i.imgur.com/XFQwVFL.jpg"
-                     }
-                  ],
-                  "text":"Example option 1"
-               },
-               {
-                  "id":"97ac7d0a-e0f5-4e51-a1ee-6614c0836fec",
-                  "category":"",
-                  "details":"An option can contain a description. You can add simple html like ",
-                  "sort_order":1,
-                  "urls":[
-                     {
-                        "title":"URL",
-                        "url":"https://sequentech.io"
-                     },
-                     {
-                        "title":"Image URL",
-                        "url":"/XFQwVFL.jpg"
-                     }
-                  ],
-                  "text":"Example option 2"
-               },
-               {
-                  "id":"94c9eafa-ebc6-4594-a176-24788f761ced",
-                  "category":"",
-                  "details":"",
-                  "sort_order":2,
-                  "urls":[
-                     
-                  ],
-                  "text":"Example option 3"
-               }
-            ],
-            "extra_options":{
-               "shuffle_categories":true,
-               "shuffle_all_options":true,
-               "shuffle_category_list":[
-                  
-               ],
-               "show_points":false
-            }
-         }"#;
-        let question: Question = serde_json::from_str(question_str).unwrap();
-        question
     }
 }
