@@ -246,8 +246,11 @@ mod tests {
     fn test_encoding_plaintext() {
         let decoded_question = get_test_decoded_vote_question();
         let question = get_test_question();
-        question
+        let encoded_plaintext = question
             .encode_plaintext_question::<RistrettoCtx>(&decoded_question).unwrap();
+        let decoded_plaintext = question
+            .decode_plaintext_question::<RistrettoCtx>(&encoded_plaintext).unwrap();
+        assert_eq!(decoded_question, decoded_plaintext)
     }
 
     fn get_test_decoded_vote_question() -> DecodedVoteQuestion {

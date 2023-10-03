@@ -97,10 +97,13 @@ impl BallotCodec for Question {
         &self,
         plaintext: &DecodedVoteQuestion,
     ) -> Result<C::P, String> {
-        let plaintext_bytes =
+        let mut plaintext_bytes_vec =
             self.encode_plaintext_question_to_bytes(plaintext)?;
-        Ok(C::P::strand_deserialize(&plaintext_bytes)
-            .map_err(|error| error.to_string()).unwrap())
+        while plaintext_bytes_vec.len() < 30 {
+            plaintext_bytes_vec.push(0);
+        }
+        C::P::strand_deserialize(&plaintext_bytes_vec)
+            .map_err(|error| error.to_string())
     }
 
     fn decode_plaintext_question<C: Ctx>(
