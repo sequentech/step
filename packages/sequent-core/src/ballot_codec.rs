@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use std::str;
 use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
+use std::convert::TryInto;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RawBallotQuestion {
@@ -19,13 +20,13 @@ pub struct RawBallotQuestion {
 }
 
 pub trait BallotCodec {
-    fn encode_plaintext_question<C: Ctx>(
+    fn encode_plaintext_question(
         &self,
         plaintext: &DecodedVoteQuestion,
-    ) -> Result<C::P, String>;
-    fn decode_plaintext_question<C: Ctx>(
+    ) -> Result<[u8; 30], String>;
+    fn decode_plaintext_question(
         &self,
-        code: &C::P,
+        code: &[u8; 30],
     ) -> Result<DecodedVoteQuestion, String>;
 
     fn encode_plaintext_question_to_bytes(
@@ -55,6 +56,29 @@ fn encode_bigint_to_bytes(b: &BigUint) -> Result<Vec<u8>, String> {
 fn decode_bigint_from_bytes(b: &[u8]) -> Result<BigUint, String> {
     BigUint::from_radix_le(b, 256)
         .ok_or(format!("Conversion failed for bytes {:?}", b))
+}
+
+fn encode_vec_to_array(data: &Vec<u8>) -> Result<[u8; 30], String> {
+    let plaintext_length = data.len();
+    if plaintext_length > 29 {
+        return Err(format!("Plaintext too long, lenght {} is greater than 29", plaintext_length));
+    }
+    let mut plaintext_array = [0u8; 30];
+    plaintext_array[0] = plaintext_length as u8;
+    for i in 0..plaintext_length {
+        plaintext_array[i+1] = data[i];
+    }
+    Ok(plaintext_array)
+}
+
+fn decode_array_to_vec(code: &[u8; 30]) -> Vec<u8> {
+    let plaintext_length = code[0] as usize;
+    
+    let mut plaintext_bytes: Vec<u8> = vec![];
+    for i in 0..plaintext_length {
+        plaintext_bytes.push(code[i+1]);
+    }
+    plaintext_bytes
 }
 
 impl Question {
@@ -93,25 +117,20 @@ impl Question {
 }
 
 impl BallotCodec for Question {
-    fn encode_plaintext_question<C: Ctx>(
+    fn encode_plaintext_question(
         &self,
         plaintext: &DecodedVoteQuestion,
-    ) -> Result<C::P, String> {
-        let mut plaintext_bytes_vec =
+    ) -> Result<[u8; 30], String> {
+        let plaintext_bytes_vec =
             self.encode_plaintext_question_to_bytes(plaintext)?;
-        while plaintext_bytes_vec.len() < 30 {
-            plaintext_bytes_vec.push(0);
-        }
-        C::P::strand_deserialize(&plaintext_bytes_vec)
-            .map_err(|error| error.to_string())
+        encode_vec_to_array(&plaintext_bytes_vec)
     }
 
-    fn decode_plaintext_question<C: Ctx>(
+    fn decode_plaintext_question(
         &self,
-        code: &C::P,
+        code: &[u8; 30],
     ) -> Result<DecodedVoteQuestion, String> {
-        let plaintext_bytes =
-            code.strand_serialize().map_err(|error| error.to_string())?;
+        let plaintext_bytes = decode_array_to_vec(code);
 
         self.decode_plaintext_question_from_bytes(&plaintext_bytes)
     }
@@ -591,7 +610,7 @@ static TO_CHAR: phf::Map<u8, char> = phf_map! {
     30u8 => '.',
     31u8 => ',',
 };
-/*
+
 #[cfg(test)]
 mod tests {
     use crate::ballot_codec::*;
@@ -599,6 +618,14 @@ mod tests {
     use crate::fixtures::ballot_codec::get_fixtures;
     use rand::Rng;
     use std::cmp;
+
+    #[test]
+    fn test_encode_vec_to_array_and_back() {
+        let data: Vec<u8> = vec![33, 13, 155];
+        let encoded = encode_vec_to_array(&data).unwrap();
+        let decoded = decode_array_to_vec(&encoded);
+        assert_eq!(data, decoded);
+    }
 
     #[test]
     fn test_question_bases() {
@@ -624,7 +651,7 @@ mod tests {
             }
         }
     }
-
+/*
     #[test]
     fn test_question_encode_plaintext() {
         let fixtures = get_fixtures();
@@ -655,7 +682,7 @@ mod tests {
             }
         }
     }
-
+*/
     #[test]
     fn test_question_encode_to_raw_ballot() {
         let fixtures = get_fixtures();
@@ -709,7 +736,7 @@ mod tests {
             }
         }
     }
-
+/*
     #[test]
     fn test_question_decode_plaintext() {
         let fixtures = get_fixtures();
@@ -764,7 +791,7 @@ mod tests {
             }
         }
     }
-
+*/
     #[test]
     fn test_question_decode_raw_ballot() {
         let fixtures = get_fixtures();
@@ -860,27 +887,27 @@ mod tests {
             invalid_errors: vec![],
             choices: vec![
                 DecodedVoteChoice {
-                    id: 0,
+                    id: 0.to_string(),
                     selected: 1,
                     write_in_text: None,
                 },
                 DecodedVoteChoice {
-                    id: 1,
+                    id: 1.to_string(),
                     selected: 1,
                     write_in_text: None,
                 },
                 DecodedVoteChoice {
-                    id: 2,
+                    id: 2.to_string(),
                     selected: 5,
                     write_in_text: None,
                 },
                 DecodedVoteChoice {
-                    id: 3,
+                    id: 3.to_string(),
                     selected: 3,
                     write_in_text: None,
                 },
                 DecodedVoteChoice {
-                    id: 4,
+                    id: 4.to_string(),
                     selected: 1,
                     //                   123456789012345679012345678901234567890
                     // write_in_text:
@@ -924,4 +951,3 @@ mod tests {
         assert!(bytes_small < bytes_large);
     }
 }
-*/

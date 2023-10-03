@@ -38,7 +38,7 @@ pub struct DecodedVoteChoice {
     pub write_in_text: Option<String>,
 }
 
-pub fn map_to_decoded_question<C: Ctx>(
+pub fn map_to_decoded_question<C: Ctx<P = [u8; 30]>>(
     ballot: &AuditableBallot<C>,
 ) -> Result<Vec<DecodedVoteQuestion>, String> {
     let mut decoded_questions = vec![];
@@ -54,7 +54,7 @@ pub fn map_to_decoded_question<C: Ctx>(
         let replication_choice: &ReplicationChoice<C> = &ballot.choices[i];
 
         let decoded_plaintext = question
-            .decode_plaintext_question::<C>(&replication_choice.plaintext)?;
+            .decode_plaintext_question(&replication_choice.plaintext)?;
         decoded_questions.push(decoded_plaintext);
     }
     Ok(decoded_questions)

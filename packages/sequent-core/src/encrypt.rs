@@ -40,7 +40,7 @@ pub fn default_public_key_ristretto() -> (String, <RistrettoCtx as Ctx>::E) {
     (pk_str, pk)
 }
 
-pub fn encrypt_plaintext_answer<C: Ctx>(
+pub fn encrypt_plaintext_answer<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     public_key_element: <C>::E,
     plaintext: <C>::P,
@@ -155,7 +155,7 @@ pub fn to_30bytes(plaintext: Vec<u8>) -> Result<[u8; 30], BallotError> {
 }
 */
 
-pub fn encrypt_decoded_question<C: Ctx>(
+pub fn encrypt_decoded_question<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     decoded_questions: &Vec<DecodedVoteQuestion>,
     config: &ElectionDTO,
@@ -176,9 +176,9 @@ pub fn encrypt_decoded_question<C: Ctx>(
         let question = config.configuration.questions[i].clone();
         let decoded_question = decoded_questions[i].clone();
         let plaintext = question
-            .encode_plaintext_question::<C>(&decoded_question)
-            .map_err(|_err| {
-                BallotError::Serialization(format!("Error encoding plaintext"))
+            .encode_plaintext_question(&decoded_question)
+            .map_err(|err| {
+                BallotError::Serialization(format!("Error encoding plaintext: {}", err))
             })?;
         let (choice, proof) =
             encrypt_plaintext_answer(ctx, public_key.clone(), plaintext)?;
@@ -247,9 +247,9 @@ mod tests {
         let decoded_question = get_test_decoded_vote_question();
         let question = get_test_question();
         let encoded_plaintext = question
-            .encode_plaintext_question::<RistrettoCtx>(&decoded_question).unwrap();
+            .encode_plaintext_question(&decoded_question).unwrap();
         let decoded_plaintext = question
-            .decode_plaintext_question::<RistrettoCtx>(&encoded_plaintext).unwrap();
+            .decode_plaintext_question(&encoded_plaintext).unwrap();
         assert_eq!(decoded_question, decoded_plaintext)
     }
 
@@ -260,17 +260,17 @@ mod tests {
             choices: vec![
                 DecodedVoteChoice {
                     id: "38df9caf-2dc8-472c-87f2-f003241e9510".to_string(),
-                    selected: -1,
-                    write_in_text: None
-                },
-                DecodedVoteChoice {
-                    id: "97ac7d0a-e0f5-4e51-a1ee-6614c0836fec".to_string(),
                     selected: 0,
                     write_in_text: None
                 },
                 DecodedVoteChoice {
-                    id: "94c9eafa-ebc6-4594-a176-24788f761ced".to_string(),
+                    id: "97ac7d0a-e0f5-4e51-a1ee-6614c0836fec".to_string(),
                     selected: -1,
+                    write_in_text: None
+                },
+                DecodedVoteChoice {
+                    id: "94c9eafa-ebc6-4594-a176-24788f761ced".to_string(),
+                    selected: 0,
                     write_in_text: None
                 },
             ]
