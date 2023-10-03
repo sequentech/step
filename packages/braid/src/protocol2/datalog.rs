@@ -104,6 +104,7 @@ pub(crate) fn run(predicates: &Vec<Predicate>) -> (HashSet<Action>, Vec<Predicat
         });
         next.2.into_iter().for_each(|d| {
             error!("Datalog returned error {:?}", d);
+            // FIXME panic
             panic!();
         });
     }

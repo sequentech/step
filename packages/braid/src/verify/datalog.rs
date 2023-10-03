@@ -57,11 +57,11 @@ crepe! {
     ConfigurationSigned(cfg_h, signer_t) <- InP(p),
     let Predicate::ConfigurationSigned(cfg_h, signer_t) = p;
 
-    PublicKey(config_hash, pk_hash, shares_hs, commitments_hs, signer_t) <- InP(p),
-    let Predicate::PublicKey(config_hash, pk_hash, shares_hs, commitments_hs, signer_t) = p;
+    PublicKey(config_hash, pk_hash, shares_hs, channels_hs, signer_t) <- InP(p),
+    let Predicate::PublicKey(config_hash, pk_hash, shares_hs, channels_hs, signer_t) = p;
 
-    PublicKeySigned(config_hash, pk_hash, shares_hs, commitments_hs, signer_t) <- InP(p),
-    let Predicate::PublicKeySigned(config_hash, pk_hash, shares_hs, commitments_hs, signer_t) = p;
+    PublicKeySigned(config_hash, pk_hash, shares_hs, channels_hs, signer_t) <- InP(p),
+    let Predicate::PublicKeySigned(config_hash, pk_hash, shares_hs, channels_hs, signer_t) = p;
 
     Configuration(cfg_h, self_position, num_t, threshold) <- InP(p),
     let Predicate::Configuration(cfg_h, self_position, num_t, threshold) = p;
@@ -116,15 +116,15 @@ crepe! {
     ConfigurationSignedUpTo(cfg_h, 0) <-
     ConfigurationSigned(cfg_h, 0);
 
-    PublicKeySigned(cfg_h, pk_h, shares_hs, commitments_hs, 0) <-
-    PublicKey(cfg_h, pk_h, shares_hs, commitments_hs, 0);
+    PublicKeySigned(cfg_h, pk_h, shares_hs, channels_hs, 0) <-
+    PublicKey(cfg_h, pk_h, shares_hs, channels_hs, 0);
 
     PublicKeySignedUpTo(cfg_h, pk_h, shares_hs, n + 1) <-
     PublicKeySignedUpTo(cfg_h, pk_h, shares_hs, n),
-    PublicKeySigned(cfg_h, pk_h, shares_hs, _commitments_hs, n + 1);
+    PublicKeySigned(cfg_h, pk_h, shares_hs, _channels_hs, n + 1);
 
     PublicKeySignedUpTo(cfg_h, pk_h, shares_hs, 0) <-
-    PublicKeySigned(cfg_h, pk_h, shares_hs, _commitments_hs, 0);
+    PublicKeySigned(cfg_h, pk_h, shares_hs, _channels_hs, 0);
 
     PublicKeySignedAll(cfg_h, pk_h, shares_hs) <-
     ConfigurationSignedAll(cfg_h, _self_p, num_t, _threshold),

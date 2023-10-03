@@ -44,12 +44,12 @@ pub(super) fn gen_channel<C: Ctx>(
 // FIXME Sign the channels only if they contain our channel in the right position
 pub(super) fn sign_channels<C: Ctx>(
     configuration_h: &ConfigurationHash,
-    commitments_hs: &ChannelsHashes,
+    channels_hs: &ChannelsHashes,
     trustee: &Trustee<C>,
 ) -> Result<Vec<Message>> {
     let cfg = trustee.get_configuration(configuration_h)?;
 
-    for (i, h) in commitments_hs
+    for (i, h) in channels_hs
         .0
         .iter()
         .filter(|h| **h != NULL_HASH)
@@ -62,7 +62,7 @@ pub(super) fn sign_channels<C: Ctx>(
     }
     // The commitments hashes will be grouped into one sequence of bytes when
     // constructing the parameter target.
-    let m = Message::channels_all_signed_msg(cfg, commitments_hs, trustee)?;
+    let m = Message::channels_all_signed_msg(cfg, channels_hs, trustee)?;
     Ok(vec![m])
 }
 
@@ -128,7 +128,7 @@ pub(super) fn compute_shares<C: Ctx>(
 pub(super) fn compute_pk<C: Ctx>(
     cfg_h: &ConfigurationHash,
     shares_hs: &SharesHashes,
-    commitments_hs: &ChannelsHashes,
+    channels_hs: &ChannelsHashes,
     self_pos: &TrusteePosition,
     num_t: &TrusteeCount,
     threshold: &TrusteeCount,
@@ -138,7 +138,7 @@ pub(super) fn compute_pk<C: Ctx>(
     let pk = compute_pk_(
         cfg_h,
         shares_hs,
-        commitments_hs,
+        channels_hs,
         self_pos,
         num_t,
         threshold,
@@ -150,7 +150,7 @@ pub(super) fn compute_pk<C: Ctx>(
         // The shares and commitments hashes will be grouped into one sequence of bytes when
         // constructing the parameter target.
         let m =
-            Message::public_key_msg(cfg, &public_key, shares_hs, commitments_hs, true, trustee)?;
+            Message::public_key_msg(cfg, &public_key, shares_hs, channels_hs, true, trustee)?;
         Ok(vec![m])
     } else {
         Err(anyhow!("Could not compute pk {:?}", pk))

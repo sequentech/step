@@ -41,6 +41,9 @@ struct Cli {
 
     #[arg(short, long, default_value_t = IMMUDB_PW.to_string())]
     password: String,
+
+    #[arg(long, default_value_t = true)]
+    strict: bool,
 }
 
 // PROJECT_VERSION=$(git rev-parse HEAD) cargo run --bin main -- --server-url http://immudb:3322 --board-index defaultboardindex --trustee-config trustee1.toml
@@ -85,6 +88,7 @@ async fn main() -> Result<()> {
             }
         };
 
+        let mut step_error = false;
         for board_name in boards {
             info!("Connecting to board '{}'..", board_name.clone());
             let trustee: Trustee<RistrettoCtx> = Trustee::new(sk.clone(), ek.clone());
@@ -114,15 +118,17 @@ async fn main() -> Result<()> {
             match session_result {
                 Ok(value) => value,
                 Err(error) => {
-                    // FIXME should handle a bulletin board refusing messages maliciously
                     error!(
                         "Error executing step for board '{}': '{}'",
                         board_name.clone(),
                         error
                     );
-                    continue;
+                    step_error = true;
                 }
             };
+        }
+        if args.strict && step_error {
+            break;
         }
         sleep(Duration::from_millis(1000)).await;
     }

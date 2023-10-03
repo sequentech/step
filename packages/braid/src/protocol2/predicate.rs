@@ -320,12 +320,12 @@ impl std::fmt::Debug for Predicate {
                 "Shares{{ cfg hash={:?}, hash={:?}, signer={:?} }}",
                 dbg_hash(&ch.0), h.0, t
             ),
-            Predicate::PublicKey(cfg_h, pk_h, _shares_hs, _commitments_hs, t) => write!(
+            Predicate::PublicKey(cfg_h, pk_h, _shares_hs, _channels_hs, t) => write!(
                 f,
                 "PublicKey{{ cfg hash={:?}, pk_h={:?}, signer={:?} }}",
                 dbg_hash(&cfg_h.0), dbg_hash(&pk_h.0), t
             ),
-            Predicate::PublicKeySigned(cfg_h, pk_h, _shares_hs, _commitments_hs, t) => write!(
+            Predicate::PublicKeySigned(cfg_h, pk_h, _shares_hs, _channels_hs, t) => write!(
                 f,
                 "PublicKeySigned{{ cfg hash={:?}, pk_h={:?}, signer={:?} }}",
                 dbg_hash(&cfg_h.0), dbg_hash(&pk_h.0), t

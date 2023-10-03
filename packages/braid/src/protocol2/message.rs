@@ -93,14 +93,14 @@ impl Message {
     // Signs all the commitments for all trustees
     pub(crate) fn channels_all_signed_msg<C: Ctx>(
         cfg: &Configuration<C>,
-        commitments_hs: &ChannelsHashes,
+        channels_hs: &ChannelsHashes,
         trustee: &Trustee<C>,
     ) -> Result<Message> {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
         let statement =
-            Statement::channels_all_stmt(ConfigurationHash(cfg_h), ChannelsHashes(commitments_hs.0));
+            Statement::channels_all_stmt(ConfigurationHash(cfg_h), ChannelsHashes(channels_hs.0));
 
         trustee.sign(statement, None)
     }
@@ -125,7 +125,7 @@ impl Message {
         cfg: &Configuration<C>,
         dkgpk: &DkgPublicKey<C>,
         shares_hs: &SharesHashes,
-        commitments_hs: &ChannelsHashes,
+        channels_hs: &ChannelsHashes,
         artifact: bool,
         trustee: &Trustee<C>,
     ) -> Result<Message> {
@@ -140,7 +140,7 @@ impl Message {
                 ConfigurationHash(cfg_h),
                 PublicKeyHash(pk_h),
                 SharesHashes(shares_hs.0),
-                ChannelsHashes(commitments_hs.0),
+                ChannelsHashes(channels_hs.0),
             );
             trustee.sign(statement, Some(pk_bytes))
         } else {
@@ -148,7 +148,7 @@ impl Message {
                 ConfigurationHash(cfg_h),
                 PublicKeyHash(pk_h),
                 SharesHashes(shares_hs.0),
-                ChannelsHashes(commitments_hs.0),
+                ChannelsHashes(channels_hs.0),
             );
             trustee.sign(statement, None)
         }
@@ -349,7 +349,6 @@ impl Message {
                 "Received message with mismatched configuration hash"
             ));
         }
-        assert_eq!(config_hash, st_cfg_h);
 
         // Statement-only message
         if self.artifact.is_none() {

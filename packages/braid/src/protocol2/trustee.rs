@@ -72,7 +72,7 @@ impl<C: Ctx> Trustee<C> {
     // Protocol step: update->derive predicates->infer&run
     ///////////////////////////////////////////////////////////////////////////
 
-    #[instrument(name = "Trustee::step", skip(messages))]
+    #[instrument(name = "Trustee::step", skip(messages, self))]
     pub(crate) fn step(
         &mut self,
         messages: Vec<Message>,
@@ -122,9 +122,13 @@ impl<C: Ctx> Trustee<C> {
     fn update(&mut self, messages: Vec<Message>, configuration: Configuration<C>) -> Result<i32> {
         let mut added = 0;
 
-        // The parallel field cfg_hash must exist as well as the configuration itself
-        assert!(self.local_board.get_cfg_hash().is_some());
-        let cfg_hash = self.local_board.get_cfg_hash().expect("impossible");
+        // Sanity check: field cfg_hash must exist at this point
+        let cfg_hash = self.local_board.get_cfg_hash();
+        if cfg_hash.is_none() {
+            return Err(anyhow!("Local field cfg_hash not set")); 
+        }
+        
+        let cfg_hash = cfg_hash.expect("impossible");
 
         for message in messages {
             let verified = message.verify(&configuration);

@@ -103,18 +103,18 @@ impl Statement {
         cfg_hash: ConfigurationHash,
         pk_h: PublicKeyHash,
         shares_hs: SharesHashes,
-        commitments_hs: ChannelsHashes,
+        channels_hs: ChannelsHashes,
     ) -> Statement {
-        Statement::PublicKey(Self::timestamp(), cfg_hash, pk_h, shares_hs, commitments_hs)
+        Statement::PublicKey(Self::timestamp(), cfg_hash, pk_h, shares_hs, channels_hs)
     }
 
     pub(crate) fn pk_signed_stmt(
         cfg_hash: ConfigurationHash,
         pk_h: PublicKeyHash,
         shares_hs: SharesHashes,
-        commitments_hs: ChannelsHashes,
+        channels_hs: ChannelsHashes,
     ) -> Statement {
-        Statement::PublicKeySigned(Self::timestamp(), cfg_hash, pk_h, shares_hs, commitments_hs)
+        Statement::PublicKeySigned(Self::timestamp(), cfg_hash, pk_h, shares_hs, channels_hs)
     }
 
     // The trustees field indicates which trustees will participate in the mix and decryption.

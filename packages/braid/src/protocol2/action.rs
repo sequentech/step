@@ -141,8 +141,8 @@ impl Action {
             Self::SignConfiguration(cfg_h) => cfg::sign_config(cfg_h, trustee),
             Self::GenChannel(cfg_h) => dkg::gen_channel(cfg_h, trustee),
             Self::SignChannels(cfg_h, chs) => dkg::sign_channels(cfg_h, chs, trustee),
-            Self::ComputeShares(cfg_h, commitments_hs, num_t, th) => {
-                dkg::compute_shares(cfg_h, commitments_hs, num_t, th, trustee)
+            Self::ComputeShares(cfg_h, channels_hs, num_t, th) => {
+                dkg::compute_shares(cfg_h, channels_hs, num_t, th, trustee)
             }
             Self::ComputePublicKey(cfg_h, sh_hs, cm_hs, self_pos, num_t, th) => {
                 dkg::compute_pk(cfg_h, sh_hs, cm_hs, self_pos, num_t, th, trustee)
@@ -185,7 +185,7 @@ impl Action {
             Self::ComputeDecryptionFactors(
                 cfg_h,
                 batch,
-                commitments_hs,
+                channels_hs,
                 ciphertexts_h,
                 signer_t,
                 pk_h,
@@ -197,7 +197,7 @@ impl Action {
             ) => decrypt::compute_decryption_factors(
                 cfg_h,
                 batch,
-                commitments_hs,
+                channels_hs,
                 ciphertexts_h,
                 signer_t,
                 pk_h,
@@ -330,7 +330,7 @@ impl std::fmt::Debug for Action {
             Self::SignChannels(h, chs) => {
                 write!(
                     f,
-                    "SignChannels{{ cfg hash={:?}, commitments_hs={:?} }}",
+                    "SignChannels{{ cfg hash={:?}, channels_hs={:?} }}",
                     dbg_hash(&h.0),
                     chs
                 )
@@ -351,7 +351,7 @@ impl std::fmt::Debug for Action {
             Self::SignPublicKey(cfg_h, pk_h, sh_hs, cm_hs, _self_pos, _num_t, _th) => {
                 write!(
                     f,
-                    "SignPublicKey{{ cfg hash={:?}, pk hash={:?}, shares_hs={:?}, commitments_hs={:?} }}",
+                    "SignPublicKey{{ cfg hash={:?}, pk hash={:?}, shares_hs={:?}, channels_hs={:?} }}",
                     dbg_hash(&cfg_h.0), dbg_hash(&pk_h.0), sh_hs.0.map(|h| dbg_hash(&h)), cm_hs.0.map(|h| dbg_hash(&h))
                 )
             }
@@ -377,7 +377,7 @@ impl std::fmt::Debug for Action {
             Self::ComputeDecryptionFactors(
                 _cfg_h,
                 _batch,
-                _commitments_hs,
+                _channels_hs,
                 _ciphertexts_h,
                 _signer_t,
                 _pk_h,
