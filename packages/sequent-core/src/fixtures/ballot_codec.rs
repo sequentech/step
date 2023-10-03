@@ -1060,7 +1060,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             question: get_configurable_question(2, 6, "borda".to_string(), true, None, true),
             raw_ballot: RawBallotQuestion {
                 bases: vec![2, 3, 3, 3, 3, 3, 3, 32, 32, 32],
-                choices: vec![1, 1, 0, 0, 1, 2, 0, 68, 0, 0]
+                choices: vec![1, 1, 0, 0, 1, 2, 0, 4, 0, 0]
             },
             plaintext: DecodedVoteQuestion {
                 is_explicit_invalid: true,
@@ -1123,8 +1123,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             title: "three write ins, a valid ballot, one of the write-ins is not selected".to_string(),
             question: get_configurable_question(3, 7, "plurality-at-large".to_string(), true, None, true),
             raw_ballot: RawBallotQuestion {
-                bases: vec![2, 2, 2, 2, 2, 2, 2, 2, 256, 256, 256, 256, 256, 256, 256, 256, 256],
-                choices: vec![0, 1, 0, 0, 0, 1, 0, 1, 69, 0, 0, 195, 132, 32, 98, 99, 0]
+                bases: vec![2, 2, 2, 2, 2, 2, 2, 2, 32, 32, 32, 32, 32, 32, 32, 32],
+                choices: vec![0, 1, 0, 0, 0, 1, 0, 1, 5, 0, 0, 1, 27, 2, 3, 0]
             },
             plaintext: DecodedVoteQuestion {
                 is_explicit_invalid: false,
@@ -1163,7 +1163,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     DecodedVoteChoice {
                         id: 6.to_string(),
                         selected: 1,
-                        write_in_text: Some("Ä bc".to_string()),
+                        write_in_text: Some("A bc".to_string()),
                     }
                 ]
             },
@@ -1334,71 +1334,6 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ("question_bases".to_string(),  "bases don't cover write-ins".to_string()),
                 ("question_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
                 ("question_encode_plaintext".to_string(),  "disabled".to_string()),
-            ]))
-        },
-        // see https://hsivonen.fi/string-length/
-        BallotCodecFixture {
-            title: "write in fixture with utf-8 characters".to_string(),
-            question: get_configurable_question(2, 6, "borda".to_string(), true, None, true),
-            raw_ballot: RawBallotQuestion {
-                bases: vec![2, 3, 3, 3, 3, 3, 3, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256],
-                choices: vec![1, 1, 0, 0, 1, 2, 0, 240, 159, 164, 166, 240, 159, 143, 188, 226, 128, 141, 226, 153, 130, 239, 184, 143, 0, 0]
-            },
-            plaintext: DecodedVoteQuestion {
-                is_explicit_invalid: true,
-                invalid_errors: vec![
-                    InvalidPlaintextError {
-                        error_type: InvalidPlaintextErrorType::Explicit,
-                        answer_id: None,
-                        message: Some("errors.explicit.notAllowed".to_string()),
-                        message_map: HashMap::new(),
-                    },
-                    InvalidPlaintextError {
-                        error_type: InvalidPlaintextErrorType::Implicit,
-                        answer_id: None,
-                        message: Some("errors.implicit.selectedMax".to_string()),
-                        message_map: HashMap::from([
-                            ("numSelected".to_string(), "3".to_string()),
-                            ("max".to_string(), "2".to_string())
-                        ]),
-                    }
-                ],
-                choices: vec![
-                    DecodedVoteChoice {
-                        id: 0.to_string(),
-                        selected: 0,
-                        write_in_text: None,
-                    },
-                    DecodedVoteChoice {
-                        id: 1.to_string(),
-                        selected: -1,
-                        write_in_text: None,
-                    },
-                    DecodedVoteChoice {
-                        id: 2.to_string(),
-                        selected: -1,
-                        write_in_text: None,
-                    },
-                    DecodedVoteChoice {
-                        id: 3.to_string(),
-                        selected: 0,
-                        write_in_text: None,
-                    },
-                    DecodedVoteChoice {
-                        id: 4.to_string(),
-                        selected: 1,
-                        write_in_text: Some("🤦🏼‍♂️".to_string())
-                    },
-                    DecodedVoteChoice {
-                        id: 5.to_string(),
-                        selected: -1,
-                        write_in_text: Some("".to_string())
-                    }
-                ]
-            },
-            encoded_ballot: vec_to_30_array(&vec![22, 71,30,52,39,64,19,51,16,03,18,91,16,22,49,21,15,03,52,25,51,56,13]).unwrap(),
-            expected_errors: Some(HashMap::from([
-                ("question_bases".to_string(), "bases don't cover write-ins".to_string()),
             ]))
         },
     ]
