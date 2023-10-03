@@ -166,7 +166,8 @@ impl Predicate {
             ),
             // Ballots(Timestamp, ConfigurationH, usize, CiphertextsH, PublicKeyH, TrusteeSet)
             Statement::Ballots(_ts, cfg_h, batch, ballots_h, pk_h, trustees) => {
-                // Verify that all selected trustees are unique
+                
+                // Verify that all selected trustees are valid
                 let mut selected = vec![];
                 trustees.iter().for_each(|s| {
                     if *s != NULL_TRUSTEE {
@@ -175,6 +176,7 @@ impl Predicate {
                     }
                 });
 
+                // Verify that all selected trustees are unique
                 let unique: HashSet<usize> = selected.into_iter().collect();
                 assert!(unique.len() == cfg.threshold);
 

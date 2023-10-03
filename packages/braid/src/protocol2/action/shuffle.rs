@@ -38,7 +38,7 @@ pub(crate) fn mix<C: Ctx>(
         // mix_no is 1-based, but trustees[] is 0-based, so the previous mixer is
         // the trustee at index n - 2 (= (n - 1) - 1). For example, if we're on mix #2,
         // the source mix is signed by the first trustee, which is trustees[0].
-        // Trustees[] elements are 1-based, so n - 1.
+        // Trustees[] elements are 1-based, so trustees[mix_no - 2] - 1.
         assert_eq!(signer_t, trustees[mix_no - 2] - 1);
         let signer_t = trustees[mix_no - 2] - 1;
         let mix = trustee.get_mix(source_h, *batch, signer_t);
@@ -153,6 +153,7 @@ pub(crate) fn sign_mix<C: Ctx>(
         dbg_hash(&cipher_h.0),
         ok
     );
+    // FIXME assert
     assert!(ok);
     let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
     Ok(vec![m])

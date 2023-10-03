@@ -180,7 +180,7 @@ impl<C: Ctx> Trustee<C> {
 
         let artifact = zero.artifact.as_ref().expect("impossible");
         let configuration = Configuration::strand_deserialize(artifact)?;
-        // FIXME will crash on bad data
+        // FIXME assert
         assert!(configuration.is_valid());
 
         let verified = zero.verify(&configuration)?;
