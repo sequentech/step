@@ -8,6 +8,9 @@ services:
     image: ghcr.io/cachix/devenv:latest
     volumes:
       - ../..:/workspaces:cached
+    # support ptrace-based debuggers like C++, Go, and Rust
+    cap_add:
+     - SYS_PTRACE
     security_opt:
       - label:disable
     environment:
@@ -49,8 +52,6 @@ services:
 
   graphql-engine:
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
-    ports:
-      - "8080:8080"
     restart: always
     volumes:
       - ../hasura/metadata/:/hasura-metadata:cached
@@ -124,12 +125,17 @@ services:
       context: ./keycloak
       dockerfile: Dockerfile
     restart: always
-    ports:
-      - 8090:8090
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    #ports:
+    #  - 8090:8090
     environment:
-      KC_HOSTNAME: "127.0.0.1"
-      #KC_HOSTNAME_PATH: "keycloak"
-      #KC_HOSTNAME_PORT: "8090"
+      # more info here: https://www.keycloak.org/server/reverseproxy
+      KC_PROXY: "edge"
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_URL: "http://127.0.0.1:8090/"
+      KC_HOSTNAME_ADMIN_URL: "http://127.0.0.1:8090/"
+      KC_HOSTNAME_DEBUG: "true"
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_PORT: "8090"
       KC_DB_USERNAME: postgres
@@ -162,11 +168,13 @@ services:
       context: ../packages/
       dockerfile: Dockerfile
     #restart: always
-    ports:
-      - 3000:3000
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    #ports:
+    #  - 3000:3000
     stdin_open: true
     volumes:
-       - ../packages:/usr/src/app
+       - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
     depends_on:
       - graphql-engine
 
@@ -176,10 +184,12 @@ services:
     restart: always
     environment:
       - IMMUDB_PGSQL_SERVER=true
-    ports:
-      - 3322:3322 # immudb service
-      - 3324:9497 # prometheus
-      - 3325:8080 # web console
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    # ports:
+    #   - 3322:3322 # immudb service
+    #   - 3324:9497 # prometheus
+    #   - 3325:8080 # web console
     volumes:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
@@ -194,8 +204,10 @@ services:
       - IMMUDB_SERVER_URL=http://immudb:3322
       - IMMUDB_USERNAME=immudb
       - IMMUDB_PASSWORD=immudb
-    ports:
-      - 8400:8400
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    #ports:
+    #  - 8400:8400
     #depends_on:
     #  - graphql-engine
   
@@ -236,9 +248,11 @@ services:
   minio:
     profiles: ["dev"]
     image: minio/minio
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    #ports:
+    #  - "9000:9000"
+    #  - "9001:9001"
     volumes:
       - minio_storage:/data
     environment:
@@ -297,9 +311,11 @@ services:
       dockerfile: Dockerfile
     container_name: vault
     restart: on-failure:10
-    ports:
-      - "8201:8201"
-      - "8200:8200"
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    #ports:
+    #  - "8201:8201"
+    #  - "8200:8200"
     environment:
       VAULT_API_ADDR: 'http://0.0.0.0:8200'
       VAULT_ADDR: 'http://0.0.0.0:8201'

@@ -11,6 +11,7 @@
     pkgs.reuse
     pkgs.openssl
     pkgs.postgresql_15
+    pkgs.python3
 
     # immudb
     pkgs.go
@@ -21,8 +22,9 @@
     # utility for search
     pkgs.ack
 
-    # docker utility
+    # docker utilities
     pkgs.dive
+    pkgs.nginx
 
     # wget and curl
     pkgs.wget
