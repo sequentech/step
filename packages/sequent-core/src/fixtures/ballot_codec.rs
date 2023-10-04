@@ -29,11 +29,13 @@ pub fn normalize_vote_question(
     tally_type: &str,
 ) -> DecodedVoteQuestion {
     let mut original = input.clone();
-    original.choices = original
+    let mut choices: Vec<DecodedVoteChoice> = original
         .choices
         .iter()
         .map(|choice| normalize_vote_choice(choice, tally_type))
         .collect();
+    choices.sort_by_key(|q| q.id.clone());
+    original.choices = choices;
     original
 }
 

@@ -95,7 +95,16 @@ mod tests {
             encoded_bigint.to_str_radix(10),
             decoded_bigint.to_str_radix(10)
         );
-        assert_eq!(decoded_question, decoded_plaintext);
+        assert_eq!(
+            normalize_vote_question(
+                &decoded_question,
+                question.tally_type.as_str()
+            ),
+            normalize_vote_question(
+                &decoded_plaintext,
+                question.tally_type.as_str()
+            )
+        );
     }
 
     #[test]

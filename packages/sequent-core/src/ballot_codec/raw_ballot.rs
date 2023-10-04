@@ -135,13 +135,11 @@ impl RawBallotCodec for Question {
         let mut sorted_choices: Vec<DecodedVoteChoice> = vec![];
 
         // 2. sort & segment answers
-        let valid_answers: Vec<&Answer> = self
-            .answers
+        let valid_answers: Vec<&Answer> = sorted_answers
             .iter()
             .filter(|answer| !answer.is_explicit_invalid())
             .collect();
-        let write_in_answers: Vec<&Answer> = self
-            .answers
+        let write_in_answers: Vec<&Answer> = sorted_answers
             .iter()
             .filter(|answer| answer.is_write_in())
             .collect();
