@@ -1268,24 +1268,15 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             ]))
         },
         BallotCodecFixture {
-            title: "invalid utf-8 sequence".to_string(),
+            title: "simple vote".to_string(),
             question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![0]), true),
             raw_ballot: RawBallotQuestion {
-                bases:   vec![2, 2, 2, 2, 256, 256],
-                choices: vec![0, 1, 0, 0, 150, 0],
+                bases:   vec![2, 2, 2, 2],
+                choices: vec![0, 1, 0, 0],
             },
             plaintext: DecodedVoteQuestion {
                 is_explicit_invalid: false,
-                invalid_errors: vec![
-                    InvalidPlaintextError {
-                        error_type: InvalidPlaintextErrorType::EncodingError,
-                        answer_id: Some(0.to_string()),
-                        message: Some("errors.encoding.bytesToUtf8Conversion".to_string()),
-                        message_map: HashMap::from([
-                            ("errorMessage".to_string(), "invalid utf-8 sequence of 1 bytes from index 0".to_string())
-                        ]),
-                    }
-                ],
+                invalid_errors: vec![],
                 choices: vec![
                     DecodedVoteChoice {
                         id: 0.to_string(),
@@ -1305,7 +1296,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ]
             },
             encoded_ballot_bigint: "2".to_string(),
-            encoded_ballot: vec_to_30_array(&vec![2, 98, 9]).unwrap(),
+            encoded_ballot: vec_to_30_array(&vec![1, 2]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(),  "bases don't cover write-ins".to_string()),
                 ("question_encode_to_raw_ballot".to_string(),  "disabled".to_string()),

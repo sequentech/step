@@ -71,21 +71,30 @@ mod tests {
     fn test_encoding_plaintext() {
         let decoded_question = get_test_decoded_vote_question();
         let question = get_test_question();
-        let encoded_bigint = question.encode_plaintext_question_bigint(&decoded_question).unwrap(); // test
+        let encoded_bigint = question
+            .encode_plaintext_question_bigint(&decoded_question)
+            .unwrap(); // test
         let encoded_plaintext = question
             .encode_plaintext_question(&decoded_question)
             .unwrap();
 
-
         let plaintext_bytes = decode_array_to_vec(&encoded_plaintext); // test
-        let decoded_bigint = decode_bigint_from_bytes(&plaintext_bytes).unwrap(); // test
+        let decoded_bigint =
+            decode_bigint_from_bytes(&plaintext_bytes).unwrap(); // test
 
         let decoded_plaintext = question
             .decode_plaintext_question(&encoded_plaintext)
             .unwrap();
-        
-        println!("encoded_plaintext {:?} encoded_bigint {}", encoded_plaintext, encoded_bigint.to_str_radix(10));
-        assert_eq!(encoded_bigint.to_str_radix(10), decoded_bigint.to_str_radix(10));
+
+        println!(
+            "encoded_plaintext {:?} encoded_bigint {}",
+            encoded_plaintext,
+            encoded_bigint.to_str_radix(10)
+        );
+        assert_eq!(
+            encoded_bigint.to_str_radix(10),
+            decoded_bigint.to_str_radix(10)
+        );
         assert_eq!(decoded_question, decoded_plaintext);
     }
 
@@ -155,22 +164,15 @@ mod tests {
                     .contains(&"decode_choices".to_string())
             {
                 assert_eq!(
-                    decoded_ballot.choices.len(),
-                    fixture.plaintext.choices.len()
+                    normalize_vote_question(
+                        &decoded_ballot,
+                        fixture.question.tally_type.as_str()
+                    ),
+                    normalize_vote_question(
+                        &fixture.plaintext,
+                        fixture.question.tally_type.as_str()
+                    )
                 );
-                for idx in 0..decoded_ballot.choices.len() {
-                    let mut res_choice = decoded_ballot.choices[idx].clone();
-                    let mut choice = fixture.plaintext.choices[idx].clone();
-                    if choice.write_in_text.is_some() {
-                        res_choice.write_in_text = res_choice
-                            .write_in_text
-                            .or_else(|| Some("".to_string()));
-                    }
-                    if fixture.question.tally_type == "plurality-at-large" {
-                        choice.selected = cmp::min(choice.selected, 0);
-                    }
-                    assert_eq!(choice, res_choice);
-                }
             }
         }
     }
