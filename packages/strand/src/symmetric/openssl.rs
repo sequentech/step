@@ -95,3 +95,7 @@ mod tests {
         assert_eq!(data.to_vec(), decrypted);
     }
 }
+
+pub fn info() -> String {
+    format!("{}, FIPS_ENABLED: TRUE", module_path!())
+}

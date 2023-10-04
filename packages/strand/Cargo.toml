@@ -25,6 +25,7 @@ wasm = ["wasm-bindgen", "serde-wasm-bindgen", "num_bigint", "malachite"]
 num_bigint = ["dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:num-modular"]
 malachite = ["dep:malachite"]
 openssl = ["dep:openssl", "dep:rand_core"]
+fips = ["openssl"]
 
 [dependencies]
 

@@ -33,3 +33,7 @@ impl RngCore for StrandRng {
         rand_bytes(dest).map_err(|e| rand::Error::new(e))
     }
 }
+
+pub fn info() -> String {
+    format!("{}, FIPS_ENABLED: TRUE", module_path!())
+}

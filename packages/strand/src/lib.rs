@@ -4,6 +4,8 @@
 
 // #![doc = include_str!("../README.md")]
 
+use std::collections::HashMap;
+
 extern crate cfg_if;
 
 /// Defines a generic interface to concrete modular arithmetic backends based on
@@ -15,7 +17,7 @@ pub mod backend;
 
 /// ElGamal encryption.
 pub mod elgamal;
-/// Wikstrom proof of shuffle following [TW10](https://www.csc.kth.se/~dog/research/papers/TW10Conf.pdf). See also [HLDK17](https://arbor.bfh.ch/8269/1/HLKD17.pdf).
+/// Wikstrom proof of shuffle following [TW10](https://www.csc.kth.se/~dog/research/papers/TW10Conf.pdf). See also [HLDK17](https://arbor.bfh.ch/8269/1/HLKD17.pdf). 
 pub mod shuffler;
 /// Distributed ElGamal threshold cryptosystem following [Pedersen91](https://link.springer.com/chapter/10.1007/3-540-46766-1_9).
 /// See also [CGGI13](https://members.loria.fr/VCortier/files/Papers/WPES2013.pdf).
@@ -28,6 +30,7 @@ mod random;
 /// Signature frontend.
 mod signatures;
 /// Symmetric encryption frontend.
+#[cfg(not(feature = "wasm"))] 
 mod symmetric;
 /// Hashing.
 mod hashing;
@@ -79,3 +82,43 @@ pub mod serialization;
 /// Support for distributed Elgamal.
 #[allow(dead_code)]
 mod keymaker;
+
+pub fn info() -> HashMap<&'static str, String> {
+    let mut info = HashMap::new();
+    let version = option_env!("CARGO_PKG_VERSION").unwrap_or("unknown");
+    let hash = crate::hash::info();
+    let random = crate::rng::info();
+    let signature = crate::signature::info();
+    let symmetric = crate::symm::info();
+
+    info.insert("VERSION", version.to_string());
+    info.insert("HASH", hash);
+    info.insert("RNG", random);
+    info.insert("SIGNATURE", signature);
+    info.insert("SYMMETRIC", symmetric);
+
+
+    info
+}
+
+pub fn info_string() -> String {
+    let info = info();
+let ret = format!("
+===============================================================================
+strand
+
+Version:    {}
+HASH:       {}
+RNG:        {}
+SIGNATURE:  {}
+SYMMETRIC:  {}
+===============================================================================
+", 
+info.get("VERSION").unwrap(), 
+info.get("HASH").unwrap(), 
+info.get("RNG").unwrap(), 
+info.get("SIGNATURE").unwrap(), 
+info.get("SYMMETRIC").unwrap());
+
+    ret
+}

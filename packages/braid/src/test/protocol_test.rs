@@ -56,6 +56,8 @@ fn run_protocol_test<C: Ctx>(
     batches: usize,
     threshold: &[usize],
 ) -> Result<()> {
+    info!("{}", strand::info_string());
+    
     let remote = test.remote.clone();
     let ctx = test.ctx.clone();
     let mut sessions = vec![];

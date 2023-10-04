@@ -1,14 +1,19 @@
 // SPDX-FileCopyrightText: 2021 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-pub mod dalek;
+
+#[cfg(feature = "wasm")]
 pub mod rustcrypto;
-pub mod zcash;
 
 #[cfg(feature = "openssl")]
 pub mod openssl;
 
-#[cfg(feature = "openssl")]
+#[cfg(any(not(feature = "openssl"), feature="fips_except_signatures"))]
+pub mod dalek;
+
+// pub mod zcash;
+
+#[cfg(all(feature = "openssl", feature="rustcrypto"))]
 #[cfg(test)]
 pub(crate) mod tests {
     use super::openssl::{

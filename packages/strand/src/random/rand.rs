@@ -36,3 +36,7 @@ impl RngCore for StrandRng {
         OsRng.try_fill_bytes(dest)
     }
 }
+
+pub fn info() -> String {
+    format!("{}, FIPS_ENABLED: FALSE", module_path!())
+}

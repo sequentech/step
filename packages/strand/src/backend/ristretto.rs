@@ -447,6 +447,7 @@ pub(crate) fn to_ristretto_plaintext_array(
 mod tests {
     use crate::backend::ristretto::*;
     use crate::backend::tests::*;
+    use crate::keymaker::tests::*;
     use crate::serialization::tests::*;
     use crate::threshold::tests::test_threshold_generic;
 

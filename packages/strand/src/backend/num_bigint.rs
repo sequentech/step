@@ -544,6 +544,7 @@ impl BorshDeserialize for BigUintP {
 mod tests {
     use crate::backend::num_bigint::*;
     use crate::backend::tests::*;
+    use crate::keymaker::tests::*;
     use crate::context::Ctx;
     use crate::serialization::tests::*;
     use crate::threshold::tests::test_threshold_generic;

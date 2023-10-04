@@ -3,6 +3,7 @@ use anyhow::Result;
 use colored::*;
 use serde::Serialize;
 use tracing::info;
+use strum::Display;
 
 use braid_messages::message::Message;
 use braid_messages::artifact::Configuration;
@@ -48,84 +49,64 @@ The verifier performs checks that map to these steps, as well as additional cons
 ///////////////////////////////////////////////////////////////////////////
 
 // TODO use this instead of strings
-enum Checks {
-    CONFIGURATION_VALID,
-    MESSAGE_SIGNATURES_VALID,
-    MESSAGES_CFG_VALID,
-    PK_VALID,
-    BALLOTS_PK_VALID,
-    MIX_START_VALID,
-    MIX_END_VALID,
-    MIX_VALID,
-    MIX_UNIQUE_VALID,
-    DECRYPTION_VALID,
-    PLAINTEXTS_VALID,
-}
-/*
-The configuration is valid as per Configuration::is_valid:
+#[derive(PartialEq, Eq, Hash, Display, Serialize)]
+enum Check {
+    /*
+    The configuration is valid as per Configuration::is_valid:
     1) The number of trustees ranges from 2 to 12 (crate::protocol2::MAX_TRUSTEES).
     2) The threshold ranges from 2 to the number of trustees.
     3) There are no duplicate trustees.
-*/
-const CONFIGURATION_VALID: &str = "Configuration valid";
-
-/*
-All message signatures verify, with respect to their specified sender public key.
-*/
-const MESSAGE_SIGNATURES_VALID: &str = "All message signatures verified";
-
-/*
-All messages refer to the same configuration file that is checked
-with CONFIGURATION_VALID.
-*/
-const MESSAGES_CFG_VALID: &str = "All messages refer to correct configuration";
-
-/*
-The public key information has been correctly constructed (given public data):
+    */
+    CONFIGURATION_VALID,
+    /*
+    All message signatures verify, with respect to their specified sender public key.
+    */
+    MESSAGE_SIGNATURES_VALID,
+    /*
+    All messages refer to the same configuration file that is checked
+    with CONFIGURATION_VALID.
+    */    
+    MESSAGES_CFG_VALID,
+    /*
+    The public key information has been correctly constructed (given public data):
     1) The public key has been correctly constructed.
     2) The trustee verification keys have been correctly constructed.
     3) All trustees have signed the public key statement, which asserts correctness
     of private shares (VSS).
-*/
-const PK_VALID: &str = "Public key verified";
-
-/*
-The protocol manager's signature on the ballots and public key verifies.
-*/
-const BALLOTS_PK_VALID: &str = "Ballot public key matches root public key";
-
-/*
-The first link in the mixing chain takes the ballots as input.
-*/
-const MIX_START_VALID: &str = "Mixing chain start matches ballots";
-
-/*
-The last link in the mixing chain outputs the ciphertexts inputted to decryption.
-*/
-const MIX_END_VALID: &str = "Mixing chain end matches decrypting ballots";
-
-/*
-1) The number of links in the mixing chain is equal to the threshold specified
-in the configuration.
-2) The proof of shuffle for each link in the chain verifies.
-*/
-const MIX_VALID: &str = "Mixing chain correct length";
-
-/*
-Each of the links in the mixing chain was produced by a different trustee.
-*/
-const MIX_UNIQUE_VALID: &str = "Mixing chain no duplicate signers";
-
-/*
-The proof of decryption linking the decryption ciphertexts to the decryption factors verifies
-with respect to the public key information.
-*/
-const DECRYPTION_VALID: &str = "Decryption validated with respect to ballot public key";
-
-/*
-The combination of decryption factors matches the published plaintexts.
- */
-const PLAINTEXTS_VALID: &str = "Plaintexts match";
+    */
+    PK_VALID,
+    /*
+    The protocol manager's signature on the ballots and public key verifies.
+    */
+    BALLOTS_PK_VALID,
+    /*
+    The first link in the mixing chain takes the ballots as input.
+    */
+    MIX_START_VALID,
+    /*
+    The last link in the mixing chain outputs the ciphertexts inputted to decryption.
+    */
+    MIX_END_VALID,
+    /*
+    1) The number of links in the mixing chain is equal to the threshold specified
+    in the configuration.
+    2) The proof of shuffle for each link in the chain verifies.
+    */
+    MIX_VALID,
+    /*
+    Each of the links in the mixing chain was produced by a different trustee.
+    */
+    MIX_UNIQUE_VALID,
+    /*
+    The proof of decryption linking the decryption ciphertexts to the decryption factors verifies
+    with respect to the public key information.
+    */
+    DECRYPTION_VALID,
+    /*
+    The combination of decryption factors matches the published plaintexts.
+    */
+    PLAINTEXTS_VALID,
+}
 
 pub struct Verifier<C: Ctx> {
     trustee: Trustee<C>,
@@ -138,10 +119,10 @@ impl<C: Ctx> Verifier<C> {
 
     pub async fn run(&mut self) -> Result<()> {
         let mut vr = VerificationResult::new(&self.board.board_dbname);
-        vr.add_target(CONFIGURATION_VALID);
-        vr.add_target(MESSAGE_SIGNATURES_VALID);
-        vr.add_target(MESSAGES_CFG_VALID);
-        vr.add_target(PK_VALID);
+        vr.add_target(Check::CONFIGURATION_VALID);
+        vr.add_target(Check::MESSAGE_SIGNATURES_VALID);
+        vr.add_target(Check::MESSAGES_CFG_VALID);
+        vr.add_target(Check::PK_VALID);
 
         info!(
             "{}",
@@ -168,7 +149,7 @@ impl<C: Ctx> Verifier<C> {
         let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
         info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 
-        vr.add_result(CONFIGURATION_VALID, cfg.is_valid(), &dbg_hash(&cfg_h));
+        vr.add_result(Check::CONFIGURATION_VALID, cfg.is_valid(), &dbg_hash(&cfg_h));
 
         // Verify message signatures
 
@@ -176,14 +157,14 @@ impl<C: Ctx> Verifier<C> {
         let vmessages: Result<Vec<VerifiedMessage>> =
             messages.iter().map(|m| m.verify(&cfg)).collect();
         let vmessages = vmessages?;
-        vr.add_result(MESSAGE_SIGNATURES_VALID, true, &vmessages.len());
+        vr.add_result(Check::MESSAGE_SIGNATURES_VALID, true, &vmessages.len());
 
         let correct_cfg = messages
             .iter()
             .filter(|m| m.statement.get_cfg_h() == cfg_h)
             .count();
         vr.add_result(
-            MESSAGES_CFG_VALID,
+            Check::MESSAGES_CFG_VALID,
             correct_cfg == messages.len(),
             &dbg_hash(&cfg_h),
         );
@@ -231,7 +212,7 @@ impl<C: Ctx> Verifier<C> {
         let root = root.iter().next();
         if let Some(root) = root {
             pk_h = Some(root.1);
-            vr.add_result("Public key verified", true, &dbg_hash(&root.1 .0));
+            vr.add_result(Check::PK_VALID, true, &dbg_hash(&root.1 .0));
         }
 
         for v in verified {
@@ -254,13 +235,13 @@ impl<C: Ctx> Verifier<C> {
 impl Target {
     fn get_verification_result(&self) -> VerificationResult {
         let mut vr = VerificationResult::new(&self.get_batch().to_string());
-        vr.add_target(BALLOTS_PK_VALID);
-        vr.add_target(MIX_START_VALID);
-        vr.add_target(MIX_END_VALID);
-        vr.add_target(MIX_VALID);
-        vr.add_target(MIX_UNIQUE_VALID);
-        vr.add_target(DECRYPTION_VALID);
-        vr.add_target(PLAINTEXTS_VALID);
+        vr.add_target(Check::BALLOTS_PK_VALID);
+        vr.add_target(Check::MIX_START_VALID);
+        vr.add_target(Check::MIX_END_VALID);
+        vr.add_target(Check::MIX_VALID);
+        vr.add_target(Check::MIX_UNIQUE_VALID);
+        vr.add_target(Check::DECRYPTION_VALID);
+        vr.add_target(Check::PLAINTEXTS_VALID);
 
         vr
     }
@@ -305,36 +286,36 @@ impl Verified {
         assert_eq!(self.get_batch(), target.get_batch());
 
         child.add_result(
-            BALLOTS_PK_VALID,
+            Check::BALLOTS_PK_VALID,
             *pk_h == Some(target.get_pk_h()),
             &dbg_hash(&target.get_pk_h().0),
         );
         child.add_result(
-            MIX_START_VALID,
+            Check::MIX_START_VALID,
             filtered_mixes[0] == target.get_ballots_h().0
                 && filtered_mixes[0] == self.get_ballots_h().0,
             &dbg_hash(&target.get_ballots_h().0),
         );
         child.add_result(
-            MIX_END_VALID,
+            Check::MIX_END_VALID,
             filtered_mixes[cfg.threshold] == self.get_decryption_input_h().0,
             &cfg.threshold,
         );
         // subtract one since the number of hashes includes the source and the target, eg ballots => mix1 => mix2 has length 3, but threshold = 2
         child.add_result(
-            MIX_VALID,
+            Check::MIX_VALID,
             filtered_mixes.len() - 1 == cfg.threshold,
             &cfg.threshold,
         );
         // This is already certified by the datalog predicates
-        child.add_result(MIX_UNIQUE_VALID, true, &filtered_mixes.len());
+        child.add_result(Check::MIX_UNIQUE_VALID, true, &filtered_mixes.len());
         child.add_result(
-            DECRYPTION_VALID,
+            Check::DECRYPTION_VALID,
             self.get_decryption_pk_h() == target.get_pk_h(),
             &dbg_hash(&target.get_pk_h().0),
         );
         child.add_result(
-            PLAINTEXTS_VALID,
+            Check::PLAINTEXTS_VALID,
             self.get_plaintexts_h() == target.get_plaintexts_h(),
             &dbg_hash(&self.get_plaintexts_h().0),
         );
@@ -369,7 +350,7 @@ use std::collections::HashMap;
 #[derive(Serialize)]
 struct VerificationResult {
     name: String,
-    targets: HashMap<String, VerificationItem>,
+    targets: HashMap<Check, VerificationItem>,
     children: HashMap<String, VerificationResult>,
 }
 impl VerificationResult {
@@ -380,14 +361,14 @@ impl VerificationResult {
             children: HashMap::new(),
         }
     }
-    fn add_target(&mut self, name: &str) {
+    fn add_target(&mut self, name: Check) {
         self.targets
-            .insert(name.to_string(), VerificationItem::new());
+            .insert(name, VerificationItem::new());
     }
-    fn add_result<D: std::fmt::Display>(&mut self, name: &str, result: bool, metadata: &D) {
+    fn add_result<D: std::fmt::Display>(&mut self, name: Check, result: bool, metadata: &D) {
         let value = self
             .targets
-            .get_mut(name)
+            .get_mut(&name)
             .expect(&format!("no target for '{}'", &name));
         value.result = result;
         value.metadata = metadata.to_string();

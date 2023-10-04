@@ -57,7 +57,7 @@ impl StrandSignaturePk {
         msg: &[u8],
     ) -> Result<(), StrandError> {
         let mut digest: RustCryptoHasher =
-            crate::hashing::rustcrypto::rust_crypto_ecdsa_hasher();
+            crate::hash::rust_crypto_ecdsa_hasher();
         digest.update(msg);
 
         Ok(self.0.verify_digest(digest, &signature.0)?)
@@ -288,4 +288,8 @@ pub(crate) mod tests {
         let not_ok = public_key.verify(&signature, other_message);
         assert!(not_ok.is_err());
     }
+}
+
+pub fn info() -> String {
+    format!("{}, FIPS_ENABLED: FALSE", module_path!())
 }

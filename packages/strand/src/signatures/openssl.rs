@@ -306,3 +306,7 @@ pub(crate) mod tests {
         assert!(not_ok.is_err());
     }
 }
+
+pub fn info() -> String {
+    format!("{}, FIPS_ENABLED: TRUE", module_path!())
+}

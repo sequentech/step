@@ -9,9 +9,8 @@ use crate::util::StrandError;
 /// Sha-512 hashes are 64 bytes.
 pub const STRAND_HASH_LENGTH_BYTES: usize = 64;
 /// Sha-512 hashes are 64 byte arrays: [u8; 64].
-pub type Hash = [u8; 64];
+pub type Hash = [u8; STRAND_HASH_LENGTH_BYTES];
 pub(crate) type Hasher = HasherOpenSSL;
-// pub(crate) use openssl::hash::Hasher;
 
 pub fn hasher() -> Result<Hasher, StrandError> {
     let md = MessageDigest::sha512();
@@ -50,3 +49,7 @@ pub(crate) fn rust_crypto_ecdsa_hasher() -> Result<RustCryptoHasher, StrandError
     Ok(hasher)
 }
 pub(crate) type RustCryptoHasher = HasherOpenSSL;
+
+pub fn info() -> String {
+    format!("{}, FIPS_ENABLED: TRUE", module_path!())
+}
