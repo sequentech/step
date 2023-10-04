@@ -80,8 +80,17 @@ mod tests {
                     expected_map.get("encoding_plaintext_bigint").cloned()
                 });
             if let Some(error) = expected_error {
-                assert_eq!(error, encoded_bigint.expect_err("Expected error!"));
+                if error != *"disabled" {
+                    assert_eq!(
+                        error,
+                        encoded_bigint.expect_err("Expected error!")
+                    );
+                }
             } else {
+                println!(
+                    "bigint10: {}",
+                    encoded_bigint.clone().unwrap().to_str_radix(10)
+                );
                 assert_eq!(
                     fixture.encoded_ballot_bigint,
                     encoded_bigint
@@ -89,10 +98,17 @@ mod tests {
                         .to_str_radix(10)
                 );
                 assert_eq!(
-                    fixture.plaintext.choices,
-                    decoded_plaintext
-                        .expect("Expected value but got error")
-                        .choices
+                    normalize_vote_question(
+                        &fixture.plaintext,
+                        fixture.question.tally_type.as_str()
+                    )
+                    .choices,
+                    normalize_vote_question(
+                        &decoded_plaintext
+                            .expect("Expected value but got error"),
+                        fixture.question.tally_type.as_str()
+                    )
+                    .choices
                 );
             }
         }

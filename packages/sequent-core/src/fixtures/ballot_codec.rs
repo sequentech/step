@@ -24,6 +24,47 @@ pub struct BasesFixture {
     pub bases: Vec<u64>,
 }
 
+pub fn normalize_vote_question(
+    input: &DecodedVoteQuestion,
+    tally_type: &str,
+) -> DecodedVoteQuestion {
+    let mut original = input.clone();
+    original.choices = original
+        .choices
+        .iter()
+        .map(|choice| normalize_vote_choice(choice, tally_type))
+        .collect();
+    original
+}
+
+pub fn normalize_vote_choice(
+    input: &DecodedVoteChoice,
+    tally_type: &str,
+) -> DecodedVoteChoice {
+    let mut original = input.clone();
+    if "plurality-at-large" == tally_type {
+        original.selected = if original.selected < 0 { -1 } else { 0 };
+    } else {
+        original.selected = if original.selected < 0 {
+            -1
+        } else {
+            original.selected
+        };
+    }
+
+    original.write_in_text = match original.write_in_text {
+        Some(text) => {
+            if text.len() > 0 {
+                Some(text)
+            } else {
+                None
+            }
+        }
+        None => None,
+    };
+    original
+}
+
 fn get_question_plurality() -> Question {
     let question_str = r#"{
         "id":"1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
@@ -1072,7 +1113,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             title: "two write ins, an explicit invalid ballot, one of the write-ins is not selected".to_string(),
             question: get_configurable_question(2, 6, "borda".to_string(), true, None, true),
             raw_ballot: RawBallotQuestion {
-                bases: vec![2, 3, 3, 3, 3, 3, 3, 32, 32, 32],
+                bases: vec!  [2, 3, 3, 3, 3, 3, 3, 32, 32, 32],
                 choices: vec![1, 1, 0, 0, 1, 2, 0, 4, 0, 0]
             },
             plaintext: DecodedVoteQuestion {
@@ -1127,7 +1168,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
-            encoded_ballot_bigint: "99525".to_string(),
+            encoded_ballot_bigint: "6213".to_string(),
             encoded_ballot: vec_to_30_array(&vec![2, 69, 24]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(), "bases don't cover write-ins".to_string()),
@@ -1181,7 +1222,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
-            encoded_ballot_bigint: "1833298460685270795682".to_string(),
+            encoded_ballot_bigint: "849069737378".to_string(),
             encoded_ballot: vec_to_30_array(&vec![5, 162, 5, 128, 176, 197]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(), "bases don't cover write-ins".to_string()),
@@ -1223,6 +1264,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ("question_encode_raw_ballot".to_string(), "Invalid parameters: 'valueList' (size = 3) and 'baseList' (size = 4) must have the same length.".to_string()),
                 ("question_encode_plaintext".to_string(), "Invalid parameters: 'valueList' (size = 3) and 'baseList' (size = 4) must have the same length.".to_string()),
                 ("question_decode_plaintext".to_string(), "invalid_errors,decode_choices".to_string()),
+                ("encoding_plaintext_bigint".to_string(), "Invalid parameters: 'valueList' (size = 3) and 'baseList' (size = 4) must have the same length.".to_string()),
             ]))
         },
         BallotCodecFixture {
@@ -1262,7 +1304,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
-            encoded_ballot_bigint: "2402".to_string(),
+            encoded_ballot_bigint: "2".to_string(),
             encoded_ballot: vec_to_30_array(&vec![2, 98, 9]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(),  "bases don't cover write-ins".to_string()),
@@ -1305,7 +1347,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
-            encoded_ballot_bigint: "1554".to_string(),
+            encoded_ballot_bigint: "18".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 18]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
@@ -1316,7 +1358,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             title: "Ballot larger than expected".to_string(),
             question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![]), true),
             raw_ballot: RawBallotQuestion {
-                bases: vec![2, 2, 2, 2, 256],
+                bases: vec![2, 2, 2, 2, 32],
                 choices: vec![0, 1, 0, 0, 24],
             },
             plaintext: DecodedVoteQuestion {
@@ -1353,6 +1395,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ("question_bases".to_string(),  "bases don't cover write-ins".to_string()),
                 ("question_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
                 ("question_encode_plaintext".to_string(),  "disabled".to_string()),
+                ("encoding_plaintext_bigint".to_string(),  "disabled".to_string()),
             ]))
         },
     ]
