@@ -71,14 +71,22 @@ mod tests {
     fn test_encoding_plaintext() {
         let decoded_question = get_test_decoded_vote_question();
         let question = get_test_question();
+        let encoded_bigint = question.encode_plaintext_question_bigint(&decoded_question).unwrap(); // test
         let encoded_plaintext = question
             .encode_plaintext_question(&decoded_question)
             .unwrap();
-        println!("encoded_plaintext {:?}", encoded_plaintext);
+
+
+        let plaintext_bytes = decode_array_to_vec(&encoded_plaintext); // test
+        let decoded_bigint = decode_bigint_from_bytes(&plaintext_bytes).unwrap(); // test
+
         let decoded_plaintext = question
             .decode_plaintext_question(&encoded_plaintext)
             .unwrap();
-        assert_eq!(decoded_question, decoded_plaintext)
+        
+        println!("encoded_plaintext {:?} encoded_bigint {}", encoded_plaintext, encoded_bigint.to_str_radix(10));
+        assert_eq!(encoded_bigint.to_str_radix(10), decoded_bigint.to_str_radix(10));
+        assert_eq!(decoded_question, decoded_plaintext);
     }
 
     #[test]
