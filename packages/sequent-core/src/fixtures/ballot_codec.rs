@@ -15,6 +15,7 @@ pub struct BallotCodecFixture {
     pub question: Question,
     pub raw_ballot: RawBallotQuestion,
     pub plaintext: DecodedVoteQuestion,
+    pub encoded_ballot_bigint: String,
     pub encoded_ballot: [u8; 30],
     pub expected_errors: Option<HashMap<String, String>>,
 }
@@ -365,6 +366,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ],
             },
+            encoded_ballot_bigint: "50".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 50]).unwrap(),
             expected_errors: None
         },
@@ -406,6 +408,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 invalid_errors: vec![],
             },
+            encoded_ballot_bigint: "2756".to_string(),
             encoded_ballot: vec_to_30_array(&vec![2, 196, 10]).unwrap(),
             expected_errors: None
         },
@@ -502,6 +505,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ],
             },
+            encoded_ballot_bigint: "15".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 15]).unwrap(),
             expected_errors: None
         },
@@ -587,6 +591,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 invalid_errors: vec![],
             },
+            encoded_ballot_bigint: "3".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 3]).unwrap(),
             expected_errors: None
         },
@@ -682,6 +687,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ],
             },
+            encoded_ballot_bigint: "14".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 14]).unwrap(),
             expected_errors: None
         },
@@ -764,6 +770,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ],
             },
+            encoded_ballot_bigint: "0".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 0]).unwrap(),
             expected_errors: None
         },
@@ -857,12 +864,14 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ],
             },
+            encoded_ballot_bigint: "16".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 16]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(), "".to_string()),
                 ("question_encode_plaintext".to_string(), "choice id is not a valid answer".to_string()),
                 ("question_encode_to_raw_ballot".to_string(), "choice id is not a valid answer".to_string()),
                 ("question_decode_plaintext".to_string(), "decode_choices".to_string()),
+                ("encoding_plaintext_bigint".to_string(), "choice id is not a valid answer".to_string()),
             ]))
         },
         BallotCodecFixture {
@@ -913,6 +922,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
+            encoded_ballot_bigint: "68".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 68]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_decode_plaintext".to_string(), "decode_choices".to_string()),
@@ -966,6 +976,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
+            encoded_ballot_bigint: "70".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 70]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_decode_plaintext".to_string(), "decode_choices".to_string()),
@@ -1019,6 +1030,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
+            encoded_ballot_bigint: "4122".to_string(),
             encoded_ballot: vec_to_30_array(&vec![2, 26, 16]).unwrap(),
             expected_errors: None
         },
@@ -1052,6 +1064,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     },
                 ]
             },
+            encoded_ballot_bigint: "3".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 3]).unwrap(),
             expected_errors: None
         },
@@ -1114,6 +1127,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
+            encoded_ballot_bigint: "99525".to_string(),
             encoded_ballot: vec_to_30_array(&vec![2, 69, 24]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(), "bases don't cover write-ins".to_string()),
@@ -1167,6 +1181,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
+            encoded_ballot_bigint: "1833298460685270795682".to_string(),
             encoded_ballot: vec_to_30_array(&vec![5, 162, 5, 128, 176, 197]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(), "bases don't cover write-ins".to_string()),
@@ -1202,6 +1217,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
+            encoded_ballot_bigint: "2".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 2]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_encode_raw_ballot".to_string(), "Invalid parameters: 'valueList' (size = 3) and 'baseList' (size = 4) must have the same length.".to_string()),
@@ -1246,6 +1262,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
+            encoded_ballot_bigint: "2402".to_string(),
             encoded_ballot: vec_to_30_array(&vec![2, 98, 9]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(),  "bases don't cover write-ins".to_string()),
@@ -1288,6 +1305,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
+            encoded_ballot_bigint: "1554".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 18]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
@@ -1329,6 +1347,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
+            encoded_ballot_bigint: "386".to_string(),
             encoded_ballot: vec_to_30_array(&vec![2, 130, 1]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(),  "bases don't cover write-ins".to_string()),

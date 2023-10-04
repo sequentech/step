@@ -74,6 +74,7 @@ mod tests {
         let encoded_plaintext = question
             .encode_plaintext_question(&decoded_question)
             .unwrap();
+        println!("encoded_plaintext {:?}", encoded_plaintext);
         let decoded_plaintext = question
             .decode_plaintext_question(&encoded_plaintext)
             .unwrap();

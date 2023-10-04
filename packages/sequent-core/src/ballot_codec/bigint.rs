@@ -53,3 +53,48 @@ impl BigUIntCodec for Question {
         self.decode_from_raw_ballot(&raw_ballot)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::ballot_codec::*;
+    use crate::fixtures::ballot_codec::*;
+    use std::cmp;
+
+    #[test]
+    fn test_encoding_plaintext_bigint() {
+        let fixtures = get_fixtures();
+        for fixture in fixtures {
+            println!("fixture: {}", &fixture.title);
+            let encoded_bigint = fixture
+                .question
+                .encode_plaintext_question_bigint(&fixture.plaintext);
+            let decoded_plaintext = encoded_bigint.clone().map(|value| {
+                fixture
+                    .question
+                    .decode_plaintext_question_bigint(&value)
+                    .unwrap()
+            });
+
+            let expected_error =
+                fixture.expected_errors.and_then(|expected_map| {
+                    expected_map.get("encoding_plaintext_bigint").cloned()
+                });
+            if let Some(error) = expected_error {
+                assert_eq!(error, encoded_bigint.expect_err("Expected error!"));
+            } else {
+                assert_eq!(
+                    fixture.encoded_ballot_bigint,
+                    encoded_bigint
+                        .expect("Expected value but got error")
+                        .to_str_radix(10)
+                );
+                assert_eq!(
+                    fixture.plaintext.choices,
+                    decoded_plaintext
+                        .expect("Expected value but got error")
+                        .choices
+                );
+            }
+        }
+    }
+}
