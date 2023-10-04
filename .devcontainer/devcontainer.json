@@ -7,13 +7,6 @@
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "devcontainer",
 
-	// recommend way for docker-outside-of-docker
-	// More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-	"forwardPorts": ["graphql-engine:8080"],
-	"otherPortsAttributes": {
-		"requireLocalPort": false,
-		"elevateIfNeeded": true
-	},
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
 	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
 	"initializeCommand": [

@@ -130,6 +130,7 @@ services:
     #ports:
     #  - 8090:8090
     environment:
+      # more info here: https://www.keycloak.org/server/reverseproxy
       KC_PROXY: "edge"
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_URL: "http://127.0.0.1:8090/"
