@@ -1,1 +1,170 @@
+**Velvet** -- A type of woven tufted fabric, implying smoothness and luxury.
+
+# Design
+
+`velvet` will be a _cargo crate_. It will produce a _binary_ and a _lib_.
+
+The _binary_ can be invoked as a _CLI_ program. The _lib_ can be used in another endpoint such as _harvest_.
+
+## Binary
+
+You can call velvet from the command line like this:
+
+```
+$> velvet run {pipeline} {pipe} \
+  --config ./path/to/velvet-config.json \
+  --input-dir ./path/to/input-dir \
+  --output-dir ./path/to/output-dir
+```
+
+### File and directory structure
+
+##### velvet config
+
+Example of a configuration file `--config`: `velvet-config.json`:
+
+```json
+{
+  "version": "0.0.0",
+  "stages": {
+    "order": [
+      "main"
+    ],
+    "main": {
+      "pipeline": [
+        {
+          "pipe": "DecodeBallots",
+          "config": {}
+        },
+        {
+          "pipe": "DoTally",
+          "config": {
+            "invalidateVotes": "Fail"
+          }
+        },
+        {
+          "pipe": "Consolidation",
+          "config": {}
+        },
+        {
+          "pipe": "TiesResolution",
+          "config": {}
+        },
+        {
+          "pipe": "ComputeResult",
+          "config": {}
+        },
+        {
+          "pipe": "GenerateReport",
+          "formats": [
+            "pdf",
+            "csv"
+          ]
+        }
+      ]
+    }
+  }
+}```
+
+### Input dir
+
+Ballots are split into this file structure:
+
+```
+./path/to/input-dir
+|-- election__<uuid>/
+	|-- config.json
+	|-- contest__<uuid>/
+		|-- config.json
+		|-- area__<uuid>/
+			|-- config.json
+			|-- ballot__<uuid>.csv
+```
+
+Same thing applies for `inputExtraDir`.
+
+Therefore, the _entities_ are defined with:
+
+- elections
+- contests
+- areas for contests
+- according ballots
+
+`ballot__<uuid>.csv` format, typically new-line separator value file:
+
+```
+<encoded-ballot-integer-1>
+<encoded-ballot-integer-2>
+<encoded-ballot-integer-3>
+```
+
+### Output dir
+
+#### Processed pipe
+Storing the stages in `./path/to/output-dir/pipeline-status.json`
+
+```json
+[
+  {
+    "pipeline": "main",
+    "pipeCompleted": [
+      "DecodeBallots",
+      "DoTally"
+    ],
+    "currentPipe": {
+      "name": "DoTally",
+      "status": "Completed"
+    },
+    "nextPipe": "Consolidation"
+  }
+]
+```
+
+There will be as many output dir as many stage, thus they will look like:
+
+```
+./path/to/output-dir/main/decode-ballots/
+./path/to/output-dir/main/do-tally/
+./path/to/output-dir/main/consolidation/
+./path/to/output-dir/main/ties-resolution/
+./path/to/output-dir/main/compute-result/
+./path/to/output-dir/main/generate-report/
+```
+
+For example, the _decode stage_ output dir will look like that:
+
+```
+./path/to/output-dir/main/decode/
+|-- election__<uuid>/
+	|-- contest__<uuid>/
+		|-- area__<uuid>/
+			|-- ballot__<uuid>.csv # this is decoded
+|-- output.log
+```
+
+Then the _tally stage_ output dir:
+
+```
+./path/to/output-dir/main/tally
+|-- result.json
+|-- output.log
+```
+
+The _consolidation stage_ will fetch all `result.json` as input to process.
+
+## Pipes
+
+- DecodeBallots
+- DoTally
+- Consolidation
+- TiesResolution
+- ComputeResult
+- GenerateReport
+
+### DecodeBallots
+
 todo
+
+### DoTally
+
+
