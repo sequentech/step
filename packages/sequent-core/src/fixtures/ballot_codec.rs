@@ -406,7 +406,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 invalid_errors: vec![],
             },
-            encoded_ballot: vec_to_30_array(&vec![2, 27,56]).unwrap(),
+            encoded_ballot: vec_to_30_array(&vec![2, 196, 10]).unwrap(),
             expected_errors: None
         },
         BallotCodecFixture {
@@ -1019,7 +1019,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
-            encoded_ballot: vec_to_30_array(&vec![1, 41,22]).unwrap(),
+            encoded_ballot: vec_to_30_array(&vec![2, 26, 16]).unwrap(),
             expected_errors: None
         },
         BallotCodecFixture {
@@ -1114,7 +1114,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
-            encoded_ballot: vec_to_30_array(&vec![3, 99,52,5]).unwrap(),
+            encoded_ballot: vec_to_30_array(&vec![2, 69, 24]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(), "bases don't cover write-ins".to_string()),
             ]))
@@ -1163,11 +1163,11 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     DecodedVoteChoice {
                         id: 6.to_string(),
                         selected: 1,
-                        write_in_text: Some("A bc".to_string()),
+                        write_in_text: Some("A BC".to_string()),
                     }
                 ]
             },
-            encoded_ballot: vec_to_30_array(&vec![11, 18,33,29,84,60,68,52,70,79,56,82]).unwrap(),
+            encoded_ballot: vec_to_30_array(&vec![5, 162, 5, 128, 176, 197]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(), "bases don't cover write-ins".to_string()),
             ]))
@@ -1246,7 +1246,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
-            encoded_ballot: vec_to_30_array(&vec![2, 24, 02]).unwrap(),
+            encoded_ballot: vec_to_30_array(&vec![2, 98, 9]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(),  "bases don't cover write-ins".to_string()),
                 ("question_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
@@ -1258,7 +1258,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![0]), true),
             raw_ballot: RawBallotQuestion {
                 bases:   vec![2, 2, 2, 2, 32],
-                choices: vec![0, 1, 0, 0, 97],
+                choices: vec![0, 1, 0, 0, 1],
             },
             plaintext: DecodedVoteQuestion {
                 is_explicit_invalid: false,
@@ -1274,7 +1274,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     DecodedVoteChoice {
                         id: 0.to_string(),
                         selected: 0,
-                        write_in_text: Some("a".to_string()),
+                        write_in_text: Some("A".to_string()),
                     },
                     DecodedVoteChoice {
                         id: 1.to_string(),
@@ -1288,7 +1288,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
-            encoded_ballot: vec_to_30_array(&vec![2, 15, 54]).unwrap(),
+            encoded_ballot: vec_to_30_array(&vec![1, 18]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
                 ("question_decode_plaintext".to_string(),  "invalid_errors, decode_choices".to_string()),
@@ -1329,7 +1329,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ]
             },
-            encoded_ballot: vec_to_30_array(&vec![2, 38, 6]).unwrap(),
+            encoded_ballot: vec_to_30_array(&vec![2, 130, 1]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(),  "bases don't cover write-ins".to_string()),
                 ("question_encode_to_raw_ballot".to_string(),  "disabled".to_string()),

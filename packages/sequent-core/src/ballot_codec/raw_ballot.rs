@@ -360,17 +360,17 @@ mod tests {
             println!("fixture: {}", &fixture.title);
             let encoded_bigint =
                 encode(&fixture.raw_ballot.choices, &fixture.raw_ballot.bases);
+
             let encoded_ballot = encoded_bigint
                 .map(|value| encode_bigint_to_bytes(&value).unwrap());
             let encoded_byte_array = encoded_ballot
                 .clone()
-                .map(|value| vec_to_30_array(&value).unwrap());
+                .map(|value| encode_vec_to_array(&value).unwrap());
 
             let expected_error =
                 fixture.expected_errors.and_then(|expected_map| {
                     expected_map.get("question_encode_raw_ballot").cloned()
                 });
-
             if expected_error.is_some() {
                 assert_eq!(
                     expected_error.unwrap(),
