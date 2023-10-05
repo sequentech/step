@@ -412,7 +412,7 @@ export const ELECTION_WITH_INVALID: IElectionDTO = {
                 description:
                     'This is the description of this question. You can have multiple questions. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
                 layout: "simultaneous-questions",
-                max: 2,
+                max: 1,
                 min: 1,
                 num_winners: 1,
                 title: "Test question title",

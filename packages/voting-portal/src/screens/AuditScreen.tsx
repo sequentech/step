@@ -122,8 +122,8 @@ export const AuditScreen: React.FC = () => {
         if (!auditableBallot) {
             return
         }
-        let fileName = `${electionId}-ballot.json`
-        let file = new File([JSON.stringify(auditableBallot)], fileName, {type: "application/json"})
+        let fileName = `${electionId}-ballot.txt`
+        let file = new File([auditableBallot], fileName, {type: "text/plain"})
         downloadBlob(file, fileName)
     }
 
@@ -209,7 +209,7 @@ export const AuditScreen: React.FC = () => {
             </Step1Container>
 
             <AuditableBallotData>
-                {(auditableBallot && JSON.stringify(auditableBallot)) || ""}
+                {auditableBallot  || ""}
             </AuditableBallotData>
             <StyledTitle variant="h5" fontWeight="bold" fontSize="18px">
                 <Box>{t("auditScreen.step2Title")}</Box>

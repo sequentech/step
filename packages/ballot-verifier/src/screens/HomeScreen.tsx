@@ -65,6 +65,8 @@ interface JsonFileProps {
     name: string
 }
 
+const SampleFileName = "sample.json"
+
 const JsonFile: React.FC<JsonFileProps> = ({name}) => {
     const {t} = useTranslation()
 
@@ -79,7 +81,7 @@ const JsonFile: React.FC<JsonFileProps> = ({name}) => {
             <FileWrapper>
                 <StyledImage src={JsonImg} duration={100} width="unset" />
                 <Typography variant="body2" sx={{color: theme.palette.black}}>
-                    {name || "sample.json"}
+                    {name || SampleFileName}
                 </Typography>
             </FileWrapper>
         </>
@@ -159,6 +161,7 @@ export const HomeScreen: React.FC<IProps> = ({
 
     // use sample ballot
     const onUseSampleClick = () => {
+        setFileName(SampleFileName)
         handleAuditableBallot(AuditableBallot)
         let ballotHash = ballotService.hashBallot512(AuditableBallot)
         setBallotId(ballotHash)
