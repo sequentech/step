@@ -70,10 +70,21 @@ Example of a configuration file `--config`: `velvet-config.json`:
 
 ### Input dir
 
+
+Input directory contains multiples input directories:
+```
+./path/to/input-dir/default/
+./path/to/input-dir/extra1/
+./path/to/input-dir/extra2/
+./path/to/input-dir/other/
+
+```
+The default input directory is mandatory and the other additionnal input directories should be set in the `velvet-config.json` file.
+
 Ballots are split into this file structure:
 
 ```
-./path/to/input-dir
+./path/to/input-dir/default/
 |-- election__<uuid>/
 	|-- config.json
 	|-- contest__<uuid>/
@@ -117,7 +128,7 @@ Storing the stages in `./path/to/output-dir/status.json`
 
 `status`: "Completed", "Error", "Interupted", ...
 
-There will be as many output dir as many stage, thus they will look like `./path/to/output-dir/<stage>/<pipe-id>/`:
+There will be as many output dir as many pipes, thus they will look like `./path/to/output-dir/<stage>/<pipe-id>/`:
 
 ```
 ./path/to/output-dir/main/decode-ballots/
