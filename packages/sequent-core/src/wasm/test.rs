@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
-use crate::base64::{Base64Deserialize, Base64Serialize};
 use crate::encrypt::*;
-use crate::plaintext::DecodedVoteQuestion;
+use crate::plaintext::*;
+use crate::interpret_plaintext::{get_layout_properties, get_points};
+use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
@@ -70,7 +71,7 @@ pub fn hash_auditable_ballot_js(
     let hashable_ballot = HashableBallot::from(&auditable_ballot);
 
     // return hash
-    let hash_string: String = hash_to(&hashable_ballot)
+    let hash_string: String = hash_ballot(&hashable_ballot)
         .map_err(|err| format!("{:?}", err))
         .into_json()?;
     serde_wasm_bindgen::to_value(&hash_string)
@@ -116,5 +117,77 @@ pub fn encrypt_decoded_question_js(
         .map_err(|err| {
             format!("Error converting auditable ballot to json {:?}", err)
         })
+        .into_json()
+}
+
+// before: map_to_decoded_ballot
+#[allow(clippy::all)]
+#[wasm_bindgen]
+pub fn decode_auditable_ballot_js(
+    auditable_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let auditable_ballot_string: String =
+        serde_wasm_bindgen::from_value(auditable_ballot_json)
+            .map_err(|err| format!("Error parsing cyphertext: {}", err))
+            .into_json()?;
+    let auditable_ballot: AuditableBallot<RistrettoCtx> =
+        Base64Deserialize::deserialize(auditable_ballot_string)
+            .map_err(|err| format!("Error parsing auditable ballot: {:?}", err))
+            .into_json()?;
+    let plaintext = map_to_decoded_question(&auditable_ballot).into_json()?;
+    // https://crates.io/crates/serde-wasm-bindgen
+    serde_wasm_bindgen::to_value(&plaintext)
+        .map_err(|err| {
+            format!("Error converting decoded ballot to json {:?}", err)
+        })
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn get_ballot_style_from_auditable_ballot_js(
+    auditable_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let auditable_ballot_string: String =
+        serde_wasm_bindgen::from_value(auditable_ballot_json)
+            .map_err(|err| format!("Error parsing cyphertext: {}", err))
+            .into_json()?;
+    let auditable_ballot: AuditableBallot<RistrettoCtx> =
+        Base64Deserialize::deserialize(auditable_ballot_string)
+            .map_err(|err| format!("Error parsing auditable ballot: {:?}", err))
+            .into_json()?;
+    serde_wasm_bindgen::to_value(&auditable_ballot.config)
+        .map_err(|err| {
+            format!("Error converting decoded ballot to json {:?}", err)
+        })
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn get_layout_properties_from_question_js(
+    val: JsValue,
+) -> Result<JsValue, JsValue> {
+    let question: Question = serde_wasm_bindgen::from_value(val)
+        .map_err(|err| format!("Error parsing question: {}", err))
+        .into_json()?;
+    let properties = get_layout_properties(&question);
+    serde_wasm_bindgen::to_value(&properties)
+        .map_err(|err| format!("{:?}", err))
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn get_answer_points_js(
+    question_val: JsValue,
+    answer_val: JsValue,
+) -> Result<JsValue, JsValue> {
+    let question: Question = serde_wasm_bindgen::from_value(question_val)
+        .map_err(|err| format!("Error parsing question: {}", err))
+        .into_json()?;
+    let answer: DecodedVoteChoice = serde_wasm_bindgen::from_value(answer_val)
+        .map_err(|err| format!("Error parsing vote choice: {}", err))
+        .into_json()?;
+    let points = get_points(&question, &answer);
+    serde_wasm_bindgen::to_value(&points)
+        .map_err(|err| format!("{:?}", err))
         .into_json()
 }

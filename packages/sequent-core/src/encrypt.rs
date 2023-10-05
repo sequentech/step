@@ -11,12 +11,13 @@ use strand::zkp::{Schnorr, Zkp};
 
 use base64::engine::general_purpose;
 use base64::Engine;
+use hex;
 
 use crate::ballot::*;
 use crate::ballot_codec::PlaintextCodec;
-use crate::base64::{Base64Deserialize, Base64Serialize};
 use crate::error::BallotError;
 use crate::plaintext::DecodedVoteQuestion;
+use crate::serialization::base64::Base64Deserialize;
 use crate::util::get_current_date;
 
 pub const DEFAULT_PUBLIC_KEY_RISTRETTO_STR: &str =
@@ -190,12 +191,16 @@ pub fn encrypt_decoded_question<C: Ctx<P = [u8; 30]>>(
     };
 
     let hashable_ballot = HashableBallot::from(&auditable_ballot);
-    auditable_ballot.ballot_hash = hash_to(&hashable_ballot)?;
+    auditable_ballot.ballot_hash = hash_ballot(&hashable_ballot)?;
 
     Ok(auditable_ballot)
 }
 
-pub fn hash_to<C: Ctx>(
+
+// hash ballot:
+// serialize ballot into string, then hash to sha512, truncate to
+// 256 bits and serialize to hexadecimal
+pub fn hash_ballot<C: Ctx>(
     hashable_ballot: &HashableBallot<C>,
 ) -> Result<String, BallotError> {
     let bytes = hashable_ballot
@@ -203,7 +208,8 @@ pub fn hash_to<C: Ctx>(
         .map_err(|error| BallotError::Serialization(error.to_string()))?;
     let hash_bytes = rustcrypto::hash(bytes.as_slice())
         .map_err(|error| BallotError::Serialization(error.to_string()))?;
-    Base64Serialize::serialize(&hash_bytes)
+    let hash_256bits_slice = &hash_bytes[0..32];
+    Ok(hex::encode(hash_256bits_slice))
 }
 
 #[cfg(test)]

@@ -2,14 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
-    hash_ballot,
-    check_ballot_format,
-    map_to_decoded_ballot,
-    get_layout_properties_from_question,
-    get_answer_points,
-} from "new-ballot-verifier-lib"
-import {
-    IAuditableBallot,
+    hash_auditable_ballot_js,
+    decode_auditable_ballot_js,
+    get_layout_properties_from_question_js,
+    get_answer_points_js,
+    get_ballot_style_from_auditable_ballot_js,
     IElectionDTO,
     IDecodedVoteQuestion,
     IQuestion,
@@ -25,41 +22,42 @@ export interface IConfirmationBallot {
 }
 
 export interface IBallotService {
-    hashBallot512: (auditableBallot: IAuditableBallot) => string
-    parseAuditableBallotJSON: (json: any) => IAuditableBallot | null
-    decodeAuditableBallot: (auditableBallot: IAuditableBallot) => Array<IDecodedVoteQuestion> | null
+    hashBallot512: (auditableBallot: string) => string
+    decodeAuditableBallot: (auditableBallot: string) => Array<IDecodedVoteQuestion> | null
     getLayoutProperties: (question: IQuestion) => IQuestionLayoutProperties | null
     getPoints: (question: IQuestion, answer: IDecodedVoteChoice) => number | null
+    getBallotStyleFromAuditableBallot: (
+        auditableBallot: string
+    ) => IElectionDTO | null
 }
 
-export const hashBallot512 = (auditableBallot: IAuditableBallot): string => {
+export const hashBallot512 = (auditableBallot: string): string => {
     try {
-        return hash_ballot(auditableBallot)
+        return hash_auditable_ballot_js(auditableBallot)
     } catch (e) {
         console.log(e)
         throw e
     }
 }
 
-export const parseAuditableBallotJSON = (json: any): IAuditableBallot | null => {
+export const decodeAuditableBallot = (
+    auditableBallot: string
+): Array<IDecodedVoteQuestion> | null => {
     try {
-        let result = check_ballot_format(json)
-        if (!result) {
-            return null
-        }
-        return json as IAuditableBallot
+        let decodedBallot = decode_auditable_ballot_js(auditableBallot)
+        return decodedBallot as Array<IDecodedVoteQuestion>
     } catch (error) {
         console.log(error)
         return null
     }
 }
 
-export const decodeAuditableBallot = (
-    auditableBallot: IAuditableBallot
-): Array<IDecodedVoteQuestion> | null => {
+export const getBallotStyleFromAuditableBallot = (
+    auditableBallot: string
+): IElectionDTO | null => {
     try {
-        let decodedBallot = map_to_decoded_ballot(auditableBallot)
-        return decodedBallot as Array<IDecodedVoteQuestion>
+        let ballotStyle = get_ballot_style_from_auditable_ballot_js(auditableBallot) as IElectionDTO
+        return ballotStyle
     } catch (error) {
         console.log(error)
         return null
@@ -68,7 +66,7 @@ export const decodeAuditableBallot = (
 
 export const getLayoutProperties = (question: IQuestion): IQuestionLayoutProperties | null => {
     try {
-        let properties = get_layout_properties_from_question(question)
+        let properties = get_layout_properties_from_question_js(question)
         return (properties || null) as IQuestionLayoutProperties | null
     } catch (error) {
         console.log(error)
@@ -78,7 +76,7 @@ export const getLayoutProperties = (question: IQuestion): IQuestionLayoutPropert
 
 export const getPoints = (question: IQuestion, answer: IDecodedVoteChoice): number | null => {
     try {
-        let points: number | undefined = get_answer_points(question, answer)
+        let points: number | undefined = get_answer_points_js(question, answer)
         return points || null
     } catch (error) {
         console.log(error)
@@ -88,8 +86,8 @@ export const getPoints = (question: IQuestion, answer: IDecodedVoteChoice): numb
 
 export const provideBallotService = (): IBallotService => ({
     hashBallot512,
-    parseAuditableBallotJSON,
     decodeAuditableBallot,
     getLayoutProperties,
     getPoints,
+    getBallotStyleFromAuditableBallot,
 })

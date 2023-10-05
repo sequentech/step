@@ -26,8 +26,9 @@ cfg-if = "1.0.0"
 # error logging
 console_error_panic_hook = "0.1.7"
 
-# sequent-core
+# parent packages
 sequent-core = { path="../sequent-core", features = ['wasm']}
+strand = { path="../strand", features = ['num_bigint']}
 
 [features]
 wasmtest = ["wasm", "dep:web-sys"]

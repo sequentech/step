@@ -6,6 +6,7 @@ use sequent_core::encrypt::*;
 use sequent_core::interpret_plaintext::{get_layout_properties, get_points};
 use sequent_core::plaintext::map_to_decoded_question;
 use sequent_core::plaintext::*;
+use strand::backend::ristretto::RistrettoCtx;
 use serde_wasm_bindgen;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
@@ -22,7 +23,7 @@ extern "C" {
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn check_ballot_format(val: JsValue) -> Result<bool, String> {
-    serde_wasm_bindgen::from_value::<AuditableBallot>(val)
+    serde_wasm_bindgen::from_value::<AuditableBallot<RistrettoCtx>>(val)
         .map(|_| true)
         .map_err(|err| format!("Error parsing auditable ballot: {}", err))
 }
@@ -30,7 +31,7 @@ pub fn check_ballot_format(val: JsValue) -> Result<bool, String> {
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn hash_ballot(val: JsValue) -> Result<String, String> {
-    let ballot: AuditableBallot = serde_wasm_bindgen::from_value(val)
+    let ballot: AuditableBallot<RistrettoCtx> = serde_wasm_bindgen::from_value(val)
         .map_err(|err| format!("Error parsing auditable ballot: {}", err))?;
     hash_to(&ballot).map_err(|err| format!("{:?}", err))
 }
@@ -38,7 +39,7 @@ pub fn hash_ballot(val: JsValue) -> Result<String, String> {
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn map_to_decoded_ballot(val: JsValue) -> Result<JsValue, String> {
-    let ballot: AuditableBallot = serde_wasm_bindgen::from_value(val)
+    let ballot: AuditableBallot<RistrettoCtx> = serde_wasm_bindgen::from_value(val)
         .map_err(|err| format!("Error parsing auditable ballot: {}", err))?;
     let plaintext = map_to_decoded_question(&ballot)?;
     // https://crates.io/crates/serde-wasm-bindgen

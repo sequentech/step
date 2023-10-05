@@ -29,7 +29,7 @@ import {
     WarnBox,
     Dialog,
     theme,
-} from "ui-essentials"
+} from "@sequentech/ui-essentials"
 import {keyBy} from "lodash"
 import {IAnswer} from "sequent-core"
 import Image from "mui-image"

@@ -13,8 +13,10 @@
     url = "github:edolstra/flake-compat";
     flake = false;
   };
+  inputs.devenv.url = "github:cachix/devenv";
+
   # output function of this flake
-  outputs = { self, nixpkgs, flake-utils, rust-overlay, flake-compat }:
+  outputs = { self, nixpkgs, devenv, flake-utils, rust-overlay, flake-compat }:
     flake-utils.lib.eachDefaultSystem (
       system:
         let
@@ -36,7 +38,7 @@
           rust-wasm = pkgs
             .rust-bin
             .nightly
-            ."2022-07-05"
+            ."2023-01-01"
             .default
             .override {
                 extensions = [ "rust-src" ];

@@ -5,7 +5,7 @@ import React, {useState, useEffect} from "react"
 import {ComponentStory, ComponentMeta} from "@storybook/react"
 import Container from "@mui/material/Container"
 import {ConfirmationScreen} from "../../screens/ConfirmationScreen"
-import {LanguageSetter} from "ui-essentials"
+import {LanguageSetter} from "@sequentech/ui-essentials"
 import {withRouter} from "storybook-addon-react-router-v6"
 import ConfirmationBallot from "../../fixtures/confirmation_ballot.json"
 import {

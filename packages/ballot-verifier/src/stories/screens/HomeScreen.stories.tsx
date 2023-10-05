@@ -5,12 +5,12 @@ import React from "react"
 import {ComponentStory, ComponentMeta} from "@storybook/react"
 import Container from "@mui/material/Container"
 import {HomeScreen} from "../../screens/HomeScreen"
-import {LanguageSetter} from "ui-essentials"
+import {LanguageSetter} from "@sequentech/ui-essentials"
 import {withRouter} from "storybook-addon-react-router-v6"
 import {IBallotService, provideBallotService} from "../../services/BallotService"
 import {within, userEvent} from "@storybook/testing-library"
 import {expect} from "@storybook/jest"
-import {IAuditableBallot, IDecodedVoteQuestion} from "sequent-core"
+import {IDecodedVoteQuestion} from "sequent-core"
 
 export default {
     title: "screens/HomeScreen",
@@ -46,14 +46,12 @@ export default {
 const getBallotServiceProvider = (): IBallotService => {
     const service = provideBallotService()
 
-    const parseAuditableBallotJSON = (json: any): IAuditableBallot | null => null
     const decodeAuditableBallot = (
-        auditableBallot: IAuditableBallot
+        auditableBallot: string
     ): Array<IDecodedVoteQuestion> | null => null
 
     return {
         ...service,
-        parseAuditableBallotJSON,
         decodeAuditableBallot,
     }
 }

@@ -9,12 +9,11 @@ import {styled} from "@mui/material/styles"
 import Alert from "@mui/material/Alert"
 import AlertTitle from "@mui/material/AlertTitle"
 import {useTranslation} from "react-i18next"
-import {PageLimit, DropFile, BreadCrumbSteps, Icon, IconButton, theme, Dialog} from "ui-essentials"
+import {PageLimit, DropFile, BreadCrumbSteps, Icon, IconButton, theme, Dialog} from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
-import {IAuditableBallot} from "sequent-core"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
-import AuditableBallot from "../fixtures/ballot.json"
+import {AuditableBallot} from "../fixtures/ballot"
 import TextField from "@mui/material/TextField"
 import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import JsonImg from "../public/json.png"
@@ -101,11 +100,10 @@ interface IProps {
 const parseAuditableBallotFile = async (
     file: File,
     ballotService: IBallotService
-): Promise<IAuditableBallot | null> => {
+): Promise<string | null> => {
     try {
-        let jsonString = await file.text()
-        let json: any = JSON.parse(jsonString)
-        return ballotService.parseAuditableBallotJSON(json)
+        let auditableBallotString = await file.text()
+        return auditableBallotString
     } catch (e) {
         console.log(e)
         return null
@@ -135,17 +133,19 @@ export const HomeScreen: React.FC<IProps> = ({
         }
     }, [confirmationBallot, ballotId, isNextActive])
 
-    const handleAuditableBallot = (auditableBallot: IAuditableBallot | null) => {
+    const handleAuditableBallot = (auditableBallot: string | null) => {
         const decodedBallot =
             (auditableBallot && ballotService.decodeAuditableBallot(auditableBallot)) || null
-        if (null === auditableBallot || null === decodedBallot) {
+        const ballotStyle = (null !== auditableBallot) && ballotService.getBallotStyleFromAuditableBallot(auditableBallot) || null
+        if (null === auditableBallot || null === decodedBallot || null === ballotStyle) {
             setShowError(true)
             setConfirmationBallot(null)
             return
         }
+        let ballotHash = ballotService.hashBallot512(auditableBallot)
         setConfirmationBallot({
-            ballot_hash: auditableBallot.ballot_hash,
-            election_config: auditableBallot.config,
+            ballot_hash: ballotHash,
+            election_config: ballotStyle,
             decoded_questions: decodedBallot,
         })
         setShowError(false)
@@ -159,9 +159,9 @@ export const HomeScreen: React.FC<IProps> = ({
 
     // use sample ballot
     const onUseSampleClick = () => {
-        const ballot: IAuditableBallot = AuditableBallot as any
-        handleAuditableBallot(ballot)
-        setBallotId(ballot.ballot_hash)
+        handleAuditableBallot(AuditableBallot)
+        let ballotHash = ballotService.hashBallot512(AuditableBallot)
+        setBallotId(ballotHash)
     }
 
     const onInputChange: React.ChangeEventHandler<HTMLInputElement> = (e) =>

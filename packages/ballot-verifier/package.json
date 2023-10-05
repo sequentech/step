@@ -10,7 +10,6 @@
     "i18next": "^21.8.16",
     "i18next-browser-languagedetector": "^6.1.4",
     "lodash": "^4.17.21",
-    "new-ballot-verifier-lib": "file:./rust/pkg/new-ballot-verifier-lib-0.1.0.tgz",
     "react": "18.1.0",
     "react-dom": "18.1.0",
     "mui-image": "1.0.7",
@@ -21,7 +20,7 @@
     "@emotion/styled": "11.10.0",
     "react-scripts": "5.0.1",
     "sequent-core": "file:./rust/pkg/sequent-core-0.1.0.tgz",
-    "ui-essentials": "file:./ui-essentials/dist",
+    "@sequentech/ui-essentials": "*",
     "web-vitals": "^2.1.0"
   },
   "scripts": {

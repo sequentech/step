@@ -3,15 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
 import {Routes, Route} from "react-router-dom"
-import NewBallotVerifierLib, {set_hooks} from "new-ballot-verifier-lib"
 import {styled} from "@mui/material/styles"
-import {Footer, Header, PageBanner} from "ui-essentials"
+import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
 import {HomeScreen} from "./screens/HomeScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
 import Stack from "@mui/material/Stack"
 import {IConfirmationBallot, provideBallotService} from "./services/BallotService"
+import SequentCoreLibInit, {set_hooks} from "sequent-core"
 
-NewBallotVerifierLib().then(set_hooks)
+SequentCoreLibInit().then(set_hooks)
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;

@@ -9,7 +9,7 @@ import App from "./App"
 import "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
-import {theme} from "ui-essentials"
+import {theme} from "@sequentech/ui-essentials"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
