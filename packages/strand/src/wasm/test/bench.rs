@@ -10,7 +10,7 @@ use crate::backend::ristretto;
 use crate::backend::ristretto::RistrettoCtx;
 use crate::context::Ctx;
 use crate::elgamal::{PrivateKey, PublicKey};
-use crate::rnd::StrandRng;
+use crate::rng::StrandRng;
 use crate::serialization::StrandSerialize;
 use crate::shuffler::Shuffler;
 use crate::util;
@@ -90,8 +90,7 @@ pub fn bench_enc_pok(n: u32) {
     let mut csprng = StrandRng;
     let mut fill = [0u8; 30];
     csprng.fill_bytes(&mut fill);
-    let plaintext =
-        ristretto::to_ristretto_plaintext_array(fill.as_ref()).unwrap();
+    let plaintext = to_ristretto_plaintext_array(fill.as_ref()).unwrap();
     postMessage("> Ristretto enc_pok");
     bench_enc_pok_generic(ctx, plaintext, n);
 
@@ -202,4 +201,8 @@ fn bench_modpow_generic<C: Ctx>(ctx: C, n: u32) {
         let x = ctx.rnd_exp();
         let _ = ctx.gmod_pow(&x);
     }
+}
+
+fn to_ristretto_plaintext_array(input: &[u8]) -> Result<[u8; 30], StrandError> {
+    util::to_u8_array(input)
 }

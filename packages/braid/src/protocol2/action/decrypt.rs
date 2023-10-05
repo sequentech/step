@@ -3,15 +3,12 @@ use super::*;
 use anyhow::anyhow;
 use anyhow::Result;
 use rayon::prelude::*;
-use strand::{
-    elgamal::PrivateKey, serialization::StrandVectorCP, serialization::StrandVectorP,
-    zkp::ChaumPedersen,
-};
+use strand::{serialization::StrandVectorCP, serialization::StrandVectorP, zkp::ChaumPedersen};
 
 pub(super) fn compute_decryption_factors<C: Ctx>(
     cfg_h: &ConfigurationHash,
     batch: &BatchNumber,
-    commitments_hs: &CommitmentsHashes,
+    channels_hs: &ChannelsHashes,
     ciphertexts_h: &CiphertextsHash,
     mix_signer: &TrusteePosition,
     pk_h: &PublicKeyHash,
@@ -32,8 +29,8 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
         .get_mix(ciphertexts_h, *batch, *mix_signer)
         .ok_or(anyhow!("Could not retrieve mix ciphertexts for decryption"))?;
 
-    let commitments = trustee
-        .get_commitments(&CommitmentsHash(commitments_hs.0[*self_p]), *self_p)
+    let my_channel = trustee
+        .get_channel(&ChannelHash(channels_hs.0[*self_p]), *self_p)
         .ok_or(anyhow!("Could not retrieve commitments",))?;
 
     let mut secret = C::X::add_identity();
@@ -43,12 +40,9 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
             .get_shares(&SharesHash(share_h), sender)
             .ok_or(anyhow!("Could not retrieve shares",))?;
 
-        let sk = trustee
-            .decrypt_share_sk(&commitments.share_transport)
-            .ok_or(anyhow!("Could not decrypt share transport",))?;
-        let sk = PrivateKey::from(&sk, &ctx);
+        let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
 
-        let share = ctx.decrypt_exp(&share_.0[*self_p], sk)?;
+        let share = ctx.decrypt_exp(&share_.encrypted_shares[*self_p], sk)?;
 
         secret = secret.add(&share);
         secret = secret.modq(&ctx);
@@ -63,23 +57,25 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
     let suffix = format!("decryption_factor{self_p}");
     let label = cfg.label(*batch, suffix);
 
-    let (factors, proofs): (Vec<C::E>, Vec<ChaumPedersen<C>>) = ciphertexts
+    let zkp = strand::zkp::Zkp::new(&ctx);
+
+    let result: Result<Vec<(C::E, ChaumPedersen<C>)>> = ciphertexts
         .ciphertexts
         .0
         .into_par_iter()
         .map(|c| {
-            // FIXME unwrap
             let (base, proof) =
-                strand::threshold::decryption_factor(&c, &secret, &vk, &label, ctx.clone())
-                    .unwrap();
+                strand::threshold::decryption_factor(&c, &secret, &vk, &label, &zkp, &ctx)?;
 
             // FIXME removed self-verify
             // let ok = zkp.verify_decryption(&vk, &base, &c.mhr, &c.gr, &proof, &label);
             // assert!(ok);
 
-            (base, proof)
+            Ok((base, proof))
         })
-        .unzip();
+        .collect();
+
+    let (factors, proofs): (Vec<C::E>, Vec<ChaumPedersen<C>>) = result?.into_iter().unzip();
 
     let df = DecryptionFactors::new(factors, StrandVectorCP(proofs));
     let m = Message::decryption_factors_msg(cfg, *batch, df, *ciphertexts_h, *shares_hs, trustee)?;
@@ -239,20 +235,21 @@ fn compute_plaintexts_<C: Ctx>(
             let suffix = format!("decryption_factor{}", ts[t] - 1);
             let label = cfg.label(*batch, suffix);
 
-            let values: Vec<C::E> = it2
+            let values: Result<Vec<C::E>> = it2
                 .into_par_iter()
                 .map(|((df, proof), c)| {
-                    // FIXME unwrap
-                    let ok = zkp
-                        .verify_decryption(&vk, &df, &c.mhr, &c.gr, &proof, &label)
-                        .unwrap();
-                    // FIXME assert
-                    assert!(ok);
-                    ctx.emod_pow(&df, &lagrange)
+                    let ok = strand::threshold::verify_decryption_factor(
+                        &c, &vk, &df, &proof, &label, &zkp,
+                    )?;
+                    if ok {
+                        Ok(ctx.emod_pow(&df, &lagrange))
+                    } else {
+                        Err(anyhow!("Failed to verify decryption proof",))
+                    }
                 })
                 .collect();
 
-            for (index, next) in values.iter().enumerate() {
+            for (index, next) in values?.iter().enumerate() {
                 divider[index] = divider[index].mul(next).modp(&ctx);
             }
         } else {

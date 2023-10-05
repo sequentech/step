@@ -1,20 +1,19 @@
 pub use log::{debug, error, info, trace};
-pub use std::collections::HashSet;
+use std::collections::HashSet;
 
 use crate::protocol2::action::Action;
-use crate::protocol2::statement::THashes;
-use crate::protocol2::Hash;
+use braid_messages::newtypes::THashes;
+
 
 pub(crate) const NULL_HASH: [u8; 64] = [0u8; 64];
-// used by bb_client
-pub const NULL_TRUSTEE: usize = 1001;
 
-pub(crate) use crate::protocol2::predicate::*;
-pub(crate) use crate::protocol2::PROTOCOL_MANAGER_INDEX;
-pub(crate) use crate::protocol2::VERIFIER_INDEX;
+pub(self) use crate::protocol2::predicate::*;
+
+pub(self) use braid_messages::newtypes::*;
+pub(self) use strand::hash::Hash;
 
 pub(crate) fn hashes_init(value: Hash) -> THashes {
-    let mut ret = [NULL_HASH; crate::protocol2::MAX_TRUSTEES];
+    let mut ret = [NULL_HASH; MAX_TRUSTEES];
     ret[0] = value;
 
     ret
@@ -38,7 +37,7 @@ pub(crate) fn hashes_add(mut input: THashes, value: Hash) -> THashes {
 }
 
 pub(crate) fn trustees_init(value: TrusteePosition) -> TrusteeSet {
-    let mut ret = [NULL_TRUSTEE; crate::protocol2::MAX_TRUSTEES];
+    let mut ret = [NULL_TRUSTEE; MAX_TRUSTEES];
     ret[0] = value;
 
     ret
@@ -105,6 +104,7 @@ pub(crate) fn run(predicates: &Vec<Predicate>) -> (HashSet<Action>, Vec<Predicat
         });
         next.2.into_iter().for_each(|d| {
             error!("Datalog returned error {:?}", d);
+            // FIXME panic
             panic!();
         });
     }

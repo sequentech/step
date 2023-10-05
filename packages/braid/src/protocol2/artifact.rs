@@ -3,8 +3,6 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use chacha20poly1305::consts::U12;
-use generic_array::GenericArray;
 
 use crate::protocol2::predicate::{BatchNumber, MixNumber};
 use crate::protocol2::PROTOCOL_MANAGER_INDEX;
@@ -12,6 +10,7 @@ use crate::protocol2::PROTOCOL_MANAGER_INDEX;
 use strand::serialization::StrandSerialize;
 use strand::shuffler::ShuffleProof;
 use strand::signature::StrandSignaturePk;
+use strand::symm;
 use strand::{context::Ctx, elgamal::Ciphertext};
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
@@ -70,74 +69,29 @@ impl<C: Ctx> Configuration<C> {
     }
 }
 #[derive(BorshSerialize, BorshDeserialize)]
-pub(crate) struct Commitments<C: Ctx> {
-    // Commitments to the coefficients of the generated polynomial
-    pub(crate) commitments: Vec<C::E>,
-    // Encryption of the serialization of the vector of coefficients of the polynomial (C::X's)
-    pub(crate) encrypted_coefficients: EncryptedCoefficients,
-    // Channel with which to send shares privately to the originator of these Commitments
-    pub(crate) share_transport: ShareTransport<C>,
+pub(crate) struct Channel<C: Ctx> {
+    // The public key (as an element) with which other trustees will encrypt shares sent to the originator of this ShareTransport
+    pub channel_pk: C::E,
+    pub encrypted_channel_sk: symm::EncryptionData,
 }
-impl<C: Ctx> Commitments<C> {
-    pub(crate) fn new(
-        commitments: Vec<C::E>,
-        encrypted_coefficients: EncryptedCoefficients,
-        share_transport: ShareTransport<C>,
-    ) -> Commitments<C> {
-        Commitments {
-            commitments,
-            encrypted_coefficients,
-            share_transport,
-        }
-    }
-}
-
-#[derive(BorshSerialize, BorshDeserialize)]
-pub(crate) struct EncryptedCoefficients {
-    pub(crate) encrypted_coefficients: Vec<u8>,
-    pub(crate) nonce: Vec<u8>,
-}
-impl EncryptedCoefficients {
-    pub(crate) fn new(
-        encrypted_coefficients: Vec<u8>,
-        nonce: GenericArray<u8, U12>,
-    ) -> EncryptedCoefficients {
-        EncryptedCoefficients {
-            encrypted_coefficients,
-            nonce: nonce.to_vec(),
-        }
-    }
-}
-
-#[derive(BorshSerialize, BorshDeserialize)]
-// ElGamal key information used to send shares confidentially
-pub(crate) struct ShareTransport<C: Ctx> {
-    // The public key with which other trustees will encrypt shares sent to the originator of this ShareTransport
-    pub(crate) pk: C::E,
-    // The encrypted (symmetric) private key corresponding to the above
-    pub(crate) encrypted_sk: Vec<u8>,
-    // The nonce used for symmetric encryption
-    pub(crate) nonce: Vec<u8>,
-}
-impl<C: Ctx> ShareTransport<C> {
-    pub(crate) fn new(
-        pk: C::E,
-        encrypted_sk: Vec<u8>,
-        nonce: GenericArray<u8, U12>,
-    ) -> ShareTransport<C> {
-        ShareTransport {
-            pk,
-            encrypted_sk,
-            nonce: nonce.to_vec(),
+impl<C: Ctx> Channel<C> {
+    pub(crate) fn new(channel_pk: C::E, encrypted_channel_sk: symm::EncryptionData) -> Channel<C> {
+        Channel {
+            channel_pk,
+            encrypted_channel_sk,
         }
     }
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
-// One vector of bytes per trustee, including the share sent to
-// itself. The bytes are the serialization of the ElGamal
-// encryption of the share. See Ctx::encrypt_exp.
-pub(crate) struct Shares(pub(crate) Vec<Vec<u8>>);
+pub(crate) struct Shares<C: Ctx> {
+    // Commitments to the coefficients of the generated polynomial
+    pub(crate) commitments: Vec<C::E>,
+    // One vector of bytes per trustee, including the share sent to
+    // itself. The bytes are the serialization of the ElGamal
+    // encryption of the share. See Ctx::encrypt_exp.
+    pub(crate) encrypted_shares: Vec<Vec<u8>>,
+}
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct DkgPublicKey<C: Ctx> {
@@ -161,11 +115,6 @@ use strand::serialization::StrandVectorP;
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct Ballots<C: Ctx> {
     pub ciphertexts: StrandVectorC<C>,
-    // The trustees to participate in the mix and decryption. There must be threshold # of them.
-    // Each trustee is a number starting at 1 up to the the number of eligible
-    // trustees as per the configuration. 0 is not a valid trustee. Remaining
-    // slots of this fixed size array must be padded with Datalog::NULL_TRUSTEE
-    // pub selected_trustees: TrusteeSet,
 }
 impl<C: Ctx> Ballots<C> {
     pub fn new(ciphertexts: Vec<Ciphertext<C>>) -> Ballots<C> {
@@ -221,7 +170,7 @@ pub struct Plaintexts<C: Ctx>(pub StrandVectorP<C>);
 
 impl<C: Ctx> std::fmt::Debug for Configuration<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let hashed = strand::util::hash(&self.strand_serialize().unwrap());
+        let hashed = strand::hash::hash(&self.strand_serialize().unwrap()).unwrap();
         write!(
             f,
             "hash={:?}, #trustees={}, threshold={}",
@@ -232,14 +181,9 @@ impl<C: Ctx> std::fmt::Debug for Configuration<C> {
     }
 }
 
-impl<C: Ctx> std::fmt::Debug for Commitments<C> {
+impl<C: Ctx> std::fmt::Debug for Channel<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "commitments={:?}, coefficients={:?}",
-            self.commitments,
-            hex::encode(&self.encrypted_coefficients.encrypted_coefficients)[0..10].to_string()
-        )
+        write!(f, "channel_pk={:?},", self.channel_pk,)
     }
 }
 

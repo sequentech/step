@@ -1,5 +1,4 @@
 use anyhow::Result;
-use chacha20poly1305::{aead::KeyInit, ChaCha20Poly1305};
 use log::{error, info};
 use rand::seq::SliceRandom;
 use rand::Rng;
@@ -11,13 +10,15 @@ use std::sync::{Arc, Mutex};
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
-use strand::rnd::StrandRng;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-use crate::protocol2::artifact::{Configuration, Plaintexts};
-use crate::protocol2::message::Message;
-use crate::protocol2::predicate::PublicKeyHash;
+use braid_messages::artifact::{Configuration, Ballots, Plaintexts};
+use braid_messages::newtypes::PublicKeyHash;
+use braid_messages::message::Message;
+use braid_messages::newtypes::MAX_TRUSTEES;
+use braid_messages::newtypes::NULL_TRUSTEE;
+
 use crate::protocol2::trustee::ProtocolManager;
 use crate::protocol2::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
@@ -55,6 +56,8 @@ fn run_protocol_test<C: Ctx>(
     batches: usize,
     threshold: &[usize],
 ) -> Result<()> {
+    info!("{}", strand::info_string());
+    
     let remote = test.remote.clone();
     let ctx = test.ctx.clone();
     let mut sessions = vec![];
@@ -67,8 +70,7 @@ fn run_protocol_test<C: Ctx>(
     let mut dkg_pk = None;
     let count = ciphertexts;
 
-    let mut selected_trustees =
-        [crate::protocol2::datalog::NULL_TRUSTEE; crate::protocol2::MAX_TRUSTEES];
+    let mut selected_trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
     selected_trustees[0..threshold.len()].copy_from_slice(threshold);
 
     for i in 0..30 {
@@ -87,15 +89,16 @@ fn run_protocol_test<C: Ctx>(
     let dkgpk = dkg_pk.unwrap();
 
     let pk_bytes = dkgpk.strand_serialize()?;
-    let pk_h = strand::util::hash_array(&pk_bytes);
+    let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
 
     let pk_element = dkgpk.pk;
     let pk = strand::elgamal::PublicKey::from_element(&pk_element, &test.ctx);
 
     let mut plaintexts_in = vec![];
+    let mut rng = ctx.get_rng();
     for i in 0..batches {
         info!("Generating {} plaintexts..", count);
-        let next_p: Vec<C::P> = (0..count).map(|_| ctx.rnd_plaintext()).collect();
+        let next_p: Vec<C::P> = (0..count).map(|_| ctx.rnd_plaintext(&mut rng)).collect();
 
         info!("Encrypting {} ciphertexts..", next_p.len());
 
@@ -106,9 +109,9 @@ fn run_protocol_test<C: Ctx>(
                 pk.encrypt(&encoded)
             })
             .collect();
-        let ballot_batch = crate::protocol2::artifact::Ballots::new(ballots);
+        let ballot_batch = Ballots::new(ballots);
 
-        let message = crate::protocol2::message::Message::ballots_msg(
+        let message = Message::ballots_msg(
             &test.cfg,
             i + 1,
             &ballot_batch,
@@ -174,28 +177,26 @@ pub fn create_protocol_test<C: Ctx>(
     threshold: &[usize],
     ctx: C,
 ) -> Result<ProtocolTest<C>> {
-    let mut csprng = StrandRng;
     let session_id = 0;
 
-    let pmkey: StrandSignatureSk = StrandSignatureSk::new(&mut csprng);
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen()?;
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
     let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|_| {
-            let sk = StrandSignatureSk::new(&mut csprng);
-            let encryption_key = ChaCha20Poly1305::generate_key(&mut chacha20poly1305::aead::OsRng);
-            (
-                Trustee::new(sk.clone(), encryption_key),
-                StrandSignaturePk::from(&sk),
-            )
+            let sk = StrandSignatureSk::gen().unwrap();
+            // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
+            let encryption_key = strand::symm::gen_key();
+            let pk = StrandSignaturePk::from(&sk).unwrap();
+            (Trustee::new(sk, encryption_key), pk)
         })
         .unzip();
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from(&pm.signing_key),
+        StrandSignaturePk::from(&pm.signing_key).unwrap(),
         trustee_pks,
         threshold.len(),
         PhantomData,

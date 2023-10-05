@@ -13,7 +13,7 @@ crepe! {
 
     struct ConfigurationSignedAll(ConfigurationHash, TrusteePosition, TrusteeCount, Threshold);
     struct PublicKeySignedAll(ConfigurationHash, PublicKeyHash, SharesHashes);
-    struct CommitmentsAllSignedAll(ConfigurationHash, CommitmentsHashes);
+    struct ChannelsAllSignedAll(ConfigurationHash, ChannelsHashes);
     struct Ballots(ConfigurationHash, BatchNumber, CiphertextsHash, PublicKeyHash, TrusteeSet);
     struct MixComplete(ConfigurationHash, BatchNumber, MixNumber, CiphertextsHash, TrusteePosition);
     struct DecryptionFactors(ConfigurationHash, BatchNumber, DecryptionFactorsHash, CiphertextsHash, SharesHashes, TrusteePosition);
@@ -26,8 +26,8 @@ crepe! {
     PublicKeySignedAll(cfg_h, pk_h, shares_hs) <- InP(p),
     let Predicate::PublicKeySignedAll(cfg_h, pk_h, shares_hs) = p;
 
-    CommitmentsAllSignedAll(cfg_h, commitments_hs) <- InP(p),
-    let Predicate::CommitmentsAllSignedAll(cfg_h, commitments_hs) = p;
+    ChannelsAllSignedAll(cfg_h, channels_hs) <- InP(p),
+    let Predicate::ChannelsAllSignedAll(cfg_h, channels_hs) = p;
 
     Ballots(cfg_h, batch, ballots_h, pk_h, selected) <- InP(p),
     let Predicate::Ballots(cfg_h, batch, ballots_h, pk_h, selected) = p;
@@ -61,10 +61,10 @@ crepe! {
     #[derive(Debug)]
     pub struct DErr(DatalogError);
 
-    A(Action::ComputeDecryptionFactors(cfg_h, batch, commitments_hs, ciphertexts_h, signer_t, pk_h, shares_hs, self_p, num_t, threshold, selected)) <-
+    A(Action::ComputeDecryptionFactors(cfg_h, batch, channels_hs, ciphertexts_h, signer_t, pk_h, shares_hs, self_p, num_t, threshold, selected)) <-
     PublicKeySignedAll(cfg_h, pk_h, shares_hs),
     ConfigurationSignedAll(cfg_h, self_p, num_t, threshold),
-    CommitmentsAllSignedAll(cfg_h, commitments_hs),
+    ChannelsAllSignedAll(cfg_h, channels_hs),
     MixComplete(cfg_h, batch, _mix_n, ciphertexts_h, signer_t),
     Ballots(cfg_h, batch, _ballots_h, pk_h, selected),
     !DecryptionFactors(cfg_h, batch, _, ciphertexts_h, shares_hs, self_p),

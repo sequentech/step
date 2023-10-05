@@ -2,13 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::protocol2::artifact::Configuration;
-use crate::protocol2::message::Message;
+use braid_messages::artifact::Configuration;
+use braid_messages::message::Message;
 use crate::protocol2::trustee::ProtocolManager;
 use crate::run::config::ProtocolManagerConfig;
 
 use strand::context::Ctx;
-use strand::rnd::StrandRng;
 
 use anyhow::Result;
 use std::marker::PhantomData;
@@ -18,9 +17,7 @@ use immu_board::{BoardClient, BoardMessage};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
-    let mut csprng = StrandRng;
-
-    let pmkey: StrandSignatureSk = StrandSignatureSk::new(&mut csprng);
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
@@ -52,11 +49,11 @@ pub async fn add_config_to_board<C: Ctx>(
     threshold: usize,
     board_name: &str,
     trustee_pks: Vec<StrandSignaturePk>,
-    pm: ProtocolManager<C>
+    pm: ProtocolManager<C>,
 ) -> Result<()> {
     let configuration = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from(&pm.signing_key),
+        StrandSignaturePk::from(&pm.signing_key)?,
         trustee_pks,
         threshold,
         PhantomData,
@@ -66,4 +63,3 @@ pub async fn add_config_to_board<C: Ctx>(
 
     init(&mut board, configuration, pm, board_name).await
 }
-

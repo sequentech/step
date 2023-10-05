@@ -1,4 +1,4 @@
-// cargo run --bin bb_client --features=bb-test -- --server-url http://immudb:3322 <init|ballots|list|boards>
+// cargo run --bin bb_client --features=bb-test -- --server-url http://immudb:3322 --indexdb defaultboardindex --dbname defaultboard <init|ballots|list|boards>
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose, Engine as _};
 use clap::Parser;
@@ -10,11 +10,11 @@ use tracing::{info, instrument};
 use braid::util::init_log;
 use immu_board::{Board, BoardClient, BoardMessage};
 
-use braid::protocol2::artifact::Configuration;
-use braid::protocol2::artifact::DkgPublicKey;
-use braid::protocol2::message::Message;
-use braid::protocol2::predicate::PublicKeyHash;
-use braid::protocol2::statement::StatementType;
+use braid_messages::artifact::Configuration;
+use braid_messages::artifact::DkgPublicKey;
+use braid_messages::message::Message;
+use braid_messages::newtypes::PublicKeyHash;
+use braid_messages::statement::StatementType;
 use braid::protocol2::trustee::ProtocolManager;
 use braid::run::config::ProtocolManagerConfig;
 use strand::backend::ristretto::RistrettoCtx;
@@ -29,6 +29,12 @@ struct Cli {
     #[arg(long)]
     server_url: String,
 
+    #[arg(short, long)]
+    dbname: String,
+
+    #[arg(short, long)]
+    indexdb: String,
+
     #[arg(value_enum)]
     command: Command,
 }
@@ -41,8 +47,6 @@ enum Command {
     Boards,
 }
 
-const BOARD_NAME: &str = "33f18502a67c48538333a58630663559";
-const INDEX_NAME: &str = "indexdb";
 const PROTOCOL_MANAGER: &str = "pm.toml";
 const CONFIG: &str = "config.bin";
 const IMMUDB_USER: &str = "immudb";
@@ -64,16 +68,16 @@ async fn main() -> Result<()> {
             let configuration = Configuration::<RistrettoCtx>::strand_deserialize(&cfg_bytes)
                 .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
 
-            init(&mut board, configuration).await?;
+            init(&mut board, &args.dbname, configuration).await?;
         }
         Command::Ballots => {
-            post_ballots(&mut board, ctx).await?;
+            post_ballots(&mut board, &args.dbname, ctx).await?;
         }
         Command::Messages => {
-            list_messages(&mut board).await?;
+            list_messages(&mut board, &args.dbname).await?;
         }
         Command::Boards => {
-            list_boards(&mut board).await?;
+            list_boards(&mut board, &args.indexdb).await?;
         }
     }
 
@@ -81,17 +85,21 @@ async fn main() -> Result<()> {
 }
 
 #[instrument]
-async fn init<C: Ctx>(board: &mut BoardClient, configuration: Configuration<C>) -> Result<()> {
-    let pm = get_pm(PhantomData);
+async fn init<C: Ctx>(
+    board: &mut BoardClient,
+    board_name: &str,
+    configuration: Configuration<C>,
+) -> Result<()> {
+    let pm = get_pm(PhantomData::<RistrettoCtx>);
     let message: BoardMessage = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
     info!("Adding configuration to the board..");
-    board.insert_messages(BOARD_NAME, &vec![message]).await
+    board.insert_messages(board_name, &vec![message]).await
 }
 
 #[instrument(skip(board))]
-async fn list_messages(board: &mut BoardClient) -> Result<()> {
+async fn list_messages(board: &mut BoardClient, board_name: &str) -> Result<()> {
     let messages: Result<Vec<Message>> = board
-        .get_messages(BOARD_NAME, 0)
+        .get_messages(board_name, 0)
         .await?
         .iter()
         .map(|board_message: &BoardMessage| {
@@ -106,9 +114,9 @@ async fn list_messages(board: &mut BoardClient) -> Result<()> {
 }
 
 #[instrument]
-async fn list_boards(index: &mut BoardClient) -> Result<()> {
+async fn list_boards(index: &mut BoardClient, indexdb: &str) -> Result<()> {
     let boards: Result<Vec<String>> = index
-        .get_boards(&INDEX_NAME)
+        .get_boards(&indexdb)
         .await?
         .iter()
         .map(|board: &Board| Ok(board.database_name.clone()))
@@ -121,15 +129,16 @@ async fn list_boards(index: &mut BoardClient) -> Result<()> {
 }
 
 #[instrument]
-async fn post_ballots<C: Ctx>(board: &mut BoardClient, ctx: C) -> Result<()> {
+async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: C) -> Result<()> {
     let messages: Vec<Message> = board
-        .get_messages(BOARD_NAME, 0)
+        .get_messages(&board_name, 0)
         .await?
         .iter()
         .map(|board_message: &BoardMessage| {
             Ok(Message::strand_deserialize(&board_message.message)?)
         })
         .collect::<Result<Vec<Message>>>()?;
+    let mut rng = ctx.get_rng();
 
     for message in messages {
         let kind = message.statement.get_kind();
@@ -138,11 +147,11 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, ctx: C) -> Result<()> {
             let bytes = message.artifact.unwrap();
             let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
             let pk_bytes = dkgpk.strand_serialize()?;
-            let pk_h = strand::util::hash_array(&pk_bytes);
+            let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
             let pk_element = dkgpk.pk;
             let pk = strand::elgamal::PublicKey::from_element(&pk_element, &ctx);
 
-            let ps: Vec<C::P> = (0..100).map(|_| ctx.rnd_plaintext()).collect();
+            let ps: Vec<C::P> = (0..100).map(|_| ctx.rnd_plaintext(&mut rng)).collect();
             let ballots: Vec<Ciphertext<C>> = ps
                 .par_iter()
                 .map(|p| {
@@ -160,12 +169,12 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, ctx: C) -> Result<()> {
 
             let threshold = [1, 2];
             let mut selected_trustees =
-                [braid::protocol2::datalog::NULL_TRUSTEE; braid::protocol2::MAX_TRUSTEES];
+                [braid_messages::newtypes::NULL_TRUSTEE; braid_messages::newtypes::MAX_TRUSTEES];
             selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
-            let ballot_batch = braid::protocol2::artifact::Ballots::new(ballots);
-            let pm = get_pm(PhantomData);
-            let message = braid::protocol2::message::Message::ballots_msg(
+            let ballot_batch = braid_messages::artifact::Ballots::new(ballots);
+            let pm = get_pm(PhantomData::<RistrettoCtx>);
+            let message = braid_messages::message::Message::ballots_msg(
                 &configuration,
                 2,
                 &ballot_batch,
@@ -176,7 +185,7 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, ctx: C) -> Result<()> {
 
             info!("Adding ballots to the board..");
             let bm: BoardMessage = message.try_into()?;
-            board.insert_messages(BOARD_NAME, &vec![bm]).await?;
+            board.insert_messages(board_name, &vec![bm]).await?;
 
             break;
         }

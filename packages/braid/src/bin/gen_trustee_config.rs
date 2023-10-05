@@ -2,22 +2,21 @@
 //
 //  * signing_key_sk: base64 encoding of a StrandSignatureSk serialization
 //  * signing_key_pk: base64 encoding of corresponding StrandSignaturePk serialization
-//  * encryption_key: base64 encoding of a GenericArray<u8, U32>,
+//  * encryption_key: base64 encoding of a sign::SymmetricKey
 //
 
 use base64::engine::general_purpose;
 use base64::Engine;
 use braid::protocol2::trustee::ProtocolManager;
 use braid::run::config::{ProtocolManagerConfig, TrusteeConfig};
-use chacha20poly1305::{aead::KeyInit, ChaCha20Poly1305};
 use clap::Parser;
 use std::marker::PhantomData;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
-use strand::rnd::StrandRng;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use strand::symm;
 
 #[derive(clap::ValueEnum, Clone)]
 enum Command {
@@ -41,14 +40,12 @@ fn main() {
 }
 
 fn gen_trustee_config<C: Ctx>() {
-    let mut csprng = StrandRng;
-
-    let sk = StrandSignatureSk::new(&mut csprng);
+    let sk = StrandSignatureSk::gen().unwrap();
     let pk = StrandSignaturePk::from(&sk);
-    let encryption_key = ChaCha20Poly1305::generate_key(&mut chacha20poly1305::aead::OsRng);
+    let encryption_key: symm::SymmetricKey = symm::gen_key();
 
     let sk_bytes = sk.strand_serialize().unwrap();
-    let pk_bytes = pk.strand_serialize().unwrap();
+    let pk_bytes = pk.unwrap().strand_serialize().unwrap();
     let ek_bytes = encryption_key.as_slice();
 
     let sk_string: String = general_purpose::STANDARD_NO_PAD.encode(sk_bytes);
@@ -66,9 +63,7 @@ fn gen_trustee_config<C: Ctx>() {
 }
 
 fn gen_protocol_manager_config<C: Ctx>() {
-    let mut csprng = StrandRng;
-
-    let pmkey: StrandSignatureSk = StrandSignatureSk::new(&mut csprng);
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
