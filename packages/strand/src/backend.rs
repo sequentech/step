@@ -36,16 +36,16 @@ pub(crate) mod tests {
     use crate::context::Ctx;
     use crate::context::Element;
     use crate::elgamal::*;
-    use crate::keymaker::*;
     use crate::serialization::StrandDeserialize;
     use crate::serialization::StrandSerialize;
     use crate::shuffler::{ShuffleProof, Shuffler};
 
     use crate::util;
-    use crate::zkp::{ChaumPedersen, Schnorr};
+    use crate::zkp::Zkp;
 
     pub(crate) fn test_encrypt_exp_generic<C: Ctx>(ctx: &C) {
-        let exp = ctx.rnd_exp();
+        let mut rng = ctx.get_rng();
+        let exp = ctx.rnd_exp(&mut rng);
         let sk = PrivateKey::<C>::gen(ctx);
 
         let encrypted = ctx.encrypt_exp(&exp, sk.get_pk()).unwrap();
@@ -88,25 +88,25 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn test_schnorr_generic<C: Ctx>(ctx: &C) {
+        let mut rng = ctx.get_rng();
         let zkp = Zkp::new(ctx);
-        let secret = ctx.rnd_exp();
+        let secret = ctx.rnd_exp(&mut rng);
         let public = ctx.gmod_pow(&secret);
         let schnorr = zkp.schnorr_prove(&secret, &public, None, &[]).unwrap();
         let verified = zkp.schnorr_verify(&public, None, &schnorr, &[]);
         assert!(verified);
-        let public_false = ctx.gmod_pow(&ctx.rnd_exp());
+        let public_false = ctx.gmod_pow(&ctx.rnd_exp(&mut rng));
         let verified_false =
             !zkp.schnorr_verify(&public_false, None, &schnorr, &[]);
         assert!(verified_false);
     }
 
-    use crate::zkp::Zkp;
-
     pub(crate) fn test_chaumpedersen_generic<C: Ctx>(ctx: &C) {
+        let mut rng = ctx.get_rng();
         let zkp = Zkp::new(ctx);
         let g1 = ctx.generator();
-        let g2 = ctx.rnd();
-        let secret = ctx.rnd_exp();
+        let g2 = ctx.rnd(&mut rng);
+        let secret = ctx.rnd_exp(&mut rng);
         let public1 = ctx.emod_pow(g1, &secret);
         let public2 = ctx.emod_pow(&g2, &secret);
         let proof = zkp
@@ -116,7 +116,7 @@ pub(crate) mod tests {
             zkp.cp_verify(&public1, &public2, None, &g2, &proof, &[]);
 
         assert!(verified);
-        let public_false = ctx.gmod_pow(&ctx.rnd_exp());
+        let public_false = ctx.gmod_pow(&ctx.rnd_exp(&mut rng));
         let verified_false =
             !zkp.cp_verify(&public1, &public_false, None, &g2, &proof, &[]);
         assert!(verified_false);
@@ -149,154 +149,13 @@ pub(crate) mod tests {
         assert_eq!(data, recovered);
     }
 
-    pub(crate) fn test_distributed_generic<C: Ctx>(ctx: &C, data: C::P) {
-        let zkp = Zkp::new(ctx);
-        let km1 = Keymaker::gen(ctx);
-        let km2 = Keymaker::gen(ctx);
-        let (pk1, proof1) = km1.share(&[]).unwrap();
-        let (pk2, proof2) = km2.share(&[]).unwrap();
-
-        let verified1 = zkp.schnorr_verify(
-            &pk1.element,
-            Some(ctx.generator()),
-            &proof1,
-            &[],
-        );
-        let verified2 = zkp.schnorr_verify(
-            &pk2.element,
-            Some(ctx.generator()),
-            &proof2,
-            &[],
-        );
-        assert!(verified1);
-        assert!(verified2);
-
-        let plaintext = ctx.encode(&data).unwrap();
-
-        let pk1_value = &pk1.element.clone();
-        let pk2_value = &pk2.element.clone();
-        let pks = vec![pk1, pk2];
-
-        let pk_combined = Keymaker::combine_pks(ctx, pks);
-        let c = pk_combined.encrypt(&plaintext);
-
-        let (dec_f1, proof1) = km1.decryption_factor(&c, &[]).unwrap();
-        let (dec_f2, proof2) = km2.decryption_factor(&c, &[]).unwrap();
-
-        let verified1 = zkp
-            .verify_decryption(pk1_value, &dec_f1, &c.mhr, &c.gr, &proof1, &[])
-            .unwrap();
-        let verified2 = zkp
-            .verify_decryption(pk2_value, &dec_f2, &c.mhr, &c.gr, &proof2, &[])
-            .unwrap();
-        assert!(verified1);
-        assert!(verified2);
-
-        let decs = vec![dec_f1, dec_f2];
-        let d = Keymaker::joint_dec(ctx, decs, &c);
-        let recovered = ctx.decode(&d);
-        assert_eq!(data, recovered);
-    }
-
-    pub(crate) fn test_distributed_serialization_generic<C: Ctx>(
-        ctx: &C,
-        data: Vec<C::P>,
-    ) {
-        let km1 = Keymaker::gen(ctx);
-        let km2 = Keymaker::gen(ctx);
-        let (pk1, proof1) = km1.share(&[]).unwrap();
-        let (pk2, proof2) = km2.share(&[]).unwrap();
-
-        let share1_pk_b = pk1.strand_serialize().unwrap();
-        let share1_proof_b = proof1.strand_serialize().unwrap();
-
-        let share2_pk_b = pk2.strand_serialize().unwrap();
-        let share2_proof_b = proof2.strand_serialize().unwrap();
-
-        let share1_pk_d =
-            PublicKey::<C>::strand_deserialize(&share1_pk_b).unwrap();
-        let share1_proof_d =
-            Schnorr::<C>::strand_deserialize(&share1_proof_b).unwrap();
-
-        let share2_pk_d =
-            PublicKey::<C>::strand_deserialize(&share2_pk_b).unwrap();
-        let share2_proof_d =
-            Schnorr::<C>::strand_deserialize(&share2_proof_b).unwrap();
-
-        let verified1 =
-            Keymaker::verify_share(ctx, &share1_pk_d, &share1_proof_d, &[]);
-        let verified2 =
-            Keymaker::verify_share(ctx, &share2_pk_d, &share2_proof_d, &[]);
-
-        assert!(verified1);
-        assert!(verified2);
-
-        let pk1_value = &share1_pk_d.element.clone();
-        let pk2_value = &share2_pk_d.element.clone();
-        let pks = vec![share1_pk_d, share2_pk_d];
-
-        let pk_combined = Keymaker::combine_pks(ctx, pks);
-        let mut cs = vec![];
-
-        for plaintext in &data {
-            let encoded = ctx.encode(plaintext).unwrap();
-            let c = pk_combined.encrypt(&encoded);
-            cs.push(c);
-        }
-
-        let (decs1, proofs1) = km1.decryption_factor_many(&cs, &[]).unwrap();
-        let (decs2, proofs2) = km2.decryption_factor_many(&cs, &[]).unwrap();
-
-        let decs1_b = decs1.strand_serialize().unwrap();
-        let proofs1_b = proofs1.strand_serialize().unwrap();
-
-        let decs2_b = decs2.strand_serialize().unwrap();
-        let proofs2_b = proofs2.strand_serialize().unwrap();
-
-        let decs1_d = Vec::<C::E>::strand_deserialize(&decs1_b).unwrap();
-        let proofs1_d =
-            Vec::<ChaumPedersen<C>>::strand_deserialize(&proofs1_b).unwrap();
-
-        let decs2_d = Vec::<C::E>::strand_deserialize(&decs2_b).unwrap();
-        let proofs2_d =
-            Vec::<ChaumPedersen<C>>::strand_deserialize(&proofs2_b).unwrap();
-
-        let verified1 = Keymaker::verify_decryption_factors(
-            ctx,
-            pk1_value,
-            &cs,
-            &decs1_d,
-            &proofs1_d,
-            &[],
-        );
-        let verified2 = Keymaker::verify_decryption_factors(
-            ctx,
-            pk2_value,
-            &cs,
-            &decs2_d,
-            &proofs2_d,
-            &[],
-        );
-
-        assert!(verified1.unwrap());
-        assert!(verified2.unwrap());
-
-        let decs = vec![decs1_d, decs2_d];
-        let ds = Keymaker::joint_dec_many(ctx, &decs, &cs);
-
-        let recovered: Vec<C::P> =
-            ds.into_iter().map(|d| ctx.decode(&d)).collect();
-
-        assert_eq!(data, recovered);
-    }
-
     pub(crate) fn test_shuffle_generic<C: Ctx>(ctx: &C) {
         let sk = PrivateKey::gen(ctx);
         let pk = sk.get_pk();
 
         let es = util::random_ciphertexts(10, ctx);
         let seed = vec![];
-        let hs = ctx.generators(es.len() + 1, &seed);
+        let hs = ctx.generators(es.len() + 1, &seed).unwrap();
         let shuffler = Shuffler {
             pk: &pk,
             generators: &hs,
@@ -304,8 +163,7 @@ pub(crate) mod tests {
         };
 
         let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
-        let proof =
-            shuffler.gen_proof(&es, &e_primes, &rs, &perm, &[]).unwrap();
+        let proof = shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
 
         let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]).unwrap();
 
@@ -318,15 +176,14 @@ pub(crate) mod tests {
 
         let es = util::random_ciphertexts(10, ctx);
         let seed = vec![];
-        let hs = ctx.generators(es.len() + 1, &seed);
+        let hs = ctx.generators(es.len() + 1, &seed).unwrap();
         let shuffler = Shuffler {
             pk: &pk,
             generators: &hs,
             ctx: (*ctx).clone(),
         };
         let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
-        let proof =
-            shuffler.gen_proof(&es, &e_primes, &rs, &perm, &[]).unwrap();
+        let proof = shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
         // in this test do this only after serialization
         // let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]);
         // assert!(ok);

@@ -6,24 +6,21 @@ use std::collections::HashMap;
 use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
-use crate::protocol2::artifact::Ballots;
-use crate::protocol2::artifact::Commitments;
+/*use crate::protocol2::artifact::Ballots;
+use crate::protocol2::artifact::Channel;
 use crate::protocol2::artifact::Configuration;
 use crate::protocol2::artifact::DecryptionFactors;
 use crate::protocol2::artifact::Plaintexts;
 use crate::protocol2::artifact::Shares;
-use crate::protocol2::message::VerifiedMessage;
-use crate::protocol2::predicate::CommitmentsHash;
-use crate::protocol2::predicate::ConfigurationHash;
-use crate::protocol2::predicate::MixNumber;
-use crate::protocol2::predicate::PublicKeyHash;
-use crate::protocol2::predicate::SharesHash;
-use crate::protocol2::statement::{ArtifactType, Statement, StatementType};
-use crate::protocol2::Hash;
-
 use crate::protocol2::artifact::{DkgPublicKey, Mix};
-use crate::protocol2::predicate::{BatchNumber, PlaintextsHash, TrusteePosition};
-use crate::protocol2::predicate::{CiphertextsHash, DecryptionFactorsHash};
+use crate::protocol2::message::VerifiedMessage;
+use crate::protocol2::statement::{ArtifactType, Statement, StatementType};*/
+use braid_messages::artifact::*;
+use braid_messages::message::VerifiedMessage;
+use braid_messages::statement::{ArtifactType, Statement, StatementType};
+
+use braid_messages::newtypes::*;
+use strand::hash::Hash;
 
 ///////////////////////////////////////////////////////////////////////////
 // LocalBoard
@@ -136,7 +133,7 @@ impl<C: Ctx> LocalBoard<C> {
 
     fn add_message(&mut self, message: VerifiedMessage) -> Result<()> {
         let bytes = message.statement.strand_serialize()?;
-        let statement_hash = strand::util::hash(&bytes);
+        let statement_hash = strand::hash::hash(&bytes)?;
 
         let statement_identifier =
             self.get_statement_entry_identifier(&message.statement, message.signer_position);
@@ -166,7 +163,7 @@ impl<C: Ctx> LocalBoard<C> {
             if let Some((artifact_type, artifact)) = message.artifact {
                 let artifact_identifier =
                     self.get_artifact_entry_identifier(&statement_identifier, &artifact_type);
-                let artifact_hash = strand::util::hash_array(&artifact);
+                let artifact_hash = strand::hash::hash_to_array(&artifact)?;
                 trace!(
                     "Artifact found with hash {}",
                     hex::encode(artifact_hash)[0..10].to_string()
@@ -264,24 +261,24 @@ impl<C: Ctx> LocalBoard<C> {
         None
     }
 
-    pub(crate) fn get_commitments(
+    pub(crate) fn get_channel(
         &self,
-        commitments_h: &CommitmentsHash,
+        commitments_h: &ChannelHash,
         signer_position: TrusteePosition,
-    ) -> Option<Commitments<C>> {
+    ) -> Option<Channel<C>> {
         let aei = self.get_artifact_entry_identifier_ext(
-            StatementType::Commitments,
+            StatementType::Channel,
             signer_position,
             0,
             0,
-            &ArtifactType::Commitments,
+            &ArtifactType::Channel,
         );
         let entry = self.artifacts.get(&aei)?;
         if commitments_h.0 != entry.0 {
             warn!("Hash mismatch when attempting to retrieve commitments");
             None
         } else {
-            Commitments::<C>::strand_deserialize(&entry.1).ok()
+            Channel::<C>::strand_deserialize(&entry.1).ok()
         }
     }
 
@@ -289,7 +286,7 @@ impl<C: Ctx> LocalBoard<C> {
         &self,
         shares_h: &SharesHash,
         signer_position: TrusteePosition,
-    ) -> Option<Shares> {
+    ) -> Option<Shares<C>> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Shares,
             signer_position,
@@ -465,8 +462,8 @@ impl<C: Ctx> LocalBoard<C> {
         StatementEntryIdentifier {
             kind,
             signer_position,
-            batch: batch.0,
-            mix_number: mix_number.0,
+            batch: batch,
+            mix_number: mix_number,
         }
     }
     pub(crate) fn get_artifact_entry_identifier(

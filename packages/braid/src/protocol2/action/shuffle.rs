@@ -38,7 +38,7 @@ pub(crate) fn mix<C: Ctx>(
         // mix_no is 1-based, but trustees[] is 0-based, so the previous mixer is
         // the trustee at index n - 2 (= (n - 1) - 1). For example, if we're on mix #2,
         // the source mix is signed by the first trustee, which is trustees[0].
-        // Trustees[] elements are 1-based, so n - 1.
+        // Trustees[] elements are 1-based, so trustees[mix_no - 2] - 1.
         assert_eq!(signer_t, trustees[mix_no - 2] - 1);
         let signer_t = trustees[mix_no - 2] - 1;
         let mix = trustee.get_mix(source_h, *batch, signer_t);
@@ -66,14 +66,14 @@ pub(crate) fn mix<C: Ctx>(
     let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
     info!("Mix computing generators..");
 
-    let hs = ctx.generators(cs.0.len() + 1, &seed);
+    let hs = ctx.generators(cs.0.len() + 1, &seed)?;
     let shuffler = strand::shuffler::Shuffler::new(&pk, &hs, &ctx);
 
     info!("Mix computing shuffle..");
     let (e_primes, rs, perm) = shuffler.gen_shuffle(&cs.0);
 
     let label = cfg.label(*batch, format!("shuffle{mix_no}"));
-    let proof = shuffler.gen_proof(&cs.0, &e_primes, &rs, &perm, &label)?;
+    let proof = shuffler.gen_proof(&cs.0, &e_primes, rs, &perm, &label)?;
 
     // FIXME removed self-verify
     // let ok = shuffler.check_proof(&proof, &cs, &e_primes, &label);
@@ -142,7 +142,7 @@ pub(crate) fn sign_mix<C: Ctx>(
     let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &ctx);
 
     let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
-    let hs = ctx.generators(source_cs.0.len() + 1, &seed);
+    let hs = ctx.generators(source_cs.0.len() + 1, &seed)?;
     let shuffler = strand::shuffler::Shuffler::new(&pk, &hs, &ctx);
 
     let label = cfg.label(*batch, format!("shuffle{mix_number}"));
@@ -153,6 +153,7 @@ pub(crate) fn sign_mix<C: Ctx>(
         dbg_hash(&cipher_h.0),
         ok
     );
+    // FIXME assert
     assert!(ok);
     let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
     Ok(vec![m])

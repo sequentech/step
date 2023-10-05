@@ -207,7 +207,8 @@ pub(crate) mod tests {
     use crate::zkp::{ChaumPedersen, Schnorr, Zkp};
 
     pub(crate) fn test_borsh_element<C: Ctx>(ctx: &C) {
-        let e = ctx.rnd();
+        let mut rng = ctx.get_rng();
+        let e = ctx.rnd(&mut rng);
 
         let encoded_e = e.strand_serialize().unwrap();
         let decoded_e = C::E::strand_deserialize(&encoded_e).unwrap();
@@ -215,8 +216,9 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn test_borsh_elements<C: Ctx>(ctx: &C) {
+        let mut rng = ctx.get_rng();
         let elements: Vec<C::E> =
-            (0..10).into_iter().map(|_| ctx.rnd()).collect();
+            (0..10).into_iter().map(|_| ctx.rnd(&mut rng)).collect();
 
         let encoded_e = elements.strand_serialize().unwrap();
         let decoded_e = Vec::<C::E>::strand_deserialize(&encoded_e).unwrap();
@@ -224,7 +226,8 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn test_borsh_exponent<C: Ctx>(ctx: &C) {
-        let x = ctx.rnd_exp();
+        let mut rng = ctx.get_rng();
+        let x = ctx.rnd_exp(&mut rng);
 
         let encoded_x = x.strand_serialize().unwrap();
         let decoded_x = C::X::strand_deserialize(&encoded_x).unwrap();
@@ -255,9 +258,10 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn test_schnorr_borsh_generic<C: Ctx + Eq>(ctx: &C) {
+        let mut rng = ctx.get_rng();
         let zkp = Zkp::new(ctx);
         let g = ctx.generator();
-        let secret = ctx.rnd_exp();
+        let secret = ctx.rnd_exp(&mut rng);
         let public = ctx.gmod_pow(&secret);
         let schnorr = zkp
             .schnorr_prove(&secret, &public, Some(&g), &vec![])
@@ -274,10 +278,11 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn test_cp_borsh_generic<C: Ctx + Eq>(ctx: &C) {
+        let mut rng = ctx.get_rng();
         let zkp = Zkp::new(ctx);
         let g1 = ctx.generator();
-        let g2 = ctx.rnd();
-        let secret = ctx.rnd_exp();
+        let g2 = ctx.rnd(&mut rng);
+        let secret = ctx.rnd_exp(&mut rng);
         let public1 = ctx.emod_pow(g1, &secret);
         let public2 = ctx.emod_pow(&g2, &secret);
         let proof = zkp

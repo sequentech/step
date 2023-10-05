@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use log::info;
-use tracing::{debug, instrument};
+use tracing::debug;
 
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
@@ -308,7 +308,7 @@ impl BoardClient {
                 }),
             },
         ];
-        let sql_query_response = self.client.sql_exec(&message_sql, params).await?;
+        let _ = self.client.sql_exec(&message_sql, params).await?;
 
         self.get_board(index_db, board_db).await
     }

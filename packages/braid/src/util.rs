@@ -12,6 +12,8 @@ use tracing_subscriber::{filter, reload};
 use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use tracing_tree::HierarchicalLayer;
 
+use strand::hash::Hash;
+
 pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     let layer = HierarchicalLayer::default()
         .with_writer(std::io::stdout)
@@ -38,11 +40,11 @@ pub(crate) fn dbg_hash(h: &[u8; 64]) -> String {
     hex::encode(h)[0..10].to_string()
 }
 
-pub(crate) fn dbg_hashes<const N: usize>(hs: &[[u8; 64]; N]) -> String {
+/*pub(crate) fn dbg_hashes<const N: usize>(hs: &[[u8; 64]; N]) -> String {
     hs.map(|h| hex::encode(h)[0..10].to_string()).join(" ")
-}
+}*/
 
-pub fn hash_from_vec(bytes: &[u8]) -> anyhow::Result<crate::protocol2::Hash> {
+pub fn hash_from_vec(bytes: &[u8]) -> anyhow::Result<Hash> {
     strand::util::to_hash_array(bytes).map_err(|e| e.into())
 }
 

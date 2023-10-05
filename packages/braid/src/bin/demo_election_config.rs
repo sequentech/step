@@ -4,24 +4,23 @@
 // * Generate .toml config for each trustee, containing:
 //      * signing_key_sk: base64 encoding of a StrandSignatureSk serialization
 //      * signing_key_pk: base64 encoding of corresponding StrandSignaturePk serialization
-//      * encryption_key: base64 encoding of a GenericArray<u8, U32>,
+//      * encryption_key: base64 encoding of a sign::SymmetricKey
 // * Generate .toml config for the protocol manager:
 //      signing_key: base64 encoding of a StrandSignatureSk serialization
 // * Generate a .bin config for a session, a serialized Configuration artifact
 //
 
-use chacha20poly1305::{aead::KeyInit, ChaCha20Poly1305};
 use std::fs::File;
 use std::io::prelude::*;
 use std::marker::PhantomData;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
-use strand::rnd::StrandRng;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use strand::symm;
 
-use braid::protocol2::artifact::Configuration;
+use braid_messages::artifact::Configuration;
 use braid::protocol2::trustee::ProtocolManager;
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::{ProtocolManagerConfig, TrusteeConfig};
@@ -35,27 +34,23 @@ fn main() {
 }
 
 fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
-    let mut csprng = StrandRng;
-
-    let pmkey: StrandSignatureSk = StrandSignatureSk::new(&mut csprng);
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
     let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|_| {
-            let sk = StrandSignatureSk::new(&mut csprng);
-            let encryption_key = ChaCha20Poly1305::generate_key(&mut chacha20poly1305::aead::OsRng);
-            (
-                Trustee::new(sk.clone(), encryption_key),
-                StrandSignaturePk::from(&sk),
-            )
+            let sk = StrandSignatureSk::gen().unwrap();
+            let pk = StrandSignaturePk::from(&sk).unwrap();
+            let encryption_key: symm::SymmetricKey = symm::gen_key();
+            (Trustee::new(sk, encryption_key), pk)
         })
         .unzip();
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from(&pm.signing_key),
+        StrandSignaturePk::from(&pm.signing_key).unwrap(),
         trustee_pks,
         threshold.len(),
         PhantomData,

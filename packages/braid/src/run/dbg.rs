@@ -1,6 +1,5 @@
 use ascii_table::{Align, AsciiTable};
 
-use chacha20poly1305::{aead::KeyInit, ChaCha20Poly1305};
 use log::{info, warn};
 use reedline_repl_rs::clap::{Arg, ArgMatches, Command};
 use reedline_repl_rs::{Repl, Result};
@@ -20,15 +19,17 @@ use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol2::action::Action;
-use crate::protocol2::artifact::Ballots;
-use crate::protocol2::artifact::Configuration;
+use braid_messages::artifact::Ballots;
+use braid_messages::artifact::Configuration;
+use braid_messages::newtypes::PublicKeyHash;
+use braid_messages::newtypes::NULL_TRUSTEE;
+use braid_messages::message::Message;
 use crate::protocol2::board::local::LocalBoard;
-use crate::protocol2::datalog::NULL_TRUSTEE;
-use crate::protocol2::message::Message;
-use crate::protocol2::predicate::PublicKeyHash;
+
+// use crate::protocol2::predicate::PublicKeyHash;
 use crate::protocol2::trustee::ProtocolManager;
 use crate::protocol2::trustee::Trustee;
-use crate::protocol2::MAX_TRUSTEES;
+use braid_messages::newtypes::MAX_TRUSTEES;
 use crate::test::vector_board::VectorBoard;
 
 #[instrument(skip(log_reload))]
@@ -209,7 +210,7 @@ impl<C: Ctx> Status<C> {
                 format!("{:?}", m.statement.get_kind()),
                 format!("{}", sender),
                 m.artifact.is_some().to_string(),
-                format!("{}", m.statement.get_data().3 .0),
+                format!("{}", m.statement.get_data().3),
             ])
         }
         boards.push("Remote".to_string());
@@ -223,12 +224,10 @@ impl<C: Ctx> Status<C> {
 }
 
 fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContext<C> {
-    let mut csprng = strand::rnd::StrandRng;
-
     let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
     selected[0..threshold.len()].copy_from_slice(&threshold);
 
-    let pmkey: StrandSignatureSk = StrandSignatureSk::new(&mut csprng);
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
@@ -237,20 +236,21 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
     let trustees: Vec<Trustee<C>> = (0..n_trustees)
         .into_iter()
         .map(|_| {
-            let kp = StrandSignatureSk::new(&mut csprng);
-            let encryption_key = ChaCha20Poly1305::generate_key(&mut chacha20poly1305::aead::OsRng);
+            let kp = StrandSignatureSk::gen().unwrap();
+            // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
+            let encryption_key = strand::symm::gen_key();
             Trustee::new(kp, encryption_key)
         })
         .collect();
 
     let trustee_pks: Vec<StrandSignaturePk> = trustees
         .iter()
-        .map(|t| StrandSignaturePk::from(&t.signing_key))
+        .map(|t| StrandSignaturePk::from(&t.signing_key).unwrap())
         .collect();
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from(&pm.signing_key),
+        StrandSignaturePk::from(&pm.signing_key).unwrap(),
         trustee_pks.clone(),
         threshold.len(),
         PhantomData,
@@ -321,7 +321,11 @@ fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
         .iter()
         .map(|t| t.copy_local_board())
         .collect();
-    let messages = context.last_messages.clone();
+    let mut messages = vec![];
+    for m in &context.last_messages {
+        messages.push(m.try_clone().unwrap());
+    }
+    // let messages = context.last_messages.clone();
     let actions = context.last_actions.clone();
 
     let status = Status::new(
@@ -348,12 +352,15 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
     let dkgpk = context.trustees[0].get_dkg_public_key_nohash().unwrap();
 
     let pk_bytes = dkgpk.strand_serialize().unwrap();
-    let pk_h = strand::util::hash_array(&pk_bytes);
+    let pk_h = strand::hash::hash_to_array(&pk_bytes).unwrap();
 
     let pk_element = dkgpk.pk;
     let pk = strand::elgamal::PublicKey::from_element(&pk_element, &ctx);
 
-    let ps: Vec<C::P> = (0..ballot_no).map(|_| ctx.rnd_plaintext()).collect();
+    let mut rng = ctx.get_rng();
+    let ps: Vec<C::P> = (0..ballot_no)
+        .map(|_| ctx.rnd_plaintext(&mut rng))
+        .collect();
     let ballots: Vec<Ciphertext<C>> = ps
         .iter()
         .map(|p| {
@@ -471,7 +478,7 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
         }
     } else {
         for t in context.trustees.iter_mut() {
-            let position = context.cfg.get_trustee_position(&t.get_pk());
+            let position = context.cfg.get_trustee_position(&t.get_pk().unwrap());
             info!(
                 "====================== Running trustee {} ======================",
                 position.unwrap()
@@ -489,6 +496,6 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
 fn send(messages: &Vec<Message>, remote: &mut VectorBoard) {
     for m in messages.iter() {
         info!("Adding message {:?} to remote", m);
-        remote.add(m.clone());
+        remote.add(m.try_clone().unwrap());
     }
 }
