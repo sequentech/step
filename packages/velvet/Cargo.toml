@@ -15,3 +15,4 @@ strum_macros = "0.25.2"
 
 [dev-dependencies]
 anyhow = "1"
+sequent-core = { path="../sequent-core" }
