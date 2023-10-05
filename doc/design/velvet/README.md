@@ -11,7 +11,7 @@ The _binary_ can be invoked as a _CLI_ program. The _lib_ can be used in another
 You can call velvet from the command line like this:
 
 ```
-$> velvet run {pipeline} {pipe} \
+$> velvet run {stage} {optional-pipe} \
   --config ./path/to/velvet-config.json \
   --input-dir ./path/to/input-dir \
   --output-dir ./path/to/output-dir
@@ -33,29 +33,29 @@ Example of a configuration file `--config`: `velvet-config.json`:
     "main": {
       "pipeline": [
         {
-          "pipe": "DecodeBallots",
+          "pipe": "velvet-decode-ballots",
           "config": {}
         },
         {
-          "pipe": "DoTally",
+          "pipe": "velvet-do-tally",
           "config": {
             "invalidateVotes": "Fail"
           }
         },
         {
-          "pipe": "Consolidation",
+          "pipe": "velvet-consolidation",
           "config": {}
         },
         {
-          "pipe": "TiesResolution",
+          "pipe": "velvet-ties-resolution",
           "config": {}
         },
         {
-          "pipe": "ComputeResult",
+          "pipe": "velvet-compute-result",
           "config": {}
         },
         {
-          "pipe": "GenerateReport",
+          "pipe": "velvet-generate-report",
           "formats": [
             "pdf",
             "csv"
@@ -103,37 +103,30 @@ Therefore, the _entities_ are defined with:
 
 #### Processed pipe
 
-Storing the stages in `./path/to/output-dir/pipeline-status.json`
+Storing the stages in `./path/to/output-dir/status.json`
 
 ```json
-[
-  {
-    "pipeline": "main",
-    "pipeCompleted": ["DecodeBallots", "DoTally"],
-    "currentPipe": {
-      "name": "DoTally",
-      "status": "Completed"
-    },
-    "nextPipe": "Consolidation"
-  }
-]
+{
+    lastExecutedPipe: "main.velvet-do-tally",
+    "status": "Completed"
+}
 ```
 
 There will be as many output dir as many stage, thus they will look like:
 
 ```
-./path/to/output-dir/main/decode-ballots/
-./path/to/output-dir/main/do-tally/
-./path/to/output-dir/main/consolidation/
-./path/to/output-dir/main/ties-resolution/
-./path/to/output-dir/main/compute-result/
-./path/to/output-dir/main/generate-report/
+./path/to/output-dir/main/velvet-decode-ballots/
+./path/to/output-dir/main/velvet-do-tally/
+./path/to/output-dir/main/velvet-consolidation/
+./path/to/output-dir/main/velvet-ties-resolution/
+./path/to/output-dir/main/velvet-compute-result/
+./path/to/output-dir/main/velvet-generate-report/
 ```
 
 For example, the _decode stage_ output dir will look like that:
 
 ```
-./path/to/output-dir/main/decode/
+./path/to/output-dir/main/velvet-decode-ballots/
 |-- election__<uuid>/
 	|-- contest__<uuid>/
 		|-- area__<uuid>/
@@ -144,7 +137,7 @@ For example, the _decode stage_ output dir will look like that:
 Then the _tally stage_ output dir:
 
 ```
-./path/to/output-dir/main/tally
+./path/to/output-dir/main/velvet-do-tally
 |-- result.json
 |-- output.log
 ```
@@ -176,6 +169,8 @@ enum Pipe {
     GenerateReport,
 }
 ```
+
+The Pipe enum can deserialize the value into `velvet-decoded-ballots`, using `velvet` as a prefix for namespace, in case where we implement pipes from another modules.
 
 For each pipe, we implement a `struct` that implements a `trait`.
 
