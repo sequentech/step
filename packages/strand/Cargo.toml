@@ -40,7 +40,7 @@ malachite = { version = "0.3.2", default-features = false, features = [ "natural
 
 # Signatures
 ed25519-zebra = "3.1.0"
-ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
+ed25519-dalek = { version = "2.0.0", features = ["rand_core", "pkcs8"] }
 ecdsa = {version = "0.16.8", features = ["signing"] }
 p384 = "0.13.0"
 
