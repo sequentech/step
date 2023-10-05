@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 
 use base64::{engine::general_purpose, Engine as _};
-use borsh::{BorshDeserialize, BorshSerialize};
 use ed25519_dalek::Signature;
 use ed25519_dalek::Signer;
 use ed25519_dalek::SigningKey;
@@ -12,6 +11,8 @@ use ed25519_dalek::Verifier;
 use ed25519_dalek::VerifyingKey;
 use ed25519_dalek::pkcs8::EncodePublicKey;
 use ed25519_dalek::pkcs8::DecodePublicKey;
+use ed25519_dalek::pkcs8::EncodePrivateKey;
+use ed25519_dalek::pkcs8::DecodePrivateKey;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
@@ -126,67 +127,57 @@ impl std::fmt::Debug for StrandSignaturePk {
 }
 impl Eq for StrandSignaturePk {}
 
-use ed25519_dalek::pkcs8::EncodePrivateKey;
-use ed25519_dalek::pkcs8::DecodePrivateKey;
-impl BorshSerialize for StrandSignatureSk {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let bytes: [u8; 32] = self.0.to_bytes();
-        bytes.serialize(writer)
+
+impl StrandSerialize for StrandSignatureSk {
+    fn strand_serialize(&self) -> Result<Vec<u8>, StrandError> {
+        let doc = self.0.to_pkcs8_der()
+            .map_err(|e| StrandError::Generic(e.to_string()))?;
+        
+        Ok(doc.as_bytes().to_vec())
     }
 }
 
-impl BorshDeserialize for StrandSignatureSk {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <[u8; 32]>::deserialize(buf)?;
-        let sk = SigningKey::try_from(bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
-        
+impl StrandDeserialize for StrandSignatureSk {
+    fn strand_deserialize(bytes: &[u8]) -> Result<Self, StrandError> {
+        let sk = SigningKey::from_pkcs8_der(&bytes)
+        .map_err(|e| Error::new(ErrorKind::Other, e))?;
+
         Ok(StrandSignatureSk(sk))
     }
 }
 
 
-impl BorshSerialize for StrandSignaturePk {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let bytes: [u8; 32] = self.0.to_bytes();
-        bytes.serialize(writer)
+impl StrandSerialize for StrandSignaturePk {
+    fn strand_serialize(&self) -> Result<Vec<u8>, StrandError> {
+        let doc = self.0.to_public_key_der()
+            .map_err(|e| StrandError::Generic(e.to_string()))?;
+        
+        Ok(doc.as_bytes().to_vec())
     }
 }
 
-impl BorshDeserialize for StrandSignaturePk {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <[u8; 32]>::deserialize(buf)?;
-        let pk = VerifyingKey::from_bytes(&bytes)
+impl StrandDeserialize for StrandSignaturePk {
+    fn strand_deserialize(bytes: &[u8]) -> Result<Self, StrandError> {
+        let sk = VerifyingKey::from_public_key_der(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-        Ok(StrandSignaturePk(pk))
+        Ok(StrandSignaturePk(sk))
     }
 }
 
-impl BorshSerialize for StrandSignature {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let bytes: [u8; 64] = self.0.into();
-        bytes.serialize(writer)
+impl StrandSerialize for StrandSignature {
+    fn strand_serialize(&self) -> Result<Vec<u8>, StrandError> {
+        Ok(self.0.to_bytes().to_vec())
     }
 }
 
-impl BorshDeserialize for StrandSignature {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <[u8; 64]>::deserialize(buf)?;
+impl StrandDeserialize for StrandSignature {
+    fn strand_deserialize(bytes: &[u8]) -> Result<Self, StrandError> {
         let signature = Signature::try_from(bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+            .map_err(|e| StrandError::Generic(e.to_string()))?;
 
         Ok(StrandSignature(signature))
-    }
+    }    
 }
 
 impl TryFrom<String> for StrandSignaturePk {
