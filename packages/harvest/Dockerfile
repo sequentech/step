@@ -9,6 +9,7 @@ COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
 COPY ./braid ./braid
+COPY ./braid-messages ./braid-messages
 COPY ./sequent-core ./sequent-core
 
 RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev
