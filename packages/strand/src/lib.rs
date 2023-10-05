@@ -18,9 +18,11 @@ pub mod backend;
 /// ElGamal encryption.
 pub mod elgamal;
 /// Wikstrom proof of shuffle following [TW10](https://www.csc.kth.se/~dog/research/papers/TW10Conf.pdf). See also [HLDK17](https://arbor.bfh.ch/8269/1/HLKD17.pdf). 
+#[cfg(any(test, not(feature = "wasm")))]
 pub mod shuffler;
 /// Distributed ElGamal threshold cryptosystem following [Pedersen91](https://link.springer.com/chapter/10.1007/3-540-46766-1_9).
 /// See also [CGGI13](https://members.loria.fr/VCortier/files/Papers/WPES2013.pdf).
+#[cfg(any(test, not(feature = "wasm")))]
 pub mod threshold;
 /// Schnorr and Chaum-Pedersen zero knowledge proofs.
 pub mod zkp;
@@ -29,11 +31,11 @@ pub mod zkp;
 mod random;
 /// Signature frontend.
 mod signatures;
-/// Symmetric encryption frontend.
-#[cfg(not(feature = "wasm"))] 
-mod symmetric;
 /// Hashing.
 mod hashing;
+/// Symmetric encryption frontend.
+#[cfg(not(feature = "wasm"))]
+mod symmetric;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "openssl")] {
@@ -51,9 +53,9 @@ cfg_if::cfg_if! {
         pub mod wasm;
         // TODO choose which signatures to use in wasm
         /// Ed25519 digital signatures backed by [dalek](https://github.com/dalek-cryptography/curve25519-dalek/tree/main/ed25519-dalek).
-        // pub use signatures::dalek as signature;
+        pub use signatures::dalek as signature;
         /// EcDSA digital signatures backed by [rustcrypto](https://docs.rs/ecdsa/latest/ecdsa/).
-        pub use signatures::rustcrypto as signature;
+        // pub use signatures::rustcrypto as signature;
         /// Random number generation backed by [rand](https://crates.io/crates/rand).
         pub(crate) use random::rand as rng;
         /// SHA-2 hashing backed by [rustcrypto](https://crates.io/crates/sha2).
@@ -81,6 +83,7 @@ pub mod serialization;
 
 /// Support for distributed Elgamal.
 #[allow(dead_code)]
+#[cfg(test)]
 mod keymaker;
 
 pub fn info() -> HashMap<&'static str, String> {
@@ -89,14 +92,15 @@ pub fn info() -> HashMap<&'static str, String> {
     let hash = crate::hash::info();
     let random = crate::rng::info();
     let signature = crate::signature::info();
+    #[cfg(not(feature = "wasm"))]
     let symmetric = crate::symm::info();
 
     info.insert("VERSION", version.to_string());
     info.insert("HASH", hash);
     info.insert("RNG", random);
     info.insert("SIGNATURE", signature);
+    #[cfg(not(feature = "wasm"))]
     info.insert("SYMMETRIC", symmetric);
-
 
     info
 }

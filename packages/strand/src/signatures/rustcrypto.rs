@@ -103,7 +103,7 @@ impl TryFrom<String> for StrandSignaturePk {
     type Error = StrandError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        let bytes: Vec<u8> = general_purpose::STANDARD_NO_PAD.decode(value)?;
+        let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
         StrandSignaturePk::strand_deserialize(&bytes)
     }
 }
@@ -113,7 +113,7 @@ impl TryFrom<StrandSignaturePk> for String {
 
     fn try_from(value: StrandSignaturePk) -> Result<Self, Self::Error> {
         let bytes = value.strand_serialize()?;
-        Ok(general_purpose::STANDARD_NO_PAD.encode(bytes))
+        Ok(general_purpose::STANDARD.encode(bytes))
     }
 }
 
@@ -187,7 +187,7 @@ impl TryFrom<String> for StrandSignatureSk {
     type Error = StrandError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        let bytes: Vec<u8> = general_purpose::STANDARD_NO_PAD.decode(value)?;
+        let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
         StrandSignatureSk::strand_deserialize(&bytes)
     }
 }
@@ -197,7 +197,7 @@ impl TryFrom<StrandSignatureSk> for String {
 
     fn try_from(value: StrandSignatureSk) -> Result<Self, Self::Error> {
         let bytes = value.strand_serialize()?;
-        Ok(general_purpose::STANDARD_NO_PAD.encode(bytes))
+        Ok(general_purpose::STANDARD.encode(bytes))
     }
 }
 
@@ -205,7 +205,7 @@ impl TryFrom<String> for StrandSignature {
     type Error = StrandError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        let bytes: Vec<u8> = general_purpose::STANDARD_NO_PAD.decode(value)?;
+        let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
         StrandSignature::strand_deserialize(&bytes)
     }
 }
@@ -215,7 +215,7 @@ impl TryFrom<StrandSignature> for String {
 
     fn try_from(value: StrandSignature) -> Result<Self, Self::Error> {
         let bytes = value.strand_serialize()?;
-        Ok(general_purpose::STANDARD_NO_PAD.encode(bytes))
+        Ok(general_purpose::STANDARD.encode(bytes))
     }
 }
 
