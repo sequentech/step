@@ -27,39 +27,40 @@ Example of a configuration file `--config`: `velvet-config.json`:
 {
   "version": "0.0.0",
   "stages": {
-    "order": [
-      "main"
-    ],
+    "order": ["main"],
     "main": {
       "pipeline": [
         {
-          "pipe": "velvet-decode-ballots",
+          "id": "decode-ballots",
+          "pipe": "VelvetDecodeBallots",
           "config": {}
         },
         {
-          "pipe": "velvet-do-tally",
+          "id": "do-tally",
+          "pipe": "VelvetDoTally",
           "config": {
             "invalidateVotes": "Fail"
           }
         },
         {
-          "pipe": "velvet-consolidation",
+          "id": "consolidation",
+          "pipe": "VelvetConsolidation",
           "config": {}
         },
         {
-          "pipe": "velvet-ties-resolution",
+          "id": "ties-resolution",
+          "pipe": "VelvetTiesResolution",
           "config": {}
         },
         {
-          "pipe": "velvet-compute-result",
+          "id": "compute-result",
+          "pipe": "VelvetComputeResult",
           "config": {}
         },
         {
-          "pipe": "velvet-generate-report",
-          "formats": [
-            "pdf",
-            "csv"
-          ]
+          "id": "gen-report",
+          "pipe": "VelvetGenerateReport",
+          "formats": ["pdf", "csv"]
         }
       ]
     }
@@ -107,26 +108,30 @@ Storing the stages in `./path/to/output-dir/status.json`
 
 ```json
 {
-    lastExecutedPipe: "main.velvet-do-tally",
-    "status": "Completed"
+  "lastExecutedPipe": "main.do-tally",
+  "status": "Completed"
 }
 ```
 
-There will be as many output dir as many stage, thus they will look like:
+`lastExecutedPipe` should be formated as: `<stage>.<pipe-id>`
+
+`status`: "Completed", "Error", "Interupted", ...
+
+There will be as many output dir as many stage, thus they will look like `./path/to/output-dir/<stage>/<pipe-id>/`:
 
 ```
-./path/to/output-dir/main/velvet-decode-ballots/
-./path/to/output-dir/main/velvet-do-tally/
-./path/to/output-dir/main/velvet-consolidation/
-./path/to/output-dir/main/velvet-ties-resolution/
-./path/to/output-dir/main/velvet-compute-result/
-./path/to/output-dir/main/velvet-generate-report/
+./path/to/output-dir/main/decode-ballots/
+./path/to/output-dir/main/do-tally/
+./path/to/output-dir/main/consolidation/
+./path/to/output-dir/main/ties-resolution/
+./path/to/output-dir/main/compute-result/
+./path/to/output-dir/main/generate-report/
 ```
 
-For example, the _decode stage_ output dir will look like that:
+For example, the _VelvetDecodeBallots_ output dir will look like that:
 
 ```
-./path/to/output-dir/main/velvet-decode-ballots/
+./path/to/output-dir/main/decode-ballots/
 |-- election__<uuid>/
 	|-- contest__<uuid>/
 		|-- area__<uuid>/
@@ -134,15 +139,15 @@ For example, the _decode stage_ output dir will look like that:
 |-- output.log
 ```
 
-Then the _tally stage_ output dir:
+Then the _VelvetDoTally_ output dir:
 
 ```
-./path/to/output-dir/main/velvet-do-tally
+./path/to/output-dir/main/do-tally
 |-- result.json
 |-- output.log
 ```
 
-The _consolidation stage_ will fetch all `result.json` as input to process.
+The _VelvetConsolidation_ will fetch all `result.json` as input to process.
 
 # Implementation
 
@@ -170,7 +175,7 @@ enum Pipe {
 }
 ```
 
-The Pipe enum can deserialize the value into `velvet-decoded-ballots`, using `velvet` as a prefix for namespace, in case where we implement pipes from another modules.
+The Pipe enum can deserialize the value into `VelvetDecodeBallots`, using `Velvet` as a prefix for namespace, in case where we implement pipes from another modules.
 
 For each pipe, we implement a `struct` that implements a `trait`.
 
@@ -218,7 +223,7 @@ The pipe also take in consideration the election configuration that is given as 
 
 ##### Invalid ballots
 
-TODO: determine if the invalid ballots configuration should be set in the `velvet-config.json` for the `DoTally` pipe or in the election configuration.
+TODO: determine if the invalid ballots configuration should be set in the `velvet-config.json` for the `VelvetDoTally` pipe or in the election configuration.
 
 Invalid ballots can be represented as such:
 
