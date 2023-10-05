@@ -64,7 +64,8 @@ Example of a configuration file `--config`: `velvet-config.json`:
       ]
     }
   }
-}```
+}
+```
 
 ### Input dir
 
@@ -101,16 +102,14 @@ Therefore, the _entities_ are defined with:
 ### Output dir
 
 #### Processed pipe
+
 Storing the stages in `./path/to/output-dir/pipeline-status.json`
 
 ```json
 [
   {
     "pipeline": "main",
-    "pipeCompleted": [
-      "DecodeBallots",
-      "DoTally"
-    ],
+    "pipeCompleted": ["DecodeBallots", "DoTally"],
     "currentPipe": {
       "name": "DoTally",
       "status": "Completed"
@@ -152,7 +151,11 @@ Then the _tally stage_ output dir:
 
 The _consolidation stage_ will fetch all `result.json` as input to process.
 
+# Implementation
+
 ## Pipes
+
+There will be a number of _pipes_. They could be:
 
 - DecodeBallots
 - DoTally
@@ -161,10 +164,84 @@ The _consolidation stage_ will fetch all `result.json` as input to process.
 - ComputeResult
 - GenerateReport
 
+We can represent them using an `enum`:
+
+```rust
+enum Pipe {
+    DecodeBallots,
+    DoTally,
+    Consolidation,
+    TiesResolution,
+    ComputeResult,
+    GenerateReport,
+}
+```
+
+For each pipe, we implement a `struct` that implements a `trait`.
+
+```rust
+trait Pipe {
+    // pipe execution
+    fn exec(&self) -> Result<()> {
+        dbg!(&self.config);
+        dbg!(&self.input_dir);
+        dbg!(&self.output_dir);
+
+        // file handle to log execution process into
+        dbg!(&self.output_log_file);
+
+        Ok(())
+    }
+
+    // load input
+    fn input(&self) -> Result<()>;
+
+    // produce output
+    fn output(&self) -> Result<()>;
+}
+```
+
 ### DecodeBallots
 
 todo
 
 ### DoTally
 
+Ballots inputs are stored in a `ballot__<uuid>.csv` file where the data is `\n` separated.
 
+Each line represent a ballot to be tallied.
+
+The _DoTally pipe_ will take that in consideration and produce the count for the particular contest for a particular area, within an election.
+
+The pipe also take in consideration the election configuration that is given as an input configuration file.
+
+```
+./path/to/input-dir/election__<uuid>/config.json
+```
+
+#### Configuration
+
+##### Invalid ballots
+
+TODO: determine if the invalid ballots configuration should be set in the `velvet-config.json` for the `DoTally` pipe or in the election configuration.
+
+Invalid ballots can be represented as such:
+
+```rust
+enum InvalidBallot {
+    Blank,
+    ExplicitInvalid(InvalidBallotReason),
+    ImplicitInvalid(InvalidBallotReason),
+}
+
+enum InvalidBallotReason {
+    MarkedAsInvalid,
+    NoCandidate,
+    InvalidCandidate,
+    BallotCorrupted,
+}
+```
+
+### Other Pipes
+
+todo
