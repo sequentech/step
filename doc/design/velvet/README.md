@@ -81,16 +81,24 @@ Input directory contains multiples input directories:
 ```
 The default input directory is mandatory and the other additionnal input directories should be set in the `velvet-config.json` file.
 
+Configs are split into this file structure: 
+```
+./path/to/input-dir/default/configs/
+|-- election-configs/
+	|-- election__<uuid>.json
+	|-- contest-configs/
+		|-- contest__<uuid>.json
+		|-- areas-configs
+			|-- area__<uuid>.json
+```
+
 Ballots are split into this file structure:
 
 ```
-./path/to/input-dir/default/
+./path/to/input-dir/default/ballots/
 |-- election__<uuid>/
-	|-- config.json
 	|-- contest__<uuid>/
-		|-- config.json
 		|-- area__<uuid>/
-			|-- config.json
 			|-- ballot__<uuid>.csv
 ```
 
