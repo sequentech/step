@@ -1,8 +1,13 @@
 mod error;
 
+use crate::config::Config;
+
 use self::error::{Error, Result};
 use clap::{Parser, Subcommand};
-use std::{fs::File, path::PathBuf};
+use std::{
+    fs::{self, File},
+    path::PathBuf,
+};
 
 #[derive(Parser)]
 #[command(name = "Velvet")]
@@ -43,8 +48,9 @@ impl CliRun {
         }
 
         let file = File::open(&self.config).map_err(|_| Error::CannotOpenConfig)?;
+        let cfg: Config = serde_json::from_reader(file)?;
 
-        let _: serde_json::Value = serde_json::from_reader(file)?;
+        dbg!(cfg);
 
         Ok(())
     }

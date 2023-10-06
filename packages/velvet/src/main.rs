@@ -1,7 +1,9 @@
+mod cli;
+mod config;
+
 use clap::Parser;
 use cli::{Cli, Commands};
 
-mod cli;
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error + 'static>> {
     let cli = Cli::parse();
