@@ -5,7 +5,7 @@ import {
     IBallotStyle,
     to_hashable_ballot_js,
     hash_auditable_ballot_js,
-    encrypt_decoded_question_js,
+    encrypt_decoded_contest_js,
 } from "sequent-core"
 import {BallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 
@@ -38,7 +38,7 @@ export const encryptBallotSelection = (
     election: IBallotStyle
 ): string => {
     try {
-        return encrypt_decoded_question_js(ballotSelection, election)
+        return encrypt_decoded_contest_js(ballotSelection, election)
     } catch (e) {
         console.log(e)
         throw e

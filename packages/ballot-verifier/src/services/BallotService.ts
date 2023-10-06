@@ -4,7 +4,7 @@
 import {
     hash_auditable_ballot_js,
     decode_auditable_ballot_js,
-    get_layout_properties_from_question_js,
+    get_layout_properties_from_contest_js,
     get_answer_points_js,
     get_ballot_style_from_auditable_ballot_js,
     IBallotStyle,
@@ -66,7 +66,7 @@ export const getBallotStyleFromAuditableBallot = (
 
 export const getLayoutProperties = (question: IQuestion): IQuestionLayoutProperties | null => {
     try {
-        let properties = get_layout_properties_from_question_js(question)
+        let properties = get_layout_properties_from_contest_js(question)
         return (properties || null) as IQuestionLayoutProperties | null
     } catch (error) {
         console.log(error)

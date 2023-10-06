@@ -81,13 +81,13 @@ pub fn hash_auditable_ballot_js(
 
 #[allow(clippy::all)]
 #[wasm_bindgen]
-pub fn encrypt_decoded_question_js(
-    decoded_questions_json: JsValue,
+pub fn encrypt_decoded_contest_js(
+    decoded_contests_json: JsValue,
     election_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     // parse inputs
     let decoded_questions: Vec<DecodedVoteContest> =
-        serde_wasm_bindgen::from_value(decoded_questions_json)
+        serde_wasm_bindgen::from_value(decoded_contests_json)
             .map_err(|err| format!("Error parsing cyphertext: {}", err))
             .into_json()?;
     let election: BallotStyle = serde_wasm_bindgen::from_value(election_json)
@@ -163,7 +163,7 @@ pub fn get_ballot_style_from_auditable_ballot_js(
 }
 
 #[wasm_bindgen]
-pub fn get_layout_properties_from_question_js(
+pub fn get_layout_properties_from_contest_js(
     val: JsValue,
 ) -> Result<JsValue, JsValue> {
     let question: Question = serde_wasm_bindgen::from_value(val)
@@ -190,4 +190,21 @@ pub fn get_answer_points_js(
     serde_wasm_bindgen::to_value(&points)
         .map_err(|err| format!("{:?}", err))
         .into_json()
+}
+
+#[wasm_bindgen]
+pub fn find_errors_on_decoded_contest(
+    decoded_contests_json: JsValue,
+    election_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    // parse inputs
+    let decoded_questions: Vec<DecodedVoteContest> =
+        serde_wasm_bindgen::from_value(decoded_contests_json)
+            .map_err(|err| format!("Error parsing cyphertext: {}", err))
+            .into_json()?;
+    let election: BallotStyle = serde_wasm_bindgen::from_value(election_json)
+        .map_err(|err| format!("Error parsing election: {}", err))
+        .into_json()?;
+    // create context
+    let ctx = RistrettoCtx;
 }

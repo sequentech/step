@@ -166,14 +166,23 @@ pub fn encrypt_decoded_question<C: Ctx<P = [u8; 30]>>(
 
     let mut contests: Vec<AuditableBallotContest<C>> = vec![];
 
-    for i in 0..decoded_questions.len() {
-        let question = config.configuration.questions[i].clone();
-        let decoded_question = decoded_questions[i].clone();
+    for decoded_question in decoded_questions {
+        let question = config
+            .configuration
+            .questions
+            .iter()
+            .find(|question| question.id == decoded_question.contest_id)
+            .ok_or_else(|| {
+                BallotError::Serialization(format!(
+                    "Can't find contest with id {} on ballot style",
+                    decoded_question.contest_id
+                ))
+            })?;
         let plaintext = question
             .encode_plaintext_question(&decoded_question)
             .map_err(|err| {
             BallotError::Serialization(format!(
-                "Error encoding plaintext: {}",
+                "Error encrypting plaintext: {}",
                 err
             ))
         })?;

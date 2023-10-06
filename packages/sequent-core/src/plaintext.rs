@@ -26,7 +26,7 @@ pub struct InvalidPlaintextError {
 
 // before: DecodedVoteContest
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
-pub struct DecodedVoteContest { 
+pub struct DecodedVoteContest {
     pub contest_id: Uuid,
     pub is_explicit_invalid: bool,
     pub invalid_errors: Vec<InvalidPlaintextError>,
