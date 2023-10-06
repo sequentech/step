@@ -99,24 +99,6 @@ impl std::fmt::Debug for StrandSignaturePk {
     }
 }
 
-impl TryFrom<String> for StrandSignaturePk {
-    type Error = StrandError;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
-        StrandSignaturePk::strand_deserialize(&bytes)
-    }
-}
-
-impl TryFrom<StrandSignaturePk> for String {
-    type Error = StrandError;
-
-    fn try_from(value: StrandSignaturePk) -> Result<Self, Self::Error> {
-        let bytes = value.strand_serialize()?;
-        Ok(general_purpose::STANDARD.encode(bytes))
-    }
-}
-
 impl BorshSerialize for StrandSignatureSk {
     fn serialize<W: std::io::Write>(
         &self,
@@ -183,12 +165,39 @@ impl BorshDeserialize for StrandSignature {
     }
 }
 
+impl TryFrom<String> for StrandSignaturePk {
+    type Error = StrandError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
+        let pk = VerifyingKey::from_public_key_der(&bytes)
+            .map_err(|e| StrandError::Generic(e.to_string()))?;
+
+        Ok(StrandSignaturePk(pk))
+    }
+}
+
+impl TryFrom<StrandSignaturePk> for String {
+    type Error = StrandError;
+
+    fn try_from(value: StrandSignaturePk) -> Result<Self, Self::Error> {
+        let d = value
+        .0
+        .to_public_key_der()
+        .map_err(|e| StrandError::Generic(e.to_string()))?;
+        Ok(general_purpose::STANDARD.encode(d.as_bytes()))
+    }
+}
+
 impl TryFrom<String> for StrandSignatureSk {
     type Error = StrandError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
-        StrandSignatureSk::strand_deserialize(&bytes)
+        let sk = SigningKey::from_pkcs8_der(&bytes)
+            .map_err(|e| StrandError::Generic(e.to_string()))?;
+
+        Ok(StrandSignatureSk(sk))
     }
 }
 
@@ -196,8 +205,11 @@ impl TryFrom<StrandSignatureSk> for String {
     type Error = StrandError;
 
     fn try_from(value: StrandSignatureSk) -> Result<Self, Self::Error> {
-        let bytes = value.strand_serialize()?;
-        Ok(general_purpose::STANDARD.encode(bytes))
+        let sd = value
+            .0
+            .to_pkcs8_der()
+            .map_err(|e| StrandError::Generic(e.to_string()))?;
+        Ok(general_purpose::STANDARD.encode(sd.as_bytes()))
     }
 }
 
@@ -206,7 +218,11 @@ impl TryFrom<String> for StrandSignature {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
-        StrandSignature::strand_deserialize(&bytes)
+        let signature = Signature::from_der(&bytes)
+            .map_err(|e| StrandError::Generic(e.to_string()))?;
+            
+
+        Ok(StrandSignature(signature))
     }
 }
 
@@ -214,8 +230,8 @@ impl TryFrom<StrandSignature> for String {
     type Error = StrandError;
 
     fn try_from(value: StrandSignature) -> Result<Self, Self::Error> {
-        let bytes = value.strand_serialize()?;
-        Ok(general_purpose::STANDARD.encode(bytes))
+        let s = value.0.to_der();
+        Ok(general_purpose::STANDARD.encode(s.as_bytes()))
     }
 }
 

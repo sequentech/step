@@ -16,7 +16,6 @@ use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
 
 use crate::hash::RustCryptoHasher;
-use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util::StrandError;
 
 const CURVE: Nid = Nid::SECP384R1;
@@ -122,23 +121,7 @@ impl std::fmt::Debug for StrandSignaturePk {
     }
 }
 
-impl TryFrom<String> for StrandSignaturePk {
-    type Error = StrandError;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
-        StrandSignaturePk::strand_deserialize(&bytes)
-    }
-}
-
-impl TryFrom<StrandSignaturePk> for String {
-    type Error = StrandError;
-
-    fn try_from(value: StrandSignaturePk) -> Result<Self, Self::Error> {
-        let bytes = value.strand_serialize()?;
-        Ok(general_purpose::STANDARD.encode(bytes))
-    }
-}
 
 impl BorshSerialize for StrandSignatureSk {
     fn serialize<W: std::io::Write>(
@@ -200,12 +183,35 @@ impl BorshDeserialize for StrandSignature {
     }
 }
 
+impl TryFrom<String> for StrandSignaturePk {
+    type Error = StrandError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
+        let pk = EcKey::<Public>::public_key_from_der(&bytes)?;
+
+        Ok(StrandSignaturePk(pk, bytes))
+    }
+}
+
+impl TryFrom<StrandSignaturePk> for String {
+    type Error = StrandError;
+
+    fn try_from(value: StrandSignaturePk) -> Result<Self, Self::Error> {
+        let bytes = value.0.public_key_to_der()?;
+        Ok(general_purpose::STANDARD.encode(bytes))
+    }
+}
+
 impl TryFrom<String> for StrandSignatureSk {
     type Error = StrandError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
-        StrandSignatureSk::strand_deserialize(&bytes)
+        let sk = EcKey::<Private>::private_key_from_der(&bytes)?;
+
+        Ok(StrandSignatureSk(sk))
+        
     }
 }
 
@@ -213,7 +219,7 @@ impl TryFrom<StrandSignatureSk> for String {
     type Error = StrandError;
 
     fn try_from(value: StrandSignatureSk) -> Result<Self, Self::Error> {
-        let bytes = value.strand_serialize()?;
+        let bytes = value.0.private_key_to_der()?;
         Ok(general_purpose::STANDARD.encode(bytes))
     }
 }
@@ -223,7 +229,9 @@ impl TryFrom<String> for StrandSignature {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
-        StrandSignature::strand_deserialize(&bytes)
+        let signature = EcdsaSig::from_der(&bytes)?;
+
+        Ok(StrandSignature(signature))
     }
 }
 
@@ -231,7 +239,7 @@ impl TryFrom<StrandSignature> for String {
     type Error = StrandError;
 
     fn try_from(value: StrandSignature) -> Result<Self, Self::Error> {
-        let bytes = value.strand_serialize()?;
+        let bytes = value.0.to_der()?;
         Ok(general_purpose::STANDARD.encode(bytes))
     }
 }
