@@ -4,10 +4,7 @@ use crate::config::Config;
 
 use self::error::{Error, Result};
 use clap::{Parser, Subcommand};
-use std::{
-    fs::{self, File},
-    path::PathBuf,
-};
+use std::{fs::File, path::PathBuf};
 
 #[derive(Parser)]
 #[command(name = "Velvet")]
