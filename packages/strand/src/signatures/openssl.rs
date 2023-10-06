@@ -33,10 +33,22 @@ impl StrandSignature {
 
         Ok(StrandSignature(sig?))
     }
+
+    pub fn to_der(&self) -> Result<Vec<u8>, StrandError> {
+        Ok(self.0.to_der()?)
+    }
+
+    pub fn from_der(bytes: &[u8]) -> Result<Self, StrandError> {
+        let signature = EcdsaSig::from_der(bytes)?;
+
+        Ok(StrandSignature(signature))
+    }
 }
 
 /// An openssl ecdsa signature verification key.
 // Clone: Allows Configuration to be Clonable in Braid
+// We keep the original bytes in the struct to be able to implement Hash and Eq
+// Hash and Eq are required by braid to detect duplicate keys
 #[derive(Clone)]
 pub struct StrandSignaturePk(EcKey<Public>, Vec<u8>);
 impl StrandSignaturePk {
@@ -76,6 +88,16 @@ impl StrandSignaturePk {
     pub fn check_key(&self) -> Result<(), StrandError> {
         Ok(self.0.check_key()?)
     }
+
+    pub fn to_der(&self) -> Result<Vec<u8>, StrandError> {
+        Ok(self.0.public_key_to_der()?)
+    }
+
+    pub fn from_der(bytes: &[u8]) -> Result<Self, StrandError> {
+        let pk = EcKey::<Public>::public_key_from_der(bytes)?;
+
+        Ok(StrandSignaturePk(pk, bytes.to_vec()))
+    }
 }
 
 /// An openssl ecdsa signing key.
@@ -101,6 +123,16 @@ impl StrandSignatureSk {
 
         Ok(StrandSignature(sig))
     }
+
+    pub fn to_der(&self) -> Result<Vec<u8>, StrandError> {
+        Ok(self.0.private_key_to_der()?)
+    }
+
+    pub fn from_der(bytes: &[u8]) -> Result<Self, StrandError> {
+        let sk = EcKey::<Private>::private_key_from_der(bytes)?;
+
+        Ok(StrandSignatureSk(sk))
+    }
 }
 
 impl PartialEq for StrandSignaturePk {
@@ -121,14 +153,13 @@ impl std::fmt::Debug for StrandSignaturePk {
     }
 }
 
-
-
 impl BorshSerialize for StrandSignatureSk {
     fn serialize<W: std::io::Write>(
         &self,
         writer: &mut W,
     ) -> std::io::Result<()> {
-        let bytes = self.0.private_key_to_der()?;
+        let bytes = self.to_der()
+        .map_err(|e| Error::new(ErrorKind::Other, e))?;
         bytes.serialize(writer)
     }
 }
@@ -136,10 +167,10 @@ impl BorshSerialize for StrandSignatureSk {
 impl BorshDeserialize for StrandSignatureSk {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = Vec::<u8>::deserialize(buf)?;
-        let sk = EcKey::<Private>::private_key_from_der(&bytes)
+        let sk = StrandSignatureSk::from_der(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-        Ok(StrandSignatureSk(sk))
+        Ok(sk)
     }
 }
 
@@ -148,7 +179,8 @@ impl BorshSerialize for StrandSignaturePk {
         &self,
         writer: &mut W,
     ) -> std::io::Result<()> {
-        let bytes = self.0.public_key_to_der()?;
+        let bytes = self.to_der()
+        .map_err(|e| Error::new(ErrorKind::Other, e))?;
         bytes.serialize(writer)
     }
 }
@@ -156,10 +188,10 @@ impl BorshSerialize for StrandSignaturePk {
 impl BorshDeserialize for StrandSignaturePk {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = Vec::<u8>::deserialize(buf)?;
-        let pk = EcKey::<Public>::public_key_from_der(&bytes)
+        let pk = StrandSignaturePk::from_der(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-        Ok(StrandSignaturePk(pk, bytes))
+        Ok(pk)
     }
 }
 
@@ -168,7 +200,8 @@ impl BorshSerialize for StrandSignature {
         &self,
         writer: &mut W,
     ) -> std::io::Result<()> {
-        let bytes = self.0.to_der()?;
+        let bytes = self.to_der()
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
         bytes.serialize(writer)
     }
 }
@@ -176,10 +209,10 @@ impl BorshSerialize for StrandSignature {
 impl BorshDeserialize for StrandSignature {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = Vec::<u8>::deserialize(buf)?;
-        let signature = EcdsaSig::from_der(&bytes)
+        let signature = StrandSignature::from_der(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
-        Ok(StrandSignature(signature))
+        Ok(signature)
     }
 }
 
@@ -188,9 +221,9 @@ impl TryFrom<String> for StrandSignaturePk {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
-        let pk = EcKey::<Public>::public_key_from_der(&bytes)?;
+        let pk = StrandSignaturePk::from_der(&bytes)?;
 
-        Ok(StrandSignaturePk(pk, bytes))
+        Ok(pk)
     }
 }
 
@@ -198,7 +231,7 @@ impl TryFrom<StrandSignaturePk> for String {
     type Error = StrandError;
 
     fn try_from(value: StrandSignaturePk) -> Result<Self, Self::Error> {
-        let bytes = value.0.public_key_to_der()?;
+        let bytes = value.to_der()?;
         Ok(general_purpose::STANDARD.encode(bytes))
     }
 }
@@ -208,9 +241,9 @@ impl TryFrom<String> for StrandSignatureSk {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
-        let sk = EcKey::<Private>::private_key_from_der(&bytes)?;
+        let sk = StrandSignatureSk::from_der(&bytes)?;
 
-        Ok(StrandSignatureSk(sk))
+        Ok(sk)
         
     }
 }
@@ -219,7 +252,7 @@ impl TryFrom<StrandSignatureSk> for String {
     type Error = StrandError;
 
     fn try_from(value: StrandSignatureSk) -> Result<Self, Self::Error> {
-        let bytes = value.0.private_key_to_der()?;
+        let bytes = value.to_der()?;
         Ok(general_purpose::STANDARD.encode(bytes))
     }
 }
@@ -229,9 +262,9 @@ impl TryFrom<String> for StrandSignature {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
-        let signature = EcdsaSig::from_der(&bytes)?;
+        let signature = StrandSignature::from_der(&bytes)?;
 
-        Ok(StrandSignature(signature))
+        Ok(signature)
     }
 }
 
@@ -239,7 +272,7 @@ impl TryFrom<StrandSignature> for String {
     type Error = StrandError;
 
     fn try_from(value: StrandSignature) -> Result<Self, Self::Error> {
-        let bytes = value.0.to_der()?;
+        let bytes = value.to_der()?;
         Ok(general_purpose::STANDARD.encode(bytes))
     }
 }
