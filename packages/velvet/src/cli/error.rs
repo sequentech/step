@@ -4,8 +4,8 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub enum Error {
     ConfigNotFound,
     CannotOpenConfig,
-    
-    Json(serde_json::Error)
+    Json(serde_json::Error),
+    StageDefinition(String),
 }
 
 impl core::fmt::Display for Error {

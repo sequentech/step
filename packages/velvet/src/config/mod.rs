@@ -5,26 +5,26 @@ use crate::pipes::{deserialize_pipe, PipeName};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
-    version: String,
-    stages: Stages,
+    pub version: String,
+    pub stages: Stages,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Stages {
-    order: Vec<String>,
+    pub order: Vec<String>,
     #[serde(flatten)]
-    stages: HashMap<String, Stage>,
+    pub stages_def: HashMap<String, Stage>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Stage {
-    pipeline: Vec<Pipeline>,
+    pub pipeline: Vec<Pipeline>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Pipeline {
-    id: String,
+    pub id: String,
     #[serde(deserialize_with = "deserialize_pipe")]
-    pipe: PipeName,
-    config: Option<serde_json::Value>,
+    pub pipe: PipeName,
+    pub config: Option<serde_json::Value>,
 }

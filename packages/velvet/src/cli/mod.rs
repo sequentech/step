@@ -36,19 +36,26 @@ pub struct CliRun {
 impl CliRun {
     pub fn validate(&self) -> Result<()> {
         self.parse_config()?;
+
         Ok(())
     }
 
-    fn parse_config(&self) -> Result<()> {
+    fn parse_config(&self) -> Result<Config> {
         if !self.config.exists() {
             return Err(Error::ConfigNotFound);
         }
 
         let file = File::open(&self.config).map_err(|_| Error::CannotOpenConfig)?;
-        let cfg: Config = serde_json::from_reader(file)?;
+        let config: Config = serde_json::from_reader(file)?;
 
-        dbg!(cfg);
+        for stage in &config.stages.order {
+            if !config.stages.stages_def.contains_key(stage) {
+                return Err(Error::StageDefinition(format!(
+                    "Stage '{stage}', defined in stages.order, is not defined in stages."
+                )));
+            }
+        }
 
-        Ok(())
+        Ok(config)
     }
 }
