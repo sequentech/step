@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 use base64::{engine::general_purpose, Engine as _};
+use borsh::{BorshDeserialize, BorshSerialize};
 use ed25519_dalek::Signature;
 use ed25519_dalek::Signer;
 use ed25519_dalek::SigningKey;
@@ -18,7 +19,6 @@ use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
 
 use crate::rng::StrandRng;
-use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util;
 use crate::util::StrandError;
 
@@ -128,53 +128,62 @@ impl std::fmt::Debug for StrandSignaturePk {
 impl Eq for StrandSignaturePk {}
 
 
-impl StrandSerialize for StrandSignatureSk {
-    fn strand_serialize(&self) -> Result<Vec<u8>, StrandError> {
-        let doc = self.0.to_pkcs8_der()
-            .map_err(|e| StrandError::Generic(e.to_string()))?;
-        
-        Ok(doc.as_bytes().to_vec())
+
+impl BorshSerialize for StrandSignatureSk {
+    fn serialize<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        let bytes: [u8; 32] = self.0.to_bytes();
+        bytes.serialize(writer)    
     }
 }
 
-impl StrandDeserialize for StrandSignatureSk {
-    fn strand_deserialize(bytes: &[u8]) -> Result<Self, StrandError> {
-        let sk = SigningKey::from_pkcs8_der(&bytes)
-        .map_err(|e| Error::new(ErrorKind::Other, e))?;
+impl BorshDeserialize for StrandSignatureSk {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let bytes = <[u8; 32]>::deserialize(buf)?;
+        let sk = SigningKey::try_from(bytes)
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         Ok(StrandSignatureSk(sk))
     }
 }
 
 
-impl StrandSerialize for StrandSignaturePk {
-    fn strand_serialize(&self) -> Result<Vec<u8>, StrandError> {
-        let doc = self.0.to_public_key_der()
-            .map_err(|e| StrandError::Generic(e.to_string()))?;
-        
-        Ok(doc.as_bytes().to_vec())
+impl BorshSerialize for StrandSignaturePk {
+    fn serialize<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        let bytes: [u8; 32] = self.0.to_bytes();
+        bytes.serialize(writer)
     }
 }
 
-impl StrandDeserialize for StrandSignaturePk {
-    fn strand_deserialize(bytes: &[u8]) -> Result<Self, StrandError> {
-        let sk = VerifyingKey::from_public_key_der(&bytes)
+impl BorshDeserialize for StrandSignaturePk {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let bytes = <[u8; 32]>::deserialize(buf)?;
+        let sk = VerifyingKey::from_bytes(&bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
-
         Ok(StrandSignaturePk(sk))
     }
 }
 
-impl StrandSerialize for StrandSignature {
-    fn strand_serialize(&self) -> Result<Vec<u8>, StrandError> {
-        Ok(self.0.to_bytes().to_vec())
+impl BorshSerialize for StrandSignature {
+    fn serialize<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        let bytes: [u8; 64] = self.0.into();
+        bytes.serialize(writer)
     }
 }
 
-impl StrandDeserialize for StrandSignature {
-    fn strand_deserialize(bytes: &[u8]) -> Result<Self, StrandError> {
+impl BorshDeserialize for StrandSignature {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        let bytes = <[u8; 64]>::deserialize(buf)?;        
         let signature = Signature::try_from(bytes)
-            .map_err(|e| StrandError::Generic(e.to_string()))?;
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         Ok(StrandSignature(signature))
     }    
@@ -185,7 +194,6 @@ impl TryFrom<String> for StrandSignaturePk {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
-        // StrandSignaturePk::strand_deserialize(&bytes)
         StrandSignaturePk::from_der(&bytes)
     }
 }
@@ -194,7 +202,6 @@ impl TryFrom<StrandSignaturePk> for String {
     type Error = StrandError;
 
     fn try_from(value: StrandSignaturePk) -> Result<Self, Self::Error> {
-        // let bytes = value.strand_serialize()?;
         let bytes = value.to_der()?;
         Ok(general_purpose::STANDARD.encode(bytes))
     }
@@ -206,7 +213,6 @@ impl TryFrom<String> for StrandSignatureSk {
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
         StrandSignatureSk::from_der(&bytes)
-        // StrandSignatureSk::strand_deserialize(&bytes)
     }
 }
 
@@ -214,7 +220,6 @@ impl TryFrom<StrandSignatureSk> for String {
     type Error = StrandError;
 
     fn try_from(value: StrandSignatureSk) -> Result<Self, Self::Error> {
-        // let bytes = value.strand_serialize()?;
         let bytes = value.to_der()?;
         Ok(general_purpose::STANDARD.encode(bytes))
     }
@@ -225,7 +230,6 @@ impl TryFrom<String> for StrandSignature {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
-        // StrandSignature::strand_deserialize(&bytes)
         let bytes = util::to_u8_array(&bytes)?;
         StrandSignature::from_bytes(bytes)
     }
@@ -235,7 +239,6 @@ impl TryFrom<StrandSignature> for String {
     type Error = StrandError;
 
     fn try_from(value: StrandSignature) -> Result<Self, Self::Error> {
-        // let bytes = value.strand_serialize()?;
         let bytes = value.to_bytes();
         Ok(general_purpose::STANDARD.encode(bytes))
     }
