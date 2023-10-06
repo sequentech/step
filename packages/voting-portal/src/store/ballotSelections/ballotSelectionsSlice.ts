@@ -31,6 +31,7 @@ export const ballotSelectionsSlice = createSlice({
                 state[action.payload.ballotStyle.election_id] =
                     action.payload.ballotStyle.ballot_eml.configuration.questions.map(
                         (question) => ({
+                            contest_id: question.id,
                             is_explicit_invalid: false,
                             invalid_errors: [],
                             choices: question.answers.map((answer) => ({
