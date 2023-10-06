@@ -46,16 +46,25 @@ pub fn map_to_decoded_question<C: Ctx<P = [u8; 30]>>(
     let mut decoded_questions = vec![];
     if ballot.config.configuration.questions.len() != ballot.contests.len() {
         return Err(format!(
-            "Invalid number of choices {} != {}",
+            "Invalid number of contests {} != {}",
             ballot.config.configuration.questions.len(),
             ballot.contests.len()
         ));
     }
-    for i in 0..ballot.contests.len() {
-        let question = ballot.config.configuration.questions[i].clone();
-        let replication_choice: &ReplicationChoice<C> =
-            &ballot.contests[i].choice;
-
+    for contest in &ballot.contests {
+        let question = ballot
+            .config
+            .configuration
+            .questions
+            .iter()
+            .find(|question| question.id == contest.contest_id)
+            .ok_or_else(|| {
+                format!(
+                    "Can't find contest with id {} on ballot style",
+                    contest.contest_id
+                )
+            })?;
+        let replication_choice: &ReplicationChoice<C> = &contest.choice;
         let decoded_plaintext = question
             .decode_plaintext_question(&replication_choice.plaintext)?;
         decoded_questions.push(decoded_plaintext);
