@@ -8,27 +8,27 @@ use crate::plaintext::*;
 pub trait PlaintextCodec {
     fn encode_plaintext_question(
         &self,
-        plaintext: &DecodedVoteQuestion,
+        plaintext: &DecodedVoteContest,
     ) -> Result<[u8; 30], String>;
     fn decode_plaintext_question(
         &self,
         code: &[u8; 30],
-    ) -> Result<DecodedVoteQuestion, String>;
+    ) -> Result<DecodedVoteContest, String>;
 
     fn encode_plaintext_question_to_bytes(
         &self,
-        plaintext: &DecodedVoteQuestion,
+        plaintext: &DecodedVoteContest,
     ) -> Result<Vec<u8>, String>;
     fn decode_plaintext_question_from_bytes(
         &self,
         bytes: &[u8],
-    ) -> Result<DecodedVoteQuestion, String>;
+    ) -> Result<DecodedVoteContest, String>;
 }
 
 impl PlaintextCodec for Question {
     fn encode_plaintext_question(
         &self,
-        plaintext: &DecodedVoteQuestion,
+        plaintext: &DecodedVoteContest,
     ) -> Result<[u8; 30], String> {
         let plaintext_bytes_vec =
             self.encode_plaintext_question_to_bytes(plaintext)?;
@@ -38,7 +38,7 @@ impl PlaintextCodec for Question {
     fn decode_plaintext_question(
         &self,
         code: &[u8; 30],
-    ) -> Result<DecodedVoteQuestion, String> {
+    ) -> Result<DecodedVoteContest, String> {
         let plaintext_bytes = decode_array_to_vec(code);
 
         self.decode_plaintext_question_from_bytes(&plaintext_bytes)
@@ -46,7 +46,7 @@ impl PlaintextCodec for Question {
 
     fn encode_plaintext_question_to_bytes(
         &self,
-        plaintext: &DecodedVoteQuestion,
+        plaintext: &DecodedVoteContest,
     ) -> Result<Vec<u8>, String> {
         let bigint = self.encode_plaintext_question_bigint(plaintext)?;
         encode_bigint_to_bytes(&bigint)
@@ -55,7 +55,7 @@ impl PlaintextCodec for Question {
     fn decode_plaintext_question_from_bytes(
         &self,
         bytes: &[u8],
-    ) -> Result<DecodedVoteQuestion, String> {
+    ) -> Result<DecodedVoteContest, String> {
         let bigint = decode_bigint_from_bytes(&bytes)?;
         self.decode_plaintext_question_bigint(&bigint)
     }

@@ -5,7 +5,7 @@
 use crate::ballot::{Answer, Question, QuestionExtra, Url};
 use crate::ballot_codec::{vec_to_30_array, RawBallotQuestion};
 use crate::plaintext::{
-    DecodedVoteChoice, DecodedVoteQuestion, InvalidPlaintextError,
+    DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextError,
     InvalidPlaintextErrorType,
 };
 use std::collections::HashMap;
@@ -14,7 +14,7 @@ pub struct BallotCodecFixture {
     pub title: String,
     pub question: Question,
     pub raw_ballot: RawBallotQuestion,
-    pub plaintext: DecodedVoteQuestion,
+    pub plaintext: DecodedVoteContest,
     pub encoded_ballot_bigint: String,
     pub encoded_ballot: [u8; 30],
     pub expected_errors: Option<HashMap<String, String>>,
@@ -25,9 +25,9 @@ pub struct BasesFixture {
 }
 
 pub fn normalize_vote_question(
-    input: &DecodedVoteQuestion,
+    input: &DecodedVoteContest,
     tally_type: &str,
-) -> DecodedVoteQuestion {
+) -> DecodedVoteContest {
     let mut original = input.clone();
     let mut choices: Vec<DecodedVoteChoice> = original
         .choices
@@ -145,8 +145,9 @@ fn get_question_borda() -> Question {
     question
 }
 
-pub fn get_test_decoded_vote_question() -> DecodedVoteQuestion {
-    DecodedVoteQuestion {
+pub fn get_test_decoded_vote_question() -> DecodedVoteContest {
+    DecodedVoteContest {
+        contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
         is_explicit_invalid: false,
         invalid_errors: vec![],
         choices: vec![
@@ -245,7 +246,7 @@ pub(crate) fn get_configurable_question(
     base32_writeins: bool,
 ) -> Question {
     let question_str = r#"{
-        "id": "fae0b09e-1b78-4118-b99c-7955f8ef2a52",
+        "id": "1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
         "layout":"",
         "description":"Elige quien quieres que sea tu Secretario General en tu municipio",
         "min":0,
@@ -368,7 +369,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2u64, 2u64, 2u64, 2u64, 2u64, 2u64],
                 choices: vec![0u64, 1u64, 0u64, 0u64, 1u64, 1u64],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
@@ -420,7 +422,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2u64, 5u64, 5u64, 5u64, 5u64, 5u64],
                 choices: vec![0u64, 3u64, 0u64, 0u64, 1u64, 2u64],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
@@ -458,7 +461,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_3_explicit_and_implicit_invalid".to_string(),
             question: Question {
-                id: "ccdb831a-1dbf-41af-8245-65c9a8063cf9".to_string(),
+                id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 description: "".to_string(),
                 layout: "simultaneous-questions".to_string(),
                 min: 0,
@@ -517,7 +520,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
                 choices: vec![1u64, 1u64, 1u64, 1u64],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: true,
                 choices: vec![
                     DecodedVoteChoice {
@@ -555,7 +559,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_3_explicit_invalid".to_string(),
             question: Question {
-                id: "ccdb831a-1dbf-41af-8245-65c9a8063cf9".to_string(),
+                id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 layout: "simultaneous-questions".to_string(),
                 description: "".to_string(),
                 min: 0,
@@ -613,7 +617,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
                 choices: vec![1u64, 1u64, 0u64, 0u64],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: true,
                 choices: vec![
                     DecodedVoteChoice {
@@ -641,7 +646,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_3_implicit_too_many".to_string(),
             question: Question {
-                id: "ccdb831a-1dbf-41af-8245-65c9a8063cf9".to_string(),
+                id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 layout: "simultaneous-questions".to_string(),
                 description: "".to_string(),
                 min: 0,
@@ -699,7 +704,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
                 choices: vec![0u64, 1u64, 1u64, 1u64],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
@@ -737,7 +743,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_4_implicit_empty".to_string(),
             question: Question {
-                id: "ccdb831a-1dbf-41af-8245-65c9a8063cf9".to_string(),
+                id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 layout: "accordion".to_string(),
                 description: "".to_string(),
                 min: 1,
@@ -782,7 +788,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
                 choices: vec![0u64, 0u64, 0u64, 0u64],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
@@ -820,7 +827,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         BallotCodecFixture {
             title: "example_4_implicit_invented_answer".to_string(),
             question: Question {
-                id: "ccdb831a-1dbf-41af-8245-65c9a8063cf9".to_string(),
+                id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 layout: "accordion".to_string(),
                 description: "".to_string(),
                 min: 1,
@@ -865,7 +872,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2u64, 2u64, 2u64, 2u64, 2u64],
                 choices: vec![0u64, 0u64, 0u64, 0u64, 1u64],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
@@ -924,7 +932,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2, 2, 2, 2, 2, 2, 2, 2],
                 choices: vec![0, 0, 1, 0, 0, 0, 1, 0],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![],
                 choices: vec![
@@ -978,7 +987,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2, 2, 2, 2, 2, 2, 2, 2],
                 choices: vec![0, 1, 1, 0, 0, 0, 1, 0],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![],
                 choices: vec![
@@ -1032,7 +1042,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2, 4, 4, 4, 4, 4, 4, 4],
                 choices: vec![0, 1, 3, 0, 0, 0, 2, 0]
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![],
                 choices: vec![
@@ -1084,7 +1095,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2, 2, 2],
                 choices: vec![1, 1, 0]
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: true,
                 invalid_errors: vec![
                     InvalidPlaintextError {
@@ -1118,7 +1130,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec!  [2, 3, 3, 3, 3, 3, 3, 32, 32, 32],
                 choices: vec![1, 1, 0, 0, 1, 2, 0, 4, 0, 0]
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: true,
                 invalid_errors: vec![
                     InvalidPlaintextError {
@@ -1183,7 +1196,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2, 2, 2, 2, 2, 2, 2, 2, 32, 32, 32, 32, 32, 32, 32, 32],
                 choices: vec![0, 1, 0, 0, 0, 1, 0, 1, 5, 0, 0, 1, 27, 2, 3, 0]
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![],
                 choices: vec![
@@ -1237,7 +1251,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2, 2, 2, 2],
                 choices: vec![0, 1, 0],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![
                     InvalidPlaintextError {
@@ -1276,7 +1291,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases:   vec![2, 2, 2, 2],
                 choices: vec![0, 1, 0, 0],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![],
                 choices: vec![
@@ -1312,7 +1328,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases:   vec![2, 2, 2, 2, 32],
                 choices: vec![0, 1, 0, 0, 1],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![
                     InvalidPlaintextError {
@@ -1354,7 +1371,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2, 2, 2, 2, 32],
                 choices: vec![0, 1, 0, 0, 24],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![
                     InvalidPlaintextError {

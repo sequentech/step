@@ -16,7 +16,7 @@ use hex;
 use crate::ballot::*;
 use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;
-use crate::plaintext::DecodedVoteQuestion;
+use crate::plaintext::DecodedVoteContest;
 use crate::serialization::base64::Base64Deserialize;
 use crate::util::get_current_date;
 
@@ -72,7 +72,7 @@ pub fn encrypt_plaintext_answer<C: Ctx<P = [u8; 30]>>(
 }
 
 pub fn parse_public_key<C: Ctx>(
-    election: &ElectionDTO,
+    election: &BallotStyle,
 ) -> Result<C::E, BallotError> {
     let public_key_config: PublicKeyConfig = election
         .public_key
@@ -90,17 +90,19 @@ pub fn recreate_encrypt_cyphertext<C: Ctx>(
     let public_key = parse_public_key::<C>(&ballot.config)?;
     // check ballot version
     // sanity checks for number of answers/choices
-    if ballot.choices.len() != ballot.config.configuration.questions.len() {
+    if ballot.contests.len() != ballot.config.configuration.questions.len() {
         return Err(BallotError::ConsistencyCheck(String::from(
             "Number of election questions should match number of answers in the ballot",
         )));
     }
 
     ballot
-        .choices
+        .contests
         .clone()
         .into_iter()
-        .map(|choice| recreate_encrypt_answer(ctx, &public_key, &choice))
+        .map(|contests| {
+            recreate_encrypt_answer(ctx, &public_key, &contests.choice)
+        })
         .collect::<Vec<Result<ReplicationChoice<C>, BallotError>>>()
         .into_iter()
         .collect()
@@ -149,8 +151,8 @@ pub fn to_30bytes(plaintext: Vec<u8>) -> Result<[u8; 30], BallotError> {
 
 pub fn encrypt_decoded_question<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
-    decoded_questions: &Vec<DecodedVoteQuestion>,
-    config: &ElectionDTO,
+    decoded_questions: &Vec<DecodedVoteContest>,
+    config: &BallotStyle,
 ) -> Result<AuditableBallot<C>, BallotError> {
     if config.configuration.questions.len() != decoded_questions.len() {
         return Err(BallotError::ConsistencyCheck(format!(
@@ -162,8 +164,8 @@ pub fn encrypt_decoded_question<C: Ctx<P = [u8; 30]>>(
 
     let public_key: C::E = parse_public_key::<C>(&config)?;
 
-    let mut choices: Vec<ReplicationChoice<C>> = vec![];
-    let mut proofs: Vec<Schnorr<C>> = vec![];
+    let mut contests: Vec<AuditableBallotContest<C>> = vec![];
+
     for i in 0..decoded_questions.len() {
         let question = config.configuration.questions[i].clone();
         let decoded_question = decoded_questions[i].clone();
@@ -177,15 +179,17 @@ pub fn encrypt_decoded_question<C: Ctx<P = [u8; 30]>>(
         })?;
         let (choice, proof) =
             encrypt_plaintext_answer(ctx, public_key.clone(), plaintext)?;
-        choices.push(choice);
-        proofs.push(proof);
+        contests.push(AuditableBallotContest::<C> {
+            contest_id: question.id.clone(),
+            choice: choice,
+            proof: proof,
+        });
     }
 
     let mut auditable_ballot = AuditableBallot {
         version: TYPES_VERSION,
         issue_date: get_current_date(),
-        choices: choices,
-        proofs: proofs,
+        contests: contests,
         ballot_hash: String::from(""),
         config: config.clone(),
     };
@@ -195,7 +199,6 @@ pub fn encrypt_decoded_question<C: Ctx<P = [u8; 30]>>(
 
     Ok(auditable_ballot)
 }
-
 
 // hash ballot:
 // serialize ballot into string, then hash to sha512, truncate to

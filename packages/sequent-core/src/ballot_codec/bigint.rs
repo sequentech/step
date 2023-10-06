@@ -19,18 +19,18 @@ pub fn decode_bigint_from_bytes(b: &[u8]) -> Result<BigUint, String> {
 pub trait BigUIntCodec {
     fn encode_plaintext_question_bigint(
         &self,
-        plaintext: &DecodedVoteQuestion,
+        plaintext: &DecodedVoteContest,
     ) -> Result<BigUint, String>;
     fn decode_plaintext_question_bigint(
         &self,
         bigint: &BigUint,
-    ) -> Result<DecodedVoteQuestion, String>;
+    ) -> Result<DecodedVoteContest, String>;
 }
 
 impl BigUIntCodec for Question {
     fn encode_plaintext_question_bigint(
         &self,
-        plaintext: &DecodedVoteQuestion,
+        plaintext: &DecodedVoteContest,
     ) -> Result<BigUint, String> {
         let raw_ballot = self.encode_to_raw_ballot(plaintext)?;
         encode(&raw_ballot.choices, &raw_ballot.bases)
@@ -39,7 +39,7 @@ impl BigUIntCodec for Question {
     fn decode_plaintext_question_bigint(
         &self,
         bigint: &BigUint,
-    ) -> Result<DecodedVoteQuestion, String> {
+    ) -> Result<DecodedVoteContest, String> {
         let mut bases = self.get_bases();
         let last_base = self.get_char_map().base();
         let choices = decode(&bases, &bigint, last_base)?;

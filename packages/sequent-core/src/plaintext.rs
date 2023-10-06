@@ -24,8 +24,10 @@ pub struct InvalidPlaintextError {
     pub message_map: HashMap<String, String>,
 }
 
+// before: DecodedVoteContest
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
-pub struct DecodedVoteQuestion {
+pub struct DecodedVoteContest { 
+    pub contest_id: Uuid,
     pub is_explicit_invalid: bool,
     pub invalid_errors: Vec<InvalidPlaintextError>,
     pub choices: Vec<DecodedVoteChoice>,
@@ -40,18 +42,19 @@ pub struct DecodedVoteChoice {
 
 pub fn map_to_decoded_question<C: Ctx<P = [u8; 30]>>(
     ballot: &AuditableBallot<C>,
-) -> Result<Vec<DecodedVoteQuestion>, String> {
+) -> Result<Vec<DecodedVoteContest>, String> {
     let mut decoded_questions = vec![];
-    if ballot.config.configuration.questions.len() != ballot.choices.len() {
+    if ballot.config.configuration.questions.len() != ballot.contests.len() {
         return Err(format!(
             "Invalid number of choices {} != {}",
             ballot.config.configuration.questions.len(),
-            ballot.choices.len()
+            ballot.contests.len()
         ));
     }
-    for i in 0..ballot.choices.len() {
+    for i in 0..ballot.contests.len() {
         let question = ballot.config.configuration.questions[i].clone();
-        let replication_choice: &ReplicationChoice<C> = &ballot.choices[i];
+        let replication_choice: &ReplicationChoice<C> =
+            &ballot.contests[i].choice;
 
         let decoded_plaintext = question
             .decode_plaintext_question(&replication_choice.plaintext)?;

@@ -17,18 +17,18 @@ pub struct RawBallotQuestion {
 pub trait RawBallotCodec {
     fn encode_to_raw_ballot(
         &self,
-        plaintext: &DecodedVoteQuestion,
+        plaintext: &DecodedVoteContest,
     ) -> Result<RawBallotQuestion, String>;
     fn decode_from_raw_ballot(
         &self,
         raw_ballot: &RawBallotQuestion,
-    ) -> Result<DecodedVoteQuestion, String>;
+    ) -> Result<DecodedVoteContest, String>;
 }
 
 impl RawBallotCodec for Question {
     fn encode_to_raw_ballot(
         &self,
-        plaintext: &DecodedVoteQuestion,
+        plaintext: &DecodedVoteContest,
     ) -> Result<RawBallotQuestion, String> {
         let mut bases = self.get_bases();
         let mut choices: Vec<u64> = vec![];
@@ -117,11 +117,10 @@ impl RawBallotCodec for Question {
         Ok(RawBallotQuestion { bases, choices })
     }
 
-    // Note: WIP
     fn decode_from_raw_ballot(
         &self,
         raw_ballot: &RawBallotQuestion,
-    ) -> Result<DecodedVoteQuestion, String> {
+    ) -> Result<DecodedVoteContest, String> {
         let choices = raw_ballot.choices.clone();
         let is_explicit_invalid: bool = !choices.is_empty() && (choices[0] > 0);
         let mut invalid_errors: Vec<InvalidPlaintextError> = vec![];
@@ -311,7 +310,8 @@ impl RawBallotCodec for Question {
             });
         }
 
-        Ok(DecodedVoteQuestion {
+        Ok(DecodedVoteContest {
+            contest_id: self.id.clone(),
             is_explicit_invalid,
             invalid_errors,
             choices: sorted_choices,

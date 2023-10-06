@@ -11,7 +11,7 @@ import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import Skeleton from "@mui/material/Skeleton"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
-import {IDecodedVoteQuestion, IQuestion} from "sequent-core"
+import {IDecodedVoteContest, IQuestion} from "sequent-core"
 import Button from "@mui/material/Button"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {
@@ -128,7 +128,7 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({answer}) => {
 }
 
 interface PlaintextVoteQuestionProps {
-    questionPlaintext: IDecodedVoteQuestion
+    questionPlaintext: IDecodedVoteContest
     question: IQuestion
     ballotService: IBallotService
 }

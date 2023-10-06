@@ -11,8 +11,8 @@ pub fn create_ballot_style(
     election: hasura_types::Election,            // Election
     contests: Vec<hasura_types::Contest>,        // Question
     candidates: Vec<hasura_types::Candidate>,    // Answer
-) -> ballot::ElectionDTO {
-    ballot::ElectionDTO {
+) -> ballot::BallotStyle {
+    ballot::BallotStyle {
         id: election.id.clone(),
         configuration: ballot::ElectionConfig {
             id: election.id.clone(),

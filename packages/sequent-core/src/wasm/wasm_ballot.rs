@@ -276,7 +276,7 @@ extern "C" {
 
 #[wasm_bindgen(typescript_custom_section)]
 const IELECTION_DTO: &'static str = r#"
-interface IElectionDTO {
+interface IBallotStyle {
     id: string;
     configuration: IElectionConfig;
     state: string;
@@ -298,15 +298,15 @@ interface IElectionDTO {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IElectionDTO")]
-    pub type IElectionDTO;
+    #[wasm_bindgen(typescript_type = "IBallotStyle")]
+    pub type IBallotStyle;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
 const IELECTION_PAYLOAD: &'static str = r#"
 interface IElectionPayload {
     date: string;
-    payload: IElectionDTO;
+    payload: IBallotStyle;
 }
 "#;
 

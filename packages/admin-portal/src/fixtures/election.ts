@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {IElectionDTO} from "sequent-core"
+import {IBallotStyle} from "sequent-core"
 
-export const ELECTION_CATEGORIES: IElectionDTO = {
+export const ELECTION_CATEGORIES: IBallotStyle = {
     id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
     configuration: {
         id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
@@ -148,7 +148,7 @@ export const ELECTION_CATEGORIES: IElectionDTO = {
     ],
 }
 
-export const SIMPLE_ELECTION_PLURALITY: IElectionDTO = {
+export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
     id: "60e4ddce-2d5b-4dea-bbae-e81010aa1f0f",
     configuration: {
         id: "60e4ddce-2d5b-4dea-bbae-e81010aa1f0f",
@@ -265,7 +265,7 @@ export const SIMPLE_ELECTION_PLURALITY: IElectionDTO = {
     ],
 }
 
-export const ELECTION_WRITEINS_SIMPLE: IElectionDTO = {
+export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
     id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
     configuration: {
         id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
@@ -396,7 +396,7 @@ export const ELECTION_WRITEINS_SIMPLE: IElectionDTO = {
     ],
 }
 
-export const ELECTION_WITH_INVALID: IElectionDTO = {
+export const ELECTION_WITH_INVALID: IBallotStyle = {
     id: "45b95ddb-e9b7-4a83-ac14-d6fe21574637",
     configuration: {
         id: "45b95ddb-e9b7-4a83-ac14-d6fe21574637",

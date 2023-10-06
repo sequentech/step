@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
-    IElectionDTO,
+    IBallotStyle,
     to_hashable_ballot_js,
     hash_auditable_ballot_js,
     encrypt_decoded_question_js,
@@ -12,7 +12,7 @@ import {BallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 export interface IBallotService {
     toHashableBallot: (auditableBallot: string) => string
     hashBallot: (auditableBallot: string) => string
-    encryptBallotSelection: (ballotSelection: BallotSelection, election: IElectionDTO) => string
+    encryptBallotSelection: (ballotSelection: BallotSelection, election: IBallotStyle) => string
 }
 
 export const toHashableBallot = (auditableBallot: string): string => {
@@ -35,7 +35,7 @@ export const hashBallot = (auditableBallot: string): string => {
 
 export const encryptBallotSelection = (
     ballotSelection: BallotSelection,
-    election: IElectionDTO
+    election: IBallotStyle
 ): string => {
     try {
         return encrypt_decoded_question_js(ballotSelection, election)

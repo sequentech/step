@@ -10,7 +10,7 @@ import {withRouter} from "storybook-addon-react-router-v6"
 import {IBallotService, provideBallotService} from "../../services/BallotService"
 import {within, userEvent} from "@storybook/testing-library"
 import {expect} from "@storybook/jest"
-import {IDecodedVoteQuestion} from "sequent-core"
+import {IDecodedVoteContest} from "sequent-core"
 
 export default {
     title: "screens/HomeScreen",
@@ -48,7 +48,7 @@ const getBallotServiceProvider = (): IBallotService => {
 
     const decodeAuditableBallot = (
         auditableBallot: string
-    ): Array<IDecodedVoteQuestion> | null => null
+    ): Array<IDecodedVoteContest> | null => null
 
     return {
         ...service,

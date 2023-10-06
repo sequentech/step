@@ -465,6 +465,7 @@ pub struct PublicKeyConfig {
     pub is_demo: bool,
 }
 
+// Before: BallotStyle
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -476,7 +477,7 @@ pub struct PublicKeyConfig {
     Debug,
     Clone,
 )]
-pub struct ElectionDTO {
+pub struct BallotStyle {
     pub id: Uuid,
     pub configuration: ElectionConfig,
     pub state: String,
@@ -508,15 +509,21 @@ pub struct ElectionDTO {
 )]
 pub struct ElectionPayload {
     pub date: String,
-    pub payload: ElectionDTO,
+    pub payload: BallotStyle,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+pub struct AuditableBallotContest<C: Ctx> {
+    pub contest_id: Uuid,
+    pub choice: ReplicationChoice<C>,
+    pub proof: Schnorr<C>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct RawAuditableBallot<C: Ctx> {
     pub election_url: String,
     pub issue_date: String,
-    pub choices: Vec<ReplicationChoice<C>>,
-    pub proofs: Vec<Schnorr<C>>,
+    pub contests: Vec<AuditableBallotContest<C>>,
     pub ballot_hash: String,
 }
 
@@ -524,19 +531,34 @@ pub struct RawAuditableBallot<C: Ctx> {
 pub struct AuditableBallot<C: Ctx> {
     pub version: u32,
     pub issue_date: String,
-    pub config: ElectionDTO,
-    pub choices: Vec<ReplicationChoice<C>>,
-    pub proofs: Vec<Schnorr<C>>,
+    pub config: BallotStyle,
+    pub contests: Vec<AuditableBallotContest<C>>,
     pub ballot_hash: String,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+pub struct HashableBallotContest<C: Ctx> {
+    pub contest_id: Uuid,
+    pub ciphertext: Ciphertext<C>,
+    pub proof: Schnorr<C>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct HashableBallot<C: Ctx> {
     pub version: u32,
     pub issue_date: String,
-    pub choices: Vec<Ciphertext<C>>,
-    pub proofs: Vec<Schnorr<C>>,
-    pub config: ElectionDTO,
+    pub contests: Vec<HashableBallotContest<C>>,
+    pub config: BallotStyle,
+}
+
+impl<C: Ctx> From<&AuditableBallotContest<C>> for HashableBallotContest<C> {
+    fn from(value: &AuditableBallotContest<C>) -> HashableBallotContest<C> {
+        HashableBallotContest {
+            contest_id: value.contest_id.clone(),
+            ciphertext: value.choice.ciphertext.clone(),
+            proof: value.proof.clone(),
+        }
+    }
 }
 
 impl<C: Ctx> From<&AuditableBallot<C>> for HashableBallot<C> {
@@ -544,14 +566,12 @@ impl<C: Ctx> From<&AuditableBallot<C>> for HashableBallot<C> {
         assert!(TYPES_VERSION == value.version);
         HashableBallot {
             version: TYPES_VERSION,
-            choices: value
-                .choices
-                .clone()
-                .into_iter()
-                .map(|choice| choice.ciphertext)
-                .collect(),
             issue_date: value.issue_date.clone(),
-            proofs: value.proofs.clone(),
+            contests: value
+                .contests
+                .iter()
+                .map(|contest| HashableBallotContest::<C>::from(contest))
+                .collect(),
             config: value.config.clone(),
         }
     }

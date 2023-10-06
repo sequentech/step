@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
 use crate::encrypt::*;
-use crate::plaintext::*;
 use crate::interpret_plaintext::{get_layout_properties, get_points};
+use crate::plaintext::*;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
@@ -86,11 +86,11 @@ pub fn encrypt_decoded_question_js(
     election_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     // parse inputs
-    let decoded_questions: Vec<DecodedVoteQuestion> =
+    let decoded_questions: Vec<DecodedVoteContest> =
         serde_wasm_bindgen::from_value(decoded_questions_json)
             .map_err(|err| format!("Error parsing cyphertext: {}", err))
             .into_json()?;
-    let election: ElectionDTO = serde_wasm_bindgen::from_value(election_json)
+    let election: BallotStyle = serde_wasm_bindgen::from_value(election_json)
         .map_err(|err| format!("Error parsing election: {}", err))
         .into_json()?;
     // create context

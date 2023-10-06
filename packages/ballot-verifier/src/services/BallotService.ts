@@ -7,8 +7,8 @@ import {
     get_layout_properties_from_question_js,
     get_answer_points_js,
     get_ballot_style_from_auditable_ballot_js,
-    IElectionDTO,
-    IDecodedVoteQuestion,
+    IBallotStyle,
+    IDecodedVoteContest,
     IQuestion,
     IQuestionLayoutProperties,
     IDecodedVoteChoice,
@@ -17,18 +17,18 @@ import {
 
 export interface IConfirmationBallot {
     ballot_hash: string
-    election_config: IElectionDTO
-    decoded_questions: Array<IDecodedVoteQuestion>
+    election_config: IBallotStyle
+    decoded_questions: Array<IDecodedVoteContest>
 }
 
 export interface IBallotService {
     hashBallot512: (auditableBallot: string) => string
-    decodeAuditableBallot: (auditableBallot: string) => Array<IDecodedVoteQuestion> | null
+    decodeAuditableBallot: (auditableBallot: string) => Array<IDecodedVoteContest> | null
     getLayoutProperties: (question: IQuestion) => IQuestionLayoutProperties | null
     getPoints: (question: IQuestion, answer: IDecodedVoteChoice) => number | null
     getBallotStyleFromAuditableBallot: (
         auditableBallot: string
-    ) => IElectionDTO | null
+    ) => IBallotStyle | null
 }
 
 export const hashBallot512 = (auditableBallot: string): string => {
@@ -42,10 +42,10 @@ export const hashBallot512 = (auditableBallot: string): string => {
 
 export const decodeAuditableBallot = (
     auditableBallot: string
-): Array<IDecodedVoteQuestion> | null => {
+): Array<IDecodedVoteContest> | null => {
     try {
         let decodedBallot = decode_auditable_ballot_js(auditableBallot)
-        return decodedBallot as Array<IDecodedVoteQuestion>
+        return decodedBallot as Array<IDecodedVoteContest>
     } catch (error) {
         console.log(error)
         return null
@@ -54,9 +54,9 @@ export const decodeAuditableBallot = (
 
 export const getBallotStyleFromAuditableBallot = (
     auditableBallot: string
-): IElectionDTO | null => {
+): IBallotStyle | null => {
     try {
-        let ballotStyle = get_ballot_style_from_auditable_ballot_js(auditableBallot) as IElectionDTO
+        let ballotStyle = get_ballot_style_from_auditable_ballot_js(auditableBallot) as IBallotStyle
         return ballotStyle
     } catch (error) {
         console.log(error)

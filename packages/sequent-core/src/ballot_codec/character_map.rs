@@ -144,7 +144,7 @@ pub static TO_CHAR: phf::Map<u8, char> = phf_map! {
 mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::get_configurable_question;
-    use crate::plaintext::{DecodedVoteChoice, DecodedVoteQuestion};
+    use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use rand::Rng;
 
     #[test]
@@ -184,7 +184,17 @@ mod tests {
             })
             .collect();
 
-        let ballot = DecodedVoteQuestion {
+        let mut question = get_configurable_question(
+            1,
+            5,
+            "plurality-at-large".to_string(),
+            true,
+            Some(vec![4]),
+            false,
+        );
+
+        let ballot = DecodedVoteContest {
+            contest_id: question.id.clone(),
             is_explicit_invalid: false,
             invalid_errors: vec![],
             choices: vec![
@@ -219,15 +229,6 @@ mod tests {
                 },
             ],
         };
-
-        let mut question = get_configurable_question(
-            1,
-            5,
-            "plurality-at-large".to_string(),
-            true,
-            Some(vec![4]),
-            false,
-        );
         let result = question
             .encode_plaintext_question_to_bytes(&ballot)
             .unwrap();
