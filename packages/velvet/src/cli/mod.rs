@@ -56,6 +56,7 @@ impl CliRun {
             }
         }
 
+        dbg!(&config);
         Ok(config)
     }
 }

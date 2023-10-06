@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::pipes::{deserialize_pipe, PipeName};
+use crate::pipes::pipe_name::{deserialize_pipe, PipeName};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
