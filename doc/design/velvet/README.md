@@ -60,7 +60,9 @@ Example of a configuration file `--config`: `velvet-config.json`:
         {
           "id": "gen-report",
           "pipe": "VelvetGenerateReport",
-          "formats": ["pdf", "csv"]
+          "config": {
+            "formats": ["pdf", "csv"]
+          }
         }
       ]
     }
@@ -70,8 +72,8 @@ Example of a configuration file `--config`: `velvet-config.json`:
 
 ### Input dir
 
-
 Input directory contains multiples input directories:
+
 ```
 ./path/to/input-dir/default/
 ./path/to/input-dir/extra1/
@@ -79,9 +81,11 @@ Input directory contains multiples input directories:
 ./path/to/input-dir/other/
 
 ```
+
 The default input directory is mandatory and the other additionnal input directories should be set in the `velvet-config.json` file.
 
-Configs are split into this file structure: 
+Configs are split into this file structure:
+
 ```
 ./path/to/input-dir/default/configs/
 |-- election-configs/
