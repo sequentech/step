@@ -103,7 +103,7 @@ Ballots are split into this file structure:
 |-- election__<uuid>/
 	|-- contest__<uuid>/
 		|-- area__<uuid>/
-			|-- ballot__<uuid>.csv
+			|-- ballots__<uuid>.csv
 ```
 
 Same thing applies for `inputExtraDir`.
@@ -115,7 +115,7 @@ Therefore, the _entities_ are defined with:
 - areas for contests
 - according ballots
 
-`ballot__<uuid>.csv` format, typically new-line separator value file:
+`ballots__<uuid>.csv` format, typically new-line separator value file:
 
 ```
 <encoded-ballot-integer-1>
