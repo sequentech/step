@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
+use braid_messages::statement::StatementType;
 use immu_board::{Board, BoardClient, BoardMessage};
 use rusqlite::params;
 use rusqlite::Connection;
@@ -18,21 +19,6 @@ pub struct ImmudbBoard {
     pub(crate) board_dbname: String,
     pub(crate) store_root: PathBuf,
 }
-
-/*impl TryFrom<Message> for BoardMessage {
-    type Error = anyhow::Error;
-
-    fn try_from(message: Message) -> Result<BoardMessage> {
-        Ok(BoardMessage {
-            id: 0,
-            created: (instant::now() * 1000f64) as i64,
-            statement_timestamp: (message.statement.get_timestamp() * 1000) as i64,
-            statement_kind: message.statement.get_kind().to_string(),
-            message: message.strand_serialize()?,
-            signer_key: message.signer_key.strand_serialize()?,
-        })
-    }
-}*/
 
 impl ImmudbBoard {
     pub async fn new(
@@ -52,12 +38,16 @@ impl ImmudbBoard {
 
     pub async fn get_messages(&mut self, last_id: i64) -> Result<Vec<Message>> {
         let connection = self.get_store()?;
-        self.update_store(&connection).await?;
-        let messages = self.get_store_messages(&connection, last_id);
+        let mut channels = self.update_store(&connection).await?;
+        let mut messages = self.get_store_messages(&connection, last_id)?;
         connection
             .close()
             .map_err(|e| anyhow!("Could not close sqlite connection: {:?}", e))?;
-        messages
+        
+        // Allows for Channel deletion
+        messages.append(&mut channels);
+
+        Ok(messages)
     }
 
     pub async fn insert_messages(&mut self, messages: Vec<Message>) -> Result<()> {
@@ -80,7 +70,9 @@ impl ImmudbBoard {
         Ok(connection)
     }
 
-    async fn update_store(&mut self, connection: &Connection) -> Result<()> {
+    async fn update_store(&mut self, connection: &Connection) -> Result<Vec<Message>> {
+        let mut channel_messages = vec![];
+
         let last_id: Result<i64> = connection
             .query_row("SELECT max(id) FROM messages;", [], |row| row.get(0))
             .or(Ok(0i64));
@@ -99,13 +91,21 @@ impl ImmudbBoard {
                 assert_eq!(message.id, monotonic + 1);
                 monotonic = message.id;
             }
-            connection.execute(
-                "INSERT INTO MESSAGES VALUES(?1, ?2)",
-                params![message.id, message.message],
-            )?;
+            
+            // Allows for Channel deletion
+            let m = Message::strand_deserialize(&message.message)?;
+            if m.statement.get_kind() == StatementType::Channel {
+                channel_messages.push(m);
+            }
+            else {
+                connection.execute(
+                    "INSERT INTO MESSAGES VALUES(?1, ?2)",
+                    params![message.id, message.message],
+                )?;
+            }
         }
 
-        Ok(())
+        Ok(channel_messages)
     }
 
     fn get_store_messages(
