@@ -465,7 +465,7 @@ pub struct PublicKeyConfig {
     pub is_demo: bool,
 }
 
-// Before: BallotStyle
+// Before: ElectionDTO
 #[derive(
     BorshSerialize,
     BorshDeserialize,

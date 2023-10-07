@@ -173,134 +173,129 @@ pub fn get_test_decoded_vote_question() -> DecodedVoteContest {
 
 pub fn get_writein_ballot_style() -> BallotStyle {
     let question_str = r#"{
-        id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
-        configuration: {
-            id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
-            layout: "simple",
-            director: "6xx-a1",
-            authorities: ["6xx-a2"],
-            title: "Write-ins simple",
-            description:
-                'This is the description of the election. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
-            questions: [
+        "id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+        "configuration": {
+            "id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+            "layout": "simple",
+            "director": "6xx-a1",
+            "authorities": ["6xx-a2"],
+            "title": "Write-ins simple",
+            "description": "",
+            "questions": [
                 {
-                    id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a",
-                    description:
-                        'This is the description of this question. You can have multiple questions. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
-                    layout: "simultaneous-questions",
-                    max: 2,
-                    min: 1,
-                    num_winners: 1,
-                    title: "Test question title",
-                    tally_type: "plurality-at-large",
-                    answer_total_votes_percentage: "over-total-valid-votes",
-                    answers: [
+                    "id": "1c1500ac-173e-4e78-a59d-91bfa3678c5a",
+                    "description": "",
+                    "layout": "simultaneous-questions",
+                    "max": 2,
+                    "min": 1,
+                    "num_winners": 1,
+                    "title": "Test question title",
+                    "tally_type": "plurality-at-large",
+                    "answer_total_votes_percentage": "over-total-valid-votes",
+                    "answers": [
                         {
-                            id: "f257cd3a-d1cf-4b97-91f8-2dfe156b015c",
-                            category: "",
-                            details: "This is an option with an simple example description.",
-                            sort_order: 0,
-                            urls: [],
-                            text: "Example option 1",
+                            "id": "f257cd3a-d1cf-4b97-91f8-2dfe156b015c",
+                            "category": "",
+                            "details": "This is an option with an simple example description.",
+                            "sort_order": 0,
+                            "urls": [],
+                            "text": "Example option 1"
                         },
                         {
-                            id: "17325099-f5ab-4c48-a142-6d7ed721e9bb",
-                            category: "",
-                            details:
-                                'An option can contain a description. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.',
-                            sort_order: 1,
-                            urls: [
+                            "id": "17325099-f5ab-4c48-a142-6d7ed721e9bb",
+                            "category": "",
+                            "details": "An option can contain a description.",
+                            "sort_order": 1,
+                            "urls": [
                                 {
-                                    title: "URL",
-                                    url: "https://sequentech.io",
+                                    "title": "URL",
+                                    "url": "https://sequentech.io"
                                 },
                                 {
-                                    title: "Image URL",
-                                    url: "/XFQwVFL.jpg",
-                                },
+                                    "title": "Image URL",
+                                    "url": "/XFQwVFL.jpg"
+                                }
                             ],
-                            text: "Example option 2",
+                            "text": "Example option 2"
                         },
                         {
-                            id: "61320aac-0d78-4001-845e-a2f2bd8e800b",
-                            category: "",
-                            details: "",
-                            sort_order: 2,
-                            urls: [
+                            "id": "61320aac-0d78-4001-845e-a2f2bd8e800b",
+                            "category": "",
+                            "details": "",
+                            "sort_order": 2,
+                            "urls": [
                                 {
-                                    title: "isWriteIn",
-                                    url: "true",
-                                },
+                                    "title": "isWriteIn",
+                                    "url": "true"
+                                }
                             ],
-                            text: "",
+                            "text": ""
                         },
                         {
-                            id: "e9ad3ed1-4fd5-4498-a0e7-3a3c22ef57d5",
-                            category: "",
-                            details: "",
-                            sort_order: 3,
-                            urls: [
+                            "id": "e9ad3ed1-4fd5-4498-a0e7-3a3c22ef57d5",
+                            "category": "",
+                            "details": "",
+                            "sort_order": 3,
+                            "urls": [
                                 {
-                                    title: "isWriteIn",
-                                    url: "true",
-                                },
+                                    "title": "isWriteIn",
+                                    "url": "true"
+                                }
                             ],
-                            text: "",
-                        },
+                            "text": ""
+                        }
                     ],
-                    extra_options: {
-                        shuffle_categories: true,
-                        shuffle_all_options: true,
-                        shuffle_category_list: [],
-                        show_points: false,
-                        allow_writeins: true,
-                    },
-                },
+                    "extra_options": {
+                        "shuffle_categories": true,
+                        "shuffle_all_options": true,
+                        "shuffle_category_list": [],
+                        "show_points": false,
+                        "allow_writeins": true
+                    }
+                }
             ],
-            presentation: {
-                share_text: [
+            "presentation": {
+                "share_text": [
                     {
-                        network: "Twitter",
-                        button_text: "",
-                        social_message: "I have just voted in election __URL__, you can too! #sequent",
-                    },
+                        "network": "Twitter",
+                        "button_text": "",
+                        "social_message": "I have just voted in election __URL__, you can too! #sequent"
+                    }
                 ],
-                theme: "default",
-                urls: [],
-                theme_css: "",
+                "theme": "default",
+                "urls": [],
+                "theme_css": ""
             },
-            extra_data: "{}",
-            tallyPipesConfig:
-                '{"version":"master","pipes":[{"type":"tally_pipes.pipes.results.do_tallies","params":{}},{"type":"tally_pipes.pipes.sort.sort_non_iterative","params":{}}]}',
-            ballotBoxesResultsConfig: "",
-            virtual: false,
-            tally_allowed: false,
-            publicCandidates: true,
-            virtualSubelections: [],
-            logo_url: "",
+            "extra_data": "{}",
+            "tallyPipesConfig": "",
+            "ballotBoxesResultsConfig": "",
+            "virtual": false,
+            "tally_allowed": false,
+            "publicCandidates": true,
+            "virtualSubelections": [],
+            "logo_url": ""
         },
-        state: "created",
-        public_key: {
-            public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
-            is_demo: false,
+        "state": "created",
+        "public_key": {
+            "public_key": "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
+            "is_demo": false
         },
-        tallyPipesConfig:
-            '{"version":"master","pipes":[{"type":"tally_pipes.pipes.results.do_tallies","params":{}},{"type":"tally_pipes.pipes.sort.sort_non_iterative","params":{}}]}',
-        ballotBoxesResultsConfig: "",
-        virtual: false,
-        tallyAllowed: false,
-        publicCandidates: true,
-        logo_url: "",
-        trusteeKeysState: [
+        "tallyPipesConfig": "",
+        "ballotBoxesResultsConfig": "",
+        "virtual": false,
+        "tallyAllowed": false,
+        "publicCandidates": true,
+        "logo_url": "",
+        "trusteeKeysState": [
             {
-                id: "6xx-a1",
-                state: "initial",
+                "id": "6xx-a1",
+                "state": "initial"
             },
             {
-                id: "6xx-a2",
-                state: "initial",
-            },
-        ],
+                "id": "6xx-a2",
+                "state": "initial"
+            }
+        ]
     }"#;
     let question: BallotStyle = serde_json::from_str(question_str).unwrap();
     question
