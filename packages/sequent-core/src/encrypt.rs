@@ -226,7 +226,9 @@ pub fn hash_ballot<C: Ctx>(
 
 #[cfg(test)]
 mod tests {
+    use crate::ballot_codec::plaintext_question::PlaintextCodec;
     use crate::encrypt;
+    use crate::fixtures::ballot_codec::*;
 
     use strand::backend::ristretto::RistrettoCtx;
     use strand::context::Ctx;
@@ -246,5 +248,24 @@ mod tests {
             pk_string.as_str(),
             encrypt::DEFAULT_PUBLIC_KEY_RISTRETTO_STR
         );
+    }
+
+    #[test]
+    fn test_encrypt_writein_answer() {
+        let ctx = RistrettoCtx;
+        let ballot_style = get_writein_ballot_style();
+        let question = ballot_style.configuration.questions[0].clone();
+        let decoded_question = get_writein_plaintext();
+        let auditable_ballot =
+            encrypt::encrypt_decoded_question::<RistrettoCtx>(
+                &ctx,
+                &vec![decoded_question.clone()],
+                &ballot_style,
+            )
+            .unwrap();
+        let plaintext = auditable_ballot.contests[0].choice.plaintext.clone();
+        let decoded_plaintext =
+            question.decode_plaintext_question(&plaintext).unwrap();
+        assert_eq!(decoded_plaintext, decoded_question);
     }
 }
