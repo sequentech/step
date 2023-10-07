@@ -229,6 +229,8 @@ mod tests {
     use crate::ballot_codec::plaintext_question::PlaintextCodec;
     use crate::encrypt;
     use crate::fixtures::ballot_codec::*;
+    use crate::ballot_codec::vec;
+    use crate::ballot_codec::bigint;
 
     use strand::backend::ristretto::RistrettoCtx;
     use strand::context::Ctx;
@@ -256,6 +258,8 @@ mod tests {
         let ballot_style = get_writein_ballot_style();
         let question = ballot_style.configuration.questions[0].clone();
         let decoded_question = get_writein_plaintext();
+        let plaintext_bytes_vec =
+            question.encode_plaintext_question_to_bytes(&decoded_question).unwrap(); // compare
         let auditable_ballot =
             encrypt::encrypt_decoded_question::<RistrettoCtx>(
                 &ctx,
@@ -264,8 +268,38 @@ mod tests {
             )
             .unwrap();
         let plaintext = auditable_ballot.contests[0].choice.plaintext.clone();
+        let plaintext_vec = vec::decode_array_to_vec(&plaintext); // compare
+        assert_eq!(plaintext_vec, plaintext_bytes_vec);
+        assert_eq!(plaintext_vec, vec![0]);
         let decoded_plaintext =
             question.decode_plaintext_question(&plaintext).unwrap();
         assert_eq!(decoded_plaintext, decoded_question);
+    }
+
+
+
+    #[test]
+    fn test_encrypt_writein_answer2() {
+        use crate::ballot_codec::bigint::BigUIntCodec;
+        use crate::ballot_codec::raw_ballot::RawBallotCodec;
+
+        let ctx = RistrettoCtx;
+        let ballot_style = get_writein_ballot_style();
+        let question = ballot_style.configuration.questions[0].clone();
+        let bigint_vec2: Vec<u8> = vec![198, 168, 136, 41, 9, 11];
+        let bigint2 = bigint::decode_bigint_from_bytes(bigint_vec2.as_slice()).unwrap();
+        assert_eq!(bigint2.to_str_radix(10), "12133979433158");
+
+        let decoded_question = get_writein_plaintext();
+
+        let raw_ballot = question.encode_to_raw_ballot(&decoded_question).unwrap();
+        let bigint = question.encode_plaintext_question_bigint(&decoded_question).unwrap();
+        let raw_ballot2 = question.bigint_to_raw_ballot(&bigint).unwrap();
+        assert_eq!(raw_ballot, raw_ballot2);
+
+
+        assert_eq!(bigint2.to_str_radix(10), bigint.to_str_radix(10));
+        let decoded_question2 = question.decode_plaintext_question_bigint(&bigint).unwrap();
+        assert_eq!(decoded_question, decoded_question2);
     }
 }
