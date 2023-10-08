@@ -67,6 +67,18 @@ impl<C: Ctx> Ciphertext<C> {
     pub fn gr(&self) -> &C::E {
         &self.gr
     }
+
+    pub fn mul(&self, other: &Ciphertext<C>) -> Ciphertext<C> {
+        let ctx = C::default();
+        
+        let gr = self.gr.mul(&other.gr).modp(&ctx);
+        let mhr = self.mhr.mul(&other.mhr).modp(&ctx);
+
+        Ciphertext::<C> {
+            gr,
+            mhr
+        }
+    }
 }
 
 /// An ElGamal public key.
@@ -127,6 +139,16 @@ impl<C: Ctx> PublicKey<C> {
         PublicKey {
             element: element.clone(),
             ctx: (*ctx).clone(),
+        }
+    }
+
+    pub fn one(&self, r: &C::X) -> Ciphertext<C> {    
+        let gr = self.ctx.gmod_pow(r);
+        let mhr = self.ctx.emod_pow(&self.element, r);
+
+        Ciphertext::<C> {
+            gr,
+            mhr
         }
     }
 }
