@@ -496,6 +496,12 @@ mod tests {
     }
 
     #[test]
+    fn test_rerand() {
+        let ctx = RistrettoCtx;
+        test_rerand_generic(&ctx);
+    }
+
+    #[test]
     fn test_vdecryption() {
         let mut csprng = StrandRng;
 

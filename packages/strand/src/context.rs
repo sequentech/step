@@ -154,7 +154,8 @@ pub trait Element<C: Ctx>:
     fn modulo(&self, modulus: &C::E) -> C::E;
     /// Modulo operation using group order (N/A).
     fn modp(&self, ctx: &C) -> C::E;
-    /// Division (a div b = a * b^-1) using group order (point subtraction).
+    /// Division (a div b = a * b^-1) using group order (point subtraction). This operation does _not_ take the modulus
+    /// you need to call that explicitly (eg .modp())
     fn divp(&self, other: &C::E, ctx: &C) -> C::E;
     /// Modular inverse using group order (point negation).
     fn invp(&self, ctx: &C) -> C::E;

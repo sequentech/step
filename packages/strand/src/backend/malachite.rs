@@ -606,6 +606,12 @@ mod tests {
     }
 
     #[test]
+    fn test_rerand() {
+        let ctx = MalachiteCtx::<P2048>::default();
+        test_rerand_generic(&ctx);
+    }
+
+    #[test]
     fn test_vdecryption() {
         let ctx = MalachiteCtx::<P2048>::default();
         let mut rng = ctx.get_rng();
