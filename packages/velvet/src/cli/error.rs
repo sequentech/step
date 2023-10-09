@@ -6,6 +6,8 @@ pub enum Error {
     CannotOpenConfig,
     Json(serde_json::Error),
     StageDefinition(String),
+    StageNotFound,
+    PipeNotFound,
 }
 
 impl core::fmt::Display for Error {

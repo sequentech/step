@@ -4,7 +4,7 @@ use std::fmt;
 use std::str::FromStr;
 use strum_macros::EnumString;
 
-#[derive(Debug, Serialize, Deserialize, EnumString, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, EnumString, Clone, Copy, PartialEq)]
 pub enum PipeName {
     DecodeBallots,
     DoTally,

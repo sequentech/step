@@ -40,8 +40,10 @@ pub struct CliRun {
 impl CliRun {
     pub fn validate(&self) -> Result<Config> {
         let config = self.parse_config()?;
-        let state = State::load_state(&config, self)?;
+        let mut state = State::new(self, &config)?;
 
+        dbg!(&state);
+        state.exec_next("main")?;
         dbg!(&state);
 
         Ok(config)
