@@ -1,4 +1,7 @@
-use crate::protocol2::datalog::*;
+use std::collections::HashSet;
+use braid_messages::newtypes::*;
+use crate::protocol2::predicate::Predicate;
+use crate::protocol2::datalog::{hashes_add, hashes_init};
 use crepe::crepe;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -14,9 +17,8 @@ crepe! {
     struct ConfigurationSigned(ConfigurationHash, TrusteePosition);
     struct ConfigurationSignedAll(ConfigurationHash, TrusteePosition, TrusteeCount, Threshold);
     struct PublicKeySignedAll(ConfigurationHash, PublicKeyHash, SharesHashes);
-    struct PublicKey(ConfigurationHash, PublicKeyHash, SharesHashes, CommitmentsHashes, TrusteePosition);
-    struct PublicKeySigned(ConfigurationHash, PublicKeyHash, SharesHashes, CommitmentsHashes, TrusteePosition);
-    struct CommitmentsAllSignedAll(ConfigurationHash, CommitmentsHashes);
+    struct PublicKey(ConfigurationHash, PublicKeyHash, SharesHashes, ChannelsHashes, TrusteePosition);
+    struct PublicKeySigned(ConfigurationHash, PublicKeyHash, SharesHashes, ChannelsHashes, TrusteePosition);
     struct Ballots(ConfigurationHash, BatchNumber, CiphertextsHash, PublicKeyHash, TrusteeSet);
     struct MixComplete(ConfigurationHash, BatchNumber, MixNumber, CiphertextsHash, TrusteePosition);
     struct DecryptionFactors(ConfigurationHash, BatchNumber, DecryptionFactorsHash, CiphertextsHash, SharesHashes, TrusteePosition);
@@ -30,9 +32,6 @@ crepe! {
 
     PublicKeySignedAll(cfg_h, pk_h, shares_hs) <- InP(p),
     let Predicate::PublicKeySignedAll(cfg_h, pk_h, shares_hs) = p;
-
-    CommitmentsAllSignedAll(cfg_h, commitments_hs) <- InP(p),
-    let Predicate::CommitmentsAllSignedAll(cfg_h, commitments_hs) = p;
 
     Ballots(cfg_h, batch, ballots_h, pk_h, selected) <- InP(p),
     let Predicate::Ballots(cfg_h, batch, ballots_h, pk_h, selected) = p;
@@ -58,11 +57,11 @@ crepe! {
     ConfigurationSigned(cfg_h, signer_t) <- InP(p),
     let Predicate::ConfigurationSigned(cfg_h, signer_t) = p;
 
-    PublicKey(config_hash, pk_hash, shares_hs, commitments_hs, signer_t) <- InP(p),
-    let Predicate::PublicKey(config_hash, pk_hash, shares_hs, commitments_hs, signer_t) = p;
+    PublicKey(config_hash, pk_hash, shares_hs, channels_hs, signer_t) <- InP(p),
+    let Predicate::PublicKey(config_hash, pk_hash, shares_hs, channels_hs, signer_t) = p;
 
-    PublicKeySigned(config_hash, pk_hash, shares_hs, commitments_hs, signer_t) <- InP(p),
-    let Predicate::PublicKeySigned(config_hash, pk_hash, shares_hs, commitments_hs, signer_t) = p;
+    PublicKeySigned(config_hash, pk_hash, shares_hs, channels_hs, signer_t) <- InP(p),
+    let Predicate::PublicKeySigned(config_hash, pk_hash, shares_hs, channels_hs, signer_t) = p;
 
     Configuration(cfg_h, self_position, num_t, threshold) <- InP(p),
     let Predicate::Configuration(cfg_h, self_position, num_t, threshold) = p;
@@ -117,15 +116,15 @@ crepe! {
     ConfigurationSignedUpTo(cfg_h, 0) <-
     ConfigurationSigned(cfg_h, 0);
 
-    PublicKeySigned(cfg_h, pk_h, shares_hs, commitments_hs, 0) <-
-    PublicKey(cfg_h, pk_h, shares_hs, commitments_hs, 0);
+    PublicKeySigned(cfg_h, pk_h, shares_hs, channels_hs, 0) <-
+    PublicKey(cfg_h, pk_h, shares_hs, channels_hs, 0);
 
     PublicKeySignedUpTo(cfg_h, pk_h, shares_hs, n + 1) <-
     PublicKeySignedUpTo(cfg_h, pk_h, shares_hs, n),
-    PublicKeySigned(cfg_h, pk_h, shares_hs, _commitments_hs, n + 1);
+    PublicKeySigned(cfg_h, pk_h, shares_hs, _channels_hs, n + 1);
 
     PublicKeySignedUpTo(cfg_h, pk_h, shares_hs, 0) <-
-    PublicKeySigned(cfg_h, pk_h, shares_hs, _commitments_hs, 0);
+    PublicKeySigned(cfg_h, pk_h, shares_hs, _channels_hs, 0);
 
     PublicKeySignedAll(cfg_h, pk_h, shares_hs) <-
     ConfigurationSignedAll(cfg_h, _self_p, num_t, _threshold),

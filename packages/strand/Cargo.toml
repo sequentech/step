@@ -24,6 +24,8 @@ wasmtest = ["wasm", "dep:web-sys"]
 wasm = ["wasm-bindgen", "serde-wasm-bindgen", "num_bigint", "malachite"]
 num_bigint = ["dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:num-modular"]
 malachite = ["dep:malachite"]
+openssl = ["dep:openssl", "dep:rand_core"]
+fips = ["openssl"]
 
 [dependencies]
 
@@ -36,16 +38,17 @@ num-integer = { version = "0.1", optional = true }
 num-modular = { version = "0.5", features = ["num-bigint"], optional = true }
 malachite = { version = "0.3.2", default-features = false, features = [ "naturals_and_integers" ], optional = true }
 
-[target.'cfg(unix)'.dependencies]
-rug = { version = "1.19.2", default-features = false, features = ["integer", "rand"]}
-
 # Signatures
-ed25519-zebra = "3.1.0"
-ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
+ed25519-dalek = { version = "2.0.0", features = ["rand_core", "pkcs8"] }
+ecdsa = {version = "0.16.8", features = ["signing"] }
+p384 = "0.13.0"
+
+# symmetric 
+chacha20poly1305 = "0.10.1"
+generic-array = "0.14.6"
 
 # Hashing 
 sha2 = "0.10.7"
-
 # Needed for extendable hashing function when deriving generators for ristretto
 sha3 = "0.10"
 
@@ -56,6 +59,7 @@ base64 = "0.21"
 # RNG
 rand = { package="rand", version = "0.8" }
 getrandom = { version = "0.2", features = ["js"] }
+rand_core = { version = "0.6.4", optional = true }
 
 # WASM
 wasm-bindgen-rayon = {version = "1.0.3", features = ["no-bundler"], optional = true}
@@ -72,6 +76,14 @@ serde = { version = "1.0", features = ["derive"] }
 
 # Used for debug impl and demo
 hex = { version = "0.4.2" }
+
+[target.'cfg(unix)'.dependencies]
+rug = { version = "1.19.2", default-features = false, features = ["integer", "rand"]}
+# RNG, ecdsa, sha512, shake256
+# OpenSSL needs to be configured to operate in FIPS mode
+# https://github.com/sfackler/rust-openssl/issues/1924
+# https://www.openssl.org/docs/man3.0/man7/fips_module.html
+openssl = { version = "0.10.57", optional = true }
 
 [dev-dependencies]
 criterion = "0.5.1"

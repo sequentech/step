@@ -1,32 +1,31 @@
 use anyhow::{anyhow, Context, Result};
-use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit, OsRng},
-    consts::{U12, U32},
-    ChaCha20Poly1305,
-};
-use generic_array::GenericArray;
+
 use log::{debug, error, info, trace, warn};
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::marker::PhantomData;
 use tracing_attributes::instrument;
 
-use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::{StrandSignature, StrandSignaturePk, StrandSignatureSk};
+use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use strand::{context::Ctx, elgamal::PrivateKey};
 
-use crate::protocol2::artifact::Commitments;
-use crate::protocol2::artifact::Configuration;
-use crate::protocol2::artifact::DkgPublicKey;
-use crate::protocol2::artifact::Shares;
-use crate::protocol2::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts, ShareTransport};
+use crate::protocol2::action::Action;
+use braid_messages::artifact::Channel;
+use braid_messages::artifact::Configuration;
+use braid_messages::artifact::DkgPublicKey;
+use braid_messages::artifact::Shares;
+use braid_messages::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
+use braid_messages::statement::StatementType;
+use braid_messages::message::Message;
+use braid_messages::newtypes::*;
 use crate::protocol2::board::local::LocalBoard;
-use crate::protocol2::message::Message;
+
 use crate::protocol2::predicate::Predicate;
-use crate::protocol2::predicate::*;
-use crate::protocol2::statement::{Statement, StatementType};
-use crate::protocol2::PROTOCOL_MANAGER_INDEX;
-use crate::protocol2::{action::Action, artifact::EncryptedCoefficients};
+
+use braid_messages::newtypes::PROTOCOL_MANAGER_INDEX;
+
+use strand::symm;
 
 ///////////////////////////////////////////////////////////////////////////
 // Trustee
@@ -48,21 +47,18 @@ use crate::protocol2::{action::Action, artifact::EncryptedCoefficients};
 pub struct Trustee<C: Ctx> {
     pub(crate) signing_key: StrandSignatureSk,
     // A ChaCha20Poly1305 encryption key
-    pub(crate) encryption_key: GenericArray<u8, U32>,
+    pub(crate) encryption_key: symm::SymmetricKey,
     local_board: LocalBoard<C>,
 }
 
-impl<C: Ctx> Signer for Trustee<C> {
+impl<C: Ctx> braid_messages::message::Signer for Trustee<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }
 }
 
 impl<C: Ctx> Trustee<C> {
-    pub fn new(
-        signing_key: StrandSignatureSk,
-        encryption_key: GenericArray<u8, U32>,
-    ) -> Trustee<C> {
+    pub fn new(signing_key: StrandSignatureSk, encryption_key: symm::SymmetricKey) -> Trustee<C> {
         let local_board = LocalBoard::new();
 
         Trustee {
@@ -76,7 +72,7 @@ impl<C: Ctx> Trustee<C> {
     // Protocol step: update->derive predicates->infer&run
     ///////////////////////////////////////////////////////////////////////////
 
-    #[instrument(name = "Trustee::step", skip(messages))]
+    #[instrument(name = "Trustee::step", skip(messages, self))]
     pub(crate) fn step(
         &mut self,
         messages: Vec<Message>,
@@ -126,9 +122,13 @@ impl<C: Ctx> Trustee<C> {
     fn update(&mut self, messages: Vec<Message>, configuration: Configuration<C>) -> Result<i32> {
         let mut added = 0;
 
-        // The parallel field cfg_hash must exist as well as the configuration itself
-        assert!(self.local_board.get_cfg_hash().is_some());
-        let cfg_hash = self.local_board.get_cfg_hash().expect("impossible");
+        // Sanity check: field cfg_hash must exist at this point
+        let cfg_hash = self.local_board.get_cfg_hash();
+        if cfg_hash.is_none() {
+            return Err(anyhow!("Local field cfg_hash not set")); 
+        }
+        
+        let cfg_hash = cfg_hash.expect("impossible");
 
         for message in messages {
             let verified = message.verify(&configuration);
@@ -180,7 +180,7 @@ impl<C: Ctx> Trustee<C> {
 
         let artifact = zero.artifact.as_ref().expect("impossible");
         let configuration = Configuration::strand_deserialize(artifact)?;
-        // FIXME will crash on bad data
+        // FIXME assert
         assert!(configuration.is_valid());
 
         let verified = zero.verify(&configuration)?;
@@ -215,7 +215,7 @@ impl<C: Ctx> Trustee<C> {
             configuration.ok_or(anyhow!("Cannot derive predicates without a configuration"))?;
 
         let configuration_p_ = if !verifying_mode {
-            Predicate::get_bootstrap_predicate(&configuration, &self.get_pk())
+            Predicate::get_bootstrap_predicate(&configuration, &self.get_pk()?)
         } else {
             Predicate::get_verifier_bootstrap_predicate(&configuration)
         };
@@ -289,7 +289,7 @@ impl<C: Ctx> Trustee<C> {
                 };
 
                 if m.is_err() {
-                    error!("Action {:?} returned error {:?} (propagated)", a, m);
+                    error!("Action {:?} returned error {:?} (propagating)", a, m);
                     m.with_context(|| format!("When executing Action {:?}", a))
                 } else {
                     m
@@ -334,19 +334,19 @@ impl<C: Ctx> Trustee<C> {
         self.local_board.clone()
     }
 
-    pub(crate) fn get_commitments(
+    pub(crate) fn get_channel(
         &self,
-        hash: &CommitmentsHash,
+        hash: &ChannelHash,
         signer_position: TrusteePosition,
-    ) -> Option<Commitments<C>> {
-        self.local_board.get_commitments(hash, signer_position)
+    ) -> Option<Channel<C>> {
+        self.local_board.get_channel(hash, signer_position)
     }
 
     pub(crate) fn get_shares(
         &self,
         hash: &SharesHash,
         signer_position: TrusteePosition,
-    ) -> Option<Shares> {
+    ) -> Option<Shares<C>> {
         self.local_board.get_shares(hash, signer_position)
     }
 
@@ -414,53 +414,51 @@ impl<C: Ctx> Trustee<C> {
     ///////////////////////////////////////////////////////////////////////////
 
     pub(crate) fn is_config_approved(&self, _config: &Configuration<C>) -> bool {
-        // FIXME validate
+        // FIXME validate (called by action/cfg)
         true
     }
 
-    pub fn get_pk(&self) -> StrandSignaturePk {
-        StrandSignaturePk::from(&self.signing_key)
+    pub fn get_pk(&self) -> Result<StrandSignaturePk> {
+        Ok(StrandSignaturePk::from(&self.signing_key)?)
     }
 
-    pub(crate) fn encrypt_coefficients(
-        &self,
-        coefficients: Vec<C::X>,
-    ) -> Result<EncryptedCoefficients> {
-        let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
-        let cipher = ChaCha20Poly1305::new(&self.encryption_key);
-        let bytes: &[u8] = &coefficients.strand_serialize()?;
-        let encrypted: Result<Vec<u8>> = cipher
-            .encrypt(&nonce, bytes)
-            .map_err(|e| anyhow!("chacha error {e}"));
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "fips")] {
+            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, cfg: &Configuration<C>) -> Result<Channel<C>> {
+                let identifier: String = self.get_pk()?.try_into()?;
+                // 0 is a dummy batch value
+                let aad = cfg.label(0, format!("encrypted by {}", identifier));
+                let bytes: &[u8] = &sk.strand_serialize()?;
+                let ed = symm::encrypt(self.encryption_key, bytes, &aad)?;
 
-        Ok(EncryptedCoefficients::new(encrypted?, nonce))
-    }
+                Ok(Channel::new(sk.pk_element().clone(), ed))
+            }
 
-    pub(crate) fn decrypt_coefficients(&self, ec: &EncryptedCoefficients) -> Option<Vec<C::X>> {
-        let cipher = ChaCha20Poly1305::new(&self.encryption_key);
-        let nonce = GenericArray::<u8, U12>::from_slice(&ec.nonce);
-        let bytes: &[u8] = &ec.encrypted_coefficients;
-        let decrypted = cipher.decrypt(nonce, bytes).ok()?;
-        Vec::<C::X>::strand_deserialize(&decrypted).ok()
-    }
+            pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, cfg: &Configuration<C>) -> Result<PrivateKey<C>> {
+                let identifier: String = self.get_pk()?.try_into()?;
+                // 0 is a dummy batch value
+                let aad = cfg.label(0, format!("encrypted by {}", identifier));
+                let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk, &aad)?;
+                let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
 
-    pub(crate) fn encrypt_share_sk(&self, pk: C::E, sk: C::X) -> Result<ShareTransport<C>> {
-        let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
-        let cipher = ChaCha20Poly1305::new(&self.encryption_key);
-        let bytes: &[u8] = &sk.strand_serialize()?;
-        let encrypted: Result<Vec<u8>> = cipher
-            .encrypt(&nonce, bytes)
-            .map_err(|e| anyhow!("chacha error {e}"));
+                Ok(ret)
+            }
+        }
+        else {
+            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<Channel<C>> {
+                let bytes: &[u8] = &sk.strand_serialize()?;
+                let ed = symm::encrypt(self.encryption_key, bytes)?;
 
-        Ok(ShareTransport::new(pk, encrypted?, nonce))
-    }
+                Ok(Channel::new(sk.pk_element().clone(), ed))
+            }
 
-    pub(crate) fn decrypt_share_sk(&self, st: &ShareTransport<C>) -> Option<C::X> {
-        let cipher = ChaCha20Poly1305::new(&self.encryption_key);
-        let nonce = GenericArray::<u8, U12>::from_slice(&st.nonce);
-        let bytes: &[u8] = &st.encrypted_sk;
-        let decrypted = cipher.decrypt(nonce, bytes).ok()?;
-        C::X::strand_deserialize(&decrypted).ok()
+            pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<PrivateKey<C>> {
+                let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk)?;
+                let ret = PrivateKey::<C>::strand_deserialize(&decrypted)?;
+
+                Ok(ret)
+            }
+        }
     }
 }
 
@@ -468,13 +466,12 @@ impl<C: Ctx> Trustee<C> {
 // ProtocolManager
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(Clone)]
 pub struct ProtocolManager<C: Ctx> {
     pub signing_key: StrandSignatureSk,
     pub phantom: PhantomData<C>,
 }
 
-impl<C: Ctx> Signer for ProtocolManager<C> {
+impl<C: Ctx> braid_messages::message::Signer for ProtocolManager<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }
@@ -484,21 +481,21 @@ impl<C: Ctx> Signer for ProtocolManager<C> {
 // Signer (commonality to sign messages for Trustee and Protocolmanager)
 ///////////////////////////////////////////////////////////////////////////
 
-pub(crate) trait Signer {
+/*pub(crate) trait Signer {
     fn get_signing_key(&self) -> &StrandSignatureSk;
     fn sign(&self, statement: Statement, artifact: Option<Vec<u8>>) -> Result<Message> {
         let sk = self.get_signing_key();
         let bytes = statement.strand_serialize()?;
-        let signature: StrandSignature = sk.sign(&bytes);
+        let signature: StrandSignature = sk.sign(&bytes)?;
 
         Ok(Message {
-            signer_key: StrandSignaturePk::from(sk),
+            signer_key: StrandSignaturePk::from(sk)?,
             signature,
             statement,
             artifact,
         })
     }
-}
+}*/
 
 ///////////////////////////////////////////////////////////////////////////
 // Debug
@@ -506,12 +503,12 @@ pub(crate) trait Signer {
 
 impl<C: Ctx> std::fmt::Debug for Trustee<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Trustee{{ pk={:?} }}", self.signing_key)
+        write!(f, "Trustee{{ No info }}")
     }
 }
 
 impl<C: Ctx> std::fmt::Debug for ProtocolManager<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ProtcolManager{{ pk={:?} }}", self.signing_key)
+        write!(f, "ProtcolManager{{ No info }}")
     }
 }

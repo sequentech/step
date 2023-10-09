@@ -1,16 +1,17 @@
 use std::collections::HashSet;
 use strum::Display;
-
-use anyhow::Result;
 use log::trace;
-use strand::signature::StrandSignaturePk;
-use strand::{context::Ctx, serialization::StrandSerialize};
 
-use crate::protocol2::artifact::Configuration;
-use crate::protocol2::datalog::NULL_TRUSTEE;
-use crate::protocol2::statement::Statement;
-use crate::protocol2::statement::THashes;
-use crate::protocol2::PROTOCOL_MANAGER_INDEX;
+use strand::signature::StrandSignaturePk;
+use strand::context::Ctx;
+
+use braid_messages::artifact::Configuration;
+use braid_messages::statement::Statement;
+use braid_messages::newtypes::*;
+
+use braid_messages::newtypes::NULL_TRUSTEE;
+use braid_messages::newtypes::PROTOCOL_MANAGER_INDEX;
+use braid_messages::newtypes::VERIFIER_INDEX;
 
 ///////////////////////////////////////////////////////////////////////////
 // Predicate
@@ -32,22 +33,22 @@ pub(crate) enum Predicate {
     ConfigurationSigned(ConfigurationHash, TrusteePosition),
 
     /// Dkg ////////////////////////////////////////////////////////////////////////
-    Commitments(ConfigurationHash, CommitmentsHash, TrusteePosition),
-    CommitmentsSigned(ConfigurationHash, CommitmentsHashes, TrusteePosition),
-    CommitmentsAllSignedAll(ConfigurationHash, CommitmentsHashes),
+    Channel(ConfigurationHash, ChannelHash, TrusteePosition),
+    ChannelsSigned(ConfigurationHash, ChannelsHashes, TrusteePosition),
+    ChannelsAllSignedAll(ConfigurationHash, ChannelsHashes),
     Shares(ConfigurationHash, SharesHash, TrusteePosition),
     PublicKey(
         ConfigurationHash,
         PublicKeyHash,
         SharesHashes,
-        CommitmentsHashes,
+        ChannelsHashes,
         TrusteePosition,
     ),
     PublicKeySigned(
         ConfigurationHash,
         PublicKeyHash,
         SharesHashes,
-        CommitmentsHashes,
+        ChannelsHashes,
         TrusteePosition,
     ),
 
@@ -130,15 +131,15 @@ impl Predicate {
                 Self::ConfigurationSigned(ConfigurationHash(cfg_h.0), signer_position)
             }
             // Commitments(Timestamp, ConfigurationH, CommitmentsH)
-            Statement::Commitments(_ts, cfg_h, cm_h) => Self::Commitments(
+            Statement::Channel(_ts, cfg_h, cm_h) => Self::Channel(
                 ConfigurationHash(cfg_h.0),
-                CommitmentsHash(cm_h.0),
+                ChannelHash(cm_h.0),
                 signer_position,
             ),
             // CommitmentsAllSigned(Timestamp, ConfigurationH, CommitmentsHs)
-            Statement::CommitmentsAllSigned(_ts, cfg_h, cm_hs) => Self::CommitmentsSigned(
+            Statement::ChannelsAllSigned(_ts, cfg_h, cm_hs) => Self::ChannelsSigned(
                 ConfigurationHash(cfg_h.0),
-                CommitmentsHashes(cm_hs.0),
+                ChannelsHashes(cm_hs.0),
                 signer_position,
             ),
             // Shares(Timestamp, ConfigurationH, SharesH)
@@ -152,7 +153,7 @@ impl Predicate {
                 ConfigurationHash(cfg_h.0),
                 PublicKeyHash(pk_h.0),
                 SharesHashes(sh_hs.0),
-                CommitmentsHashes(cm_hs.0),
+                ChannelsHashes(cm_hs.0),
                 signer_position,
             ),
             // PublicKeySigned(Timestamp, ConfigurationH, PublicKeyH, SharesHs, CommitmentsHs)
@@ -160,12 +161,13 @@ impl Predicate {
                 ConfigurationHash(cfg_h.0),
                 PublicKeyHash(pk_h.0),
                 SharesHashes(sh_hs.0),
-                CommitmentsHashes(cm_hs.0),
+                ChannelsHashes(cm_hs.0),
                 signer_position,
             ),
             // Ballots(Timestamp, ConfigurationH, usize, CiphertextsH, PublicKeyH, TrusteeSet)
             Statement::Ballots(_ts, cfg_h, batch, ballots_h, pk_h, trustees) => {
-                // Verify that all selected trustees are unique
+                
+                // Verify that all selected trustees are valid
                 let mut selected = vec![];
                 trustees.iter().for_each(|s| {
                     if *s != NULL_TRUSTEE {
@@ -174,30 +176,31 @@ impl Predicate {
                     }
                 });
 
+                // Verify that all selected trustees are unique
                 let unique: HashSet<usize> = selected.into_iter().collect();
                 assert!(unique.len() == cfg.threshold);
 
                 Self::Ballots(
                     ConfigurationHash(cfg_h.0),
-                    batch.0,
+                    *batch,
                     CiphertextsHash(ballots_h.0),
                     PublicKeyHash(pk_h.0),
                     *trustees,
                 )
             }
             // Mix(Timestamp, ConfigurationH, usize, CiphertextsH, CiphertextsH)
-            Statement::Mix(_ts, cfg_h, batch, source_h, mix_h, mix_number) => Self::Mix(
+            Statement::Mix(_ts, cfg_h, batch, source_h, mix_h, mix_number) => Self::Mix (
                 ConfigurationHash(cfg_h.0),
-                batch.0,
+                *batch,
                 CiphertextsHash(source_h.0),
                 CiphertextsHash(mix_h.0),
-                mix_number.0,
+                *mix_number,
                 signer_position,
             ),
             // MixSigned(Timestamp, ConfigurationH, usize, usize, CiphertextsH, CiphertextsH)
             Statement::MixSigned(_ts, cfg_h, batch, _mix_no, source_h, mix_h) => Self::MixSigned(
                 ConfigurationHash(cfg_h.0),
-                batch.0,
+                *batch,
                 CiphertextsHash(source_h.0),
                 CiphertextsHash(mix_h.0),
                 signer_position,
@@ -206,7 +209,7 @@ impl Predicate {
             Statement::DecryptionFactors(_ts, cfg_h, batch, df_h, mix_h, sh_hs) => {
                 Self::DecryptionFactors(
                     ConfigurationHash(cfg_h.0),
-                    batch.0,
+                    *batch,
                     DecryptionFactorsHash(df_h.0),
                     CiphertextsHash(mix_h.0),
                     SharesHashes(sh_hs.0),
@@ -216,7 +219,7 @@ impl Predicate {
             // Plaintexts(Timestamp, ConfigurationH, usize, PlaintextsH, DecryptionFactorsHs, PublicKeyH)
             Statement::Plaintexts(_ts, cfg_h, batch, pl_h, df_hs, c_h, pk_h) => Self::Plaintexts(
                 ConfigurationHash(cfg_h.0),
-                batch.0,
+                *batch,
                 PlaintextsHash(pl_h.0),
                 DecryptionFactorsHashes(df_hs.0),
                 CiphertextsHash(c_h.0),
@@ -227,7 +230,7 @@ impl Predicate {
             Statement::PlaintextsSigned(_ts, cfg_h, batch, pl_h, df_hs, c_h, pk_h) => {
                 Self::PlaintextsSigned(
                     ConfigurationHash(cfg_h.0),
-                    batch.0,
+                    *batch,
                     PlaintextsHash(pl_h.0),
                     DecryptionFactorsHashes(df_hs.0),
                     CiphertextsHash(c_h.0),
@@ -266,7 +269,7 @@ impl Predicate {
     ) -> Option<Predicate> {
         let p = Predicate::Configuration(
             ConfigurationHash::from_configuration(configuration).ok()?,
-            crate::protocol2::VERIFIER_INDEX,
+            VERIFIER_INDEX,
             configuration.trustees.len(),
             configuration.threshold,
         );
@@ -274,59 +277,6 @@ impl Predicate {
         Some(p)
     }
 }
-
-///////////////////////////////////////////////////////////////////////////
-// Newtypes
-///////////////////////////////////////////////////////////////////////////
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ConfigurationHash(pub crate::protocol2::Hash);
-impl ConfigurationHash {
-    pub(crate) fn from_configuration<C: Ctx>(
-        configuration: &Configuration<C>,
-    ) -> Result<ConfigurationHash> {
-        let bytes = configuration.strand_serialize()?;
-        let hash = strand::util::hash(&bytes);
-        Ok(ConfigurationHash(crate::util::hash_from_vec(&hash)?))
-    }
-}
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct CommitmentsHash(pub crate::protocol2::Hash);
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub struct CommitmentsHashes(pub THashes);
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct SharesHash(pub crate::protocol2::Hash);
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct SharesHashes(pub THashes);
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct PublicKeyHash(pub crate::protocol2::Hash);
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-// The ciphertexts hash is used to refer to ballots and mix artifacts.
-// This allows accessing either one when pointing to a source of
-// ciphertexts (ballots or mix). The same typed hash is propagated
-// all the way from Ballots to DecryptionFactors predicates.
-pub struct CiphertextsHash(pub crate::protocol2::Hash);
-
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct DecryptionFactorsHash(pub crate::protocol2::Hash);
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct DecryptionFactorsHashes(pub THashes);
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct MixingHashes(pub THashes);
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct PlaintextsHash(pub crate::protocol2::Hash);
-
-// 0-based
-pub(crate) type TrusteePosition = usize;
-// 1-based
-pub(crate) type Threshold = usize;
-pub(crate) type TrusteeCount = usize;
-// 1-based _elements_
-pub(crate) type TrusteeSet = [usize; crate::protocol2::MAX_TRUSTEES];
-// 1-based, the position in the mixing chain (note this is not the same as the
-// position of the mixing trustee, since active trustees are set by the ballots artifact)
-pub(crate) type MixNumber = usize;
-
-pub(crate) type BatchNumber = usize;
 
 ///////////////////////////////////////////////////////////////////////////
 // Debug
@@ -352,17 +302,17 @@ impl std::fmt::Debug for Predicate {
                 "ConfigurationSignedAll{{ cfg hash={:?}, signer={:?}, #trustees={:?}, th={:?} }}",
                 dbg_hash(&h.0), t, c, th
             ),
-            Predicate::Commitments(ch, h, t) => write!(
+            Predicate::Channel(ch, h, t) => write!(
                 f,
                 "Commitments{{ cfg hash={:?}, hash={:?}, signer={:?} }}",
                 dbg_hash(&ch.0), h.0, t
             ),
-            Predicate::CommitmentsSigned(ch, h, t) => write!(
+            Predicate::ChannelsSigned(ch, h, t) => write!(
                 f,
                 "CommitmentsSigned{{ cfg hash={:?}, hash={:?}, signer={:?} }}",
                 dbg_hash(&ch.0), h, t
             ),
-            Predicate::CommitmentsAllSignedAll(ch, h) => write!(
+            Predicate::ChannelsAllSignedAll(ch, h) => write!(
                 f,
                 "CommitmentsAllSignedAll{{ cfg hash={:?}, hash={:?} }}",
                 dbg_hash(&ch.0), h
@@ -372,12 +322,12 @@ impl std::fmt::Debug for Predicate {
                 "Shares{{ cfg hash={:?}, hash={:?}, signer={:?} }}",
                 dbg_hash(&ch.0), h.0, t
             ),
-            Predicate::PublicKey(cfg_h, pk_h, _shares_hs, _commitments_hs, t) => write!(
+            Predicate::PublicKey(cfg_h, pk_h, _shares_hs, _channels_hs, t) => write!(
                 f,
                 "PublicKey{{ cfg hash={:?}, pk_h={:?}, signer={:?} }}",
                 dbg_hash(&cfg_h.0), dbg_hash(&pk_h.0), t
             ),
-            Predicate::PublicKeySigned(cfg_h, pk_h, _shares_hs, _commitments_hs, t) => write!(
+            Predicate::PublicKeySigned(cfg_h, pk_h, _shares_hs, _channels_hs, t) => write!(
                 f,
                 "PublicKeySigned{{ cfg hash={:?}, pk_h={:?}, signer={:?} }}",
                 dbg_hash(&cfg_h.0), dbg_hash(&pk_h.0), t
@@ -422,11 +372,5 @@ impl std::fmt::Debug for Predicate {
                 dbg_hash(&cfg_h.0), batch, plaintexts_h, signer_t
             ),
         }
-    }
-}
-use crate::util::dbg_hashes;
-impl std::fmt::Debug for CommitmentsHashes {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "hashes={:?}", dbg_hashes(&self.0))
     }
 }

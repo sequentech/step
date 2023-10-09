@@ -4,11 +4,11 @@
 extern crate cfg_if;
 
 pub mod protocol2;
+pub mod protocol_manager;
 pub mod run;
 pub mod test;
 pub mod util;
 pub mod verify;
-pub mod protocol_manager;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;

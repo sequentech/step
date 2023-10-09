@@ -1,17 +1,46 @@
 #![allow(clippy::type_complexity)]
-use borsh::{BorshDeserialize, BorshSerialize};
 // SPDX-FileCopyrightText: 2021 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! # Examples
+//!
+//! ```
+//! // This example shows how to shuffle ciphertexts and generate a proof.
+//! use strand::context::Ctx;
+//! use strand::backend::ristretto::RistrettoCtx;
+//! use strand::elgamal::{PrivateKey, PublicKey};
+//! use strand::util;
+//! use strand::shuffler::Shuffler;
+//!
+//! let ctx = RistrettoCtx;
+//! let sk = PrivateKey::gen(&ctx);
+//! let pk = sk.get_pk();
+//!
+//! let es = util::random_ciphertexts(10, &ctx);
+//! let seed = vec![];
+//! let hs = ctx.generators(es.len() + 1, &seed).unwrap();
+//! let shuffler = Shuffler::new(
+//!    &pk,
+//!    &hs,
+//!    &ctx,
+//! );
+//! let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
+//! let proof =
+//!    shuffler.gen_proof(&es, &e_primes, rs, &perm, &[]).unwrap();
+//! let ok = shuffler.check_proof(&proof, &es, &e_primes, &[]).unwrap();
+//!
+//! assert!(ok);
+//! ```
+
+use borsh::{BorshDeserialize, BorshSerialize};
 use rand::seq::SliceRandom;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
-// use sha3::{Digest, Sha3_512 as Sha512};
-use sha2::Digest;
+use std::sync::{Arc, Mutex};
 
 use crate::context::{Ctx, Element, Exponent};
 use crate::elgamal::{Ciphertext, PublicKey};
-use crate::rnd::StrandRng;
+use crate::rng::StrandRng;
 use crate::serialization::StrandSerialize;
 use crate::serialization::{StrandVectorC, StrandVectorE, StrandVectorX};
 use crate::util::{Par, StrandError};
@@ -26,6 +55,7 @@ pub(crate) struct YChallengeInput<'a, C: Ctx> {
 }
 
 #[derive(Clone, BorshSerialize, BorshDeserialize, Debug)]
+/// Shuffle proof commitments.
 pub struct Commitments<C: Ctx> {
     pub t1: C::E,
     pub t2: C::E,
@@ -36,6 +66,7 @@ pub struct Commitments<C: Ctx> {
 }
 
 #[derive(Clone, BorshSerialize, BorshDeserialize, Debug)]
+/// Shuffle proof responses.
 pub struct Responses<C: Ctx> {
     pub(crate) s1: C::X,
     pub(crate) s2: C::X,
@@ -46,6 +77,7 @@ pub struct Responses<C: Ctx> {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
+/// A proof of shuffle.
 pub struct ShuffleProof<C: Ctx> {
     // proof commitment
     pub(crate) t: Commitments<C>,
@@ -63,6 +95,7 @@ pub(super) struct PermutationData<'a, C: Ctx> {
     pub(crate) commitments_r: &'a [C::X],
 }
 
+/// Interface to ciphertext shuffling and verifying.
 pub struct Shuffler<'a, C: Ctx> {
     pub(crate) pk: &'a PublicKey<C>,
     pub(crate) generators: &'a Vec<C::E>,
@@ -70,6 +103,7 @@ pub struct Shuffler<'a, C: Ctx> {
 }
 
 impl<'a, C: Ctx> Shuffler<'a, C> {
+    /// Constructs a new shuffler.
     pub fn new(
         pk: &'a PublicKey<C>,
         generators: &'a Vec<C::E>,
@@ -82,6 +116,9 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         }
     }
 
+    /// Generates a shuffle of the given ciphertexts, returning the resulting
+    /// shuffle, the random re-encryption factors and the applied
+    /// permutation. NOTE: the second and third returned parameters are SECRETS.
     pub fn gen_shuffle(
         &self,
         ciphertexts: &[Ciphertext<C>],
@@ -92,7 +129,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         (result, rs, perm)
     }
 
-    pub fn apply_permutation(
+    pub(crate) fn apply_permutation(
         &self,
         perm: &[usize],
         ciphertexts: &[Ciphertext<C>],
@@ -100,11 +137,15 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         assert!(perm.len() == ciphertexts.len());
 
         let ctx = &self.ctx;
+        let rng = Arc::new(Mutex::new(ctx.get_rng()));
 
         let (e_primes, rs): (Vec<Ciphertext<C>>, Vec<C::X>) = ciphertexts
             .par()
             .map(|c| {
-                let r = ctx.rnd_exp();
+                // It is idiomatic to unwrap on lock
+                let mut rng_ = rng.lock().unwrap();
+
+                let r = ctx.rnd_exp(&mut rng_);
 
                 let a =
                     c.mhr.mul(&ctx.emod_pow(&self.pk.element, &r)).modp(ctx);
@@ -123,11 +164,13 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         (e_primes_permuted, rs)
     }
 
+    /// Computes a proof of shuffle given the original ciphertexts, shuffled
+    /// ciphertexts, and shuffling secrets. Called after gen_shuffle.
     pub fn gen_proof(
         &self,
         es: &[Ciphertext<C>],
         e_primes: &[Ciphertext<C>],
-        r_primes: &[C::X],
+        r_primes: Vec<C::X>,
         perm: &[usize],
         label: &[u8],
     ) -> Result<ShuffleProof<C>, StrandError> {
@@ -143,7 +186,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         // let now = Instant::now();
         let (proof, _, _) =
-            self.gen_proof_ext(es, e_primes, r_primes, &perm_data, label)?;
+            self.gen_proof_ext(es, e_primes, r_primes, perm_data, label)?;
         // println!("gen_proof_ext {}", now.elapsed().as_millis());
 
         Ok(proof)
@@ -156,11 +199,12 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         &self,
         es: &[Ciphertext<C>],
         e_primes: &[Ciphertext<C>],
-        r_primes: &[C::X],
-        perm_data: &PermutationData<C>,
+        r_primes: Vec<C::X>,
+        perm_data: PermutationData<C>,
         label: &[u8],
     ) -> Result<(ShuffleProof<C>, Vec<C::X>, C::X), StrandError> {
         let ctx = &self.ctx;
+        let mut rng = ctx.get_rng();
 
         #[allow(non_snake_case)]
         let N = es.len();
@@ -224,9 +268,11 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         r_tilde = r_tilde.modq(ctx);
         r_prime = r_prime.modq(ctx);
 
-        let omegas: Vec<C::X> = (0..4).map(|_| ctx.rnd_exp()).collect();
-        let omega_hats: Vec<C::X> = (0..N).map(|_| ctx.rnd_exp()).collect();
-        let omega_primes: Vec<C::X> = (0..N).map(|_| ctx.rnd_exp()).collect();
+        let omegas: Vec<C::X> = (0..4).map(|_| ctx.rnd_exp(&mut rng)).collect();
+        let omega_hats: Vec<C::X> =
+            (0..N).map(|_| ctx.rnd_exp(&mut rng)).collect();
+        let omega_primes: Vec<C::X> =
+            (0..N).map(|_| ctx.rnd_exp(&mut rng)).collect();
 
         let t1 = ctx.gmod_pow(&omegas[0]);
         let t2 = ctx.gmod_pow(&omegas[1]);
@@ -325,6 +371,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         let cs = cs.to_vec();
 
+        // FIXME zeroize perm_data.perm and r_primes
+
         Ok((
             ShuffleProof {
                 t,
@@ -337,6 +385,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         ))
     }
 
+    /// Checks a proof against the original ciphertexts and permuted
+    /// ciphertexts. Returns true if verification passes.
     pub fn check_proof(
         &self,
         proof: &ShuffleProof<C>,
@@ -476,6 +526,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         perm: &[usize],
         ctx: &C,
     ) -> (Vec<C::E>, Vec<C::X>) {
+        let rng = Arc::new(Mutex::new(ctx.get_rng()));
         let generators = &self.generators[1..];
 
         assert!(generators.len() == perm.len());
@@ -483,7 +534,9 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let (cs, rs): (Vec<C::E>, Vec<C::X>) = generators
             .par()
             .map(|h| {
-                let r = ctx.rnd_exp();
+                // It is idiomatic to unwrap on lock
+                let mut rng_ = rng.lock().unwrap();
+                let r = ctx.rnd_exp(&mut rng_);
                 let c = h.mul(&ctx.gmod_pow(&r)).modp(ctx);
 
                 (c, r)
@@ -507,12 +560,16 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         us: &[&C::X],
         ctx: &C,
     ) -> (Vec<C::E>, Vec<C::X>) {
+        let rng = Arc::new(Mutex::new(ctx.get_rng()));
+
         let mut cs: Vec<C::E> = Vec::with_capacity(us.len());
 
         let (firsts, rs): (Vec<C::E>, Vec<C::X>) = (0..us.len())
             .par()
             .map(|_| {
-                let r = ctx.rnd_exp();
+                // It is idiomatic to unwrap on lock
+                let mut rng_ = rng.lock().unwrap();
+                let r = ctx.rnd_exp(&mut rng_);
                 // let first = ctx.gmod_pow(&r).modulo(ctx.modulus());
                 let first = ctx.gmod_pow(&r);
 
@@ -556,9 +613,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         // optimization: instead of calculating u = H(prefix || i),
         // we do u = H(H(prefix) || i)
         // that way we avoid allocating prefix-size bytes n times
-        let mut hasher = crate::util::hasher();
-        hasher.update(prefix_bytes);
-        let prefix_hash = hasher.finalize().to_vec();
+        let prefix_hash = crate::hash::hash(&prefix_bytes)?;
 
         let us: Result<Vec<C::X>, StrandError> = (0..n)
             .par()
@@ -571,7 +626,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                 let bytes = next.get_bytes();
                 let z: Result<C::X, StrandError> = match bytes {
                     Err(e) => Err(e),
-                    Ok(b) => Ok(self.ctx.hash_to_exp(&b)),
+                    Ok(b) => Ok(self.ctx.hash_to_exp(&b)?),
                 };
                 z
             })
@@ -615,10 +670,12 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         let bytes = challenge_input.get_bytes()?;
 
-        Ok(self.ctx.hash_to_exp(&bytes))
+        Ok(self.ctx.hash_to_exp(&bytes)?)
     }
 }
 
+// "The resulting permutation is picked uniformly from the set of all possible permutations."
+// https://rust-random.github.io/rand/rand/seq/trait.SliceRandom.html
 pub(crate) fn gen_permutation(size: usize) -> Vec<usize> {
     let mut rng = StrandRng;
 

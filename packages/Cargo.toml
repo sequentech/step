@@ -8,5 +8,6 @@ members = [
     "immudb-rs",
     "sequent-core",
     "new-ballot-verifier",
+    "braid-messages",
     "velvet",
 ]
