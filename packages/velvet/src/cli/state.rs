@@ -68,3 +68,112 @@ impl State {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config;
+    use anyhow::Result;
+    use std::{collections::HashMap, path::PathBuf};
+
+    #[test]
+    fn test_state_new() -> Result<()> {
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "do-tally".to_string(),
+            config: PathBuf::new(),
+            input_dir: PathBuf::new(),
+            output_dir: PathBuf::new(),
+        };
+
+        let stages_def = {
+            let mut map = HashMap::new();
+            map.insert(
+                "main".to_string(),
+                config::Stage {
+                    pipeline: vec![config::PipeConfig {
+                        id: "do-tally".to_string(),
+                        pipe: PipeName::DoTally,
+                        config: Some(serde_json::Value::Null),
+                    }],
+                },
+            );
+            map
+        };
+
+        let stages = config::Stages {
+            order: vec!["main".to_string()],
+            stages_def,
+        };
+
+        let config = Config {
+            version: "1.0".to_string(),
+            stages,
+        };
+
+        let state = State::new(&cli, &config)?;
+        assert_eq!(state.stages.len(), 1);
+        assert_eq!(state.stages[0].name, "main");
+        assert_eq!(state.stages[0].current_pipe, PipeName::DoTally);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_state_exec_next() -> Result<()> {
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "do-tally".to_string(),
+            config: PathBuf::new(),
+            input_dir: PathBuf::new(),
+            output_dir: PathBuf::new(),
+        };
+
+        let stages_def = {
+            let mut map = HashMap::new();
+            map.insert(
+                "main".to_string(),
+                config::Stage {
+                    pipeline: vec![
+                        config::PipeConfig {
+                            id: "decode".to_string(),
+                            pipe: PipeName::DecodeBallots,
+                            config: Some(serde_json::Value::Null),
+                        },
+                        config::PipeConfig {
+                            id: "do-tally".to_string(),
+                            pipe: PipeName::DoTally,
+                            config: Some(serde_json::Value::Null),
+                        },
+                        config::PipeConfig {
+                            id: "consolidation".to_string(),
+                            pipe: PipeName::Consolidation,
+                            config: Some(serde_json::Value::Null),
+                        },
+                    ],
+                },
+            );
+            map
+        };
+
+        let stages = config::Stages {
+            order: vec!["main".to_string()],
+            stages_def,
+        };
+
+        let config = Config {
+            version: "1.0.0".to_string(),
+            stages,
+        };
+
+        let mut state = State::new(&cli, &config)?;
+        assert_eq!(state.stages.len(), 1);
+        assert_eq!(state.stages[0].name, "main");
+        assert_eq!(state.stages[0].current_pipe, PipeName::DoTally);
+
+        state.exec_next("main")?;
+        assert_eq!(state.stages[0].current_pipe, PipeName::Consolidation);
+
+        Ok(())
+    }
+}
