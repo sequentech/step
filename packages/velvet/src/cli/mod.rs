@@ -3,10 +3,7 @@ pub mod state;
 
 use crate::config::Config;
 
-use self::{
-    error::{Error, Result},
-    state::State,
-};
+use self::error::{Error, Result};
 use clap::{Parser, Subcommand};
 use std::{fs::File, path::PathBuf};
 
@@ -40,9 +37,6 @@ pub struct CliRun {
 impl CliRun {
     pub fn validate(&self) -> Result<Config> {
         let config = self.parse_config()?;
-        let mut state = State::new(self, &config)?;
-
-        state.exec_next("main")?;
 
         Ok(config)
     }
@@ -157,23 +151,26 @@ mod tests {
 
         let config = cli.validate()?;
 
+        assert!(config.stages.stages_def.contains_key("main"));
+
+        let main_stage = config.stages.stages_def.get("main").unwrap();
+        assert_eq!(main_stage.pipeline.len(), 6);
+
         Ok(())
     }
 
     #[test]
-    fn test_clirun_parse_config() -> Result<()> {
-        let _fixture = TestFixture::new("test_clirun_parse_config-velvet-config.json");
-
+    #[should_panic]
+    fn test_clirun_validate_found_not_found() {
+        let _fixture = TestFixture::new("test_clirun_validate_found_not_found-velvet-config.json");
         let cli = CliRun {
             stage: "main".to_string(),
             pipe_id: "do-tally".to_string(),
-            config: PathBuf::from("test_clirun_parse_config-velvet-config.json"),
+            config: PathBuf::from("do-not-exist.json"),
             input_dir: PathBuf::new(),
             output_dir: PathBuf::new(),
         };
 
-        let config = cli.parse_config()?;
-
-        Ok(())
+        let _ = cli.validate().unwrap();
     }
 }
