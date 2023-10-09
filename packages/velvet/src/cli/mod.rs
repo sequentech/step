@@ -42,9 +42,7 @@ impl CliRun {
         let config = self.parse_config()?;
         let mut state = State::new(self, &config)?;
 
-        dbg!(&state);
         state.exec_next("main")?;
-        dbg!(&state);
 
         Ok(config)
     }
@@ -66,5 +64,116 @@ impl CliRun {
         }
 
         Ok(config)
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::Result;
+    use std::fs::OpenOptions;
+    use std::io::Write;
+
+    struct TestFixture {
+        config_path: PathBuf,
+    }
+
+    impl TestFixture {
+        fn new(filename: &str) -> Result<Self> {
+            let config_path = PathBuf::from(filename);
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .open(&config_path)?;
+
+            let config_content = r#"
+                {
+                    "version": "0.0.0",
+                    "stages": {
+                        "order": ["main"],
+                        "main": {
+                            "pipeline": [
+                                {
+                                    "id": "decode-ballots",
+                                    "pipe": "VelvetDecodeBallots",
+                                    "config": {}
+                                },
+                                {
+                                    "id": "do-tally",
+                                    "pipe": "VelvetDoTally",
+                                    "config": {
+                                        "invalidateVotes": "Fail"
+                                    }
+                                },
+                                {
+                                    "id": "consolidation",
+                                    "pipe": "VelvetConsolidation",
+                                    "config": {}
+                                },
+                                {
+                                    "id": "ties-resolution",
+                                    "pipe": "VelvetTiesResolution",
+                                    "config": {}
+                                },
+                                {
+                                    "id": "compute-result",
+                                    "pipe": "VelvetComputeResult",
+                                    "config": {}
+                                },
+                                {
+                                    "id": "gen-report",
+                                    "pipe": "VelvetGenerateReport",
+                                    "config": {
+                                        "formats": ["pdf", "csv"]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            "#;
+
+            writeln!(file, "{config_content}")?;
+
+            Ok(TestFixture { config_path })
+        }
+    }
+
+    impl Drop for TestFixture {
+        fn drop(&mut self) {
+            std::fs::remove_file(&self.config_path).unwrap();
+        }
+    }
+
+    #[test]
+    fn test_clirun_validate() -> Result<()> {
+        let _fixture = TestFixture::new("test_clirun_validate_velvet-config.json");
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "do-tally".to_string(),
+            config: PathBuf::from("test_clirun_validate_velvet-config.json"),
+            input_dir: PathBuf::new(),
+            output_dir: PathBuf::new(),
+        };
+
+        let config = cli.validate()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_clirun_parse_config() -> Result<()> {
+        let _fixture = TestFixture::new("test_clirun_parse_config-velvet-config.json");
+
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "do-tally".to_string(),
+            config: PathBuf::from("test_clirun_parse_config-velvet-config.json"),
+            input_dir: PathBuf::new(),
+            output_dir: PathBuf::new(),
+        };
+
+        let config = cli.parse_config()?;
+
+        Ok(())
     }
 }

@@ -12,8 +12,6 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error + 'static>> {
     match cli.command {
         Commands::Run(run) => {
             run.validate()?;
-            dbg!(&run.stage);
-            dbg!(&run.pipe_id);
         }
     }
 
