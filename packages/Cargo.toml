@@ -10,5 +10,6 @@ members = [
     "ballot-verifier",
     "braid-messages",
     "new-ballot-verifier",
+    "braid-messages",
     "velvet",
 ]

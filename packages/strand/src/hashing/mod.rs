@@ -4,4 +4,8 @@
 #[cfg(feature = "openssl")]
 pub mod openssl;
 #[cfg(not(feature = "openssl"))]
+<<<<<<< HEAD
 pub mod rustcrypto;
+=======
+pub mod rustcrypto;
+>>>>>>> 6e4c41b (developing some small changes very fast (#43))

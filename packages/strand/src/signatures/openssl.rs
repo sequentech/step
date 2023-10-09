@@ -309,4 +309,8 @@ pub(crate) mod tests {
 
 pub fn info() -> String {
     format!("{}, FIPS_ENABLED: TRUE", module_path!())
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 6e4c41b (developing some small changes very fast (#43))

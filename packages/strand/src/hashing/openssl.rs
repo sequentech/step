@@ -42,7 +42,12 @@ pub fn hash_xof(
     Ok(buf)
 }
 
+<<<<<<< HEAD
 pub(crate) fn rust_crypto_ecdsa_hasher() -> Result<RustCryptoHasher, StrandError> {
+=======
+pub(crate) fn rust_crypto_ecdsa_hasher() -> Result<RustCryptoHasher, StrandError>
+{
+>>>>>>> 6e4c41b (developing some small changes very fast (#43))
     let md = MessageDigest::sha384();
     let hasher = HasherOpenSSL::new(md)?;
     Ok(hasher)
@@ -51,4 +56,8 @@ pub(crate) type RustCryptoHasher = HasherOpenSSL;
 
 pub fn info() -> String {
     format!("{}, FIPS_ENABLED: TRUE", module_path!())
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 6e4c41b (developing some small changes very fast (#43))
