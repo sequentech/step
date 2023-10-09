@@ -1,8 +1,12 @@
-mod error;
+pub mod error;
+pub mod state;
 
 use crate::config::Config;
 
-use self::error::{Error, Result};
+use self::{
+    error::{Error, Result},
+    state::State,
+};
 use clap::{Parser, Subcommand};
 use std::{fs::File, path::PathBuf};
 
@@ -34,10 +38,13 @@ pub struct CliRun {
 }
 
 impl CliRun {
-    pub fn validate(&self) -> Result<()> {
-        self.parse_config()?;
+    pub fn validate(&self) -> Result<Config> {
+        let config = self.parse_config()?;
+        let state = State::load_state(&config, self)?;
 
-        Ok(())
+        dbg!(&state);
+
+        Ok(config)
     }
 
     fn parse_config(&self) -> Result<Config> {
@@ -56,7 +63,6 @@ impl CliRun {
             }
         }
 
-        dbg!(&config);
         Ok(config)
     }
 }
