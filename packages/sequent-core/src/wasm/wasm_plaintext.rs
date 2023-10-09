@@ -55,7 +55,7 @@ const IDECODED_VOTE_CHOICE: &'static str = r#"
 interface IDecodedVoteChoice {
     id: string;
     selected: number;
-    writein_text?: string;
+    write_in_text?: string;
 }
 "#;
 

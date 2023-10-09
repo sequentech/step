@@ -81,7 +81,7 @@ export const Answer: React.FC<IAnswerProps> = ({
                 voteChoice: {
                     id: answer.id,
                     selected: value ? 0 : -1,
-                    writein_text: selectionState?.writein_text,
+                    write_in_text: selectionState?.write_in_text,
                 },
             })
         )
@@ -101,7 +101,7 @@ export const Answer: React.FC<IAnswerProps> = ({
                 voteChoice: {
                     id: answer.id,
                     selected: isUndefined(selectionState) ? -1 : selectionState.selected,
-                    writein_text: writeInText,
+                    write_in_text: writeInText,
                 },
             })
         )
@@ -121,7 +121,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             url={infoUrl}
             hasCategory={hasCategory}
             isWriteIn={allowWriteIns && isWriteIn}
-            writeInValue={selectionState?.writein_text}
+            writeInValue={selectionState?.write_in_text}
             setWriteInText={setWriteInText}
             isInvalidVote={isInvalidVote}
         >

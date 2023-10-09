@@ -33,6 +33,7 @@ import {
 import {keyBy} from "lodash"
 import {IAnswer} from "sequent-core"
 import Image from "mui-image"
+import { checkIsWriteIn } from "../services/ElectionConfigService"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -115,13 +116,15 @@ interface CandidateChoiceProps {
     answer?: IAnswer
     points: number | null
     ordered: boolean
+    isWriteIn: boolean
+    writeInValue: string | undefined
 }
 
-const CandidateChoice: React.FC<CandidateChoiceProps> = ({answer}) => {
+const CandidateChoice: React.FC<CandidateChoiceProps> = ({answer, isWriteIn, writeInValue}) => {
     const imageUrl = answer?.urls.find((url) => "Image URL" === url.title)?.url
 
     return (
-        <Candidate title={answer?.text || ""} description={answer?.details}>
+        <Candidate title={answer?.text || ""} description={answer?.details} isWriteIn={isWriteIn} writeInValue={writeInValue}>
             {imageUrl ? <Image src={imageUrl} duration={100} /> : null}
         </Candidate>
     )
@@ -178,6 +181,8 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
                         answer={answersById[answer.id]}
                         points={(showPoints && ballotService.getPoints(question, answer)) || null}
                         ordered={properties?.ordered || false}
+                        isWriteIn={checkIsWriteIn(answersById[answer.id])}
+                        writeInValue={answer.write_in_text}
                     />
                 ))}
             </CandidatesWrapper>
