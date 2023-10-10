@@ -9,7 +9,7 @@ use sequent_core;
 use std::collections::HashMap;
 use std::convert::From;
 use std::env;
-use tracing::{event, Level, instrument};
+use tracing::{event, instrument, Level};
 
 use crate::connection;
 use crate::hasura;
@@ -52,6 +52,7 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
             audit_election_event_id: election_event
                 .audit_election_event_id
                 .clone(),
+            public_key: election_event.public_key.clone(),
         }
     }
 }
@@ -198,7 +199,11 @@ pub async fn create_ballot_style(
 
     for area_contest in area_contests.iter() {
         if area_contest.contest.is_none() {
-            event!(Level::INFO, "missing contest for area contest: {}", area_contest.id);
+            event!(
+                Level::INFO,
+                "missing contest for area contest: {}",
+                area_contest.id
+            );
             continue;
         }
         let contest = area_contest.contest.clone().with_context(|| {

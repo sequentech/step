@@ -96,12 +96,14 @@ pub fn test_elgamal() {
 
     message("* BigInt encrypt..");
     let ctx: BigintCtx<P2048> = Default::default();
-    let plaintext = ctx.rnd_plaintext();
+    let mut rng = ctx.get_rng();
+    let plaintext = ctx.rnd_plaintext(&mut rng);
     test_elgamal_generic(&ctx, plaintext);
 
     message("* Malachite encrypt..");
     let ctx: MalachiteCtx<MP2048> = Default::default();
-    let plaintext = ctx.rnd_plaintext();
+    let mut rng = ctx.get_rng();
+    let plaintext = ctx.rnd_plaintext(&mut rng);
     test_elgamal_generic(&ctx, plaintext);
 }
 
@@ -132,12 +134,14 @@ pub fn test_vdecryption() {
 
     message("* BigInt vdecryption..");
     let ctx: BigintCtx<P2048> = Default::default();
-    let plaintext = ctx.rnd_plaintext();
+    let mut rng = ctx.get_rng();
+    let plaintext = ctx.rnd_plaintext(&mut rng);
     test_vdecryption_generic(&ctx, plaintext);
 
     message("* Malachite vdecryption..");
     let ctx: MalachiteCtx<MP2048> = Default::default();
-    let plaintext = ctx.rnd_plaintext();
+    let mut rng = ctx.get_rng();
+    let plaintext = ctx.rnd_plaintext(&mut rng);
     test_vdecryption_generic(&ctx, plaintext);
 }
 
@@ -152,12 +156,14 @@ pub fn test_distributed() {
 
     message("* BigInt distributed..");
     let ctx: BigintCtx<P2048> = Default::default();
-    let plaintext = ctx.rnd_plaintext();
+    let mut rng = ctx.get_rng();
+    let plaintext = ctx.rnd_plaintext(&mut rng);
     test_distributed_generic(&ctx, plaintext);
 
     message("* Malachite distributed..");
     let ctx: MalachiteCtx<MP2048> = Default::default();
-    let plaintext = ctx.rnd_plaintext();
+    let mut rng = ctx.get_rng();
+    let plaintext = ctx.rnd_plaintext(&mut rng);
     test_distributed_generic(&ctx, plaintext);
 }
 
@@ -177,18 +183,20 @@ pub fn test_distributed_serialization() {
 
     message("* BigInt distributed + serialization..");
     let ctx: BigintCtx<P2048> = Default::default();
+    let mut rng = ctx.get_rng();
     let mut ps = vec![];
     for _ in 0..1 {
-        let p = ctx.rnd_plaintext();
+        let p = ctx.rnd_plaintext(&mut rng);
         ps.push(p);
     }
     test_distributed_serialization_generic(&ctx, ps);
 
     message("* Malachite distributed + serialization..");
     let ctx: MalachiteCtx<MP2048> = Default::default();
+    let mut rng = ctx.get_rng();
     let mut ps = vec![];
     for _ in 0..1 {
-        let p = ctx.rnd_plaintext();
+        let p = ctx.rnd_plaintext(&mut rng);
         ps.push(p);
     }
     test_distributed_serialization_generic(&ctx, ps);
@@ -209,14 +217,16 @@ pub fn test_threshold() {
     let trustees = 5usize;
     let threshold = 3usize;
     let ctx: BigintCtx<P2048> = Default::default();
-    let plaintext = ctx.rnd_plaintext();
+    let mut rng = ctx.get_rng();
+    let plaintext = ctx.rnd_plaintext(&mut rng);
     test_threshold_generic(&ctx, trustees, threshold, plaintext);
 
     message("* Malachite threshold..");
     let trustees = 5usize;
     let threshold = 3usize;
     let ctx: MalachiteCtx<MP2048> = Default::default();
-    let plaintext = ctx.rnd_plaintext();
+    let mut rng = ctx.get_rng();
+    let plaintext = ctx.rnd_plaintext(&mut rng);
     test_threshold_generic(&ctx, trustees, threshold, plaintext);
 }
 
@@ -245,12 +255,14 @@ pub fn test_encrypt_pok() {
 
     message("* BigInt encrypt_pok..");
     let ctx: BigintCtx<P2048> = Default::default();
-    let plaintext = ctx.rnd_plaintext();
+    let mut rng = ctx.get_rng();
+    let plaintext = ctx.rnd_plaintext(&mut rng);
     test_elgamal_enc_pok_generic(&ctx, plaintext);
 
     message("* Malachite encrypt_pok..");
     let ctx: MalachiteCtx<MP2048> = Default::default();
-    let plaintext = ctx.rnd_plaintext();
+    let mut rng = ctx.get_rng();
+    let plaintext = ctx.rnd_plaintext(&mut rng);
     test_elgamal_enc_pok_generic(&ctx, plaintext);
 }
 

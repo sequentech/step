@@ -1,0 +1,226 @@
+{ 
+    "ballot_hash":"bc15bf91def8033b8b586e929335c40e23ffc576a1bcb469909646222abcf6858e290b52f836cbb9744462c6869788878d88b22c8b4d9efd7cb750b700dba3e8",
+    "election_config":{
+      "id": "1",
+      "configuration":{
+         "id":"1",
+         "layout":"pcandidates-election",
+         "director":"wadobo-auth3",
+         "authorities":[
+            "sequent-auth4"
+         ],
+         "title":"Votaciones Municipales de algún sitio",
+         "description":"Blah blah",
+         "questions":[
+            {
+               "id":"1",
+               "description":"Elige quien quieres que sea tu Secretario General en tu municipio",
+               "layout":"",
+               "min":0,
+               "max":1,
+               "num_winners":1,
+               "title":"Secretario General",
+               "tally_type":"plurality-at-large",
+               "answer_total_votes_percentage":"over-total-valid-votes",
+               "answers":[
+                  {
+                     "category":"Candidaturas no agrupadas",
+                     "text":"José Rabano Pimiento",
+                     "sort_order":0,
+                     "details":"",
+                     "urls":[
+                        
+                     ],
+                     "id":"0"
+                  },
+                  {
+                     "category":"Candidaturas no agrupadas",
+                     "text":"Miguel Pimentel Inventado",
+                     "sort_order":1,
+                     "details":"",
+                     "urls":[
+                        
+                     ],
+                     "id":"1"
+                  },
+                  {
+                     "category":"Candidaturas no agrupadas",
+                     "text":"Juan Iglesias Torquemada",
+                     "sort_order":2,
+                     "details":"",
+                     "urls":[
+                        
+                     ],
+                     "id":"2"
+                  },
+                  {
+                     "category":"Candidaturas no agrupadas",
+                     "text":"Mari Pili Hernández Ordoñez",
+                     "sort_order":3,
+                     "details":"",
+                     "urls":[
+                        
+                     ],
+                     "id":"3"
+                  },
+                  {
+                     "category":"Candidaturas no agrupadas",
+                     "text":"Juan Y Medio",
+                     "sort_order":4,
+                     "details":"",
+                     "urls":[
+                        
+                     ],
+                     "id":"4"
+                  }
+               ]
+            },
+            {
+               "id":"837993a6-1d7d-473c-82b7-5fc5a128f0a4",
+               "layout":"-",
+               "description":"Elige los miembros del Consejo Ciudadano",
+               "min":0,
+               "max":5,
+               "tally_type":"plurality-at-large",
+               "answers":[
+                  {
+                     "category":"Candidaturas no agrupadas",
+                     "text":"Vicente Bizancio Castillo",
+                     "sort_order":0,
+                     "details":"",
+                     "urls":[
+                        
+                     ],
+                     "id":"0"
+                  },
+                  {
+                     "category":"Candidaturas no agrupadas",
+                     "text":"Argos de la Cruz",
+                     "sort_order":1,
+                     "details":"",
+                     "urls":[
+                        
+                     ],
+                     "id":"1"
+                  },
+                  {
+                     "category":"Candidaturas no agrupadas",
+                     "text":"Gorrión Turrón Pastel",
+                     "sort_order":2,
+                     "details":"",
+                     "urls":[
+                        
+                     ],
+                     "id":"2"
+                  },
+                  {
+                     "category":"Candidaturas no agrupadas",
+                     "text":"Mari Pili de la Estrella",
+                     "sort_order":3,
+                     "details":"",
+                     "urls":[
+                        
+                     ],
+                     "id":"3"
+                  },
+                  {
+                     "category":"Candidaturas no agrupadas",
+                     "text":"Zubiarreta Renata Atade",
+                     "sort_order":4,
+                     "details":"",
+                     "urls":[
+                        
+                     ],
+                     "id":"4"
+                  }
+               ],
+               "num_winners":5,
+               "title":"Consejo Ciudadano",
+               "answer_total_votes_percentage":"over-total-valid-votes"
+            }
+         ],
+         "start_date":"2014-12-26T09:00:00.231",
+         "end_date":"2014-12-28T09:00:00.231",
+         "presentation":{
+            "theme":"podemos",
+            "share_text":[],
+            "urls":[
+               
+            ],
+            "theme_css":""
+         },
+         "virtual": false,
+         "publicCandidates": true,
+         "tally_allowed": true,
+         "trusteeKeysState": []
+      },
+      "state":"results_ok",
+      "start_date":"2014-12-26 09:00:00.231",
+      "end_date":"2014-12-28 09:00:00.231",
+      "public_key": {
+         "public_key": "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
+         "is_demo": true
+      },
+      "virtual": false,
+      "tallyAllowed": true,
+      "publicCandidates": true,
+      "trusteeKeysState": [],
+      "ballotBoxesResultsConfig": ""
+    },
+    "decoded_questions":[
+       {
+          "contest_id":"fae0b09e-1b78-4118-b99c-7955f8ef2a52",
+          "is_explicit_invalid":false,
+          "choices":[
+             {
+                "id":"0",
+                "selected":-1
+             },
+             {
+                "id":"1",
+                "selected":-1
+             },
+             {
+                "id":"2",
+                "selected":-1
+             },
+             {
+                "id":"3",
+                "selected":0
+             },
+             {
+                "id":"4",
+                "selected":0
+             }
+          ],
+          "invalid_errors": []
+       },
+       {
+          "contest_id":"837993a6-1d7d-473c-82b7-5fc5a128f0a4",
+          "is_explicit_invalid":false,
+          "choices":[
+             {
+                "id":"0",
+                "selected":0
+             },
+             {
+                "id":"1",
+                "selected":0
+             },
+             {
+                "id":"2",
+                "selected":0
+             },
+             {
+                "id":"3",
+                "selected":-1
+             },
+             {
+                "id":"4",
+                "selected":-1
+             }
+          ],
+          "invalid_errors": []
+       }
+    ]
+ }

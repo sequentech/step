@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {ELECTIONS_LIST} from "../../fixtures/election"
 import {sleep} from "@sequentech/ui-essentials"
-import {IElectionDTO} from "sequent-core"
+import {IBallotStyle} from "sequent-core"
 
 /*
 export const fetchElection = async (electionId: number): Promise<IElectionDTO | undefined> => {

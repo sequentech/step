@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{bail, Context, Result};
 use rocket::serde::{Deserialize, Serialize};
 use strum_macros::Display;
 use strum_macros::EnumString;
@@ -10,6 +10,8 @@ use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
+use crate::services::election_event_board::get_election_event_board;
+use crate::services::protocol_manager;
 
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
@@ -45,6 +47,22 @@ pub async fn update_voting_status(
     let new_status = ElectionStatus {
         voting_status: payload.status.clone(),
     };
+    let election_event_response = hasura::election_event::get_election_event(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+    )
+    .await?
+    .data
+    .with_context(|| "can't find election event")?;
+
+    let election_event =
+        &election_event_response.sequent_backend_election_event[0];
+    if payload.status == VotingStatus::OPEN
+        && election_event.public_key.is_none()
+    {
+        bail!("Missing public key");
+    }
     let new_status_value = serde_json::to_value(new_status)?;
     let hasura_response = hasura::election::update_election_status(
         auth_headers.clone(),
@@ -57,7 +75,7 @@ pub async fn update_voting_status(
 
     let _election_response_id = &hasura_response
         .data
-        .expect("expected data".into())
+        .with_context(|| "can't find election")?
         .update_sequent_backend_election
         .unwrap()
         .returning[0];

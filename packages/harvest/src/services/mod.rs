@@ -7,6 +7,7 @@ pub mod election_event_board;
 pub mod election_event_status;
 pub mod events;
 pub mod protocol_manager;
+pub mod to_result;
 pub mod vault;
 pub mod worker;
 pub mod to_result;

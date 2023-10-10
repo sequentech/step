@@ -17,6 +17,7 @@ use crate::services::events::create_ballot_style;
 use crate::services::events::create_board;
 use crate::services::events::create_keys;
 use crate::services::events::render_report;
+use crate::services::events::set_public_key;
 use crate::services::events::update_voting_status;
 
 #[derive(Debug, Clone)]
@@ -133,6 +134,12 @@ pub async fn process_scheduled_event(
                 event.clone(),
             )
             .await?;
+
+            insert_event_execution_with_result(auth_headers, event, None).await
+        }
+        scheduled_event::EventProcessors::SET_PUBLIC_KEY => {
+            set_public_key::set_public_key(auth_headers.clone(), event.clone())
+                .await?;
 
             insert_event_execution_with_result(auth_headers, event, None).await
         }

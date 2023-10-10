@@ -51,13 +51,18 @@ impl ImmudbBoard {
     }
 
     pub async fn get_messages(&mut self, last_id: i64) -> Result<Vec<Message>> {
-        let connection = self.get_store()?;
-        self.update_store(&connection).await?;
+        let connection_mutex = Mutex::new(self.get_store()?);
+        self.update_store(&connection_mutex).await?;
+        
+        let connection = connection_mutex.lock().await;
         let messages = self.get_store_messages(&connection, last_id);
+        /*
         connection
             .close()
             .map_err(|e| anyhow!("Could not close sqlite connection: {:?}", e))?;
+        */
         messages
+        
     }
 
     pub async fn insert_messages(&mut self, messages: Vec<Message>) -> Result<()> {
@@ -80,7 +85,8 @@ impl ImmudbBoard {
         Ok(connection)
     }
 
-    async fn update_store(&mut self, connection: &Connection) -> Result<()> {
+    async fn update_store(&mut self, connection_mutex: &Mutex<Connection>) -> Result<()> {
+        let connection = connection_mutex.lock().await;
         let last_id: Result<i64> = connection
             .query_row("SELECT max(id) FROM messages;", [], |row| row.get(0))
             .or(Ok(0i64));

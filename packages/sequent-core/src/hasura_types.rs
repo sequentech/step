@@ -26,6 +26,7 @@ pub struct ElectionEvent {
     pub encryption_protocol: String,
     pub is_audit: Option<bool>,
     pub audit_election_event_id: Option<Uuid>,
+    pub public_key: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]

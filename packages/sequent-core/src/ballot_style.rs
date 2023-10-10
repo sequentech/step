@@ -4,13 +4,15 @@
 use crate::ballot;
 use crate::hasura_types;
 
+pub const DEMO_PUBLIC_KEY: &str = "/jXUkdSIgz8mXLZ4BIDPQzDx7ZFFIG3MWuacDLyhyhoCAAAAGORKDU/t+8fKNkZMFfXl1IMM+/0VmINTZCcbalZ/NSUi5SbzUTlyzh25lMuVALwvC/lk3j6SHn6BotYphk0QMA";
+
 pub fn create_ballot_style(
     election_event: hasura_types::ElectionEvent, // Election Event
     election: hasura_types::Election,            // Election
     contests: Vec<hasura_types::Contest>,        // Question
     candidates: Vec<hasura_types::Candidate>,    // Answer
-) -> ballot::ElectionDTO {
-    ballot::ElectionDTO {
+) -> ballot::BallotStyle {
+    ballot::BallotStyle {
         id: election.id.clone(),
         configuration: ballot::ElectionConfig {
             id: election.id.clone(),
@@ -59,7 +61,18 @@ pub fn create_ballot_style(
         state: "started".to_string(),
         startDate: None,
         endDate: None,
-        pks: None,
+        public_key: Some(
+            election_event
+                .public_key
+                .map(|key| ballot::PublicKeyConfig {
+                    public_key: key,
+                    is_demo: false,
+                })
+                .unwrap_or(ballot::PublicKeyConfig {
+                    public_key: DEMO_PUBLIC_KEY.to_string(),
+                    is_demo: true,
+                }),
+        ),
         tallyPipesConfig: None,
         ballotBoxesResultsConfig: None,
         results: None,

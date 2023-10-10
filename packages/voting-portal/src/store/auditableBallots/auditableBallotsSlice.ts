@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {IAuditableBallot} from "sequent-core"
 
 export interface AuditableBallotsState {
-    [ballotStyleId: string]: IAuditableBallot | undefined
+    [ballotStyleId: string]: string | undefined
 }
 
 const initialState: AuditableBallotsState = {}
@@ -19,7 +18,7 @@ export const auditableBallotsSlice = createSlice({
             state,
             action: PayloadAction<{
                 electionId: string
-                auditableBallot: IAuditableBallot
+                auditableBallot: string
             }>
         ): AuditableBallotsState => {
             state[action.payload.electionId] = action.payload.auditableBallot

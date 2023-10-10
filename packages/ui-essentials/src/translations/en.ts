@@ -92,7 +92,7 @@ const englishTranslation = {
         dragNDrop: {
             firstLine: "Drag & drop files or",
             browse: "Browse",
-            format: "Supported format: json",
+            format: "Supported format: txt",
         },
         selectElection: {
             electionWebsite: "Election Website",

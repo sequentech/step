@@ -7,6 +7,6 @@ members = [
     "immu-board",
     "immudb-rs",
     "sequent-core",
-    "new-ballot-verifier",
+    "ballot-verifier",
     "braid-messages",
 ]

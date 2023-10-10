@@ -26,7 +26,7 @@ fn rocket() -> _ {
                 routes::error_catchers::internal_error,
                 routes::error_catchers::not_found,
                 routes::error_catchers::default
-            ]
+            ],
         )
         .mount(
             "/",

@@ -21,9 +21,24 @@ const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
 SequentCoreLibInit().then(set_hooks)
 
+export const DISABLE_AUTH = true
+
+export interface KeycloakProviderProps extends React.PropsWithChildren {
+    disable: boolean
+}
+
+const KeycloakProvider: React.FC<KeycloakProviderProps> = ({disable, children}) => {
+    return disable ? (
+        <>{children}</>
+    ) : (
+        <AuthContextProvider>
+            <>{children}</>
+        </AuthContextProvider>
+    )
+}
 root.render(
     <React.StrictMode>
-        <AuthContextProvider>
+        <KeycloakProvider disable={DISABLE_AUTH}>
             <Provider store={store}>
                 <BrowserRouter>
                     <ThemeProvider theme={theme}>
@@ -33,7 +48,7 @@ root.render(
                     </ThemeProvider>
                 </BrowserRouter>
             </Provider>
-        </AuthContextProvider>
+        </KeycloakProvider>
     </React.StrictMode>
 )
 

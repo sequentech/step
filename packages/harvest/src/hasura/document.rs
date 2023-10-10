@@ -8,8 +8,8 @@ use rocket::serde::json::Value;
 use std::env;
 use tracing::instrument;
 
-use crate::services::to_result::ToResult;
 use crate::connection;
+use crate::services::to_result::ToResult;
 
 type uuid = String;
 type jsonb = Value;
