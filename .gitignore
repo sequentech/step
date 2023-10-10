@@ -34,9 +34,6 @@ pkg
 devenv.local.nix
 .pre-commit-config.yaml
 .devcontainer/.env
-.devcontainer/nginx/access.log
-.devcontainer/nginx/error.log
-.devcontainer/nginx/nginx.pid
 
 # Frontend
 node_modules/
