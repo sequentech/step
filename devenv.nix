@@ -24,7 +24,6 @@
 
     # docker utilities
     pkgs.dive
-    pkgs.nginx
 
     # wget and curl
     pkgs.wget
