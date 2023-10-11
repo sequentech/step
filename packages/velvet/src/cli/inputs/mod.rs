@@ -14,14 +14,12 @@ mod tests {
 
     /*
     ./path/to/input-dir/default/configs/
-    |-- elections/
-        |-- election__<uuid>/
-            |-- election-config.json
-            |-- contests/
-                |-- contest__<uuid>/
-                    |-- contest-config.json
-                    |-- area__<uuid>/
-                        |-- area-config.json
+    |-- election__<uuid>/
+        |-- election-config.json
+        |-- contest__<uuid>/
+            |-- contest-config.json
+            |-- area__<uuid>/
+                |-- area-config.json
 
     ./path/to/input-dir/default/ballots/
     |-- election__<uuid>/
@@ -54,7 +52,7 @@ mod tests {
 
         fn create_election_config(&self) -> Result<Uuid> {
             let uuid = Uuid::new_v4();
-            
+
             let dir = format!("{}/election__{}", self.input_dir_configs, uuid);
             fs::create_dir_all(&dir)?;
             let mut file = File::create(format!("{}/election-config.json", dir))?;
@@ -184,20 +182,97 @@ mod tests {
             Ok(uuid)
         }
 
-        // fn create_contest_config(&self, election_uuid: &Uuid) -> Result<Uuid> {
-        //     let uuid = Uuid::new_v4();
-        //
-        //     let mut file = File::create(format!("{}/election__{}.json", self.contests_path, uuid))?;
-        //
-        //     Ok(uuid)
-        // }
+        fn create_contest_config(&self, election_uuid: &Uuid) -> Result<Uuid> {
+            let uuid = Uuid::new_v4();
+
+            let dir = format!(
+                "{}/election__{}/contest__{}",
+                self.input_dir_configs, election_uuid, uuid
+            );
+            fs::create_dir_all(&dir)?;
+            let mut file = File::create(format!("{}/contest-config.json", dir))?;
+
+            let contest_str = r#"
+            {
+                "id":"1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
+                "description":"Elige quien quieres que sea tu Secretario General en tu municipio",
+                "layout":"",
+                "min":0,
+                "max":1,
+                "num_winners":1,
+                "title":"Secretario General",
+                "tally_type":"plurality-at-large",
+                "answer_total_votes_percentage":"over-total-valid-votes",
+                "answers":[
+                    {
+                        "id":"0",
+                        "category":"Candidaturas no agrupadas",
+                        "details":"",
+                        "sort_order":0,
+                        "urls":[
+                            
+                        ],
+                        "text":"José Rabano Pimiento"
+                    },
+                    {
+                        "id":"1",
+                        "category":"Candidaturas no agrupadas",
+                        "details":"",
+                        "sort_order":1,
+                        "urls":[
+                            
+                        ],
+                        "text":"Miguel Pimentel Inventado"
+                    },
+                    {
+                        "category":"Candidaturas no agrupadas",
+                        "text":"Juan Iglesias Torquemada",
+                        "sort_order":2,
+                        "details":"",
+                        "urls":[
+                            
+                        ],
+                        "id":"2"
+                    },
+                    {
+                        "category":"Candidaturas no agrupadas",
+                        "text":"Mari Pili Hernández Ordoñez",
+                        "sort_order":3,
+                        "details":"",
+                        "urls":[
+                            
+                        ],
+                        "id":"3"
+                    },
+                    {
+                        "category":"Candidaturas no agrupadas",
+                        "text":"Juan Y Medio",
+                        "sort_order":4,
+                        "details":"",
+                        "urls":[
+                            
+                        ],
+                        "id":"4"
+                    }
+                ],
+                "extra_options":{
+                    "base32_writeins":true
+                }
+            }
+            "#;
+
+            writeln!(file, "{contest_str}")?;
+
+            Ok(uuid)
+        }
     }
 
     #[test]
     fn test_create_election_configs() -> Result<()> {
         let fixture = TestFixture::new()?;
 
-        fixture.create_election_config()?;
+        let uuid = fixture.create_election_config()?;
+        fixture.create_contest_config(&uuid)?;
         fixture.create_election_config()?;
         fixture.create_election_config()?;
         fixture.create_election_config()?;
