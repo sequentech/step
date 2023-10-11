@@ -2,8 +2,9 @@
 mod tests {
     use super::*;
     use crate::pipes::decode_ballots::BallotCodec;
-    use anyhow::Result;
-    use std::fs::{self, File};
+    use anyhow::{Error, Result};
+    use rand::Rng;
+    use std::fs::{self, File, OpenOptions};
     use std::io::Write;
     use uuid::Uuid;
 
@@ -37,7 +38,7 @@ mod tests {
 
     impl TestFixture {
         fn new() -> Result<Self> {
-            let root_dir = "./tests-input".to_string();
+            let root_dir = format!("./tests-input__{}", Uuid::new_v4());
             let input_dir_configs = format!("{}/tests/input-dir/default/configs", &root_dir);
             let input_dir_ballots = format!("{}/tests/input-dir/default/ballots", &root_dir);
 
@@ -269,27 +270,29 @@ mod tests {
     }
 
     #[test]
-    fn test_create_election_configs() -> Result<()> {
+    fn test_create_configs() -> Result<()> {
         let fixture = TestFixture::new()?;
 
-        let uuid = fixture.create_election_config()?;
-        fixture.create_contest_config(&uuid)?;
-        let uuid = fixture.create_election_config()?;
-        fixture.create_contest_config(&uuid)?;
-        fixture.create_contest_config(&uuid)?;
-        fixture.create_contest_config(&uuid)?;
-        fixture.create_contest_config(&uuid)?;
-        let uuid = fixture.create_election_config()?;
-        fixture.create_contest_config(&uuid)?;
-        let uuid = fixture.create_election_config()?;
-        fixture.create_contest_config(&uuid)?;
-        let uuid = fixture.create_election_config()?;
-        fixture.create_contest_config(&uuid)?;
+        let uuid_election = fixture.create_election_config()?;
+        let uuid_contest = fixture.create_contest_config(&uuid_election)?;
 
         let entries = fs::read_dir(&fixture.input_dir_configs)?;
         let count = entries.count();
+        assert_eq!(count, 1);
 
-        assert_eq!(count, 5);
+        let entries = fs::read_dir(format!(
+            "{}/election__{}",
+            &fixture.input_dir_configs, uuid_election
+        ))?;
+        let count = entries.count();
+        assert_eq!(count, 2);
+
+        let entries = fs::read_dir(format!(
+            "{}/election__{}/contest__{}",
+            &fixture.input_dir_configs, uuid_election, uuid_contest
+        ))?;
+        let count = entries.count();
+        assert_eq!(count, 1);
 
         Ok(())
     }
@@ -302,5 +305,42 @@ mod tests {
         let decoded_ballot = ballot_codec.decode_ballot(encoded_ballot);
 
         assert_eq!(decoded_ballot, choices);
+    }
+    #[test]
+    fn test_create_ballots() -> Result<()> {
+        let fixture = TestFixture::new()?;
+        let ballot_codec = BallotCodec::new(vec![2, 2, 2, 2, 2, 2]);
+        let mut rng = rand::thread_rng();
+
+        (0..5).try_for_each(|_| {
+            let uuid_election = fixture.create_election_config()?;
+            (0..10).try_for_each(|_| {
+                let uuid_contest = fixture.create_contest_config(&uuid_election)?;
+
+                let mut file = OpenOptions::new()
+                    .write(true)
+                    .append(true)
+                    .create(true)
+                    .open(format!(
+                        "{}/election__{}/contest__{}/ballots.csv",
+                        fixture.input_dir_configs, uuid_election, uuid_contest
+                    ))?;
+                (0..10000).try_for_each(|_| {
+                    let choices: Vec<u32> = (0..6).map(|_| rng.gen_range(0..2)).collect();
+                    let encoded_ballot = ballot_codec.encode_ballot(choices.clone());
+                    writeln!(file, "{}", encoded_ballot)?;
+                    Ok::<(), Error>(())
+                })?;
+                Ok::<(), Error>(())
+            })?;
+            Ok::<(), Error>(())
+        })?;
+
+        let entries = fs::read_dir(&fixture.input_dir_configs)?;
+        let count = entries.count();
+
+        assert_eq!(count, 5);
+
+        Ok(())
     }
 }
