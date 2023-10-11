@@ -32,16 +32,10 @@ pub(crate) fn hasher() -> Hasher {
     Sha512::new()
 }
 
-
-<<<<<<< HEAD
-=======
-
->>>>>>> 6e4c41b (developing some small changes very fast (#43))
 pub(crate) use sha3::digest::{ExtendableOutput, Update, XofReader};
 pub(crate) fn hasher_xof() -> Shake256 {
     Shake256::default()
 }
-
 
 // Rustcrypto ecdsa signatures are only used on the wasm target
 cfg_if::cfg_if! {
@@ -62,8 +56,4 @@ cfg_if::cfg_if! {
 
 pub fn info() -> String {
     format!("{}, FIPS_ENABLED: FALSE", module_path!())
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 6e4c41b (developing some small changes very fast (#43))
