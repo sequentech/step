@@ -21,6 +21,7 @@ import {useParams} from "react-router-dom"
 import Link from "@mui/material/Link"
 import {useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
+import {provideBallotService} from "../services/BallotService"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -124,7 +125,8 @@ const ActionButtons: React.FC = () => {
 export const ConfirmationScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
-    const ballotId = auditableBallot?.ballot_hash || ""
+    const {hashBallot} = provideBallotService()
+    const ballotId = (auditableBallot && hashBallot(auditableBallot)) || ""
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)

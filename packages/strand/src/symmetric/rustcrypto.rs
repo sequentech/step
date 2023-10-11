@@ -33,7 +33,6 @@ pub fn gen_key() -> GenericArray<u8, U32> {
     let key = chacha20poly1305::ChaCha20Poly1305::generate_key(&mut csprng);
     key
 }
-
 pub fn encrypt(
     key: GenericArray<u8, U32>,
     data: &[u8],

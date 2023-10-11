@@ -70,6 +70,31 @@ const ElectionEventListForm: React.FC = () => {
         refresh()
     }
 
+    const setPublicKeysAction = async () => {
+        setShowMenu(false)
+        setShowProgress(true)
+
+        const {data, errors} = await createScheduledEvent({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: record.id,
+                eventProcessor: ScheduledEventType.SET_PUBLIC_KEY,
+                cronConfig: undefined,
+                eventPayload: {
+                },
+                createdBy: "admin",
+            },
+        })
+        if (errors) {
+            console.log(errors)
+        }
+        if (data) {
+            console.log(data)
+        }
+        setShowProgress(false)
+        refresh()
+    }
+
     const openKeysDialog = () => {
         console.log("opening...")
         setShowCreateKeysDialog(true)
@@ -108,6 +133,12 @@ const ElectionEventListForm: React.FC = () => {
                 >
                     Create Keys
                 </MenuItem>
+                <MenuItem
+                    onClick={setPublicKeysAction}
+                    disabled={!!record.public_key || !configCreatedStatus}
+                >
+                    Set Public Keys
+                </MenuItem>
             </Menu>
             <KeysGenerationDialog
                 show={showCreateKeysDialog}
@@ -121,6 +152,7 @@ const ElectionEventListForm: React.FC = () => {
             <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />
             <BooleanInput source="is_archived" />
             <BooleanInput source="is_audit" />
+            <TextInput source="public_key" />
             <Typography variant="h5">Elections</Typography>
             <ReferenceManyField
                 label="Elections"

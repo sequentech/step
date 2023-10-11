@@ -2,11 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
-use crate::ballot_codec::BallotCodec;
+use crate::ballot_codec::PlaintextCodec;
 use crate::hasura_types::Uuid;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use strand::context::Ctx;
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub enum InvalidPlaintextErrorType {
@@ -23,8 +24,10 @@ pub struct InvalidPlaintextError {
     pub message_map: HashMap<String, String>,
 }
 
+// before: DecodedVoteContest
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
-pub struct DecodedVoteQuestion {
+pub struct DecodedVoteContest {
+    pub contest_id: Uuid,
     pub is_explicit_invalid: bool,
     pub invalid_errors: Vec<InvalidPlaintextError>,
     pub choices: Vec<DecodedVoteChoice>,
@@ -37,23 +40,33 @@ pub struct DecodedVoteChoice {
     pub write_in_text: Option<String>,
 }
 
-pub fn map_to_decoded_question(
-    ballot: &AuditableBallot,
-) -> Result<Vec<DecodedVoteQuestion>, String> {
+pub fn map_to_decoded_question<C: Ctx<P = [u8; 30]>>(
+    ballot: &AuditableBallot<C>,
+) -> Result<Vec<DecodedVoteContest>, String> {
     let mut decoded_questions = vec![];
-    if ballot.config.configuration.questions.len() != ballot.choices.len() {
+    if ballot.config.configuration.questions.len() != ballot.contests.len() {
         return Err(format!(
-            "Invalid number of choices {} != {}",
+            "Invalid number of contests {} != {}",
             ballot.config.configuration.questions.len(),
-            ballot.choices.len()
+            ballot.contests.len()
         ));
     }
-    for i in 0..ballot.choices.len() {
-        let question = ballot.config.configuration.questions[i].clone();
-        let replication_choice: &ReplicationChoice = &ballot.choices[i];
-
+    for contest in &ballot.contests {
+        let question = ballot
+            .config
+            .configuration
+            .questions
+            .iter()
+            .find(|question| question.id == contest.contest_id)
+            .ok_or_else(|| {
+                format!(
+                    "Can't find contest with id {} on ballot style",
+                    contest.contest_id
+                )
+            })?;
+        let replication_choice: &ReplicationChoice<C> = &contest.choice;
         let decoded_plaintext = question
-            .decode_plaintext_question(replication_choice.plaintext.as_str())?;
+            .decode_plaintext_question(&replication_choice.plaintext)?;
         decoded_questions.push(decoded_plaintext);
     }
     Ok(decoded_questions)

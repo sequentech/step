@@ -6,10 +6,16 @@ use braid_messages::artifact::Configuration;
 use braid_messages::message::Message;
 use crate::protocol2::trustee::ProtocolManager;
 use crate::run::config::ProtocolManagerConfig;
+use crate::protocol2::board::immudb::ImmudbBoard;
+use crate::util::assert_folder;
+use braid_messages::statement::StatementType;
+use braid_messages::artifact::DkgPublicKey;
 
 use strand::context::Ctx;
+use strand::serialization::StrandDeserialize;
+use strand::serialization::StrandSerialize;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::marker::PhantomData;
 use tracing::{info, instrument};
 
@@ -42,6 +48,7 @@ async fn init<C: Ctx>(
     board.insert_messages(board_name, &vec![message]).await
 }
 
+#[instrument(skip(user, password, pm))]
 pub async fn add_config_to_board<C: Ctx>(
     server_url: &str,
     user: &str,
@@ -62,4 +69,38 @@ pub async fn add_config_to_board<C: Ctx>(
     let mut board = BoardClient::new(&server_url, &user, &password).await?;
 
     init(&mut board, configuration, pm, board_name).await
+}
+
+
+#[instrument(skip(user, password))]
+pub async fn get_board_public_key<C: Ctx>(
+    server_url: &str,
+    user: &str,
+    password: &str,
+    board_name: &str
+) -> Result<C::E> {
+    let store_root = std::env::current_dir().unwrap().join("message_store");
+    assert_folder(store_root.clone())?;
+    let mut board = ImmudbBoard::new(
+        server_url,
+        user,
+        password,
+        board_name.to_string(),
+        store_root.clone(),
+    )
+    .await?;
+    let messages = board.get_messages(-1).await?;
+    let pks_message = messages.into_iter().find(|message|
+        match message.statement.get_kind() {
+            StatementType::PublicKey => true,
+            _ => false,
+        }
+    ).with_context(|| {
+        format!("Public Key not found on board {}", board_name)
+    })?;
+    let bytes = pks_message.artifact.with_context(|| {
+        format!("Artifact missing on Public Key message on board {}", board_name)
+    })?;
+    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
+    Ok(dkgpk.pk)
 }

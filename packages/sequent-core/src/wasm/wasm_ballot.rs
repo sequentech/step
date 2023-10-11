@@ -4,51 +4,6 @@
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(typescript_custom_section)]
-const IBALLOT_CHOICE: &'static str = r#"
-interface IBallotChoice {
-    alpha: string;
-    beta: string;
-}
-"#;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(typescript_type = "IBallotChoice")]
-    pub type IBallotChoice;
-}
-
-#[wasm_bindgen(typescript_custom_section)]
-const IREPLICATION_CHOICE: &'static str = r#"
-interface IReplicationChoice {
-    alpha: string;
-    beta: string;
-    plaintext: string;
-    randomness: string;
-}
-"#;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(typescript_type = "IReplicationChoice")]
-    pub type IReplicationChoice;
-}
-
-#[wasm_bindgen(typescript_custom_section)]
-const ICYPHERTEXT_PROOF: &'static str = r#"
-interface ICyphertextProof {
-    challenge: string;
-    commitment: string;
-    response: string;
-}
-"#;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(typescript_type = "ICyphertextProof")]
-    pub type ICyphertextProof;
-}
-
-#[wasm_bindgen(typescript_custom_section)]
 const ITRUSTEE_KEY_STATE: &'static str = r#"
 interface ITrusteeKeyState {
     id: string;
@@ -306,30 +261,28 @@ extern "C" {
 }
 
 #[wasm_bindgen(typescript_custom_section)]
-const IPK: &'static str = r#"
-interface IPk {
-    q: string;
-    p: string;
-    y: string;
-    g: string;
+const IPUBLIC_KEY_CONFIG: &'static str = r#"
+interface IPublicKeyConfig {
+    public_key: string;
+    is_demo: boolean;
 }
 "#;
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IPk")]
-    pub type IPk;
+    #[wasm_bindgen(typescript_type = "IPublicKeyConfig")]
+    pub type IPublicKeyConfig;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
 const IELECTION_DTO: &'static str = r#"
-interface IElectionDTO {
+interface IBallotStyle {
     id: string;
     configuration: IElectionConfig;
     state: string;
     startDate?: string;
     endDate?: string;
-    pks?: string;
+    public_key?: IPublicKeyConfig;
     tallyPipesConfig?: string;
     ballotBoxesResultsConfig?: string;
     results?: string;
@@ -345,15 +298,15 @@ interface IElectionDTO {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IElectionDTO")]
-    pub type IElectionDTO;
+    #[wasm_bindgen(typescript_type = "IBallotStyle")]
+    pub type IBallotStyle;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
 const IELECTION_PAYLOAD: &'static str = r#"
 interface IElectionPayload {
     date: string;
-    payload: IElectionDTO;
+    payload: IBallotStyle;
 }
 "#;
 
@@ -361,53 +314,4 @@ interface IElectionPayload {
 extern "C" {
     #[wasm_bindgen(typescript_type = "IElectionPayload")]
     pub type IElectionPayload;
-}
-
-#[wasm_bindgen(typescript_custom_section)]
-const IRAW_AUDITABLE_BALLOT: &'static str = r#"
-interface IRawAuditableBallot {
-    election_url: string;
-    issue_date: string;
-    choices: Array<IReplicationChoice>;
-    proofs: Array<ICyphertextProof>;
-    ballot_hash: string;
-}
-"#;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(typescript_type = "IRawAuditableBallot")]
-    pub type IRawAuditableBallot;
-}
-
-#[wasm_bindgen(typescript_custom_section)]
-const IHASHABLE_BALLOT: &'static str = r#"
-interface IHashableBallot {
-    choices: Array<IBallotChoice>;
-    issue_date: string;
-    proofs: Array<ICyphertextProof>;
-}
-"#;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(typescript_type = "IHashableBallot")]
-    pub type IHashableBallot;
-}
-
-#[wasm_bindgen(typescript_custom_section)]
-const IAUDITABLE_BALLOT: &'static str = r#"
-interface IAuditableBallot {
-    issue_date: string;
-    choices: Array<IReplicationChoice>;
-    proofs: Array<ICyphertextProof>;
-    ballot_hash: string;
-    config: IElectionDTO;
-}
-"#;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(typescript_type = "IAuditableBallot")]
-    pub type IAuditableBallot;
 }

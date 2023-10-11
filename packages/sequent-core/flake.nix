@@ -13,9 +13,10 @@
     url = "github:edolstra/flake-compat";
     flake = false;
   };
+  inputs.devenv.url = "github:cachix/devenv";
 
   # output function of this flake
-  outputs = { self, nixpkgs, flake-utils, rust-overlay, flake-compat }:
+  outputs = { self, nixpkgs, devenv, flake-utils, rust-overlay, flake-compat }:
     flake-utils.lib.eachDefaultSystem (
       system:
         let 
@@ -27,7 +28,7 @@
           configureRustTargets = targets : pkgs
             .rust-bin
             .nightly
-            ."2022-07-05"
+            ."2023-08-01"
             .default
             .override {
                 extensions = [ "rust-src" ];
@@ -66,6 +67,7 @@
               pkgs.wasm-pack
               pkgs.wasm-bindgen-cli
               pkgs.libiconv
+              pkgs.m4
             ];
             buildPhase = ''
               echo 'Build: wasm-pack build'

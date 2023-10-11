@@ -120,6 +120,7 @@ async fn main() -> Result<()> {
             match session_result {
                 Ok(value) => value,
                 Err(error) => {
+                    // FIXME should handle a bulletin board refusing messages maliciously
                     error!(
                         "Error executing step for board '{}': '{}'",
                         board_name.clone(),

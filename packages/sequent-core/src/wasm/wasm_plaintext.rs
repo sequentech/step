@@ -36,7 +36,8 @@ extern "C" {
 
 #[wasm_bindgen(typescript_custom_section)]
 const IDECODED_VOTE_QUESTION: &'static str = r#"
-interface IDecodedVoteQuestion {
+interface IDecodedVoteContest {
+    contest_id: string;
     is_explicit_invalid: boolean;
     invalid_errors: Array<IInvalidPlaintextError>;
     choices: Array<IDecodedVoteChoice>;
@@ -45,16 +46,16 @@ interface IDecodedVoteQuestion {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IDecodedVoteQuestion")]
-    pub type IDecodedVoteQuestion;
+    #[wasm_bindgen(typescript_type = "IDecodedVoteContest")]
+    pub type IDecodedVoteContest;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
 const IDECODED_VOTE_CHOICE: &'static str = r#"
 interface IDecodedVoteChoice {
-    id: number;
+    id: string;
     selected: number;
-    writein_text?: string;
+    write_in_text?: string;
 }
 "#;
 

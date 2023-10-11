@@ -1,5 +1,5 @@
 type Mutation {
-  createScheduledEvent (
+  createScheduledEvent(
     tenant_id: String!
     election_event_id: String!
     event_processor: String!
@@ -10,7 +10,7 @@ type Mutation {
 }
 
 type Query {
-  fetchDocument (
+  fetchDocument(
     tenant_id: String!
     election_event_id: String!
     document_id: String!
@@ -25,47 +25,47 @@ type Query {
 }
 
 input TemplateInput {
-  template : String!
-  format : String!
+  template: String!
+  format: String!
 }
 
 type TemplateOutput {
-  id : String!
-  election_event_id : String
-  tenant_id : String
-  name : String
-  size : Int
-  media_type : String
+  id: String!
+  election_event_id: String
+  tenant_id: String
+  name: String
+  size: Int
+  media_type: String
 }
 
 type FetchDocumentOutput {
-  url : String!
+  url: String!
 }
 
 type ScheduledEventOutput {
-  id : String!
-  tenant_id : String
-  election_event_id : String
-  created_at : String
-  stopped_at : String
-  labels : jsonb
-  annotations : jsonb
-  event_processor : String
-  cron_config : String
-  event_payload : jsonb
-  created_by : String
+  id: String!
+  tenant_id: String
+  election_event_id: String
+  created_at: String
+  stopped_at: String
+  labels: jsonb
+  annotations: jsonb
+  event_processor: String
+  cron_config: String
+  event_payload: jsonb
+  created_by: String
 }
 
 type PgAuditRow {
-  id : Int!
-  audit_type : String!
-  class : String!
-  command : String!
-  dbname : String!
-  server_timestamp : Int!
-  session_id : String!
-  statement : String!
-  user : String!
+  id: Int!
+  audit_type: String!
+  class: String!
+  command: String!
+  dbname: String!
+  server_timestamp: Int!
+  session_id: String!
+  statement: String!
+  user: String!
 }
 
 type Aggregate {

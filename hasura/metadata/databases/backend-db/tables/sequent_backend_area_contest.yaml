@@ -2,80 +2,80 @@ table:
   name: area_contest
   schema: sequent_backend
 object_relationships:
-- name: contest
-  using:
-    manual_configuration:
-      column_mapping:
-        contest_id: id
-        election_event_id: election_event_id
-        tenant_id: tenant_id
-      insertion_order: null
-      remote_table:
-        name: contest
-        schema: sequent_backend
+  - name: contest
+    using:
+      manual_configuration:
+        column_mapping:
+          contest_id: id
+          election_event_id: election_event_id
+          tenant_id: tenant_id
+        insertion_order: null
+        remote_table:
+          name: contest
+          schema: sequent_backend
 insert_permissions:
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - annotations
-    - labels
-    - created_at
-    - last_updated_at
-    - area_id
-    - contest_id
-    - election_event_id
-    - id
-    - tenant_id
-  role: admin-user
+  - role: admin-user
+    permission:
+      check: {}
+      columns:
+        - annotations
+        - labels
+        - created_at
+        - last_updated_at
+        - area_id
+        - contest_id
+        - election_event_id
+        - id
+        - tenant_id
+    comment: ""
 select_permissions:
-- comment: ""
-  permission:
-    allow_aggregations: true
-    columns:
-    - annotations
-    - labels
-    - created_at
-    - last_updated_at
-    - area_id
-    - contest_id
-    - election_event_id
-    - id
-    - tenant_id
-    filter: {}
-  role: admin-user
-- comment: ""
-  permission:
-    columns:
-    - annotations
-    - labels
-    - created_at
-    - last_updated_at
-    - area_id
-    - contest_id
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      _and:
-      - tenant_id:
-          _eq: X-Hasura-Tenant-Id
-      - area_id:
-          _eq: X-Hasura-Area-Id
-  role: user
+  - role: admin-user
+    permission:
+      columns:
+        - annotations
+        - labels
+        - created_at
+        - last_updated_at
+        - area_id
+        - contest_id
+        - election_event_id
+        - id
+        - tenant_id
+      filter: {}
+      allow_aggregations: true
+    comment: ""
+  - role: user
+    permission:
+      columns:
+        - annotations
+        - labels
+        - created_at
+        - last_updated_at
+        - area_id
+        - contest_id
+        - election_event_id
+        - id
+        - tenant_id
+      filter:
+        _and:
+          - tenant_id:
+              _eq: X-Hasura-Tenant-Id
+          - area_id:
+              _eq: X-Hasura-Area-Id
+    comment: ""
 update_permissions:
-- comment: ""
-  permission:
-    check: {}
-    columns:
-    - annotations
-    - labels
-    - created_at
-    - last_updated_at
-    - area_id
-    - contest_id
-    - election_event_id
-    - id
-    - tenant_id
-    filter: {}
-  role: admin-user
+  - role: admin-user
+    permission:
+      columns:
+        - annotations
+        - labels
+        - created_at
+        - last_updated_at
+        - area_id
+        - contest_id
+        - election_event_id
+        - id
+        - tenant_id
+      filter: {}
+      check: {}
+    comment: ""

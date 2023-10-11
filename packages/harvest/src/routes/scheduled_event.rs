@@ -25,6 +25,7 @@ pub enum EventProcessors {
     UPDATE_VOTING_STATUS,
     CREATE_BOARD,
     CREATE_KEYS,
+    SET_PUBLIC_KEY,
     CREATE_BALLOT_STYLE,
 }
 
