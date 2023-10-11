@@ -4,24 +4,24 @@ mod tests {
     use anyhow::Result;
     use std::fs::{self, File};
     use std::io::Write;
-    use std::path::PathBuf;
     use uuid::Uuid;
 
     struct TestFixture {
-        root_dir: PathBuf,
-        input_dir: PathBuf,
-        elections_path: PathBuf,
-        contests_path: PathBuf,
+        root_dir: String,
+        input_dir_configs: String,
+        input_dir_ballots: String,
     }
 
     /*
     ./path/to/input-dir/default/configs/
-    |-- election-configs/
-        |-- election__<uuid>.json
-        |-- contest-configs/
-            |-- contest__<uuid>.json
-            |-- areas-configs
-                |-- area__<uuid>.json
+    |-- elections/
+        |-- election__<uuid>/
+            |-- election-config.json
+            |-- contests/
+                |-- contest__<uuid>/
+                    |-- contest-config.json
+                    |-- area__<uuid>/
+                        |-- area-config.json
 
     ./path/to/input-dir/default/ballots/
     |-- election__<uuid>/
@@ -32,35 +32,32 @@ mod tests {
 
     impl Drop for TestFixture {
         fn drop(&mut self) {
-            fs::remove_dir_all(self.root_dir.to_str().unwrap()).unwrap();
+            fs::remove_dir_all(&self.root_dir).unwrap();
         }
     }
 
     impl TestFixture {
         fn new() -> Result<Self> {
-            let root_dir = "./tests-input";
-            let input_dir = format!("{}/tests/input-dir/default", root_dir);
-            let elections_path = format!("{}/configs/elections", input_dir);
-            let contests_path = format!("{}/contests", elections_path);
+            let root_dir = "./tests-input".to_string();
+            let input_dir_configs = format!("{}/tests/input-dir/default/configs", &root_dir);
+            let input_dir_ballots = format!("{}/tests/input-dir/default/ballots", &root_dir);
 
-            fs::create_dir_all(&elections_path)?;
-            fs::create_dir_all(&contests_path)?;
+            fs::create_dir_all(&input_dir_configs)?;
+            fs::create_dir_all(&input_dir_ballots)?;
 
             Ok(Self {
-                root_dir: PathBuf::from(root_dir),
-                input_dir: PathBuf::from(input_dir),
-                elections_path: PathBuf::from(elections_path),
-                contests_path: PathBuf::from(contests_path),
+                root_dir,
+                input_dir_configs,
+                input_dir_ballots,
             })
         }
 
-        fn create_election_config(&self) -> Result<()> {
-            let uuid = Uuid::new_v4().to_string();
-            let mut file = File::create(format!(
-                "{}/election__{}.json",
-                self.elections_path.to_str().unwrap(),
-                uuid
-            ))?;
+        fn create_election_config(&self) -> Result<Uuid> {
+            let uuid = Uuid::new_v4();
+            
+            let dir = format!("{}/election__{}", self.input_dir_configs, uuid);
+            fs::create_dir_all(&dir)?;
+            let mut file = File::create(format!("{}/election-config.json", dir))?;
 
             let election_str = r#"
             {
@@ -184,8 +181,16 @@ mod tests {
 
             writeln!(file, "{election_str}")?;
 
-            Ok(())
+            Ok(uuid)
         }
+
+        // fn create_contest_config(&self, election_uuid: &Uuid) -> Result<Uuid> {
+        //     let uuid = Uuid::new_v4();
+        //
+        //     let mut file = File::create(format!("{}/election__{}.json", self.contests_path, uuid))?;
+        //
+        //     Ok(uuid)
+        // }
     }
 
     #[test]
@@ -198,10 +203,10 @@ mod tests {
         fixture.create_election_config()?;
         fixture.create_election_config()?;
 
-        let entries = fs::read_dir(fixture.elections_path.to_str().unwrap())?;
+        let entries = fs::read_dir(&fixture.input_dir_configs)?;
         let count = entries.count();
 
-        assert_eq!(count, 5 + 1);
+        assert_eq!(count, 5);
 
         Ok(())
     }

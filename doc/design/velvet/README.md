@@ -88,12 +88,14 @@ Configs are split into this file structure:
 
 ```
 ./path/to/input-dir/default/configs/
-|-- election-configs/
-	|-- election__<uuid>.json
-	|-- contest-configs/
-		|-- contest__<uuid>.json
-		|-- areas-configs
-			|-- area__<uuid>.json
+|-- elections/
+	|-- election__<uuid>/
+        |-- election-config.json
+        |-- contests/
+            |-- contest__<uuid>/
+                |-- contest-config.json
+                |-- area__<uuid>/
+                    |-- area-config.json
 ```
 
 Ballots are split into this file structure:
