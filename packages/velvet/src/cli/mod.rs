@@ -1,4 +1,5 @@
 pub mod error;
+mod inputs;
 pub mod state;
 
 use crate::config::Config;
@@ -128,7 +129,7 @@ mod tests {
 
             writeln!(file, "{config_content}")?;
 
-            Ok(TestFixture { config_path })
+            Ok(Self { config_path })
         }
     }
 
@@ -161,7 +162,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_clirun_validate_found_not_found() {
+    fn test_clirun_validate_not_found() {
         let _fixture = TestFixture::new("test_clirun_validate_found_not_found-velvet-config.json");
         let cli = CliRun {
             stage: "main".to_string(),

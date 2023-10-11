@@ -16,3 +16,4 @@ strum_macros = "0.25.2"
 [dev-dependencies]
 anyhow = "1"
 sequent-core = { path="../sequent-core" }
+uuid = { version = "1.4.1", features = ["v4", "fast-rng"] }

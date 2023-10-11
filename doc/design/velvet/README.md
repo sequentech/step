@@ -103,7 +103,7 @@ Ballots are split into this file structure:
 |-- election__<uuid>/
 	|-- contest__<uuid>/
 		|-- area__<uuid>/
-			|-- ballots__<uuid>.csv
+			|-- ballots.csv
 ```
 
 Same thing applies for `inputExtraDir`.
