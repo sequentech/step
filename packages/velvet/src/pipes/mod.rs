@@ -1,3 +1,4 @@
+pub mod decode_ballots;
 pub mod pipe_name;
 
 // trait Pipe {

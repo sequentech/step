@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pipes::decode_ballots::BallotCodec;
     use anyhow::Result;
     use std::fs::{self, File};
     use std::io::Write;
@@ -273,10 +274,17 @@ mod tests {
 
         let uuid = fixture.create_election_config()?;
         fixture.create_contest_config(&uuid)?;
-        fixture.create_election_config()?;
-        fixture.create_election_config()?;
-        fixture.create_election_config()?;
-        fixture.create_election_config()?;
+        let uuid = fixture.create_election_config()?;
+        fixture.create_contest_config(&uuid)?;
+        fixture.create_contest_config(&uuid)?;
+        fixture.create_contest_config(&uuid)?;
+        fixture.create_contest_config(&uuid)?;
+        let uuid = fixture.create_election_config()?;
+        fixture.create_contest_config(&uuid)?;
+        let uuid = fixture.create_election_config()?;
+        fixture.create_contest_config(&uuid)?;
+        let uuid = fixture.create_election_config()?;
+        fixture.create_contest_config(&uuid)?;
 
         let entries = fs::read_dir(&fixture.input_dir_configs)?;
         let count = entries.count();
@@ -284,5 +292,15 @@ mod tests {
         assert_eq!(count, 5);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_ballot_codec() {
+        let choices = vec![0, 0, 0, 1, 0, 0];
+        let ballot_codec = BallotCodec::new(vec![2, 2, 2, 2, 2, 2]);
+        let encoded_ballot = ballot_codec.encode_ballot(choices.clone());
+        let decoded_ballot = ballot_codec.decode_ballot(encoded_ballot);
+
+        assert_eq!(decoded_ballot, choices);
     }
 }
