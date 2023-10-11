@@ -5,7 +5,7 @@
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::*;
-use strand::hashing::rustcrypto;
+use strand::hash;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::zkp::{Schnorr, Zkp};
 
@@ -218,7 +218,7 @@ pub fn hash_ballot<C: Ctx>(
     let bytes = hashable_ballot
         .strand_serialize()
         .map_err(|error| BallotError::Serialization(error.to_string()))?;
-    let hash_bytes = rustcrypto::hash(bytes.as_slice())
+    let hash_bytes = hash::hash(bytes.as_slice())
         .map_err(|error| BallotError::Serialization(error.to_string()))?;
     let hash_256bits_slice = &hash_bytes[0..32];
     Ok(hex::encode(hash_256bits_slice))

@@ -122,14 +122,3 @@ info.get("SYMMETRIC").unwrap());
 
     ret
 }
-
-/// Support for distributed Elgamal.
-#[allow(dead_code)]
-mod keymaker;
-/// Random number generation.
-#[doc(hidden)]
-pub(crate) mod random;
-/// Signature frontend.
-mod signatures;
-/// Symmetric encryption frontend.
-mod symmetric;
