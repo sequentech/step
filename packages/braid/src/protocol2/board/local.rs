@@ -1,20 +1,11 @@
 use anyhow::anyhow;
 use anyhow::Result;
-use log::{debug, error, trace, warn};
+use log::{debug, error, warn};
 use std::collections::HashMap;
 
 use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
-/*use crate::protocol2::artifact::Ballots;
-use crate::protocol2::artifact::Channel;
-use crate::protocol2::artifact::Configuration;
-use crate::protocol2::artifact::DecryptionFactors;
-use crate::protocol2::artifact::Plaintexts;
-use crate::protocol2::artifact::Shares;
-use crate::protocol2::artifact::{DkgPublicKey, Mix};
-use crate::protocol2::message::VerifiedMessage;
-use crate::protocol2::statement::{ArtifactType, Statement, StatementType};*/
 use braid_messages::artifact::*;
 use braid_messages::message::VerifiedMessage;
 use braid_messages::statement::{ArtifactType, Statement, StatementType};
@@ -120,7 +111,6 @@ impl<C: Ctx> LocalBoard<C> {
             warn!("Configuration received when identical present, ignored");
             Ok(())
         } else {
-            error!("Configuration overwrite attempt");
             Err(anyhow!("Configuration overwrite attempt"))
         }
     }
@@ -147,11 +137,11 @@ impl<C: Ctx> LocalBoard<C> {
                 );
                 Ok(())
             } else {
-                error!(
+                Err(anyhow!(
                     "Statement identifier already exists (overwrite): {:?}, message was {:?}",
-                    statement_identifier, message
-                );
-                Err(anyhow!("Statement already present (overwrite)"))
+                    statement_identifier,
+                    message
+                ))
             }
         } else {
             debug!(
@@ -164,10 +154,6 @@ impl<C: Ctx> LocalBoard<C> {
                 let artifact_identifier =
                     self.get_artifact_entry_identifier(&statement_identifier, &artifact_type);
                 let artifact_hash = strand::hash::hash_to_array(&artifact)?;
-                trace!(
-                    "Artifact found with hash {}",
-                    hex::encode(artifact_hash)[0..10].to_string()
-                );
 
                 let artifact_entry = self.artifacts.get(&artifact_identifier);
 
@@ -176,7 +162,6 @@ impl<C: Ctx> LocalBoard<C> {
                         warn!("Artifact identical, ignored");
                         Ok(())
                     } else {
-                        error!("Artifact already present (overwrite)");
                         Err(anyhow!("Artifact already present (overwrite)"))
                     }
                 } else {

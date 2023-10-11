@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use braid_messages::artifact::Configuration;
-use braid_messages::message::Message;
 use crate::protocol2::trustee::ProtocolManager;
 use crate::run::config::ProtocolManagerConfig;
+use braid_messages::artifact::Configuration;
+use braid_messages::message::Message;
 
 use strand::context::Ctx;
 

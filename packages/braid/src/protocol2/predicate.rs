@@ -1,13 +1,13 @@
+use log::trace;
 use std::collections::HashSet;
 use strum::Display;
-use log::trace;
 
-use strand::signature::StrandSignaturePk;
 use strand::context::Ctx;
+use strand::signature::StrandSignaturePk;
 
 use braid_messages::artifact::Configuration;
-use braid_messages::statement::Statement;
 use braid_messages::newtypes::*;
+use braid_messages::statement::Statement;
 
 use braid_messages::newtypes::NULL_TRUSTEE;
 use braid_messages::newtypes::PROTOCOL_MANAGER_INDEX;
@@ -166,7 +166,6 @@ impl Predicate {
             ),
             // Ballots(Timestamp, ConfigurationH, usize, CiphertextsH, PublicKeyH, TrusteeSet)
             Statement::Ballots(_ts, cfg_h, batch, ballots_h, pk_h, trustees) => {
-                
                 // Verify that all selected trustees are valid
                 let mut selected = vec![];
                 trustees.iter().for_each(|s| {
@@ -189,7 +188,7 @@ impl Predicate {
                 )
             }
             // Mix(Timestamp, ConfigurationH, usize, CiphertextsH, CiphertextsH)
-            Statement::Mix(_ts, cfg_h, batch, source_h, mix_h, mix_number) => Self::Mix (
+            Statement::Mix(_ts, cfg_h, batch, source_h, mix_h, mix_number) => Self::Mix(
                 ConfigurationHash(cfg_h.0),
                 *batch,
                 CiphertextsHash(source_h.0),
