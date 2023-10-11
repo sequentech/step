@@ -8,7 +8,8 @@ use crate::protocol2::trustee::ProtocolManager;
 use crate::run::config::ProtocolManagerConfig;
 use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::util::assert_folder;
-use crate::protocol2::statement::StatementType;
+use braid_messages::statement::StatementType;
+use braid_messages::artifact::DkgPublicKey;
 
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
