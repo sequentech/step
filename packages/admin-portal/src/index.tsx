@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import ReactDOM from "react-dom/client"
-import {Provider} from "react-redux"
-import {store} from "./store/store"
 import "./index.css"
 import App from "./App"
 import "./services/i18n"
@@ -24,13 +22,11 @@ SequentCoreLibInit().then(set_hooks)
 root.render(
     <React.StrictMode>
         <AuthContextProvider>
-            <Provider store={store}>
-                <ThemeProvider theme={theme}>
-                    <ApolloProvider client={apolloClient}>
-                        <App />
-                    </ApolloProvider>
-                </ThemeProvider>
-            </Provider>
+            <ThemeProvider theme={theme}>
+                <ApolloProvider client={apolloClient}>
+                    <App />
+                </ApolloProvider>
+            </ThemeProvider>
         </AuthContextProvider>
     </React.StrictMode>
 )

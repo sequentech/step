@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use tracing::instrument;
-use rocket::Request;
 use rocket::http::Status;
+use rocket::Request;
+use tracing::instrument;
 use rocket::response::Debug;
 use rocket::serde::{Deserialize, Serialize};
 use rocket::serde::json::{Json, json, Value};
+
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]

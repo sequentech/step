@@ -2,34 +2,31 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
-    IAuditableBallot,
-    IHashableBallot,
-    IElectionDTO,
-    hash_cyphertext_js,
-    encrypt_decoded_question_js,
+    IBallotStyle,
+    to_hashable_ballot_js,
+    hash_auditable_ballot_js,
+    encrypt_decoded_contest_js,
 } from "sequent-core"
 import {BallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 
 export interface IBallotService {
-    hashBallot256: (auditableBallot: IAuditableBallot) => string
-    encryptBallotSelection: (
-        ballotSelection: BallotSelection,
-        election: IElectionDTO
-    ) => IAuditableBallot
+    toHashableBallot: (auditableBallot: string) => string
+    hashBallot: (auditableBallot: string) => string
+    encryptBallotSelection: (ballotSelection: BallotSelection, election: IBallotStyle) => string
 }
 
-export const toHashableBallot = (auditableBallot: IAuditableBallot): IHashableBallot => ({
-    choices: auditableBallot.choices.map((choice) => ({
-        alpha: choice.alpha,
-        beta: choice.beta,
-    })),
-    issue_date: auditableBallot.issue_date,
-    proofs: auditableBallot.proofs,
-})
-
-export const hashBallot256 = (auditableBallot: IAuditableBallot): string => {
+export const toHashableBallot = (auditableBallot: string): string => {
     try {
-        return hash_cyphertext_js(toHashableBallot(auditableBallot))
+        return to_hashable_ballot_js(auditableBallot)
+    } catch (e) {
+        console.log(e)
+        throw e
+    }
+}
+
+export const hashBallot = (auditableBallot: string): string => {
+    try {
+        return hash_auditable_ballot_js(auditableBallot)
     } catch (e) {
         console.log(e)
         throw e
@@ -38,10 +35,10 @@ export const hashBallot256 = (auditableBallot: IAuditableBallot): string => {
 
 export const encryptBallotSelection = (
     ballotSelection: BallotSelection,
-    election: IElectionDTO
-): IAuditableBallot => {
+    election: IBallotStyle
+): string => {
     try {
-        return encrypt_decoded_question_js(ballotSelection, election)
+        return encrypt_decoded_contest_js(ballotSelection, election)
     } catch (e) {
         console.log(e)
         throw e
@@ -49,6 +46,7 @@ export const encryptBallotSelection = (
 }
 
 export const provideBallotService = (): IBallotService => ({
-    hashBallot256,
+    toHashableBallot,
+    hashBallot,
     encryptBallotSelection,
 })

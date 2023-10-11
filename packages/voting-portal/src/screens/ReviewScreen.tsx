@@ -35,8 +35,7 @@ import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {InsertCastVoteMutation} from "../gql/graphql"
 import {v4 as uuidv4} from "uuid"
 import {CircularProgress} from "@mui/material"
-import {toHashableBallot} from "../services/BallotService"
-import {IAuditableBallot} from "sequent-core"
+import {provideBallotService} from "../services/BallotService"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -73,7 +72,7 @@ const StyledButton = styled(Button)`
 
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
-    auditableBallot: IAuditableBallot
+    auditableBallot: string
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot}) => {
@@ -81,6 +80,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     const {t} = useTranslation()
     const navigate = useNavigate()
     const [auditBallotHelp, setAuditBallotHelp] = useState(false)
+    const {toHashableBallot} = provideBallotService()
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
         if (value) {
@@ -91,14 +91,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     const castBallotAction = async () => {
         try {
             const hashableBallot = toHashableBallot(auditableBallot)
-            const content = btoa(JSON.stringify(hashableBallot))
             await insertCastVote({
                 variables: {
                     id: uuidv4(),
                     electionId: ballotStyle.election_id,
                     electionEventId: ballotStyle.election_event_id,
                     tenantId: ballotStyle.tenant_id,
-                    content: content,
+                    content: hashableBallot,
                 },
             })
             navigate(`/election/${ballotStyle.election_id}/confirmation`)
@@ -164,6 +163,8 @@ export const ReviewScreen: React.FC = () => {
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
     const {t} = useTranslation()
+    const {hashBallot} = provideBallotService()
+    const ballotHash = auditableBallot && hashBallot(auditableBallot)
 
     if (!ballotStyle || !auditableBallot) {
         return <CircularProgress />
@@ -171,10 +172,7 @@ export const ReviewScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg">
-            <BallotHash
-                hash={auditableBallot?.ballot_hash || ""}
-                onHelpClick={() => setOpenBallotIdHelp(true)}
-            />
+            <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
             <Dialog
                 handleClose={() => setOpenBallotIdHelp(false)}
                 open={openBallotIdHelp}

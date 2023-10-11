@@ -4242,6 +4242,7 @@ export type Sequent_Backend_Election_Event = {
   labels?: Maybe<Scalars['jsonb']['output']>;
   name: Scalars['String']['output'];
   presentation?: Maybe<Scalars['jsonb']['output']>;
+  public_key?: Maybe<Scalars['String']['output']>;
   status?: Maybe<Scalars['jsonb']['output']>;
   tenant_id: Scalars['uuid']['output'];
   updated_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -4342,6 +4343,7 @@ export type Sequent_Backend_Election_Event_Bool_Exp = {
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
   presentation?: InputMaybe<Jsonb_Comparison_Exp>;
+  public_key?: InputMaybe<String_Comparison_Exp>;
   status?: InputMaybe<Jsonb_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
   updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
@@ -4403,6 +4405,7 @@ export type Sequent_Backend_Election_Event_Insert_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
+  public_key?: InputMaybe<Scalars['String']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -4419,6 +4422,7 @@ export type Sequent_Backend_Election_Event_Max_Fields = {
   encryption_protocol?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   name?: Maybe<Scalars['String']['output']>;
+  public_key?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   updated_at?: Maybe<Scalars['timestamptz']['output']>;
   user_boards?: Maybe<Scalars['String']['output']>;
@@ -4433,6 +4437,7 @@ export type Sequent_Backend_Election_Event_Min_Fields = {
   encryption_protocol?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   name?: Maybe<Scalars['String']['output']>;
+  public_key?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   updated_at?: Maybe<Scalars['timestamptz']['output']>;
   user_boards?: Maybe<Scalars['String']['output']>;
@@ -4469,6 +4474,7 @@ export type Sequent_Backend_Election_Event_Order_By = {
   labels?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   presentation?: InputMaybe<Order_By>;
+  public_key?: InputMaybe<Order_By>;
   status?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   updated_at?: InputMaybe<Order_By>;
@@ -4521,6 +4527,8 @@ export enum Sequent_Backend_Election_Event_Select_Column {
   /** column name */
   Presentation = 'presentation',
   /** column name */
+  PublicKey = 'public_key',
+  /** column name */
   Status = 'status',
   /** column name */
   TenantId = 'tenant_id',
@@ -4547,6 +4555,7 @@ export type Sequent_Backend_Election_Event_Set_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
+  public_key?: InputMaybe<Scalars['String']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -4577,6 +4586,7 @@ export type Sequent_Backend_Election_Event_Stream_Cursor_Value_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
+  public_key?: InputMaybe<Scalars['String']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -4612,6 +4622,8 @@ export enum Sequent_Backend_Election_Event_Update_Column {
   Name = 'name',
   /** column name */
   Presentation = 'presentation',
+  /** column name */
+  PublicKey = 'public_key',
   /** column name */
   Status = 'status',
   /** column name */

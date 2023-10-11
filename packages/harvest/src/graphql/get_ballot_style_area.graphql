@@ -44,6 +44,7 @@ query GetBallotStyleArea(
     encryption_protocol
     is_audit
     audit_election_event_id
+    public_key
   }
   sequent_backend_election(
       where: {

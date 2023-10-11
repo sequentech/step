@@ -26,5 +26,6 @@ query GetElectionEvent(
     encryption_protocol
     is_audit
     audit_election_event_id
+    public_key
   }
 }

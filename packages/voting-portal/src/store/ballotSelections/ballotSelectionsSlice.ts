@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {IDecodedVoteQuestion, IDecodedVoteChoice} from "sequent-core"
+import {IDecodedVoteContest, IDecodedVoteChoice} from "sequent-core"
 import {isUndefined} from "@sequentech/ui-essentials"
 import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
 
-export type BallotSelection = Array<IDecodedVoteQuestion>
+export type BallotSelection = Array<IDecodedVoteContest>
 
 export interface BallotSelectionsState {
     [electionId: string]: BallotSelection | undefined
@@ -31,6 +31,7 @@ export const ballotSelectionsSlice = createSlice({
                 state[action.payload.ballotStyle.election_id] =
                     action.payload.ballotStyle.ballot_eml.configuration.questions.map(
                         (question) => ({
+                            contest_id: question.id,
                             is_explicit_invalid: false,
                             invalid_errors: [],
                             choices: question.answers.map((answer) => ({
@@ -78,11 +79,7 @@ export const ballotSelectionsSlice = createSlice({
             // check bounds
             if (
                 action.payload.questionIndex >=
-                    action.payload.ballotStyle.ballot_eml.configuration.questions.length ||
-                action.payload.voteChoice.id >=
-                    action.payload.ballotStyle.ballot_eml.configuration.questions[
-                        action.payload.questionIndex
-                    ].answers.length
+                action.payload.ballotStyle.ballot_eml.configuration.questions.length
             ) {
                 return state
             }
@@ -135,7 +132,7 @@ export const {resetBallotSelection, setBallotSelectionInvalidVote, setBallotSele
     ballotSelectionsSlice.actions
 
 export const selectBallotSelectionVoteChoice =
-    (electionId: string, questionIndex: number, answerIndex: number) => (state: RootState) =>
+    (electionId: string, questionIndex: number, answerIndex: string) => (state: RootState) =>
         state.ballotSelections[electionId]?.[questionIndex]?.choices.find(
             (choice) => answerIndex === choice.id
         )

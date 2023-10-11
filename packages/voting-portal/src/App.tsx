@@ -15,12 +15,13 @@ import {ElectionSelectionScreen} from "./screens/ElectionSelectionScreen"
 import {LoginScreen} from "./screens/LoginScreen"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
+import {DISABLE_AUTH} from "."
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
 `
 
-const App = () => {
+const HeaderWithContext: React.FC = () => {
     const location = useLocation()
     const navigate = useNavigate()
     const authContext = useContext(AuthContext)
@@ -31,9 +32,21 @@ const App = () => {
         }
     }, [location.pathname, authContext.isAuthenticated, navigate])
 
+    return <Header logoutFn={authContext.isAuthenticated ? authContext.logout : undefined} />
+}
+
+const App = () => {
+    const navigate = useNavigate()
+
+    useEffect(() => {
+        if (DISABLE_AUTH) {
+            navigate("/election-chooser")
+        }
+    }, [])
+
     return (
         <StyledApp>
-            <Header logoutFn={authContext.isAuthenticated ? authContext.logout : undefined} />
+            {DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
             <PageBanner marginBottom="auto">
                 <Routes>
                     <Route path="/" element={<LoginScreen />} />

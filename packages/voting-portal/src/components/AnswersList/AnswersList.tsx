@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {CandidatesList, isUndefined} from "@sequentech/ui-essentials"
-import {IDecodedVoteQuestion} from "sequent-core"
+import {IDecodedVoteContest} from "sequent-core"
 import {Answer} from "../Answer/Answer"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
@@ -25,7 +25,7 @@ export interface AnswersListProps {
     isReview: boolean
 }
 
-const showCategoryOnReview = (category: ICategory, questionState?: IDecodedVoteQuestion) => {
+const showCategoryOnReview = (category: ICategory, questionState?: IDecodedVoteContest) => {
     if (isUndefined(questionState)) {
         return false
     }
@@ -50,7 +50,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     questionIndex,
     isReview,
 }) => {
-    const categoryAnswerId = category.header?.id || -1
+    const categoryAnswerId = category.header?.id || ""
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, questionIndex, categoryAnswerId)
     )

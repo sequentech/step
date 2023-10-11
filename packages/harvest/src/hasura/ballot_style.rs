@@ -7,7 +7,7 @@ use reqwest;
 use rocket::serde::json::Value;
 use rocket::serde::{Deserialize, Serialize};
 use std::env;
-use tracing::{event, Level, instrument};
+use tracing::{event, instrument, Level};
 
 use crate::connection;
 use crate::services::to_result::ToResult;
@@ -18,7 +18,6 @@ type timestamptz = String;
 type bytea = String;
 type text = String;
 type varchar = String;
-
 
 #[derive(GraphQLQuery)]
 #[graphql(

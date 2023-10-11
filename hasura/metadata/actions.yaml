@@ -65,7 +65,7 @@ actions:
 custom_types:
   enums: []
   input_objects:
-  - name: TemplateInput
+    - name: TemplateInput
   objects:
   - name: TemplateOutput
   - name: FetchDocumentOutput

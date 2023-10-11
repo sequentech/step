@@ -33,7 +33,6 @@ pub(crate) fn hasher() -> Hasher {
 }
 
 
-
 pub(crate) use sha3::digest::{ExtendableOutput, Update, XofReader};
 pub(crate) fn hasher_xof() -> Shake256 {
     Shake256::default()

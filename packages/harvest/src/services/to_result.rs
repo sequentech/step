@@ -4,9 +4,9 @@
 
 use anyhow::{anyhow, Result};
 use graphql_client::{GraphQLQuery, Response};
-use tracing::{event, Level, instrument};
+use tracing::{event, instrument, Level};
 
-pub trait  ToResult<T, E> {
+pub trait ToResult<T, E> {
     fn ok(self) -> Result<T, E>;
 }
 

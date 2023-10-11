@@ -96,7 +96,7 @@ const spanishTranslation: TranslationType = {
         dragNDrop: {
             firstLine: "Arrastrar y soltar ficheros o",
             browse: "Cargar fichero",
-            format: "Formatos soportados: json",
+            format: "Formatos soportados: txt",
         },
         selectElection: {
             electionWebsite: "Sitio web electoral",

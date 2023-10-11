@@ -264,9 +264,12 @@ the vault and finally login with the `initial root token`.
 
 Also in order for the `harvest` service to work, you'll first need to execute this:
 
-```bash
-docker exec -it vault vault secrets enable --version=1 --path=secrets kv
-```
+    docker exec -it vault vault login
+
+It will ask for the `initial root token`. This is required to authenticate for the
+next step:
+
+    docker exec -it vault vault secrets enable --version=1 --path=secrets kv
 
 That will enable the /secrets path for the v1 key value secrets store in the `vault``.
 
@@ -295,10 +298,11 @@ following:
 docker compose build frontend && docker compose up -d --no-deps frontend
 ```
 
-### The hasura schema changed or I want to add a query/mutation to the voting-portal
+### The hasura schema changed or I want to add a query/mutation to the voting-portal/admin-portal
 
 Add the query/mutation to the `packages/voting-portal/src/queries/` folder and 
-then run `yarn generate` from the `packages/` folder to update the types.
+then run `yarn generate` from the `packages/` folder to update the types.  Similarly,
+run `yarn generate:admin` to update the types of the `admin-portal` if you need it.
 
 ### The voting portal will not load any elections
 

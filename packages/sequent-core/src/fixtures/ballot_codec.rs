@@ -2,21 +2,22 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::ballot::BallotStyle;
 use crate::ballot::{Answer, Question, QuestionExtra, Url};
-use crate::ballot_codec::RawBallotQuestion;
+use crate::ballot_codec::{vec_to_30_array, RawBallotQuestion};
 use crate::plaintext::{
-    DecodedVoteChoice, DecodedVoteQuestion, InvalidPlaintextError,
+    DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextError,
     InvalidPlaintextErrorType,
 };
-use crate::util::read_ballot_fixture;
 use std::collections::HashMap;
 
 pub struct BallotCodecFixture {
     pub title: String,
     pub question: Question,
     pub raw_ballot: RawBallotQuestion,
-    pub plaintext: DecodedVoteQuestion,
-    pub encoded_ballot: String,
+    pub plaintext: DecodedVoteContest,
+    pub encoded_ballot_bigint: String,
+    pub encoded_ballot: [u8; 30],
     pub expected_errors: Option<HashMap<String, String>>,
 }
 pub struct BasesFixture {
@@ -24,9 +25,118 @@ pub struct BasesFixture {
     pub bases: Vec<u64>,
 }
 
+pub fn normalize_vote_question(
+    input: &DecodedVoteContest,
+    tally_type: &str,
+) -> DecodedVoteContest {
+    let mut original = input.clone();
+    let mut choices: Vec<DecodedVoteChoice> = original
+        .choices
+        .iter()
+        .map(|choice| normalize_vote_choice(choice, tally_type))
+        .collect();
+    choices.sort_by_key(|q| q.id.clone());
+    original.choices = choices;
+    original
+}
+
+pub fn normalize_vote_choice(
+    input: &DecodedVoteChoice,
+    tally_type: &str,
+) -> DecodedVoteChoice {
+    let mut original = input.clone();
+    if "plurality-at-large" == tally_type {
+        original.selected = if original.selected < 0 { -1 } else { 0 };
+    } else {
+        original.selected = if original.selected < 0 {
+            -1
+        } else {
+            original.selected
+        };
+    }
+
+    original.write_in_text = match original.write_in_text {
+        Some(text) => {
+            if text.len() > 0 {
+                Some(text)
+            } else {
+                None
+            }
+        }
+        None => None,
+    };
+    original
+}
+
 fn get_question_plurality() -> Question {
-    let ballot = read_ballot_fixture();
-    ballot.config.configuration.questions[0].clone()
+    let question_str = r#"{
+        "id":"1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
+        "description":"Elige quien quieres que sea tu Secretario General en tu municipio",
+         "layout":"",
+         "min":0,
+         "max":1,
+         "num_winners":1,
+         "title":"Secretario General",
+         "tally_type":"plurality-at-large",
+         "answer_total_votes_percentage":"over-total-valid-votes",
+         "answers":[
+            {
+                "id":"0",
+               "category":"Candidaturas no agrupadas",
+               "details":"",
+               "sort_order":0,
+               "urls":[
+                  
+               ],
+               "text":"José Rabano Pimiento"
+            },
+            {
+                "id":"1",
+               "category":"Candidaturas no agrupadas",
+               "details":"",
+               "sort_order":1,
+               "urls":[
+                  
+               ],
+               "text":"Miguel Pimentel Inventado"
+            },
+            {
+               "category":"Candidaturas no agrupadas",
+               "text":"Juan Iglesias Torquemada",
+               "sort_order":2,
+               "details":"",
+               "urls":[
+                  
+               ],
+               "id":"2"
+            },
+            {
+               "category":"Candidaturas no agrupadas",
+               "text":"Mari Pili Hernández Ordoñez",
+               "sort_order":3,
+               "details":"",
+               "urls":[
+                  
+               ],
+               "id":"3"
+            },
+            {
+               "category":"Candidaturas no agrupadas",
+               "text":"Juan Y Medio",
+               "sort_order":4,
+               "details":"",
+               "urls":[
+                  
+               ],
+               "id":"4"
+            }
+         ],
+         "extra_options":{
+            "base32_writeins":true
+         }
+      }"#;
+    let question: Question = serde_json::from_str(question_str).unwrap();
+    question
 }
 
 fn get_question_borda() -> Question {
@@ -36,15 +146,268 @@ fn get_question_borda() -> Question {
     question
 }
 
+pub fn get_test_decoded_vote_question() -> DecodedVoteContest {
+    DecodedVoteContest {
+        contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
+        is_explicit_invalid: false,
+        invalid_errors: vec![],
+        choices: vec![
+            DecodedVoteChoice {
+                id: "38df9caf-2dc8-472c-87f2-f003241e9510".to_string(),
+                selected: 0,
+                write_in_text: None,
+            },
+            DecodedVoteChoice {
+                id: "97ac7d0a-e0f5-4e51-a1ee-6614c0836fec".to_string(),
+                selected: -1,
+                write_in_text: None,
+            },
+            DecodedVoteChoice {
+                id: "94c9eafa-ebc6-4594-a176-24788f761ced".to_string(),
+                selected: 0,
+                write_in_text: None,
+            },
+        ],
+    }
+}
+
+pub fn get_writein_ballot_style() -> BallotStyle {
+    let question_str = r#"{
+        "id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+        "configuration": {
+            "id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
+            "layout": "simple",
+            "director": "6xx-a1",
+            "authorities": ["6xx-a2"],
+            "title": "Write-ins simple",
+            "description": "",
+            "questions": [
+                {
+                    "id": "1c1500ac-173e-4e78-a59d-91bfa3678c5a",
+                    "description": "",
+                    "layout": "simultaneous-questions",
+                    "max": 2,
+                    "min": 1,
+                    "num_winners": 1,
+                    "title": "Test question title",
+                    "tally_type": "plurality-at-large",
+                    "answer_total_votes_percentage": "over-total-valid-votes",
+                    "answers": [
+                        {
+                            "id": "f257cd3a-d1cf-4b97-91f8-2dfe156b015c",
+                            "category": "",
+                            "details": "This is an option with an simple example description.",
+                            "sort_order": 0,
+                            "urls": [],
+                            "text": "Example option 1"
+                        },
+                        {
+                            "id": "17325099-f5ab-4c48-a142-6d7ed721e9bb",
+                            "category": "",
+                            "details": "An option can contain a description.",
+                            "sort_order": 1,
+                            "urls": [
+                                {
+                                    "title": "URL",
+                                    "url": "https://sequentech.io"
+                                },
+                                {
+                                    "title": "Image URL",
+                                    "url": "/XFQwVFL.jpg"
+                                }
+                            ],
+                            "text": "Example option 2"
+                        },
+                        {
+                            "id": "61320aac-0d78-4001-845e-a2f2bd8e800b",
+                            "category": "",
+                            "details": "",
+                            "sort_order": 2,
+                            "urls": [
+                                {
+                                    "title": "isWriteIn",
+                                    "url": "true"
+                                }
+                            ],
+                            "text": ""
+                        },
+                        {
+                            "id": "e9ad3ed1-4fd5-4498-a0e7-3a3c22ef57d5",
+                            "category": "",
+                            "details": "",
+                            "sort_order": 3,
+                            "urls": [
+                                {
+                                    "title": "isWriteIn",
+                                    "url": "true"
+                                }
+                            ],
+                            "text": ""
+                        }
+                    ],
+                    "extra_options": {
+                        "shuffle_categories": true,
+                        "shuffle_all_options": true,
+                        "shuffle_category_list": [],
+                        "show_points": false,
+                        "allow_writeins": true
+                    }
+                }
+            ],
+            "presentation": {
+                "share_text": [
+                    {
+                        "network": "Twitter",
+                        "button_text": "",
+                        "social_message": "I have just voted in election __URL__, you can too! #sequent"
+                    }
+                ],
+                "theme": "default",
+                "urls": [],
+                "theme_css": ""
+            },
+            "extra_data": "{}",
+            "tallyPipesConfig": "",
+            "ballotBoxesResultsConfig": "",
+            "virtual": false,
+            "tally_allowed": false,
+            "publicCandidates": true,
+            "virtualSubelections": [],
+            "logo_url": ""
+        },
+        "state": "created",
+        "public_key": {
+            "public_key": "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
+            "is_demo": false
+        },
+        "tallyPipesConfig": "",
+        "ballotBoxesResultsConfig": "",
+        "virtual": false,
+        "tallyAllowed": false,
+        "publicCandidates": true,
+        "logo_url": "",
+        "trusteeKeysState": [
+            {
+                "id": "6xx-a1",
+                "state": "initial"
+            },
+            {
+                "id": "6xx-a2",
+                "state": "initial"
+            }
+        ]
+    }"#;
+    let question: BallotStyle = serde_json::from_str(question_str).unwrap();
+    question
+}
+
+pub fn get_writein_plaintext() -> DecodedVoteContest {
+    DecodedVoteContest {
+        contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".to_string(),
+        is_explicit_invalid: false,
+        choices: vec![
+            DecodedVoteChoice {
+                id: "f257cd3a-d1cf-4b97-91f8-2dfe156b015c".to_string(),
+                selected: -1,
+                write_in_text: None,
+            },
+            DecodedVoteChoice {
+                id: "17325099-f5ab-4c48-a142-6d7ed721e9bb".to_string(),
+                selected: 0,
+                write_in_text: None,
+            },
+            DecodedVoteChoice {
+                id: "61320aac-0d78-4001-845e-a2f2bd8e800b".to_string(),
+                selected: 0,
+                write_in_text: Some("FELIX".to_string()),
+            },
+            DecodedVoteChoice {
+                id: "e9ad3ed1-4fd5-4498-a0e7-3a3c22ef57d5".to_string(),
+                selected: -1,
+                write_in_text: None,
+            },
+        ],
+        invalid_errors: vec![],
+    }
+}
+
+pub fn get_test_question() -> Question {
+    let question_str = r#"{
+        "id":"1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
+        "description":"This is the description of this question. You can have multiple questions. You can add simple html like.",
+        "layout":"simultaneous-questions",
+        "max":3,
+        "min":1,
+        "num_winners":1,
+        "title":"Test question title",
+        "tally_type":"plurality-at-large",
+        "answer_total_votes_percentage":"over-total-valid-votes",
+        "answers":[
+           {
+              "id":"38df9caf-2dc8-472c-87f2-f003241e9510",
+              "category":"",
+              "details":"This is an option with an simple example description.",
+              "sort_order":0,
+              "urls":[
+                 {
+                    "title":"Image URL",
+                    "url":"https://i.imgur.com/XFQwVFL.jpg"
+                 }
+              ],
+              "text":"Example option 1"
+           },
+           {
+              "id":"97ac7d0a-e0f5-4e51-a1ee-6614c0836fec",
+              "category":"",
+              "details":"An option can contain a description. You can add simple html like ",
+              "sort_order":1,
+              "urls":[
+                 {
+                    "title":"URL",
+                    "url":"https://sequentech.io"
+                 },
+                 {
+                    "title":"Image URL",
+                    "url":"/XFQwVFL.jpg"
+                 }
+              ],
+              "text":"Example option 2"
+           },
+           {
+              "id":"94c9eafa-ebc6-4594-a176-24788f761ced",
+              "category":"",
+              "details":"",
+              "sort_order":2,
+              "urls":[
+                 
+              ],
+              "text":"Example option 3"
+           }
+        ],
+        "extra_options":{
+           "shuffle_categories":true,
+           "shuffle_all_options":true,
+           "shuffle_category_list":[
+              
+           ],
+           "show_points":false,
+           "base32_writeins":true
+        }
+     }"#;
+    let question: Question = serde_json::from_str(question_str).unwrap();
+    question
+}
+
 pub(crate) fn get_configurable_question(
     max: i64,
     num_answers: usize,
     tally_type: String,
     enable_writeins: bool,
     write_in_questions: Option<Vec<usize>>,
+    base32_writeins: bool,
 ) -> Question {
     let question_str = r#"{
-        "id": "fae0b09e-1b78-4118-b99c-7955f8ef2a52",
+        "id": "1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
         "layout":"",
         "description":"Elige quien quieres que sea tu Secretario General en tu municipio",
         "min":0,
@@ -59,7 +422,7 @@ pub(crate) fn get_configurable_question(
               "urls":[
                  
               ],
-              "id":0
+              "id":"0"
            },
            {
               "category":"Candidaturas no agrupadas",
@@ -69,7 +432,7 @@ pub(crate) fn get_configurable_question(
               "urls":[
                  
               ],
-              "id":1
+              "id":"1"
            },
            {
               "category":"Candidaturas no agrupadas",
@@ -79,7 +442,7 @@ pub(crate) fn get_configurable_question(
               "urls":[
                  
               ],
-              "id":2
+              "id":"2"
            },
            {
               "category":"Candidaturas no agrupadas",
@@ -89,7 +452,7 @@ pub(crate) fn get_configurable_question(
               "urls":[
                  
               ],
-              "id":3
+              "id":"3"
            },
            {
               "category":"Candidaturas no agrupadas",
@@ -99,7 +462,7 @@ pub(crate) fn get_configurable_question(
               "urls":[
                  
               ],
-              "id":4
+              "id":"4"
            },
            {
               "category":"Candidaturas no agrupadas",
@@ -109,7 +472,7 @@ pub(crate) fn get_configurable_question(
               "urls":[
                  
               ],
-              "id":5
+              "id":"5"
            },
            {
               "category":"Candidaturas no agrupadas",
@@ -119,13 +482,16 @@ pub(crate) fn get_configurable_question(
               "urls":[
                  
               ],
-              "id":6
+              "id":"6"
            }
         ],
         "num_winners":1,
         "title":"Secretario General",
         "randomize_answer_order":true,
-        "answer_total_votes_percentage":"over-total-valid-votes"
+        "answer_total_votes_percentage":"over-total-valid-votes",
+        "extra_options": {
+            "base32_writeins": true
+        }
      }"#;
     let mut question: Question = serde_json::from_str(question_str).unwrap();
 
@@ -145,6 +511,12 @@ pub(crate) fn get_configurable_question(
             }
         }
     }
+    // set base32_writeins
+    let mut extra_options =
+        question.extra_options.unwrap_or(QuestionExtra::new());
+    extra_options.base32_writeins = Some(base32_writeins);
+    question.extra_options = Some(extra_options);
+
     question.answers = question.answers[0..num_answers].to_vec();
     question
 }
@@ -158,31 +530,32 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2u64, 2u64, 2u64, 2u64, 2u64, 2u64],
                 choices: vec![0u64, 1u64, 0u64, 0u64, 1u64, 1u64],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
@@ -199,7 +572,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ],
             },
-            encoded_ballot: "50".to_string(),
+            encoded_ballot_bigint: "50".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![1, 50]).unwrap(),
             expected_errors: None
         },
         BallotCodecFixture {
@@ -209,43 +583,46 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2u64, 5u64, 5u64, 5u64, 5u64, 5u64],
                 choices: vec![0u64, 3u64, 0u64, 0u64, 1u64, 2u64],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 2,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: 1,
                         write_in_text: None,
                     },
                 ],
                 invalid_errors: vec![],
             },
-            encoded_ballot: "2756".to_string(),
+            encoded_ballot_bigint: "2756".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![2, 196, 10]).unwrap(),
             expected_errors: None
         },
         BallotCodecFixture {
             title: "example_3_explicit_and_implicit_invalid".to_string(),
             question: Question {
+                id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 description: "".to_string(),
                 layout: "simultaneous-questions".to_string(),
                 min: 0,
@@ -256,7 +633,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 answer_total_votes_percentage: "over-total-valid-votes".to_string(),
                 answers: vec![
                     Answer {
-                        id: 0,
+                        id: 0.to_string(),
                         category: "".to_string(),
                         text: "Chloe HUTCHISON".to_string(),
                         sort_order: 0,
@@ -264,7 +641,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 1,
+                        id: 1.to_string(),
                         category: "".to_string(),
                         text: "Helen KURGANSKY".to_string(),
                         sort_order: 0,
@@ -272,7 +649,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 2,
+                        id: 2.to_string(),
                         category: "".to_string(),
                         text: "Jamie NICHOLLS".to_string(),
                         sort_order: 0,
@@ -280,7 +657,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 3,
+                        id: 3.to_string(),
                         category: "".to_string(),
                         text: "".to_string(),
                         sort_order: 0,
@@ -296,6 +673,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 extra_options: {
                     let mut extra = QuestionExtra::new();
                     extra.invalid_vote_policy =  Some("allowed".to_string());
+                    extra.base32_writeins = Some(true);
                     Some(extra)
                 },
             },
@@ -303,21 +681,22 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
                 choices: vec![1u64, 1u64, 1u64, 1u64],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: true,
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: 0,
                         write_in_text: None,
                     }
@@ -334,12 +713,14 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ],
             },
-            encoded_ballot: "15".to_string(),
+            encoded_ballot_bigint: "15".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![1, 15]).unwrap(),
             expected_errors: None
         },
         BallotCodecFixture {
             title: "example_3_explicit_invalid".to_string(),
             question: Question {
+                id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 layout: "simultaneous-questions".to_string(),
                 description: "".to_string(),
                 min: 0,
@@ -348,7 +729,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 answer_total_votes_percentage: "over-total-valid-votes".to_string(),
                 answers: vec![
                     Answer {
-                        id: 0,
+                        id: 0.to_string(),
                         category: "".to_string(),
                         text: "Chloe HUTCHISON".to_string(),
                         sort_order: 0,
@@ -356,7 +737,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 1,
+                        id: 1.to_string(),
                         category: "".to_string(),
                         text: "Helen KURGANSKY".to_string(),
                         sort_order: 0,
@@ -364,7 +745,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 2,
+                        id: 2.to_string(),
                         category: "".to_string(),
                         text: "Jamie NICHOLLS".to_string(),
                         sort_order: 0,
@@ -372,7 +753,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 3,
+                        id: 3.to_string(),
                         category: "".to_string(),
                         text: "".to_string(),
                         sort_order: 0,
@@ -397,33 +778,36 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
                 choices: vec![1u64, 1u64, 0u64, 0u64],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: true,
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     }
                 ],
                 invalid_errors: vec![],
             },
-            encoded_ballot: "3".to_string(),
+            encoded_ballot_bigint: "3".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![1, 3]).unwrap(),
             expected_errors: None
         },
         BallotCodecFixture {
             title: "example_3_implicit_too_many".to_string(),
             question: Question {
+                id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 layout: "simultaneous-questions".to_string(),
                 description: "".to_string(),
                 min: 0,
@@ -431,7 +815,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 tally_type: "plurality-at-large".to_string(),
                 answers: vec![
                     Answer {
-                        id: 0,
+                        id: 0.to_string(),
                         category: "".to_string(),
                         text: "Chloe HUTCHISON".to_string(),
                         sort_order: 0,
@@ -439,7 +823,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 1,
+                        id: 1.to_string(),
                         category: "".to_string(),
                         text: "Helen KURGANSKY".to_string(),
                         sort_order: 0,
@@ -447,7 +831,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 2,
+                        id: 2.to_string(),
                         category: "".to_string(),
                         text: "Jamie NICHOLLS".to_string(),
                         sort_order: 0,
@@ -455,7 +839,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 3,
+                        id: 3.to_string(),
                         category: "".to_string(),
                         text: "".to_string(),
                         sort_order: 0,
@@ -481,21 +865,22 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
                 choices: vec![0u64, 1u64, 1u64, 1u64],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: 0,
                         write_in_text: None,
                     }
@@ -512,12 +897,14 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ],
             },
-            encoded_ballot: "14".to_string(),
+            encoded_ballot_bigint: "14".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![1, 14]).unwrap(),
             expected_errors: None
         },
         BallotCodecFixture {
             title: "example_4_implicit_empty".to_string(),
             question: Question {
+                id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 layout: "accordion".to_string(),
                 description: "".to_string(),
                 min: 1,
@@ -525,7 +912,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 tally_type: "plurality-at-large".to_string(),
                 answers: vec![
                     Answer {
-                        id: 0,
+                        id: 0.to_string(),
                         category: "".to_string(),
                         text: "Example option 1".to_string(),
                         sort_order: 0,
@@ -533,7 +920,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 1,
+                        id: 1.to_string(),
                         category: "".to_string(),
                         text: "Example option 2".to_string(),
                         sort_order: 0,
@@ -541,7 +928,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 2,
+                        id: 2.to_string(),
                         category: "".to_string(),
                         text: "Example option 3".to_string(),
                         sort_order: 0,
@@ -562,21 +949,22 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
                 choices: vec![0u64, 0u64, 0u64, 0u64],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     }
@@ -593,12 +981,14 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ],
             },
-            encoded_ballot: "0".to_string(),
+            encoded_ballot_bigint: "0".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![1, 0]).unwrap(),
             expected_errors: None
         },
         BallotCodecFixture {
             title: "example_4_implicit_invented_answer".to_string(),
             question: Question {
+                id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 layout: "accordion".to_string(),
                 description: "".to_string(),
                 min: 1,
@@ -606,7 +996,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 tally_type: "plurality-at-large".to_string(),
                 answers: vec![
                     Answer {
-                        id: 0,
+                        id: 0.to_string(),
                         category: "".to_string(),
                         text: "Example option 1".to_string(),
                         sort_order: 0,
@@ -614,7 +1004,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 1,
+                        id: 1.to_string(),
                         category: "".to_string(),
                         text: "Example option 2".to_string(),
                         sort_order: 0,
@@ -622,7 +1012,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         urls: vec![],
                     },
                     Answer {
-                        id: 2,
+                        id: 2.to_string(),
                         category: "".to_string(),
                         text: "Example option 3".to_string(),
                         sort_order: 0,
@@ -643,26 +1033,27 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 bases: vec![2u64, 2u64, 2u64, 2u64, 2u64],
                 choices: vec![0u64, 0u64, 0u64, 0u64, 1u64],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: 0,
                         write_in_text: None,
                     }
@@ -685,179 +1076,188 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ],
             },
-            encoded_ballot: "16".to_string(),
+            encoded_ballot_bigint: "16".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![1, 16]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(), "".to_string()),
                 ("question_encode_plaintext".to_string(), "choice id is not a valid answer".to_string()),
                 ("question_encode_to_raw_ballot".to_string(), "choice id is not a valid answer".to_string()),
                 ("question_decode_plaintext".to_string(), "decode_choices".to_string()),
+                ("encoding_plaintext_bigint".to_string(), "choice id is not a valid answer".to_string()),
             ]))
         },
         BallotCodecFixture {
             title: "plurality with two selections".to_string(),
-            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), false, None),
+            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), false, None, true),
             raw_ballot: RawBallotQuestion {
                 bases: vec![2, 2, 2, 2, 2, 2, 2, 2],
                 choices: vec![0, 0, 1, 0, 0, 0, 1, 0],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: 0,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 5,
+                        id: 5.to_string(),
                         selected: 1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 6,
+                        id: 6.to_string(),
                         selected: -1,
                         write_in_text: None
                     }
                 ]
             },
-            encoded_ballot: "68".to_string(),
+            encoded_ballot_bigint: "68".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![1, 68]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_decode_plaintext".to_string(), "decode_choices".to_string()),
             ]))
         },
         BallotCodecFixture {
             title: "plurality with three selections".to_string(),
-            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), false, None),
+            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), false, None, true),
             raw_ballot: RawBallotQuestion {
                 bases: vec![2, 2, 2, 2, 2, 2, 2, 2],
                 choices: vec![0, 1, 1, 0, 0, 0, 1, 0],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: 0,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 5,
+                        id: 5.to_string(),
                         selected: 1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 6,
+                        id: 6.to_string(),
                         selected: -1,
                         write_in_text: None
                     }
                 ]
             },
-            encoded_ballot: "70".to_string(),
+            encoded_ballot_bigint: "70".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![1, 70]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_decode_plaintext".to_string(), "decode_choices".to_string()),
             ]))
         },
         BallotCodecFixture {
             title: "borda with three selections".to_string(),
-            question: get_configurable_question(3, 7, "borda".to_string(), false, None),
+            question: get_configurable_question(3, 7, "borda".to_string(), false, None, true),
             raw_ballot: RawBallotQuestion {
                 bases: vec![2, 4, 4, 4, 4, 4, 4, 4],
                 choices: vec![0, 1, 3, 0, 0, 0, 2, 0]
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: 2,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 5,
+                        id: 5.to_string(),
                         selected: 1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 6,
+                        id: 6.to_string(),
                         selected: -1,
                         write_in_text: None
                     }
                 ]
             },
-            encoded_ballot: "4122".to_string(),
+            encoded_ballot_bigint: "4122".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![2, 26, 16]).unwrap(),
             expected_errors: None
         },
         BallotCodecFixture {
             title: "plurality explicit invalid and one selection".to_string(),
-            question: get_configurable_question(2, 2, "plurality-at-large".to_string(), false, None),
+            question: get_configurable_question(2, 2, "plurality-at-large".to_string(), false, None, true),
             raw_ballot: RawBallotQuestion {
                 bases: vec![2, 2, 2],
                 choices: vec![1, 1, 0]
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: true,
                 invalid_errors: vec![
                     InvalidPlaintextError {
@@ -869,28 +1269,30 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                 ]
             },
-            encoded_ballot: "3".to_string(),
+            encoded_ballot_bigint: "3".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![1, 3]).unwrap(),
             expected_errors: None
         },
         BallotCodecFixture {
             title: "two write ins, an explicit invalid ballot, one of the write-ins is not selected".to_string(),
-            question: get_configurable_question(2, 6, "borda".to_string(), true, None),
+            question: get_configurable_question(2, 6, "borda".to_string(), true, None, true),
             raw_ballot: RawBallotQuestion {
-                bases: vec![2, 3, 3, 3, 3, 3, 3, 256, 256, 256],
-                choices: vec![1, 1, 0, 0, 1, 2, 0, 68, 0, 0]
+                bases: vec!  [2, 3, 3, 3, 3, 3, 3, 32, 32, 32],
+                choices: vec![1, 1, 0, 0, 1, 2, 0, 4, 0, 0]
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: true,
                 invalid_errors: vec![
                     InvalidPlaintextError {
@@ -911,103 +1313,107 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: 1,
                         write_in_text: Some("D".to_string())
                     },
                     DecodedVoteChoice {
-                        id: 5,
+                        id: 5.to_string(),
                         selected: -1,
                         write_in_text: Some("".to_string())
                     }
                 ]
             },
-            encoded_ballot: "99525".to_string(),
+            encoded_ballot_bigint: "6213".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![2, 69, 24]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(), "bases don't cover write-ins".to_string()),
             ]))
         },
         BallotCodecFixture {
             title: "three write ins, a valid ballot, one of the write-ins is not selected".to_string(),
-            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), true, None),
+            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), true, None, true),
             raw_ballot: RawBallotQuestion {
-                bases: vec![2, 2, 2, 2, 2, 2, 2, 2, 256, 256, 256, 256, 256, 256, 256, 256, 256],
-                choices: vec![0, 1, 0, 0, 0, 1, 0, 1, 69, 0, 0, 195, 132, 32, 98, 99, 0]
+                bases: vec![2, 2, 2, 2, 2, 2, 2, 2, 32, 32, 32, 32, 32, 32, 32, 32],
+                choices: vec![0, 1, 0, 0, 0, 1, 0, 1, 5, 0, 0, 1, 27, 2, 3, 0]
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 3,
+                        id: 3.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 4,
+                        id: 4.to_string(),
                         selected: 1,
                         write_in_text: Some("E".to_string()),
                     },
                     DecodedVoteChoice {
-                        id: 5,
+                        id: 5.to_string(),
                         selected: -1,
                         write_in_text: Some("".to_string()),
                     },
                     DecodedVoteChoice {
-                        id: 6,
+                        id: 6.to_string(),
                         selected: 1,
-                        write_in_text: Some("Ä bc".to_string()),
+                        write_in_text: Some("A BC".to_string()),
                     }
                 ]
             },
-            encoded_ballot: "1833298460685270795682".to_string(),
+            encoded_ballot_bigint: "849069737378".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![5, 162, 5, 128, 176, 197]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(), "bases don't cover write-ins".to_string()),
             ]))
         },
         BallotCodecFixture {
             title: "Not enough choices to decode".to_string(),
-            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, None),
+            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, None, true),
             raw_ballot: RawBallotQuestion {
                 bases: vec![2, 2, 2, 2],
                 choices: vec![0, 1, 0],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![
                     InvalidPlaintextError {
@@ -1019,62 +1425,57 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     }
                 ]
             },
-            encoded_ballot: "2".to_string(),
+            encoded_ballot_bigint: "2".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![1, 2]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_encode_raw_ballot".to_string(), "Invalid parameters: 'valueList' (size = 3) and 'baseList' (size = 4) must have the same length.".to_string()),
                 ("question_encode_plaintext".to_string(), "Invalid parameters: 'valueList' (size = 3) and 'baseList' (size = 4) must have the same length.".to_string()),
                 ("question_decode_plaintext".to_string(), "invalid_errors,decode_choices".to_string()),
+                ("encoding_plaintext_bigint".to_string(), "Invalid parameters: 'valueList' (size = 3) and 'baseList' (size = 4) must have the same length.".to_string()),
             ]))
         },
         BallotCodecFixture {
-            title: "invalid utf-8 sequence".to_string(),
-            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![0])),
+            title: "simple vote".to_string(),
+            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![0]), true),
             raw_ballot: RawBallotQuestion {
-                bases:   vec![2, 2, 2, 2, 256, 256],
-                choices: vec![0, 1, 0, 0, 150, 0],
+                bases:   vec![2, 2, 2, 2],
+                choices: vec![0, 1, 0, 0],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
-                invalid_errors: vec![
-                    InvalidPlaintextError {
-                        error_type: InvalidPlaintextErrorType::EncodingError,
-                        answer_id: Some(0),
-                        message: Some("errors.encoding.bytesToUtf8Conversion".to_string()),
-                        message_map: HashMap::from([
-                            ("errorMessage".to_string(), "invalid utf-8 sequence of 1 bytes from index 0".to_string())
-                        ]),
-                    }
-                ],
+                invalid_errors: vec![],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     }
                 ]
             },
-            encoded_ballot: "2402".to_string(),
+            encoded_ballot_bigint: "2".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![1, 2]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(),  "bases don't cover write-ins".to_string()),
                 ("question_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
@@ -1083,40 +1484,42 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "Write in doesn't end on 0".to_string(),
-            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![0])),
+            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![0]), true),
             raw_ballot: RawBallotQuestion {
-                bases:   vec![2, 2, 2, 2, 256],
-                choices: vec![0, 1, 0, 0, 97],
+                bases:   vec![2, 2, 2, 2, 32],
+                choices: vec![0, 1, 0, 0, 1],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::EncodingError,
-                        answer_id: Some(0),
+                        answer_id: Some(0.to_string()),
                         message: Some("errors.encoding.writeInNotEndInZero".to_string()),
                         message_map: HashMap::new(),
                     }
                 ],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
-                        write_in_text: Some("a".to_string()),
+                        write_in_text: Some("A".to_string()),
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None,
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None,
                     }
                 ]
             },
-            encoded_ballot: "1554".to_string(),
+            encoded_ballot_bigint: "18".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![1, 18]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
                 ("question_decode_plaintext".to_string(),  "invalid_errors, decode_choices".to_string()),
@@ -1124,12 +1527,13 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "Ballot larger than expected".to_string(),
-            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![])),
+            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![]), true),
             raw_ballot: RawBallotQuestion {
-                bases: vec![2, 2, 2, 2, 256],
+                bases: vec![2, 2, 2, 2, 32],
                 choices: vec![0, 1, 0, 0, 24],
             },
-            plaintext: DecodedVoteQuestion {
+            plaintext: DecodedVoteContest {
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 is_explicit_invalid: false,
                 invalid_errors: vec![
                     InvalidPlaintextError {
@@ -1141,92 +1545,29 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 choices: vec![
                     DecodedVoteChoice {
-                        id: 0,
+                        id: 0.to_string(),
                         selected: 0,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 1,
+                        id: 1.to_string(),
                         selected: -1,
                         write_in_text: None
                     },
                     DecodedVoteChoice {
-                        id: 2,
+                        id: 2.to_string(),
                         selected: -1,
                         write_in_text: None
                     }
                 ]
             },
-            encoded_ballot: "386".to_string(),
+            encoded_ballot_bigint: "386".to_string(),
+            encoded_ballot: vec_to_30_array(&vec![2, 130, 1]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("question_bases".to_string(),  "bases don't cover write-ins".to_string()),
                 ("question_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
                 ("question_encode_plaintext".to_string(),  "disabled".to_string()),
-            ]))
-        },
-        // see https://hsivonen.fi/string-length/
-        BallotCodecFixture {
-            title: "write in fixture with utf-8 characters".to_string(),
-            question: get_configurable_question(2, 6, "borda".to_string(), true, None),
-            raw_ballot: RawBallotQuestion {
-                bases: vec![2, 3, 3, 3, 3, 3, 3, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256],
-                choices: vec![1, 1, 0, 0, 1, 2, 0, 240, 159, 164, 166, 240, 159, 143, 188, 226, 128, 141, 226, 153, 130, 239, 184, 143, 0, 0]
-            },
-            plaintext: DecodedVoteQuestion {
-                is_explicit_invalid: true,
-                invalid_errors: vec![
-                    InvalidPlaintextError {
-                        error_type: InvalidPlaintextErrorType::Explicit,
-                        answer_id: None,
-                        message: Some("errors.explicit.notAllowed".to_string()),
-                        message_map: HashMap::new(),
-                    },
-                    InvalidPlaintextError {
-                        error_type: InvalidPlaintextErrorType::Implicit,
-                        answer_id: None,
-                        message: Some("errors.implicit.selectedMax".to_string()),
-                        message_map: HashMap::from([
-                            ("numSelected".to_string(), "3".to_string()),
-                            ("max".to_string(), "2".to_string())
-                        ]),
-                    }
-                ],
-                choices: vec![
-                    DecodedVoteChoice {
-                        id: 0,
-                        selected: 0,
-                        write_in_text: None,
-                    },
-                    DecodedVoteChoice {
-                        id: 1,
-                        selected: -1,
-                        write_in_text: None,
-                    },
-                    DecodedVoteChoice {
-                        id: 2,
-                        selected: -1,
-                        write_in_text: None,
-                    },
-                    DecodedVoteChoice {
-                        id: 3,
-                        selected: 0,
-                        write_in_text: None,
-                    },
-                    DecodedVoteChoice {
-                        id: 4,
-                        selected: 1,
-                        write_in_text: Some("🤦🏼‍♂️".to_string())
-                    },
-                    DecodedVoteChoice {
-                        id: 5,
-                        selected: -1,
-                        write_in_text: Some("".to_string())
-                    }
-                ]
-            },
-            encoded_ballot: "71305239641951160318911622492115035225515613".to_string(),
-            expected_errors: Some(HashMap::from([
-                ("question_bases".to_string(), "bases don't cover write-ins".to_string()),
+                ("encoding_plaintext_bigint".to_string(),  "disabled".to_string()),
             ]))
         },
     ]
@@ -1241,6 +1582,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
                 "plurality-at-large".to_string(),
                 false,
                 None,
+                true,
             ),
             bases: vec![2, 2, 2, 2, 2, 2, 2, 2],
         },
@@ -1251,6 +1593,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
                 "plurality-at-large".to_string(),
                 false,
                 None,
+                true,
             ),
             bases: vec![2, 2],
         },
@@ -1261,6 +1604,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
                 "borda".to_string(),
                 false,
                 None,
+                true,
             ),
             bases: vec![2, 2],
         },
@@ -1271,6 +1615,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
                 "borda".to_string(),
                 false,
                 None,
+                true,
             ),
             bases: vec![2, 3, 3, 3],
         },
