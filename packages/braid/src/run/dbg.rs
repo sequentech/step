@@ -19,18 +19,18 @@ use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol2::action::Action;
+use crate::protocol2::board::local::LocalBoard;
 use braid_messages::artifact::Ballots;
 use braid_messages::artifact::Configuration;
+use braid_messages::message::Message;
 use braid_messages::newtypes::PublicKeyHash;
 use braid_messages::newtypes::NULL_TRUSTEE;
-use braid_messages::message::Message;
-use crate::protocol2::board::local::LocalBoard;
 
 // use crate::protocol2::predicate::PublicKeyHash;
 use crate::protocol2::trustee::ProtocolManager;
 use crate::protocol2::trustee::Trustee;
-use braid_messages::newtypes::MAX_TRUSTEES;
 use crate::test::vector_board::VectorBoard;
+use braid_messages::newtypes::MAX_TRUSTEES;
 
 #[instrument(skip(log_reload))]
 pub fn dbg<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Result<()> {

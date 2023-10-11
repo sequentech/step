@@ -20,10 +20,10 @@ use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 
-use braid_messages::artifact::Configuration;
 use braid::protocol2::trustee::ProtocolManager;
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::{ProtocolManagerConfig, TrusteeConfig};
+use braid_messages::artifact::Configuration;
 
 const CONFIG: &str = "config.bin";
 const PROTOCOL_MANAGER: &str = "pm.toml";

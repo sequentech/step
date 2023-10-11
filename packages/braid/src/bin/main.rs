@@ -60,7 +60,7 @@ async fn main() -> Result<()> {
         .expect("Should have been able to read the trustee configuration file");
 
     info!("{}", strand::info_string());
-    
+
     let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
 
     let bytes = braid::util::decode_base64(&tc.signing_key_sk)?;

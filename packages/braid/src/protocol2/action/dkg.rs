@@ -50,13 +50,12 @@ pub(super) fn sign_channels<C: Ctx>(
             let ok = zkp.schnorr_verify(&pk_element, None, &channel.pk_proof, &label);
             // FIXME assert
             assert!(ok);
-        }
-        else {
+        } else {
             // FIXME panic
             panic!();
         }
     }
-    
+
     let m = Message::channels_all_signed_msg(cfg, channels_hs, trustee)?;
     Ok(vec![m])
 }
@@ -128,8 +127,7 @@ pub(super) fn compute_pk<C: Ctx>(
     if let Ok(pk) = pk {
         let public_key: DkgPublicKey<C> = DkgPublicKey::new(pk.0, pk.1);
 
-        let m =
-            Message::public_key_msg(cfg, &public_key, shares_hs, channels_hs, true, trustee)?;
+        let m = Message::public_key_msg(cfg, &public_key, shares_hs, channels_hs, true, trustee)?;
         Ok(vec![m])
     } else {
         Err(anyhow!("Could not compute pk {:?}", pk))

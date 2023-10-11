@@ -7,12 +7,12 @@ pub(self) use strand::context::Element;
 pub(self) use strand::context::Exponent;
 
 pub(self) use crate::protocol2::datalog::NULL_HASH;
-pub(self) use braid_messages::message::Message;
+pub(self) use crate::protocol2::trustee::Trustee;
 pub(self) use braid_messages::artifact::{
     DecryptionFactors, DkgPublicKey, Mix, Plaintexts, Shares,
 };
+pub(self) use braid_messages::message::Message;
 pub(self) use braid_messages::newtypes::*;
-pub(self) use crate::protocol2::trustee::Trustee;
 
 /*pub(crate) use crate::protocol2::predicate::BatchNumber;
 pub(crate) use crate::protocol2::predicate::ChannelHash;
@@ -29,8 +29,6 @@ pub(crate) use crate::protocol2::predicate::TrusteeSet;
 pub(crate) use crate::protocol2::predicate::{MixNumber, TrusteeCount, TrusteePosition};
 
 pub(crate) use crate::protocol2::PROTOCOL_MANAGER_INDEX;*/
-
-
 
 use crate::util::dbg_hash;
 

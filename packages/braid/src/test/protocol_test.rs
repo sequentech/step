@@ -13,9 +13,9 @@ use strand::elgamal::Ciphertext;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-use braid_messages::artifact::{Configuration, Ballots, Plaintexts};
-use braid_messages::newtypes::PublicKeyHash;
+use braid_messages::artifact::{Ballots, Configuration, Plaintexts};
 use braid_messages::message::Message;
+use braid_messages::newtypes::PublicKeyHash;
 use braid_messages::newtypes::MAX_TRUSTEES;
 use braid_messages::newtypes::NULL_TRUSTEE;
 
@@ -57,7 +57,7 @@ fn run_protocol_test<C: Ctx>(
     threshold: &[usize],
 ) -> Result<()> {
     info!("{}", strand::info_string());
-    
+
     let remote = test.remote.clone();
     let ctx = test.ctx.clone();
     let mut sessions = vec![];
