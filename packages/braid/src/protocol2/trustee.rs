@@ -25,7 +25,7 @@ use crate::protocol2::predicate::Predicate;
 
 use braid_messages::newtypes::PROTOCOL_MANAGER_INDEX;
 
-use strand::symm;
+use strand::symm::{self, EncryptionData};
 
 ///////////////////////////////////////////////////////////////////////////
 // Trustee
@@ -424,14 +424,16 @@ impl<C: Ctx> Trustee<C> {
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "fips")] {
-            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, cfg: &Configuration<C>) -> Result<Channel<C>> {
+            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, cfg: &Configuration<C>) -> Result<EncryptionData> {
+                
+                
                 let identifier: String = self.get_pk()?.try_into()?;
                 // 0 is a dummy batch value
                 let aad = cfg.label(0, format!("encrypted by {}", identifier));
                 let bytes: &[u8] = &sk.strand_serialize()?;
                 let ed = symm::encrypt(self.encryption_key, bytes, &aad)?;
 
-                Ok(Channel::new(sk.pk_element().clone(), ed))
+                Ok(ed)
             }
 
             pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, cfg: &Configuration<C>) -> Result<PrivateKey<C>> {
@@ -445,11 +447,11 @@ impl<C: Ctx> Trustee<C> {
             }
         }
         else {
-            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<Channel<C>> {
+            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<EncryptionData> {
                 let bytes: &[u8] = &sk.strand_serialize()?;
                 let ed = symm::encrypt(self.encryption_key, bytes)?;
 
-                Ok(Channel::new(sk.pk_element().clone(), ed))
+                Ok(ed)
             }
 
             pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<PrivateKey<C>> {

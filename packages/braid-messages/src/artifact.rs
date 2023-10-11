@@ -3,6 +3,7 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use strand::zkp::Schnorr;
 
 use crate::newtypes::{BatchNumber, MixNumber};
 use crate::newtypes::PROTOCOL_MANAGER_INDEX;
@@ -72,12 +73,14 @@ impl<C: Ctx> Configuration<C> {
 pub struct Channel<C: Ctx> {
     // The public key (as an element) with which other trustees will encrypt shares sent to the originator of this ShareTransport
     pub channel_pk: C::E,
+    pub pk_proof: Schnorr<C>,
     pub encrypted_channel_sk: symm::EncryptionData,
 }
 impl<C: Ctx> Channel<C> {
-    pub fn new(channel_pk: C::E, encrypted_channel_sk: symm::EncryptionData) -> Channel<C> {
+    pub fn new(channel_pk: C::E, pk_proof: Schnorr<C>, encrypted_channel_sk: symm::EncryptionData) -> Channel<C> {
         Channel {
             channel_pk,
+            pk_proof,
             encrypted_channel_sk,
         }
     }

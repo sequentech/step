@@ -142,6 +142,10 @@ impl<C: Ctx> PublicKey<C> {
         }
     }
 
+    pub fn element(&self) -> &C::E {
+        &self.element
+    }
+
     pub fn one(&self, r: &C::X) -> Ciphertext<C> {    
         let gr = self.ctx.gmod_pow(r);
         let mhr = self.ctx.emod_pow(&self.element, r);
@@ -206,5 +210,13 @@ impl<C: Ctx> PrivateKey<C> {
             element: self.pk_element.clone(),
             ctx: self.ctx.clone(),
         }
+    }
+
+    pub fn get_pk_and_proof(&self, label: &[u8]) -> Result<(PublicKey<C>, Schnorr<C>), StrandError> {
+        let zkp = Zkp::new(&self.ctx);
+        let proof = zkp.schnorr_prove(&self.value, &self.pk_element, None, label)?;
+        let pk = self.get_pk();
+
+        Ok((pk, proof))
     }
 }
