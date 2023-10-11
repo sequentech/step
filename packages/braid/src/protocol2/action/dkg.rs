@@ -2,28 +2,9 @@
 use super::*;
 use anyhow::anyhow;
 use anyhow::Result;
+use braid_messages::artifact::Channel;
 use strand::elgamal::PublicKey;
-/*
-pub(super) fn gen_commitments<C: Ctx>(
-    configuration_hash: &ConfigurationHash,
-    threshold: TrusteeCount,
-    trustee: &Trustee<C>,
-) -> Result<Vec<Message>> {
-    let ctx: C = Default::default();
-
-    let cfg = trustee.get_configuration(configuration_hash)?;
-    let (coefficients, commitments) = strand::threshold::gen_coefficients(threshold, &ctx);
-    let ec = trustee.encrypt_coefficients(coefficients)?;
-
-    // Generate a keypair for share transport
-    let sk = strand::elgamal::PrivateKey::gen(&ctx);
-    let st = trustee.encrypt_share_sk(&sk)?;
-
-    let commitments: Commitments<C> = Commitments::new(commitments, ec, st);
-    let m = Message::commitments_msg(cfg, &commitments, true, trustee)?;
-    Ok(vec![m])
-}
-*/
+use strand::zkp::Zkp;
 
 pub(super) fn gen_channel<C: Ctx>(
     configuration_hash: &ConfigurationHash,
@@ -35,7 +16,11 @@ pub(super) fn gen_channel<C: Ctx>(
 
     // Generate a keypair for share transport
     let sk = strand::elgamal::PrivateKey::gen(&ctx);
-    let channel = trustee.encrypt_share_sk(&sk, &cfg)?;
+    let label = cfg.label(0, format!("channel pk proof"));
+    let (pk, proof) = sk.get_pk_and_proof(&label)?;
+
+    let ed = trustee.encrypt_share_sk(&sk, &cfg)?;
+    let channel = Channel::new(pk.element().clone(), proof, ed);
 
     let m = Message::channel_msg(cfg, &channel, true, trustee)?;
     Ok(vec![m])
@@ -47,7 +32,10 @@ pub(super) fn sign_channels<C: Ctx>(
     channels_hs: &ChannelsHashes,
     trustee: &Trustee<C>,
 ) -> Result<Vec<Message>> {
+    let ctx: C = Default::default();
     let cfg = trustee.get_configuration(configuration_h)?;
+    let zkp = Zkp::new(&ctx);
+    let label = cfg.label(0, format!("channel pk proof"));
 
     for (i, h) in channels_hs
         .0
@@ -57,11 +45,18 @@ pub(super) fn sign_channels<C: Ctx>(
     {
         let hash = *h;
         let channel = trustee.get_channel(&ChannelHash(hash), i);
-        // FIXME assert
-        assert!(channel.is_some());
+        if let Some(channel) = channel {
+            let pk_element = channel.channel_pk;
+            let ok = zkp.schnorr_verify(&pk_element, None, &channel.pk_proof, &label);
+            // FIXME assert
+            assert!(ok);
+        }
+        else {
+            // FIXME panic
+            panic!();
+        }
     }
-    // The commitments hashes will be grouped into one sequence of bytes when
-    // constructing the parameter target.
+    
     let m = Message::channels_all_signed_msg(cfg, channels_hs, trustee)?;
     Ok(vec![m])
 }
@@ -75,20 +70,6 @@ pub(super) fn compute_shares<C: Ctx>(
 ) -> Result<Vec<Message>> {
     let ctx = C::default();
     let cfg = trustee.get_configuration(configuration_h)?;
-
-    // Get our own commitments
-    /* let my_channel_h = channels_hs
-        .0
-        .get(*self_p)
-        .ok_or(anyhow!("Could not retrieve commitments hash for self",))?;
-
-    let hash = *my_channel_h;
-    let channel = trustee.get_channel(&ChannelHash(hash), *self_p);
-    let channel = channel.ok_or(anyhow!("Could not find my channel",))?;
-
-    let coeffs = trustee
-        .decrypt_coefficients(&commitments.encrypted_coefficients)
-        .ok_or(anyhow!("Could not decrypt coefficients",))?;*/
 
     let (coeffs, commitments) = strand::threshold::gen_coefficients(*threshold, &ctx);
 
@@ -147,8 +128,6 @@ pub(super) fn compute_pk<C: Ctx>(
     if let Ok(pk) = pk {
         let public_key: DkgPublicKey<C> = DkgPublicKey::new(pk.0, pk.1);
 
-        // The shares and commitments hashes will be grouped into one sequence of bytes when
-        // constructing the parameter target.
         let m =
             Message::public_key_msg(cfg, &public_key, shares_hs, channels_hs, true, trustee)?;
         Ok(vec![m])
