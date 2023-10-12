@@ -208,9 +208,7 @@ export const AuditScreen: React.FC = () => {
                 </StyledButton>
             </Step1Container>
 
-            <AuditableBallotData>
-                {auditableBallot  || ""}
-            </AuditableBallotData>
+            <AuditableBallotData>{auditableBallot || ""}</AuditableBallotData>
             <StyledTitle variant="h5" fontWeight="bold" fontSize="18px">
                 <Box>{t("auditScreen.step2Title")}</Box>
                 <IconButton
