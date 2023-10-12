@@ -70,14 +70,11 @@ impl<C: Ctx> Ciphertext<C> {
 
     pub fn mul(&self, other: &Ciphertext<C>) -> Ciphertext<C> {
         let ctx = C::default();
-        
+
         let gr = self.gr.mul(&other.gr).modp(&ctx);
         let mhr = self.mhr.mul(&other.mhr).modp(&ctx);
 
-        Ciphertext::<C> {
-            gr,
-            mhr
-        }
+        Ciphertext::<C> { gr, mhr }
     }
 }
 
@@ -146,14 +143,11 @@ impl<C: Ctx> PublicKey<C> {
         &self.element
     }
 
-    pub fn one(&self, r: &C::X) -> Ciphertext<C> {    
+    pub fn one(&self, r: &C::X) -> Ciphertext<C> {
         let gr = self.ctx.gmod_pow(r);
         let mhr = self.ctx.emod_pow(&self.element, r);
 
-        Ciphertext::<C> {
-            gr,
-            mhr
-        }
+        Ciphertext::<C> { gr, mhr }
     }
 }
 
@@ -212,9 +206,13 @@ impl<C: Ctx> PrivateKey<C> {
         }
     }
 
-    pub fn get_pk_and_proof(&self, label: &[u8]) -> Result<(PublicKey<C>, Schnorr<C>), StrandError> {
+    pub fn get_pk_and_proof(
+        &self,
+        label: &[u8],
+    ) -> Result<(PublicKey<C>, Schnorr<C>), StrandError> {
         let zkp = Zkp::new(&self.ctx);
-        let proof = zkp.schnorr_prove(&self.value, &self.pk_element, None, label)?;
+        let proof =
+            zkp.schnorr_prove(&self.value, &self.pk_element, None, label)?;
         let pk = self.get_pk();
 
         Ok((pk, proof))

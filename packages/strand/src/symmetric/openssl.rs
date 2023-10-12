@@ -7,7 +7,6 @@ use rand::RngCore;
 use crate::rng::StrandRng;
 use crate::util::StrandError;
 
-
 pub type SymmetricKey = [u8; 32];
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]

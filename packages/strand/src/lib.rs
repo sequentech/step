@@ -3,21 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // #![doc = include_str!("../README.md")]
-
-use std::collections::HashMap;
-
 extern crate cfg_if;
 
-/// Defines a generic interface to concrete modular arithmetic backends based on
-/// discrete log assumptions.
-pub mod context;
 /// Provides implementation of modular arithmetic backends based on discrete log
 /// assumptions.
 pub mod backend;
+/// Defines a generic interface to concrete modular arithmetic backends based on
+/// discrete log assumptions.
+pub mod context;
 
 /// ElGamal encryption.
 pub mod elgamal;
-/// Wikstrom proof of shuffle following [TW10](https://www.csc.kth.se/~dog/research/papers/TW10Conf.pdf). See also [HLDK17](https://arbor.bfh.ch/8269/1/HLKD17.pdf). 
+/// Wikstrom proof of shuffle following [TW10](https://www.csc.kth.se/~dog/research/papers/TW10Conf.pdf). See also [HLDK17](https://arbor.bfh.ch/8269/1/HLKD17.pdf).
 #[cfg(any(test, not(feature = "wasm")))]
 pub mod shuffler;
 /// Distributed ElGamal threshold cryptosystem following [Pedersen91](https://link.springer.com/chapter/10.1007/3-540-46766-1_9).
@@ -27,26 +24,30 @@ pub mod threshold;
 /// Schnorr and Chaum-Pedersen zero knowledge proofs.
 pub mod zkp;
 
+/// Hashing.
+mod hashing;
 /// Random number generation.
 mod random;
 /// Signature frontend.
 mod signatures;
-/// Hashing.
-mod hashing;
 /// Symmetric encryption frontend.
 #[cfg(not(feature = "wasm"))]
 mod symmetric;
 
 cfg_if::cfg_if! {
-    if #[cfg(feature = "openssl")] {
-        /// EcDSA digital signatures backed by [OpenSSL](https://crates.io/crates/openssl).
-        pub use signatures::openssl as signature;
+    if #[cfg(any(feature = "openssl", feature="openssl_except_signatures"))] {
         /// Random number generation backed by [OpenSSL](https://crates.io/crates/openssl).
-        pub use random::openssl as rng;
+        pub(crate) use random::openssl as rng;
         /// SHA-2 hashing backed by [OpenSSL](https://crates.io/crates/openssl).
         pub use hashing::openssl as hash;
         /// AES-GCM backed by [OpenSSL](https://crates.io/crates/openssl).
         pub use symmetric::openssl as symm;
+        #[cfg(feature = "openssl")]
+        /// EcDSA digital signatures backed by [OpenSSL](https://crates.io/crates/openssl).
+        pub use signatures::openssl as signature;
+        #[cfg(not(feature = "openssl"))]
+        /// Ed25519 digital signatures backed by [dalek](https://github.com/dalek-cryptography/curve25519-dalek/tree/main/ed25519-dalek).
+        pub use signatures::dalek as signature;
     }
     else if #[cfg(feature = "wasm")] {
         /// Webassembly API.
@@ -65,7 +66,7 @@ cfg_if::cfg_if! {
         /// Ed25519 digital signatures backed by [dalek](https://github.com/dalek-cryptography/curve25519-dalek/tree/main/ed25519-dalek).
         pub use signatures::dalek as signature;
         /// Random number generation backed by [rand](https://crates.io/crates/rand).
-        pub use random::rand as rng;
+        pub(crate) use random::rand as rng;
         /// SHA-2 hashing backed by [rustcrypto](https://crates.io/crates/sha2).
         pub use hashing::rustcrypto as hash;
         /// Chacha20poly1305 backed by [rustcrypto](https://docs.rs/chacha20poly1305/latest/chacha20poly1305/).
@@ -85,6 +86,8 @@ pub mod serialization;
 #[allow(dead_code)]
 #[cfg(test)]
 mod keymaker;
+
+use std::collections::HashMap;
 
 pub fn info() -> HashMap<&'static str, String> {
     let mut info = HashMap::new();
@@ -107,7 +110,8 @@ pub fn info() -> HashMap<&'static str, String> {
 
 pub fn info_string() -> String {
     let info = info();
-let ret = format!("
+    let ret = format!(
+        "
 ===============================================================================
 strand
 
@@ -117,12 +121,13 @@ RNG:        {}
 SIGNATURE:  {}
 SYMMETRIC:  {}
 ===============================================================================
-", 
-info.get("VERSION").unwrap(), 
-info.get("HASH").unwrap(), 
-info.get("RNG").unwrap(), 
-info.get("SIGNATURE").unwrap(), 
-info.get("SYMMETRIC").unwrap());
+",
+        info.get("VERSION").unwrap(),
+        info.get("HASH").unwrap(),
+        info.get("RNG").unwrap(),
+        info.get("SIGNATURE").unwrap(),
+        info.get("SYMMETRIC").unwrap()
+    );
 
     ret
 }
