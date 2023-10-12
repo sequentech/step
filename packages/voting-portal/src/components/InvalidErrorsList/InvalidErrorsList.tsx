@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
+import React, {useEffect, useState} from "react"
 import {WarnBox} from "@sequentech/ui-essentials"
 import {IQuestion} from "sequent-core"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
@@ -17,16 +17,30 @@ export interface IInvalidErrorsListProps {
 
 export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({ballotStyle, question}) => {
     const {t} = useTranslation()
+    const [isTouched, setIsTouched] = useState(false)
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
     const {interpretContestSelection} = provideBallotService()
-    const contestSelection = selectionState?.find(
-        (contest) => contest.contest_id === question.id
-    )
+    const contestSelection = selectionState?.find((contest) => contest.contest_id === question.id)
+    useEffect(() => {
+        if (isTouched || !contestSelection) {
+            return
+        }
+        let hasTouched = contestSelection?.choices.some((choice) => choice.selected > -1)
+        if (hasTouched) {
+            setIsTouched(true)
+        }
+    }, [contestSelection, isTouched])
 
     const decodedContestSelection =
         contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
+
+    if (!isTouched && decodedContestSelection) {
+        decodedContestSelection.invalid_errors = decodedContestSelection?.invalid_errors.filter(
+            (error) => error.message !== "errors.implicit.selectedMin"
+        )
+    }
 
     return (
         <>
