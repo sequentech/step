@@ -236,10 +236,12 @@ pub fn test_contest_reencoding_js(
             )
         })
         .into_json()?;
-    let raw_ballot =
-        contest.encode_to_raw_ballot(&decoded_contest).into_json()?;
-    let modified_decoded_contest =
-        contest.decode_from_raw_ballot(&raw_ballot).into_json()?;
+    let bigint = contest
+        .encode_plaintext_question_bigint(&decoded_contest)
+        .into_json()?;
+    let modified_decoded_contest = contest
+        .decode_plaintext_question_bigint(&bigint)
+        .into_json()?;
 
     let input_compare = normalize_vote_question(
         &decoded_contest,

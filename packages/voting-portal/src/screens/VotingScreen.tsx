@@ -22,7 +22,10 @@ import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-sol
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {Link as RouterLink, useNavigate, useParams} from "react-router-dom"
-import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
+import {
+    selectBallotSelectionByElectionId,
+    setBallotSelection,
+} from "../store/ballotSelections/ballotSelectionsSlice"
 import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
@@ -70,7 +73,7 @@ interface ActionButtonProps {
 
 const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
     const {t} = useTranslation()
-    const {encryptBallotSelection} = provideBallotService()
+    const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
@@ -93,6 +96,15 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
                     auditableBallot,
                 })
             )
+            let decodedSelectionState = decodeAuditableBallot(auditableBallot)
+            if (null !== decodedSelectionState) {
+                dispatch(
+                    setBallotSelection({
+                        ballotStyle,
+                        ballotSelection: decodedSelectionState,
+                    })
+                )
+            }
             navigate(`/election/${ballotStyle.election_id}/review`)
         } catch (error) {
             console.log("ERROR encrypting ballot:")

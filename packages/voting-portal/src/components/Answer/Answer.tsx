@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
-import {Candidate, stringToHtml, isUndefined} from "@sequentech/ui-essentials"
+import {Candidate, stringToHtml, isUndefined, normalizeWriteInText} from "@sequentech/ui-essentials"
 import {IAnswer} from "sequent-core"
 import Image from "mui-image"
 import {
@@ -74,6 +74,8 @@ export const Answer: React.FC<IAnswerProps> = ({
             setInvalidVote(value)
             return
         }
+        let cleanedText =
+            selectionState?.write_in_text && normalizeWriteInText(selectionState?.write_in_text)
         dispatch(
             setBallotSelectionVoteChoice({
                 ballotStyle,
@@ -81,7 +83,7 @@ export const Answer: React.FC<IAnswerProps> = ({
                 voteChoice: {
                     id: answer.id,
                     selected: value ? 0 : -1,
-                    write_in_text: selectionState?.write_in_text,
+                    write_in_text: cleanedText,
                 },
             })
         )
@@ -94,6 +96,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         if (!isWriteIn || !allowWriteIns || !isActive || isReview) {
             return
         }
+        let cleanedText = normalizeWriteInText(writeInText)
         dispatch(
             setBallotSelectionVoteChoice({
                 ballotStyle,
@@ -101,7 +104,7 @@ export const Answer: React.FC<IAnswerProps> = ({
                 voteChoice: {
                     id: answer.id,
                     selected: isUndefined(selectionState) ? -1 : selectionState.selected,
-                    write_in_text: writeInText,
+                    write_in_text: cleanedText,
                 },
             })
         )

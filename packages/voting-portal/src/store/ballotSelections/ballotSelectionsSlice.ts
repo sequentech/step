@@ -19,6 +19,20 @@ export const ballotSelectionsSlice = createSlice({
     name: "ballotSelections",
     initialState,
     reducers: {
+        setBallotSelection: (
+            state,
+            action: PayloadAction<{
+                ballotStyle: IBallotStyle
+                ballotSelection: BallotSelection
+            }>
+        ): BallotSelectionsState => {
+            let currentElection = state[action.payload.ballotStyle.election_id]
+            if (currentElection) {
+                state[action.payload.ballotStyle.election_id] = action.payload.ballotSelection
+            }
+
+            return state
+        },
         resetBallotSelection: (
             state,
             action: PayloadAction<{
@@ -128,8 +142,12 @@ export const ballotSelectionsSlice = createSlice({
     },*/
 })
 
-export const {resetBallotSelection, setBallotSelectionInvalidVote, setBallotSelectionVoteChoice} =
-    ballotSelectionsSlice.actions
+export const {
+    setBallotSelection,
+    resetBallotSelection,
+    setBallotSelectionInvalidVote,
+    setBallotSelectionVoteChoice,
+} = ballotSelectionsSlice.actions
 
 export const selectBallotSelectionVoteChoice =
     (electionId: string, questionIndex: number, answerIndex: string) => (state: RootState) =>

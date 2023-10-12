@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
     IBallotStyle,
+    decode_auditable_ballot_js,
     to_hashable_ballot_js,
     hash_auditable_ballot_js,
     encrypt_decoded_contest_js,
@@ -24,6 +25,7 @@ export interface IBallotService {
         contestSelection: IDecodedVoteContest,
         election: IBallotStyle
     ) => number
+    decodeAuditableBallot: (auditableBallot: string) => Array<IDecodedVoteContest> | null
 }
 
 export const toHashableBallot = (auditableBallot: string): string => {
@@ -86,10 +88,23 @@ export const getWriteInAvailableCharacters = (
     }
 }
 
+export const decodeAuditableBallot = (
+    auditableBallot: string
+): Array<IDecodedVoteContest> | null => {
+    try {
+        let decodedBallot = decode_auditable_ballot_js(auditableBallot)
+        return decodedBallot as Array<IDecodedVoteContest>
+    } catch (error) {
+        console.log(error)
+        return null
+    }
+}
+
 export const provideBallotService = (): IBallotService => ({
     toHashableBallot,
     hashBallot,
     encryptBallotSelection,
     interpretContestSelection,
     getWriteInAvailableCharacters,
+    decodeAuditableBallot,
 })

@@ -272,7 +272,7 @@ mod tests {
         let plaintext = auditable_ballot.contests[0].choice.plaintext.clone();
         let plaintext_vec = vec::decode_array_to_vec(&plaintext); // compare
         assert_eq!(plaintext_vec, plaintext_bytes_vec);
-        assert_eq!(plaintext_vec, vec![198, 168, 136, 41, 9, 11]);
+        assert_eq!(plaintext_vec, vec![198, 20, 150, 48]);
         let decoded_plaintext =
             question.decode_plaintext_question(&plaintext).unwrap();
         assert_eq!(
@@ -297,10 +297,10 @@ mod tests {
         let ctx = RistrettoCtx;
         let ballot_style = get_writein_ballot_style();
         let question = ballot_style.configuration.questions[0].clone();
-        let bigint_vec2: Vec<u8> = vec![198, 168, 136, 41, 9, 11];
+        let bigint_vec2: Vec<u8> = vec![198, 20, 150, 48];
         let bigint2 =
             bigint::decode_bigint_from_bytes(bigint_vec2.as_slice()).unwrap();
-        assert_eq!(bigint2.to_str_radix(10), "12133979433158");
+        assert_eq!(bigint2.to_str_radix(10), "815142086");
 
         let decoded_question = get_writein_plaintext();
 
