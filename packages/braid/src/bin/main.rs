@@ -122,7 +122,7 @@ async fn main() -> Result<()> {
                 Err(error) => {
                     // FIXME should handle a bulletin board refusing messages maliciously
                     error!(
-                        "Error executing step for board '{}': '{}'",
+                        "Error executing step for board '{}': '{:?}'",
                         board_name.clone(),
                         error
                     );

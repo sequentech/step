@@ -133,7 +133,7 @@ impl<C: Ctx> Trustee<C> {
         for message in messages {
             let verified = message
                 .verify(&configuration)
-                .context(format!("Message failed verification"))?;
+                .context(format!("Message failed verification: {:?}, cfg: {:?}", message, &configuration))?;
 
             if verified.statement.get_cfg_h() != cfg_hash {
                 return Err(anyhow!("Message has mismatched configuration hash"));
