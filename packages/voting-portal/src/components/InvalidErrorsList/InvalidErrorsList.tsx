@@ -21,7 +21,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({ballotStyl
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
-    const {interpretContestSelection} = provideBallotService()
+    const {interpretContestSelection, getWriteInAvailableCharacters} = provideBallotService()
     const contestSelection = selectionState?.find((contest) => contest.contest_id === question.id)
     useEffect(() => {
         if (isTouched || !contestSelection) {
@@ -42,8 +42,19 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({ballotStyl
         )
     }
 
+    const numAvailableChars = contestSelection
+        ? getWriteInAvailableCharacters(contestSelection, ballotStyle.ballot_eml)
+        : 0
+
     return (
         <>
+            {numAvailableChars < 0 ? (
+                <WarnBox variant="warning">
+                    {t("errors.encoding.writeInCharsExceeded", {
+                        numCharsExceeded: -numAvailableChars,
+                    })}
+                </WarnBox>
+            ) : null}
             {decodedContestSelection?.invalid_errors.map((error, index) => (
                 <WarnBox variant="warning" key={index}>
                     {t(

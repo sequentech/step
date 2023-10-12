@@ -7,6 +7,7 @@ import {
     hash_auditable_ballot_js,
     encrypt_decoded_contest_js,
     test_contest_reencoding_js,
+    get_write_in_available_characters_js,
     IDecodedVoteContest,
 } from "sequent-core"
 import {BallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
@@ -19,6 +20,10 @@ export interface IBallotService {
         contestSelection: IDecodedVoteContest,
         election: IBallotStyle
     ) => IDecodedVoteContest
+    getWriteInAvailableCharacters: (
+        contestSelection: IDecodedVoteContest,
+        election: IBallotStyle
+    ) => number
 }
 
 export const toHashableBallot = (auditableBallot: string): string => {
@@ -69,9 +74,22 @@ export const interpretContestSelection = (
     }
 }
 
+export const getWriteInAvailableCharacters = (
+    contestSelection: IDecodedVoteContest,
+    election: IBallotStyle
+): number => {
+    try {
+        return get_write_in_available_characters_js(contestSelection, election)
+    } catch (e) {
+        console.log(e)
+        throw e
+    }
+}
+
 export const provideBallotService = (): IBallotService => ({
     toHashableBallot,
     hashBallot,
     encryptBallotSelection,
     interpretContestSelection,
+    getWriteInAvailableCharacters,
 })
