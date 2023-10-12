@@ -300,7 +300,7 @@ impl Message {
             return Err(anyhow!(
                 "Received a message whose statement signature number is out of range"
             ));
-        }
+        } 
 
         // We don't care about doing a sequential search here as the size is small
         let index: usize = configuration

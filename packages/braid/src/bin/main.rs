@@ -121,7 +121,7 @@ async fn main() -> Result<()> {
                 Ok(value) => value,
                 Err(error) => {
                     error!(
-                        "Error executing step for board '{}': '{}'",
+                        "Error executing step for board '{}': '{:?}'",
                         board_name.clone(),
                         error
                     );

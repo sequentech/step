@@ -176,9 +176,10 @@ impl<C: Ctx> std::fmt::Debug for Configuration<C> {
         let hashed = strand::hash::hash(&self.strand_serialize().unwrap()).unwrap();
         write!(
             f,
-            "hash={:?}, #trustees={}, threshold={}",
+            "hash={:?}, trustees={:?}, pm={:?}, threshold={}",
             hex::encode(hashed)[0..10].to_string(),
-            self.trustees.len(),
+            self.trustees,
+            self.protocol_manager,
             self.threshold
         )
     }
