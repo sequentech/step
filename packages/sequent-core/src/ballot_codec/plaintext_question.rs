@@ -65,8 +65,8 @@ impl PlaintextCodec for Question {
 mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
-    use std::cmp;
     use crate::util::normalize_vote_question;
+    use std::cmp;
 
     #[test]
     fn test_encoding_plaintext() {

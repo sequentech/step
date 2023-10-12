@@ -226,11 +226,11 @@ pub fn hash_ballot<C: Ctx>(
 
 #[cfg(test)]
 mod tests {
+    use crate::ballot_codec::bigint;
     use crate::ballot_codec::plaintext_question::PlaintextCodec;
+    use crate::ballot_codec::vec;
     use crate::encrypt;
     use crate::fixtures::ballot_codec::*;
-    use crate::ballot_codec::vec;
-    use crate::ballot_codec::bigint;
     use crate::util::normalize_vote_question;
 
     use strand::backend::ristretto::RistrettoCtx;
@@ -259,8 +259,9 @@ mod tests {
         let ballot_style = get_writein_ballot_style();
         let question = ballot_style.configuration.questions[0].clone();
         let decoded_question = get_writein_plaintext();
-        let plaintext_bytes_vec =
-            question.encode_plaintext_question_to_bytes(&decoded_question).unwrap(); // compare
+        let plaintext_bytes_vec = question
+            .encode_plaintext_question_to_bytes(&decoded_question)
+            .unwrap(); // compare
         let auditable_ballot =
             encrypt::encrypt_decoded_question::<RistrettoCtx>(
                 &ctx,
@@ -288,8 +289,6 @@ mod tests {
         );
     }
 
-
-
     #[test]
     fn test_encrypt_writein_answer2() {
         use crate::ballot_codec::bigint::BigUIntCodec;
@@ -299,19 +298,23 @@ mod tests {
         let ballot_style = get_writein_ballot_style();
         let question = ballot_style.configuration.questions[0].clone();
         let bigint_vec2: Vec<u8> = vec![198, 168, 136, 41, 9, 11];
-        let bigint2 = bigint::decode_bigint_from_bytes(bigint_vec2.as_slice()).unwrap();
+        let bigint2 =
+            bigint::decode_bigint_from_bytes(bigint_vec2.as_slice()).unwrap();
         assert_eq!(bigint2.to_str_radix(10), "12133979433158");
 
         let decoded_question = get_writein_plaintext();
 
-        let raw_ballot = question.encode_to_raw_ballot(&decoded_question).unwrap();
-        let bigint = question.encode_plaintext_question_bigint(&decoded_question).unwrap();
+        let raw_ballot =
+            question.encode_to_raw_ballot(&decoded_question).unwrap();
+        let bigint = question
+            .encode_plaintext_question_bigint(&decoded_question)
+            .unwrap();
         let raw_ballot2 = question.bigint_to_raw_ballot(&bigint).unwrap();
         //assert_eq!(raw_ballot, raw_ballot2);
 
-
         assert_eq!(bigint2.to_str_radix(10), bigint.to_str_radix(10));
-        let decoded_question2 = question.decode_plaintext_question_bigint(&bigint).unwrap();
+        let decoded_question2 =
+            question.decode_plaintext_question_bigint(&bigint).unwrap();
         assert_eq!(
             normalize_vote_question(
                 &decoded_question,

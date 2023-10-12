@@ -224,7 +224,7 @@ pub fn test_contest_reencoding_js(
             .into_json()?;
     // create context
     let ctx = RistrettoCtx;
-    
+
     let contest = ballot_style
         .configuration
         .questions
@@ -241,19 +241,23 @@ pub fn test_contest_reencoding_js(
         contest.encode_to_raw_ballot(&decoded_contest).into_json()?;
     let modified_decoded_contest =
         contest.decode_from_raw_ballot(&raw_ballot).into_json()?;
-    
+
     let input_compare = normalize_vote_question(
         &decoded_contest,
         contest.tally_type.as_str(),
-        true
+        true,
     );
     let output_compare = normalize_vote_question(
         &modified_decoded_contest,
         contest.tally_type.as_str(),
-        true
+        true,
     );
     if input_compare != output_compare {
-        return Err(format!("Consistency check failed. Input =! Output, {:?} != {:?}", input_compare, output_compare)).into_json();
+        return Err(format!(
+            "Consistency check failed. Input =! Output, {:?} != {:?}",
+            input_compare, output_compare
+        ))
+        .into_json();
     }
 
     serde_wasm_bindgen::to_value(&modified_decoded_contest)

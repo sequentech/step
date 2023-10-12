@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use chrono::{DateTime, Local};
-use crate::plaintext::{DecodedVoteContest, DecodedVoteChoice};
 
 pub fn get_current_date() -> String {
     let local: DateTime<Local> = Local::now();
@@ -12,7 +12,7 @@ pub fn get_current_date() -> String {
 pub fn normalize_vote_question(
     input: &DecodedVoteContest,
     tally_type: &str,
-    remove_errors: bool
+    remove_errors: bool,
 ) -> DecodedVoteContest {
     let mut original = input.clone();
     let mut choices: Vec<DecodedVoteChoice> = original
