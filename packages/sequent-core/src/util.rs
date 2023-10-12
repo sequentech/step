@@ -12,6 +12,7 @@ pub fn get_current_date() -> String {
 pub fn normalize_vote_question(
     input: &DecodedVoteContest,
     tally_type: &str,
+    remove_errors: bool
 ) -> DecodedVoteContest {
     let mut original = input.clone();
     let mut choices: Vec<DecodedVoteChoice> = original
@@ -21,6 +22,9 @@ pub fn normalize_vote_question(
         .collect();
     choices.sort_by_key(|q| q.id.clone());
     original.choices = choices;
+    if remove_errors {
+        original.invalid_errors = vec![];
+    }
     original
 }
 

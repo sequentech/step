@@ -9,7 +9,6 @@ use crate::plaintext::{
     DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextError,
     InvalidPlaintextErrorType,
 };
-use crate::util::{normalize_vote_question, normalize_vote_choice};
 use std::collections::HashMap;
 
 pub struct BallotCodecFixture {

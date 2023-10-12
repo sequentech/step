@@ -66,6 +66,7 @@ mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
     use std::cmp;
+    use crate::util::normalize_vote_question;
 
     #[test]
     fn test_encoding_plaintext() {
@@ -98,11 +99,13 @@ mod tests {
         assert_eq!(
             normalize_vote_question(
                 &decoded_question,
-                question.tally_type.as_str()
+                question.tally_type.as_str(),
+                false
             ),
             normalize_vote_question(
                 &decoded_plaintext,
-                question.tally_type.as_str()
+                question.tally_type.as_str(),
+                false
             )
         );
     }
@@ -175,11 +178,13 @@ mod tests {
                 assert_eq!(
                     normalize_vote_question(
                         &decoded_ballot,
-                        fixture.question.tally_type.as_str()
+                        fixture.question.tally_type.as_str(),
+                        false
                     ),
                     normalize_vote_question(
                         &fixture.plaintext,
-                        fixture.question.tally_type.as_str()
+                        fixture.question.tally_type.as_str(),
+                        false
                     )
                 );
             }

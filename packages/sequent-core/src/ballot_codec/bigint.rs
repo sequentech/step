@@ -71,6 +71,7 @@ mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
     use std::cmp;
+    use crate::util::normalize_vote_question;
 
     #[test]
     fn test_encoding_plaintext_bigint() {
@@ -112,13 +113,15 @@ mod tests {
                 assert_eq!(
                     normalize_vote_question(
                         &fixture.plaintext,
-                        fixture.question.tally_type.as_str()
+                        fixture.question.tally_type.as_str(),
+                        false
                     )
                     .choices,
                     normalize_vote_question(
                         &decoded_plaintext
                             .expect("Expected value but got error"),
-                        fixture.question.tally_type.as_str()
+                        fixture.question.tally_type.as_str(),
+                        false
                     )
                     .choices
                 );
