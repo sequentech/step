@@ -8,12 +8,12 @@ pub mod rustcrypto;
 #[cfg(feature = "openssl")]
 pub mod openssl;
 
-#[cfg(any(not(feature = "openssl"), feature="fips_except_signatures"))]
+#[cfg(not(feature = "openssl"))]
 pub mod dalek;
 
 // pub mod zcash;
 
-#[cfg(all(feature = "openssl", feature="rustcrypto"))]
+#[cfg(all(feature = "openssl", feature = "rustcrypto"))]
 #[cfg(test)]
 pub(crate) mod tests {
     use super::openssl::{

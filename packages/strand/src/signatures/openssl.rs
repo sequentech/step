@@ -158,8 +158,8 @@ impl BorshSerialize for StrandSignatureSk {
         &self,
         writer: &mut W,
     ) -> std::io::Result<()> {
-        let bytes = self.to_der()
-        .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        let bytes =
+            self.to_der().map_err(|e| Error::new(ErrorKind::Other, e))?;
         bytes.serialize(writer)
     }
 }
@@ -179,8 +179,8 @@ impl BorshSerialize for StrandSignaturePk {
         &self,
         writer: &mut W,
     ) -> std::io::Result<()> {
-        let bytes = self.to_der()
-        .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        let bytes =
+            self.to_der().map_err(|e| Error::new(ErrorKind::Other, e))?;
         bytes.serialize(writer)
     }
 }
@@ -200,8 +200,8 @@ impl BorshSerialize for StrandSignature {
         &self,
         writer: &mut W,
     ) -> std::io::Result<()> {
-        let bytes = self.to_der()
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        let bytes =
+            self.to_der().map_err(|e| Error::new(ErrorKind::Other, e))?;
         bytes.serialize(writer)
     }
 }
@@ -244,7 +244,6 @@ impl TryFrom<String> for StrandSignatureSk {
         let sk = StrandSignatureSk::from_der(&bytes)?;
 
         Ok(sk)
-        
     }
 }
 

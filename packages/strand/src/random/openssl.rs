@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use openssl::rand::rand_bytes;
 use rand::CryptoRng;
 use rand::Error;
 use rand::RngCore;
-use openssl::rand::rand_bytes;
 
 /// Random number generation provided by OpenSSL (CTR_DRBG).
 pub struct StrandRng;

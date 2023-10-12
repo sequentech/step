@@ -566,8 +566,8 @@ impl BorshDeserialize for NaturalP {
 mod tests {
     use crate::backend::malachite::*;
     use crate::backend::tests::*;
-    use crate::keymaker::tests::*;
     use crate::context::Ctx;
+    use crate::keymaker::tests::*;
     use crate::serialization::tests::*;
     use crate::threshold::tests::test_threshold_generic;
 

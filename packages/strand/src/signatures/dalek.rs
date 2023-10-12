@@ -5,15 +5,15 @@
 
 use base64::{engine::general_purpose, Engine as _};
 use borsh::{BorshDeserialize, BorshSerialize};
+use ed25519_dalek::pkcs8::DecodePrivateKey;
+use ed25519_dalek::pkcs8::DecodePublicKey;
+use ed25519_dalek::pkcs8::EncodePrivateKey;
+use ed25519_dalek::pkcs8::EncodePublicKey;
 use ed25519_dalek::Signature;
 use ed25519_dalek::Signer;
 use ed25519_dalek::SigningKey;
 use ed25519_dalek::Verifier;
 use ed25519_dalek::VerifyingKey;
-use ed25519_dalek::pkcs8::EncodePublicKey;
-use ed25519_dalek::pkcs8::DecodePublicKey;
-use ed25519_dalek::pkcs8::EncodePrivateKey;
-use ed25519_dalek::pkcs8::DecodePrivateKey;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
@@ -26,22 +26,22 @@ use crate::util::StrandError;
 #[derive(Clone)]
 pub struct StrandSignature(Signature);
 impl StrandSignature {
-    // Clone is fallible when signature is implemented from OpenSSL, forcing other signature
-    // implementations to conform to the same call
+    // Clone is fallible when signature is implemented from OpenSSL, forcing
+    // other signature implementations to conform to the same call
     pub fn try_clone(&self) -> Result<Self, StrandError> {
         Ok(self.clone())
-     }
+    }
 
-     pub fn to_bytes(&self) -> [u8; 64] {
+    pub fn to_bytes(&self) -> [u8; 64] {
         self.0.to_bytes()
-     }
+    }
 
-     pub fn from_bytes(bytes: [u8; 64]) -> Result<StrandSignature, StrandError> {
+    pub fn from_bytes(bytes: [u8; 64]) -> Result<StrandSignature, StrandError> {
         let signature = Signature::try_from(bytes)
             .map_err(|e| StrandError::Generic(e.to_string()))?;
 
         Ok(StrandSignature(signature))
-     }
+    }
 }
 
 /// An ed25519-dalek backed signature verification key.
@@ -66,9 +66,11 @@ impl StrandSignaturePk {
     }
 
     pub fn to_der(&self) -> Result<Vec<u8>, StrandError> {
-        let doc = self.0.to_public_key_der()
+        let doc = self
+            .0
+            .to_public_key_der()
             .map_err(|e| StrandError::Generic(e.to_string()))?;
-        
+
         Ok(doc.as_bytes().to_vec())
     }
 
@@ -96,9 +98,11 @@ impl StrandSignatureSk {
     }
 
     pub fn to_der(&self) -> Result<Vec<u8>, StrandError> {
-        let doc = self.0.to_pkcs8_der()
+        let doc = self
+            .0
+            .to_pkcs8_der()
             .map_err(|e| StrandError::Generic(e.to_string()))?;
-        
+
         Ok(doc.as_bytes().to_vec())
     }
 
@@ -127,15 +131,13 @@ impl std::fmt::Debug for StrandSignaturePk {
 }
 impl Eq for StrandSignaturePk {}
 
-
-
 impl BorshSerialize for StrandSignatureSk {
     fn serialize<W: std::io::Write>(
         &self,
         writer: &mut W,
     ) -> std::io::Result<()> {
         let bytes: [u8; 32] = self.0.to_bytes();
-        bytes.serialize(writer)    
+        bytes.serialize(writer)
     }
 }
 
@@ -148,7 +150,6 @@ impl BorshDeserialize for StrandSignatureSk {
         Ok(StrandSignatureSk(sk))
     }
 }
-
 
 impl BorshSerialize for StrandSignaturePk {
     fn serialize<W: std::io::Write>(
@@ -181,12 +182,12 @@ impl BorshSerialize for StrandSignature {
 
 impl BorshDeserialize for StrandSignature {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <[u8; 64]>::deserialize(buf)?;        
+        let bytes = <[u8; 64]>::deserialize(buf)?;
         let signature = Signature::try_from(bytes)
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         Ok(StrandSignature(signature))
-    }    
+    }
 }
 
 impl TryFrom<String> for StrandSignaturePk {
@@ -319,28 +320,32 @@ pub(crate) mod tests {
     #[test]
     fn test_openssl_compat() {
         let message = b"ok\n";
-        /* 
+        /*
         openssl genpkey -algorithm ed25519 -outform DER -out test25519.der
         openssl base64 -in test25519.der -out test25519.b64
         openssl pkey -in test25519.der -outform der -pubout -out pk.der
         openssl base64 -in pk.der -out pk.b64
         */
-        let secret_key_string = "MC4CAQAwBQYDK2VwBCIEII6bMx4lMnY83pVId7YbeOYGHoSZAnP7KjR/WsjaXkc9".to_string();
-        let public_key_string = "MCowBQYDK2VwAyEApnH8A4iAauMx0tZOx9JrpnG37adrUPiXg5klJ7fZRLU=".to_string();
-        
-        /* 
-        data.txt contained one line with "ok" 
+        let secret_key_string =
+            "MC4CAQAwBQYDK2VwBCIEII6bMx4lMnY83pVId7YbeOYGHoSZAnP7KjR/WsjaXkc9"
+                .to_string();
+        let public_key_string =
+            "MCowBQYDK2VwAyEApnH8A4iAauMx0tZOx9JrpnG37adrUPiXg5klJ7fZRLU="
+                .to_string();
+
+        /*
+        data.txt contained one line with "ok"
         openssl pkeyutl -sign -out data.txt.signature -in data.txt -inkey test25519.der -rawin
         base64 data.txt.signature data.txt.signature.b64
 
-        the signature can be verified with 
+        the signature can be verified with
         openssl pkeyutl -verify -pubin -inkey pk.der -rawin -in data.txt -sigfile data.txt.signature
         */
         let signature_string = "nMJ6twxCU1fogkNNNsmvdlTsdeiYn5SnDrjF0Jy5zURG/Z0ZdSY3JIj7Z2pQ4ANHMTBXzRDF60AtQ8EW7WQQBQ==".to_string();
 
         let secret_key: StrandSignatureSk =
             secret_key_string.try_into().unwrap();
-        
+
         let public_key: StrandSignaturePk =
             public_key_string.try_into().unwrap();
 
@@ -348,13 +353,12 @@ pub(crate) mod tests {
         let ok = public_key.verify(&sig, message);
 
         assert!(ok.is_ok());
-        
+
         let signature: StrandSignature = signature_string.try_into().unwrap();
 
         let ok = public_key.verify(&signature, message);
-        
-        assert!(ok.is_ok());
 
+        assert!(ok.is_ok());
     }
 }
 

@@ -348,12 +348,12 @@ impl<C: Ctx> Zkp<C> {
         Ok(self.ctx.hash_to_exp(&bytes)?)
     }
 
-    // interactive zero-knowledge proof of rerandomization of ciphertext using discrete
-    // log equality (Chaum-Pedersen)
+    // interactive zero-knowledge proof of rerandomization of ciphertext using
+    // discrete log equality (Chaum-Pedersen)
     // https://browse.arxiv.org/pdf/2304.09456.pdf Appendix B
 
     // Step 1
-    /// prover samples random t ∈ Zq and sends k = g^t to the verifier 
+    /// prover samples random t ∈ Zq and sends k = g^t to the verifier
     pub fn icp_prover_1(&self) -> C::E {
         let mut rng = self.ctx.get_rng();
         let t = self.ctx.rnd_exp(&mut rng);
@@ -364,7 +364,8 @@ impl<C: Ctx> Zkp<C> {
     }
 
     // Step 2
-    /// The verifier samples random e,r ∈ Zq and sends c = g^r * k^e to the prover
+    /// The verifier samples random e,r ∈ Zq and sends c = g^r * k^e to the
+    /// prover
     pub fn icp_verifier_2(&self, k: &C::E) -> (C::E, C::X, C::X) {
         let mut rng = self.ctx.get_rng();
         let e = self.ctx.rnd_exp(&mut rng);
@@ -378,9 +379,10 @@ impl<C: Ctx> Zkp<C> {
         (c, e, r)
     }
 
-    // Step 3 
-    /// The prover samples random a ∈ Zq and sends A = g^a, B=h^a, to the verifier (as in normal Chaum-Pedersen)
-    /// Note that g is the generator, and h is the public key
+    // Step 3
+    /// The prover samples random a ∈ Zq and sends A = g^a, B=h^a, to the
+    /// verifier (as in normal Chaum-Pedersen) Note that g is the generator,
+    /// and h is the public key
     pub fn icp_prover_3(&self, h: &C::E) -> (C::E, C::E, C::X) {
         let mut rng = self.ctx.get_rng();
         let a = self.ctx.rnd_exp(&mut rng);
@@ -394,17 +396,27 @@ impl<C: Ctx> Zkp<C> {
     // Step 4: The verifier decommits to the challenge e by sending e, r
 
     // Step 5
-    /// If the decommitment is not correct (that is if c != g^r * k^e), the prover aborts. Otherwise, it replies with z = a + ex
-    pub fn icp_prover_5(&self, a: &C::X, x: &C::X, c: &C::E, k: &C::E, e: &C::X, r: &C::X) -> Result<C::X, StrandError> {
+    /// If the decommitment is not correct (that is if c != g^r * k^e), the
+    /// prover aborts. Otherwise, it replies with z = a + ex
+    pub fn icp_prover_5(
+        &self,
+        a: &C::X,
+        x: &C::X,
+        c: &C::E,
+        k: &C::E,
+        e: &C::X,
+        r: &C::X,
+    ) -> Result<C::X, StrandError> {
         let one = self.ctx.gmod_pow(&r);
         let two = self.ctx.emod_pow(k, &e);
 
         let c_ = one.mul(&two).modp(&self.ctx);
 
         if !c.eq(&c_) {
-            Err(StrandError::Generic("Decommitment failed to verify".to_string()))
-        }
-        else {
+            Err(StrandError::Generic(
+                "Decommitment failed to verify".to_string(),
+            ))
+        } else {
             let z = a.add(&e.mul(x)).modq(&self.ctx);
 
             Ok(z)
@@ -412,23 +424,37 @@ impl<C: Ctx> Zkp<C> {
     }
 
     // Step 6
-    /// The verifier accepts the proof if 
+    /// The verifier accepts the proof if
     /// A = g^z / X^e and
     /// B = h^z / Y^e
     ///
-    /// where X and Y are the public values whose discrete logarithm equality is being proven.
+    /// where X and Y are the public values whose discrete logarithm equality is
+    /// being proven.
     ///
-    /// Since we're proving that ciphertext c' = (gr', mhr') is a rerandomization of c = (gr, mhr), then
-    /// X = gr' / gr and
+    /// Since we're proving that ciphertext c' = (gr', mhr') is a
+    /// rerandomization of c = (gr, mhr), then X = gr' / gr and
     /// Y = mhr' / mhr
-    pub fn icp_verifier_6(&self, big_a: &C::E, big_b: &C::E, z: &C::X, e: &C::X, h: &C::E, big_x: &C::E, big_y: &C::E) -> bool {
+    pub fn icp_verifier_6(
+        &self,
+        big_a: &C::E,
+        big_b: &C::E,
+        z: &C::X,
+        e: &C::X,
+        h: &C::E,
+        big_x: &C::E,
+        big_y: &C::E,
+    ) -> bool {
         let lhs1 = big_a;
-        let rhs1 = self.ctx.gmod_pow(z)
+        let rhs1 = self
+            .ctx
+            .gmod_pow(z)
             .divp(&self.ctx.emod_pow(big_x, e), &self.ctx)
             .modp(&self.ctx);
-        
+
         let lhs2 = big_b;
-        let rhs2 = self.ctx.emod_pow(h, z)
+        let rhs2 = self
+            .ctx
+            .emod_pow(h, z)
             .divp(&self.ctx.emod_pow(big_y, e), &self.ctx)
             .modp(&self.ctx);
 

@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use rand::rngs::OsRng;
 use rand::CryptoRng;
 use rand::Error;
 use rand::RngCore;
-use rand::rngs::OsRng;
 
 /// Random number generation provided by rand and [OsRng](https://docs.rs/rand/latest/rand/rngs/struct.OsRng.html). OsRng sources randomness from the operating system via the
 /// [getrandom](https://crates.io/crates/getrandom) crate. The exact implementation of the underlying rng is [OS-dependent](https://docs.rs/getrandom/latest/getrandom).
