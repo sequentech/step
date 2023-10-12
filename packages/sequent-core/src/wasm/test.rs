@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
+use crate::ballot_codec::bigint::BigUIntCodec;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;
 use crate::encrypt::*;
 use crate::interpret_plaintext::{get_layout_properties, get_points};
@@ -222,8 +223,6 @@ pub fn test_contest_reencoding_js(
         serde_wasm_bindgen::from_value(ballot_style_json)
             .map_err(|err| format!("Error parsing election: {}", err))
             .into_json()?;
-    // create context
-    let ctx = RistrettoCtx;
 
     let contest = ballot_style
         .configuration
@@ -261,6 +260,44 @@ pub fn test_contest_reencoding_js(
     }
 
     serde_wasm_bindgen::to_value(&modified_decoded_contest)
+        .map_err(|err| {
+            format!("Error converting decoded contest to json {:?}", err)
+        })
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn get_write_in_available_characters_js(
+    decoded_contest_json: JsValue,
+    ballot_style_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    // parse inputs
+    let decoded_contest: DecodedVoteContest =
+        serde_wasm_bindgen::from_value(decoded_contest_json)
+            .map_err(|err| format!("Error parsing decoded contest: {}", err))
+            .into_json()?;
+    let ballot_style: BallotStyle =
+        serde_wasm_bindgen::from_value(ballot_style_json)
+            .map_err(|err| format!("Error parsing election: {}", err))
+            .into_json()?;
+
+    let contest = ballot_style
+        .configuration
+        .questions
+        .iter()
+        .find(|question| question.id == decoded_contest.contest_id)
+        .ok_or_else(|| {
+            format!(
+                "Can't find contest with id {} on ballot style",
+                decoded_contest.contest_id
+            )
+        })
+        .into_json()?;
+    let num_available_chars = contest
+        .available_write_in_characters(&decoded_contest)
+        .into_json()?;
+
+    serde_wasm_bindgen::to_value(&num_available_chars)
         .map_err(|err| {
             format!("Error converting decoded contest to json {:?}", err)
         })

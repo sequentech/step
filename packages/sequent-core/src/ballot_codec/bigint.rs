@@ -30,6 +30,11 @@ pub trait BigUIntCodec {
         &self,
         bigint: &BigUint,
     ) -> Result<RawBallotQuestion, String>;
+
+    fn available_write_in_characters(
+        &self,
+        plaintext: &DecodedVoteContest,
+    ) -> Result<i32, String>;
 }
 
 impl BigUIntCodec for Question {
@@ -63,6 +68,17 @@ impl BigUIntCodec for Question {
         let raw_ballot = self.bigint_to_raw_ballot(&bigint)?;
 
         self.decode_from_raw_ballot(&raw_ballot)
+    }
+
+    fn available_write_in_characters(
+        &self,
+        plaintext: &DecodedVoteContest,
+    ) -> Result<i32, String> {
+        let bigint = self.encode_plaintext_question_bigint(&plaintext)?;
+        let serialized_bigint = bigint.to_radix_le(32);
+        // we have a maximum of 29 bytes and each character takes 5 bits
+        // so we can have 256/32 = 8 characters on each byte.
+        Ok(29 * 8 - serialized_bigint.len() as i32)
     }
 }
 

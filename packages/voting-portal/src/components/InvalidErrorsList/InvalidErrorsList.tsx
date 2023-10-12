@@ -20,13 +20,13 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({ballotStyl
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
-    const {interpretBallotSelection} = provideBallotService()
-
-    const decodedSelection =
-        selectionState && interpretBallotSelection(selectionState, ballotStyle.ballot_eml)
-    const decodedContestSelection = decodedSelection?.find(
+    const {interpretContestSelection} = provideBallotService()
+    const contestSelection = selectionState?.find(
         (contest) => contest.contest_id === question.id
     )
+
+    const decodedContestSelection =
+        contestSelection && interpretContestSelection(contestSelection, ballotStyle.ballot_eml)
 
     return (
         <>

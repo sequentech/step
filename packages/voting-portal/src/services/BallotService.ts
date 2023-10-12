@@ -6,7 +6,8 @@ import {
     to_hashable_ballot_js,
     hash_auditable_ballot_js,
     encrypt_decoded_contest_js,
-    find_errors_on_decoded_contest,
+    test_contest_reencoding_js,
+    IDecodedVoteContest,
 } from "sequent-core"
 import {BallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 
@@ -14,10 +15,10 @@ export interface IBallotService {
     toHashableBallot: (auditableBallot: string) => string
     hashBallot: (auditableBallot: string) => string
     encryptBallotSelection: (ballotSelection: BallotSelection, election: IBallotStyle) => string
-    interpretBallotSelection: (
-        ballotSelection: BallotSelection,
+    interpretContestSelection: (
+        contestSelection: IDecodedVoteContest,
         election: IBallotStyle
-    ) => BallotSelection
+    ) => IDecodedVoteContest
 }
 
 export const toHashableBallot = (auditableBallot: string): string => {
@@ -51,17 +52,17 @@ export const encryptBallotSelection = (
 }
 
 /*
- * Encodes and decodes the ballot selection.
+ * Encodes and decodes the contest selection.
  * The result is getting the ballot selection back from sequent-core,
  * but this time with the invalid errors. Also this allows the system
  * to check that the ballot selection is the same.
  */
-export const interpretBallotSelection = (
-    ballotSelection: BallotSelection,
+export const interpretContestSelection = (
+    contestSelection: IDecodedVoteContest,
     election: IBallotStyle
-): BallotSelection => {
+): IDecodedVoteContest => {
     try {
-        return find_errors_on_decoded_contest(ballotSelection, election)
+        return test_contest_reencoding_js(contestSelection, election)
     } catch (e) {
         console.log(e)
         throw e
@@ -72,5 +73,5 @@ export const provideBallotService = (): IBallotService => ({
     toHashableBallot,
     hashBallot,
     encryptBallotSelection,
-    interpretBallotSelection,
+    interpretContestSelection,
 })
