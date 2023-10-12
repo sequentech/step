@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {Box} from "@mui/material"
-import {theme, stringToHtml, shuffle, splitList, WarnBox} from "@sequentech/ui-essentials"
+import {theme, stringToHtml, shuffle, splitList} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {IQuestion} from "sequent-core"
@@ -18,11 +18,7 @@ import {
 } from "../../services/ElectionConfigService"
 import {categorizeCandidates, getShuffledCategories} from "../../services/CategoryService"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
-import {provideBallotService} from "../../services/BallotService"
-import {useAppSelector} from "../../store/hooks"
-import {selectBallotSelectionByElectionId} from "../../store/ballotSelections/ballotSelectionsSlice"
-import {useTranslation} from "react-i18next"
-import {IBallotStyle as IElectionDTO} from "sequent-core"
+import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -37,38 +33,6 @@ const CandidatesWrapper = styled(Box)`
     gap: 12px;
     margin: 12px 0;
 `
-
-interface IInvalidErrorsListProps {
-    ballotStyle: IBallotStyle
-    question: IQuestion
-}
-
-const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({ballotStyle, question}) => {
-    const {t} = useTranslation()
-    const selectionState = useAppSelector(
-        selectBallotSelectionByElectionId(ballotStyle.election_id)
-    )
-    const {interpretBallotSelection} = provideBallotService()
-
-    const decodedSelection =
-        selectionState && interpretBallotSelection(selectionState, ballotStyle.ballot_eml)
-    const decodedContestSelection = decodedSelection?.find(
-        (contest) => contest.contest_id === question.id
-    )
-
-    return (
-        <>
-            {decodedContestSelection?.invalid_errors.map((error, index) => (
-                <WarnBox variant="warning" key={index}>
-                    {t(
-                        error.message || "",
-                        error.message_map && Object.fromEntries(error.message_map)
-                    )}
-                </WarnBox>
-            ))}
-        </>
-    )
-}
 
 export interface IQuestionProps {
     ballotStyle: IBallotStyle

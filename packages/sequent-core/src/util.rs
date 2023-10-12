@@ -2,8 +2,52 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use chrono::{DateTime, Local};
+use crate::plaintext::{DecodedVoteContest, DecodedVoteChoice};
 
 pub fn get_current_date() -> String {
     let local: DateTime<Local> = Local::now();
     local.format("%-d/%-m/%Y").to_string()
+}
+
+pub fn normalize_vote_question(
+    input: &DecodedVoteContest,
+    tally_type: &str,
+) -> DecodedVoteContest {
+    let mut original = input.clone();
+    let mut choices: Vec<DecodedVoteChoice> = original
+        .choices
+        .iter()
+        .map(|choice| normalize_vote_choice(choice, tally_type))
+        .collect();
+    choices.sort_by_key(|q| q.id.clone());
+    original.choices = choices;
+    original
+}
+
+pub fn normalize_vote_choice(
+    input: &DecodedVoteChoice,
+    tally_type: &str,
+) -> DecodedVoteChoice {
+    let mut original = input.clone();
+    if "plurality-at-large" == tally_type {
+        original.selected = if original.selected < 0 { -1 } else { 0 };
+    } else {
+        original.selected = if original.selected < 0 {
+            -1
+        } else {
+            original.selected
+        };
+    }
+
+    original.write_in_text = match original.write_in_text {
+        Some(text) => {
+            if text.len() > 0 {
+                Some(text)
+            } else {
+                None
+            }
+        }
+        None => None,
+    };
+    original
 }

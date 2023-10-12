@@ -9,6 +9,7 @@ use crate::plaintext::{
     DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextError,
     InvalidPlaintextErrorType,
 };
+use crate::util::{normalize_vote_question, normalize_vote_choice};
 use std::collections::HashMap;
 
 pub struct BallotCodecFixture {
@@ -23,49 +24,6 @@ pub struct BallotCodecFixture {
 pub struct BasesFixture {
     pub question: Question,
     pub bases: Vec<u64>,
-}
-
-pub fn normalize_vote_question(
-    input: &DecodedVoteContest,
-    tally_type: &str,
-) -> DecodedVoteContest {
-    let mut original = input.clone();
-    let mut choices: Vec<DecodedVoteChoice> = original
-        .choices
-        .iter()
-        .map(|choice| normalize_vote_choice(choice, tally_type))
-        .collect();
-    choices.sort_by_key(|q| q.id.clone());
-    original.choices = choices;
-    original
-}
-
-pub fn normalize_vote_choice(
-    input: &DecodedVoteChoice,
-    tally_type: &str,
-) -> DecodedVoteChoice {
-    let mut original = input.clone();
-    if "plurality-at-large" == tally_type {
-        original.selected = if original.selected < 0 { -1 } else { 0 };
-    } else {
-        original.selected = if original.selected < 0 {
-            -1
-        } else {
-            original.selected
-        };
-    }
-
-    original.write_in_text = match original.write_in_text {
-        Some(text) => {
-            if text.len() > 0 {
-                Some(text)
-            } else {
-                None
-            }
-        }
-        None => None,
-    };
-    original
 }
 
 fn get_question_plurality() -> Question {
