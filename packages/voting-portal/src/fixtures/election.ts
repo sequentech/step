@@ -91,12 +91,26 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                         ],
                         text: "B",
                     },
+                    {
+                        id: "61320aac-0d78-4001-845e-a2f2bd8e800b",
+                        category: "B",
+                        details: "",
+                        sort_order: 5,
+                        urls: [
+                            {
+                                title: "isWriteIn",
+                                url: "true",
+                            },
+                        ],
+                        text: "",
+                    },
                 ],
                 extra_options: {
                     shuffle_categories: true,
                     shuffle_all_options: true,
                     shuffle_category_list: [],
                     show_points: false,
+                    allow_writeins: true,
                     enable_checkable_lists: "allow-selecting-candidates-and-lists",
                 },
             },

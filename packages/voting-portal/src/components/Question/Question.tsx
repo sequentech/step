@@ -16,7 +16,7 @@ import {
     checkShuffleCategoryList,
     getCheckableOptions,
 } from "../../services/ElectionConfigService"
-import {categorizeCandidates, getShuffledCategories} from "../../services/CategoryService"
+import {CategoriesMap, categorizeCandidates, getShuffledCategories} from "../../services/CategoryService"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
 
@@ -48,6 +48,7 @@ export const Question: React.FC<IQuestionProps> = ({
     isReview,
 }) => {
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
+    let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
     let {invalidCandidates, noCategoryCandidates, categoriesMap} = categorizeCandidates(question)
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
@@ -60,14 +61,18 @@ export const Question: React.FC<IQuestionProps> = ({
     const shuffleAllOptions = checkShuffleAllOptions(question)
     const shuffleCategories = checkShuffleCategories(question)
     const shuffleCategoryList = checkShuffleCategoryList(question)
-    categoriesMap = getShuffledCategories(
-        categoriesMap,
-        shuffleAllOptions,
-        shuffleCategories,
-        shuffleCategoryList
-    )
+    if (null === categoriesMapOrder) {
+        setCategoriesMapOrder(
+            getShuffledCategories(
+                categoriesMap,
+                shuffleAllOptions,
+                shuffleCategories,
+                shuffleCategoryList
+            )
+        )
+    }
 
-    if (shuffleAllOptions && null === candidatesOrder) {
+    if (shuffleAllOptions && (null === candidatesOrder)) {
         setCandidatesOrder(shuffle(noCategoryCandidates.map(c => c.id)))
     }
     const noCategoryCandidatesMap = keyBy(noCategoryCandidates, "id")
@@ -98,7 +103,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         isInvalidVote={true}
                     />
                 ))}
-                {Object.entries(categoriesMap).map(([categoryName, category], categoryIndex) => (
+                {categoriesMapOrder && Object.entries(categoriesMapOrder).map(([categoryName, category], categoryIndex) => (
                     <AnswersList
                         key={categoryIndex}
                         title={categoryName}
