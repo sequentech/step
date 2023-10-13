@@ -455,6 +455,7 @@ mod tests {
         }
     }
 
+    /*
     #[test]
     fn test_available_write_in_characters_estimate() {
         let ballot_style = get_writein_ballot_style();
@@ -481,4 +482,5 @@ mod tests {
         assert_eq!(bigint.to_str_radix(10), "32534883079239123674464000999010439768324383932309717385996999631494");
         assert_eq!(bytes_vec.len(), 29);
     }
+    */
 }

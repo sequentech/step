@@ -259,7 +259,20 @@ pub fn get_writein_ballot_style() -> BallotStyle {
     question
 }
 
-pub fn get_too_long_writein_plaintext() -> DecodedVoteContest {
+pub fn get_too_long_writein_plaintext(increase: i64) -> DecodedVoteContest {
+    let write_in = "THERE IS SOME VERY LARGE STRING BEING WRITTEN".to_string();
+
+    let mod_write_in = if 0 == increase {
+        write_in
+    } else if increase > 0 {
+        write_in + &"Z".repeat(increase as usize)
+    } else {
+        let trunc_len: i64 = write_in.len() as i64 + increase;
+        let mut res = write_in.clone();
+        res.truncate(trunc_len as usize);
+        res
+    };
+
     DecodedVoteContest {
         contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".to_string(),
         is_explicit_invalid: false,
@@ -272,9 +285,7 @@ pub fn get_too_long_writein_plaintext() -> DecodedVoteContest {
             DecodedVoteChoice {
                 id: "61320aac-0d78-4001-845e-a2f2bd8e800b".to_string(),
                 selected: 0,
-                write_in_text: Some(
-                    "THIS IS REALLY OUTRAGEOUS DONT YOU THINK, IS".to_string(),
-                ),
+                write_in_text: Some(mod_write_in),
             },
             DecodedVoteChoice {
                 id: "e9ad3ed1-4fd5-4498-a0e7-3a3c22ef57d5".to_string(),

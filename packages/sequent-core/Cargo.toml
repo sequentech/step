@@ -41,7 +41,6 @@ schemars = "0.8"
 strand = { path="../strand", features = ["num_bigint"]}
 num-bigint = { version = "0.4", features = ["rand"] }
 num-traits = "0.2"
-num-integer = "0.1"
 quick-error = "2.0.0"
 
 # error logging
