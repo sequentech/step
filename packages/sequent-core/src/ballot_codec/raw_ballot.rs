@@ -454,33 +454,4 @@ mod tests {
             }
         }
     }
-
-    /*
-    #[test]
-    fn test_available_write_in_characters_estimate() {
-        let ballot_style = get_writein_ballot_style();
-        let contest = ballot_style.configuration.questions[0].clone();
-        let plaintext = get_too_long_writein_plaintext();
-        let available_chars = contest
-            .available_write_in_characters_estimate(&plaintext)
-            .unwrap();
-        assert_eq!(available_chars, -1);
-        let raw_ballot = contest.encode_to_raw_ballot(&plaintext).unwrap();
-        assert_eq!(
-            raw_ballot.bases,
-            vec![
-                2, 2, 2, 2, 2, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-                32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-                32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
-                32, 32
-            ]
-        );
-        let bigint = contest
-            .encode_plaintext_question_bigint(&plaintext)
-            .unwrap();
-        let bytes_vec = encode_bigint_to_bytes(&bigint).unwrap();
-        assert_eq!(bigint.to_str_radix(10), "32534883079239123674464000999010439768324383932309717385996999631494");
-        assert_eq!(bytes_vec.len(), 29);
-    }
-    */
 }
