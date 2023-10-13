@@ -129,7 +129,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             writeInValue={selectionState?.write_in_text}
             setWriteInText={setWriteInText}
             isInvalidVote={isInvalidVote}
-            isInvalidWriteIn={isInvalidWriteIns}
+            isInvalidWriteIn={!!selectionState?.write_in_text && isInvalidWriteIns}
         >
             {imageUrl ? <Image src={imageUrl} duration={100} /> : null}
         </Candidate>

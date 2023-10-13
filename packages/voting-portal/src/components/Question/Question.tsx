@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
 import {Box} from "@mui/material"
-import {theme, stringToHtml, shuffle, splitList} from "@sequentech/ui-essentials"
+import {theme, stringToHtml, shuffle, splitList, keyBy} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {IQuestion} from "sequent-core"
@@ -47,6 +47,7 @@ export const Question: React.FC<IQuestionProps> = ({
     questionIndex,
     isReview,
 }) => {
+    let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
     let {invalidCandidates, noCategoryCandidates, categoriesMap} = categorizeCandidates(question)
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
@@ -66,9 +67,10 @@ export const Question: React.FC<IQuestionProps> = ({
         shuffleCategoryList
     )
 
-    if (shuffleAllOptions) {
-        noCategoryCandidates = shuffle(noCategoryCandidates)
+    if (shuffleAllOptions && null === candidatesOrder) {
+        setCandidatesOrder(shuffle(noCategoryCandidates.map(c => c.id)))
     }
+    const noCategoryCandidatesMap = keyBy(noCategoryCandidates, "id")
 
     return (
         <Box>
@@ -110,17 +112,20 @@ export const Question: React.FC<IQuestionProps> = ({
                         isInvalidWriteIns={isInvalidWriteIns}
                     />
                 ))}
-                {noCategoryCandidates.map((answer, answerIndex) => (
-                    <Answer
-                        isInvalidWriteIns={isInvalidWriteIns}
-                        ballotStyle={ballotStyle}
-                        answer={answer}
-                        questionIndex={questionIndex}
-                        key={answerIndex}
-                        isActive={!isReview}
-                        isReview={isReview}
-                    />
-                ))}
+                {
+                    candidatesOrder?.map(id => noCategoryCandidatesMap[id])
+                        .map((answer, answerIndex) => (
+                            <Answer
+                                isInvalidWriteIns={isInvalidWriteIns}
+                                ballotStyle={ballotStyle}
+                                answer={answer}
+                                questionIndex={questionIndex}
+                                key={answerIndex}
+                                isActive={!isReview}
+                                isReview={isReview}
+                            />
+                        ))
+                }
                 {invalidBottomCandidates.map((answer, answerIndex) => (
                     <Answer
                         ballotStyle={ballotStyle}
