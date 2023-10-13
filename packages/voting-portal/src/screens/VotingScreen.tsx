@@ -69,9 +69,10 @@ const StyledButton = styled(Button)`
 
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
+    disableNext: boolean
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) => {
     const {t} = useTranslation()
     const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
     const selectionState = useAppSelector(
@@ -81,7 +82,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
     const dispatch = useAppDispatch()
 
     const encryptAndReview = () => {
-        if (isUndefined(selectionState)) {
+        if (isUndefined(selectionState) || disableNext) {
             return
         }
         try {
@@ -120,7 +121,11 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
                     <Box>{t("votingScreen.backButton")}</Box>
                 </StyledButton>
             </StyledLink>
-            <StyledButton sx={{width: {xs: "100%", sm: "200px"}}} onClick={encryptAndReview}>
+            <StyledButton
+                sx={{width: {xs: "100%", sm: "200px"}}}
+                onClick={encryptAndReview}
+                disabled={disableNext}
+            >
                 <Box>{t("votingScreen.reviewButton")}</Box>
                 <Icon icon={faAngleRight} size="sm" />
             </StyledButton>
@@ -129,11 +134,19 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
 }
 
 export const VotingScreen: React.FC = () => {
+    let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const election = useAppSelector(selectElectionById(String(electionId)))
     const {t} = useTranslation()
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
+
+    const onSetDisableNext = (id: string) => (value: boolean) => {
+        setDisableNext({
+            ...disableNext,
+            [id]: value,
+        })
+    }
 
     if (!ballotStyle || !election) {
         return <CircularProgress />
@@ -182,9 +195,13 @@ export const VotingScreen: React.FC = () => {
                     questionIndex={index}
                     key={index}
                     isReview={false}
+                    setDisableNext={onSetDisableNext(question.id)}
                 />
             ))}
-            <ActionButtons ballotStyle={ballotStyle} />
+            <ActionButtons
+                ballotStyle={ballotStyle}
+                disableNext={Object.values(disableNext).some((v) => v)}
+            />
         </PageLimit>
     )
 }

@@ -16,7 +16,11 @@ import {
     checkShuffleCategoryList,
     getCheckableOptions,
 } from "../../services/ElectionConfigService"
-import {CategoriesMap, categorizeCandidates, getShuffledCategories} from "../../services/CategoryService"
+import {
+    CategoriesMap,
+    categorizeCandidates,
+    getShuffledCategories,
+} from "../../services/CategoryService"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
 
@@ -39,6 +43,7 @@ export interface IQuestionProps {
     question: IQuestion
     questionIndex: number
     isReview: boolean
+    setDisableNext?: (value: boolean) => void
 }
 
 export const Question: React.FC<IQuestionProps> = ({
@@ -46,6 +51,7 @@ export const Question: React.FC<IQuestionProps> = ({
     question,
     questionIndex,
     isReview,
+    setDisableNext,
 }) => {
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
@@ -72,10 +78,15 @@ export const Question: React.FC<IQuestionProps> = ({
         )
     }
 
-    if (shuffleAllOptions && (null === candidatesOrder)) {
-        setCandidatesOrder(shuffle(noCategoryCandidates.map(c => c.id)))
+    if (shuffleAllOptions && null === candidatesOrder) {
+        setCandidatesOrder(shuffle(noCategoryCandidates.map((c) => c.id)))
     }
     const noCategoryCandidatesMap = keyBy(noCategoryCandidates, "id")
+
+    const onSetIsInvalidWriteIns = (value: boolean) => {
+        setIsInvalidWriteIns(value)
+        setDisableNext?.(value)
+    }
 
     return (
         <Box>
@@ -90,7 +101,7 @@ export const Question: React.FC<IQuestionProps> = ({
                     ballotStyle={ballotStyle}
                     question={question}
                     isInvalidWriteIns={isInvalidWriteIns}
-                    setIsInvalidWriteIns={setIsInvalidWriteIns}
+                    setIsInvalidWriteIns={onSetIsInvalidWriteIns}
                 />
                 {invalidTopCandidates.map((answer, answerIndex) => (
                     <Answer
@@ -103,34 +114,36 @@ export const Question: React.FC<IQuestionProps> = ({
                         isInvalidVote={true}
                     />
                 ))}
-                {categoriesMapOrder && Object.entries(categoriesMapOrder).map(([categoryName, category], categoryIndex) => (
-                    <AnswersList
-                        key={categoryIndex}
-                        title={categoryName}
-                        isActive={true}
-                        checkableLists={checkableLists}
-                        checkableCandidates={checkableCandidates}
-                        category={category}
-                        ballotStyle={ballotStyle}
-                        questionIndex={questionIndex}
-                        isReview={isReview}
-                        isInvalidWriteIns={isInvalidWriteIns}
-                    />
-                ))}
-                {
-                    candidatesOrder?.map(id => noCategoryCandidatesMap[id])
-                        .map((answer, answerIndex) => (
-                            <Answer
-                                isInvalidWriteIns={isInvalidWriteIns}
+                {categoriesMapOrder &&
+                    Object.entries(categoriesMapOrder).map(
+                        ([categoryName, category], categoryIndex) => (
+                            <AnswersList
+                                key={categoryIndex}
+                                title={categoryName}
+                                isActive={true}
+                                checkableLists={checkableLists}
+                                checkableCandidates={checkableCandidates}
+                                category={category}
                                 ballotStyle={ballotStyle}
-                                answer={answer}
                                 questionIndex={questionIndex}
-                                key={answerIndex}
-                                isActive={!isReview}
                                 isReview={isReview}
+                                isInvalidWriteIns={isInvalidWriteIns}
                             />
-                        ))
-                }
+                        )
+                    )}
+                {candidatesOrder
+                    ?.map((id) => noCategoryCandidatesMap[id])
+                    .map((answer, answerIndex) => (
+                        <Answer
+                            isInvalidWriteIns={isInvalidWriteIns}
+                            ballotStyle={ballotStyle}
+                            answer={answer}
+                            questionIndex={questionIndex}
+                            key={answerIndex}
+                            isActive={!isReview}
+                            isReview={isReview}
+                        />
+                    ))}
                 {invalidBottomCandidates.map((answer, answerIndex) => (
                     <Answer
                         ballotStyle={ballotStyle}
