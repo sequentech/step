@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
+import React, {useState} from "react"
 import {Box} from "@mui/material"
 import {theme, stringToHtml, shuffle, splitList} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
@@ -47,6 +47,7 @@ export const Question: React.FC<IQuestionProps> = ({
     questionIndex,
     isReview,
 }) => {
+    let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
     let {invalidCandidates, noCategoryCandidates, categoriesMap} = categorizeCandidates(question)
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
     let [invalidBottomCandidates, invalidTopCandidates] = splitList(
@@ -78,7 +79,12 @@ export const Question: React.FC<IQuestionProps> = ({
                 </Typography>
             ) : null}
             <CandidatesWrapper>
-                <InvalidErrorsList ballotStyle={ballotStyle} question={question} />
+                <InvalidErrorsList
+                    ballotStyle={ballotStyle}
+                    question={question}
+                    isInvalidWriteIns={isInvalidWriteIns}
+                    setIsInvalidWriteIns={setIsInvalidWriteIns}
+                />
                 {invalidTopCandidates.map((answer, answerIndex) => (
                     <Answer
                         ballotStyle={ballotStyle}
@@ -101,10 +107,12 @@ export const Question: React.FC<IQuestionProps> = ({
                         ballotStyle={ballotStyle}
                         questionIndex={questionIndex}
                         isReview={isReview}
+                        isInvalidWriteIns={isInvalidWriteIns}
                     />
                 ))}
                 {noCategoryCandidates.map((answer, answerIndex) => (
                     <Answer
+                        isInvalidWriteIns={isInvalidWriteIns}
                         ballotStyle={ballotStyle}
                         answer={answer}
                         questionIndex={questionIndex}
@@ -122,6 +130,7 @@ export const Question: React.FC<IQuestionProps> = ({
                         isActive={!isReview}
                         isReview={isReview}
                         isInvalidVote={true}
+                        isInvalidWriteIns={false}
                     />
                 ))}
             </CandidatesWrapper>

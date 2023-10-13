@@ -28,6 +28,7 @@ export interface IAnswerProps {
     isActive: boolean
     isReview: boolean
     isInvalidVote?: boolean
+    isInvalidWriteIns?: boolean
 }
 
 export const Answer: React.FC<IAnswerProps> = ({
@@ -38,6 +39,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     isActive,
     isReview,
     isInvalidVote,
+    isInvalidWriteIns,
 }) => {
     const selectionState = useAppSelector(
         selectBallotSelectionVoteChoice(ballotStyle.election_id, questionIndex, answer.id)
@@ -127,6 +129,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             writeInValue={selectionState?.write_in_text}
             setWriteInText={setWriteInText}
             isInvalidVote={isInvalidVote}
+            isInvalidWriteIn={isInvalidWriteIns}
         >
             {imageUrl ? <Image src={imageUrl} duration={100} /> : null}
         </Candidate>

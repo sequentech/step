@@ -13,9 +13,16 @@ import {useTranslation} from "react-i18next"
 export interface IInvalidErrorsListProps {
     ballotStyle: IBallotStyle
     question: IQuestion
+    isInvalidWriteIns: boolean
+    setIsInvalidWriteIns: (input: boolean) => void
 }
 
-export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({ballotStyle, question}) => {
+export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
+    ballotStyle,
+    question,
+    isInvalidWriteIns,
+    setIsInvalidWriteIns,
+}) => {
     const {t} = useTranslation()
     const [isTouched, setIsTouched] = useState(false)
     const selectionState = useAppSelector(
@@ -45,6 +52,13 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({ballotStyl
     const numAvailableChars = contestSelection
         ? getWriteInAvailableCharacters(contestSelection, ballotStyle.ballot_eml)
         : 0
+
+    useEffect(() => {
+        let newInvalid = numAvailableChars < 0
+        if (newInvalid !== isInvalidWriteIns) {
+            setIsInvalidWriteIns(newInvalid)
+        }
+    }, [numAvailableChars, isInvalidWriteIns, setIsInvalidWriteIns])
 
     return (
         <>

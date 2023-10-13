@@ -23,6 +23,7 @@ export interface AnswersListProps {
     ballotStyle: IBallotStyle
     questionIndex: number
     isReview: boolean
+    isInvalidWriteIns?: boolean
 }
 
 const showCategoryOnReview = (category: ICategory, questionState?: IDecodedVoteContest) => {
@@ -49,6 +50,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     ballotStyle,
     questionIndex,
     isReview,
+    isInvalidWriteIns,
 }) => {
     const categoryAnswerId = category.header?.id || ""
     const selectionState = useAppSelector(
@@ -92,6 +94,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                     hasCategory={true}
                     isActive={!isReview && checkableCandidates}
                     isReview={isReview}
+                    isInvalidWriteIns={isInvalidWriteIns}
                 />
             ))}
         </CandidatesList>

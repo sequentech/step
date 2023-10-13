@@ -219,6 +219,22 @@ export const WriteInSimple: Story = {
     },
 }
 
+export const WriteInInvalid: Story = {
+    args: {
+        title: "",
+        description: "",
+        isActive: true,
+        isWriteIn: true,
+        writeInValue: "John Connor",
+        isInvalidWriteIn: true,
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}
+
 export const WriteInFields: Story = {
     args: {
         title: "",
