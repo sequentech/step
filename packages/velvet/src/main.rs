@@ -2,9 +2,11 @@ mod cli;
 mod config;
 mod pipes;
 
+#[cfg(test)]
+mod fixtures;
+
 use clap::Parser;
 use cli::{Cli, Commands};
-
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error + 'static>> {
     let cli = Cli::parse();
@@ -17,4 +19,3 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error + 'static>> {
 
     Ok(())
 }
-

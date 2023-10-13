@@ -1,6 +1,6 @@
 pub mod error;
-mod test_all;
 pub mod state;
+mod test_all;
 
 use crate::config::Config;
 
@@ -64,88 +64,16 @@ impl CliRun {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fixtures::TestFixture;
     use anyhow::Result;
-    use std::fs::OpenOptions;
-    use std::io::Write;
-
-    struct TestFixture {
-        config_path: PathBuf,
-    }
-
-    impl TestFixture {
-        fn new(filename: &str) -> Result<Self> {
-            let config_path = PathBuf::from(filename);
-            let mut file = OpenOptions::new()
-                .write(true)
-                .create(true)
-                .open(&config_path)?;
-
-            let config_content = r#"
-                {
-                    "version": "0.0.0",
-                    "stages": {
-                        "order": ["main"],
-                        "main": {
-                            "pipeline": [
-                                {
-                                    "id": "decode-ballots",
-                                    "pipe": "VelvetDecodeBallots",
-                                    "config": {}
-                                },
-                                {
-                                    "id": "do-tally",
-                                    "pipe": "VelvetDoTally",
-                                    "config": {
-                                        "invalidateVotes": "Fail"
-                                    }
-                                },
-                                {
-                                    "id": "consolidation",
-                                    "pipe": "VelvetConsolidation",
-                                    "config": {}
-                                },
-                                {
-                                    "id": "ties-resolution",
-                                    "pipe": "VelvetTiesResolution",
-                                    "config": {}
-                                },
-                                {
-                                    "id": "compute-result",
-                                    "pipe": "VelvetComputeResult",
-                                    "config": {}
-                                },
-                                {
-                                    "id": "gen-report",
-                                    "pipe": "VelvetGenerateReport",
-                                    "config": {
-                                        "formats": ["pdf", "csv"]
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            "#;
-
-            writeln!(file, "{config_content}")?;
-
-            Ok(Self { config_path })
-        }
-    }
-
-    impl Drop for TestFixture {
-        fn drop(&mut self) {
-            std::fs::remove_file(&self.config_path).unwrap();
-        }
-    }
 
     #[test]
     fn test_clirun_validate() -> Result<()> {
-        let _fixture = TestFixture::new("test_clirun_validate_velvet-config.json");
+        let fixture = TestFixture::new()?;
         let cli = CliRun {
             stage: "main".to_string(),
             pipe_id: "do-tally".to_string(),
-            config: PathBuf::from("test_clirun_validate_velvet-config.json"),
+            config: fixture.config_path.clone(),
             input_dir: PathBuf::new(),
             output_dir: PathBuf::new(),
         };
@@ -163,7 +91,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_clirun_validate_not_found() {
-        let _fixture = TestFixture::new("test_clirun_validate_found_not_found-velvet-config.json");
+        let _fixture = TestFixture::new();
         let cli = CliRun {
             stage: "main".to_string(),
             pipe_id: "do-tally".to_string(),
