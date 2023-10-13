@@ -1,5 +1,5 @@
 pub mod error;
-mod inputs;
+mod test_all;
 pub mod state;
 
 use crate::config::Config;
