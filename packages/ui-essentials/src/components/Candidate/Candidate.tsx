@@ -88,6 +88,7 @@ export interface CandidateProps extends PropsWithChildren {
     isWriteIn?: boolean
     writeInValue?: string
     setWriteInText?: (value: string) => void
+    isInvalidWriteIn?: boolean
 }
 
 const Candidate: React.FC<CandidateProps> = ({
@@ -102,6 +103,7 @@ const Candidate: React.FC<CandidateProps> = ({
     isWriteIn,
     writeInValue,
     setWriteInText,
+    isInvalidWriteIn,
     children,
 }) => {
     const {t} = useTranslation()
@@ -161,6 +163,7 @@ const Candidate: React.FC<CandidateProps> = ({
                             value={writeInValue}
                             onChange={onWriteInTextChange}
                             onClick={handleWriteInClick}
+                            error={isInvalidWriteIn || false}
                         />
                     </Box>
                 ) : null}

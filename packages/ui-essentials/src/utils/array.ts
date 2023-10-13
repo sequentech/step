@@ -19,3 +19,11 @@ export const splitList = <T>(
 
     return [negative, positive]
 }
+
+export const keyBy = <T>(list: Array<T>, id: string): Record<string, T> => {
+    let record: Record<string, T> = {}
+    for (let element of list) {
+        record[element[id]] = element
+    }
+    return record
+}

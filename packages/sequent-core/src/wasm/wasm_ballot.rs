@@ -176,6 +176,7 @@ interface IQuestionExtra {
     cumulative_number_of_checkboxes?: number; 
     enable_checkable_lists?: string;
     allow_writeins?: boolean;
+    base32_writeins?: boolean;
     invalid_vote_policy?: string;
     review_screen__show_question_description?: boolean;
 }
