@@ -40,31 +40,28 @@ pub trait BigUIntCodec {
 
 fn remove_character(raw_ballot: &RawBallotQuestion) -> RawBallotQuestion {
     let mut bases = raw_ballot.bases.clone();
-    bases.pop();
     let mut choices = raw_ballot.choices.clone();
     let mut i = choices.len() - 1;
     while 0 == choices[i] {
         i -= 1;
     }
     choices.remove(i);
+    bases.remove(i);
     RawBallotQuestion {
         bases: bases,
         choices: choices,
     }
 }
 
-fn add_character(
-    raw_ballot: &RawBallotQuestion,
-    base: u64,
-) -> RawBallotQuestion {
+fn add_character(raw_ballot: &RawBallotQuestion) -> RawBallotQuestion {
     let mut bases = raw_ballot.bases.clone();
-    bases.push(base);
     let mut choices = raw_ballot.choices.clone();
     let mut i = choices.len() - 1;
     while 0 == choices[i] {
         i -= 1;
     }
-    choices.insert(i, raw_ballot.bases[i] - 1);
+    choices.insert(i, bases[i] - 1);
+    bases.insert(i, bases[i]);
     RawBallotQuestion {
         bases: bases,
         choices: choices,
@@ -82,9 +79,6 @@ impl BigUIntCodec for Question {
         let mut bigint = encode(&raw_ballot.choices, &raw_ballot.bases)?;
         let mut bytes_vec = encode_bigint_to_bytes(&bigint)?;
 
-        let char_map = self.get_char_map();
-        let base = char_map.base();
-
         if bytes_vec.len() <= 29 {
             if available_chars_estimate > 10 {
                 Ok(available_chars_estimate)
@@ -92,7 +86,7 @@ impl BigUIntCodec for Question {
                 let mut count = 0;
                 while bytes_vec.len() <= 29 {
                     count += 1;
-                    raw_ballot = add_character(&raw_ballot, base);
+                    raw_ballot = add_character(&raw_ballot);
                     bigint = encode(&raw_ballot.choices, &raw_ballot.bases)?;
                     bytes_vec = encode_bigint_to_bytes(&bigint)?;
                 }
@@ -214,7 +208,7 @@ mod tests {
     fn test_available_write_in_characters() {
         let ballot_style = get_writein_ballot_style();
         let contest = ballot_style.configuration.questions[0].clone();
-        for n in -5..6 {
+        for n in -8..8 {
             let plaintext = get_too_long_writein_plaintext(n);
             let available_chars =
                 contest.available_write_in_characters(&plaintext).unwrap();

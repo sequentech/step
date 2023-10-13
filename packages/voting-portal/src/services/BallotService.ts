@@ -81,7 +81,9 @@ export const getWriteInAvailableCharacters = (
     election: IBallotStyle
 ): number => {
     try {
-        return get_write_in_available_characters_js(contestSelection, election)
+        let num = get_write_in_available_characters_js(contestSelection, election)
+        console.log(`available chars: ${num}`)
+        return num
     } catch (e) {
         console.log(e)
         throw e
