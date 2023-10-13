@@ -59,6 +59,9 @@ mod tests {
             fs::create_dir_all(&dir)?;
             let mut file = File::create(format!("{}/election-config.json", dir))?;
 
+            let dir = format!("{}/election__{}", self.input_dir_ballots, uuid);
+            fs::create_dir_all(dir)?;
+
             let election_str = r#"
             {
                 "id":34570002,
@@ -191,8 +194,15 @@ mod tests {
                 "{}/election__{}/contest__{}",
                 self.input_dir_configs, election_uuid, uuid
             );
+
             fs::create_dir_all(&dir)?;
             let mut file = File::create(format!("{}/contest-config.json", dir))?;
+
+            let dir = format!(
+                "{}/election__{}/contest__{}",
+                self.input_dir_ballots, election_uuid, uuid
+            );
+            fs::create_dir_all(dir)?;
 
             let contest_str = r#"
             {
@@ -269,6 +279,42 @@ mod tests {
         }
     }
 
+    fn generate_ballots(
+        fixture: &TestFixture,
+        election_num: u32,
+        contest_num: u32,
+        ballots_num: u32,
+    ) -> Result<()> {
+        let ballot_codec = BallotCodec::new(vec![2, 2, 2, 2, 2, 2]);
+        let mut rng = rand::thread_rng();
+
+        (0..election_num).try_for_each(|_| {
+            let uuid_election = fixture.create_election_config()?;
+            (0..contest_num).try_for_each(|_| {
+                let uuid_contest = fixture.create_contest_config(&uuid_election)?;
+
+                let mut file = OpenOptions::new()
+                    .write(true)
+                    .append(true)
+                    .create(true)
+                    .open(format!(
+                        "{}/election__{}/contest__{}/ballots.csv",
+                        fixture.input_dir_ballots, uuid_election, uuid_contest
+                    ))?;
+                (0..ballots_num).try_for_each(|_| {
+                    let choices: Vec<u32> = (0..6).map(|_| rng.gen_range(0..2)).collect();
+                    let encoded_ballot = ballot_codec.encode_ballot(choices.clone());
+                    writeln!(file, "{}", encoded_ballot)?;
+                    Ok::<(), Error>(())
+                })?;
+                Ok::<(), Error>(())
+            })?;
+            Ok::<(), Error>(())
+        })?;
+
+        Ok(())
+    }
+
     #[test]
     fn test_create_configs() -> Result<()> {
         let fixture = TestFixture::new()?;
@@ -309,37 +355,21 @@ mod tests {
     #[test]
     fn test_create_ballots() -> Result<()> {
         let fixture = TestFixture::new()?;
-        let ballot_codec = BallotCodec::new(vec![2, 2, 2, 2, 2, 2]);
-        let mut rng = rand::thread_rng();
 
-        (0..5).try_for_each(|_| {
-            let uuid_election = fixture.create_election_config()?;
-            (0..10).try_for_each(|_| {
-                let uuid_contest = fixture.create_contest_config(&uuid_election)?;
+        generate_ballots(&fixture, 5, 10, 10000)?;
 
-                let mut file = OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .create(true)
-                    .open(format!(
-                        "{}/election__{}/contest__{}/ballots.csv",
-                        fixture.input_dir_configs, uuid_election, uuid_contest
-                    ))?;
-                (0..10000).try_for_each(|_| {
-                    let choices: Vec<u32> = (0..6).map(|_| rng.gen_range(0..2)).collect();
-                    let encoded_ballot = ballot_codec.encode_ballot(choices.clone());
-                    writeln!(file, "{}", encoded_ballot)?;
-                    Ok::<(), Error>(())
-                })?;
-                Ok::<(), Error>(())
-            })?;
-            Ok::<(), Error>(())
-        })?;
-
-        let entries = fs::read_dir(&fixture.input_dir_configs)?;
+        // count elections
+        let entries = fs::read_dir(&fixture.input_dir_ballots)?;
         let count = entries.count();
-
         assert_eq!(count, 5);
+
+        // count contests
+        let mut entries = fs::read_dir(&fixture.input_dir_ballots)?;
+        let entry = entries.next().unwrap()?;
+        let contest_path = entry.path();
+        let entries = fs::read_dir(contest_path)?;
+        let count = entries.count();
+        assert_eq!(count, 10);
 
         Ok(())
     }
