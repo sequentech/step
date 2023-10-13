@@ -4,7 +4,7 @@ mod tests {
     use crate::cli::state::State;
     use crate::cli::CliRun;
     use crate::fixtures::TestFixture;
-    use crate::pipes::decode_ballots::BallotCodec;
+    use crate::pipes::decode_ballots::ballot_codec::BallotCodec;
     use anyhow::{Error, Result};
     use rand::Rng;
     use std::fs;
@@ -113,15 +113,16 @@ mod tests {
 
         let cli = CliRun {
             stage: "main".to_string(),
-            pipe_id: "do-tally".to_string(),
-            config: PathBuf::from("do-not-exist.json"),
+            pipe_id: "decode-ballots".to_string(),
+            config: fixture.config_path.clone(),
             input_dir: PathBuf::from(&fixture.root_dir),
             output_dir: PathBuf::new(),
         };
 
-        cli.parse_config();
+        let config = cli.parse_config()?;
+        let mut state = State::new(&cli, &config)?;
+        state.exec_next(&cli.stage)?;
 
-        // let mut state = State::new(&cli, &config)?;
         Ok(())
     }
 }

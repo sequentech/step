@@ -1,46 +1,24 @@
-pub struct BallotCodec {
-    bases: Vec<u32>,
+pub mod ballot_codec;
+
+use self::ballot_codec::BallotCodec;
+use super::{error::Result, Pipe};
+
+pub struct DecodeBallots {}
+
+impl DecodeBallots {
+    pub fn new() -> Self {
+        Self {}
+    }
 }
 
-impl BallotCodec {
-    pub fn new(bases: Vec<u32>) -> Self {
-        Self { bases }
-    }
+impl Pipe for DecodeBallots {
+    fn exec(&self) -> Result<()> {
+        let choices = vec![0, 0, 0, 1, 0, 0];
 
-    pub fn encode_ballot(&self, choices: Vec<u32>) -> u32 {
-        if choices.len() != self.bases.len() {
-            panic!("choices doesn't match with bases");
-        }
+        let ballot_codec = BallotCodec::new(vec![2, 2, 2, 2, 2, 2]);
+        let encoded_ballot = ballot_codec.encode_ballot(choices.clone());
+        let _decoded_ballot = ballot_codec.decode_ballot(encoded_ballot);
 
-        let encoded_choices = choices
-            .iter()
-            .enumerate()
-            .map(|(i, &choice)| {
-                let base_mul = self.bases.iter().take(i + 1).product::<u32>();
-                choice * base_mul
-            })
-            .sum();
-
-        encoded_choices
-    }
-
-    pub fn decode_ballot(&self, encoded: u32) -> Vec<u32> {
-        let mut choices: Vec<u32> = vec![];
-        let mut remaining = encoded;
-
-        let enum_bases: Vec<u32> = self
-            .bases
-            .iter()
-            .enumerate()
-            .map(|(i, &_base)| self.bases.iter().take(i + 1).product::<u32>())
-            .collect::<Vec<u32>>();
-
-        for &base in enum_bases.iter().rev() {
-            choices.push(remaining / base);
-            remaining %= base;
-        }
-        choices.reverse();
-
-        choices
+        Ok(())
     }
 }

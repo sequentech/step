@@ -1,5 +1,6 @@
 use super::error::{Error, Result};
 use super::CliRun;
+use crate::pipes::match_run;
 use crate::{config::Config, pipes::pipe_name::PipeName};
 
 #[derive(Debug)]
@@ -60,6 +61,9 @@ impl State {
             .iter()
             .position(|p| *p == stage.current_pipe)
             .ok_or(Error::PipeNotFound)?;
+
+        // TODO:
+        match_run(stage.current_pipe);
 
         if curr_index + 1 < stage.pipeline.len() {
             stage.current_pipe = stage.pipeline[curr_index + 1];
