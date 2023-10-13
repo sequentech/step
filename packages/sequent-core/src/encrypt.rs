@@ -130,25 +130,6 @@ fn recreate_encrypt_answer<C: Ctx>(
     })
 }
 
-/*
-pub fn to_30bytes(plaintext: Vec<u8>) -> Result<[u8; 30], BallotError> {
-    let len = plaintext.len();
-
-    if len > 30 {
-        return Err(BallotError::Serialization(format!(
-            "Plaintext too long, length {} is longer than 30 bytes",
-            len
-        )));
-    }
-    let mut array: [u8; 30] = [0; 30];
-
-    // Copy the elements from the vector to the array
-    array[..len].copy_from_slice(&plaintext);
-
-    Ok(array)
-}
-*/
-
 pub fn encrypt_decoded_question<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     decoded_questions: &Vec<DecodedVoteContest>,

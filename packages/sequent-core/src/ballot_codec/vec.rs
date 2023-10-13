@@ -26,8 +26,8 @@ pub fn encode_vec_to_array(data: &Vec<u8>) -> Result<[u8; 30], String> {
     let plaintext_length = data.len();
     if plaintext_length > 29 {
         return Err(format!(
-            "Plaintext too long, lenght {} is greater than 29",
-            plaintext_length
+            "Plaintext too long, length {} is greater than 29. Data: {:?}",
+            plaintext_length, data
         ));
     }
     let mut plaintext_array = [0u8; 30];
