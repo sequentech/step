@@ -48,13 +48,21 @@ pub fn to_hashable_ballot_js(
         serde_wasm_bindgen::from_value(auditable_ballot_json)
             .map_err(|err| format!("Error reading javascript string: {}", err))
             .into_json()?;
-    let base64_string: String =
+    let auditable_ballot: AuditableBallot<RistrettoCtx> =
         Base64Deserialize::deserialize(auditable_ballot_string)
             .map_err(|err| {
-                format!("Error deserializing auditable ballot {:?}", err)
+                format!("Error deserializing auditable ballot: {:?}", err)
             })
             .into_json()?;
-    serde_wasm_bindgen::to_value(&base64_string)
+    let hashable_ballot = HashableBallot::from(&auditable_ballot);
+
+    let hashable_ballot_serialized: String =
+        Base64Serialize::serialize(&hashable_ballot)
+            .map_err(|err| {
+                format!("Error serializing auditable ballot {:?}", err)
+            })
+            .into_json()?;
+    serde_wasm_bindgen::to_value(&hashable_ballot_serialized)
         .map_err(|err| format!("{:?}", err))
         .into_json()
 }
