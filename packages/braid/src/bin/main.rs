@@ -93,7 +93,8 @@ async fn main() -> Result<()> {
         let mut step_error = false;
         for board_name in boards {
             info!("Connecting to board '{}'..", board_name.clone());
-            let trustee: Trustee<RistrettoCtx> = Trustee::new(sk.clone(), ek.clone());
+            let trustee: Trustee<RistrettoCtx> =
+                Trustee::new("Self".to_string(), sk.clone(), ek.clone());
             let board_result = ImmudbBoard::new(
                 &args.server_url,
                 IMMUDB_USER,

@@ -185,12 +185,12 @@ pub fn create_protocol_test<C: Ctx>(
         phantom: PhantomData,
     };
     let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
-        .map(|_| {
+        .map(|i| {
             let sk = StrandSignatureSk::gen().unwrap();
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
             let pk = StrandSignaturePk::from(&sk).unwrap();
-            (Trustee::new(sk, encryption_key), pk)
+            (Trustee::new(i.to_string(), sk, encryption_key), pk)
         })
         .unzip();
 

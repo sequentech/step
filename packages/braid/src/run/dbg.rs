@@ -175,7 +175,7 @@ impl<C: Ctx> Status<C> {
             .set_align(Align::Left);
         let mut data: Vec<Vec<String>> = vec![];
         for m in self.last_messages.iter() {
-            let sender = self.cfg.get_trustee_position(&m.signer_key).unwrap();
+            let sender = self.cfg.get_trustee_position(&m.sender.pk).unwrap();
             data.push(vec![
                 format!("{:?}", m.statement.get_kind()),
                 format!("{}", sender),
@@ -205,7 +205,7 @@ impl<C: Ctx> Status<C> {
             .set_align(Align::Left);
         let mut data: Vec<Vec<String>> = vec![];
         for m in self.remote.messages.iter() {
-            let sender = self.cfg.get_trustee_position(&m.signer_key).unwrap();
+            let sender = self.cfg.get_trustee_position(&m.sender.pk).unwrap();
             data.push(vec![
                 format!("{:?}", m.statement.get_kind()),
                 format!("{}", sender),
@@ -235,11 +235,11 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
 
     let trustees: Vec<Trustee<C>> = (0..n_trustees)
         .into_iter()
-        .map(|_| {
+        .map(|i| {
             let kp = StrandSignatureSk::gen().unwrap();
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
-            Trustee::new(kp, encryption_key)
+            Trustee::new(i.to_string(), kp, encryption_key)
         })
         .collect();
 
