@@ -273,12 +273,12 @@ impl<C: Ctx> Trustee<C> {
             .ok_or(anyhow!("Cannot run actions without a configuration"))?;
 
         let actions = crate::protocol2::datalog::run(predicates)?;
-        trace!(
+        info!(
             "Datalog derived {} actions, {:?}",
             actions.len(),
             actions
                 .iter()
-                .map(|a| a.to_string())
+                .map(|a| format!("{:?}", a))
                 .collect::<Vec<String>>()
         );
 
