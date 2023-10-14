@@ -45,6 +45,7 @@ use strand::symm::{self, EncryptionData};
 ///////////////////////////////////////////////////////////////////////////
 
 pub struct Trustee<C: Ctx> {
+    pub(crate) name: String,
     pub(crate) signing_key: StrandSignatureSk,
     // A ChaCha20Poly1305 encryption key
     pub(crate) encryption_key: symm::SymmetricKey,
@@ -55,13 +56,21 @@ impl<C: Ctx> braid_messages::message::Signer for Trustee<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
 }
 
 impl<C: Ctx> Trustee<C> {
-    pub fn new(signing_key: StrandSignatureSk, encryption_key: symm::SymmetricKey) -> Trustee<C> {
+    pub fn new(
+        name: String,
+        signing_key: StrandSignatureSk,
+        encryption_key: symm::SymmetricKey,
+    ) -> Trustee<C> {
         let local_board = LocalBoard::new();
 
         Trustee {
+            name,
             signing_key,
             encryption_key,
             local_board,
@@ -131,9 +140,10 @@ impl<C: Ctx> Trustee<C> {
         let cfg_hash = cfg_hash.expect("impossible");
 
         for message in messages {
-            let verified = message
-                .verify(&configuration)
-                .context(format!("Message failed verification: {:?}, cfg: {:?}", message, &configuration))?;
+            let verified = message.verify(&configuration).context(format!(
+                "Message failed verification: {:?}, cfg: {:?}",
+                message, &configuration
+            ))?;
 
             if verified.statement.get_cfg_h() != cfg_hash {
                 return Err(anyhow!("Message has mismatched configuration hash"));
@@ -474,27 +484,10 @@ impl<C: Ctx> braid_messages::message::Signer for ProtocolManager<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Signer (commonality to sign messages for Trustee and Protocolmanager)
-///////////////////////////////////////////////////////////////////////////
-
-/*pub(crate) trait Signer {
-    fn get_signing_key(&self) -> &StrandSignatureSk;
-    fn sign(&self, statement: Statement, artifact: Option<Vec<u8>>) -> Result<Message> {
-        let sk = self.get_signing_key();
-        let bytes = statement.strand_serialize()?;
-        let signature: StrandSignature = sk.sign(&bytes)?;
-
-        Ok(Message {
-            signer_key: StrandSignaturePk::from(sk)?,
-            signature,
-            statement,
-            artifact,
-        })
+    fn get_name(&self) -> String {
+        "Protocol Manager".to_string()
     }
-}*/
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // Debug

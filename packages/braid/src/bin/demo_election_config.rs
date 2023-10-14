@@ -40,11 +40,11 @@ fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
         phantom: PhantomData,
     };
     let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
-        .map(|_| {
+        .map(|i| {
             let sk = StrandSignatureSk::gen().unwrap();
             let pk = StrandSignaturePk::from(&sk).unwrap();
             let encryption_key: symm::SymmetricKey = symm::gen_key();
-            (Trustee::new(sk, encryption_key), pk)
+            (Trustee::new(i.to_string(), sk, encryption_key), pk)
         })
         .unzip();
 
