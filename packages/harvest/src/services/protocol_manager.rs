@@ -47,8 +47,8 @@ pub async fn create_keys(
         .clone()
         .into_iter()
         .map(|public_key_string| {
-            let public_key: StrandSignaturePk =
-                public_key_string.try_into().unwrap();
+            let bytes =  general_purpose::STANDARD_NO_PAD.decode(&public_key_string).unwrap();
+            let public_key: StrandSignaturePk = StrandSignaturePk::strand_deserialize(&bytes).unwrap();
             public_key
         })
         .collect();
