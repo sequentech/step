@@ -132,20 +132,17 @@ pub struct Mix<C: Ctx> {
     pub ciphertexts: StrandVectorC<C>,
     pub proof: ShuffleProof<C>,
     pub mix_number: MixNumber,
-    // pub target_trustee: TrusteePosition,
 }
 impl<C: Ctx> Mix<C> {
     pub fn new(
         ciphertexts: Vec<Ciphertext<C>>,
         proof: ShuffleProof<C>,
         mix_number: MixNumber,
-        // target_trustee: TrusteePosition,
     ) -> Mix<C> {
         Mix {
             ciphertexts: StrandVectorC(ciphertexts),
             proof,
             mix_number,
-            // target_trustee,
         }
     }
 }

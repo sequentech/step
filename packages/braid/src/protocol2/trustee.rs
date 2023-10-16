@@ -495,12 +495,12 @@ impl<C: Ctx> braid_messages::message::Signer for ProtocolManager<C> {
 
 impl<C: Ctx> std::fmt::Debug for Trustee<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Trustee{{ No info }}")
+        write!(f, "Trustee({})", self.name)
     }
 }
 
 impl<C: Ctx> std::fmt::Debug for ProtocolManager<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ProtcolManager{{ No info }}")
+        write!(f, "ProtcolManager()")
     }
 }
