@@ -1,23 +1,23 @@
 pub mod ballot_codec;
 
-use std::fs;
-
-use crate::{cli::CliRun, pipes::error::Error};
+use crate::cli::CliRun;
 
 use self::ballot_codec::BallotCodec;
-use super::{error::Result, Pipe};
+use super::{
+    error::Result,
+    Pipe,
+    PipeInputs::{PipeInput, PipeInputRead},
+};
 
 pub struct DecodeBallots {
-    pub cli: CliRun,
+    pub pipe_input: PipeInput,
 }
 
 impl Pipe for DecodeBallots {
     fn new(cli: &CliRun) -> Self {
-        Self { cli: cli.clone() }
-    }
-
-    fn cli(&self) -> &CliRun {
-        &self.cli
+        Self {
+            pipe_input: PipeInput { cli: cli.clone() },
+        }
     }
 
     fn exec(&self) -> Result<()> {
@@ -27,9 +27,9 @@ impl Pipe for DecodeBallots {
         let encoded_ballot = ballot_codec.encode_ballot(choices.clone());
         let _decoded_ballot = ballot_codec.decode_ballot(encoded_ballot);
 
-        dbg!(&self.cli().config);
-        dbg!(&self.cli().input_dir);
-        dbg!(&self.cli().output_dir);
+        dbg!(&self.pipe_input.cli.config);
+        dbg!(&self.pipe_input.cli.input_dir);
+        dbg!(&self.pipe_input.cli.output_dir);
 
         // TODO:
         // dbg!(&self.output_log_file);
@@ -40,5 +40,8 @@ impl Pipe for DecodeBallots {
     }
 }
 
-impl DecodeBallots {
+impl PipeInputRead for DecodeBallots {
+    fn read_input_dir_config(&self) -> Result<()> {
+        self.pipe_input.read_input_dir_config()
+    }
 }
