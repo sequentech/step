@@ -14,10 +14,10 @@ pub struct DecodeBallots {
 }
 
 impl Pipe for DecodeBallots {
-    fn new(cli: &CliRun) -> Self {
-        Self {
-            pipe_input: PipeInputs { cli: cli.clone() },
-        }
+    fn new(cli: &CliRun) -> Result<Self> {
+        Ok(Self {
+            pipe_input: PipeInputs::new(cli)?,
+        })
     }
 
     fn exec(&self) -> Result<()> {
@@ -34,14 +34,6 @@ impl Pipe for DecodeBallots {
         // TODO:
         // dbg!(&self.output_log_file);
 
-        self.read_input_dir_config()?;
-
         Ok(())
-    }
-}
-
-impl PipeInputsRead for DecodeBallots {
-    fn read_input_dir_config(&self) -> Result<()> {
-        self.pipe_input.read_input_dir_config()
     }
 }

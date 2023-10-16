@@ -3,12 +3,14 @@ pub mod decode_ballots;
 pub mod error;
 pub mod pipe_name;
 
-use crate::cli::CliRun;
 use self::error::Result;
 use self::{decode_ballots::DecodeBallots, pipe_name::PipeName};
+use crate::cli::CliRun;
 
 trait Pipe {
-    fn new(cli: &CliRun) -> Self;
+    fn new(cli: &CliRun) -> Result<Self>
+    where
+        Self: Sized;
 
     // pipe execution
     fn exec(&self) -> Result<()>;
@@ -25,7 +27,7 @@ trait Pipe {
 pub fn match_run(cli: &CliRun, pipe: PipeName) -> Result<()> {
     match pipe {
         PipeName::DecodeBallots => {
-            let pipe = DecodeBallots::new(cli);
+            let pipe = DecodeBallots::new(cli)?;
             pipe.exec()?;
         }
         _ => {}

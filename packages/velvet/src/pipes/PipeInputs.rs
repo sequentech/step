@@ -13,24 +13,28 @@ pub struct PipeInputs {
     // pub election_list: Vec<ElectionConfig>,
 }
 
-impl PipeInputsRead for PipeInputs {
-    fn read_input_dir_config(&self) -> Result<()> {
-        let entries = fs::read_dir(format!(
-            "{}/default/configs",
-            &self.cli.input_dir.to_str().ok_or(Error::Toto)?
-        ))?;
+impl PipeInputs {
+    pub fn new(cli: &CliRun) -> Result<Self> {
+        // input_dir has already been validated
+        let input = &cli.input_dir.to_str().unwrap();
+
+        Self::read_input_dir_config(input)?;
+
+        Ok(Self { cli: cli.clone() })
+    }
+
+    fn read_input_dir_config(input_dir: &str) -> Result<()> {
+        let entries = fs::read_dir(format!("{}/default/configs", input_dir))?;
 
         // entries.map(|e| e.path()).collect::<Result<Vec<_>>>();
         for entry in entries {
-            self.read_election_list_config(&entry?.path());
+            Self::read_election_list_config(&entry?.path());
         }
 
         Ok(())
     }
-}
 
-impl PipeInputs {
-    fn read_election_list_config(&self, path: &PathBuf) {
+    fn read_election_list_config(path: &PathBuf) {
         dbg!(path);
     }
 }
