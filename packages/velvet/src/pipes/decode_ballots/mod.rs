@@ -41,17 +41,4 @@ impl Pipe for DecodeBallots {
 }
 
 impl DecodeBallots {
-    fn read_input_dir_config(&self) -> Result<()> {
-        let entries = fs::read_dir(format!(
-            "{}/default/configs",
-            &self.cli().input_dir.to_str().ok_or(Error::Toto)?
-        ))?;
-
-        // entries.map(|e| e.path()).collect::<Result<Vec<_>>>();
-        for entry in entries {
-            dbg!(entry?.path());
-        }
-
-        Ok(())
-    }
 }
