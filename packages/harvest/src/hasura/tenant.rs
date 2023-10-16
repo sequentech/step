@@ -8,9 +8,8 @@ use std::env;
 use tracing::instrument;
 
 use crate::connection;
+pub use crate::hasura::types::*;
 use crate::services::to_result::ToResult;
-
-type uuid = String;
 
 #[derive(GraphQLQuery)]
 #[graphql(

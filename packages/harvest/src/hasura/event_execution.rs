@@ -12,11 +12,8 @@ use strum_macros::EnumString;
 use tracing::instrument;
 
 use crate::connection;
+pub use crate::hasura::types::*;
 use crate::services::to_result::ToResult;
-
-type uuid = String;
-type jsonb = Value;
-type timestamptz = String;
 
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,

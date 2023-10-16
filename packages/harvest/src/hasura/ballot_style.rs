@@ -10,14 +10,8 @@ use std::env;
 use tracing::{event, instrument, Level};
 
 use crate::connection;
+pub use crate::hasura::types::*;
 use crate::services::to_result::ToResult;
-
-type uuid = String;
-type jsonb = Value;
-type timestamptz = String;
-type bytea = String;
-type text = String;
-type varchar = String;
 
 #[derive(GraphQLQuery)]
 #[graphql(

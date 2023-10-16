@@ -8,6 +8,7 @@ use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
+use crate::hasura::cast_ballot;
 use crate::hasura::election_event::update_election_event_status;
 use crate::routes::scheduled_event::ScheduledEvent;
 use crate::services::election_event_board::{
@@ -66,6 +67,13 @@ pub async fn insert_ballots(
         election_event.bulletin_board_reference.clone(),
     )
     .with_context(|| "missing bulletin board")?;
+
+    let cast_ballots_response = hasura::cast_ballot::find_ballots(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+    )
+    .await?;
 
     Ok(())
 }

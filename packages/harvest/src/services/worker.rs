@@ -16,10 +16,10 @@ use crate::routes::scheduled_event;
 use crate::services::events::create_ballot_style;
 use crate::services::events::create_board;
 use crate::services::events::create_keys;
+use crate::services::events::insert_ballots;
 use crate::services::events::render_report;
 use crate::services::events::set_public_key;
 use crate::services::events::update_voting_status;
-use crate::services::events::insert_ballots;
 
 #[derive(Debug, Clone)]
 struct CustomError;
@@ -159,7 +159,7 @@ pub async fn process_scheduled_event(
         scheduled_event::EventProcessors::INSERT_BALLOTS => {
             let payload: insert_ballots::InsertBallotsPayload =
                 serde_json::from_value(event.event_payload.clone().unwrap())?;
-                insert_ballots::insert_ballots(
+            insert_ballots::insert_ballots(
                 auth_headers.clone(),
                 payload,
                 event.clone(),

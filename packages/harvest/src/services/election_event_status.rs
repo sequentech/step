@@ -10,7 +10,7 @@ use serde_json::value::Value;
 #[serde(crate = "rocket::serde")]
 pub struct ElectionEventStatus {
     pub config_created: Option<bool>,
-    pub stopped: Option<bool>
+    pub stopped: Option<bool>,
 }
 
 pub fn is_config_created(status_opt: &Option<ElectionEventStatus>) -> bool {

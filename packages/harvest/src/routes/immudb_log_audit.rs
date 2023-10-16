@@ -10,8 +10,8 @@ use rocket::response::Debug;
 use rocket::serde::json::{Json, Value};
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing::instrument;
 use std::env;
+use tracing::instrument;
 
 use crate::connection;
 
@@ -39,7 +39,7 @@ pub struct GetPgauditBody {
     tenant_id: String,
     election_event_id: String,
     limit: Option<i64>,
-    offset: Option<i64>
+    offset: Option<i64>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -121,14 +121,13 @@ impl TryFrom<&Row> for PgAuditRow {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct Aggregate {
-    count: i64
+    count: i64,
 }
-
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct TotalAggregate {
-    aggregate: Aggregate
+    aggregate: Aggregate,
 }
 
 impl TryFrom<&Row> for Aggregate {
@@ -139,12 +138,10 @@ impl TryFrom<&Row> for Aggregate {
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             match column.as_str() {
-                _ => assign_value!(SqlValue::N, value, count)
+                _ => assign_value!(SqlValue::N, value, count),
             }
         }
-        Ok(Aggregate {
-            count,
-        })
+        Ok(Aggregate { count })
     }
 }
 
@@ -152,7 +149,7 @@ impl TryFrom<&Row> for Aggregate {
 #[serde(crate = "rocket::serde")]
 pub struct DataList<T> {
     items: Vec<T>,
-    total: TotalAggregate
+    total: TotalAggregate,
 }
 
 #[instrument]
@@ -191,8 +188,7 @@ pub async fn list_pgaudit(
         ORDER BY id ASC
         LIMIT {} OFFSET {}
         "#,
-        limit,
-        offset,
+        limit, offset,
     );
     let sql_query_response = client.sql_query(&sql, vec![]).await?;
     let items = sql_query_response
@@ -215,7 +211,7 @@ pub async fn list_pgaudit(
         .rows
         .iter()
         .map(Aggregate::try_from);
-    
+
     let aggregate = rows_iter
         .next() // get the first item
         .ok_or(anyhow!("No aggregate found"))??; // unwrap the Result and Option
@@ -224,7 +220,7 @@ pub async fn list_pgaudit(
     Ok(Json(DataList {
         items: items,
         total: TotalAggregate {
-            aggregate: aggregate
-        }
+            aggregate: aggregate,
+        },
     }))
 }
