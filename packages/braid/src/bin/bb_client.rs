@@ -1,4 +1,3 @@
-// cargo run --bin bb_client --features=bb-test -- --server-url http://immudb:3322 --indexdb defaultboardindex --dbname defaultboard <init|ballots|list|boards>
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose, Engine as _};
 use clap::Parser;

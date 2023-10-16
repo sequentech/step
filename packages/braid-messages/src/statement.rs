@@ -7,7 +7,7 @@ use crate::newtypes::*;
 // Statement
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(BorshSerialize, BorshDeserialize, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Clone, Display, Debug)]
 pub enum Statement {
     Configuration(Timestamp, ConfigurationHash),
     ConfigurationSigned(Timestamp, ConfigurationHash),
@@ -473,12 +473,6 @@ impl BorshDeserialize for DecryptionFactorsHashes {
         ret.copy_from_slice(&inner?);
 
         Ok(DecryptionFactorsHashes(ret))
-    }
-}
-
-impl std::fmt::Debug for Statement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Statement{{ type={:?} }}", self.get_kind(),)
     }
 }
 
