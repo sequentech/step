@@ -6,17 +6,17 @@ use self::ballot_codec::BallotCodec;
 use super::{
     error::Result,
     Pipe,
-    PipeInputs::{PipeInput, PipeInputRead},
+    PipeInputs::{PipeInputs, PipeInputsRead},
 };
 
 pub struct DecodeBallots {
-    pub pipe_input: PipeInput,
+    pub pipe_input: PipeInputs,
 }
 
 impl Pipe for DecodeBallots {
     fn new(cli: &CliRun) -> Self {
         Self {
-            pipe_input: PipeInput { cli: cli.clone() },
+            pipe_input: PipeInputs { cli: cli.clone() },
         }
     }
 
@@ -40,7 +40,7 @@ impl Pipe for DecodeBallots {
     }
 }
 
-impl PipeInputRead for DecodeBallots {
+impl PipeInputsRead for DecodeBallots {
     fn read_input_dir_config(&self) -> Result<()> {
         self.pipe_input.read_input_dir_config()
     }

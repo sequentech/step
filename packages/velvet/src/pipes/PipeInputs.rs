@@ -2,16 +2,16 @@ use super::error::{Error, Result};
 use crate::cli::CliRun;
 use std::fs;
 
-pub trait PipeInputRead {
+pub trait PipeInputsRead {
     // read input_dir into PipeInput
     fn read_input_dir_config(&self) -> Result<()>;
 }
 
-pub struct PipeInput {
+pub struct PipeInputs {
     pub cli: CliRun,
 }
 
-impl PipeInputRead for PipeInput {
+impl PipeInputsRead for PipeInputs {
     fn read_input_dir_config(&self) -> Result<()> {
         let entries = fs::read_dir(format!(
             "{}/default/configs",
