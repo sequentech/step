@@ -5,6 +5,7 @@ use crate::{config::Config, pipes::pipe_name::PipeName};
 
 #[derive(Debug)]
 pub struct State {
+    pub cli: CliRun,
     pub stages: Vec<Stage>,
 }
 
@@ -46,7 +47,10 @@ impl State {
             })
             .collect::<Result<Vec<Stage>>>()?;
 
-        Ok(Self { stages })
+        Ok(Self {
+            cli: cli.clone(),
+            stages,
+        })
     }
 
     pub fn exec_next(&mut self, stage: &str) -> Result<()> {
@@ -62,8 +66,7 @@ impl State {
             .position(|p| *p == stage.current_pipe)
             .ok_or(Error::PipeNotFound)?;
 
-        // TODO:
-        match_run(stage.current_pipe);
+        match_run(&self.cli, stage.current_pipe)?;
 
         if curr_index + 1 < stage.pipeline.len() {
             stage.current_pipe = stage.pipeline[curr_index + 1];

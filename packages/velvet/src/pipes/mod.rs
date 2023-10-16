@@ -2,6 +2,8 @@ pub mod decode_ballots;
 pub mod error;
 pub mod pipe_name;
 
+use crate::cli::CliRun;
+
 use self::error::Result;
 
 use self::{
@@ -10,13 +12,17 @@ use self::{
 };
 
 trait Pipe {
+    fn new(cli: &CliRun) -> Self;
+
+    fn cli(&self) -> &CliRun;
+
     // pipe execution
     fn exec(&self) -> Result<()> {
-        // dbg!(&self.config);
-        // dbg!(&self.input_dir);
-        // dbg!(&self.output_dir);
-        //
-        // // file handle to log execution process into
+        dbg!(&self.cli().config);
+        dbg!(&self.cli().input_dir);
+        dbg!(&self.cli().output_dir);
+
+        // TODO: file handle to log execution process into
         // dbg!(&self.output_log_file);
 
         Ok(())
@@ -31,10 +37,10 @@ trait Pipe {
 
 // TODO: rework this better
 // TODO: pointeur sur fonction
-pub fn match_run(pipe: PipeName) -> Result<()> {
+pub fn match_run(cli: &CliRun, pipe: PipeName) -> Result<()> {
     match pipe {
         PipeName::DecodeBallots => {
-            let pipe = DecodeBallots::new();
+            let pipe = DecodeBallots::new(cli);
             pipe.exec()?;
         }
         _ => {}

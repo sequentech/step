@@ -20,7 +20,7 @@ pub enum Commands {
     Run(CliRun),
 }
 
-#[derive(Parser)]
+#[derive(Parser, Debug, Clone)]
 pub struct CliRun {
     pub stage: String,
     pub pipe_id: String,

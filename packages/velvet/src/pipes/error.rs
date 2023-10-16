@@ -2,6 +2,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 #[derive(Debug)]
 pub enum Error {
     Toto,
+    FSError(std::io::Error),
 }
 
 impl core::fmt::Display for Error {
@@ -9,4 +10,11 @@ impl core::fmt::Display for Error {
         write!(fmt, "{self:?}")
     }
 }
+
+impl From<std::io::Error> for Error {
+    fn from(val: std::io::Error) -> Self {
+        Self::FSError(val)
+    }
+}
+
 impl std::error::Error for Error {}

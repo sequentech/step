@@ -115,7 +115,7 @@ mod tests {
             stage: "main".to_string(),
             pipe_id: "decode-ballots".to_string(),
             config: fixture.config_path.clone(),
-            input_dir: PathBuf::from(&fixture.root_dir),
+            input_dir: PathBuf::from(format!("{}/tests/input-dir", &fixture.root_dir)),
             output_dir: PathBuf::new(),
         };
 
