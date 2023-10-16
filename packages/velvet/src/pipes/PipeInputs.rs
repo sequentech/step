@@ -1,6 +1,7 @@
 use super::error::{Error, Result};
 use crate::cli::CliRun;
-use std::fs;
+use std::{fs, path::PathBuf};
+use uuid::Uuid;
 
 pub trait PipeInputsRead {
     // read input_dir into PipeInput
@@ -9,6 +10,7 @@ pub trait PipeInputsRead {
 
 pub struct PipeInputs {
     pub cli: CliRun,
+    // pub election_list: Vec<ElectionConfig>,
 }
 
 impl PipeInputsRead for PipeInputs {
@@ -20,9 +22,27 @@ impl PipeInputsRead for PipeInputs {
 
         // entries.map(|e| e.path()).collect::<Result<Vec<_>>>();
         for entry in entries {
-            dbg!(entry?.path());
+            self.read_election_list_config(&entry?.path());
         }
 
         Ok(())
     }
+}
+
+impl PipeInputs {
+    fn read_election_list_config(&self, path: &PathBuf) {
+        dbg!(path);
+    }
+}
+
+struct ElectionConfig {
+    id: Uuid,
+    config: PathBuf,
+    contest_list: Vec<ContestForElectionConfig>,
+}
+
+struct ContestForElectionConfig {
+    id: Uuid,
+    election_id: Uuid,
+    config: PathBuf,
 }
