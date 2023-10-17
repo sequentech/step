@@ -26,7 +26,7 @@ impl<C: Ctx> VectorSession<C> {
     }
 
     pub fn step(&mut self) {
-        info!("Trustee {:?} step..", self.trustee.get_pk());
+        info!("Trustee {:?} step..", self.trustee.name);
         let remote = self.remote.lock().unwrap();
 
         // Equivalent of getting all messages
@@ -59,7 +59,7 @@ impl<C: Ctx> VectorSession<C> {
 
 fn send(messages: Vec<Message>, remote: &mut VectorBoard) {
     for m in messages.iter() {
-        info!("Adding message {:?} to remote", m);
+        info!("Sending message to vector board {:?}", m);
         remote.add(m.try_clone().unwrap());
     }
 }
