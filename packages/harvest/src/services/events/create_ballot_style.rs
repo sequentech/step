@@ -15,7 +15,7 @@ use crate::connection;
 use crate::hasura;
 use crate::hasura::ballot_style::get_ballot_style_area;
 use crate::routes::scheduled_event::ScheduledEvent;
-use crate::services::date::parse_iso_8601_timezone;
+use crate::services::date::ISO8601;
 
 impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
     for sequent_core::hasura_types::ElectionEvent
@@ -28,11 +28,11 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
             created_at: election_event
                 .created_at
                 .clone()
-                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()),
+                .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
             updated_at: election_event
                 .updated_at
                 .clone()
-                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()),
+                .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
             labels: election_event.labels.clone(),
             annotations: election_event.annotations.clone(),
             tenant_id: election_event.tenant_id.clone(),
@@ -70,11 +70,11 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElection>
             created_at: election
                 .created_at
                 .clone()
-                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()),
+                .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
             last_updated_at: election
                 .last_updated_at
                 .clone()
-                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()),
+                .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
             labels: election.labels.clone(),
             annotations: election.annotations.clone(),
             name: election.name.clone(),
@@ -106,11 +106,11 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
             created_at: contest
                 .created_at
                 .clone()
-                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()),
+                .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
             last_updated_at: contest
                 .last_updated_at
                 .clone()
-                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()),
+                .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
             labels: contest.labels.clone(),
             annotations: contest.annotations.clone(),
             is_acclaimed: contest.is_acclaimed.clone(),
@@ -143,11 +143,11 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
             created_at: candidate
                 .created_at
                 .clone()
-                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()),  //candidate.created_at.clone(),
+                .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
             last_updated_at: candidate
                 .last_updated_at
                 .clone()
-                .map(|value| parse_iso_8601_timezone(value.as_str()).unwrap()), //candidate.last_updated_at.clone(),
+                .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
             labels: candidate.labels.clone(),
             annotations: candidate.annotations.clone(),
             name: candidate.name.clone(),
