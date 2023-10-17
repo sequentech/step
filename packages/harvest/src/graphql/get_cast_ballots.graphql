@@ -1,13 +1,11 @@
 query GetCastBallots(
     $tenantId: uuid!,
     $electionEventId: uuid!,
-    $maxDate: timestamptz!,
 ) {
   sequent_backend_cast_vote(
       where: {
           election_event_id: {_eq: $electionEventId},
           tenant_id: {_eq: $tenantId},
-          created_at: {_lt: $maxDate}
       }
   ) {
     id
