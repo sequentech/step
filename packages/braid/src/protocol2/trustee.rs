@@ -149,7 +149,9 @@ impl<C: Ctx> Trustee<C> {
                 return Err(anyhow!("Message has mismatched configuration hash"));
             }
 
+            let stmt = verified.statement.clone();
             let _ = self.local_board.add(verified)?;
+            info!("Added message type=[{}]", stmt);
             added += 1;
         }
 
