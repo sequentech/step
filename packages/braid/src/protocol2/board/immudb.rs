@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use immu_board::{Board, BoardClient, BoardMessage};
 use rusqlite::params;
 use rusqlite::Connection;

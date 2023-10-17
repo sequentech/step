@@ -17,7 +17,6 @@ use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
 
 use crate::rng::StrandRng;
-use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util;
 use crate::util::StrandError;
 

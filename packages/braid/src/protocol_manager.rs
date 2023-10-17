@@ -13,7 +13,6 @@ use braid_messages::artifact::DkgPublicKey;
 
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
-use strand::serialization::StrandSerialize;
 
 use anyhow::{Context, Result};
 use std::marker::PhantomData;
