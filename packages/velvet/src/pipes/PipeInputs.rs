@@ -14,8 +14,10 @@ pub trait PipeInputsRead {
     fn read_input_dir_config(&self) -> Result<()>;
 }
 
+#[derive(Debug)]
 pub struct PipeInputs {
     pub cli: CliRun,
+    // TODO: Election Event Config
     pub election_list: Vec<ElectionConfig>,
 }
 
@@ -111,4 +113,5 @@ pub struct ContestForElectionConfig {
     pub id: Uuid,
     pub election_id: Uuid,
     pub config: PathBuf,
+    // TODO: areas
 }

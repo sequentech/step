@@ -1,14 +1,10 @@
-use uuid::Uuid;
-
 pub type Result<T, E = Error> = std::result::Result<T, E>;
+pub use crate::pipes::error::Error as PipeError;
+
 #[derive(Debug)]
 pub enum Error {
-    IncorrectPath,
-    IDNotFound,
-    ElectionConfigNotFound(Uuid),
-    ContestConfigNotFound(Uuid),
-    FS(std::io::Error),
-    FromPipe(String),
+    ConfigNotValid,
+    PipeError(PipeError),
 }
 
 impl core::fmt::Display for Error {
@@ -17,9 +13,9 @@ impl core::fmt::Display for Error {
     }
 }
 
-impl From<std::io::Error> for Error {
-    fn from(val: std::io::Error) -> Self {
-        Self::FS(val)
+impl From<PipeError> for Error {
+    fn from(val: PipeError) -> Self {
+        Self::PipeError(val)
     }
 }
 
