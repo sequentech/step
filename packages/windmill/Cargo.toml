@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+[package]
+name = "windmill"
+version = "0.1.0"
+edition = "2021"
+authors = [
+  "Felix Robles <felix@sequentech.io>"
+]
+license = "AGPL-3.0-only"
+
+[dependencies]
+
+# error handling
+anyhow = "1.0.75"
+# logging
+tracing = "0.1.37"
+
+tokio = { version = "1.32.0", features = ["full"] }
+celery = "0.5.5"
+async-trait = "0.1.74"
+structopt = "0.3.26"
+serde = "1.0.174"
+
+braid = { path="../braid" }
