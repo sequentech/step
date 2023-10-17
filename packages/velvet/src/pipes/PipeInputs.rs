@@ -16,17 +16,18 @@ pub trait PipeInputsRead {
 
 pub struct PipeInputs {
     pub cli: CliRun,
-    // pub election_list: Vec<ElectionConfig>,
+    pub election_list: Vec<ElectionConfig>,
 }
 
 impl PipeInputs {
     pub fn new(cli: &CliRun) -> Result<Self> {
         let input = &cli.input_dir.to_str().ok_or(Error::IncorrectPath)?;
-        let res = Self::read_input_dir_config(input)?;
+        let election_list = Self::read_input_dir_config(input)?;
 
-        dbg!(res);
-
-        Ok(Self { cli: cli.clone() })
+        Ok(Self {
+            cli: cli.clone(),
+            election_list,
+        })
     }
 
     fn read_input_dir_config(input_dir: &str) -> Result<Vec<ElectionConfig>> {
@@ -99,15 +100,15 @@ impl PipeInputs {
 }
 
 #[derive(Debug)]
-struct ElectionConfig {
-    id: Uuid,
-    config: PathBuf,
-    contest_list: Vec<ContestForElectionConfig>,
+pub struct ElectionConfig {
+    pub id: Uuid,
+    pub config: PathBuf,
+    pub contest_list: Vec<ContestForElectionConfig>,
 }
 
 #[derive(Debug)]
-struct ContestForElectionConfig {
-    id: Uuid,
-    election_id: Uuid,
-    config: PathBuf,
+pub struct ContestForElectionConfig {
+    pub id: Uuid,
+    pub election_id: Uuid,
+    pub config: PathBuf,
 }
