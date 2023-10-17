@@ -22,36 +22,67 @@ pub struct PipeInputs {
 impl PipeInputs {
     pub fn new(cli: &CliRun) -> Result<Self> {
         let input = &cli.input_dir.to_str().ok_or(Error::IncorrectPath)?;
-        Self::read_input_dir_config(input)?;
+        let res = Self::read_input_dir_config(input)?;
+
+        dbg!(res);
 
         Ok(Self { cli: cli.clone() })
     }
 
-    fn read_input_dir_config(input_dir: &str) -> Result<()> {
+    fn read_input_dir_config(input_dir: &str) -> Result<Vec<ElectionConfig>> {
         let entries = fs::read_dir(format!("{}/default/configs", input_dir))?;
 
+        let mut configs = vec![];
         for entry in entries {
-            Self::read_election_list_config(&entry?.path())?;
+            let config = Self::read_election_list_config(&entry?.path())?;
+            configs.push(config);
         }
 
-        Ok(())
+        Ok(configs)
     }
 
-    fn read_election_list_config(path: &Path) -> Result<()> {
+    fn read_election_list_config(path: &Path) -> Result<ElectionConfig> {
         let entries = fs::read_dir(path.to_str().ok_or(Error::IncorrectPath)?)?;
-        let election_uuid = Self::parse_path_components(path, PREFIX_ELECTION);
-        dbg!(election_uuid);
 
+        let election_id =
+            Self::parse_path_components(path, PREFIX_ELECTION).ok_or(Error::IDNotFound)?;
+        let config = path.join("election-config.json");
+        if !config.exists() {
+            return Err(Error::ElectionConfigNotFound(election_id));
+        }
+
+        let mut configs = vec![];
         for entry in entries {
             let path = entry?.path();
             if path.is_dir() {
-                let contest_uuid = Self::parse_path_components(&path, PREFIX_CONTEST);
-                dbg!(contest_uuid);
-                dbg!(path);
+                let config = Self::read_contest_list_config(&path, election_id)?;
+                configs.push(config);
             }
         }
 
-        Ok(())
+        Ok(ElectionConfig {
+            id: election_id,
+            config: config.to_owned(),
+            contest_list: configs,
+        })
+    }
+
+    fn read_contest_list_config(
+        path: &Path,
+        election_id: Uuid,
+    ) -> Result<ContestForElectionConfig> {
+        let contest_id =
+            Self::parse_path_components(path, PREFIX_CONTEST).ok_or(Error::IDNotFound)?;
+        let config = path.join("contest-config.json");
+        if !config.exists() {
+            return Err(Error::ContestConfigNotFound(contest_id));
+        }
+
+        Ok(ContestForElectionConfig {
+            id: contest_id,
+            election_id,
+            config: config.to_owned(),
+        })
     }
 
     fn parse_path_components(path: &Path, prefix: &str) -> Option<Uuid> {
@@ -67,12 +98,14 @@ impl PipeInputs {
     }
 }
 
+#[derive(Debug)]
 struct ElectionConfig {
     id: Uuid,
     config: PathBuf,
     contest_list: Vec<ContestForElectionConfig>,
 }
 
+#[derive(Debug)]
 struct ContestForElectionConfig {
     id: Uuid,
     election_id: Uuid,
