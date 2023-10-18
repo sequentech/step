@@ -71,7 +71,6 @@ impl ImmudbBoard {
         Ok(connection)
     }
 
-
     async fn update_store(&mut self, connection: &Connection) -> Result<Vec<Message>> {
         let mut channel_messages = vec![];
 
