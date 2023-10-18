@@ -22,7 +22,7 @@ fn add(x: i32, y: i32) -> TaskResult<i32> {
 enum CeleryOpt {
     Consume,
     Produce {
-        #[structopt(possible_values = &["add"])]
+        #[structopt(possible_values = &["add", "set_public_key"])]
         tasks: Vec<String>,
     },
 }
@@ -37,10 +37,10 @@ async fn main() -> Result<()> {
         tasks = [
             add,
         ],
-        // This just shows how we can route certain tasks to certain queues based
-        // on glob matching.
+        // Route certain tasks to certain queues based on glob matching.
         task_routes = [
             "add" => "test_task",
+            "set_public_key" => "short_queue",
         ],
         prefetch_count = 2,
         heartbeat = Some(10),
@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
     match opt {
         CeleryOpt::Consume => {
             my_app.display_pretty().await;
-            my_app.consume_from(&["test_task"]).await?;
+            my_app.consume_from(&["test_task", "short_queue"]).await?;
         }
         CeleryOpt::Produce { tasks } => {
             if tasks.is_empty() {

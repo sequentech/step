@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{Context, Result};
+use celery::prelude::*;
+use celery::task::TaskResultExt;
 use rocket::serde::{Deserialize, Serialize};
 use strum_macros::Display;
 use strum_macros::EnumString;
@@ -13,6 +15,16 @@ use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::types::scheduled_event::ScheduledEvent;
+
+#[instrument(skip(auth_headers))]
+#[celery::task]
+pub async fn set_public_key_task(
+    auth_headers: connection::AuthHeaders,
+    event: ScheduledEvent,
+) -> TaskResult<()> {
+    let val = set_public_key(auth_headers, event).await.unwrap();
+    Ok(val)
+}
 
 #[instrument(skip(auth_headers))]
 pub async fn set_public_key(

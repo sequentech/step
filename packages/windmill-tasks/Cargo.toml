@@ -20,6 +20,7 @@ strum = "0.25"
 strum_macros = "0.25"
 base64 = "0.21.0"
 serde_json = "1.0.105"
+celery = "0.5.5"
 
 # logging
 tracing = "0.1.37"
