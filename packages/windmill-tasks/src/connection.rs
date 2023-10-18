@@ -14,9 +14,7 @@ pub struct AuthHeaders {
 impl<'r> FromRequest<'r> for AuthHeaders {
     type Error = ();
 
-    async fn from_request(
-        request: &'r Request<'_>,
-    ) -> Outcome<Self, Self::Error> {
+    async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let headers = request.headers().clone();
         if headers.contains("X-Hasura-Admin-Secret") {
             Outcome::Success(AuthHeaders {

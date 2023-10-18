@@ -10,9 +10,9 @@ use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
-use crate::routes::scheduled_event::ScheduledEvent;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
+use crate::types::scheduled_event::ScheduledEvent;
 
 #[instrument(skip(auth_headers))]
 pub async fn set_public_key(
@@ -36,15 +36,13 @@ pub async fn set_public_key(
     .data
     .with_context(|| "can't find election event")?;
 
-    let election_event =
-        &election_event_response.sequent_backend_election_event[0];
+    let election_event = &election_event_response.sequent_backend_election_event[0];
 
     if election_event.public_key.is_some() {
         return Ok(());
     }
 
-    let bulletin_board_reference =
-        election_event.bulletin_board_reference.clone();
+    let bulletin_board_reference = election_event.bulletin_board_reference.clone();
     let board_name = get_election_event_board(bulletin_board_reference)
         .with_context(|| "election event is missing bulletin board")?;
     let public_key = protocol_manager::get_public_key(board_name).await?;

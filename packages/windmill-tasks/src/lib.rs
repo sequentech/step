@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod tasks;
 pub mod connection;
 pub mod hasura;
+pub mod services;
+pub mod tasks;
+pub mod types;

@@ -9,8 +9,8 @@ use std::env;
 use tracing::instrument;
 
 use crate::connection;
-pub use crate::hasura::types::*;
 use crate::services::to_result::ToResult;
+pub use crate::types::hasura_types::*;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -56,8 +56,8 @@ pub async fn update_election_event_board(
         election_event_id: election_event_id,
         board: board,
     };
-    let hasura_endpoint = env::var("HASURA_ENDPOINT")
-        .expect(&format!("HASURA_ENDPOINT must be set"));
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
     let request_body = UpdateElectionEventBoard::build_query(variables);
 
     let client = reqwest::Client::new();
@@ -67,8 +67,7 @@ pub async fn update_election_event_board(
         .json(&request_body)
         .send()
         .await?;
-    let response_body: Response<update_election_event_board::ResponseData> =
-        res.json().await?;
+    let response_body: Response<update_election_event_board::ResponseData> = res.json().await?;
     response_body.ok()
 }
 
@@ -84,8 +83,8 @@ pub async fn update_election_event_status(
         election_event_id: election_event_id,
         status: status,
     };
-    let hasura_endpoint = env::var("HASURA_ENDPOINT")
-        .expect(&format!("HASURA_ENDPOINT must be set"));
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
     let request_body = UpdateElectionEventStatus::build_query(variables);
 
     let client = reqwest::Client::new();
@@ -95,8 +94,7 @@ pub async fn update_election_event_status(
         .json(&request_body)
         .send()
         .await?;
-    let response_body: Response<update_election_event_status::ResponseData> =
-        res.json().await?;
+    let response_body: Response<update_election_event_status::ResponseData> = res.json().await?;
     response_body.ok()
 }
 
@@ -110,8 +108,8 @@ pub async fn get_election_event(
         tenant_id: tenant_id,
         election_event_id: election_event_id,
     };
-    let hasura_endpoint = env::var("HASURA_ENDPOINT")
-        .expect(&format!("HASURA_ENDPOINT must be set"));
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
     let request_body = GetElectionEvent::build_query(variables);
 
     let client = reqwest::Client::new();
@@ -121,8 +119,7 @@ pub async fn get_election_event(
         .json(&request_body)
         .send()
         .await?;
-    let response_body: Response<get_election_event::ResponseData> =
-        res.json().await?;
+    let response_body: Response<get_election_event::ResponseData> = res.json().await?;
     response_body.ok()
 }
 
@@ -138,8 +135,8 @@ pub async fn update_election_event_public_key(
         election_event_id: election_event_id,
         public_key: public_key,
     };
-    let hasura_endpoint = env::var("HASURA_ENDPOINT")
-        .expect(&format!("HASURA_ENDPOINT must be set"));
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
     let request_body = UpdateElectionEventPublicKey::build_query(variables);
 
     let client = reqwest::Client::new();
@@ -149,8 +146,7 @@ pub async fn update_election_event_public_key(
         .json(&request_body)
         .send()
         .await?;
-    let response_body: Response<
-        update_election_event_public_key::ResponseData,
-    > = res.json().await?;
+    let response_body: Response<update_election_event_public_key::ResponseData> =
+        res.json().await?;
     response_body.ok()
 }
