@@ -5,6 +5,7 @@ use self::ballot_codec::BallotCodec;
 use self::error::{Error, Result};
 use super::{Pipe, PipeInputs::PipeInputs};
 use crate::cli::CliRun;
+use serde::Deserialize;
 use serde_json::Value;
 use std::fs;
 
@@ -32,16 +33,49 @@ impl Pipe for DecodeBallots {
         let election_config_file = fs::File::open(&election.config).unwrap();
         let json_value: Value = serde_json::from_reader(election_config_file).unwrap();
 
-        // dbg!(json_value);
-
-        let name_value = json_value
+        let questions = json_value
             .get("configuration")
+            .and_then(serde_json::Value::as_object)
             .ok_or(Error::ConfigNotValid)?
             .get("questions")
+            .and_then(serde_json::Value::as_array)
             .ok_or(Error::ConfigNotValid)?;
 
-        dbg!(name_value);
+        // TODO: this contains multiple questions which will then be dispatch into single contest in multiple sub dirs
+        let contest = questions.get(0).ok_or(Error::ConfigNotValid)?;
+
+        let contest: Contest =
+            serde_json::from_value(contest.clone()).map_err(|_| Error::ConfigNotValid)?;
+
+        dbg!(contest);
 
         Ok(())
     }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Contest {
+    #[serde(rename = "answer_total_votes_percentage")]
+    pub total_votes_percentages: String,
+    #[serde(rename = "answers")]
+    pub choices: Vec<Choice>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Choice {
+    pub category: String,
+    #[serde(rename = "details")]
+    pub detail: String,
+    pub id: i64,
+    #[serde(rename = "sort_order")]
+    pub sort_order: i64,
+    pub text: String,
+    pub urls: Vec<Url>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Url {
+    pub title: String,
+    #[serde(rename = "url")]
+    pub content: String,
 }
