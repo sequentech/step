@@ -6,8 +6,15 @@ use std::{
 };
 use uuid::Uuid;
 
-const PREFIX_ELECTION: &str = "election__";
-const PREFIX_CONTEST: &str = "contest__";
+pub const PREFIX_ELECTION: &str = "election__";
+pub const PREFIX_CONTEST: &str = "contest__";
+
+pub const DEFAULT_DIR_CONFIGS: &str = "default/configs";
+pub const DEFAULT_DIR_BALLOTS: &str = "default/ballots";
+
+pub const ELECTION_CONFIG_FILE: &str = "election-config.json";
+pub const CONTEST_CONFIG_FILE: &str = "contest-config.json";
+pub const BALLOTS_FILE: &str = "ballots.csv";
 
 pub trait PipeInputsRead {
     // read input_dir into PipeInput
@@ -33,7 +40,7 @@ impl PipeInputs {
     }
 
     fn read_input_dir_config(input_dir: &str) -> Result<Vec<ElectionConfig>> {
-        let entries = fs::read_dir(format!("{}/default/configs", input_dir))?;
+        let entries = fs::read_dir(format!("{}/{}", input_dir, DEFAULT_DIR_CONFIGS))?;
 
         let mut configs = vec![];
         for entry in entries {
@@ -49,7 +56,7 @@ impl PipeInputs {
 
         let election_id =
             Self::parse_path_components(path, PREFIX_ELECTION).ok_or(Error::IDNotFound)?;
-        let config = path.join("election-config.json");
+        let config = path.join(ELECTION_CONFIG_FILE);
         if !config.exists() {
             return Err(Error::ElectionConfigNotFound(election_id));
         }
@@ -76,7 +83,7 @@ impl PipeInputs {
     ) -> Result<ContestForElectionConfig> {
         let contest_id =
             Self::parse_path_components(path, PREFIX_CONTEST).ok_or(Error::IDNotFound)?;
-        let config = path.join("contest-config.json");
+        let config = path.join(CONTEST_CONFIG_FILE);
         if !config.exists() {
             return Err(Error::ContestConfigNotFound(contest_id));
         }

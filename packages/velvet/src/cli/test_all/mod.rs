@@ -17,7 +17,8 @@ mod tests {
         contest_num: u32,
         ballots_num: u32,
     ) -> Result<()> {
-        let ballot_codec = BallotCodec::new(vec![2, 2, 2, 2, 2, 2]);
+        let bases = vec![2, 2, 2, 2, 2, 2];
+        let ballot_codec = BallotCodec::new(bases.clone());
         let mut rng = rand::thread_rng();
 
         (0..election_num).try_for_each(|_| {
@@ -34,9 +35,13 @@ mod tests {
                         fixture.input_dir_ballots, uuid_election, uuid_contest
                     ))?;
                 (0..ballots_num).try_for_each(|_| {
-                    let choices: Vec<u32> = (0..6).map(|_| rng.gen_range(0..2)).collect();
+                    let mut choices = bases.clone().iter_mut().map(|_| 0).collect::<Vec<u32>>();
+                    let index = rng.gen_range(0..choices.len());
+                    choices[index] = 1;
+
                     let encoded_ballot = ballot_codec.encode_ballot(choices.clone());
                     writeln!(file, "{}", encoded_ballot)?;
+
                     Ok::<(), Error>(())
                 })?;
                 Ok::<(), Error>(())
@@ -109,7 +114,7 @@ mod tests {
     #[test]
     fn test_decode_ballots() -> Result<()> {
         let fixture = TestFixture::new()?;
-        generate_ballots(&fixture, 5, 10, 5)?;
+        generate_ballots(&fixture, 5, 10, 20)?;
 
         let cli = CliRun {
             stage: "main".to_string(),

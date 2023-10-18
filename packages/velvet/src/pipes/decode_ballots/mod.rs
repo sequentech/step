@@ -5,8 +5,12 @@ use self::ballot_codec::BallotCodec;
 use self::error::{Error, Result};
 use super::{Pipe, PipeInputs::PipeInputs};
 use crate::cli::CliRun;
+use crate::pipes::PipeInputs::{
+    BALLOTS_FILE, DEFAULT_DIR_BALLOTS, PREFIX_CONTEST, PREFIX_ELECTION,
+};
 use serde::Deserialize;
 use std::fs;
+use std::io::BufRead;
 
 pub struct DecodeBallots {
     pub pipe_input: PipeInputs,
@@ -22,18 +26,11 @@ impl Pipe for DecodeBallots {
     }
 
     fn exec(&self) -> Result<(), Error> {
-        let choices = vec![0, 0, 0, 1, 0, 0];
-
-        let ballot_codec = BallotCodec::new(vec![2, 2, 2, 2, 2, 2]);
-        let encoded_ballot = ballot_codec.encode_ballot(choices.clone());
-        let _decoded_ballot = ballot_codec.decode_ballot(encoded_ballot);
-
         // get an election config
-        let election = &self.pipe_input.election_list[0];
-        let election_config_file = fs::File::open(&election.config)?;
+        let election_input = &self.pipe_input.election_list[0];
+        let election_config_file = fs::File::open(&election_input.config)?;
         let _election_config: serde_json::Value = serde_json::from_reader(election_config_file)?;
         // dbg!(&_election_config);
-
         // let questions = _election_config
         //     .get("configuration")
         //     .and_then(serde_json::Value::as_object)
@@ -42,24 +39,37 @@ impl Pipe for DecodeBallots {
         //     .and_then(serde_json::Value::as_array)
         //     .ok_or(Error::ConfigNotValid)?;
 
-        // TODO: this contains multiple questions which will then be dispatch into single contest in multiple sub dirs
-        // let contest = questions.get(0).ok_or(Error::ConfigNotValid)?;
-        // dbg!(&contest);
-
         // get contest config
+        // TODO: map over election.contest_list
+        let contest_input = &election_input.contest_list[0];
+        let contest_config_file = fs::File::open(&contest_input.config)?;
+        let contest: Contest = serde_json::from_reader(contest_config_file)?;
 
-        let contest_config_file = fs::File::open(&election.contest_list[0].config)?;
-        let contest_config: serde_json::Value = serde_json::from_reader(contest_config_file)?;
-        // dbg!(&contest_config);
-        let contest: Contest = serde_json::from_value(contest_config)?;
-        let len = contest.choices.len();
-        dbg!(&contest);
-        dbg!(&len);
+        // tally_type is plurality at large, same district magnitude
+        let bases = vec![2; contest.choices.len() + 1];
+        let ballot_codec = BallotCodec::new(bases);
 
-        // count bases
-        // read ballot.csv
-        // decode
-        // output
+        let file = fs::File::open(format!(
+            "{}/{}/{}{}/{}{}/{}",
+            self.pipe_input.cli.input_dir.as_path().to_str().unwrap(),
+            DEFAULT_DIR_BALLOTS,
+            PREFIX_ELECTION,
+            election_input.id,
+            PREFIX_CONTEST,
+            contest_input.id,
+            BALLOTS_FILE
+        ))?;
+
+        let reader = std::io::BufReader::new(file);
+
+        for line in reader.lines() {
+            let line = line?;
+            let decoded = ballot_codec
+                .decode_ballot(line.parse::<u32>().map_err(|_| Error::WrongBallotsFormat)?);
+            dbg!(decoded);
+        }
+
+        // TODO: output
 
         Ok(())
     }
