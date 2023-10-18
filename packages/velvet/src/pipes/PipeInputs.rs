@@ -39,6 +39,34 @@ impl PipeInputs {
         })
     }
 
+    pub fn get_path_for_contest(
+        &self,
+        root: &Path,
+        election_id: &Uuid,
+        contest_id: &Uuid,
+    ) -> Option<PathBuf> {
+        if !root.exists() {
+            return None;
+        }
+
+        let path = format!(
+            "{}/{}/{}{}/{}{}",
+            root.to_str().unwrap(),
+            DEFAULT_DIR_BALLOTS,
+            PREFIX_ELECTION,
+            election_id,
+            PREFIX_CONTEST,
+            contest_id,
+        );
+
+        let path = Path::new(&path);
+
+        match path.exists() {
+            true => Some(path.to_owned()),
+            false => None,
+        }
+    }
+
     fn read_input_dir_config(input_dir: &str) -> Result<Vec<ElectionConfig>> {
         let entries = fs::read_dir(format!("{}/{}", input_dir, DEFAULT_DIR_CONFIGS))?;
 

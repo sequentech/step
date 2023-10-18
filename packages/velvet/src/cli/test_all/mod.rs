@@ -121,7 +121,7 @@ mod tests {
             pipe_id: "decode-ballots".to_string(),
             config: fixture.config_path.clone(),
             input_dir: PathBuf::from(format!("{}/tests/input-dir", &fixture.root_dir)),
-            output_dir: PathBuf::new(),
+            output_dir: PathBuf::from(format!("{}/tests/output-dir", &fixture.root_dir)),
         };
 
         let config = cli.parse_config()?;

@@ -5,12 +5,11 @@ use self::ballot_codec::BallotCodec;
 use self::error::{Error, Result};
 use super::{Pipe, PipeInputs::PipeInputs};
 use crate::cli::CliRun;
-use crate::pipes::PipeInputs::{
-    BALLOTS_FILE, DEFAULT_DIR_BALLOTS, PREFIX_CONTEST, PREFIX_ELECTION,
-};
-use serde::Deserialize;
+use crate::pipes::PipeInputs::BALLOTS_FILE;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::BufRead;
+use std::path::{Path, PathBuf};
 
 pub struct DecodeBallots {
     pub pipe_input: PipeInputs,
@@ -49,27 +48,50 @@ impl Pipe for DecodeBallots {
         let bases = vec![2; contest.choices.len() + 1];
         let ballot_codec = BallotCodec::new(bases);
 
-        let file = fs::File::open(format!(
-            "{}/{}/{}{}/{}{}/{}",
-            self.pipe_input.cli.input_dir.as_path().to_str().unwrap(),
-            DEFAULT_DIR_BALLOTS,
-            PREFIX_ELECTION,
-            election_input.id,
-            PREFIX_CONTEST,
-            contest_input.id,
-            BALLOTS_FILE
-        ))?;
+        let file = self
+            .pipe_input
+            .get_path_for_contest(
+                &self.pipe_input.cli.input_dir,
+                &election_input.id,
+                &contest_input.id,
+            )
+            .ok_or(Error::FileNotExist)?;
+        let file = format!("{}/{}", file.to_str().unwrap(), BALLOTS_FILE);
+        let file = fs::File::open(file)?;
 
         let reader = std::io::BufReader::new(file);
+
+        let mut decoded_ballots: Vec<DecodedVote> = vec![];
 
         for line in reader.lines() {
             let line = line?;
             let decoded = ballot_codec
                 .decode_ballot(line.parse::<u32>().map_err(|_| Error::WrongBallotsFormat)?);
-            dbg!(decoded);
+
+            let choices = decoded
+                .iter()
+                .zip(contest.choices.iter())
+                .map(|(decoded_choice, choice)| SelectedChoice {
+                    id: choice.id.to_string(),
+                    selected: *decoded_choice as i64,
+                })
+                .collect::<Vec<SelectedChoice>>();
+
+            let decoded_vote = DecodedVote {
+                contest_id: contest.id.to_string(),
+                choices,
+            };
+
+            decoded_ballots.push(decoded_vote);
         }
 
         // TODO: output
+        // write this json into a output files
+        dbg!(decoded_ballots);
+
+        let file = format!("{}", &self.pipe_input.cli.output_dir.to_str().unwrap());
+        dbg!(file);
+        // use get_path_for_contest here
 
         Ok(())
     }
@@ -77,6 +99,7 @@ impl Pipe for DecodeBallots {
 
 #[derive(Debug, Deserialize)]
 pub struct Contest {
+    pub id: String,
     pub title: String,
     pub max: i64,
     pub min: i64,
@@ -105,4 +128,16 @@ pub struct Url {
     pub title: String,
     #[serde(rename = "url")]
     pub content: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DecodedVote {
+    pub contest_id: String,
+    pub choices: Vec<SelectedChoice>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SelectedChoice {
+    pub id: String,
+    pub selected: i64,
 }

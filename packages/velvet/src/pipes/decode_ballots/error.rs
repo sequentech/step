@@ -1,13 +1,15 @@
 pub type Result<T, E = Error> = std::result::Result<T, E>;
+
 pub use crate::pipes::error::Error as PipesError;
 
 #[derive(Debug)]
 pub enum Error {
     ConfigNotValid,
+    FileNotExist,
     JsonParse(serde_json::Error),
     FromPipes(PipesError),
     FS(std::io::Error),
-    WrongBallotsFormat
+    WrongBallotsFormat,
 }
 
 impl core::fmt::Display for Error {
