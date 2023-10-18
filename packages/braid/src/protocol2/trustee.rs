@@ -11,21 +11,21 @@ use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::{context::Ctx, elgamal::PrivateKey};
 
 use crate::protocol2::action::Action;
+use crate::protocol2::board::local::LocalBoard;
 use braid_messages::artifact::Channel;
 use braid_messages::artifact::Configuration;
 use braid_messages::artifact::DkgPublicKey;
 use braid_messages::artifact::Shares;
 use braid_messages::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
-use braid_messages::statement::StatementType;
 use braid_messages::message::Message;
 use braid_messages::newtypes::*;
-use crate::protocol2::board::local::LocalBoard;
+use braid_messages::statement::StatementType;
 
 use crate::protocol2::predicate::Predicate;
 
 use braid_messages::newtypes::PROTOCOL_MANAGER_INDEX;
 
-use strand::symm;
+use strand::symm::{self, EncryptionData};
 
 ///////////////////////////////////////////////////////////////////////////
 // Trustee
@@ -45,6 +45,7 @@ use strand::symm;
 ///////////////////////////////////////////////////////////////////////////
 
 pub struct Trustee<C: Ctx> {
+    pub(crate) name: String,
     pub(crate) signing_key: StrandSignatureSk,
     // A ChaCha20Poly1305 encryption key
     pub(crate) encryption_key: symm::SymmetricKey,
@@ -55,13 +56,21 @@ impl<C: Ctx> braid_messages::message::Signer for Trustee<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
 }
 
 impl<C: Ctx> Trustee<C> {
-    pub fn new(signing_key: StrandSignatureSk, encryption_key: symm::SymmetricKey) -> Trustee<C> {
+    pub fn new(
+        name: String,
+        signing_key: StrandSignatureSk,
+        encryption_key: symm::SymmetricKey,
+    ) -> Trustee<C> {
         let local_board = LocalBoard::new();
 
         Trustee {
+            name,
             signing_key,
             encryption_key,
             local_board,
@@ -82,7 +91,7 @@ impl<C: Ctx> Trustee<C> {
         info!("Update added {} messages", added_messages);
         let predicates = self.derive_predicates(false)?;
         info!("Derived {} predicates", predicates.len());
-        let (messages, actions, _) = self.infer_and_run_actions(&predicates, false)?;
+        let (messages, actions) = self.infer_and_run_actions(&predicates, false)?;
 
         // Sanity check: ensure that all outgoing messages' cfg field matches that of the local board
         for m in messages.iter() {
@@ -125,28 +134,24 @@ impl<C: Ctx> Trustee<C> {
         // Sanity check: field cfg_hash must exist at this point
         let cfg_hash = self.local_board.get_cfg_hash();
         if cfg_hash.is_none() {
-            return Err(anyhow!("Local field cfg_hash not set")); 
+            return Err(anyhow!("Local field cfg_hash not set"));
         }
-        
+
         let cfg_hash = cfg_hash.expect("impossible");
 
         for message in messages {
-            let verified = message.verify(&configuration);
-
-            if verified.is_err() {
-                warn!("Message failed verification {:?}", verified);
-                // FIXME will crash on bad data
-                panic!();
-            }
-            let verified = verified.expect("impossible");
+            let verified = message.verify(&configuration).context(format!(
+                "Message failed verification: {:?}, cfg: {:?}",
+                message, &configuration
+            ))?;
 
             if verified.statement.get_cfg_h() != cfg_hash {
-                warn!("Message has mismatched configuration hash");
-                // FIXME will crash on bad data
-                panic!();
+                return Err(anyhow!("Message has mismatched configuration hash"));
             }
 
+            let stmt = verified.statement.clone();
             let _ = self.local_board.add(verified)?;
+            info!("Added message type=[{}]", stmt);
             added += 1;
         }
 
@@ -171,7 +176,10 @@ impl<C: Ctx> Trustee<C> {
         let zero = messages.remove(0);
 
         if zero.statement.get_kind() != StatementType::Configuration {
-            return Err(anyhow!("Invalid statement type for zeroth message"));
+            return Err(anyhow!(
+                "Invalid statement type for zeroth message {:?}",
+                zero.statement.get_kind()
+            ));
         }
 
         if zero.artifact.is_none() {
@@ -180,15 +188,19 @@ impl<C: Ctx> Trustee<C> {
 
         let artifact = zero.artifact.as_ref().expect("impossible");
         let configuration = Configuration::strand_deserialize(artifact)?;
-        // FIXME assert
-        assert!(configuration.is_valid());
+
+        if !configuration.is_valid() {
+            return Err(anyhow!(
+                "Configuration::is_valid failed, {:?}",
+                configuration
+            ));
+        }
 
         let verified = zero.verify(&configuration)?;
 
         assert!(verified.signer_position == PROTOCOL_MANAGER_INDEX);
         trace!("Verified signature, Configuration signed by Protocol Manager");
 
-        // The configuration is not verified here, but in the SignConfiguration action
         let added_ = self.local_board.add(verified);
         if added_.is_ok() {
             added += 1;
@@ -214,14 +226,14 @@ impl<C: Ctx> Trustee<C> {
         let configuration =
             configuration.ok_or(anyhow!("Cannot derive predicates without a configuration"))?;
 
-        let configuration_p_ = if !verifying_mode {
+        let configuration_p = if !verifying_mode {
             Predicate::get_bootstrap_predicate(&configuration, &self.get_pk()?)
         } else {
             Predicate::get_verifier_bootstrap_predicate(&configuration)
         };
 
         let configuration_p =
-            configuration_p_.ok_or(anyhow!("Self authority not found in configuration"))?;
+            configuration_p.ok_or(anyhow!("Self authority not found in configuration"))?;
         predicates.push(configuration_p);
         trace!("Adding bootstrap predicate {:?}", configuration_p);
 
@@ -256,19 +268,19 @@ impl<C: Ctx> Trustee<C> {
         &self,
         predicates: &Vec<Predicate>,
         verifying_mode: bool,
-    ) -> Result<(Vec<Message>, HashSet<Action>, Vec<Predicate>)> {
+    ) -> Result<(Vec<Message>, HashSet<Action>)> {
         let _ = self
             .local_board
             .get_configuration_raw()
             .ok_or(anyhow!("Cannot run actions without a configuration"))?;
 
-        let (actions, predicates) = crate::protocol2::datalog::run(predicates);
-        trace!(
+        let actions = crate::protocol2::datalog::run(predicates)?;
+        info!(
             "Datalog derived {} actions, {:?}",
             actions.len(),
             actions
                 .iter()
-                .map(|a| a.to_string())
+                .map(|a| format!("{:?}", a))
                 .collect::<Vec<String>>()
         );
 
@@ -290,7 +302,7 @@ impl<C: Ctx> Trustee<C> {
 
                 if m.is_err() {
                     error!("Action {:?} returned error {:?} (propagating)", a, m);
-                    m.with_context(|| format!("When executing Action {:?}", a))
+                    m.context(format!("When executing Action {:?}", a))
                 } else {
                     m
                 }
@@ -300,23 +312,20 @@ impl<C: Ctx> Trustee<C> {
         // flatten all messages
         let result = results?.into_iter().flatten().collect();
 
-        Ok((result, ret_actions, predicates))
+        Ok((result, ret_actions))
     }
 
     ///////////////////////////////////////////////////////////////////////////
     // Trustee verifying mode
     ///////////////////////////////////////////////////////////////////////////
 
-    pub(crate) fn verify(
-        &mut self,
-        messages: Vec<Message>,
-    ) -> Result<(Vec<Message>, Vec<Predicate>)> {
+    pub(crate) fn verify(&mut self, messages: Vec<Message>) -> Result<Vec<Message>> {
         self.update_local_board(messages)?;
 
         let predicates = self.derive_predicates(true)?;
-        let (messages, _, predicates) = self.infer_and_run_actions(&predicates, true)?;
+        let (messages, _) = self.infer_and_run_actions(&predicates, true)?;
 
-        Ok((messages, predicates))
+        Ok(messages)
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -414,7 +423,7 @@ impl<C: Ctx> Trustee<C> {
     ///////////////////////////////////////////////////////////////////////////
 
     pub(crate) fn is_config_approved(&self, _config: &Configuration<C>) -> bool {
-        // FIXME validate (called by action/cfg)
+        // FIXME validate (called by cfg action)
         true
     }
 
@@ -424,14 +433,16 @@ impl<C: Ctx> Trustee<C> {
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "fips")] {
-            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, cfg: &Configuration<C>) -> Result<Channel<C>> {
+            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, cfg: &Configuration<C>) -> Result<EncryptionData> {
+
+
                 let identifier: String = self.get_pk()?.try_into()?;
                 // 0 is a dummy batch value
                 let aad = cfg.label(0, format!("encrypted by {}", identifier));
                 let bytes: &[u8] = &sk.strand_serialize()?;
                 let ed = symm::encrypt(self.encryption_key, bytes, &aad)?;
 
-                Ok(Channel::new(sk.pk_element().clone(), ed))
+                Ok(ed)
             }
 
             pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, cfg: &Configuration<C>) -> Result<PrivateKey<C>> {
@@ -445,11 +456,11 @@ impl<C: Ctx> Trustee<C> {
             }
         }
         else {
-            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<Channel<C>> {
+            pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, _cfg: &Configuration<C>) -> Result<EncryptionData> {
                 let bytes: &[u8] = &sk.strand_serialize()?;
                 let ed = symm::encrypt(self.encryption_key, bytes)?;
 
-                Ok(Channel::new(sk.pk_element().clone(), ed))
+                Ok(ed)
             }
 
             pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, _cfg: &Configuration<C>) -> Result<PrivateKey<C>> {
@@ -475,27 +486,10 @@ impl<C: Ctx> braid_messages::message::Signer for ProtocolManager<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Signer (commonality to sign messages for Trustee and Protocolmanager)
-///////////////////////////////////////////////////////////////////////////
-
-/*pub(crate) trait Signer {
-    fn get_signing_key(&self) -> &StrandSignatureSk;
-    fn sign(&self, statement: Statement, artifact: Option<Vec<u8>>) -> Result<Message> {
-        let sk = self.get_signing_key();
-        let bytes = statement.strand_serialize()?;
-        let signature: StrandSignature = sk.sign(&bytes)?;
-
-        Ok(Message {
-            signer_key: StrandSignaturePk::from(sk)?,
-            signature,
-            statement,
-            artifact,
-        })
+    fn get_name(&self) -> String {
+        "Protocol Manager".to_string()
     }
-}*/
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // Debug
@@ -503,12 +497,12 @@ impl<C: Ctx> braid_messages::message::Signer for ProtocolManager<C> {
 
 impl<C: Ctx> std::fmt::Debug for Trustee<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Trustee{{ No info }}")
+        write!(f, "Trustee({})", self.name)
     }
 }
 
 impl<C: Ctx> std::fmt::Debug for ProtocolManager<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ProtcolManager{{ No info }}")
+        write!(f, "ProtcolManager()")
     }
 }

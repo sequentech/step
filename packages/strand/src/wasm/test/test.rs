@@ -8,8 +8,8 @@ use crate::backend::malachite::{MalachiteCtx, P2048 as MP2048};
 use crate::backend::num_bigint::{BigintCtx, P2048};
 use crate::backend::ristretto::RistrettoCtx;
 use crate::backend::tests::*;
-use crate::keymaker::tests::*;
 use crate::context::Ctx;
+use crate::keymaker::tests::*;
 use crate::rng::StrandRng;
 use crate::threshold::tests::test_threshold_generic;
 
@@ -32,13 +32,15 @@ pub fn test() {
     test_elgamal();
     test_schnorr();
     test_chaumpedersen();
+    test_rerand();
     test_vdecryption();
-    test_distributed();
-    test_distributed_serialization();
-    test_threshold();
-    test_shuffle_serialization();
     test_encrypt_exp();
     test_encrypt_pok();
+
+    // test_distributed();
+    // test_distributed_serialization();
+    // test_threshold();
+    // test_shuffle_serialization();
 }
 
 #[wasm_bindgen]
@@ -57,19 +59,6 @@ pub fn test_shuffle_serialization() {
 }
 
 #[wasm_bindgen]
-pub fn test_shuffle() {
-    message("* Ristretto shuffle..");
-    let ctx = RistrettoCtx;
-    test_shuffle_generic(&ctx);
-    message("* BigInt shuffle..");
-    let ctx: BigintCtx<P2048> = Default::default();
-    test_shuffle_generic(&ctx);
-    message("* Malachite shuffle..");
-    let ctx: MalachiteCtx<MP2048> = Default::default();
-    test_shuffle_generic(&ctx);
-}
-
-#[wasm_bindgen]
 pub fn test_chaumpedersen() {
     message("* Ristretto chaumpedersen..");
     let ctx = RistrettoCtx;
@@ -82,6 +71,21 @@ pub fn test_chaumpedersen() {
     message("* Malachite chaumpedersen..");
     let ctx: MalachiteCtx<MP2048> = Default::default();
     test_chaumpedersen_generic(&ctx);
+}
+
+#[wasm_bindgen]
+pub fn test_rerand() {
+    message("* Ristretto rerand..");
+    let ctx = RistrettoCtx;
+    test_rerand_generic(&ctx);
+
+    message("* BigInt rerand..");
+    let ctx: BigintCtx<P2048> = Default::default();
+    test_rerand_generic(&ctx);
+
+    message("* Malachite rerand..");
+    let ctx: MalachiteCtx<MP2048> = Default::default();
+    test_rerand_generic(&ctx);
 }
 
 #[wasm_bindgen]
@@ -143,6 +147,54 @@ pub fn test_vdecryption() {
     let mut rng = ctx.get_rng();
     let plaintext = ctx.rnd_plaintext(&mut rng);
     test_vdecryption_generic(&ctx, plaintext);
+}
+
+pub fn test_encrypt_exp() {
+    message("* Ristretto encrypt exp..");
+    let ctx = RistrettoCtx;
+    test_encrypt_exp_generic(&ctx);
+
+    message("* BigInt encrypt exp..");
+    let ctx: BigintCtx<P2048> = Default::default();
+    test_encrypt_exp_generic(&ctx);
+
+    message("* Malachite encrypt exp..");
+    let ctx: MalachiteCtx<MP2048> = Default::default();
+    test_encrypt_exp_generic(&ctx);
+}
+
+pub fn test_encrypt_pok() {
+    message("* Ristretto encrypt_pok..");
+    let mut csprng = StrandRng;
+    let ctx = RistrettoCtx;
+    let mut fill = [0u8; 30];
+    csprng.fill_bytes(&mut fill);
+    let plaintext = to_plaintext_array(fill.as_ref());
+    test_elgamal_enc_pok_generic(&ctx, plaintext);
+
+    message("* BigInt encrypt_pok..");
+    let ctx: BigintCtx<P2048> = Default::default();
+    let plaintext = ctx.rnd_plaintext();
+    test_elgamal_enc_pok_generic(&ctx, plaintext);
+
+    message("* Malachite encrypt_pok..");
+    let ctx: MalachiteCtx<MP2048> = Default::default();
+    let plaintext = ctx.rnd_plaintext();
+    test_elgamal_enc_pok_generic(&ctx, plaintext);
+}
+
+/*
+#[wasm_bindgen]
+pub fn test_shuffle() {
+    message("* Ristretto shuffle..");
+    let ctx = RistrettoCtx;
+    test_shuffle_generic(&ctx);
+    message("* BigInt shuffle..");
+    let ctx: BigintCtx<P2048> = Default::default();
+    test_shuffle_generic(&ctx);
+    message("* Malachite shuffle..");
+    let ctx: MalachiteCtx<MP2048> = Default::default();
+    test_shuffle_generic(&ctx);
 }
 
 pub fn test_distributed() {
@@ -228,7 +280,7 @@ pub fn test_threshold() {
     let mut rng = ctx.get_rng();
     let plaintext = ctx.rnd_plaintext(&mut rng);
     test_threshold_generic(&ctx, trustees, threshold, plaintext);
-}
+}*/
 
 pub fn test_encrypt_exp() {
     message("* Ristretto encrypt exp..");

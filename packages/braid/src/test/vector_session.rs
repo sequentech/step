@@ -1,15 +1,12 @@
-use braid_messages::message::Message;
-use braid_messages::artifact::{DkgPublicKey, Plaintexts};
 use crate::protocol2::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
-use log::{info, error};
+use braid_messages::artifact::{DkgPublicKey, Plaintexts};
+use braid_messages::message::Message;
+use log::{error, info};
 use std::sync::{Arc, Mutex};
 use strand::context::Ctx;
 
-use braid_messages::newtypes::{
-    BatchNumber,
-    TrusteePosition,
-};
+use braid_messages::newtypes::{BatchNumber, TrusteePosition};
 
 // Implements cross-session parallelism as well as simulates cross-trustee parallelism
 #[derive(Debug)]
@@ -29,7 +26,7 @@ impl<C: Ctx> VectorSession<C> {
     }
 
     pub fn step(&mut self) {
-        info!("Trustee {:?} step..", self.trustee.get_pk());
+        info!("Trustee {:?} step..", self.trustee.name);
         let remote = self.remote.lock().unwrap();
 
         // Equivalent of getting all messages
@@ -62,7 +59,7 @@ impl<C: Ctx> VectorSession<C> {
 
 fn send(messages: Vec<Message>, remote: &mut VectorBoard) {
     for m in messages.iter() {
-        info!("Adding message {:?} to remote", m);
+        info!("Sending message to vector board {:?}", m);
         remote.add(m.try_clone().unwrap());
     }
 }

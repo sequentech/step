@@ -18,7 +18,7 @@ use crate::newtypes::*;
 
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct Message {
-    pub signer_key: StrandSignaturePk,
+    pub sender: Sender,
     pub signature: StrandSignature,
     pub statement: Statement,
     pub artifact: Option<Vec<u8>>,
@@ -300,20 +300,21 @@ impl Message {
             return Err(anyhow!(
                 "Received a message whose statement signature number is out of range"
             ));
-        }
+        } 
 
         // We don't care about doing a sequential search here as the size is small
         let index: usize = configuration
-            .get_trustee_position(&self.signer_key)
+            .get_trustee_position(&self.sender.pk)
             .ok_or(anyhow!(
                 "Received a message from a trustee that is not part of the configuration {:?}",
-                self.signer_key
+                self.sender.pk
             ))?;
 
         let bytes = self.statement.strand_serialize()?;
         // Verify signature
         let trustee_ = self
-            .signer_key
+            .sender
+            .pk
             .verify(&self.signature, &bytes)
             .map(|_| index)
             .ok();
@@ -385,7 +386,7 @@ impl Message {
     // Clone is fallible when signature is implemented from OpenSSL
     pub fn try_clone(&self) -> Result<Message> {
         let ret = Message {
-            signer_key: self.signer_key.clone(),
+            sender: self.sender.clone(),
             signature: self.signature.try_clone()?,
             statement: self.statement.clone(),
             artifact: self.artifact.clone(),
@@ -426,7 +427,7 @@ impl TryFrom<Message> for BoardMessage {
             statement_timestamp: (message.statement.get_timestamp() * 1000) as i64,
             statement_kind: message.statement.get_kind().to_string(),
             message: message.strand_serialize()?,
-            signer_key: message.signer_key.strand_serialize()?,
+            signer_key: message.sender.pk.strand_serialize()?,
         })
     }
 }
@@ -460,17 +461,34 @@ impl VerifiedMessage {
 ///////////////////////////////////////////////////////////////////////////
 pub trait Signer {
     fn get_signing_key(&self) -> &StrandSignatureSk;
+    fn get_name(&self) -> String;
     fn sign(&self, statement: Statement, artifact: Option<Vec<u8>>) -> Result<Message> {
         let sk = self.get_signing_key();
         let bytes = statement.strand_serialize()?;
         let signature: StrandSignature = sk.sign(&bytes)?;
+        let pk = StrandSignaturePk::from(sk)?;
+        let sender = Sender::new(self.get_name(), pk);
 
         Ok(Message {
-            signer_key: StrandSignaturePk::from(sk)?,
+            sender,
             signature,
             statement,
             artifact,
         })
+    }
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Clone)]
+pub struct Sender {
+    pub name: String,
+    pub pk: StrandSignaturePk,
+}
+impl Sender {
+    pub fn new(name: String, pk: StrandSignaturePk) -> Sender {
+        Sender {
+            name,
+            pk,
+        }
     }
 }
 
@@ -483,7 +501,7 @@ impl std::fmt::Debug for Message {
         write!(
             f,
             "Message{{ sender={:?} statement={:?} artifact={}}}",
-            self.signer_key,
+            self.sender.name,
             &self.statement,
             self.artifact.is_some()
         )

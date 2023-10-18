@@ -122,6 +122,109 @@ pub(crate) mod tests {
         assert!(verified_false);
     }
 
+    pub(crate) fn test_rerand_generic<C: Ctx>(ctx: &C) {
+        let mut rng = ctx.get_rng();
+        let zkp = Zkp::new(ctx);
+        let sk = PrivateKey::gen(ctx);
+        let pk = sk.get_pk();
+
+        let plaintext = ctx.rnd_plaintext(&mut rng);
+        let p = ctx.encode(&plaintext).unwrap();
+
+        let c1 = pk.encrypt(&p);
+
+        // re randomize
+        let x = ctx.rnd_exp(&mut rng);
+        let one = pk.one(&x);
+        let c_ = c1.mul(&one);
+
+        // ensure sure that the rerandomized ciphertext has the right value
+        let decrypted = sk.decrypt(&c_);
+        let decoded = ctx.decode(&decrypted);
+        assert_eq!(plaintext, decoded);
+
+        // prove
+        let big_x = c_.gr.divp(&c1.gr, &ctx).modp(&ctx);
+        let big_y = c_.mhr.divp(&c1.mhr, &ctx).modp(&ctx);
+
+        let k = zkp.icp_prover_1();
+        let (c, e, r) = zkp.icp_verifier_2(&k);
+        let (big_a, big_b, a) = zkp.icp_prover_3(&pk.element);
+        let z = zkp.icp_prover_5(&a, &x, &c, &k, &e, &r).unwrap();
+        let ok = zkp.icp_verifier_6(
+            &big_a,
+            &big_b,
+            &z,
+            &e,
+            &pk.element,
+            &big_x,
+            &big_y,
+        );
+
+        assert!(ok);
+
+        // create a different ciphertext
+        let c_different = Ciphertext::<C> {
+            mhr: ctx.rnd(&mut rng),
+            gr: ctx.rnd(&mut rng),
+        };
+
+        // re-randomize the different ciphertext (we reuse the same randomizing
+        // ciphertext as above)
+        let c_ = c_different.mul(&one);
+
+        // proof with a different ciphertext re-randomization should fail
+        let big_x = c_.gr.divp(&c1.gr, &ctx).modp(&ctx);
+        let big_y = c_.mhr.divp(&c1.mhr, &ctx).modp(&ctx);
+
+        let k = zkp.icp_prover_1();
+        let (c, e, r) = zkp.icp_verifier_2(&k);
+        let (big_a, big_b, a) = zkp.icp_prover_3(&pk.element);
+        let z = zkp.icp_prover_5(&a, &x, &c, &k, &e, &r).unwrap();
+        let ok = zkp.icp_verifier_6(
+            &big_a,
+            &big_b,
+            &z,
+            &e,
+            &pk.element,
+            &big_x,
+            &big_y,
+        );
+
+        assert!(!ok);
+
+        // non re-randomization should fail
+        // does not encrypt the value '1'
+        let not_one = Ciphertext::<C> {
+            mhr: ctx
+                .rnd(&mut rng)
+                .mul(&ctx.emod_pow(&pk.element, &x))
+                .modp(&ctx),
+            gr: ctx.gmod_pow(&x),
+        };
+        let c_ = c1.mul(&not_one);
+
+        // proof with a non-rerandomization (not multiplying by one) should fail
+        let big_x = c_.gr.divp(&c1.gr, &ctx).modp(&ctx);
+        let big_y = c_.mhr.divp(&c1.mhr, &ctx).modp(&ctx);
+
+        let k = zkp.icp_prover_1();
+        let (c, e, r) = zkp.icp_verifier_2(&k);
+        let (big_a, big_b, a) = zkp.icp_prover_3(&pk.element);
+        let z = zkp.icp_prover_5(&a, &x, &c, &k, &e, &r).unwrap();
+        let ok = zkp.icp_verifier_6(
+            &big_a,
+            &big_b,
+            &z,
+            &e,
+            &pk.element,
+            &big_x,
+            &big_y,
+        );
+
+        assert!(!ok);
+    }
+
     pub(crate) fn test_vdecryption_generic<C: Ctx>(ctx: &C, data: C::P) {
         let zkp = Zkp::new(ctx);
         let sk = PrivateKey::gen(ctx);

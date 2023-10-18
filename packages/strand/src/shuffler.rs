@@ -674,8 +674,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
     }
 }
 
-// "The resulting permutation is picked uniformly from the set of all possible permutations."
-// https://rust-random.github.io/rand/rand/seq/trait.SliceRandom.html
+// "The resulting permutation is picked uniformly from the set of all possible
+// permutations." https://rust-random.github.io/rand/rand/seq/trait.SliceRandom.html
 pub(crate) fn gen_permutation(size: usize) -> Vec<usize> {
     let mut rng = StrandRng;
 

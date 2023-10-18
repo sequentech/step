@@ -2,14 +2,14 @@
 use anyhow::Result;
 use colored::*;
 use serde::Serialize;
-use tracing::info;
 use strum::Display;
+use tracing::info;
 
-use braid_messages::message::Message;
 use braid_messages::artifact::Configuration;
-use braid_messages::statement::StatementType;
+use braid_messages::message::Message;
 use braid_messages::message::VerifiedMessage;
 use braid_messages::newtypes::*;
+use braid_messages::statement::StatementType;
 
 use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::protocol2::predicate::Predicate;
@@ -65,7 +65,7 @@ enum Check {
     /*
     All messages refer to the same configuration file that is checked
     with CONFIGURATION_VALID.
-    */    
+    */
     MESSAGES_CFG_VALID,
     /*
     The public key information has been correctly constructed (given public data):
@@ -149,7 +149,11 @@ impl<C: Ctx> Verifier<C> {
         let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
         info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 
-        vr.add_result(Check::CONFIGURATION_VALID, cfg.is_valid(), &dbg_hash(&cfg_h));
+        vr.add_result(
+            Check::CONFIGURATION_VALID,
+            cfg.is_valid(),
+            &dbg_hash(&cfg_h),
+        );
 
         // Verify message signatures
 
@@ -191,14 +195,11 @@ impl<C: Ctx> Verifier<C> {
         // Run verifying actions
 
         info!("{}", "Running verifying actions..".blue());
-        let (messages, _) = self.trustee.verify(messages)?;
+        let messages = self.trustee.verify(messages)?;
         info!("{}", "Verifying actions complete".blue());
         for message in messages {
-            let predicate = Predicate::from_statement::<C>(
-                &message.statement,
-                VERIFIER_INDEX,
-                &cfg,
-            );
+            let predicate =
+                Predicate::from_statement::<C>(&message.statement, VERIFIER_INDEX, &cfg);
             info!("Verifying action yields predicate [{}]", predicate);
             predicates.push(predicate);
         }
@@ -362,8 +363,7 @@ impl VerificationResult {
         }
     }
     fn add_target(&mut self, name: Check) {
-        self.targets
-            .insert(name, VerificationItem::new());
+        self.targets.insert(name, VerificationItem::new());
     }
     fn add_result<D: std::fmt::Display>(&mut self, name: Check, result: bool, metadata: &D) {
         let value = self
