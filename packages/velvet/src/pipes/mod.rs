@@ -26,6 +26,7 @@ trait Pipe {
 
 // TODO: rework this better
 // TODO: pointeur sur fonction
+// TODO: Error needs to be generic? DecodeBallotsError, etc...
 pub fn match_run(cli: &CliRun, pipe: PipeName) -> Result<(), Error> {
     match pipe {
         PipeName::DecodeBallots => {

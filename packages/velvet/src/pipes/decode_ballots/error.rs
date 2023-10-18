@@ -1,10 +1,12 @@
 pub type Result<T, E = Error> = std::result::Result<T, E>;
-pub use crate::pipes::error::Error as PipeError;
+pub use crate::pipes::error::Error as PipesError;
 
 #[derive(Debug)]
 pub enum Error {
     ConfigNotValid,
-    PipeError(PipeError),
+    JsonParse(serde_json::Error),
+    FromPipes(PipesError),
+    FS(std::io::Error),
 }
 
 impl core::fmt::Display for Error {
@@ -13,9 +15,21 @@ impl core::fmt::Display for Error {
     }
 }
 
-impl From<PipeError> for Error {
-    fn from(val: PipeError) -> Self {
-        Self::PipeError(val)
+impl From<serde_json::Error> for Error {
+    fn from(val: serde_json::Error) -> Self {
+        Self::JsonParse(val)
+    }
+}
+
+impl From<PipesError> for Error {
+    fn from(val: PipesError) -> Self {
+        Self::FromPipes(val)
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(val: std::io::Error) -> Self {
+        Self::FS(val)
     }
 }
 

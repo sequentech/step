@@ -145,68 +145,6 @@ fn get_election_config() -> String {
             ],
             "title":"New election",
             "description":"This is the description of the election. You can add simple html like <strong>bold</strong> or <a href=\"https://sequentech.io\" rel=\"nofollow\">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.",
-            "questions":[
-                {
-                    "description":"This is the description of this question. You can have multiple questions. You can add simple html like <strong>bold</strong> or <a href=\"https://sequentech.io\" rel=\"nofollow\">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.",
-                    "layout":"simultaneous-questions",
-                    "max":3,
-                    "min":1,
-                    "num_winners":1,
-                    "title":"Test question title",
-                    "tally_type":"plurality-at-large",
-                    "answer_total_votes_percentage":"over-total-valid-votes",
-                    "answers":[
-                        {
-                        "id":0,
-                        "category":"",
-                        "details":"This is an option with an simple example description.",
-                        "sort_order":0,
-                        "urls":[
-                            {
-                            "title":"Image URL",
-                            "url":"/XFQwVFL.jpg"
-                            }
-                        ],
-                        "text":"Example option 1"
-                        },
-                        {
-                        "id":1,
-                        "category":"",
-                        "details":"An option can contain a description. You can add simple html like <strong>bold</strong> or <a href=\"https://sequentech.io\" rel=\"nofollow\">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.",
-                        "sort_order":1,
-                        "urls":[
-                            {
-                                "title":"URL",
-                                "url":"https://sequentech.io"
-                            },
-                            {
-                                "title":"Image URL",
-                                "url":"/XFQwVFL.jpg"
-                            }
-                        ],
-                        "text":"Example option 2"
-                        },
-                        {
-                        "id":2,
-                        "category":"",
-                        "details":"",
-                        "sort_order":2,
-                        "urls":[
-                            
-                        ],
-                        "text":"Example option 3"
-                        }
-                    ],
-                    "extra_options":{
-                        "shuffle_categories":true,
-                        "shuffle_all_options":true,
-                        "shuffle_category_list":[
-                        
-                        ],
-                        "show_points":false
-                    }
-                }
-            ],
             "presentation":{
                 "share_text":[
                     {
@@ -262,7 +200,7 @@ fn get_contest_config() -> String {
             "id":"1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
             "description":"Elige quien quieres que sea tu Secretario General en tu municipio",
             "layout":"",
-            "min":0,
+            "min":1,
             "max":1,
             "num_winners":1,
             "title":"Secretario General",
