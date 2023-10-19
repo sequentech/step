@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod celery;
 pub mod date;
 pub mod election_event_board;
 pub mod election_event_status;

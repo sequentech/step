@@ -17,7 +17,7 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::types::scheduled_event::ScheduledEvent;
 
-#[instrument(skip(auth_headers))]
+//#[instrument(skip(auth_headers))]
 #[celery::task]
 pub async fn set_public_key_task(
     auth_headers: connection::AuthHeaders,
@@ -29,7 +29,7 @@ pub async fn set_public_key_task(
 }
 
 #[instrument(skip(auth_headers))]
- async fn set_public_key(
+async fn set_public_key(
     auth_headers: connection::AuthHeaders,
     event: ScheduledEvent,
 ) -> Result<()> {

@@ -11,24 +11,11 @@ use std::str::FromStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
 use tracing::instrument;
+use windmill_tasks::connection;
+use windmill_tasks::types::scheduled_event::*;
 
-use crate::connection;
 use crate::hasura;
 use crate::services;
-
-#[derive(
-    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
-)]
-#[serde(crate = "rocket::serde")]
-pub enum EventProcessors {
-    CREATE_REPORT,
-    UPDATE_VOTING_STATUS,
-    CREATE_BOARD,
-    CREATE_KEYS,
-    SET_PUBLIC_KEY,
-    CREATE_BALLOT_STYLE,
-    INSERT_BALLOTS,
-}
 
 #[derive(Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
@@ -39,22 +26,6 @@ pub struct CreateScheduledEventBody {
     cron_config: Option<String>,
     event_payload: Value,
     created_by: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
-pub struct ScheduledEvent {
-    pub id: String,
-    pub tenant_id: Option<String>,
-    pub election_event_id: Option<String>,
-    pub created_at: Option<String>,
-    pub stopped_at: Option<String>,
-    pub labels: Option<Value>,
-    pub annotations: Option<Value>,
-    pub event_processor: Option<EventProcessors>,
-    pub cron_config: Option<String>,
-    pub event_payload: Option<Value>,
-    pub created_by: Option<String>,
 }
 
 #[instrument(skip(auth_headers))]

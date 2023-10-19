@@ -28,7 +28,7 @@ enum CeleryOpt {
 async fn main() -> Result<()> {
     let opt = CeleryOpt::from_args();
 
-    let my_app = celery::app!(
+    let celery_app = celery::app!(
         // broker = RedisBroker { std::env::var("REDIS_ADDR").unwrap_or_else(|_| "redis://127.0.0.1:6379/".into()) },
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
@@ -44,8 +44,10 @@ async fn main() -> Result<()> {
 
     match opt {
         CeleryOpt::Consume => {
-            my_app.display_pretty().await;
-            my_app.consume_from(&["test_task", "short_queue"]).await?;
+            celery_app.display_pretty().await;
+            celery_app
+                .consume_from(&["test_task", "short_queue"])
+                .await?;
         }
         CeleryOpt::Produce { tasks } => {
             if tasks.is_empty() {

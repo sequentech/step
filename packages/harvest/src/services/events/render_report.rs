@@ -12,8 +12,8 @@ use std::io::Write;
 use std::time::Duration;
 use tempfile::tempdir;
 use tracing::instrument;
+use windmill_tasks::connection;
 
-use crate::connection;
 use crate::hasura;
 use crate::pdf;
 use crate::s3;

@@ -6,8 +6,8 @@ use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use std::env;
 use tracing::instrument;
+use windmill_tasks::connection;
 
-use crate::connection;
 pub use crate::hasura::types::*;
 use crate::services::to_result::ToResult;
 

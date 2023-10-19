@@ -8,17 +8,19 @@ use rocket::serde::json::Value;
 use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
+use windmill_tasks::connection;
+use windmill_tasks::tasks::set_public_key::*;
+use windmill_tasks::types::scheduled_event::*;
 
-use crate::connection;
 use crate::hasura::event_execution;
 use crate::routes::scheduled_event;
+use crate::services::celery;
 use crate::services::events::create_ballot_style;
 use crate::services::events::create_board;
 use crate::services::events::create_keys;
 use crate::services::events::insert_ballots;
 use crate::services::events::render_report;
-use crate::services::events::set_public_key;
 use crate::services::events::update_voting_status;
 
 #[derive(Debug, Clone)]
@@ -35,7 +37,7 @@ impl Error for CustomError {}
 #[instrument(skip_all)]
 async fn insert_event_execution_with_result(
     auth_headers: connection::AuthHeaders,
-    event: scheduled_event::ScheduledEvent,
+    event: ScheduledEvent,
     result_payload: Option<Value>,
 ) -> Result<event_execution::EventExecution> {
     let insert_event_execution = event_execution::insert_event_execution(
@@ -75,10 +77,11 @@ async fn insert_event_execution_with_result(
 #[instrument(skip(auth_headers))]
 pub async fn process_scheduled_event(
     auth_headers: connection::AuthHeaders,
-    event: scheduled_event::ScheduledEvent,
+    event: ScheduledEvent,
 ) -> Result<event_execution::EventExecution> {
+    let celery_app = celery::create_app().await?;
     match event.clone().event_processor.unwrap() {
-        scheduled_event::EventProcessors::CREATE_REPORT => {
+        EventProcessors::CREATE_REPORT => {
             let body: render_report::RenderTemplateBody =
                 serde_json::from_value(event.event_payload.clone().unwrap())?;
             let document_json =
@@ -94,7 +97,7 @@ pub async fn process_scheduled_event(
             )
             .await
         }
-        scheduled_event::EventProcessors::UPDATE_VOTING_STATUS => {
+        EventProcessors::UPDATE_VOTING_STATUS => {
             let payload: update_voting_status::UpdateVotingStatusPayload =
                 serde_json::from_value(event.event_payload.clone().unwrap())?;
             let _update_result = update_voting_status::update_voting_status(
@@ -107,7 +110,7 @@ pub async fn process_scheduled_event(
 
             insert_event_execution_with_result(auth_headers, event, None).await
         }
-        scheduled_event::EventProcessors::CREATE_BOARD => {
+        EventProcessors::CREATE_BOARD => {
             let payload: create_board::CreateBoardPayload =
                 serde_json::from_value(event.event_payload.clone().unwrap())?;
             let board = create_board::create_board(
@@ -126,7 +129,7 @@ pub async fn process_scheduled_event(
             )
             .await
         }
-        scheduled_event::EventProcessors::CREATE_KEYS => {
+        EventProcessors::CREATE_KEYS => {
             let payload: create_keys::CreateKeysBody =
                 serde_json::from_value(event.event_payload.clone().unwrap())?;
             create_keys::create_keys(
@@ -138,13 +141,18 @@ pub async fn process_scheduled_event(
 
             insert_event_execution_with_result(auth_headers, event, None).await
         }
-        scheduled_event::EventProcessors::SET_PUBLIC_KEY => {
-            set_public_key::set_public_key(auth_headers.clone(), event.clone())
+        EventProcessors::SET_PUBLIC_KEY => {
+            let task = celery_app
+                .send_task(set_public_key_task::new(
+                    auth_headers.clone(),
+                    event.clone(),
+                ))
                 .await?;
+            event!(Level::INFO, "Sent task {}", task.task_id);
 
             insert_event_execution_with_result(auth_headers, event, None).await
         }
-        scheduled_event::EventProcessors::CREATE_BALLOT_STYLE => {
+        EventProcessors::CREATE_BALLOT_STYLE => {
             let payload: create_ballot_style::CreateBallotStylePayload =
                 serde_json::from_value(event.event_payload.clone().unwrap())?;
             create_ballot_style::create_ballot_style(
@@ -156,7 +164,7 @@ pub async fn process_scheduled_event(
 
             insert_event_execution_with_result(auth_headers, event, None).await
         }
-        scheduled_event::EventProcessors::INSERT_BALLOTS => {
+        EventProcessors::INSERT_BALLOTS => {
             let payload: insert_ballots::InsertBallotsPayload =
                 serde_json::from_value(event.event_payload.clone().unwrap())?;
             insert_ballots::insert_ballots(

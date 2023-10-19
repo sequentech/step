@@ -12,8 +12,7 @@ use rocket::serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::env;
 use tracing::instrument;
-
-use crate::connection;
+use windmill_tasks::connection;
 
 macro_rules! assign_value {
     ($enum_variant:path, $value:expr, $target:ident) => {

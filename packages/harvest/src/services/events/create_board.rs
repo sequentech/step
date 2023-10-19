@@ -8,8 +8,8 @@ use rocket::serde::{Deserialize, Serialize};
 use sequent_core;
 use std::env;
 use tracing::instrument;
+use windmill_tasks::connection;
 
-use crate::connection;
 use crate::hasura;
 use crate::services::election_event_board::BoardSerializable;
 

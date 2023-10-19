@@ -6,16 +6,16 @@ use anyhow::{bail, Context, Result};
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
+use windmill_tasks::connection;
 
-use crate::connection;
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
-use crate::routes::scheduled_event::ScheduledEvent;
 use crate::services::election_event_board::{
     get_election_event_board, BoardSerializable,
 };
 use crate::services::election_event_status;
 use crate::services::protocol_manager;
+use windmill_tasks::types::scheduled_event::ScheduledEvent;
 
 #[derive(Deserialize, Debug, Serialize)]
 #[serde(crate = "rocket::serde")]

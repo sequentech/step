@@ -7,8 +7,8 @@ use reqwest;
 use rocket::serde::json::Value;
 use std::env;
 use tracing::instrument;
+use windmill_tasks::connection;
 
-use crate::connection;
 pub use crate::hasura::types::*;
 use crate::services::to_result::ToResult;
 
