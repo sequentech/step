@@ -7,14 +7,15 @@ pub mod decode_ballots;
 pub mod do_tally;
 
 use self::error::{Error, Result};
+use self::pipe_inputs::PipeInputs;
 use self::{decode_ballots::DecodeBallots, pipe_name::PipeName};
 use crate::cli::CliRun;
 use crate::pipes::do_tally::DoTally;
 
-trait Pipe {
+trait Pipe<'a> {
     type Error;
 
-    fn new(cli: &CliRun) -> Result<Self, Self::Error>
+    fn new(pipe_inputs: &'a PipeInputs) -> Result<Self, Self::Error>
     where
         Self: Sized;
 
@@ -32,13 +33,16 @@ trait Pipe {
 // TODO: pointeur sur fonction
 // TODO: Error needs to be generic? DecodeBallotsError, etc...
 pub fn match_run(cli: &CliRun, pipe: PipeName) -> Result<(), Error> {
+    let pipe_inputs = PipeInputs::new(cli)?;
+
     match pipe {
         PipeName::DecodeBallots => {
-            let pipe = DecodeBallots::new(cli).map_err(|e| Error::FromPipe(e.to_string()))?;
+            let pipe =
+                DecodeBallots::new(&pipe_inputs).map_err(|e| Error::FromPipe(e.to_string()))?;
             pipe.exec().map_err(|e| Error::FromPipe(e.to_string()))?;
         }
         PipeName::DoTally => {
-            let pipe = DoTally::new(cli).map_err(|e| Error::FromPipe(e.to_string()))?;
+            let pipe = DoTally::new(&pipe_inputs).map_err(|e| Error::FromPipe(e.to_string()))?;
             pipe.exec().map_err(|e| Error::FromPipe(e.to_string()))?;
         }
         _ => {}

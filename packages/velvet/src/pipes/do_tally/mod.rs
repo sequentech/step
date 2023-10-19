@@ -1,22 +1,18 @@
 mod error;
 
-use crate::cli::CliRun;
-
 use self::error::{Error, Result};
 
 use super::{pipe_inputs::PipeInputs, Pipe};
 
-pub struct DoTally {
-    pub pipe_input: PipeInputs,
+pub struct DoTally<'a> {
+    pub pipe_input: &'a PipeInputs,
 }
 
-impl Pipe for DoTally {
+impl<'a> Pipe<'a> for DoTally<'a> {
     type Error = Error;
 
-    fn new(cli: &CliRun) -> Result<Self, Error> {
-        Ok(Self {
-            pipe_input: PipeInputs::new(cli)?,
-        })
+    fn new(pipe_input: &'a PipeInputs) -> Result<Self, Error> {
+        Ok(Self { pipe_input })
     }
 
     fn exec(&self) -> Result<(), Self::Error> {

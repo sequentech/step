@@ -5,28 +5,25 @@ use self::ballot_codec::BallotCodec;
 use self::error::{Error, Result};
 use super::pipe_inputs::{PipeInputs, BALLOTS_FILE};
 use super::Pipe;
-use crate::cli::CliRun;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::BufRead;
 
 pub const OUTPUT_DECODED_BALLOTS_FILE: &str = "decoded_ballots.json";
 
-pub struct DecodeBallots {
-    pub pipe_input: PipeInputs,
+pub struct DecodeBallots<'a> {
+    pub pipe_inputs: &'a PipeInputs,
 }
 
-impl Pipe for DecodeBallots {
+impl<'a> Pipe<'a> for DecodeBallots<'a> {
     type Error = Error;
 
-    fn new(cli: &CliRun) -> Result<Self, Error> {
-        Ok(Self {
-            pipe_input: PipeInputs::new(cli)?,
-        })
+    fn new(pipe_inputs: &'a PipeInputs) -> Result<Self, Error> {
+        Ok(Self { pipe_inputs })
     }
 
     fn exec(&self) -> Result<(), Error> {
-        for election_input in &self.pipe_input.election_list {
+        for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
                 let contest_config_file = fs::File::open(&contest_input.config)?;
                 let contest: Contest = serde_json::from_reader(contest_config_file)?;
@@ -35,8 +32,8 @@ impl Pipe for DecodeBallots {
                 let bases = vec![2; contest.choices.len() + 1];
                 let ballot_codec = BallotCodec::new(bases);
 
-                let mut file = self.pipe_input.get_path_for_contest(
-                    &self.pipe_input.cli.input_dir,
+                let mut file = self.pipe_inputs.get_path_for_contest(
+                    &self.pipe_inputs.cli.input_dir,
                     &election_input.id,
                     &contest_input.id,
                 );
@@ -69,8 +66,8 @@ impl Pipe for DecodeBallots {
                     decoded_ballots.push(decoded_vote);
                 }
 
-                let mut file = self.pipe_input.get_path_for_contest(
-                    &self.pipe_input.cli.output_dir,
+                let mut file = self.pipe_inputs.get_path_for_contest(
+                    &self.pipe_inputs.cli.output_dir,
                     &election_input.id,
                     &contest_input.id,
                 );
