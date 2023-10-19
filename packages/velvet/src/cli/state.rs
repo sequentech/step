@@ -128,6 +128,7 @@ mod tests {
 
     #[test]
     fn test_state_exec_next() -> Result<()> {
+        // TODO: CLI is not correctly initiated here
         let cli = CliRun {
             stage: "main".to_string(),
             pipe_id: "do-tally".to_string(),
