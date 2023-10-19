@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{Context, Result};
+use celery::error::TaskError;
 use celery::prelude::*;
 use celery::task::TaskResultExt;
 use rocket::serde::{Deserialize, Serialize};
@@ -22,8 +23,9 @@ pub async fn set_public_key_task(
     auth_headers: connection::AuthHeaders,
     event: ScheduledEvent,
 ) -> TaskResult<()> {
-    let val = set_public_key(auth_headers, event).await.unwrap();
-    Ok(val)
+    set_public_key(auth_headers, event)
+        .await
+        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))
 }
 
 #[instrument(skip(auth_headers))]
