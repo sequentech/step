@@ -176,12 +176,5 @@ pub async fn process_scheduled_event(
 
             insert_event_execution_with_result(auth_headers, event, None).await
         }
-        EventProcessors::TEST_ADD => {
-            let task = celery_app
-                .send_task(add::new(10, 5))
-                .await?;
-            event!(Level::INFO, "Sent add task {}", task.task_id);
-            insert_event_execution_with_result(auth_headers, event, None).await
-        }
     }
 }

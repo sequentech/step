@@ -17,7 +17,6 @@ pub enum EventProcessors {
     SET_PUBLIC_KEY,
     CREATE_BALLOT_STYLE,
     INSERT_BALLOTS,
-    TEST_ADD,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

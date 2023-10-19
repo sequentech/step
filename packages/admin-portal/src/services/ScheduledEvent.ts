@@ -9,5 +9,4 @@ export enum ScheduledEventType {
     CREATE_KEYS = "CREATE_KEYS",
     SET_PUBLIC_KEY = "SET_PUBLIC_KEY",
     CREATE_BALLOT_STYLE = "CREATE_BALLOT_STYLE",
-    TEST_ADD = "TEST_ADD",
 }
