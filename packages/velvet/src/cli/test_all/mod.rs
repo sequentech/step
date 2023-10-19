@@ -115,7 +115,10 @@ mod tests {
 
     #[test]
     fn test_decode_ballots() -> Result<()> {
+        let election_num = 5;
+        let contest_num = 10;
         let fixture = TestFixture::new()?;
+
         generate_ballots(&fixture, 5, 10, 20)?;
 
         let cli = CliRun {
@@ -130,14 +133,18 @@ mod tests {
         let mut state = State::new(&cli, &config)?;
         state.exec_next(&cli.stage)?;
 
-        assert!(WalkDir::new(cli.output_dir)
-            .into_iter()
-            .filter_map(Result::ok)
-            .any(|e| {
-                e.path()
-                    .file_name()
-                    .map_or(false, |f| f == OUTPUT_DECODED_BALLOTS_FILE)
-            }));
+        assert_eq!(
+            WalkDir::new(cli.output_dir)
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter(|e| {
+                    e.path()
+                        .file_name()
+                        .map_or(false, |f| f == OUTPUT_DECODED_BALLOTS_FILE)
+                })
+                .count(),
+            election_num * contest_num
+        );
 
         Ok(())
     }
