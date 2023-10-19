@@ -18,8 +18,8 @@ pub struct DecodeBallots<'a> {
 impl<'a> Pipe<'a> for DecodeBallots<'a> {
     type Error = Error;
 
-    fn new(pipe_inputs: &'a PipeInputs) -> Result<Self, Error> {
-        Ok(Self { pipe_inputs })
+    fn new(pipe_inputs: &'a PipeInputs) -> Self {
+        Self { pipe_inputs }
     }
 
     fn exec(&self) -> Result<(), Error> {

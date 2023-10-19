@@ -15,7 +15,7 @@ use crate::pipes::do_tally::DoTally;
 trait Pipe<'a> {
     type Error;
 
-    fn new(pipe_inputs: &'a PipeInputs) -> Result<Self, Self::Error>
+    fn new(pipe_inputs: &'a PipeInputs) -> Self
     where
         Self: Sized;
 
@@ -37,12 +37,11 @@ pub fn match_run(cli: &CliRun, pipe: PipeName) -> Result<(), Error> {
 
     match pipe {
         PipeName::DecodeBallots => {
-            let pipe =
-                DecodeBallots::new(&pipe_inputs).map_err(|e| Error::FromPipe(e.to_string()))?;
+            let pipe = DecodeBallots::new(&pipe_inputs);
             pipe.exec().map_err(|e| Error::FromPipe(e.to_string()))?;
         }
         PipeName::DoTally => {
-            let pipe = DoTally::new(&pipe_inputs).map_err(|e| Error::FromPipe(e.to_string()))?;
+            let pipe = DoTally::new(&pipe_inputs);
             pipe.exec().map_err(|e| Error::FromPipe(e.to_string()))?;
         }
         _ => {}

@@ -11,8 +11,8 @@ pub struct DoTally<'a> {
 impl<'a> Pipe<'a> for DoTally<'a> {
     type Error = Error;
 
-    fn new(pipe_input: &'a PipeInputs) -> Result<Self, Error> {
-        Ok(Self { pipe_input })
+    fn new(pipe_input: &'a PipeInputs) -> Self {
+        Self { pipe_input }
     }
 
     fn exec(&self) -> Result<(), Self::Error> {

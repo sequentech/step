@@ -4,12 +4,9 @@ pub use crate::pipes::error::Error as PipesError;
 
 #[derive(Debug)]
 pub enum Error {
-    ConfigNotValid,
-    FileNotExist,
     JsonParse(serde_json::Error),
     FromPipes(PipesError),
     FS(std::io::Error),
-    WrongBallotsFormat,
 }
 
 impl core::fmt::Display for Error {
