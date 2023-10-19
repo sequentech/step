@@ -30,8 +30,7 @@ pub struct PipeInputs {
 
 impl PipeInputs {
     pub fn new(cli: &CliRun) -> Result<Self> {
-        let input = &cli.input_dir.to_str().ok_or(Error::IncorrectPath)?;
-        let election_list = Self::read_input_dir_config(input)?;
+        let election_list = Self::read_input_dir_config(&cli.input_dir)?;
 
         Ok(Self {
             cli: cli.clone(),
@@ -45,21 +44,18 @@ impl PipeInputs {
         election_id: &Uuid,
         contest_id: &Uuid,
     ) -> PathBuf {
-        let path = format!(
-            "{}/{}/{}{}/{}{}",
-            root.to_str().unwrap(),
-            DEFAULT_DIR_BALLOTS,
-            PREFIX_ELECTION,
-            election_id,
-            PREFIX_CONTEST,
-            contest_id,
-        );
+        let mut path = PathBuf::new();
 
-        Path::new(&path).to_owned()
+        path.push(root);
+        path.push(DEFAULT_DIR_BALLOTS);
+        path.push(format!("{}{}", PREFIX_ELECTION, election_id));
+        path.push(format!("{}{}", PREFIX_CONTEST, contest_id));
+
+        path
     }
 
-    fn read_input_dir_config(input_dir: &str) -> Result<Vec<ElectionConfig>> {
-        let entries = fs::read_dir(format!("{}/{}", input_dir, DEFAULT_DIR_CONFIGS))?;
+    fn read_input_dir_config(input_dir: &Path) -> Result<Vec<ElectionConfig>> {
+        let entries = fs::read_dir(input_dir.join(DEFAULT_DIR_CONFIGS))?;
 
         let mut configs = vec![];
         for entry in entries {
@@ -71,7 +67,7 @@ impl PipeInputs {
     }
 
     fn read_election_list_config(path: &Path) -> Result<ElectionConfig> {
-        let entries = fs::read_dir(path.to_str().ok_or(Error::IncorrectPath)?)?;
+        let entries = fs::read_dir(path)?;
 
         let election_id =
             Self::parse_path_components(path, PREFIX_ELECTION).ok_or(Error::IDNotFound)?;

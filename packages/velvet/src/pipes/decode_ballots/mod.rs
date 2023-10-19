@@ -7,8 +7,8 @@ use super::{Pipe, PipeInputs::PipeInputs};
 use crate::cli::CliRun;
 use crate::pipes::PipeInputs::BALLOTS_FILE;
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::io::BufRead;
+use std::fs::{self, File};
+use std::io::{BufRead, Read};
 use std::path::{Path, PathBuf};
 
 pub const OUTPUT_DECODED_BALLOTS_FILE: &str = "decoded_ballots.json";
@@ -50,12 +50,12 @@ impl Pipe for DecodeBallots {
         let bases = vec![2; contest.choices.len() + 1];
         let ballot_codec = BallotCodec::new(bases);
 
-        let file = self.pipe_input.get_path_for_contest(
+        let mut file = self.pipe_input.get_path_for_contest(
             &self.pipe_input.cli.input_dir,
             &election_input.id,
             &contest_input.id,
         );
-        let file = format!("{}/{}", file.to_str().unwrap(), BALLOTS_FILE);
+        file.push(BALLOTS_FILE);
         let file = fs::File::open(file)?;
 
         let reader = std::io::BufReader::new(file);
@@ -86,20 +86,19 @@ impl Pipe for DecodeBallots {
 
         // TODO: output
         // write this json into a output files
-        dbg!(decoded_ballots);
+        dbg!(&decoded_ballots);
 
-        let file = format!("{}", &self.pipe_input.cli.output_dir.to_str().unwrap());
-        dbg!(file);
-        // use get_path_for_contest
-
-        let file = self.pipe_input.get_path_for_contest(
+        let mut file = self.pipe_input.get_path_for_contest(
             &self.pipe_input.cli.output_dir,
             &election_input.id,
             &contest_input.id,
         );
-        let file = format!("{}/{}", file.to_str().unwrap(), OUTPUT_DECODED_BALLOTS_FILE);
 
-        dbg!(file);
+        fs::create_dir_all(&file)?;
+        file.push(OUTPUT_DECODED_BALLOTS_FILE);
+        let file = File::create(file)?;
+        
+        serde_json::to_writer(file, &decoded_ballots)?;
 
         Ok(())
     }

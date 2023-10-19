@@ -5,11 +5,13 @@ mod tests {
     use crate::cli::CliRun;
     use crate::fixtures::TestFixture;
     use crate::pipes::decode_ballots::ballot_codec::BallotCodec;
+    use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
     use anyhow::{Error, Result};
     use rand::Rng;
     use std::fs;
     use std::io::Write;
     use std::path::PathBuf;
+    use walkdir::WalkDir;
 
     fn generate_ballots(
         fixture: &TestFixture,
@@ -127,6 +129,15 @@ mod tests {
         let config = cli.parse_config()?;
         let mut state = State::new(&cli, &config)?;
         state.exec_next(&cli.stage)?;
+
+        assert!(WalkDir::new(cli.output_dir)
+            .into_iter()
+            .filter_map(Result::ok)
+            .any(|e| {
+                e.path()
+                    .file_name()
+                    .map_or(false, |f| f == OUTPUT_DECODED_BALLOTS_FILE)
+            }));
 
         Ok(())
     }

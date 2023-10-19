@@ -18,3 +18,4 @@ uuid = { version = "1.4.1", features = ["v4", "fast-rng"] }
 [dev-dependencies]
 anyhow = "1"
 sequent-core = { path="../sequent-core" }
+walkdir = "2"
