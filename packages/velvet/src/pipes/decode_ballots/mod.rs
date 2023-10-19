@@ -11,6 +11,8 @@ use std::fs;
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
 
+pub const OUTPUT_DECODED_BALLOTS_FILE: &str = "decoded_ballots.json";
+
 pub struct DecodeBallots {
     pub pipe_input: PipeInputs,
 }
@@ -48,14 +50,11 @@ impl Pipe for DecodeBallots {
         let bases = vec![2; contest.choices.len() + 1];
         let ballot_codec = BallotCodec::new(bases);
 
-        let file = self
-            .pipe_input
-            .get_path_for_contest(
-                &self.pipe_input.cli.input_dir,
-                &election_input.id,
-                &contest_input.id,
-            )
-            .ok_or(Error::FileNotExist)?;
+        let file = self.pipe_input.get_path_for_contest(
+            &self.pipe_input.cli.input_dir,
+            &election_input.id,
+            &contest_input.id,
+        );
         let file = format!("{}/{}", file.to_str().unwrap(), BALLOTS_FILE);
         let file = fs::File::open(file)?;
 
@@ -91,7 +90,16 @@ impl Pipe for DecodeBallots {
 
         let file = format!("{}", &self.pipe_input.cli.output_dir.to_str().unwrap());
         dbg!(file);
-        // use get_path_for_contest here
+        // use get_path_for_contest
+
+        let file = self.pipe_input.get_path_for_contest(
+            &self.pipe_input.cli.output_dir,
+            &election_input.id,
+            &contest_input.id,
+        );
+        let file = format!("{}/{}", file.to_str().unwrap(), OUTPUT_DECODED_BALLOTS_FILE);
+
+        dbg!(file);
 
         Ok(())
     }

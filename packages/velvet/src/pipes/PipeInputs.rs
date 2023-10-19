@@ -44,11 +44,7 @@ impl PipeInputs {
         root: &Path,
         election_id: &Uuid,
         contest_id: &Uuid,
-    ) -> Option<PathBuf> {
-        if !root.exists() {
-            return None;
-        }
-
+    ) -> PathBuf {
         let path = format!(
             "{}/{}/{}{}/{}{}",
             root.to_str().unwrap(),
@@ -59,12 +55,7 @@ impl PipeInputs {
             contest_id,
         );
 
-        let path = Path::new(&path);
-
-        match path.exists() {
-            true => Some(path.to_owned()),
-            false => None,
-        }
+        Path::new(&path).to_owned()
     }
 
     fn read_input_dir_config(input_dir: &str) -> Result<Vec<ElectionConfig>> {
