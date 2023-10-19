@@ -5,9 +5,15 @@
 use anyhow::{bail, Context, Result};
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tracing::instrument;
 use windmill::connection;
+extern crate celery as external_celery; 
+use external_celery::export::Arc;
+use external_celery::Celery;
+use windmill::tasks::set_public_key::set_public_key_task;
+use windmill::types::scheduled_event::ScheduledEvent;
+use tracing::{event, instrument, Level};
 
+use crate::services::celery;
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
 use crate::services::election_event_board::{
@@ -15,7 +21,6 @@ use crate::services::election_event_board::{
 };
 use crate::services::election_event_status;
 use crate::services::protocol_manager;
-use windmill::types::scheduled_event::ScheduledEvent;
 
 #[derive(Deserialize, Debug, Serialize)]
 #[serde(crate = "rocket::serde")]
@@ -24,11 +29,12 @@ pub struct CreateKeysBody {
     pub threshold: usize,
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers, celery_app))]
 pub async fn create_keys(
     auth_headers: connection::AuthHeaders,
     body: CreateKeysBody,
     event: ScheduledEvent,
+    celery_app: Arc<Celery>,
 ) -> Result<()> {
     // read tenant_id and election_event_id
     let tenant_id = event
@@ -82,11 +88,20 @@ pub async fn create_keys(
         })?;
 
     update_election_event_status(
-        auth_headers,
+        auth_headers.clone(),
         tenant_id,
         election_event_id,
         new_status,
     )
     .await?;
+
+    let task = celery_app
+    .send_task(set_public_key_task::new(
+        auth_headers.clone(),
+        event.clone(),
+    ))
+    .await?;
+    event!(Level::INFO, "Sent SET_PUBLIC_KEY task {}", task.task_id);
+
     Ok(())
 }

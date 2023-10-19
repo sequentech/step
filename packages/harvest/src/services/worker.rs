@@ -136,6 +136,7 @@ pub async fn process_scheduled_event(
                 auth_headers.clone(),
                 payload,
                 event.clone(),
+                celery_app,
             )
             .await?;
 
