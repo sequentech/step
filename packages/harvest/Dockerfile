@@ -11,6 +11,7 @@ COPY ./strand ./strand
 COPY ./braid ./braid
 COPY ./braid-messages ./braid-messages
 COPY ./sequent-core ./sequent-core
+COPY ./windmill ./windmill
 
 RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev
 RUN rustup default nightly

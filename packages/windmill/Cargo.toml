@@ -24,6 +24,7 @@ celery = "0.5.5"
 tokio = { version = "1.32.0", features = ["full"] }
 async-trait = "0.1.74"
 structopt = "0.3.26"
+dotenv = "0.15.0"
 
 # logging
 tracing = "0.1.37"

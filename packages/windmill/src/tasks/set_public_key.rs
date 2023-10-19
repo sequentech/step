@@ -14,6 +14,11 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::types::scheduled_event::ScheduledEvent;
 
+#[celery::task]
+pub fn add(x: i32, y: i32) -> TaskResult<i32> {
+    Ok(x + y)
+}
+
 //#[instrument(skip(auth_headers))]
 #[celery::task]
 pub async fn set_public_key_task(
@@ -24,9 +29,9 @@ pub async fn set_public_key_task(
         .await
         .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
-    insert_event_execution_with_result(auth_headers, event, None)
+    /*insert_event_execution_with_result(auth_headers, event, None)
         .await
-        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
+        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;*/
     Ok(())
 }
 

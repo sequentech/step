@@ -95,6 +95,31 @@ const ElectionEventListForm: React.FC = () => {
         refresh()
     }
 
+    const testAdd = async () => {
+        setShowMenu(false)
+        setShowProgress(true)
+
+        const {data, errors} = await createScheduledEvent({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: record.id,
+                eventProcessor: ScheduledEventType.TEST_ADD,
+                cronConfig: undefined,
+                eventPayload: {
+                },
+                createdBy: "admin",
+            },
+        })
+        if (errors) {
+            console.log(errors)
+        }
+        if (data) {
+            console.log(data)
+        }
+        setShowProgress(false)
+        refresh()
+    }
+
     const openKeysDialog = () => {
         console.log("opening...")
         setShowCreateKeysDialog(true)
@@ -138,6 +163,11 @@ const ElectionEventListForm: React.FC = () => {
                     disabled={!!record.public_key || !configCreatedStatus}
                 >
                     Set Public Keys
+                </MenuItem>
+                <MenuItem
+                    onClick={testAdd}
+                >
+                    Test Add
                 </MenuItem>
             </Menu>
             <KeysGenerationDialog
