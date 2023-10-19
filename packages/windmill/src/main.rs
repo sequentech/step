@@ -1,4 +1,7 @@
 #![allow(non_upper_case_globals)]
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -7,23 +10,16 @@ use structopt::StructOpt;
 use tracing::{event, instrument, Level};
 use windmill_tasks::tasks::set_public_key::set_public_key_task;
 
-// This generates the task struct and impl with the name set to the function name "add"
-#[instrument]
-#[celery::task]
-fn add(x: i32, y: i32) -> TaskResult<i32> {
-    Ok(x + y)
-}
-
 #[derive(Debug, StructOpt)]
 #[structopt(
-    name = "celery_app",
+    name = "windmill",
     about = "Run a Rust Celery producer or consumer.",
     setting = structopt::clap::AppSettings::ColoredHelp,
 )]
 enum CeleryOpt {
     Consume,
     Produce {
-        #[structopt(possible_values = &["add", "set_public_key_task"])]
+        #[structopt(possible_values = &["set_public_key_task"])]
         tasks: Vec<String>,
     },
 }
@@ -36,12 +32,10 @@ async fn main() -> Result<()> {
         // broker = RedisBroker { std::env::var("REDIS_ADDR").unwrap_or_else(|_| "redis://127.0.0.1:6379/".into()) },
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
-            add,
             set_public_key_task,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
-            "add" => "test_task",
             "set_public_key_task" => "short_queue",
         ],
         prefetch_count = 2,
@@ -55,28 +49,10 @@ async fn main() -> Result<()> {
         }
         CeleryOpt::Produce { tasks } => {
             if tasks.is_empty() {
-                event!(Level::INFO, "Task is empty, adding new tasks");
+                event!(Level::INFO, "Task is empty, not adding new tasks");
                 // Basic task sending.
-                let task1 = my_app.send_task(add::new(1, 2)).await?;
-                event!(Level::INFO, "Sent task {}", task1.task_id);
-
-                // Sending a task with additional options like `countdown`.
-                let task2 = my_app
-                    .send_task(add::new(1, 3).with_countdown(3).with_time_limit(20))
-                    .await?;
-                event!(Level::INFO, "Sent task {}", task2.task_id);
-    
-            } else {
-                for task in tasks {
-                    match task.as_str() {
-                        "add" => {
-                            let task = my_app.send_task(add::new(1, 2)).await?;
-                            event!(Level::INFO, "Sent task {}", task.task_id);
-                            task
-                        },
-                        _ => panic!("unknown task"),
-                    };
-                }
+                //let task1 = my_app.send_task(add::new(1, 2)).await?;
+                //event!(Level::INFO, "Sent task {}", task1.task_id);
             }
         }
     };
