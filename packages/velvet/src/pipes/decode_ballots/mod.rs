@@ -3,13 +3,12 @@ pub mod error;
 
 use self::ballot_codec::BallotCodec;
 use self::error::{Error, Result};
-use super::{Pipe, PipeInputs::PipeInputs};
+use super::pipe_inputs::{PipeInputs, BALLOTS_FILE};
+use super::Pipe;
 use crate::cli::CliRun;
-use crate::pipes::PipeInputs::BALLOTS_FILE;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
-use std::io::{BufRead, Read};
-use std::path::{Path, PathBuf};
+use std::io::BufRead;
 
 pub const OUTPUT_DECODED_BALLOTS_FILE: &str = "decoded_ballots.json";
 

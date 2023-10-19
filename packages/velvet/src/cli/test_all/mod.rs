@@ -131,6 +131,8 @@ mod tests {
 
         let config = cli.parse_config()?;
         let mut state = State::new(&cli, &config)?;
+
+        // DecodeBallots
         state.exec_next(&cli.stage)?;
 
         assert_eq!(
@@ -145,6 +147,9 @@ mod tests {
                 .count(),
             election_num * contest_num
         );
+
+        // DoTally
+        state.exec_next(&cli.stage)?;
 
         Ok(())
     }
