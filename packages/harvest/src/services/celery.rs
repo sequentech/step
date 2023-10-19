@@ -5,7 +5,7 @@ use celery;
 use celery::error::CeleryError;
 use celery::export::Arc;
 use celery::Celery;
-use windmill_tasks::tasks::set_public_key::set_public_key_task;
+use windmill::tasks::set_public_key::set_public_key_task;
 
 pub async fn create_app() -> Result<Arc<Celery>, CeleryError> {
     celery::app!(

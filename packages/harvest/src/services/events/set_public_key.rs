@@ -7,12 +7,12 @@ use rocket::serde::{Deserialize, Serialize};
 use strum_macros::Display;
 use strum_macros::EnumString;
 use tracing::instrument;
-use windmill_tasks::connection;
+use windmill::connection;
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
-use windmill_tasks::types::scheduled_event::ScheduledEvent;
+use windmill::types::scheduled_event::ScheduledEvent;
 
 #[instrument(skip(auth_headers))]
 pub async fn set_public_key(

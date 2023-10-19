@@ -8,7 +8,7 @@ use rocket::serde::json::Value;
 use rocket::serde::{Deserialize, Serialize};
 use std::env;
 use tracing::{event, instrument, Level};
-use windmill_tasks::connection;
+use windmill::connection;
 
 pub use crate::hasura::types::*;
 use crate::services::to_result::ToResult;

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use graphql_client::{GraphQLQuery, Response};
+use graphql_client::Response;
 use tracing::{event, instrument, Level};
 
 pub trait ToResult<T, E> {

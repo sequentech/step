@@ -10,12 +10,12 @@ use std::collections::HashMap;
 use std::convert::From;
 use std::env;
 use tracing::{event, instrument, Level};
-use windmill_tasks::connection;
+use windmill::connection;
 
 use crate::hasura;
 use crate::hasura::ballot_style::get_ballot_style_area;
 use crate::services::date::ISO8601;
-use windmill_tasks::types::scheduled_event::ScheduledEvent;
+use windmill::types::scheduled_event::ScheduledEvent;
 
 impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
     for sequent_core::hasura_types::ElectionEvent

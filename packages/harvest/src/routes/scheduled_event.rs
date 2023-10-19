@@ -11,8 +11,8 @@ use std::str::FromStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
 use tracing::instrument;
-use windmill_tasks::connection;
-use windmill_tasks::types::scheduled_event::*;
+use windmill::connection;
+use windmill::types::scheduled_event::*;
 
 use crate::hasura;
 use crate::services;

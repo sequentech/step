@@ -5,7 +5,7 @@ use anyhow::{bail, Context, Result};
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
-use windmill_tasks::connection;
+use windmill::connection;
 
 use crate::hasura;
 use crate::hasura::cast_ballot;
@@ -15,7 +15,7 @@ use crate::services::election_event_board::{
 };
 use crate::services::election_event_status;
 use crate::services::protocol_manager;
-use windmill_tasks::types::scheduled_event::ScheduledEvent;
+use windmill::types::scheduled_event::ScheduledEvent;
 
 #[derive(Deserialize, Debug, Serialize)]
 #[serde(crate = "rocket::serde")]

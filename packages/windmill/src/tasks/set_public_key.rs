@@ -5,10 +5,6 @@
 use anyhow::{Context, Result};
 use celery::error::TaskError;
 use celery::prelude::*;
-use celery::task::TaskResultExt;
-use rocket::serde::{Deserialize, Serialize};
-use strum_macros::Display;
-use strum_macros::EnumString;
 use tracing::instrument;
 
 use crate::connection;

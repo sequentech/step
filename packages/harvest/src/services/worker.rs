@@ -9,9 +9,9 @@ use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
 use tracing::{event, instrument, Level};
-use windmill_tasks::connection;
-use windmill_tasks::tasks::set_public_key::*;
-use windmill_tasks::types::scheduled_event::*;
+use windmill::connection;
+use windmill::tasks::set_public_key::*;
+use windmill::types::scheduled_event::*;
 
 use crate::hasura::event_execution;
 use crate::routes::scheduled_event;

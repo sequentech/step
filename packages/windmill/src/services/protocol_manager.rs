@@ -6,11 +6,9 @@ use anyhow::Result;
 use base64::engine::general_purpose;
 use base64::Engine;
 use braid::protocol_manager;
-use reqwest;
 use std::env;
 use strand::backend::ristretto::RistrettoCtx;
-use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::StrandSignaturePk;
+use strand::serialization::StrandSerialize;
 use tracing::instrument;
 
 #[instrument]

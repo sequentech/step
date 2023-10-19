@@ -10,5 +10,4 @@ members = [
     "ballot-verifier",
     "braid-messages",
     "windmill",
-    "windmill-tasks",
 ]

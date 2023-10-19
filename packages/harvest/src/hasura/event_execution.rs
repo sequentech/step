@@ -10,7 +10,7 @@ use std::env;
 use strum_macros::Display;
 use strum_macros::EnumString;
 use tracing::instrument;
-use windmill_tasks::connection;
+use windmill::connection;
 
 pub use crate::hasura::types::*;
 use crate::services::to_result::ToResult;

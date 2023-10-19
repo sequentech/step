@@ -8,7 +8,14 @@ use async_trait::async_trait;
 use celery::prelude::*;
 use structopt::StructOpt;
 use tracing::{event, instrument, Level};
-use windmill_tasks::tasks::set_public_key::set_public_key_task;
+
+pub mod connection;
+pub mod hasura;
+pub mod services;
+pub mod tasks;
+pub mod types;
+
+use crate::tasks::set_public_key::set_public_key_task;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -59,6 +66,6 @@ async fn main() -> Result<()> {
         }
     };
 
-    my_app.close().await?;
+    celery_app.close().await?;
     Ok(())
 }

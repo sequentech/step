@@ -12,7 +12,7 @@ use std::io::Write;
 use std::time::Duration;
 use tempfile::tempdir;
 use tracing::instrument;
-use windmill_tasks::connection;
+use windmill::connection;
 
 use crate::hasura;
 use crate::pdf;

@@ -7,7 +7,7 @@ use rocket::serde::{Deserialize, Serialize};
 use strum_macros::Display;
 use strum_macros::EnumString;
 use tracing::instrument;
-use windmill_tasks::connection;
+use windmill::connection;
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
