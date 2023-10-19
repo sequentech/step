@@ -9,6 +9,7 @@ use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
+use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::types::scheduled_event::ScheduledEvent;
@@ -19,9 +20,14 @@ pub async fn set_public_key_task(
     auth_headers: connection::AuthHeaders,
     event: ScheduledEvent,
 ) -> TaskResult<()> {
-    set_public_key(auth_headers, event)
+    set_public_key(auth_headers.clone(), event.clone())
         .await
-        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))
+        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
+
+    insert_event_execution_with_result(auth_headers, event, None)
+        .await
+        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
+    Ok(())
 }
 
 #[instrument(skip(auth_headers))]
