@@ -29,7 +29,7 @@ pub async fn set_public_key_task(
 }
 
 #[instrument(skip(auth_headers))]
-pub async fn set_public_key(
+ async fn set_public_key(
     auth_headers: connection::AuthHeaders,
     event: ScheduledEvent,
 ) -> Result<()> {

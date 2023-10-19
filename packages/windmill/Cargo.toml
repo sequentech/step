@@ -24,3 +24,4 @@ structopt = "0.3.26"
 serde = "1.0.174"
 
 braid = { path="../braid" }
+windmill-tasks = { path="../windmill-tasks" }

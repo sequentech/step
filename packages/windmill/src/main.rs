@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use celery::prelude::*;
 use structopt::StructOpt;
 use tracing::{event, instrument, Level};
+use windmill_tasks::tasks::set_public_key::set_public_key_task;
 
 // This generates the task struct and impl with the name set to the function name "add"
 #[instrument]
@@ -22,7 +23,7 @@ fn add(x: i32, y: i32) -> TaskResult<i32> {
 enum CeleryOpt {
     Consume,
     Produce {
-        #[structopt(possible_values = &["add", "set_public_key"])]
+        #[structopt(possible_values = &["add", "set_public_key_task"])]
         tasks: Vec<String>,
     },
 }
@@ -36,11 +37,12 @@ async fn main() -> Result<()> {
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
             add,
+            set_public_key_task,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
             "add" => "test_task",
-            "set_public_key" => "short_queue",
+            "set_public_key_task" => "short_queue",
         ],
         prefetch_count = 2,
         heartbeat = Some(10),
