@@ -60,7 +60,7 @@ async fn main() -> Result<()> {
         .expect("Should have been able to read the trustee configuration file");
 
     info!("{}", strand::info_string());
-    
+
     let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
 
     let bytes = braid::util::decode_base64(&tc.signing_key_sk)?;
@@ -93,7 +93,8 @@ async fn main() -> Result<()> {
         let mut step_error = false;
         for board_name in boards {
             info!("Connecting to board '{}'..", board_name.clone());
-            let trustee: Trustee<RistrettoCtx> = Trustee::new(sk.clone(), ek.clone());
+            let trustee: Trustee<RistrettoCtx> =
+                Trustee::new("Self".to_string(), sk.clone(), ek.clone());
             let board_result = ImmudbBoard::new(
                 &args.server_url,
                 IMMUDB_USER,
@@ -122,7 +123,7 @@ async fn main() -> Result<()> {
                 Err(error) => {
                     // FIXME should handle a bulletin board refusing messages maliciously
                     error!(
-                        "Error executing step for board '{}': '{}'",
+                        "Error executing step for board '{}': '{:?}'",
                         board_name.clone(),
                         error
                     );

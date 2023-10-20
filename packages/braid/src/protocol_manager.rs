@@ -2,14 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use braid_messages::artifact::Configuration;
-use braid_messages::message::Message;
 use crate::protocol2::trustee::ProtocolManager;
 use crate::run::config::ProtocolManagerConfig;
 use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::util::assert_folder;
 use braid_messages::statement::StatementType;
 use braid_messages::artifact::DkgPublicKey;
+
+use braid_messages::artifact::Configuration;
+use braid_messages::message::Message;
 
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;

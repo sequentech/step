@@ -7,30 +7,12 @@ pub(self) use strand::context::Element;
 pub(self) use strand::context::Exponent;
 
 pub(self) use crate::protocol2::datalog::NULL_HASH;
-pub(self) use braid_messages::message::Message;
+pub(self) use crate::protocol2::trustee::Trustee;
 pub(self) use braid_messages::artifact::{
     DecryptionFactors, DkgPublicKey, Mix, Plaintexts, Shares,
 };
+pub(self) use braid_messages::message::Message;
 pub(self) use braid_messages::newtypes::*;
-pub(self) use crate::protocol2::trustee::Trustee;
-
-/*pub(crate) use crate::protocol2::predicate::BatchNumber;
-pub(crate) use crate::protocol2::predicate::ChannelHash;
-pub(crate) use crate::protocol2::predicate::ChannelsHashes;
-pub(crate) use crate::protocol2::predicate::CiphertextsHash;
-pub(crate) use crate::protocol2::predicate::ConfigurationHash;
-pub(crate) use crate::protocol2::predicate::DecryptionFactorsHash;
-pub(crate) use crate::protocol2::predicate::DecryptionFactorsHashes;
-pub(crate) use crate::protocol2::predicate::PlaintextsHash;
-pub(crate) use crate::protocol2::predicate::PublicKeyHash;
-pub(crate) use crate::protocol2::predicate::SharesHash;
-pub(crate) use crate::protocol2::predicate::SharesHashes;
-pub(crate) use crate::protocol2::predicate::TrusteeSet;
-pub(crate) use crate::protocol2::predicate::{MixNumber, TrusteeCount, TrusteePosition};
-
-pub(crate) use crate::protocol2::PROTOCOL_MANAGER_INDEX;*/
-
-
 
 use crate::util::dbg_hash;
 
@@ -47,7 +29,7 @@ use crate::util::dbg_hash;
 //      4.2) Trustee::<message> Signs the statement and returns Message
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Display)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Display, Debug)]
 pub enum Action {
     SignConfiguration(ConfigurationHash),
     GenChannel(ConfigurationHash),
@@ -313,107 +295,3 @@ mod cfg;
 mod decrypt;
 mod dkg;
 mod shuffle;
-
-///////////////////////////////////////////////////////////////////////////
-// Debug
-///////////////////////////////////////////////////////////////////////////
-
-impl std::fmt::Debug for Action {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::SignConfiguration(h) => {
-                write!(f, "SignConfig{{ cfg hash={:?} }}", dbg_hash(&h.0))
-            }
-            Self::GenChannel(h) => {
-                write!(f, "GenChannel{{ cfg hash={:?} }}", dbg_hash(&h.0),)
-            }
-            Self::SignChannels(h, chs) => {
-                write!(
-                    f,
-                    "SignChannels{{ cfg hash={:?}, channels_hs={:?} }}",
-                    dbg_hash(&h.0),
-                    chs
-                )
-            }
-            Self::ComputeShares(h, chs, num_t, th) => {
-                write!(
-                    f,
-                    "ComputeShares{{ cfg hash={:?}, chs={:?}, #trustees={}, threshold={:?}",
-                    dbg_hash(&h.0),
-                    chs,
-                    num_t,
-                    th
-                )
-            }
-            Self::ComputePublicKey(cfg_h, _sh_hs, _cm_hs, _self_pos, _num_t, _th) => {
-                write!(f, "ComputePublicKey{{ cfg hash={:?} }}", dbg_hash(&cfg_h.0))
-            }
-            Self::SignPublicKey(cfg_h, pk_h, sh_hs, cm_hs, _self_pos, _num_t, _th) => {
-                write!(
-                    f,
-                    "SignPublicKey{{ cfg hash={:?}, pk hash={:?}, shares_hs={:?}, channels_hs={:?} }}",
-                    dbg_hash(&cfg_h.0), dbg_hash(&pk_h.0), sh_hs.0.map(|h| dbg_hash(&h)), cm_hs.0.map(|h| dbg_hash(&h))
-                )
-            }
-            Self::Mix(cfg_h, batch, ciphertexts_h, pk_h, signer_t, mix_no, trustees) => {
-                write!(f, "Mix{{ cfg_h={:?} batch={:?} cipher_h={:?} pk_h={:?}, signer_t={:?}, mix_n={:?}, num_t={:?}}}", dbg_hash(&cfg_h.0), batch, dbg_hash(&ciphertexts_h.0), dbg_hash(&pk_h.0), signer_t, mix_no, trustees)
-            }
-            Self::SignMix(
-                cfg_h,
-                batch,
-                source_h,
-                signers_t,
-                ciphertexts_h,
-                signert_t,
-                _pk_h,
-                mix_n,
-            ) => {
-                write!(
-                    f,
-                    "SignMix{{ cfg_h={:?} batch={:?} source_h={:?}, cipher_h={:?} signers_t={:?}, signert_t={:?}, mix_n={:?} }}",
-                    dbg_hash(&cfg_h.0), batch, dbg_hash(&source_h.0), dbg_hash(&ciphertexts_h.0), signers_t, signert_t, mix_n
-                )
-            }
-            Self::ComputeDecryptionFactors(
-                _cfg_h,
-                _batch,
-                _channels_hs,
-                _ciphertexts_h,
-                _signer_t,
-                _pk_h,
-                _shares_hs,
-                _self_p,
-                _num_t,
-                _threshold,
-                _selected,
-            ) => {
-                write!(f, "ComputeDecryptionFactors {{ }}",)
-            }
-            Self::ComputePlaintexts(
-                _cfg_h,
-                _batch,
-                _pk_h,
-                _dfactor_hs,
-                _ciphertexts_h,
-                _mix_signer,
-                _ts,
-                _th,
-            ) => {
-                write!(f, "ComputePlaintexts {{ }}",)
-            }
-            Self::SignPlaintexts(
-                _cfg_h,
-                _batch,
-                _pk_h,
-                _plaintexts_h,
-                _dfactor_hs,
-                _ciphertexts_h,
-                _mix_signer,
-                _ts,
-                _th,
-            ) => {
-                write!(f, "SignPlaintexts {{ }}",)
-            }
-        }
-    }
-}

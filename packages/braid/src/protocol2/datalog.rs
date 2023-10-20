@@ -1,9 +1,9 @@
+use anyhow::{anyhow, Result};
 pub use log::{debug, error, info, trace};
 use std::collections::HashSet;
 
 use crate::protocol2::action::Action;
 use braid_messages::newtypes::THashes;
-
 
 pub(crate) const NULL_HASH: [u8; 64] = [0u8; 64];
 
@@ -76,7 +76,7 @@ pub(crate) fn get_phases() -> Vec<Phase> {
     ]
 }
 
-pub(crate) fn run(predicates: &Vec<Predicate>) -> (HashSet<Action>, Vec<Predicate>) {
+pub(crate) fn run(predicates: &Vec<Predicate>) -> Result<HashSet<Action>> {
     let phases = get_phases();
     let mut all_predicates = vec![];
     for p in predicates {
@@ -102,14 +102,16 @@ pub(crate) fn run(predicates: &Vec<Predicate>) -> (HashSet<Action>, Vec<Predicat
         next.1.into_iter().for_each(|a| {
             actions.insert(a);
         });
-        next.2.into_iter().for_each(|d| {
-            error!("Datalog returned error {:?}", d);
-            // FIXME panic
-            panic!();
-        });
+
+        if next.2.len() > 0 {
+            next.2.into_iter().for_each(|d| {
+                error!("Datalog returned error {:?}", d);
+            });
+            return Err(anyhow!("Datalog returned errors"));
+        }
     }
 
-    (actions, all_predicates)
+    Ok(actions)
 }
 
 #[derive(Debug)]

@@ -524,10 +524,10 @@ impl BorshDeserialize for IntegerP {
 mod tests {
     use crate::backend::rug::*;
     use crate::backend::tests::*;
-    use crate::keymaker::tests::*;
     use crate::context::Ctx;
     use crate::elgamal::Ciphertext;
     use crate::elgamal::PrivateKey;
+    use crate::keymaker::tests::*;
     use crate::serialization::tests::*;
     use crate::shuffler::gen_permutation;
     use crate::shuffler::PermutationData;
@@ -570,13 +570,19 @@ mod tests {
     }
 
     #[test]
+    fn test_rerand() {
+        let ctx = RugCtx::<P2048>::default();
+        test_rerand_generic(&ctx);
+    }
+
+    #[test]
     fn test_vdecryption() {
         let ctx = RugCtx::<P2048>::default();
         let mut rng = ctx.get_rng();
         let plaintext = ctx.rnd_plaintext(&mut rng);
         test_vdecryption_generic(&ctx, plaintext);
     }
-    
+
     #[test]
     fn test_distributed() {
         let ctx = RugCtx::<P2048>::default();

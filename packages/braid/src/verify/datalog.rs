@@ -1,8 +1,8 @@
-use std::collections::HashSet;
-use braid_messages::newtypes::*;
-use crate::protocol2::predicate::Predicate;
 use crate::protocol2::datalog::{hashes_add, hashes_init};
+use crate::protocol2::predicate::Predicate;
+use braid_messages::newtypes::*;
 use crepe::crepe;
+use std::collections::HashSet;
 
 ///////////////////////////////////////////////////////////////////////////
 // Logic
