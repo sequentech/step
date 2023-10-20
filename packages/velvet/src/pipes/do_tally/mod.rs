@@ -1,21 +1,20 @@
 mod error;
 
-use self::error::{Error, Result};
-
 use super::{pipe_inputs::PipeInputs, Pipe};
+use std::error::Error as StdError;
 
-pub struct DoTally<'a> {
-    pub pipe_input: &'a PipeInputs,
+pub struct DoTally {
+    pub pipe_inputs: PipeInputs,
 }
 
-impl<'a> Pipe<'a> for DoTally<'a> {
-    type Error = Error;
-
-    fn new(pipe_input: &'a PipeInputs) -> Self {
-        Self { pipe_input }
+impl DoTally {
+    pub fn new(pipe_inputs: PipeInputs) -> Self {
+        Self { pipe_inputs }
     }
+}
 
-    fn exec(&self) -> Result<(), Self::Error> {
+impl Pipe for DoTally {
+    fn exec(&self) -> Result<(), Box<dyn StdError>> {
         dbg!("do tally pipe exec");
         Ok(())
     }

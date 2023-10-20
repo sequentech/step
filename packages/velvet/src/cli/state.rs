@@ -1,6 +1,6 @@
 use super::error::{Error, Result};
 use super::CliRun;
-use crate::pipes::match_run;
+use crate::pipes::PipeManager;
 use crate::{config::Config, pipes::pipe_name::PipeName};
 
 #[derive(Debug)]
@@ -66,7 +66,8 @@ impl State {
             .position(|p| *p == stage.current_pipe)
             .ok_or(Error::PipeNotFound)?;
 
-        match_run(&self.cli, stage.current_pipe)?;
+        let pm = PipeManager::new(&self.cli, stage.current_pipe)?.ok_or(|_| Error::PipeNotFound)?;
+        pm.exec().map_err(|e| Error::FromPipe(e.to_string()))?;
 
         if curr_index + 1 < stage.pipeline.len() {
             stage.current_pipe = stage.pipeline[curr_index + 1];

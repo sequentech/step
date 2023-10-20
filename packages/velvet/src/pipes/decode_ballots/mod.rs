@@ -2,27 +2,28 @@ pub mod ballot_codec;
 pub mod error;
 
 use self::ballot_codec::BallotCodec;
-use self::error::{Error, Result};
+use self::error::Error;
 use super::pipe_inputs::{PipeInputs, BALLOTS_FILE};
 use super::Pipe;
 use serde::{Deserialize, Serialize};
+use std::error::Error as StdError;
 use std::fs::{self, File};
 use std::io::BufRead;
 
 pub const OUTPUT_DECODED_BALLOTS_FILE: &str = "decoded_ballots.json";
 
-pub struct DecodeBallots<'a> {
-    pub pipe_inputs: &'a PipeInputs,
+pub struct DecodeBallots {
+    pub pipe_inputs: PipeInputs,
 }
 
-impl<'a> Pipe<'a> for DecodeBallots<'a> {
-    type Error = Error;
-
-    fn new(pipe_inputs: &'a PipeInputs) -> Self {
+impl DecodeBallots {
+    pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
+}
 
-    fn exec(&self) -> Result<(), Error> {
+impl Pipe for DecodeBallots {
+    fn exec(&self) -> Result<(), Box<dyn StdError>> {
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
                 let contest_config_file = fs::File::open(&contest_input.config)?;
