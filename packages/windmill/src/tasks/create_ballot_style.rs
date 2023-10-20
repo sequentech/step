@@ -164,8 +164,8 @@ pub struct CreateBallotStylePayload {
 #[celery::task]
 pub async fn create_ballot_style(
     auth_headers: connection::AuthHeaders,
-    body: CreateBallotStylePayload,
     event: ScheduledEvent,
+    body: CreateBallotStylePayload,
 ) -> TaskResult<()> {
     // read tenant_id and election_event_id
     let tenant_id = event

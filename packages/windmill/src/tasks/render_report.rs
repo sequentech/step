@@ -100,8 +100,6 @@ pub async fn render_report(
     auth_headers: connection::AuthHeaders,
     event: ScheduledEvent,
 ) -> TaskResult<Json<RenderTemplateResponse>> {
-    //let input = body.into_inner();
-
     println!("auth headers: {:#?}", auth_headers);
     let hasura_response = hasura::tenant::get_tenant(auth_headers.clone(), input.tenant_id.clone())
         .await

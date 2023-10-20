@@ -33,8 +33,8 @@ pub struct CreateKeysBody {
 #[celery::task]
 pub async fn create_keys(
     auth_headers: connection::AuthHeaders,
-    body: CreateKeysBody,
     event: ScheduledEvent,
+    body: CreateKeysBody,
 ) -> TaskResult<()> {
     let celery_app = get_celery_app().await;
     // read tenant_id and election_event_id

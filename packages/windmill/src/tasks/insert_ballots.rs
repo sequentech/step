@@ -28,8 +28,8 @@ pub struct InsertBallotsPayload {
 #[celery::task]
 pub async fn insert_ballots(
     auth_headers: connection::AuthHeaders,
-    body: InsertBallotsPayload,
     event: ScheduledEvent,
+    body: InsertBallotsPayload,
 ) -> TaskResult<()> {
     // read tenant_id and election_event_id
     let tenant_id = event

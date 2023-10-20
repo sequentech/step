@@ -38,8 +38,8 @@ async fn get_client() -> Result<BoardClient> {
 #[celery::task]
 pub async fn create_board(
     auth_headers: connection::AuthHeaders,
-    payload: CreateBoardPayload,
     event: ScheduledEvent,
+    payload: CreateBoardPayload,
 ) -> TaskResult<BoardSerializable> {
     let tenant_id: String = event.tenant_id.clone().unwrap();
     let election_event_id: String = event.election_event_id.clone().unwrap();
