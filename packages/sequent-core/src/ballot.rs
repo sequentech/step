@@ -12,6 +12,7 @@ use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
 
+
 pub const TYPES_VERSION: u32 = 0;
 
 /* -> Ciphertext<C: Ctx>
