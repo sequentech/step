@@ -13,8 +13,8 @@ use strum_macros::EnumString;
 use tracing::instrument;
 use windmill::connection;
 use windmill::types::scheduled_event::*;
+use windmill::hasura;
 
-use crate::hasura;
 use crate::services;
 
 #[derive(Deserialize, Debug)]

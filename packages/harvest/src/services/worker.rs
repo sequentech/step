@@ -19,8 +19,8 @@ use windmill::tasks::render_report;
 use windmill::tasks::set_public_key::*;
 use windmill::tasks::update_voting_status;
 use windmill::types::scheduled_event::*;
+use windmill::hasura::event_execution;
 
-use crate::hasura::event_execution;
 use crate::routes::scheduled_event;
 
 #[instrument(skip(auth_headers))]
