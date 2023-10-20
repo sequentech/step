@@ -6,7 +6,6 @@ pub mod celery;
 pub mod date;
 pub mod election_event_board;
 pub mod election_event_status;
-pub mod events;
 pub mod protocol_manager;
 pub mod to_result;
 pub mod vault;

@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
+use celery::error::TaskError;
+use celery::prelude::*;
 use handlebars::Handlebars;
 use headless_chrome::types::PrintToPdfOptions;
 use rocket::serde::json::Json;
@@ -12,8 +14,8 @@ use std::io::Write;
 use std::time::Duration;
 use tempfile::tempdir;
 use tracing::instrument;
-use windmill::connection;
 
+use crate::connection;
 use crate::hasura;
 use crate::pdf;
 use crate::s3;
@@ -75,8 +77,7 @@ async fn upload_and_return_document(
 
     let document_id = document.id.clone();
 
-    let document_s3_key =
-        s3::get_document_key(tenant_id, election_event_id, document_id);
+    let document_s3_key = s3::get_document_key(tenant_id, election_event_id, document_id);
 
     s3::upload_to_s3(&bytes, document_s3_key, "application/pdf".into()).await?;
 
@@ -91,18 +92,17 @@ async fn upload_and_return_document(
 }
 
 #[instrument(skip_all)]
+#[celery::task]
 pub async fn render_report(
     body: Json<RenderTemplateBody>,
     auth_headers: connection::AuthHeaders,
-) -> Result<Json<RenderTemplateResponse>> {
+) -> TaskResult<Json<RenderTemplateResponse>> {
     let input = body.into_inner();
 
     println!("auth headers: {:#?}", auth_headers);
-    let hasura_response = hasura::tenant::get_tenant(
-        auth_headers.clone(),
-        input.tenant_id.clone(),
-    )
-    .await?;
+    let hasura_response = hasura::tenant::get_tenant(auth_headers.clone(), input.tenant_id.clone())
+        .await
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let username = hasura_response
         .data
         .expect("expected data".into())
@@ -113,7 +113,9 @@ pub async fn render_report(
 
     // render handlebars template
     let reg = Handlebars::new();
-    let render = reg.render_template(input.template.as_str(), &variables)?;
+    let render = reg
+        .render_template(input.template.as_str(), &variables)
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {
@@ -131,9 +133,11 @@ pub async fn render_report(
     // Create temp html file
     let dir = tempdir()?;
     let file_path = dir.path().join("index.html");
-    let mut file = File::create(file_path.clone())?;
+    let mut file = File::create(file_path.clone())
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let file_path_str = file_path.to_str().unwrap();
-    file.write_all(render.as_bytes())?;
+    file.write_all(render.as_bytes())
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let url_path = format!("file://{}", file_path_str);
 
     let bytes = pdf::print_to_pdf(
@@ -157,7 +161,8 @@ pub async fn render_report(
             transfer_mode: None,
         },
         Some(Duration::new(1, 0)),
-    )?;
+    )
+    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     upload_and_return_document(
         bytes,
@@ -168,4 +173,5 @@ pub async fn render_report(
         input.name,
     )
     .await
+    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))
 }

@@ -11,7 +11,13 @@ use dotenv::dotenv;
 use structopt::StructOpt;
 use tracing::{event, instrument, Level};
 
-use crate::tasks::set_public_key::set_public_key_task;
+use crate::tasks::create_ballot_style::create_ballot_style;
+use crate::tasks::create_board::create_board;
+use crate::tasks::create_keys::create_keys;
+use crate::tasks::insert_ballots::insert_ballots;
+use crate::tasks::render_report::render_report;
+use crate::tasks::set_public_key::set_public_key;
+use crate::tasks::update_voting_status::update_voting_status;
 
 pub mod connection;
 pub mod hasura;
@@ -28,7 +34,15 @@ pub mod types;
 enum CeleryOpt {
     Consume,
     Produce {
-        #[structopt(possible_values = &["set_public_key_task"])]
+        #[structopt(possible_values = &[
+            "create_ballot_style",
+            "create_board",
+            "create_keys",
+            "insert_ballots",
+            "render_report",
+            "set_public_key",
+            "update_voting_status",
+        ])]
         tasks: Vec<String>,
     },
 }
@@ -42,11 +56,23 @@ async fn main() -> Result<()> {
     let celery_app = celery::app!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
-            set_public_key_task,
+            create_ballot_style,
+            create_board,
+            create_keys,
+            insert_ballots,
+            render_report,
+            set_public_key,
+            update_voting_status,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
-            "set_public_key_task" => "short_queue",
+            "create_ballot_style" => "short_queue",
+            "create_board" => "short_queue",
+            "create_keys" => "short_queue",
+            "insert_ballots" => "tally_queue",
+            "render_report" => "reports_queue",
+            "set_public_key" => "short_queue",
+            "update_voting_status" => "short_queue",
         ],
         prefetch_count = 2,
         heartbeat = Some(10),
@@ -55,7 +81,9 @@ async fn main() -> Result<()> {
     match opt {
         CeleryOpt::Consume => {
             celery_app.display_pretty().await;
-            celery_app.consume_from(&["short_queue"]).await?;
+            celery_app
+                .consume_from(&["short_queue", "reports_queue", "tally_queue"])
+                .await?;
         }
         CeleryOpt::Produce { tasks } => {
             if tasks.is_empty() {

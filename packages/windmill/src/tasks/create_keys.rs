@@ -5,22 +5,22 @@
 use anyhow::{bail, Context, Result};
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::Value;
-use windmill::connection;
-extern crate celery as external_celery; 
+extern crate celery as external_celery;
+use celery::error::TaskError;
+use celery::prelude::*;
 use external_celery::export::Arc;
 use external_celery::Celery;
-use windmill::tasks::set_public_key::set_public_key_task;
-use windmill::types::scheduled_event::ScheduledEvent;
 use tracing::{event, instrument, Level};
 
-use crate::services::celery;
+use crate::connection;
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
-use crate::services::election_event_board::{
-    get_election_event_board, BoardSerializable,
-};
+use crate::services::celery;
+use crate::services::election_event_board::{get_election_event_board, BoardSerializable};
 use crate::services::election_event_status;
 use crate::services::protocol_manager;
+use crate::tasks::set_public_key::set_public_key;
+use crate::types::scheduled_event::ScheduledEvent;
 
 #[derive(Deserialize, Debug, Serialize)]
 #[serde(crate = "rocket::serde")]
@@ -30,28 +30,32 @@ pub struct CreateKeysBody {
 }
 
 #[instrument(skip(auth_headers, celery_app))]
+#[celery::task]
 pub async fn create_keys(
     auth_headers: connection::AuthHeaders,
     body: CreateKeysBody,
     event: ScheduledEvent,
     celery_app: Arc<Celery>,
-) -> Result<()> {
+) -> TaskResult<()> {
     // read tenant_id and election_event_id
     let tenant_id = event
         .tenant_id
         .clone()
-        .with_context(|| "scheduled event is missing tenant_id")?;
+        .with_context(|| "scheduled event is missing tenant_id")
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let election_event_id = event
         .election_event_id
         .clone()
-        .with_context(|| "scheduled event is missing election_event_id")?;
+        .with_context(|| "scheduled event is missing election_event_id")
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     // fetch election_event
     let hasura_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
     )
-    .await?;
+    .await
+    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let election_event = &hasura_response
         .data
         .expect("expected data".into())
@@ -60,17 +64,17 @@ pub async fn create_keys(
     // check config is not already created
     let status: Option<election_event_status::ElectionEventStatus> =
         match election_event.status.clone() {
-            Some(value) => serde_json::from_value(value)?,
+            Some(value) => serde_json::from_value(value)
+                .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?,
             None => None,
         };
     if election_event_status::is_config_created(&status) {
         bail!("bulletin board config already created");
     }
 
-    let board_name = get_election_event_board(
-        election_event.bulletin_board_reference.clone(),
-    )
-    .with_context(|| "missing bulletin board")?;
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "missing bulletin board")
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     // create config/keys for board
     protocol_manager::create_keys(
@@ -78,14 +82,15 @@ pub async fn create_keys(
         body.trustee_pks.clone(),
         body.threshold.clone(),
     )
-    .await?;
+    .await
+    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     // update election event with status: keys created
-    let new_status =
-        serde_json::to_value(election_event_status::ElectionEventStatus {
-            config_created: Some(true),
-            stopped: Some(false),
-        })?;
+    let new_status = serde_json::to_value(election_event_status::ElectionEventStatus {
+        config_created: Some(true),
+        stopped: Some(false),
+    })
+    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     update_election_event_status(
         auth_headers.clone(),
@@ -93,14 +98,13 @@ pub async fn create_keys(
         election_event_id,
         new_status,
     )
-    .await?;
+    .await
+    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     let task = celery_app
-    .send_task(set_public_key_task::new(
-        auth_headers.clone(),
-        event.clone(),
-    ))
-    .await?;
+        .send_task(set_public_key::new(auth_headers.clone(), event.clone()))
+        .await
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     event!(Level::INFO, "Sent SET_PUBLIC_KEY task {}", task.task_id);
 
     Ok(())

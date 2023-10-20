@@ -3,19 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{bail, Context, Result};
+use celery::error::TaskError;
+use celery::prelude::*;
 use rocket::serde::{Deserialize, Serialize};
 use strum_macros::Display;
 use strum_macros::EnumString;
 use tracing::instrument;
-use windmill::connection;
 
+use crate::connection;
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 
-#[derive(
-    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
-)]
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
 #[serde(crate = "rocket::serde")]
 pub enum VotingStatus {
     NOT_STARTED,
@@ -38,6 +38,7 @@ pub struct ElectionStatus {
 }
 
 #[instrument(skip(auth_headers))]
+#[celery::task]
 pub async fn update_voting_status(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -52,15 +53,14 @@ pub async fn update_voting_status(
         tenant_id.clone(),
         election_event_id.clone(),
     )
-    .await?
+    .await
+    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?
     .data
-    .with_context(|| "can't find election event")?;
+    .with_context(|| "can't find election event")
+    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
-    let election_event =
-        &election_event_response.sequent_backend_election_event[0];
-    if payload.status == VotingStatus::OPEN
-        && election_event.public_key.is_none()
-    {
+    let election_event = &election_event_response.sequent_backend_election_event[0];
+    if payload.status == VotingStatus::OPEN && election_event.public_key.is_none() {
         bail!("Missing public key");
     }
     let new_status_value = serde_json::to_value(new_status)?;
@@ -71,11 +71,13 @@ pub async fn update_voting_status(
         payload.election_id.clone(),
         new_status_value,
     )
-    .await?;
+    .await
+    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     let _election_response_id = &hasura_response
         .data
-        .with_context(|| "can't find election")?
+        .with_context(|| "can't find election")
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?
         .update_sequent_backend_election
         .unwrap()
         .returning[0];

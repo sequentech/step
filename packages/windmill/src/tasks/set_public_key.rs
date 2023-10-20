@@ -16,7 +16,7 @@ use crate::types::scheduled_event::ScheduledEvent;
 
 #[instrument(skip(auth_headers))]
 #[celery::task(max_retries = 10)]
-pub async fn set_public_key_task(
+pub async fn set_public_key(
     auth_headers: connection::AuthHeaders,
     event: ScheduledEvent,
 ) -> TaskResult<()> {
@@ -64,8 +64,8 @@ pub async fn set_public_key_task(
     .await
     .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
-    /*insert_event_execution_with_result(auth_headers, event, None)
-    .await
-    .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;*/
+    insert_event_execution_with_result(auth_headers, event, None)
+        .await
+        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
     Ok(())
 }
