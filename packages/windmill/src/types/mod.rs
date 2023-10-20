@@ -2,5 +2,5 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod to_result;
-pub mod worker;
+pub mod hasura_types;
+pub mod scheduled_event;

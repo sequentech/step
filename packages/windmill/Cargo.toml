@@ -1,13 +1,14 @@
-# SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-# 
+# SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+#
 # SPDX-License-Identifier: AGPL-3.0-only
-
 [package]
-name = "harvest"
+name = "windmill"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = [
+  "Felix Robles <felix@sequentech.io>"
+]
+license = "AGPL-3.0-only"
 
 [dependencies]
 rocket = { version = "=0.5.0-rc.3", features = ["json"] }
@@ -17,26 +18,25 @@ handlebars = "4.3.7"
 headless_chrome = {version = "1.0.5", default-features = false}
 anyhow = "1.0.75"
 tempfile = "3.8.0"
-either = "1.9.0"
-dotenv = "0.15.0"
 graphql_client = "0.13.0"
-serde_json = "1.0.105"
 rust-s3 = "0.33.0"
-tokio = { version = "1.32.0", features = ["full"] }
-chrono = "0.4.31"
-base64 = "0.21.0"
-celery = "0.5.5"
-
 strum = "0.25"
 strum_macros = "0.25"
+base64 = "0.21.0"
+serde_json = "1.0.105"
+celery = "0.5.5"
+tokio = { version = "1.32.0", features = ["full"] }
+async-trait = "0.1.74"
+structopt = "0.3.26"
+dotenv = "0.15.0"
+chrono = "0.4.31"
+lazy_static = "1.4.0"
+async_once = "0.2.6"
 
 # logging
 tracing = "0.1.37"
 
 immu-board = { path="../immu-board" }
-immudb-rs = { path="../immudb-rs" }
 braid = { path="../braid" }
 strand = { path="../strand" }
 sequent-core = { path="../sequent-core" }
-windmill = { path="../windmill" }
-

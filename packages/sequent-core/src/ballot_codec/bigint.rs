@@ -7,7 +7,6 @@ use crate::ballot_codec::*;
 use crate::mixed_radix::{decode, encode};
 use crate::plaintext::*;
 use num_bigint::BigUint;
-use std::cmp::max;
 
 pub fn encode_bigint_to_bytes(b: &BigUint) -> Result<Vec<u8>, String> {
     Ok(b.to_radix_le(256))

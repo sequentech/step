@@ -9,4 +9,5 @@ members = [
     "sequent-core",
     "ballot-verifier",
     "braid-messages",
+    "windmill",
 ]

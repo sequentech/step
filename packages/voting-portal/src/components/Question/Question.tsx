@@ -24,6 +24,7 @@ import {
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
 
+
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
     display: flex;

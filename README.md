@@ -275,7 +275,11 @@ That will enable the /secrets path for the v1 key value secrets store in the `va
 
 You'll also need to configure the environment variables for `harvest` to connect
 with the `vault`. Specifically, set the `VAULT_TOKEN` to the `initial root token`
-and the `VAULT_UNSEAL_KEY` to the `keys`
+and the `VAULT_UNSEAL_KEY` to the `keys`.
+
+Finally you'll need to rebuild/restart harvest:
+
+    docker compose stop harvest && docker compose build harvest && docker compose up -d --no-deps harvest
 
 
 ## Common issues

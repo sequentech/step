@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use std::path::PathBuf;
-
 use anyhow::{anyhow, Result};
 use braid_messages::statement::StatementType;
 use immu_board::{Board, BoardClient, BoardMessage};

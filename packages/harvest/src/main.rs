@@ -8,8 +8,6 @@ extern crate rocket;
 use braid::util::init_log;
 use dotenv::dotenv;
 
-mod connection;
-mod hasura;
 mod pdf;
 mod routes;
 mod s3;
