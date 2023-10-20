@@ -335,6 +335,17 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+  
+  windmill:
+    profiles: ["dev"]
+    stdin_open: true
+    build:
+      context: ../packages/
+      dockerfile: ./windmill/Dockerfile
+    environment:
+      - IMMUDB_SERVER_URL=http://immudb:3322
+      - IMMUDB_USERNAME=immudb
+      - IMMUDB_PASSWORD=immudb
 
 volumes:
   db_data:
