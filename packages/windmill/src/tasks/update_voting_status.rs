@@ -24,14 +24,14 @@ pub enum VotingStatus {
     CLOSED,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct UpdateVotingStatusPayload {
     pub election_id: String,
     pub status: VotingStatus,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,

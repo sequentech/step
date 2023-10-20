@@ -3,18 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{Context, Result};
+use celery::error::TaskError;
+use celery::export::Arc;
+use celery::prelude::*;
+use celery::Celery;
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::Value;
-extern crate celery as external_celery;
-use celery::error::TaskError;
-use celery::prelude::*;
-use external_celery::export::Arc;
-use external_celery::Celery;
 use tracing::{event, instrument, Level};
 
 use crate::connection;
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
+use crate::services::celery_app::*;
 use crate::services::election_event_board::{get_election_event_board, BoardSerializable};
 use crate::services::election_event_status;
 use crate::services::protocol_manager;
@@ -28,14 +28,14 @@ pub struct CreateKeysBody {
     pub threshold: usize,
 }
 
-#[instrument(skip(auth_headers, celery_app))]
+#[instrument(skip(auth_headers))]
 #[celery::task]
 pub async fn create_keys(
     auth_headers: connection::AuthHeaders,
     body: CreateKeysBody,
     event: ScheduledEvent,
-    celery_app: Arc<Celery>,
 ) -> TaskResult<()> {
+    let celery_app = get_celery_app().await;
     // read tenant_id and election_event_id
     let tenant_id = event
         .tenant_id

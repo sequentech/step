@@ -20,14 +20,14 @@ use crate::hasura;
 use crate::services::pdf;
 use crate::services::s3;
 
-#[derive(Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(crate = "rocket::serde")]
 pub enum FormatType {
     TEXT,
     PDF,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct RenderTemplateBody {
     template: String,
@@ -94,10 +94,10 @@ async fn upload_and_return_document(
 #[instrument(skip_all)]
 #[celery::task]
 pub async fn render_report(
-    body: Json<RenderTemplateBody>,
+    input: RenderTemplateBody,
     auth_headers: connection::AuthHeaders,
 ) -> TaskResult<Json<RenderTemplateResponse>> {
-    let input = body.into_inner();
+    //let input = body.into_inner();
 
     println!("auth headers: {:#?}", auth_headers);
     let hasura_response = hasura::tenant::get_tenant(auth_headers.clone(), input.tenant_id.clone())

@@ -1,0 +1,50 @@
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use async_once::AsyncOnce;
+use celery::export::Arc;
+use celery::prelude::*;
+use celery::Celery;
+use tokio::runtime::Builder;
+
+use crate::tasks::create_ballot_style::create_ballot_style;
+use crate::tasks::create_board::create_board;
+use crate::tasks::create_keys::create_keys;
+use crate::tasks::insert_ballots::insert_ballots;
+use crate::tasks::render_report::render_report;
+use crate::tasks::set_public_key::set_public_key;
+use crate::tasks::update_voting_status::update_voting_status;
+
+lazy_static! {
+    static ref CELERY_APP: AsyncOnce<Arc<Celery>> = AsyncOnce::new(async {
+        celery::app!(
+            broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
+            tasks = [
+                create_ballot_style,
+                create_board,
+                create_keys,
+                insert_ballots,
+                render_report,
+                set_public_key,
+                update_voting_status,
+            ],
+            // Route certain tasks to certain queues based on glob matching.
+            task_routes = [
+                "create_ballot_style" => "short_queue",
+                "create_board" => "short_queue",
+                "create_keys" => "short_queue",
+                "insert_ballots" => "tally_queue",
+                "render_report" => "reports_queue",
+                "set_public_key" => "short_queue",
+                "update_voting_status" => "short_queue",
+            ],
+            prefetch_count = 2,
+            heartbeat = Some(10),
+        ).await.unwrap()
+    });
+}
+
+pub async fn get_celery_app() -> Arc<Celery> {
+    CELERY_APP.get().await.clone()
+}
