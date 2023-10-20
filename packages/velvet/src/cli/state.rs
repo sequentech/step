@@ -79,7 +79,7 @@ impl State {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config;
+    use crate::{config, fixtures::TestFixture};
     use anyhow::Result;
     use std::{collections::HashMap, path::PathBuf};
 
@@ -128,13 +128,14 @@ mod tests {
 
     #[test]
     fn test_state_exec_next() -> Result<()> {
-        // TODO: CLI is not correctly initiated here
+        let fixture = TestFixture::new()?;
+
         let cli = CliRun {
             stage: "main".to_string(),
             pipe_id: "do-tally".to_string(),
             config: PathBuf::new(),
-            input_dir: PathBuf::new(),
-            output_dir: PathBuf::new(),
+            input_dir: PathBuf::from(format!("{}/tests/input-dir", &fixture.root_dir)),
+            output_dir: PathBuf::from(format!("{}/tests/output-dir", &fixture.root_dir)),
         };
 
         let stages_def = {
