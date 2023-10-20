@@ -7,10 +7,10 @@ use reqwest;
 use rocket::serde::json::Value;
 use std::env;
 use tracing::instrument;
-use windmill::connection;
 
-pub use crate::hasura::types::*;
+use crate::connection;
 use crate::services::to_result::ToResult;
+pub use crate::types::hasura_types::*;
 
 #[derive(GraphQLQuery)]
 #[graphql(

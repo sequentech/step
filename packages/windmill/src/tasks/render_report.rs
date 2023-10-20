@@ -17,8 +17,8 @@ use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
-use crate::pdf;
-use crate::s3;
+use crate::services::pdf;
+use crate::services::s3;
 
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 #[serde(crate = "rocket::serde")]
@@ -27,7 +27,7 @@ pub enum FormatType {
     PDF,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct RenderTemplateBody {
     template: String,
@@ -127,11 +127,12 @@ pub async fn render_report(
             input.election_event_id,
             input.name,
         )
-        .await;
+        .await
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)));
     }
 
     // Create temp html file
-    let dir = tempdir()?;
+    let dir = tempdir().map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let file_path = dir.path().join("index.html");
     let mut file = File::create(file_path.clone())
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;

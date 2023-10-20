@@ -153,7 +153,7 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct CreateBallotStylePayload {
     pub area_id: String,
@@ -240,7 +240,8 @@ pub async fn create_ballot_style(
                     ))
                 },
             )
-            .collect::<Result<Vec<sequent_core::hasura_types::Contest>>>()?;
+            .collect::<Result<Vec<sequent_core::hasura_types::Contest>>>()
+            .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
         let candidates = contest_ids
             .into_iter()
             .map(

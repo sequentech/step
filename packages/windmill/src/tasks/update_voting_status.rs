@@ -24,7 +24,7 @@ pub enum VotingStatus {
     CLOSED,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct UpdateVotingStatusPayload {
     pub election_id: String,
@@ -44,7 +44,7 @@ pub async fn update_voting_status(
     tenant_id: String,
     election_event_id: String,
     payload: UpdateVotingStatusPayload,
-) -> Result<()> {
+) -> TaskResult<()> {
     let new_status = ElectionStatus {
         voting_status: payload.status.clone(),
     };
@@ -61,9 +61,10 @@ pub async fn update_voting_status(
 
     let election_event = &election_event_response.sequent_backend_election_event[0];
     if payload.status == VotingStatus::OPEN && election_event.public_key.is_none() {
-        bail!("Missing public key");
+        return Err(TaskError::UnexpectedError("Missing public key".into()));
     }
-    let new_status_value = serde_json::to_value(new_status)?;
+    let new_status_value = serde_json::to_value(new_status)
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let hasura_response = hasura::election::update_election_status(
         auth_headers.clone(),
         tenant_id.clone(),

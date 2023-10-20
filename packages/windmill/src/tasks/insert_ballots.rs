@@ -17,7 +17,7 @@ use crate::services::election_event_status;
 use crate::services::protocol_manager;
 use crate::types::scheduled_event::ScheduledEvent;
 
-#[derive(Deserialize, Debug, Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct InsertBallotsPayload {
     pub trustee_pks: Vec<String>,
@@ -62,10 +62,14 @@ pub async fn insert_ballots(
             None => None,
         };
     if !election_event_status::is_config_created(&status) {
-        bail!("bulletin board config missing");
+        return Err(TaskError::UnexpectedError(
+            "bulletin board config missing".into(),
+        ));
     }
     if !election_event_status::is_stopped(&status) {
-        bail!("election event is not stopped");
+        return Err(TaskError::UnexpectedError(
+            "election event is not stopped".into(),
+        ));
     }
 
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())

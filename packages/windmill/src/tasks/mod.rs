@@ -8,5 +8,4 @@ pub mod create_keys;
 pub mod insert_ballots;
 pub mod render_report;
 pub mod set_public_key;
-pub mod set_public_key;
 pub mod update_voting_status;

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::Value;
 extern crate celery as external_celery;
@@ -15,14 +15,13 @@ use tracing::{event, instrument, Level};
 use crate::connection;
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
-use crate::services::celery;
 use crate::services::election_event_board::{get_election_event_board, BoardSerializable};
 use crate::services::election_event_status;
 use crate::services::protocol_manager;
 use crate::tasks::set_public_key::set_public_key;
 use crate::types::scheduled_event::ScheduledEvent;
 
-#[derive(Deserialize, Debug, Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct CreateKeysBody {
     pub trustee_pks: Vec<String>,
@@ -69,7 +68,9 @@ pub async fn create_keys(
             None => None,
         };
     if election_event_status::is_config_created(&status) {
-        bail!("bulletin board config already created");
+        return Err(TaskError::UnexpectedError(
+            "bulletin board config already created".into(),
+        ));
     }
 
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())

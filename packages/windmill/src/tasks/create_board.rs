@@ -36,16 +36,16 @@ async fn get_client() -> Result<BoardClient> {
 #[celery::task]
 pub async fn create_board(
     auth_headers: connection::AuthHeaders,
-    tenant_id: &str,
-    election_event_id: &str,
-    board_db: &str,
+    tenant_id: String,
+    election_event_id: String,
+    board_db: String,
 ) -> TaskResult<BoardSerializable> {
     let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
     let mut board_client = get_client()
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let board = board_client
-        .create_board(index_db.as_str(), board_db)
+        .create_board(index_db.as_str(), board_db.as_str())
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let board_serializable: BoardSerializable = board.into();
