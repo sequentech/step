@@ -1,5 +1,5 @@
 use crate::pipes;
-use std::error::Error as StdError;
+use pipes::error::Error as PipesError;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -11,7 +11,8 @@ pub enum Error {
     StageDefinition(String),
     StageNotFound,
     PipeNotFound,
-    FromPipe(String),
+    FromPipe(PipesError),
+    PipeExec(String),
 }
 
 impl core::fmt::Display for Error {
@@ -20,11 +21,11 @@ impl core::fmt::Display for Error {
     }
 }
 
-// impl From<pipes::error::Error> for Error {
-//     fn from(val: Box<dyn StdError>) -> Self {
-//         Self::FromPipe(val)
-//     }
-// }
+impl From<PipesError> for Error {
+    fn from(val: PipesError) -> Self {
+        Self::FromPipe(val)
+    }
+}
 
 impl From<serde_json::Error> for Error {
     fn from(val: serde_json::Error) -> Self {
