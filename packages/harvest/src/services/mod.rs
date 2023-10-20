@@ -2,9 +2,5 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod date;
-pub mod election_event_board;
-pub mod election_event_status;
 pub mod to_result;
-pub mod vault;
 pub mod worker;
