@@ -2,16 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::path::PathBuf;
 use anyhow::{anyhow, Result};
 use braid_messages::statement::StatementType;
 use immu_board::{Board, BoardClient, BoardMessage};
 use rusqlite::params;
 use rusqlite::Connection;
+use std::path::PathBuf;
 use strand::serialization::StrandDeserialize;
 // use strand::serialization::StrandSerialize;
-use tokio::sync::Mutex;
 use braid_messages::message::Message;
+use tokio::sync::Mutex;
 
 pub struct ImmudbBoard {
     pub(crate) board_client: BoardClient,
@@ -36,14 +36,16 @@ impl ImmudbBoard {
     }
 
     pub async fn get_messages(&mut self, last_id: i64) -> Result<Vec<Message>> {
-        // let connection_mutex = Mutex::new(self.get_store()?);
-        let connection = self.get_store()?;
-        let mut channels = self.update_store(&connection).await?;
+        let connection_mutex = Mutex::new(self.get_store()?);
+        let mut channels = self.update_store(&connection_mutex).await?;
+        let connection = connection_mutex.lock().await;
         let mut messages = self.get_store_messages(&connection, last_id)?;
+
+        /*
         connection
             .close()
             .map_err(|e| anyhow!("Could not close sqlite connection: {:?}", e))?;
-
+        */
         // Allows for Channel deletion
         messages.append(&mut channels);
 
@@ -70,7 +72,8 @@ impl ImmudbBoard {
         Ok(connection)
     }
 
-    async fn update_store(&mut self, connection: &Connection) -> Result<Vec<Message>> {
+    async fn update_store(&mut self, connection_mutex: &Mutex<Connection>) -> Result<Vec<Message>> {
+        let connection = connection_mutex.lock().await;
         let mut channel_messages = vec![];
 
         let last_id: Result<i64> = connection

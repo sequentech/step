@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::protocol2::trustee::ProtocolManager;
 use crate::run::config::ProtocolManagerConfig;
-use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::util::assert_folder;
-use braid_messages::statement::StatementType;
 use braid_messages::artifact::DkgPublicKey;
+use braid_messages::statement::StatementType;
 
 use braid_messages::artifact::Configuration;
 use braid_messages::message::Message;
@@ -71,13 +71,12 @@ pub async fn add_config_to_board<C: Ctx>(
     init(&mut board, configuration, pm, board_name).await
 }
 
-
 #[instrument(skip(user, password))]
 pub async fn get_board_public_key<C: Ctx>(
     server_url: &str,
     user: &str,
     password: &str,
-    board_name: &str
+    board_name: &str,
 ) -> Result<C::E> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     assert_folder(store_root.clone())?;
@@ -90,16 +89,18 @@ pub async fn get_board_public_key<C: Ctx>(
     )
     .await?;
     let messages = board.get_messages(-1).await?;
-    let pks_message = messages.into_iter().find(|message|
-        match message.statement.get_kind() {
+    let pks_message = messages
+        .into_iter()
+        .find(|message| match message.statement.get_kind() {
             StatementType::PublicKey => true,
             _ => false,
-        }
-    ).with_context(|| {
-        format!("Public Key not found on board {}", board_name)
-    })?;
+        })
+        .with_context(|| format!("Public Key not found on board {}", board_name))?;
     let bytes = pks_message.artifact.with_context(|| {
-        format!("Artifact missing on Public Key message on board {}", board_name)
+        format!(
+            "Artifact missing on Public Key message on board {}",
+            board_name
+        )
     })?;
     let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
     Ok(dkgpk.pk)
