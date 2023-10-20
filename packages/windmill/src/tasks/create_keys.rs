@@ -14,6 +14,7 @@ use tracing::{event, instrument, Level};
 use crate::connection;
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
+use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::celery_app::*;
 use crate::services::election_event_board::{get_election_event_board, BoardSerializable};
 use crate::services::election_event_status;
@@ -107,6 +108,10 @@ pub async fn create_keys(
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     event!(Level::INFO, "Sent SET_PUBLIC_KEY task {}", task.task_id);
+
+    insert_event_execution_with_result(auth_headers, event, None)
+        .await
+        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
     Ok(())
 }

@@ -13,9 +13,11 @@ use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
+use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::election_event_board::BoardSerializable;
+use crate::types::scheduled_event::ScheduledEvent;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct CreateBoardPayload {
     pub board_name: String,
@@ -36,10 +38,13 @@ async fn get_client() -> Result<BoardClient> {
 #[celery::task]
 pub async fn create_board(
     auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    election_event_id: String,
-    board_db: String,
+    payload: CreateBoardPayload,
+    event: ScheduledEvent,
 ) -> TaskResult<BoardSerializable> {
+    let tenant_id: String = event.tenant_id.clone().unwrap();
+    let election_event_id: String = event.election_event_id.clone().unwrap();
+    let board_db: String = payload.board_name;
+
     let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
     let mut board_client = get_client()
         .await
@@ -60,5 +65,13 @@ pub async fn create_board(
     )
     .await
     .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+
+    let board_json = serde_json::to_value(board_serializable.clone())
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+
+    insert_event_execution_with_result(auth_headers, event, Some(board_json.clone()))
+        .await
+        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
+
     Ok(board_serializable)
 }

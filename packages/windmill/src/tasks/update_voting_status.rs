@@ -12,8 +12,10 @@ use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
+use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
+use crate::types::scheduled_event::ScheduledEvent;
 
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
 #[serde(crate = "rocket::serde")]
@@ -41,10 +43,11 @@ pub struct ElectionStatus {
 #[celery::task]
 pub async fn update_voting_status(
     auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    election_event_id: String,
+    event: ScheduledEvent,
     payload: UpdateVotingStatusPayload,
 ) -> TaskResult<()> {
+    let tenant_id: String = event.tenant_id.clone().unwrap();
+    let election_event_id: String = event.election_event_id.clone().unwrap();
     let new_status = ElectionStatus {
         voting_status: payload.status.clone(),
     };
@@ -82,6 +85,10 @@ pub async fn update_voting_status(
         .update_sequent_backend_election
         .unwrap()
         .returning[0];
+
+    insert_event_execution_with_result(auth_headers, event, None)
+        .await
+        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
     Ok(())
 }

@@ -17,8 +17,10 @@ use tracing::instrument;
 
 use crate::connection;
 use crate::hasura;
+use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::pdf;
 use crate::services::s3;
+use crate::types::scheduled_event::ScheduledEvent;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(crate = "rocket::serde")]
@@ -37,7 +39,7 @@ pub struct RenderTemplateBody {
     format: FormatType,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct RenderTemplateResponse {
     id: String,
@@ -96,6 +98,7 @@ async fn upload_and_return_document(
 pub async fn render_report(
     input: RenderTemplateBody,
     auth_headers: connection::AuthHeaders,
+    event: ScheduledEvent,
 ) -> TaskResult<Json<RenderTemplateResponse>> {
     //let input = body.into_inner();
 
@@ -165,7 +168,7 @@ pub async fn render_report(
     )
     .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
-    upload_and_return_document(
+    let document_json = upload_and_return_document(
         bytes,
         "application/pdf".to_string(),
         auth_headers.clone(),
@@ -174,5 +177,15 @@ pub async fn render_report(
         input.name,
     )
     .await
-    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))
+    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+
+    let document = document_json.clone().into_inner();
+    let document_value = serde_json::to_value(document)
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+
+    insert_event_execution_with_result(auth_headers, event, Some(document_value))
+        .await
+        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
+
+    Ok(document_json)
 }

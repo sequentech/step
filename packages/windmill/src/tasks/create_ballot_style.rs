@@ -16,6 +16,7 @@ use tracing::{event, instrument, Level};
 use crate::connection;
 use crate::hasura;
 use crate::hasura::ballot_style::get_ballot_style_area;
+use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::date::ISO8601;
 use crate::types::scheduled_event::ScheduledEvent;
 
@@ -296,6 +297,10 @@ pub async fn create_ballot_style(
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     }
+
+    insert_event_execution_with_result(auth_headers, event, None)
+        .await
+        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
     Ok(())
 }
