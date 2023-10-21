@@ -21,7 +21,9 @@ pub fn create_ballot_style(
         election_id: election.id,
         description: election.description,
         area_id: area.id,
-        status: election.status,
+        status: election.status.map(|status_js|
+            serde_json::from_value(status_js).ok()
+        ).flatten(),
         contests: contests
             .into_iter()
             .map(|contest| {
@@ -51,7 +53,7 @@ fn create_contest(
         min_votes: contest.min_votes.unwrap_or(0),
         voting_type: contest.voting_type,
         counting_algorithm: contest.counting_algorithm,
-        is_encrypted: contest.is_encrypted,
+        is_encrypted: contest.is_encrypted.unwrap_or(false),
         candidates: candidates
             .iter()
             .enumerate()
@@ -59,12 +61,14 @@ fn create_contest(
                 id: candidate.id,
                 tenant_id: candidate.tenant_id,
                 election_event_id: candidate.election_event_id,
-                election_id: candidate.election_id,
-                contest_id: candidate.contest_id,
+                election_id: contest.election_id,
+                contest_id: contest.id,
                 name: candidate.name,
                 description: candidate.description,
                 candidate_type: candidate.r#type,
-                presentation: candidate.presentation,
+                presentation: candidate.presentation.map(|presentation_js|
+                    serde_json::from_value(presentation_js).ok()
+                ).flatten(),
             })
             .collect(),
         presentation: None,
