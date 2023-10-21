@@ -29,7 +29,7 @@ pub fn create_ballot_style(
                         .into_iter()
                         .filter(|c| c.contest_id == Some(contest.id.clone()))
                         .collect::<Vec<hasura_types::Candidate>>();
-                    create_question(contest, election_candidates)
+                    create_contest(contest, election_candidates)
                 })
                 .collect(),
             start_date: None,
@@ -86,11 +86,11 @@ pub fn create_ballot_style(
     }
 }
 
-fn create_question(
+fn create_contest(
     contest: hasura_types::Contest,
     candidates: Vec<hasura_types::Candidate>,
-) -> ballot::Question {
-    ballot::Question {
+) -> ballot::Contest {
+    ballot::Contest {
         id: contest.id,
         description: contest.description.unwrap_or("".to_string()),
         layout: "".to_string(),

@@ -143,34 +143,18 @@ pub struct Candidate {
 
 impl Candidate {
     pub fn is_explicit_invalid(&self) -> bool {
-        self.urls
-            .iter()
-            .any(|url| url.title == "invalidVoteFlag" && url.url == "true")
+        self.presentation.as_ref().map(|presentation| presentation.is_explicit_invalid).unwrap_or(false)
     }
     pub fn is_write_in(&self) -> bool {
-        self.urls
-            .iter()
-            .any(|url| url.title == "isWriteIn" && url.url == "true")
+        self.presentation.as_ref().map(|presentation| presentation.is_write_in).unwrap_or(false)
     }
     pub fn set_is_write_in(&mut self, is_write_in: bool) {
-        if is_write_in == self.is_write_in() {
-            return;
-        }
-        if is_write_in {
-            self.urls.push(Url {
-                title: "isWriteIn".to_string(),
-                url: "true".to_string(),
-            })
-        } else {
-            self.urls = self
-                .urls
-                .clone()
-                .into_iter()
-                .filter(|url| {
-                    !(url.title == "invalidVoteFlag" && url.url == "true")
-                })
-                .collect();
-        }
+        let mut presentation = self.presentation.clone().unwrap_or(CandidatePresentation {
+            is_explicit_invalid: false,
+            is_write_in: false,
+        });
+        presentation.is_write_in = is_write_in;
+        self.presentation = Some(presentation);
     }
 }
 
@@ -221,32 +205,32 @@ pub struct Contest {
     pub presentation: Option<ContestPresentation>,
 }
 
-impl Question {
+impl Candidate {
     pub fn allow_writeins(&self) -> bool {
-        self.extra_options
+        self.presentation
             .as_ref()
-            .map(|options| options.allow_writeins.unwrap_or(false))
+            .map(|presentation| presentation.allow_writeins)
             .unwrap_or(false)
     }
 
     pub fn base32_writeins(&self) -> bool {
-        self.extra_options
+        self.presentation
             .as_ref()
-            .map(|options| options.base32_writeins.unwrap_or(true))
+            .map(|presentation| presentation.base32_writeins.unwrap_or(true))
             .unwrap_or(true)
     }
 
     pub fn allow_explicit_invalid(&self) -> bool {
-        self.extra_options
+        self.presentation
             .as_ref()
-            .map(|options| {
+            .map(|presentation| {
                 vec![
                     "allowed".to_string(),
                     "warn".to_string(),
                     "warn-invalid-implicit-and-explicit".to_string(),
                 ]
                 .contains(
-                    &options
+                    &presentation
                         .invalid_vote_policy
                         .clone()
                         .unwrap_or_else(|| "not-allowed".to_string()),
@@ -256,16 +240,16 @@ impl Question {
     }
 
     pub fn cumulative_number_of_checkboxes(&self) -> u64 {
-        self.extra_options
+        self.presentation
             .as_ref()
-            .map(|options| options.cumulative_number_of_checkboxes.unwrap_or(1))
+            .map(|presentation| presentation.cumulative_number_of_checkboxes.unwrap_or(1))
             .unwrap_or(1)
     }
 
     pub fn show_points(&self) -> bool {
-        self.extra_options
+        self.presentation
             .as_ref()
-            .map(|options| options.show_points.unwrap_or(false))
+            .map(|presentation| presentation.show_points.unwrap_or(false))
             .unwrap_or(false)
     }
 }
