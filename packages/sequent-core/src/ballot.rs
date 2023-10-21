@@ -11,6 +11,8 @@ use std::collections::HashMap;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
+use strum_macros::Display;
+use strum_macros::EnumString;
 
 pub const TYPES_VERSION: u32 = 1;
 
@@ -143,16 +145,23 @@ pub struct Candidate {
 
 impl Candidate {
     pub fn is_explicit_invalid(&self) -> bool {
-        self.presentation.as_ref().map(|presentation| presentation.is_explicit_invalid).unwrap_or(false)
+        self.presentation
+            .as_ref()
+            .map(|presentation| presentation.is_explicit_invalid)
+            .unwrap_or(false)
     }
     pub fn is_write_in(&self) -> bool {
-        self.presentation.as_ref().map(|presentation| presentation.is_write_in).unwrap_or(false)
+        self.presentation
+            .as_ref()
+            .map(|presentation| presentation.is_write_in)
+            .unwrap_or(false)
     }
     pub fn set_is_write_in(&mut self, is_write_in: bool) {
-        let mut presentation = self.presentation.clone().unwrap_or(CandidatePresentation {
-            is_explicit_invalid: false,
-            is_write_in: false,
-        });
+        let mut presentation =
+            self.presentation.clone().unwrap_or(CandidatePresentation {
+                is_explicit_invalid: false,
+                is_write_in: false,
+            });
         presentation.is_write_in = is_write_in;
         self.presentation = Some(presentation);
     }
@@ -173,7 +182,7 @@ pub struct ContestPresentation {
     allow_writeins: bool,
     base32_writeins: bool,
     invalid_vote_policy: String,
-    cumulative_number_of_checkboxes: Option<i64>,
+    cumulative_number_of_checkboxes: Option<u64>,
     show_points: bool,
 }
 
@@ -200,12 +209,11 @@ pub struct Contest {
     pub voting_type: Option<String>,
     pub counting_algorithm: Option<String>,
     pub is_encrypted: bool,
-    pub answer_total_votes_percentage: String,
     pub candidates: Vec<Candidate>,
     pub presentation: Option<ContestPresentation>,
 }
 
-impl Candidate {
+impl Contest {
     pub fn allow_writeins(&self) -> bool {
         self.presentation
             .as_ref()
@@ -216,7 +224,7 @@ impl Candidate {
     pub fn base32_writeins(&self) -> bool {
         self.presentation
             .as_ref()
-            .map(|presentation| presentation.base32_writeins.unwrap_or(true))
+            .map(|presentation| presentation.base32_writeins)
             .unwrap_or(true)
     }
 
@@ -229,12 +237,7 @@ impl Candidate {
                     "warn".to_string(),
                     "warn-invalid-implicit-and-explicit".to_string(),
                 ]
-                .contains(
-                    &presentation
-                        .invalid_vote_policy
-                        .clone()
-                        .unwrap_or_else(|| "not-allowed".to_string()),
-                )
+                .contains(&presentation.invalid_vote_policy)
             })
             .unwrap_or(false)
     }
@@ -242,14 +245,16 @@ impl Candidate {
     pub fn cumulative_number_of_checkboxes(&self) -> u64 {
         self.presentation
             .as_ref()
-            .map(|presentation| presentation.cumulative_number_of_checkboxes.unwrap_or(1))
+            .map(|presentation| {
+                presentation.cumulative_number_of_checkboxes.unwrap_or(1)
+            })
             .unwrap_or(1)
     }
 
     pub fn show_points(&self) -> bool {
         self.presentation
             .as_ref()
-            .map(|presentation| presentation.show_points.unwrap_or(false))
+            .map(|presentation| presentation.show_points)
             .unwrap_or(false)
     }
 }
@@ -265,6 +270,65 @@ impl Candidate {
     Debug,
     Clone,
 )]
+pub struct ElectionEventStatus {
+    pub config_created: Option<bool>,
+    pub stopped: Option<bool>,
+}
+
+impl ElectionEventStatus {
+    pub fn is_config_created(&self) -> bool {
+        self.config_created.unwrap_or(false)
+    }
+
+    pub fn is_stopped(&self) -> bool {
+        self.stopped.unwrap_or(false)
+    }
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+)]
+pub enum VotingStatus {
+    NOT_STARTED,
+    OPEN,
+    PAUSED,
+    CLOSED,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+)]
+//#[serde(crate = "rocket::serde")]
+pub struct ElectionStatus {
+    pub voting_status: VotingStatus,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+)]
 pub struct BallotStyle {
     pub id: Uuid,
     pub tenant_id: Uuid,
@@ -272,6 +336,6 @@ pub struct BallotStyle {
     pub election_id: Uuid,
     pub description: Option<String>,
     pub area_id: Uuid,
-    pub status: Option<String>,
+    pub status: Option<ElectionStatus>,
     pub contests: Vec<Contest>,
 }

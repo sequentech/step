@@ -7,82 +7,32 @@ use crate::hasura_types;
 pub const DEMO_PUBLIC_KEY: &str = "/jXUkdSIgz8mXLZ4BIDPQzDx7ZFFIG3MWuacDLyhyhoCAAAAGORKDU/t+8fKNkZMFfXl1IMM+/0VmINTZCcbalZ/NSUi5SbzUTlyzh25lMuVALwvC/lk3j6SHn6BotYphk0QMA";
 
 pub fn create_ballot_style(
+    id: String,
+    area: hasura_types::Area,                    // Area
     election_event: hasura_types::ElectionEvent, // Election Event
     election: hasura_types::Election,            // Election
     contests: Vec<hasura_types::Contest>,        // Question
     candidates: Vec<hasura_types::Candidate>,    // Answer
 ) -> ballot::BallotStyle {
     ballot::BallotStyle {
-        id: election.id.clone(),
-        configuration: ballot::ElectionConfig {
-            id: election.id.clone(),
-            layout: "simultaneous-questions".to_string(),
-            director: "protocol-manager".to_string(),
-            authorities: vec![],
-            title: election.name.clone(),
-            description: election.description.clone().unwrap_or("".to_string()),
-            questions: contests
-                .into_iter()
-                .map(|contest| {
-                    let election_candidates = candidates
-                        .clone()
-                        .into_iter()
-                        .filter(|c| c.contest_id == Some(contest.id.clone()))
-                        .collect::<Vec<hasura_types::Candidate>>();
-                    create_contest(contest, election_candidates)
-                })
-                .collect(),
-            start_date: None,
-            end_date: None,
-            presentation: ballot::ElectionPresentation {
-                share_text: None,
-                theme: "default".to_string(),
-                urls: vec![],
-                theme_css: "default".to_string(),
-                extra_options: None,
-                show_login_link_on_home: None,
-                election_board_ceremony: None,
-                conditional_questions: None,
-                pdf_url: None,
-                anchor_continue_btn_to_bottom: None,
-                i18n_override: None,
-            },
-            extra_data: None,
-            tallyPipesConfig: None,
-            ballotBoxesResultsConfig: None,
-            r#virtual: false,
-            tally_allowed: false,
-            publicCandidates: false,
-            segmentedMixing: None,
-            virtualSubelections: None,
-            mixingCategorySegmentation: None,
-            logo_url: None,
-        },
-        state: "started".to_string(),
-        startDate: None,
-        endDate: None,
-        public_key: Some(
-            election_event
-                .public_key
-                .map(|key| ballot::PublicKeyConfig {
-                    public_key: key,
-                    is_demo: false,
-                })
-                .unwrap_or(ballot::PublicKeyConfig {
-                    public_key: DEMO_PUBLIC_KEY.to_string(),
-                    is_demo: true,
-                }),
-        ),
-        tallyPipesConfig: None,
-        ballotBoxesResultsConfig: None,
-        results: None,
-        resultsUpdated: None,
-        r#virtual: false,
-        tallyAllowed: false,
-        publicCandidates: true,
-        logo_url: None,
-        trusteeKeysState: vec![],
-        segmentedMixing: None,
+        id: id,
+        tenant_id: election.tenant_id,
+        election_event_id: election.election_event_id,
+        election_id: election.id,
+        description: election.description,
+        area_id: area.id,
+        status: election.status,
+        contests: contests
+            .into_iter()
+            .map(|contest| {
+                let election_candidates = candidates
+                    .clone()
+                    .into_iter()
+                    .filter(|c| c.contest_id == Some(contest.id.clone()))
+                    .collect::<Vec<hasura_types::Candidate>>();
+                create_contest(contest, election_candidates)
+            })
+            .collect(),
     }
 }
 
@@ -92,29 +42,31 @@ fn create_contest(
 ) -> ballot::Contest {
     ballot::Contest {
         id: contest.id,
-        description: contest.description.unwrap_or("".to_string()),
-        layout: "".to_string(),
-        max: contest.max_votes.unwrap_or(0),
-        min: contest.min_votes.unwrap_or(0),
-        num_winners: 1,
-        title: contest.name.clone().unwrap_or("".to_string()),
-        tally_type: contest.counting_algorithm.unwrap_or("".to_string()),
-        answer_total_votes_percentage: "".to_string(),
-        answers: candidates
+        tenant_id: contest.tenant_id,
+        election_event_id: contest.election_event_id,
+        election_id: contest.election_id,
+        name: contest.name,
+        description: contest.description,
+        max_votes: contest.max_votes.unwrap_or(0),
+        min_votes: contest.min_votes.unwrap_or(0),
+        voting_type: contest.voting_type,
+        counting_algorithm: contest.counting_algorithm,
+        is_encrypted: contest.is_encrypted,
+        candidates: candidates
             .iter()
             .enumerate()
-            .map(|(i, candidate)| ballot::Answer {
-                id: candidate.id.clone(),
-                category: candidate.r#type.clone().unwrap_or("".to_string()),
-                details: candidate
-                    .description
-                    .clone()
-                    .unwrap_or("".to_string()),
-                sort_order: i as i64,
-                urls: vec![],
-                text: candidate.name.clone().unwrap_or("".to_string()),
+            .map(|(i, candidate)| ballot::Candidate {
+                id: candidate.id,
+                tenant_id: candidate.tenant_id,
+                election_event_id: candidate.election_event_id,
+                election_id: candidate.election_id,
+                contest_id: candidate.contest_id,
+                name: candidate.name,
+                description: candidate.description,
+                candidate_type: candidate.r#type,
+                presentation: candidate.presentation,
             })
             .collect(),
-        extra_options: None,
+        presentation: None,
     }
 }
