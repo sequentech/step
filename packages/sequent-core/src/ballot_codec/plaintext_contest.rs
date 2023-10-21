@@ -98,12 +98,12 @@ mod tests {
         assert_eq!(
             normalize_vote_contest(
                 &decoded_contest,
-                contest.tally_type.as_str(),
+                contest.get_counting_algorithm().as_str(),
                 false
             ),
             normalize_vote_contest(
                 &decoded_plaintext,
-                contest.tally_type.as_str(),
+                contest.get_counting_algorithm().as_str(),
                 false
             )
         );
@@ -176,12 +176,12 @@ mod tests {
                 assert_eq!(
                     normalize_vote_contest(
                         &decoded_ballot,
-                        fixture.contest.tally_type.as_str(),
+                        fixture.contest.get_counting_algorithm().as_str(),
                         false
                     ),
                     normalize_vote_contest(
                         &fixture.plaintext,
-                        fixture.contest.tally_type.as_str(),
+                        fixture.contest.get_counting_algorithm().as_str(),
                         false
                     )
                 );

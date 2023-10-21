@@ -238,7 +238,7 @@ mod tests {
     fn test_encrypt_writein_candidate() {
         let ctx = RistrettoCtx;
         let ballot_style = get_writein_ballot_style();
-        let contest = ballot_style.configuration.contests[0].clone();
+        let contest = ballot_style.contests[0].clone();
         let decoded_contest = get_writein_plaintext();
         let plaintext_bytes_vec = contest
             .encode_plaintext_contest_to_bytes(&decoded_contest)
@@ -259,12 +259,12 @@ mod tests {
         assert_eq!(
             normalize_vote_contest(
                 &decoded_plaintext,
-                contest.tally_type.as_str(),
+                contest.get_counting_algorithm().as_str(),
                 false
             ),
             normalize_vote_contest(
                 &decoded_contest,
-                contest.tally_type.as_str(),
+                contest.get_counting_algorithm().as_str(),
                 false
             )
         );
@@ -277,7 +277,7 @@ mod tests {
 
         let ctx = RistrettoCtx;
         let ballot_style = get_writein_ballot_style();
-        let contest = ballot_style.configuration.contests[0].clone();
+        let contest = ballot_style.contests[0].clone();
         let bigint_vec2: Vec<u8> = vec![198, 20, 150, 48];
         let bigint2 =
             bigint::decode_bigint_from_bytes(bigint_vec2.as_slice()).unwrap();
@@ -299,12 +299,12 @@ mod tests {
         assert_eq!(
             normalize_vote_contest(
                 &decoded_contest,
-                contest.tally_type.as_str(),
+                contest.get_counting_algorithm().as_str(),
                 false
             ),
             normalize_vote_contest(
                 &decoded_contest2,
-                contest.tally_type.as_str(),
+                contest.get_counting_algorithm().as_str(),
                 false
             )
         );

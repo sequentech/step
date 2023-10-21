@@ -441,7 +441,9 @@ mod tests {
                         decoded_ballot.choices[idx].write_in_text,
                         fixture.plaintext.choices[idx].write_in_text
                     );
-                    if fixture.contest.tally_type == "plurality-at-large" {
+                    if fixture.contest.get_counting_algorithm()
+                        == "plurality-at-large"
+                    {
                         assert_eq!(
                             decoded_ballot.choices[idx].selected,
                             cmp::min(

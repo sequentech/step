@@ -115,9 +115,29 @@ impl<C: Ctx> From<&AuditableBallot<C>> for HashableBallot<C> {
     Debug,
     Clone,
 )]
+pub struct CandidateUrl {
+    pub url: String,
+    pub kind: Option<String>,
+    pub title: Option<String>,
+    pub is_image: bool,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+)]
 pub struct CandidatePresentation {
     pub is_explicit_invalid: bool,
     pub is_write_in: bool,
+    pub sort_order: Option<i64>,
+    pub urls: Option<Vec<CandidateUrl>>,
 }
 
 #[derive(
@@ -179,11 +199,14 @@ impl Candidate {
     Clone,
 )]
 pub struct ContestPresentation {
-    allow_writeins: bool,
-    base32_writeins: bool,
-    invalid_vote_policy: String,
-    cumulative_number_of_checkboxes: Option<u64>,
-    show_points: bool,
+    pub allow_writeins: bool,
+    pub base32_writeins: bool,
+    pub invalid_vote_policy: String, /* allowed|warn|warn-invalid-implicit-and-explicit */
+    pub cumulative_number_of_checkboxes: Option<u64>,
+    pub shuffle_categories: bool,
+    pub shuffle_all_options: bool,
+    pub shuffle_category_list: Option<Vec<String>>,
+    pub show_points: bool,
 }
 
 #[derive(

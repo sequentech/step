@@ -187,14 +187,14 @@ mod tests {
                 assert_eq!(
                     normalize_vote_contest(
                         &fixture.plaintext,
-                        fixture.contest.tally_type.as_str(),
+                        fixture.contest.get_counting_algorithm().as_str(),
                         false
                     )
                     .choices,
                     normalize_vote_contest(
                         &decoded_plaintext
                             .expect("Expected value but got error"),
-                        fixture.contest.tally_type.as_str(),
+                        fixture.contest.get_counting_algorithm().as_str(),
                         false
                     )
                     .choices
@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn test_available_write_in_characters() {
         let ballot_style = get_writein_ballot_style();
-        let contest = ballot_style.configuration.contests[0].clone();
+        let contest = ballot_style.contests[0].clone();
         for n in -8..8 {
             let plaintext = get_too_long_writein_plaintext(n);
             let available_chars =

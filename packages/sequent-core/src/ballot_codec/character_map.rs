@@ -233,9 +233,9 @@ mod tests {
             contest.encode_plaintext_contest_to_bytes(&ballot).unwrap();
         let bytes_large = result.len();
 
-        let mut extra_options = contest.extra_options.as_ref().unwrap().clone();
-        extra_options.base32_writeins = Some(true);
-        contest.extra_options = Some(extra_options);
+        let mut presentation = contest.presentation.as_ref().unwrap().clone();
+        presentation.base32_writeins = true;
+        contest.presentation = Some(presentation);
 
         let result =
             contest.encode_plaintext_contest_to_bytes(&ballot).unwrap();
