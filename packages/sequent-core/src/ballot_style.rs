@@ -20,10 +20,23 @@ pub fn create_ballot_style(
         election_event_id: election.election_event_id,
         election_id: election.id,
         description: election.description,
+        public_key: Some(
+            election_event
+                .public_key
+                .map(|key| ballot::PublicKeyConfig {
+                    public_key: key,
+                    is_demo: false,
+                })
+                .unwrap_or(ballot::PublicKeyConfig {
+                    public_key: DEMO_PUBLIC_KEY.to_string(),
+                    is_demo: true,
+                }),
+        ),
         area_id: area.id,
-        status: election.status.map(|status_js|
-            serde_json::from_value(status_js).ok()
-        ).flatten(),
+        status: election
+            .status
+            .map(|status_js| serde_json::from_value(status_js).ok())
+            .flatten(),
         contests: contests
             .into_iter()
             .map(|contest| {
@@ -43,10 +56,10 @@ fn create_contest(
     candidates: Vec<hasura_types::Candidate>,
 ) -> ballot::Contest {
     ballot::Contest {
-        id: contest.id,
+        id: contest.id.clone(),
         tenant_id: contest.tenant_id,
         election_event_id: contest.election_event_id,
-        election_id: contest.election_id,
+        election_id: contest.election_id.clone(),
         name: contest.name,
         description: contest.description,
         max_votes: contest.max_votes.unwrap_or(0),
@@ -58,17 +71,21 @@ fn create_contest(
             .iter()
             .enumerate()
             .map(|(i, candidate)| ballot::Candidate {
-                id: candidate.id,
-                tenant_id: candidate.tenant_id,
-                election_event_id: candidate.election_event_id,
-                election_id: contest.election_id,
-                contest_id: contest.id,
-                name: candidate.name,
-                description: candidate.description,
-                candidate_type: candidate.r#type,
-                presentation: candidate.presentation.map(|presentation_js|
-                    serde_json::from_value(presentation_js).ok()
-                ).flatten(),
+                id: candidate.id.clone(),
+                tenant_id: candidate.tenant_id.clone(),
+                election_event_id: candidate.election_event_id.clone(),
+                election_id: contest.election_id.clone(),
+                contest_id: contest.id.clone(),
+                name: candidate.name.clone(),
+                description: candidate.description.clone(),
+                candidate_type: candidate.r#type.clone(),
+                presentation: candidate
+                    .presentation
+                    .clone()
+                    .map(|presentation_js| {
+                        serde_json::from_value(presentation_js).ok()
+                    })
+                    .flatten(),
             })
             .collect(),
         presentation: None,

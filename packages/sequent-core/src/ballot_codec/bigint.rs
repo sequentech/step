@@ -67,7 +67,7 @@ fn add_character(raw_ballot: &RawBallotQuestion) -> RawBallotQuestion {
     }
 }
 
-impl BigUIntCodec for Question {
+impl BigUIntCodec for Contest {
     fn available_write_in_characters(
         &self,
         plaintext: &DecodedVoteContest,

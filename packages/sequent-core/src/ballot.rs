@@ -207,7 +207,7 @@ pub struct Contest {
     pub max_votes: i64,
     pub min_votes: i64,
     pub voting_type: Option<String>,
-    pub counting_algorithm: Option<String>,
+    pub counting_algorithm: Option<String>, /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
     pub is_encrypted: bool,
     pub candidates: Vec<Candidate>,
     pub presentation: Option<ContestPresentation>,
@@ -219,6 +219,12 @@ impl Contest {
             .as_ref()
             .map(|presentation| presentation.allow_writeins)
             .unwrap_or(false)
+    }
+
+    pub fn get_counting_algorithm(&self) -> String {
+        self.counting_algorithm
+            .clone()
+            .unwrap_or("plurality-at-large".into())
     }
 
     pub fn base32_writeins(&self) -> bool {
@@ -335,6 +341,7 @@ pub struct BallotStyle {
     pub election_event_id: Uuid,
     pub election_id: Uuid,
     pub description: Option<String>,
+    pub public_key: Option<PublicKeyConfig>,
     pub area_id: Uuid,
     pub status: Option<ElectionStatus>,
     pub contests: Vec<Contest>,

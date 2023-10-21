@@ -90,7 +90,7 @@ pub fn recreate_encrypt_cyphertext<C: Ctx>(
     let public_key = parse_public_key::<C>(&ballot.config)?;
     // check ballot version
     // sanity checks for number of answers/choices
-    if ballot.contests.len() != ballot.config.configuration.questions.len() {
+    if ballot.contests.len() != ballot.config.contests.len() {
         return Err(BallotError::ConsistencyCheck(String::from(
             "Number of election questions should match number of answers in the ballot",
         )));
@@ -135,10 +135,10 @@ pub fn encrypt_decoded_question<C: Ctx<P = [u8; 30]>>(
     decoded_questions: &Vec<DecodedVoteContest>,
     config: &BallotStyle,
 ) -> Result<AuditableBallot<C>, BallotError> {
-    if config.configuration.questions.len() != decoded_questions.len() {
+    if config.contests.len() != decoded_questions.len() {
         return Err(BallotError::ConsistencyCheck(format!(
             "Invalid number of decoded questions {} != {}",
-            config.configuration.questions.len(),
+            config.contests.len(),
             decoded_questions.len()
         )));
     }
@@ -149,8 +149,7 @@ pub fn encrypt_decoded_question<C: Ctx<P = [u8; 30]>>(
 
     for decoded_question in decoded_questions {
         let question = config
-            .configuration
-            .questions
+            .contests
             .iter()
             .find(|question| question.id == decoded_question.contest_id)
             .ok_or_else(|| {

@@ -5,7 +5,7 @@ use crate::ballot::*;
 use phf::phf_map;
 use std::str;
 
-impl Question {
+impl Contest {
     pub fn get_char_map(&self) -> Box<dyn CharacterMap> {
         if self.base32_writeins() {
             Box::new(Base32Map)

@@ -30,7 +30,7 @@ pub trait RawBallotCodec {
     ) -> Result<i32, String>;
 }
 
-impl RawBallotCodec for Question {
+impl RawBallotCodec for Contest {
     fn available_write_in_characters_estimate(
         &self,
         plaintext: &DecodedVoteContest,
@@ -63,32 +63,32 @@ impl RawBallotCodec for Question {
 
         let char_map = self.get_char_map();
 
-        let answers_map = self
-            .answers
+        let candidates_map = self
+            .candidates
             .iter()
-            .map(|answer| (answer.id.clone(), answer))
-            .collect::<HashMap<Uuid, &Answer>>();
+            .map(|candidate| (candidate.id.clone(), candidate))
+            .collect::<HashMap<Uuid, &Candidate>>();
 
-        // sort answers by id
+        // sort candidates by id
         let mut sorted_choices = plaintext.choices.clone();
         sorted_choices.sort_by_key(|q| q.id.clone());
 
-        // Separate the answers between:
+        // Separate the candidates between:
         // - Invalid vote answer (if any)
         // - Write-ins (if any)
-        // - Valid answers (normal answers + write-ins if any)
+        // - Valid candidates (normal candidates + write-ins if any)
         let invalid_vote: u64 =
             if plaintext.is_explicit_invalid { 1 } else { 0 };
         choices.push(invalid_vote);
 
         for choice in sorted_choices.iter() {
-            let answer = answers_map
+            let answer = candidates_map
                 .get(&choice.id)
                 .ok_or_else(|| "choice id is not a valid answer".to_string())?;
             if answer.is_explicit_invalid() {
                 continue;
             }
-            if self.tally_type == "plurality-at-large" {
+            if self.get_counting_algorithm() == "plurality-at-large" {
                 // We just flag if the candidate was selected or not with 1 for
                 // selected and 0 otherwise
                 choices.push(u64::from(choice.selected > -1));
@@ -109,9 +109,10 @@ impl RawBallotCodec for Question {
         // with a \0 byte. Note that even write-ins.
         if self.allow_writeins() {
             for choice in sorted_choices.iter() {
-                let answer = answers_map.get(&choice.id).ok_or_else(|| {
-                    "choice id is not a valid answer".to_string()
-                })?;
+                let answer =
+                    candidates_map.get(&choice.id).ok_or_else(|| {
+                        "choice id is not a valid answer".to_string()
+                    })?;
                 let is_write_in = answer.is_write_in();
                 if choice.write_in_text.is_none() && is_write_in {
                     // we don't do a bases.push_back(256) as this is done in
@@ -155,24 +156,24 @@ impl RawBallotCodec for Question {
         let char_map = self.get_char_map();
 
         // 1. clone the question and reset the selections
-        let mut sorted_answers = self.answers.clone();
-        sorted_answers.sort_by_key(|q| q.id.clone());
+        let mut sorted_candidates = self.candidates.clone();
+        sorted_candidates.sort_by_key(|q| q.id.clone());
 
         // 1.2. Initialize selection
         let mut sorted_choices: Vec<DecodedVoteChoice> = vec![];
 
-        // 2. sort & segment answers
-        let valid_answers: Vec<&Answer> = sorted_answers
+        // 2. sort & segment candidates
+        let valid_candidates: Vec<&Candidate> = sorted_candidates
             .iter()
             .filter(|answer| !answer.is_explicit_invalid())
             .collect();
-        let write_in_answers: Vec<&Answer> = sorted_answers
+        let write_in_candidates: Vec<&Candidate> = sorted_candidates
             .iter()
             .filter(|answer| answer.is_write_in())
             .collect();
         // 4. Do some verifications on the number of choices: Checking that the
         //    raw_ballot has as many choices as required
-        if choices.len() < valid_answers.len() + 1 {
+        if choices.len() < valid_candidates.len() + 1 {
             // Invalid Ballot: Not enough choices to decode
             invalid_errors.push(InvalidPlaintextError {
                 error_type: InvalidPlaintextErrorType::EncodingError,
@@ -182,12 +183,13 @@ impl RawBallotCodec for Question {
             });
         }
 
-        // 5. Populate the valid answers. We asume they are in the same order as
+        // 5. Populate the valid candidates. We asume they are in the same order
+        //    as
         // in    raw_ballot["choices"]
         // we add 1 to the index because raw_ballot.choice[0] is just the
         // invalidVoteFlag
         let mut index = 1usize;
-        for answer in &valid_answers {
+        for answer in &valid_candidates {
             if choices.len() <= index {
                 break;
             }
@@ -207,7 +209,7 @@ impl RawBallotCodec for Question {
         // 6. Decode the write-in texts into UTF-8 and split by the \0
         // character,    finally the text for the write-ins.
         let mut write_in_index = index;
-        for answer in &write_in_answers {
+        for answer in &write_in_candidates {
             if write_in_index >= choices.len() {
                 break;
             }
@@ -305,12 +307,12 @@ impl RawBallotCodec for Question {
         }
 
         // implicit invalid errors
-        let num_selected_answers = sorted_choices
+        let num_selected_candidates = sorted_choices
             .iter()
             .filter(|choice| choice.selected > -1)
             .count();
 
-        if num_selected_answers > usize::try_from(self.max).unwrap() {
+        if num_selected_candidates > usize::try_from(self.max_votes).unwrap() {
             invalid_errors.push(InvalidPlaintextError {
                 error_type: InvalidPlaintextErrorType::Implicit,
                 answer_id: None,
@@ -318,12 +320,14 @@ impl RawBallotCodec for Question {
                 message_map: HashMap::from([
                     (
                         "numSelected".to_string(),
-                        num_selected_answers.to_string(),
+                        num_selected_candidates.to_string(),
                     ),
-                    ("max".to_string(), self.max.to_string()),
+                    ("max".to_string(), self.max_votes.to_string()),
                 ]),
             });
-        } else if num_selected_answers < usize::try_from(self.min).unwrap() {
+        } else if num_selected_candidates
+            < usize::try_from(self.min_votes).unwrap()
+        {
             invalid_errors.push(InvalidPlaintextError {
                 error_type: InvalidPlaintextErrorType::Implicit,
                 answer_id: None,
@@ -331,9 +335,9 @@ impl RawBallotCodec for Question {
                 message_map: HashMap::from([
                     (
                         "numSelected".to_string(),
-                        num_selected_answers.to_string(),
+                        num_selected_candidates.to_string(),
                     ),
-                    ("min".to_string(), self.min.to_string()),
+                    ("min".to_string(), self.min_votes.to_string()),
                 ]),
             });
         }

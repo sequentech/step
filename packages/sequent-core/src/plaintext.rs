@@ -44,18 +44,17 @@ pub fn map_to_decoded_question<C: Ctx<P = [u8; 30]>>(
     ballot: &AuditableBallot<C>,
 ) -> Result<Vec<DecodedVoteContest>, String> {
     let mut decoded_questions = vec![];
-    if ballot.config.configuration.questions.len() != ballot.contests.len() {
+    if ballot.config.contests.len() != ballot.contests.len() {
         return Err(format!(
             "Invalid number of contests {} != {}",
-            ballot.config.configuration.questions.len(),
+            ballot.config.contests.len(),
             ballot.contests.len()
         ));
     }
     for contest in &ballot.contests {
         let question = ballot
             .config
-            .configuration
-            .questions
+            .contests
             .iter()
             .find(|question| question.id == contest.contest_id)
             .ok_or_else(|| {

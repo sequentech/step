@@ -25,7 +25,7 @@ pub trait PlaintextCodec {
     ) -> Result<DecodedVoteContest, String>;
 }
 
-impl PlaintextCodec for Question {
+impl PlaintextCodec for Contest {
     fn encode_plaintext_question(
         &self,
         plaintext: &DecodedVoteContest,
