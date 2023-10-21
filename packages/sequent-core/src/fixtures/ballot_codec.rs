@@ -35,8 +35,8 @@ fn get_contest_plurality() -> Contest {
          "num_winners":1,
          "title":"Secretario General",
          "tally_type":"plurality-at-large",
-         "answer_total_votes_percentage":"over-total-valid-votes",
-         "answers":[
+         "candidate_total_votes_percentage":"over-total-valid-votes",
+         "candidates":[
             {
                 "id":"0",
                "category":"Candidaturas no agrupadas",
@@ -148,8 +148,8 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                     "num_winners": 1,
                     "title": "Test contest title",
                     "tally_type": "plurality-at-large",
-                    "answer_total_votes_percentage": "over-total-valid-votes",
-                    "answers": [
+                    "candidate_total_votes_percentage": "over-total-valid-votes",
+                    "candidates": [
                         {
                             "id": "f257cd3a-d1cf-4b97-91f8-2dfe156b015c",
                             "category": "",
@@ -342,8 +342,8 @@ pub fn get_test_contest() -> Contest {
         "num_winners":1,
         "title":"Test contest title",
         "tally_type":"plurality-at-large",
-        "answer_total_votes_percentage":"over-total-valid-votes",
-        "answers":[
+        "candidate_total_votes_percentage":"over-total-valid-votes",
+        "candidates":[
            {
               "id":"38df9caf-2dc8-472c-87f2-f003241e9510",
               "category":"",
@@ -401,7 +401,7 @@ pub fn get_test_contest() -> Contest {
 
 pub(crate) fn get_configurable_contest(
     max: i64,
-    num_answers: usize,
+    num_candidates: usize,
     tally_type: String,
     enable_writeins: bool,
     write_in_contests: Option<Vec<usize>>,
@@ -414,7 +414,7 @@ pub(crate) fn get_configurable_contest(
         "min":0,
         "max":3,
         "tally_type":"plurality-at-large",
-        "answers":[
+        "candidates":[
            {
               "category":"Candidaturas no agrupadas",
               "text":"José Rabano Pimiento",
@@ -488,8 +488,8 @@ pub(crate) fn get_configurable_contest(
         ],
         "num_winners":1,
         "title":"Secretario General",
-        "randomize_answer_order":true,
-        "answer_total_votes_percentage":"over-total-valid-votes",
+        "randomize_candidate_order":true,
+        "candidate_total_votes_percentage":"over-total-valid-votes",
         "extra_options": {
             "base32_writeins": true
         }
@@ -507,8 +507,8 @@ pub(crate) fn get_configurable_contest(
         let write_in_indexes =
             write_in_contests.unwrap_or_else(|| vec![4, 5, 6]);
         for write_in_index in write_in_indexes {
-            if write_in_index < contest.answers.len() {
-                contest.answers[write_in_index].set_is_write_in(true);
+            if write_in_index < contest.candidates.len() {
+                contest.candidates[write_in_index].set_is_write_in(true);
             }
         }
     }
@@ -518,7 +518,7 @@ pub(crate) fn get_configurable_contest(
     extra_options.base32_writeins = Some(base32_writeins);
     contest.extra_options = Some(extra_options);
 
-    contest.answers = contest.answers[0..num_answers].to_vec();
+    contest.candidates = contest.candidates[0..num_candidates].to_vec();
     contest
 }
 
@@ -564,7 +564,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::Implicit,
-                        answer_id: None,
+                        candidate_id: None,
                         message: Some("errors.implicit.selectedMax".to_string()),
                         message_map: HashMap::from([
                             ("numSelected".to_string(), 3.to_string()),
@@ -631,9 +631,9 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 num_winners: 1,
                 title: "Poste de maire(sse)".to_string(),
                 tally_type: "plurality-at-large".to_string(),
-                answer_total_votes_percentage: "over-total-valid-votes".to_string(),
-                answers: vec![
-                    Answer {
+                candidate_total_votes_percentage: "over-total-valid-votes".to_string(),
+                candidates: vec![
+                    Candidate {
                         id: 0.to_string(),
                         category: "".to_string(),
                         text: "Chloe HUTCHISON".to_string(),
@@ -641,7 +641,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         details: "Independent".to_string(),
                         urls: vec![],
                     },
-                    Answer {
+                    Candidate {
                         id: 1.to_string(),
                         category: "".to_string(),
                         text: "Helen KURGANSKY".to_string(),
@@ -649,7 +649,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         details: "Political Affiliation 1".to_string(),
                         urls: vec![],
                     },
-                    Answer {
+                    Candidate {
                         id: 2.to_string(),
                         category: "".to_string(),
                         text: "Jamie NICHOLLS".to_string(),
@@ -657,7 +657,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         details: "Political Affiliation 2".to_string(),
                         urls: vec![],
                     },
-                    Answer {
+                    Candidate {
                         id: 3.to_string(),
                         category: "".to_string(),
                         text: "".to_string(),
@@ -705,7 +705,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::Implicit,
-                        answer_id: None,
+                        candidate_id: None,
                         message: Some("errors.implicit.selectedMax".to_string()),
                         message_map: HashMap::from([
                             ("numSelected".to_string(), 3.to_string()),
@@ -727,9 +727,9 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 min: 0,
                 max: 1,
                 tally_type: "plurality-at-large".to_string(),
-                answer_total_votes_percentage: "over-total-valid-votes".to_string(),
-                answers: vec![
-                    Answer {
+                candidate_total_votes_percentage: "over-total-valid-votes".to_string(),
+                candidates: vec![
+                    Candidate {
                         id: 0.to_string(),
                         category: "".to_string(),
                         text: "Chloe HUTCHISON".to_string(),
@@ -737,7 +737,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         details: "Independent".to_string(),
                         urls: vec![],
                     },
-                    Answer {
+                    Candidate {
                         id: 1.to_string(),
                         category: "".to_string(),
                         text: "Helen KURGANSKY".to_string(),
@@ -745,7 +745,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         details: "Political Affiliation 1".to_string(),
                         urls: vec![],
                     },
-                    Answer {
+                    Candidate {
                         id: 2.to_string(),
                         category: "".to_string(),
                         text: "Jamie NICHOLLS".to_string(),
@@ -753,7 +753,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         details: "Political Affiliation 2".to_string(),
                         urls: vec![],
                     },
-                    Answer {
+                    Candidate {
                         id: 3.to_string(),
                         category: "".to_string(),
                         text: "".to_string(),
@@ -814,8 +814,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 min: 0,
                 max: 1,
                 tally_type: "plurality-at-large".to_string(),
-                answers: vec![
-                    Answer {
+                candidates: vec![
+                    Candidate {
                         id: 0.to_string(),
                         category: "".to_string(),
                         text: "Chloe HUTCHISON".to_string(),
@@ -823,7 +823,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         details: "Independent".to_string(),
                         urls: vec![],
                     },
-                    Answer {
+                    Candidate {
                         id: 1.to_string(),
                         category: "".to_string(),
                         text: "Helen KURGANSKY".to_string(),
@@ -831,7 +831,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         details: "Political Affiliation 1".to_string(),
                         urls: vec![],
                     },
-                    Answer {
+                    Candidate {
                         id: 2.to_string(),
                         category: "".to_string(),
                         text: "Jamie NICHOLLS".to_string(),
@@ -839,7 +839,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         details: "Political Affiliation 2".to_string(),
                         urls: vec![],
                     },
-                    Answer {
+                    Candidate {
                         id: 3.to_string(),
                         category: "".to_string(),
                         text: "".to_string(),
@@ -855,7 +855,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 num_winners: 1,
                 title: "Poste de maire(sse)".to_string(),
-                answer_total_votes_percentage: "over-total-valid-votes".to_string(),
+                candidate_total_votes_percentage: "over-total-valid-votes".to_string(),
                 extra_options: {
                     let mut extra = ContestExtra::new();
                     extra.invalid_vote_policy =  Some("allowed".to_string());
@@ -889,7 +889,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::Implicit,
-                        answer_id: None,
+                        candidate_id: None,
                         message: Some("errors.implicit.selectedMax".to_string()),
                         message_map: HashMap::from([
                             ("numSelected".to_string(), 3.to_string()),
@@ -911,8 +911,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 min: 1,
                 max: 1,
                 tally_type: "plurality-at-large".to_string(),
-                answers: vec![
-                    Answer {
+                candidates: vec![
+                    Candidate {
                         id: 0.to_string(),
                         category: "".to_string(),
                         text: "Example option 1".to_string(),
@@ -920,7 +920,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         details: "This is an option with an simple example description.".to_string(),
                         urls: vec![],
                     },
-                    Answer {
+                    Candidate {
                         id: 1.to_string(),
                         category: "".to_string(),
                         text: "Example option 2".to_string(),
@@ -928,7 +928,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         details: "An option can contain a description. You can add simple html like <strong>bold</strong> or <a href=\"https://sequentech.io\" rel=\"nofollow\">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.".to_string(),
                         urls: vec![],
                     },
-                    Answer {
+                    Candidate {
                         id: 2.to_string(),
                         category: "".to_string(),
                         text: "Example option 3".to_string(),
@@ -939,7 +939,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 num_winners: 1,
                 title: "Test contest title".to_string(),
-                answer_total_votes_percentage: "over-total-valid-votes".to_string(),
+                candidate_total_votes_percentage: "over-total-valid-votes".to_string(),
                 extra_options: {
                     let mut extra = ContestExtra::new();
                     extra.invalid_vote_policy =  Some("allowed".to_string());
@@ -973,7 +973,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::Implicit,
-                        answer_id: None,
+                        candidate_id: None,
                         message: Some("errors.implicit.selectedMin".to_string()),
                         message_map: HashMap::from([
                             ("numSelected".to_string(), 0.to_string()),
@@ -987,7 +987,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             expected_errors: None
         },
         BallotCodecFixture {
-            title: "example_4_implicit_invented_answer".to_string(),
+            title: "example_4_implicit_invented_candidate".to_string(),
             contest: Contest {
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 layout: "accordion".to_string(),
@@ -995,8 +995,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 min: 1,
                 max: 1,
                 tally_type: "plurality-at-large".to_string(),
-                answers: vec![
-                    Answer {
+                candidates: vec![
+                    Candidate {
                         id: 0.to_string(),
                         category: "".to_string(),
                         text: "Example option 1".to_string(),
@@ -1004,7 +1004,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         details: "This is an option with an simple example description.".to_string(),
                         urls: vec![],
                     },
-                    Answer {
+                    Candidate {
                         id: 1.to_string(),
                         category: "".to_string(),
                         text: "Example option 2".to_string(),
@@ -1012,7 +1012,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                         details: "An option can contain a description. You can add simple html like <strong>bold</strong> or <a href=\"https://sequentech.io\" rel=\"nofollow\">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.".to_string(),
                         urls: vec![],
                     },
-                    Answer {
+                    Candidate {
                         id: 2.to_string(),
                         category: "".to_string(),
                         text: "Example option 3".to_string(),
@@ -1023,7 +1023,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 ],
                 num_winners: 1,
                 title: "Test contest title".to_string(),
-                answer_total_votes_percentage: "over-total-valid-votes".to_string(),
+                candidate_total_votes_percentage: "over-total-valid-votes".to_string(),
                 extra_options: {
                     let mut extra = ContestExtra::new();
                     extra.invalid_vote_policy =  Some("allowed".to_string());
@@ -1062,13 +1062,13 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::EncodingError,
-                        answer_id: None,
+                        candidate_id: None,
                         message: Some("errors.encoding.ballotTooLarge".to_string()),
                         message_map: HashMap::new(),
                     },
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::Implicit,
-                        answer_id: None,
+                        candidate_id: None,
                         message: Some("errors.implicit.selectedMin".to_string()),
                         message_map: HashMap::from([
                             ("numSelected".to_string(), 0.to_string()),
@@ -1081,10 +1081,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             encoded_ballot: vec_to_30_array(&vec![1, 16]).unwrap(),
             expected_errors: Some(HashMap::from([
                 ("contest_bases".to_string(), "".to_string()),
-                ("contest_encode_plaintext".to_string(), "choice id is not a valid answer".to_string()),
-                ("contest_encode_to_raw_ballot".to_string(), "choice id is not a valid answer".to_string()),
+                ("contest_encode_plaintext".to_string(), "choice id is not a valid candidate".to_string()),
+                ("contest_encode_to_raw_ballot".to_string(), "choice id is not a valid candidate".to_string()),
                 ("contest_decode_plaintext".to_string(), "decode_choices".to_string()),
-                ("encoding_plaintext_bigint".to_string(), "choice id is not a valid answer".to_string()),
+                ("encoding_plaintext_bigint".to_string(), "choice id is not a valid candidate".to_string()),
             ]))
         },
         BallotCodecFixture {
@@ -1263,7 +1263,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::Explicit,
-                        answer_id: None,
+                        candidate_id: None,
                         message: Some("errors.explicit.notAllowed".to_string()),
                         message_map: HashMap::new(),
                     }
@@ -1298,13 +1298,13 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::Explicit,
-                        answer_id: None,
+                        candidate_id: None,
                         message: Some("errors.explicit.notAllowed".to_string()),
                         message_map: HashMap::new(),
                     },
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::Implicit,
-                        answer_id: None,
+                        candidate_id: None,
                         message: Some("errors.implicit.selectedMax".to_string()),
                         message_map: HashMap::from([
                             ("numSelected".to_string(), "3".to_string()),
@@ -1419,7 +1419,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::EncodingError,
-                        answer_id: None,
+                        candidate_id: None,
                         message: Some("errors.encoding.notEnoughChoices".to_string()),
                         message_map: HashMap::new(),
                     }
@@ -1496,7 +1496,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::EncodingError,
-                        answer_id: Some(0.to_string()),
+                        candidate_id: Some(0.to_string()),
                         message: Some("errors.encoding.writeInNotEndInZero".to_string()),
                         message_map: HashMap::new(),
                     }
@@ -1539,7 +1539,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 invalid_errors: vec![
                     InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::EncodingError,
-                        answer_id: None,
+                        candidate_id: None,
                         message: Some("errors.encoding.ballotTooLarge".to_string()),
                         message_map: HashMap::new(),
                     }

@@ -11,13 +11,13 @@ pub trait BasesCodec {
 
 impl BasesCodec for Contest {
     fn get_bases(&self) -> Vec<u64> {
-        // Calculate the base for answers. It depends on the
+        // Calculate the base for candidates. It depends on the
         // `contest.counting_algorithm`:
         // - plurality-at-large: base 2 (value can be either 0 o 1)
         // - preferential (*bordas*): contest.max + 1
         // - cummulative: contest.extra_options.cumulative_number_of_checkboxes
         //   + 1
-        let answer_base: u64 = match self.get_counting_algorithm().as_str() {
+        let candidate_base: u64 = match self.get_counting_algorithm().as_str() {
             "plurality-at-large" => 2,
             "cumulative" => self.cumulative_number_of_checkboxes() + 1u64,
             _ => (self.max_votes + 1i64).try_into().unwrap(),
@@ -30,10 +30,10 @@ impl BasesCodec for Contest {
             .count();
 
         // Set the initial bases and raw ballot, populate bases using the valid
-        // answers list
+        // candidates list
         let mut bases: Vec<u64> = vec![2];
         for _i in 0..num_valid_candidates {
-            bases.push(answer_base);
+            bases.push(candidate_base);
         }
 
         // Add bases for null terminators.

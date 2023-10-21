@@ -19,7 +19,7 @@ pub enum InvalidPlaintextErrorType {
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct InvalidPlaintextError {
     pub error_type: InvalidPlaintextErrorType,
-    pub answer_id: Option<Uuid>,
+    pub candidate_id: Option<Uuid>,
     pub message: Option<String>,
     pub message_map: HashMap<String, String>,
 }

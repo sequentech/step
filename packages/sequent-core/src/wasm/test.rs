@@ -201,17 +201,18 @@ pub fn get_layout_properties_from_contest_js(
 }
 
 #[wasm_bindgen]
-pub fn get_answer_points_js(
+pub fn get_candidate_points_js(
     contest_val: JsValue,
-    answer_val: JsValue,
+    candidate_val: JsValue,
 ) -> Result<JsValue, JsValue> {
     let contest: Contest = serde_wasm_bindgen::from_value(contest_val)
         .map_err(|err| format!("Error parsing contest: {}", err))
         .into_json()?;
-    let answer: DecodedVoteChoice = serde_wasm_bindgen::from_value(answer_val)
-        .map_err(|err| format!("Error parsing vote choice: {}", err))
-        .into_json()?;
-    let points = get_points(&contest, &answer);
+    let candidate: DecodedVoteChoice =
+        serde_wasm_bindgen::from_value(candidate_val)
+            .map_err(|err| format!("Error parsing vote choice: {}", err))
+            .into_json()?;
+    let points = get_points(&contest, &candidate);
     serde_wasm_bindgen::to_value(&points)
         .map_err(|err| format!("{:?}", err))
         .into_json()

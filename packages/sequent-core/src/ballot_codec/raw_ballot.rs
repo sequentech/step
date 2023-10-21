@@ -74,7 +74,7 @@ impl RawBallotCodec for Contest {
         sorted_choices.sort_by_key(|q| q.id.clone());
 
         // Separate the candidates between:
-        // - Invalid vote answer (if any)
+        // - Invalid vote candidate (if any)
         // - Write-ins (if any)
         // - Valid candidates (normal candidates + write-ins if any)
         let invalid_vote: u64 =
@@ -82,10 +82,11 @@ impl RawBallotCodec for Contest {
         choices.push(invalid_vote);
 
         for choice in sorted_choices.iter() {
-            let answer = candidates_map
-                .get(&choice.id)
-                .ok_or_else(|| "choice id is not a valid answer".to_string())?;
-            if answer.is_explicit_invalid() {
+            let candidate =
+                candidates_map.get(&choice.id).ok_or_else(|| {
+                    "choice id is not a valid candidate".to_string()
+                })?;
+            if candidate.is_explicit_invalid() {
                 continue;
             }
             if self.get_counting_algorithm() == "plurality-at-large" {
@@ -94,7 +95,7 @@ impl RawBallotCodec for Contest {
                 choices.push(u64::from(choice.selected > -1));
             } else {
                 // we add 1 because the counting starts with 1, as zero means
-                // this answer was not voted / ranked
+                // this candidate was not voted / ranked
                 let value =
                     (choice.selected + 1).to_u64().ok_or_else(|| {
                         "selected value must be positive or zero".to_string()
@@ -104,16 +105,16 @@ impl RawBallotCodec for Contest {
         }
         // Populate the bases and the raw_ballot values with the write-ins
         // if there's any. We will through each write-in (if any), and then
-        // encode the write-in answer.text string with UTF-8 and use for
+        // encode the write-in candidate.text string with UTF-8 and use for
         // each byte a specific value with base 256 and end each write-in
         // with a \0 byte. Note that even write-ins.
         if self.allow_writeins() {
             for choice in sorted_choices.iter() {
-                let answer =
+                let candidate =
                     candidates_map.get(&choice.id).ok_or_else(|| {
-                        "choice id is not a valid answer".to_string()
+                        "choice id is not a valid candidate".to_string()
                     })?;
-                let is_write_in = answer.is_write_in();
+                let is_write_in = candidate.is_write_in();
                 if choice.write_in_text.is_none() && is_write_in {
                     // we don't do a bases.push_back(256) as this is done in
                     // getBases() to end it with a zero
@@ -165,11 +166,11 @@ impl RawBallotCodec for Contest {
         // 2. sort & segment candidates
         let valid_candidates: Vec<&Candidate> = sorted_candidates
             .iter()
-            .filter(|answer| !answer.is_explicit_invalid())
+            .filter(|candidate| !candidate.is_explicit_invalid())
             .collect();
         let write_in_candidates: Vec<&Candidate> = sorted_candidates
             .iter()
-            .filter(|answer| answer.is_write_in())
+            .filter(|candidate| candidate.is_write_in())
             .collect();
         // 4. Do some verifications on the number of choices: Checking that the
         //    raw_ballot has as many choices as required
@@ -177,7 +178,7 @@ impl RawBallotCodec for Contest {
             // Invalid Ballot: Not enough choices to decode
             invalid_errors.push(InvalidPlaintextError {
                 error_type: InvalidPlaintextErrorType::EncodingError,
-                answer_id: None,
+                candidate_id: None,
                 message: Some("errors.encoding.notEnoughChoices".to_string()),
                 message_map: HashMap::new(),
             });
@@ -189,7 +190,7 @@ impl RawBallotCodec for Contest {
         // we add 1 to the index because raw_ballot.choice[0] is just the
         // invalidVoteFlag
         let mut index = 1usize;
-        for answer in &valid_candidates {
+        for candidate in &valid_candidates {
             if choices.len() <= index {
                 break;
             }
@@ -199,7 +200,7 @@ impl RawBallotCodec for Contest {
                 .ok_or_else(|| "choice out of range".to_string())?;
 
             sorted_choices.push(DecodedVoteChoice {
-                id: answer.id.clone(),
+                id: candidate.id.clone(),
                 selected: choice_value - 1,
                 write_in_text: None,
             });
@@ -209,7 +210,7 @@ impl RawBallotCodec for Contest {
         // 6. Decode the write-in texts into UTF-8 and split by the \0
         // character,    finally the text for the write-ins.
         let mut write_in_index = index;
-        for answer in &write_in_candidates {
+        for candidate in &write_in_candidates {
             if write_in_index >= choices.len() {
                 break;
             }
@@ -227,7 +228,7 @@ impl RawBallotCodec for Contest {
                 } else {
                     invalid_errors.push(InvalidPlaintextError {
                         error_type: InvalidPlaintextErrorType::EncodingError,
-                        answer_id: Some(answer.id.clone()),
+                        candidate_id: Some(candidate.id.clone()),
                         message: Some(
                             "errors.encoding.writeInChoiceOutOfRange"
                                 .to_string(),
@@ -246,7 +247,7 @@ impl RawBallotCodec for Contest {
             if write_in_index >= choices.len() {
                 invalid_errors.push(InvalidPlaintextError {
                     error_type: InvalidPlaintextErrorType::EncodingError,
-                    answer_id: Some(answer.id.clone()),
+                    candidate_id: Some(candidate.id.clone()),
                     message: Some(
                         "errors.encoding.writeInNotEndInZero".to_string(),
                     ),
@@ -264,7 +265,7 @@ impl RawBallotCodec for Contest {
             if write_in_str_res.is_err() {
                 invalid_errors.push(InvalidPlaintextError {
                     error_type: InvalidPlaintextErrorType::EncodingError,
-                    answer_id: Some(answer.id.clone()),
+                    candidate_id: Some(candidate.id.clone()),
                     message: Some(
                         "errors.encoding.bytesToUtf8Conversion".to_string(),
                     ),
@@ -280,7 +281,7 @@ impl RawBallotCodec for Contest {
             // add write_in to choice
             let n = sorted_choices
                 .iter()
-                .position(|choice| choice.id == answer.id)
+                .position(|choice| choice.id == candidate.id)
                 .unwrap();
             let mut choice = sorted_choices[n].clone();
             choice.write_in_text = write_in_str;
@@ -290,7 +291,7 @@ impl RawBallotCodec for Contest {
         if write_in_index < choices.len() {
             invalid_errors.push(InvalidPlaintextError {
                 error_type: InvalidPlaintextErrorType::EncodingError,
-                answer_id: None,
+                candidate_id: None,
                 message: Some("errors.encoding.ballotTooLarge".to_string()),
                 message_map: HashMap::new(),
             });
@@ -300,7 +301,7 @@ impl RawBallotCodec for Contest {
         if is_explicit_invalid && !self.allow_explicit_invalid() {
             invalid_errors.push(InvalidPlaintextError {
                 error_type: InvalidPlaintextErrorType::Explicit,
-                answer_id: None,
+                candidate_id: None,
                 message: Some("errors.explicit.notAllowed".to_string()),
                 message_map: HashMap::new(),
             });
@@ -315,7 +316,7 @@ impl RawBallotCodec for Contest {
         if num_selected_candidates > usize::try_from(self.max_votes).unwrap() {
             invalid_errors.push(InvalidPlaintextError {
                 error_type: InvalidPlaintextErrorType::Implicit,
-                answer_id: None,
+                candidate_id: None,
                 message: Some("errors.implicit.selectedMax".to_string()),
                 message_map: HashMap::from([
                     (
@@ -330,7 +331,7 @@ impl RawBallotCodec for Contest {
         {
             invalid_errors.push(InvalidPlaintextError {
                 error_type: InvalidPlaintextErrorType::Implicit,
-                answer_id: None,
+                candidate_id: None,
                 message: Some("errors.implicit.selectedMin".to_string()),
                 message_map: HashMap::from([
                     (

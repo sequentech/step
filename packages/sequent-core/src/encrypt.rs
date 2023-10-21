@@ -32,7 +32,7 @@ pub fn default_public_key_ristretto() -> (String, <RistrettoCtx as Ctx>::E) {
     (pk_str, pk)
 }
 
-pub fn encrypt_plaintext_answer<C: Ctx<P = [u8; 30]>>(
+pub fn encrypt_plaintext_candidate<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     public_key_element: <C>::E,
     plaintext: <C>::P,
@@ -89,10 +89,10 @@ pub fn recreate_encrypt_cyphertext<C: Ctx>(
 ) -> Result<Vec<ReplicationChoice<C>>, BallotError> {
     let public_key = parse_public_key::<C>(&ballot.config)?;
     // check ballot version
-    // sanity checks for number of answers/choices
+    // sanity checks for number of candidates/choices
     if ballot.contests.len() != ballot.config.contests.len() {
         return Err(BallotError::ConsistencyCheck(String::from(
-            "Number of election contests should match number of answers in the ballot",
+            "Number of election contests should match number of candidates in the ballot",
         )));
     }
 
@@ -101,14 +101,14 @@ pub fn recreate_encrypt_cyphertext<C: Ctx>(
         .clone()
         .into_iter()
         .map(|contests| {
-            recreate_encrypt_answer(ctx, &public_key, &contests.choice)
+            recreate_encrypt_candidate(ctx, &public_key, &contests.choice)
         })
         .collect::<Vec<Result<ReplicationChoice<C>, BallotError>>>()
         .into_iter()
         .collect()
 }
 
-fn recreate_encrypt_answer<C: Ctx>(
+fn recreate_encrypt_candidate<C: Ctx>(
     ctx: &C,
     public_key_element: &C::E,
     choice: &ReplicationChoice<C>,
@@ -167,7 +167,7 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
                 ))
             })?;
         let (choice, proof) =
-            encrypt_plaintext_answer(ctx, public_key.clone(), plaintext)?;
+            encrypt_plaintext_candidate(ctx, public_key.clone(), plaintext)?;
         contests.push(AuditableBallotContest::<C> {
             contest_id: contest.id.clone(),
             choice: choice,
@@ -218,7 +218,7 @@ mod tests {
     use strand::rng::StrandRng;
 
     #[test]
-    fn test_encrypt_plaintext_answer() {
+    fn test_encrypt_plaintext_candidate() {
         let mut csprng = StrandRng;
         let ctx = RistrettoCtx;
 
@@ -226,7 +226,8 @@ mod tests {
 
         let plaintext = ctx.rnd_plaintext(&mut csprng);
 
-        encrypt::encrypt_plaintext_answer(&ctx, pk_element, plaintext).unwrap();
+        encrypt::encrypt_plaintext_candidate(&ctx, pk_element, plaintext)
+            .unwrap();
         assert_eq!(
             pk_string.as_str(),
             encrypt::DEFAULT_PUBLIC_KEY_RISTRETTO_STR
@@ -234,7 +235,7 @@ mod tests {
     }
 
     #[test]
-    fn test_encrypt_writein_answer() {
+    fn test_encrypt_writein_candidate() {
         let ctx = RistrettoCtx;
         let ballot_style = get_writein_ballot_style();
         let contest = ballot_style.configuration.contests[0].clone();
@@ -270,7 +271,7 @@ mod tests {
     }
 
     #[test]
-    fn test_encrypt_writein_answer2() {
+    fn test_encrypt_writein_candidate2() {
         use crate::ballot_codec::bigint::BigUIntCodec;
         use crate::ballot_codec::raw_ballot::RawBallotCodec;
 

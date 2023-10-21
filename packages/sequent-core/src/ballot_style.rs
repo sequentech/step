@@ -12,7 +12,7 @@ pub fn create_ballot_style(
     election_event: hasura_types::ElectionEvent, // Election Event
     election: hasura_types::Election,            // Election
     contests: Vec<hasura_types::Contest>,        // Contest
-    candidates: Vec<hasura_types::Candidate>,    // Answer
+    candidates: Vec<hasura_types::Candidate>,    // Candidate
 ) -> ballot::BallotStyle {
     ballot::BallotStyle {
         id: id,

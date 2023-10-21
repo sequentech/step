@@ -98,7 +98,7 @@ extern "C" {
 const ICONTEST_CONDITION: &'static str = r#"
 interface IContestCondition {
     contest_id: numner;
-    answer_id: number;
+    candidate_id: number;
 }
 "#;
 
@@ -169,8 +169,8 @@ interface IContestExtra {
     show_points?: boolean;
     default_selected_option_ids?: Array<number>;
     select_categories_1click?: boolean;
-    answer_columns_size?: i64;
-    answer_group_columns_size?: i64;
+    candidate_columns_size?: i64;
+    candidate_group_columns_size?: i64;
     select_all_category_clicks?: i64;
     enable_panachage?: boolean;
     cumulative_number_of_checkboxes?: number; 
@@ -190,7 +190,7 @@ extern "C" {
 
 #[wasm_bindgen(typescript_custom_section)]
 const IANSWER: &'static str = r#"
-interface IAnswer {
+interface ICandidate {
     id: string;
     category: string;
     details: string;
@@ -202,8 +202,8 @@ interface IAnswer {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IAnswer")]
-    pub type IAnswer;
+    #[wasm_bindgen(typescript_type = "ICandidate")]
+    pub type ICandidate;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -217,8 +217,8 @@ interface IContest {
     num_winners: number;
     title: string;
     tally_type: string;
-    answer_total_votes_percentage: string;
-    answers: Array<IAnswer>;
+    candidate_total_votes_percentage: string;
+    candidates: Array<ICandidate>;
     extra_options?: IContestExtra;
 }
 "#;

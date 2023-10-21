@@ -36,7 +36,7 @@ extern "C" {
 
 #[wasm_bindgen(typescript_custom_section)]
 const IANSWER_PROPERTIES: &'static str = r#"
-interface IAnswerProperties {
+interface ICandidateProperties {
     points?: number;
     write_in?: string;
 }
@@ -44,8 +44,8 @@ interface IAnswerProperties {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IAnswerProperties")]
-    pub type IAnswerProperties;
+    #[wasm_bindgen(typescript_type = "ICandidateProperties")]
+    pub type ICandidateProperties;
 }
 
 #[wasm_bindgen(typescript_custom_section)]

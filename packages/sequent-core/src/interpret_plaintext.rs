@@ -115,35 +115,35 @@ pub fn get_layout_properties(
  */
 pub fn get_points(
     contest: &Contest,
-    answer: &DecodedVoteChoice,
+    candidate: &DecodedVoteChoice,
 ) -> Option<i64> {
     if !&contest.show_points() {
         return Some(0);
     }
-    if answer.selected < 0 {
+    if candidate.selected < 0 {
         return Some(0);
     }
 
     match contest.get_counting_algorithm().as_str() {
         "plurality-at-large" => Some(1),
-        "borda" => Some((contest.max_votes as i64) - answer.selected),
+        "borda" => Some((contest.max_votes as i64) - candidate.selected),
         // "borda-mas-madrid" => return scope.contest.max -
         // scope.option.selected
-        "borda-nauru" => Some(1 + answer.selected), /* 1 / (1 + answer. */
+        "borda-nauru" => Some(1 + candidate.selected), /* 1 / (1 + candidate. */
         // selected)
         "pairwise-beta" => None,
         /*"desborda3" => Some(cmp::max(
             1,
-            (((contest.num_winners as f64) * 1.3) - (answer.selected as f64))
+            (((contest.num_winners as f64) * 1.3) - (candidate.selected as f64))
                 .trunc() as i64,
         )),
         "desborda2" => Some(cmp::max(
             1,
-            (((contest.num_winners as f64) * 1.3) - (answer.selected as f64))
+            (((contest.num_winners as f64) * 1.3) - (candidate.selected as f64))
                 .trunc() as i64,
         )),*/
-        "desborda" => Some(80 - answer.selected),
-        "cummulative" => Some(answer.selected + 1),
+        "desborda" => Some(80 - candidate.selected),
+        "cummulative" => Some(candidate.selected + 1),
         _ => None,
     }
 }

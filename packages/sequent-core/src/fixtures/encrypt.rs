@@ -23,8 +23,8 @@ pub fn get_encrypt_decoded_test_fixture(
                  "num_winners":1,
                  "title":"Test contest title",
                  "tally_type":"plurality-at-large",
-                 "answer_total_votes_percentage":"over-total-valid-votes",
-                 "answers":[
+                 "candidate_total_votes_percentage":"over-total-valid-votes",
+                 "candidates":[
                     {
                        "id":0,
                        "category":"",
