@@ -9,7 +9,7 @@ use num_traits::ToPrimitive;
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct RawBallotQuestion {
+pub struct RawBallotContest {
     pub bases: Vec<u64>,
     pub choices: Vec<u64>,
 }
@@ -18,10 +18,10 @@ pub trait RawBallotCodec {
     fn encode_to_raw_ballot(
         &self,
         plaintext: &DecodedVoteContest,
-    ) -> Result<RawBallotQuestion, String>;
+    ) -> Result<RawBallotContest, String>;
     fn decode_from_raw_ballot(
         &self,
-        raw_ballot: &RawBallotQuestion,
+        raw_ballot: &RawBallotContest,
     ) -> Result<DecodedVoteContest, String>;
 
     fn available_write_in_characters_estimate(
@@ -57,7 +57,7 @@ impl RawBallotCodec for Contest {
     fn encode_to_raw_ballot(
         &self,
         plaintext: &DecodedVoteContest,
-    ) -> Result<RawBallotQuestion, String> {
+    ) -> Result<RawBallotContest, String> {
         let mut bases = self.get_bases();
         let mut choices: Vec<u64> = vec![];
 
@@ -143,19 +143,19 @@ impl RawBallotCodec for Contest {
             }
         }
 
-        Ok(RawBallotQuestion { bases, choices })
+        Ok(RawBallotContest { bases, choices })
     }
 
     fn decode_from_raw_ballot(
         &self,
-        raw_ballot: &RawBallotQuestion,
+        raw_ballot: &RawBallotContest,
     ) -> Result<DecodedVoteContest, String> {
         let choices = raw_ballot.choices.clone();
         let is_explicit_invalid: bool = !choices.is_empty() && (choices[0] > 0);
         let mut invalid_errors: Vec<InvalidPlaintextError> = vec![];
         let char_map = self.get_char_map();
 
-        // 1. clone the question and reset the selections
+        // 1. clone the contest and reset the selections
         let mut sorted_candidates = self.candidates.clone();
         sorted_candidates.sort_by_key(|q| q.id.clone());
 
@@ -359,15 +359,15 @@ mod tests {
     use std::cmp;
 
     #[test]
-    fn test_question_encode_to_raw_ballot() {
+    fn test_contest_encode_to_raw_ballot() {
         let fixtures = get_fixtures();
         for fixture in fixtures {
             println!("fixture: {}", &fixture.title);
             let raw_ballot =
-                fixture.question.encode_to_raw_ballot(&fixture.plaintext);
+                fixture.contest.encode_to_raw_ballot(&fixture.plaintext);
             let expected_error =
                 fixture.expected_errors.and_then(|expected_map| {
-                    expected_map.get("question_encode_to_raw_ballot").cloned()
+                    expected_map.get("contest_encode_to_raw_ballot").cloned()
                 });
 
             if let Some(error) = expected_error {
@@ -384,7 +384,7 @@ mod tests {
     }
 
     #[test]
-    fn test_question_encode_raw_ballot() {
+    fn test_contest_encode_raw_ballot() {
         let fixtures = get_fixtures();
         for fixture in fixtures {
             println!("fixture: {}", &fixture.title);
@@ -399,7 +399,7 @@ mod tests {
 
             let expected_error =
                 fixture.expected_errors.and_then(|expected_map| {
-                    expected_map.get("question_encode_raw_ballot").cloned()
+                    expected_map.get("contest_encode_raw_ballot").cloned()
                 });
             if expected_error.is_some() {
                 assert_eq!(
@@ -416,15 +416,15 @@ mod tests {
     }
 
     #[test]
-    fn test_question_decode_raw_ballot() {
+    fn test_contest_decode_raw_ballot() {
         let fixtures = get_fixtures();
         for fixture in fixtures {
             println!("fixture: {}", &fixture.title);
             let decoded_ballot_res =
-                fixture.question.decode_from_raw_ballot(&fixture.raw_ballot);
+                fixture.contest.decode_from_raw_ballot(&fixture.raw_ballot);
             let expected_error =
                 fixture.expected_errors.and_then(|expected_map| {
-                    expected_map.get("question_decode_raw_ballot").cloned()
+                    expected_map.get("contest_decode_raw_ballot").cloned()
                 });
             if expected_error.is_some() {
                 decoded_ballot_res.expect_err("Expected error");
@@ -440,7 +440,7 @@ mod tests {
                         decoded_ballot.choices[idx].write_in_text,
                         fixture.plaintext.choices[idx].write_in_text
                     );
-                    if fixture.question.tally_type == "plurality-at-large" {
+                    if fixture.contest.tally_type == "plurality-at-large" {
                         assert_eq!(
                             decoded_ballot.choices[idx].selected,
                             cmp::min(

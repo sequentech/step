@@ -5,14 +5,14 @@
 pub mod bases;
 pub mod bigint;
 pub mod character_map;
-pub mod plaintext_question;
+pub mod plaintext_contest;
 pub mod raw_ballot;
 pub mod vec;
 
 pub use bases::*;
 pub use bigint::*;
 pub use character_map::*;
-pub use plaintext_question::*;
+pub use plaintext_contest::*;
 pub use raw_ballot::*;
 pub use vec::*;
 

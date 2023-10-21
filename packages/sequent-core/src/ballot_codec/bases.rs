@@ -57,24 +57,24 @@ mod tests {
     use crate::fixtures::ballot_codec::get_fixtures;
 
     #[test]
-    fn test_question_bases() {
+    fn test_contest_bases() {
         let fixtures = get_fixtures();
         for fixture in fixtures {
             println!("fixture: {}", &fixture.title);
 
             let expected_error =
                 fixture.expected_errors.and_then(|expected_map| {
-                    expected_map.get("question_bases").cloned()
+                    expected_map.get("contest_bases").cloned()
                 });
 
             if expected_error.is_some() {
                 assert_ne!(
-                    &fixture.question.get_bases(),
+                    &fixture.contest.get_bases(),
                     &fixture.raw_ballot.bases
                 );
             } else {
                 assert_eq!(
-                    &fixture.question.get_bases(),
+                    &fixture.contest.get_bases(),
                     &fixture.raw_ballot.bases
                 );
             }
@@ -85,7 +85,7 @@ mod tests {
     fn test_bases() {
         let fixtures = bases_fixture();
         for fixture in fixtures.iter() {
-            let bases = fixture.question.get_bases();
+            let bases = fixture.contest.get_bases();
             assert_eq!(bases, fixture.bases);
         }
     }

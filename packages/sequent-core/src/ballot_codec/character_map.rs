@@ -143,7 +143,7 @@ pub static TO_CHAR: phf::Map<u8, char> = phf_map! {
 #[cfg(test)]
 mod tests {
     use crate::ballot_codec::*;
-    use crate::fixtures::ballot_codec::get_configurable_question;
+    use crate::fixtures::ballot_codec::get_configurable_contest;
     use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use rand::Rng;
 
@@ -184,7 +184,7 @@ mod tests {
             })
             .collect();
 
-        let mut question = get_configurable_question(
+        let mut contest = get_configurable_contest(
             1,
             5,
             "plurality-at-large".to_string(),
@@ -194,7 +194,7 @@ mod tests {
         );
 
         let ballot = DecodedVoteContest {
-            contest_id: question.id.clone(),
+            contest_id: contest.id.clone(),
             is_explicit_invalid: false,
             invalid_errors: vec![],
             choices: vec![
@@ -229,23 +229,20 @@ mod tests {
                 },
             ],
         };
-        let result = question
-            .encode_plaintext_question_to_bytes(&ballot)
-            .unwrap();
+        let result =
+            contest.encode_plaintext_contest_to_bytes(&ballot).unwrap();
         let bytes_large = result.len();
 
-        let mut extra_options =
-            question.extra_options.as_ref().unwrap().clone();
+        let mut extra_options = contest.extra_options.as_ref().unwrap().clone();
         extra_options.base32_writeins = Some(true);
-        question.extra_options = Some(extra_options);
+        contest.extra_options = Some(extra_options);
 
-        let result = question
-            .encode_plaintext_question_to_bytes(&ballot)
-            .unwrap();
+        let result =
+            contest.encode_plaintext_contest_to_bytes(&ballot).unwrap();
         let bytes_small = result.len();
 
-        let result = question
-            .decode_plaintext_question_from_bytes(&result)
+        let result = contest
+            .decode_plaintext_contest_from_bytes(&result)
             .unwrap();
         println!("************* {:?} ************", result);
         let back = result.choices[4].write_in_text.as_ref().unwrap();

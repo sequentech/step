@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::BallotStyle;
-use crate::ballot::{Answer, Question, QuestionExtra, Url};
-use crate::ballot_codec::{vec_to_30_array, RawBallotQuestion};
+use crate::ballot::*;
+use crate::ballot_codec::{vec_to_30_array, RawBallotContest};
 use crate::plaintext::{
     DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextError,
     InvalidPlaintextErrorType,
@@ -13,20 +13,20 @@ use std::collections::HashMap;
 
 pub struct BallotCodecFixture {
     pub title: String,
-    pub question: Question,
-    pub raw_ballot: RawBallotQuestion,
+    pub contest: Contest,
+    pub raw_ballot: RawBallotContest,
     pub plaintext: DecodedVoteContest,
     pub encoded_ballot_bigint: String,
     pub encoded_ballot: [u8; 30],
     pub expected_errors: Option<HashMap<String, String>>,
 }
 pub struct BasesFixture {
-    pub question: Question,
+    pub contest: Contest,
     pub bases: Vec<u64>,
 }
 
-fn get_question_plurality() -> Question {
-    let question_str = r#"{
+fn get_contest_plurality() -> Contest {
+    let contest_str = r#"{
         "id":"1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
         "description":"Elige quien quieres que sea tu Secretario General en tu municipio",
          "layout":"",
@@ -92,18 +92,18 @@ fn get_question_plurality() -> Question {
             "base32_writeins":true
          }
       }"#;
-    let question: Question = serde_json::from_str(question_str).unwrap();
-    question
+    let contest: Contest = serde_json::from_str(contest_str).unwrap();
+    contest
 }
 
-fn get_question_borda() -> Question {
-    let mut question = get_question_plurality();
-    question.tally_type = String::from("borda");
-    question.max = 4;
-    question
+fn get_contest_borda() -> Contest {
+    let mut contest = get_contest_plurality();
+    contest.tally_type = String::from("borda");
+    contest.max = 4;
+    contest
 }
 
-pub fn get_test_decoded_vote_question() -> DecodedVoteContest {
+pub fn get_test_decoded_vote_contest() -> DecodedVoteContest {
     DecodedVoteContest {
         contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
         is_explicit_invalid: false,
@@ -129,7 +129,7 @@ pub fn get_test_decoded_vote_question() -> DecodedVoteContest {
 }
 
 pub fn get_writein_ballot_style() -> BallotStyle {
-    let question_str = r#"{
+    let contest_str = r#"{
         "id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
         "configuration": {
             "id": "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
@@ -138,15 +138,15 @@ pub fn get_writein_ballot_style() -> BallotStyle {
             "authorities": ["6xx-a2"],
             "title": "Write-ins simple",
             "description": "",
-            "questions": [
+            "contests": [
                 {
                     "id": "1c1500ac-173e-4e78-a59d-91bfa3678c5a",
                     "description": "",
-                    "layout": "simultaneous-questions",
+                    "layout": "simultaneous-contests",
                     "max": 2,
                     "min": 1,
                     "num_winners": 1,
-                    "title": "Test question title",
+                    "title": "Test contest title",
                     "tally_type": "plurality-at-large",
                     "answer_total_votes_percentage": "over-total-valid-votes",
                     "answers": [
@@ -255,8 +255,8 @@ pub fn get_writein_ballot_style() -> BallotStyle {
             }
         ]
     }"#;
-    let question: BallotStyle = serde_json::from_str(question_str).unwrap();
-    question
+    let contest: BallotStyle = serde_json::from_str(contest_str).unwrap();
+    contest
 }
 
 pub fn get_too_long_writein_plaintext(increase: i64) -> DecodedVoteContest {
@@ -332,15 +332,15 @@ pub fn get_writein_plaintext() -> DecodedVoteContest {
     }
 }
 
-pub fn get_test_question() -> Question {
-    let question_str = r#"{
+pub fn get_test_contest() -> Contest {
+    let contest_str = r#"{
         "id":"1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
-        "description":"This is the description of this question. You can have multiple questions. You can add simple html like.",
-        "layout":"simultaneous-questions",
+        "description":"This is the description of this contest. You can have multiple contests. You can add simple html like.",
+        "layout":"simultaneous-contests",
         "max":3,
         "min":1,
         "num_winners":1,
-        "title":"Test question title",
+        "title":"Test contest title",
         "tally_type":"plurality-at-large",
         "answer_total_votes_percentage":"over-total-valid-votes",
         "answers":[
@@ -395,19 +395,19 @@ pub fn get_test_question() -> Question {
            "base32_writeins":true
         }
      }"#;
-    let question: Question = serde_json::from_str(question_str).unwrap();
-    question
+    let contest: Contest = serde_json::from_str(contest_str).unwrap();
+    contest
 }
 
-pub(crate) fn get_configurable_question(
+pub(crate) fn get_configurable_contest(
     max: i64,
     num_answers: usize,
     tally_type: String,
     enable_writeins: bool,
-    write_in_questions: Option<Vec<usize>>,
+    write_in_contests: Option<Vec<usize>>,
     base32_writeins: bool,
-) -> Question {
-    let question_str = r#"{
+) -> Contest {
+    let contest_str = r#"{
         "id": "1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
         "layout":"",
         "description":"Elige quien quieres que sea tu Secretario General en tu municipio",
@@ -494,40 +494,40 @@ pub(crate) fn get_configurable_question(
             "base32_writeins": true
         }
      }"#;
-    let mut question: Question = serde_json::from_str(question_str).unwrap();
+    let mut contest: Contest = serde_json::from_str(contest_str).unwrap();
 
-    question.tally_type = tally_type;
-    question.max = max;
+    contest.tally_type = tally_type;
+    contest.max = max;
     if enable_writeins {
         let mut extra_options =
-            question.extra_options.unwrap_or(QuestionExtra::new());
+            contest.extra_options.unwrap_or(ContestExtra::new());
         extra_options.allow_writeins = Some(true);
 
-        question.extra_options = Some(extra_options);
+        contest.extra_options = Some(extra_options);
         let write_in_indexes =
-            write_in_questions.unwrap_or_else(|| vec![4, 5, 6]);
+            write_in_contests.unwrap_or_else(|| vec![4, 5, 6]);
         for write_in_index in write_in_indexes {
-            if write_in_index < question.answers.len() {
-                question.answers[write_in_index].set_is_write_in(true);
+            if write_in_index < contest.answers.len() {
+                contest.answers[write_in_index].set_is_write_in(true);
             }
         }
     }
     // set base32_writeins
     let mut extra_options =
-        question.extra_options.unwrap_or(QuestionExtra::new());
+        contest.extra_options.unwrap_or(ContestExtra::new());
     extra_options.base32_writeins = Some(base32_writeins);
-    question.extra_options = Some(extra_options);
+    contest.extra_options = Some(extra_options);
 
-    question.answers = question.answers[0..num_answers].to_vec();
-    question
+    contest.answers = contest.answers[0..num_answers].to_vec();
+    contest
 }
 
 pub fn get_fixtures() -> Vec<BallotCodecFixture> {
     vec![
         BallotCodecFixture {
             title: "plurality_fixture".to_string(),
-            question: get_question_plurality(),
-            raw_ballot: RawBallotQuestion {
+            contest: get_contest_plurality(),
+            raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64, 2u64, 2u64],
                 choices: vec![0u64, 1u64, 0u64, 0u64, 1u64, 1u64],
             },
@@ -579,8 +579,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "borda_fixture".to_string(),
-            question: get_question_borda(),
-            raw_ballot: RawBallotQuestion {
+            contest: get_contest_borda(),
+            raw_ballot: RawBallotContest {
                 bases: vec![2u64, 5u64, 5u64, 5u64, 5u64, 5u64],
                 choices: vec![0u64, 3u64, 0u64, 0u64, 1u64, 2u64],
             },
@@ -622,10 +622,10 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "example_3_explicit_and_implicit_invalid".to_string(),
-            question: Question {
+            contest: Contest {
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 description: "".to_string(),
-                layout: "simultaneous-questions".to_string(),
+                layout: "simultaneous-contests".to_string(),
                 min: 0,
                 max: 1,
                 num_winners: 1,
@@ -672,13 +672,13 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     },
                 ],
                 extra_options: {
-                    let mut extra = QuestionExtra::new();
+                    let mut extra = ContestExtra::new();
                     extra.invalid_vote_policy =  Some("allowed".to_string());
                     extra.base32_writeins = Some(true);
                     Some(extra)
                 },
             },
-            raw_ballot: RawBallotQuestion {
+            raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
                 choices: vec![1u64, 1u64, 1u64, 1u64],
             },
@@ -720,9 +720,9 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "example_3_explicit_invalid".to_string(),
-            question: Question {
+            contest: Contest {
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                layout: "simultaneous-questions".to_string(),
+                layout: "simultaneous-contests".to_string(),
                 description: "".to_string(),
                 min: 0,
                 max: 1,
@@ -770,12 +770,12 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 num_winners: 1,
                 title: "Poste de maire(sse)".to_string(),
                 extra_options: {
-                    let mut extra = QuestionExtra::new();
+                    let mut extra = ContestExtra::new();
                     extra.invalid_vote_policy =  Some("allowed".to_string());
                     Some(extra)
                 },
             },
-            raw_ballot: RawBallotQuestion {
+            raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
                 choices: vec![1u64, 1u64, 0u64, 0u64],
             },
@@ -807,9 +807,9 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "example_3_implicit_too_many".to_string(),
-            question: Question {
+            contest: Contest {
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                layout: "simultaneous-questions".to_string(),
+                layout: "simultaneous-contests".to_string(),
                 description: "".to_string(),
                 min: 0,
                 max: 1,
@@ -857,12 +857,12 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 title: "Poste de maire(sse)".to_string(),
                 answer_total_votes_percentage: "over-total-valid-votes".to_string(),
                 extra_options: {
-                    let mut extra = QuestionExtra::new();
+                    let mut extra = ContestExtra::new();
                     extra.invalid_vote_policy =  Some("allowed".to_string());
                     Some(extra)
                 },
             },
-            raw_ballot: RawBallotQuestion {
+            raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
                 choices: vec![0u64, 1u64, 1u64, 1u64],
             },
@@ -904,7 +904,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "example_4_implicit_empty".to_string(),
-            question: Question {
+            contest: Contest {
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 layout: "accordion".to_string(),
                 description: "".to_string(),
@@ -938,15 +938,15 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ],
                 num_winners: 1,
-                title: "Test question title".to_string(),
+                title: "Test contest title".to_string(),
                 answer_total_votes_percentage: "over-total-valid-votes".to_string(),
                 extra_options: {
-                    let mut extra = QuestionExtra::new();
+                    let mut extra = ContestExtra::new();
                     extra.invalid_vote_policy =  Some("allowed".to_string());
                     Some(extra)
                 },
             },
-            raw_ballot: RawBallotQuestion {
+            raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
                 choices: vec![0u64, 0u64, 0u64, 0u64],
             },
@@ -988,7 +988,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "example_4_implicit_invented_answer".to_string(),
-            question: Question {
+            contest: Contest {
                 id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
                 layout: "accordion".to_string(),
                 description: "".to_string(),
@@ -1022,15 +1022,15 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     }
                 ],
                 num_winners: 1,
-                title: "Test question title".to_string(),
+                title: "Test contest title".to_string(),
                 answer_total_votes_percentage: "over-total-valid-votes".to_string(),
                 extra_options: {
-                    let mut extra = QuestionExtra::new();
+                    let mut extra = ContestExtra::new();
                     extra.invalid_vote_policy =  Some("allowed".to_string());
                     Some(extra)
                 },
             },
-            raw_ballot: RawBallotQuestion {
+            raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64, 2u64],
                 choices: vec![0u64, 0u64, 0u64, 0u64, 1u64],
             },
@@ -1080,17 +1080,17 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             encoded_ballot_bigint: "16".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 16]).unwrap(),
             expected_errors: Some(HashMap::from([
-                ("question_bases".to_string(), "".to_string()),
-                ("question_encode_plaintext".to_string(), "choice id is not a valid answer".to_string()),
-                ("question_encode_to_raw_ballot".to_string(), "choice id is not a valid answer".to_string()),
-                ("question_decode_plaintext".to_string(), "decode_choices".to_string()),
+                ("contest_bases".to_string(), "".to_string()),
+                ("contest_encode_plaintext".to_string(), "choice id is not a valid answer".to_string()),
+                ("contest_encode_to_raw_ballot".to_string(), "choice id is not a valid answer".to_string()),
+                ("contest_decode_plaintext".to_string(), "decode_choices".to_string()),
                 ("encoding_plaintext_bigint".to_string(), "choice id is not a valid answer".to_string()),
             ]))
         },
         BallotCodecFixture {
             title: "plurality with two selections".to_string(),
-            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), false, None, true),
-            raw_ballot: RawBallotQuestion {
+            contest: get_configurable_contest(3, 7, "plurality-at-large".to_string(), false, None, true),
+            raw_ballot: RawBallotContest {
                 bases: vec![2, 2, 2, 2, 2, 2, 2, 2],
                 choices: vec![0, 0, 1, 0, 0, 0, 1, 0],
             },
@@ -1139,13 +1139,13 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             encoded_ballot_bigint: "68".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 68]).unwrap(),
             expected_errors: Some(HashMap::from([
-                ("question_decode_plaintext".to_string(), "decode_choices".to_string()),
+                ("contest_decode_plaintext".to_string(), "decode_choices".to_string()),
             ]))
         },
         BallotCodecFixture {
             title: "plurality with three selections".to_string(),
-            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), false, None, true),
-            raw_ballot: RawBallotQuestion {
+            contest: get_configurable_contest(3, 7, "plurality-at-large".to_string(), false, None, true),
+            raw_ballot: RawBallotContest {
                 bases: vec![2, 2, 2, 2, 2, 2, 2, 2],
                 choices: vec![0, 1, 1, 0, 0, 0, 1, 0],
             },
@@ -1194,13 +1194,13 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             encoded_ballot_bigint: "70".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 70]).unwrap(),
             expected_errors: Some(HashMap::from([
-                ("question_decode_plaintext".to_string(), "decode_choices".to_string()),
+                ("contest_decode_plaintext".to_string(), "decode_choices".to_string()),
             ]))
         },
         BallotCodecFixture {
             title: "borda with three selections".to_string(),
-            question: get_configurable_question(3, 7, "borda".to_string(), false, None, true),
-            raw_ballot: RawBallotQuestion {
+            contest: get_configurable_contest(3, 7, "borda".to_string(), false, None, true),
+            raw_ballot: RawBallotContest {
                 bases: vec![2, 4, 4, 4, 4, 4, 4, 4],
                 choices: vec![0, 1, 3, 0, 0, 0, 2, 0]
             },
@@ -1252,8 +1252,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "plurality explicit invalid and one selection".to_string(),
-            question: get_configurable_question(2, 2, "plurality-at-large".to_string(), false, None, true),
-            raw_ballot: RawBallotQuestion {
+            contest: get_configurable_contest(2, 2, "plurality-at-large".to_string(), false, None, true),
+            raw_ballot: RawBallotContest {
                 bases: vec![2, 2, 2],
                 choices: vec![1, 1, 0]
             },
@@ -1287,8 +1287,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
         },
         BallotCodecFixture {
             title: "two write ins, an explicit invalid ballot, one of the write-ins is not selected".to_string(),
-            question: get_configurable_question(2, 6, "borda".to_string(), true, None, true),
-            raw_ballot: RawBallotQuestion {
+            contest: get_configurable_contest(2, 6, "borda".to_string(), true, None, true),
+            raw_ballot: RawBallotContest {
                 bases: vec!  [2, 3, 3, 3, 3, 3, 3, 32, 32, 32],
                 choices: vec![1, 1, 0, 0, 1, 2, 0, 4, 0, 0]
             },
@@ -1348,13 +1348,13 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             encoded_ballot_bigint: "6213".to_string(),
             encoded_ballot: vec_to_30_array(&vec![2, 69, 24]).unwrap(),
             expected_errors: Some(HashMap::from([
-                ("question_bases".to_string(), "bases don't cover write-ins".to_string()),
+                ("contest_bases".to_string(), "bases don't cover write-ins".to_string()),
             ]))
         },
         BallotCodecFixture {
             title: "three write ins, a valid ballot, one of the write-ins is not selected".to_string(),
-            question: get_configurable_question(3, 7, "plurality-at-large".to_string(), true, None, true),
-            raw_ballot: RawBallotQuestion {
+            contest: get_configurable_contest(3, 7, "plurality-at-large".to_string(), true, None, true),
+            raw_ballot: RawBallotContest {
                 bases: vec![2, 2, 2, 2, 2, 2, 2, 2, 32, 32, 32, 32, 32, 32, 32, 32],
                 choices: vec![0, 1, 0, 0, 0, 1, 0, 1, 5, 0, 0, 1, 27, 2, 3, 0]
             },
@@ -1403,13 +1403,13 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             encoded_ballot_bigint: "849069737378".to_string(),
             encoded_ballot: vec_to_30_array(&vec![5, 162, 5, 128, 176, 197]).unwrap(),
             expected_errors: Some(HashMap::from([
-                ("question_bases".to_string(), "bases don't cover write-ins".to_string()),
+                ("contest_bases".to_string(), "bases don't cover write-ins".to_string()),
             ]))
         },
         BallotCodecFixture {
             title: "Not enough choices to decode".to_string(),
-            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, None, true),
-            raw_ballot: RawBallotQuestion {
+            contest: get_configurable_contest(2, 3, "plurality-at-large".to_string(), true, None, true),
+            raw_ballot: RawBallotContest {
                 bases: vec![2, 2, 2, 2],
                 choices: vec![0, 1, 0],
             },
@@ -1440,16 +1440,16 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             encoded_ballot_bigint: "2".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 2]).unwrap(),
             expected_errors: Some(HashMap::from([
-                ("question_encode_raw_ballot".to_string(), "Invalid parameters: 'valueList' (size = 3) and 'baseList' (size = 4) must have the same length.".to_string()),
-                ("question_encode_plaintext".to_string(), "Invalid parameters: 'valueList' (size = 3) and 'baseList' (size = 4) must have the same length.".to_string()),
-                ("question_decode_plaintext".to_string(), "invalid_errors,decode_choices".to_string()),
+                ("contest_encode_raw_ballot".to_string(), "Invalid parameters: 'valueList' (size = 3) and 'baseList' (size = 4) must have the same length.".to_string()),
+                ("contest_encode_plaintext".to_string(), "Invalid parameters: 'valueList' (size = 3) and 'baseList' (size = 4) must have the same length.".to_string()),
+                ("contest_decode_plaintext".to_string(), "invalid_errors,decode_choices".to_string()),
                 ("encoding_plaintext_bigint".to_string(), "Invalid parameters: 'valueList' (size = 3) and 'baseList' (size = 4) must have the same length.".to_string()),
             ]))
         },
         BallotCodecFixture {
             title: "simple vote".to_string(),
-            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![0]), true),
-            raw_ballot: RawBallotQuestion {
+            contest: get_configurable_contest(2, 3, "plurality-at-large".to_string(), true, Some(vec![0]), true),
+            raw_ballot: RawBallotContest {
                 bases:   vec![2, 2, 2, 2],
                 choices: vec![0, 1, 0, 0],
             },
@@ -1478,15 +1478,15 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             encoded_ballot_bigint: "2".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 2]).unwrap(),
             expected_errors: Some(HashMap::from([
-                ("question_bases".to_string(),  "bases don't cover write-ins".to_string()),
-                ("question_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
-                ("question_encode_plaintext".to_string(),  "disabled".to_string()),
+                ("contest_bases".to_string(),  "bases don't cover write-ins".to_string()),
+                ("contest_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
+                ("contest_encode_plaintext".to_string(),  "disabled".to_string()),
             ]))
         },
         BallotCodecFixture {
             title: "Write in doesn't end on 0".to_string(),
-            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![0]), true),
-            raw_ballot: RawBallotQuestion {
+            contest: get_configurable_contest(2, 3, "plurality-at-large".to_string(), true, Some(vec![0]), true),
+            raw_ballot: RawBallotContest {
                 bases:   vec![2, 2, 2, 2, 32],
                 choices: vec![0, 1, 0, 0, 1],
             },
@@ -1522,14 +1522,14 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             encoded_ballot_bigint: "18".to_string(),
             encoded_ballot: vec_to_30_array(&vec![1, 18]).unwrap(),
             expected_errors: Some(HashMap::from([
-                ("question_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
-                ("question_decode_plaintext".to_string(),  "invalid_errors, decode_choices".to_string()),
+                ("contest_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
+                ("contest_decode_plaintext".to_string(),  "invalid_errors, decode_choices".to_string()),
             ]))
         },
         BallotCodecFixture {
             title: "Ballot larger than expected".to_string(),
-            question: get_configurable_question(2, 3, "plurality-at-large".to_string(), true, Some(vec![]), true),
-            raw_ballot: RawBallotQuestion {
+            contest: get_configurable_contest(2, 3, "plurality-at-large".to_string(), true, Some(vec![]), true),
+            raw_ballot: RawBallotContest {
                 bases: vec![2, 2, 2, 2, 32],
                 choices: vec![0, 1, 0, 0, 24],
             },
@@ -1565,9 +1565,9 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
             encoded_ballot_bigint: "386".to_string(),
             encoded_ballot: vec_to_30_array(&vec![2, 130, 1]).unwrap(),
             expected_errors: Some(HashMap::from([
-                ("question_bases".to_string(),  "bases don't cover write-ins".to_string()),
-                ("question_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
-                ("question_encode_plaintext".to_string(),  "disabled".to_string()),
+                ("contest_bases".to_string(),  "bases don't cover write-ins".to_string()),
+                ("contest_encode_to_raw_ballot".to_string(),  "disabled".to_string()),
+                ("contest_encode_plaintext".to_string(),  "disabled".to_string()),
                 ("encoding_plaintext_bigint".to_string(),  "disabled".to_string()),
             ]))
         },
@@ -1577,7 +1577,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
 pub fn bases_fixture() -> Vec<BasesFixture> {
     vec![
         BasesFixture {
-            question: get_configurable_question(
+            contest: get_configurable_contest(
                 3,
                 7,
                 "plurality-at-large".to_string(),
@@ -1588,7 +1588,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
             bases: vec![2, 2, 2, 2, 2, 2, 2, 2],
         },
         BasesFixture {
-            question: get_configurable_question(
+            contest: get_configurable_contest(
                 1,
                 1,
                 "plurality-at-large".to_string(),
@@ -1599,7 +1599,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
             bases: vec![2, 2],
         },
         BasesFixture {
-            question: get_configurable_question(
+            contest: get_configurable_contest(
                 1,
                 1,
                 "borda".to_string(),
@@ -1610,7 +1610,7 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
             bases: vec![2, 2],
         },
         BasesFixture {
-            question: get_configurable_question(
+            contest: get_configurable_contest(
                 2,
                 3,
                 "borda".to_string(),

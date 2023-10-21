@@ -84,7 +84,7 @@ interface IElectionExtra {
     success_screen__ballot_ticket__h4?: string;
     public_title?: string;
     review_screen__split_cast_edit?: boolean;
-    show_skip_question_button?: boolean;
+    show_skip_contest_button?: boolean;
 }
 "#;
 
@@ -95,31 +95,31 @@ extern "C" {
 }
 
 #[wasm_bindgen(typescript_custom_section)]
-const IQUESTION_CONDITION: &'static str = r#"
-interface IQuestionCondition {
-    question_id: numner;
+const ICONTEST_CONDITION: &'static str = r#"
+interface IContestCondition {
+    contest_id: numner;
     answer_id: number;
 }
 "#;
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IQuestionCondition")]
-    pub type IQuestionCondition;
+    #[wasm_bindgen(typescript_type = "IContestCondition")]
+    pub type IContestCondition;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
-const ICONDITIONAL_QUESTION: &'static str = r#"
-interface IConditionalQuestion {
-    question_id: numner;
-    when_any: Array<IQuestionCondition>;
+const ICONDITIONAL_CONTEST: &'static str = r#"
+interface IConditionalContest {
+    contest_id: numner;
+    when_any: Array<IContestCondition>;
 }
 "#;
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IConditionalQuestion")]
-    pub type IConditionalQuestion;
+    #[wasm_bindgen(typescript_type = "IConditionalContest")]
+    pub type IConditionalContest;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -132,7 +132,7 @@ interface IElectionPresentation {
     extra_options?: IElectionExtra;
     show_login_link_on_home?: boolean;
     election_board_ceremony?: boolean;
-    conditional_questions?: Array<IConditionalQuestion>;
+    conditional_contests?: Array<IConditionalContest>;
     pdf_url?: IUrl;
     anchor_continue_btn_to_bottom?: boolean;
     i18n_override?: { [key: string]: { [key: string]: string } };
@@ -146,8 +146,8 @@ extern "C" {
 }
 
 #[wasm_bindgen(typescript_custom_section)]
-const IQUESTION_EXTRA: &'static str = r#"
-interface IQuestionExtra {
+const ICONTEST_EXTRA: &'static str = r#"
+interface IContestExtra {
     group?: string;
     next_button?: string;
     shuffled_categories?: string;
@@ -178,14 +178,14 @@ interface IQuestionExtra {
     allow_writeins?: boolean;
     base32_writeins?: boolean;
     invalid_vote_policy?: string;
-    review_screen__show_question_description?: boolean;
+    review_screen__show_contest_description?: boolean;
 }
 "#;
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IQuestionExtra")]
-    pub type IQuestionExtra;
+    #[wasm_bindgen(typescript_type = "IContestExtra")]
+    pub type IContestExtra;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -207,8 +207,8 @@ extern "C" {
 }
 
 #[wasm_bindgen(typescript_custom_section)]
-const IQUESTION: &'static str = r#"
-interface IQuestion {
+const ICONTEST: &'static str = r#"
+interface IContest {
     id: string;
     description: string;
     layout: string;
@@ -219,14 +219,14 @@ interface IQuestion {
     tally_type: string;
     answer_total_votes_percentage: string;
     answers: Array<IAnswer>;
-    extra_options?: IQuestionExtra;
+    extra_options?: IContestExtra;
 }
 "#;
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IQuestion")]
-    pub type IQuestion;
+    #[wasm_bindgen(typescript_type = "IContest")]
+    pub type IContest;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -238,7 +238,7 @@ interface IElectionConfig {
     authorities: Array<string>;
     title: string;
     description: string;
-    questions: Array<IQuestion>;
+    contests: Array<IContest>;
     start_date?: string;
     end_date?: string;
     presentation: IElectionPresentation;
