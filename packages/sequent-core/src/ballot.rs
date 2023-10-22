@@ -181,6 +181,8 @@ impl Candidate {
             self.presentation.clone().unwrap_or(CandidatePresentation {
                 is_explicit_invalid: false,
                 is_write_in: false,
+                sort_order: Some(0),
+                urls: None,
             });
         presentation.is_write_in = is_write_in;
         self.presentation = Some(presentation);
@@ -207,6 +209,21 @@ pub struct ContestPresentation {
     pub shuffle_all_options: bool,
     pub shuffle_category_list: Option<Vec<String>>,
     pub show_points: bool,
+}
+
+impl ContestPresentation {
+    pub fn new() -> ContestPresentation {
+        ContestPresentation {
+            allow_writeins: true,
+            base32_writeins: true,
+            invalid_vote_policy: "allowed".into(),
+            cumulative_number_of_checkboxes: None,
+            shuffle_categories: true,
+            shuffle_all_options: true,
+            shuffle_category_list: None,
+            show_points: false,
+        }
+    }
 }
 
 #[derive(
