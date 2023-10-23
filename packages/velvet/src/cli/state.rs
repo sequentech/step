@@ -53,27 +53,47 @@ impl State {
         })
     }
 
-    pub fn exec_next(&mut self, stage: &str) -> Result<()> {
-        let stage = self
-            .stages
-            .iter_mut()
-            .find(|s| s.name == stage)
-            .ok_or(Error::StageNotFound)?;
+    pub fn exec_next(&mut self, stage_name: &str) -> Result<()> {
+        let (current_pipe, next_pipe) = {
+            let stage = self.get_stage(stage_name).ok_or(Error::PipeNotFound)?;
+            (stage.current_pipe, stage.next_pipe())
+        };
 
-        let curr_index = stage
-            .pipeline
-            .iter()
-            .position(|p| *p == stage.current_pipe)
-            .ok_or(Error::PipeNotFound)?;
-
-        let pm = PipeManager::new(&self.cli, stage.current_pipe)?.ok_or(Error::PipeNotFound)?;
+        let cli = self.cli.clone();
+        let pm = PipeManager::new(cli, current_pipe)?.ok_or(Error::PipeNotFound)?;
         pm.exec().map_err(|e| Error::PipeExec(e.to_string()))?;
 
-        if curr_index + 1 < stage.pipeline.len() {
-            stage.current_pipe = stage.pipeline[curr_index + 1];
+        if let Some(pipe) = next_pipe {
+            let stage = self.get_stage(stage_name).ok_or(Error::PipeNotFound)?;
+            stage.current_pipe = pipe;
         }
 
         Ok(())
+    }
+
+    fn get_stage(&mut self, stage: &str) -> Option<&mut Stage> {
+        self.stages.iter_mut().find(|s| s.name == stage)
+    }
+}
+
+impl Stage {
+    pub fn previous_pipe(&self, stage: &str) -> Option<PipeName> {
+        let curr_index = self.pipeline.iter().position(|p| *p == self.current_pipe);
+        if let Some(curr_index) = curr_index {
+            if curr_index - 1 > 0 {
+                return Some(self.pipeline[curr_index - 1]);
+            }
+        }
+        None
+    }
+    pub fn next_pipe(&self) -> Option<PipeName> {
+        let curr_index = self.pipeline.iter().position(|p| *p == self.current_pipe);
+        if let Some(curr_index) = curr_index {
+            if curr_index + 1 < self.pipeline.len() {
+                return Some(self.pipeline[curr_index + 1]);
+            }
+        }
+        None
     }
 }
 

@@ -20,7 +20,7 @@ pub trait Pipe {
 pub struct PipeManager;
 
 impl PipeManager {
-    pub fn new(cli: &CliRun, pipe: PipeName) -> Result<Option<Box<dyn Pipe>>, Error> {
+    pub fn new(cli: CliRun, pipe: PipeName) -> Result<Option<Box<dyn Pipe>>, Error> {
         let pipe_inputs = PipeInputs::new(cli)?;
 
         Ok(match pipe {

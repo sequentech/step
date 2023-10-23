@@ -29,13 +29,10 @@ pub struct PipeInputs {
 }
 
 impl PipeInputs {
-    pub fn new(cli: &CliRun) -> Result<Self> {
+    pub fn new(cli: CliRun) -> Result<Self> {
         let election_list = Self::read_input_dir_config(&cli.input_dir)?;
 
-        Ok(Self {
-            cli: cli.clone(),
-            election_list,
-        })
+        Ok(Self { cli, election_list })
     }
 
     pub fn get_path_for_contest(
