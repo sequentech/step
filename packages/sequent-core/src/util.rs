@@ -9,7 +9,7 @@ pub fn get_current_date() -> String {
     local.format("%-d/%-m/%Y").to_string()
 }
 
-pub fn normalize_vote_question(
+pub fn normalize_vote_contest(
     input: &DecodedVoteContest,
     tally_type: &str,
     remove_errors: bool,

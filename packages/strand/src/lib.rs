@@ -37,7 +37,7 @@ mod symmetric;
 cfg_if::cfg_if! {
     if #[cfg(any(feature = "openssl", feature="openssl_except_signatures"))] {
         /// Random number generation backed by [OpenSSL](https://crates.io/crates/openssl).
-        pub(crate) use random::openssl as rng;
+        pub use random::openssl as rng;
         /// SHA-2 hashing backed by [OpenSSL](https://crates.io/crates/openssl).
         pub use hashing::openssl as hash;
         /// AES-GCM backed by [OpenSSL](https://crates.io/crates/openssl).
@@ -58,7 +58,7 @@ cfg_if::cfg_if! {
         /// EcDSA digital signatures backed by [rustcrypto](https://docs.rs/ecdsa/latest/ecdsa/).
         // pub use signatures::rustcrypto as signature;
         /// Random number generation backed by [rand](https://crates.io/crates/rand).
-        pub(crate) use random::rand as rng;
+        pub use random::rand as rng;
         /// SHA-2 hashing backed by [rustcrypto](https://crates.io/crates/sha2).
         pub use hashing::rustcrypto as hash;
     }
@@ -66,7 +66,7 @@ cfg_if::cfg_if! {
         /// Ed25519 digital signatures backed by [dalek](https://github.com/dalek-cryptography/curve25519-dalek/tree/main/ed25519-dalek).
         pub use signatures::dalek as signature;
         /// Random number generation backed by [rand](https://crates.io/crates/rand).
-        pub(crate) use random::rand as rng;
+        pub use random::rand as rng;
         /// SHA-2 hashing backed by [rustcrypto](https://crates.io/crates/sha2).
         pub use hashing::rustcrypto as hash;
         /// Chacha20poly1305 backed by [rustcrypto](https://docs.rs/chacha20poly1305/latest/chacha20poly1305/).

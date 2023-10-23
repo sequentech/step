@@ -8,19 +8,19 @@ use serde::{Deserialize, Serialize};
 use std::cmp;
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
-pub enum QuestionState {
+pub enum ContestState {
     ElectionChooserScreen,
     ReceivingElection,
     ErrorScreen,
     HelpScreen,
     StartScreen,
-    MultiQuestion,
+    MultiContest,
     PairwiseBeta,
     DraftsElectionScreen,
     AuditBallotScreen,
     PcandidatesElectionScreen,
-    TwoQuestionsConditionalScreen,
-    SimultaneousQuestionsScreen,
+    TwoContestsConditionalScreen,
+    SimultaneousContestsScreen,
     ConditionalAccordionScreen,
     EncryptingBallotScreen,
     CastOrCancelScreen,
@@ -31,78 +31,78 @@ pub enum QuestionState {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
-pub struct QuestionLayoutProperties {
-    state: QuestionState,
+pub struct ContestLayoutProperties {
+    state: ContestState,
     sorted: bool,
     ordered: bool,
 }
 
 pub fn get_layout_properties(
-    question: &Question,
-) -> Option<QuestionLayoutProperties> {
-    if question.layout == "conditional-accordion" {
-        return Some(QuestionLayoutProperties {
-            state: QuestionState::ConditionalAccordionScreen,
+    contest: &Contest,
+) -> Option<ContestLayoutProperties> {
+    /*if contest.layout == "conditional-accordion" {
+        return Some(ContestLayoutProperties {
+            state: ContestState::ConditionalAccordionScreen,
             sorted: true,
             ordered: true,
         });
-    } else if question.layout == "pcandidates-election" {
-        return Some(QuestionLayoutProperties {
-            state: QuestionState::PcandidatesElectionScreen,
+    } else if contest.layout == "pcandidates-election" {
+        return Some(ContestLayoutProperties {
+            state: ContestState::PcandidatesElectionScreen,
             sorted: true,
             ordered: true,
         });
-    } else if question.layout == "simultaneous-questions" {
-        return Some(QuestionLayoutProperties {
-            state: QuestionState::SimultaneousQuestionsScreen,
+    } else if contest.layout == "simultaneous-contests" {
+        return Some(ContestLayoutProperties {
+            state: ContestState::SimultaneousContestsScreen,
             sorted: false,
             ordered: false,
         });
-    }
+    }*/
 
-    match question.tally_type.as_str() {
-        "plurality-at-large" => Some(QuestionLayoutProperties {
-            state: QuestionState::MultiQuestion,
+    match contest.get_counting_algorithm().as_str() {
+        "plurality-at-large" => Some(ContestLayoutProperties {
+            state: ContestState::MultiContest,
             sorted: true,
             ordered: false,
         }),
-        "borda-nauru" => Some(QuestionLayoutProperties {
-            state: QuestionState::MultiQuestion,
+        "borda-nauru" => Some(ContestLayoutProperties {
+            state: ContestState::MultiContest,
             sorted: true,
             ordered: true,
         }),
-        "borda" => Some(QuestionLayoutProperties {
-            state: QuestionState::MultiQuestion,
+        "borda" => Some(ContestLayoutProperties {
+            state: ContestState::MultiContest,
             sorted: true,
             ordered: true,
         }),
-        "borda-mas-madrid" => Some(QuestionLayoutProperties {
-            state: QuestionState::MultiQuestion,
+        "borda-mas-madrid" => Some(ContestLayoutProperties {
+            state: ContestState::MultiContest,
             sorted: true,
             ordered: true,
         }),
-        "pairwise-beta" => Some(QuestionLayoutProperties {
-            state: QuestionState::PairwiseBeta,
+        "pairwise-beta" => Some(ContestLayoutProperties {
+            state: ContestState::PairwiseBeta,
             sorted: true,
             ordered: true,
         }),
-        "desborda3" => Some(QuestionLayoutProperties {
-            state: QuestionState::MultiQuestion,
+        "desborda3" => Some(ContestLayoutProperties {
+            state: ContestState::MultiContest,
             sorted: true,
             ordered: true,
         }),
-        "desborda2" => Some(QuestionLayoutProperties {
-            state: QuestionState::MultiQuestion,
+        "desborda2" => Some(ContestLayoutProperties {
+            state: ContestState::MultiContest,
             sorted: true,
             ordered: true,
         }),
-        "desborda" => Some(QuestionLayoutProperties {
-            state: QuestionState::MultiQuestion,
+        "desborda" => Some(ContestLayoutProperties {
+            state: ContestState::MultiContest,
             sorted: true,
             ordered: true,
         }),
-        "cumulative" => Some(QuestionLayoutProperties {
-            state: QuestionState::SimultaneousQuestionsScreen,
+        "cumulative" => Some(ContestLayoutProperties {
+            state: ContestState::SimultaneousContestsScreen,
             sorted: false,
             ordered: false,
         }),
@@ -114,36 +114,36 @@ pub fn get_layout_properties(
  * @returns number of points this ballot is giving to this option
  */
 pub fn get_points(
-    question: &Question,
-    answer: &DecodedVoteChoice,
+    contest: &Contest,
+    candidate: &DecodedVoteChoice,
 ) -> Option<i64> {
-    if !&question.show_points() {
+    if !&contest.show_points() {
         return Some(0);
     }
-    if answer.selected < 0 {
+    if candidate.selected < 0 {
         return Some(0);
     }
 
-    match question.tally_type.as_str() {
+    match contest.get_counting_algorithm().as_str() {
         "plurality-at-large" => Some(1),
-        "borda" => Some((question.max as i64) - answer.selected),
-        // "borda-mas-madrid" => return scope.question.max -
+        "borda" => Some((contest.max_votes as i64) - candidate.selected),
+        // "borda-mas-madrid" => return scope.contest.max -
         // scope.option.selected
-        "borda-nauru" => Some(1 + answer.selected), /* 1 / (1 + answer. */
+        "borda-nauru" => Some(1 + candidate.selected), /* 1 / (1 + candidate. */
         // selected)
         "pairwise-beta" => None,
-        "desborda3" => Some(cmp::max(
+        /*"desborda3" => Some(cmp::max(
             1,
-            (((question.num_winners as f64) * 1.3) - (answer.selected as f64))
+            (((contest.num_winners as f64) * 1.3) - (candidate.selected as f64))
                 .trunc() as i64,
         )),
         "desborda2" => Some(cmp::max(
             1,
-            (((question.num_winners as f64) * 1.3) - (answer.selected as f64))
+            (((contest.num_winners as f64) * 1.3) - (candidate.selected as f64))
                 .trunc() as i64,
-        )),
-        "desborda" => Some(80 - answer.selected),
-        "cummulative" => Some(answer.selected + 1),
+        )),*/
+        "desborda" => Some(80 - candidate.selected),
+        "cummulative" => Some(candidate.selected + 1),
         _ => None,
     }
 }

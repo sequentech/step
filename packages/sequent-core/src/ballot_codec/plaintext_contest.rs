@@ -6,58 +6,58 @@ use crate::ballot_codec::*;
 use crate::plaintext::*;
 
 pub trait PlaintextCodec {
-    fn encode_plaintext_question(
+    fn encode_plaintext_contest(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<[u8; 30], String>;
-    fn decode_plaintext_question(
+    fn decode_plaintext_contest(
         &self,
         code: &[u8; 30],
     ) -> Result<DecodedVoteContest, String>;
 
-    fn encode_plaintext_question_to_bytes(
+    fn encode_plaintext_contest_to_bytes(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<Vec<u8>, String>;
-    fn decode_plaintext_question_from_bytes(
+    fn decode_plaintext_contest_from_bytes(
         &self,
         bytes: &[u8],
     ) -> Result<DecodedVoteContest, String>;
 }
 
-impl PlaintextCodec for Question {
-    fn encode_plaintext_question(
+impl PlaintextCodec for Contest {
+    fn encode_plaintext_contest(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<[u8; 30], String> {
         let plaintext_bytes_vec =
-            self.encode_plaintext_question_to_bytes(plaintext)?;
+            self.encode_plaintext_contest_to_bytes(plaintext)?;
         encode_vec_to_array(&plaintext_bytes_vec)
     }
 
-    fn decode_plaintext_question(
+    fn decode_plaintext_contest(
         &self,
         code: &[u8; 30],
     ) -> Result<DecodedVoteContest, String> {
         let plaintext_bytes = decode_array_to_vec(code);
 
-        self.decode_plaintext_question_from_bytes(&plaintext_bytes)
+        self.decode_plaintext_contest_from_bytes(&plaintext_bytes)
     }
 
-    fn encode_plaintext_question_to_bytes(
+    fn encode_plaintext_contest_to_bytes(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<Vec<u8>, String> {
-        let bigint = self.encode_plaintext_question_bigint(plaintext)?;
+        let bigint = self.encode_plaintext_contest_bigint(plaintext)?;
         encode_bigint_to_bytes(&bigint)
     }
 
-    fn decode_plaintext_question_from_bytes(
+    fn decode_plaintext_contest_from_bytes(
         &self,
         bytes: &[u8],
     ) -> Result<DecodedVoteContest, String> {
         let bigint = decode_bigint_from_bytes(&bytes)?;
-        self.decode_plaintext_question_bigint(&bigint)
+        self.decode_plaintext_contest_bigint(&bigint)
     }
 }
 
@@ -65,26 +65,25 @@ impl PlaintextCodec for Question {
 mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
-    use crate::util::normalize_vote_question;
+    use crate::util::normalize_vote_contest;
     use std::cmp;
 
     #[test]
     fn test_encoding_plaintext() {
-        let decoded_question = get_test_decoded_vote_question();
-        let question = get_test_question();
-        let encoded_bigint = question
-            .encode_plaintext_question_bigint(&decoded_question)
+        let decoded_contest = get_test_decoded_vote_contest();
+        let contest = get_test_contest();
+        let encoded_bigint = contest
+            .encode_plaintext_contest_bigint(&decoded_contest)
             .unwrap(); // test
-        let encoded_plaintext = question
-            .encode_plaintext_question(&decoded_question)
-            .unwrap();
+        let encoded_plaintext =
+            contest.encode_plaintext_contest(&decoded_contest).unwrap();
 
         let plaintext_bytes = decode_array_to_vec(&encoded_plaintext); // test
         let decoded_bigint =
             decode_bigint_from_bytes(&plaintext_bytes).unwrap(); // test
 
-        let decoded_plaintext = question
-            .decode_plaintext_question(&encoded_plaintext)
+        let decoded_plaintext = contest
+            .decode_plaintext_contest(&encoded_plaintext)
             .unwrap();
 
         println!(
@@ -97,31 +96,30 @@ mod tests {
             decoded_bigint.to_str_radix(10)
         );
         assert_eq!(
-            normalize_vote_question(
-                &decoded_question,
-                question.tally_type.as_str(),
+            normalize_vote_contest(
+                &decoded_contest,
+                contest.get_counting_algorithm().as_str(),
                 false
             ),
-            normalize_vote_question(
+            normalize_vote_contest(
                 &decoded_plaintext,
-                question.tally_type.as_str(),
+                contest.get_counting_algorithm().as_str(),
                 false
             )
         );
     }
 
     #[test]
-    fn test_question_encode_plaintext() {
+    fn test_contest_encode_plaintext() {
         let fixtures = get_fixtures();
         for fixture in fixtures {
             println!("fixture: {}", &fixture.title);
 
-            let encoded_ballot = fixture
-                .question
-                .encode_plaintext_question(&fixture.plaintext);
+            let encoded_ballot =
+                fixture.contest.encode_plaintext_contest(&fixture.plaintext);
             let expected_error =
                 fixture.expected_errors.and_then(|expected_map| {
-                    expected_map.get("question_encode_plaintext").cloned()
+                    expected_map.get("contest_encode_plaintext").cloned()
                 });
 
             if let Some(error) = expected_error {
@@ -142,18 +140,18 @@ mod tests {
     }
 
     #[test]
-    fn test_question_decode_plaintext() {
+    fn test_contest_decode_plaintext() {
         let fixtures = get_fixtures();
         for fixture in fixtures {
             println!("fixture: {}", &fixture.title);
 
             let decoded_ballot = &fixture
-                .question
-                .decode_plaintext_question(&fixture.encoded_ballot)
+                .contest
+                .decode_plaintext_contest(&fixture.encoded_ballot)
                 .unwrap();
             let expected_error =
                 fixture.expected_errors.and_then(|expected_map| {
-                    expected_map.get("question_decode_plaintext").cloned()
+                    expected_map.get("contest_decode_plaintext").cloned()
                 });
             assert_eq!(
                 &decoded_ballot.is_explicit_invalid,
@@ -176,14 +174,14 @@ mod tests {
                     .contains(&"decode_choices".to_string())
             {
                 assert_eq!(
-                    normalize_vote_question(
+                    normalize_vote_contest(
                         &decoded_ballot,
-                        fixture.question.tally_type.as_str(),
+                        fixture.contest.get_counting_algorithm().as_str(),
                         false
                     ),
-                    normalize_vote_question(
+                    normalize_vote_contest(
                         &fixture.plaintext,
-                        fixture.question.tally_type.as_str(),
+                        fixture.contest.get_counting_algorithm().as_str(),
                         false
                     )
                 );
