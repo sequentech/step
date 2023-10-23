@@ -133,7 +133,7 @@ mod tests {
         let mut state = State::new(&cli, &config)?;
 
         // DecodeBallots
-        state.exec_next(&cli.stage)?;
+        state.exec_next()?;
 
         assert_eq!(
             WalkDir::new(cli.output_dir)
@@ -149,7 +149,7 @@ mod tests {
         );
 
         // DoTally
-        state.exec_next(&cli.stage)?;
+        state.exec_next()?;
 
         Ok(())
     }

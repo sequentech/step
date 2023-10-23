@@ -53,15 +53,16 @@ impl State {
         })
     }
 
-    pub fn exec_next(&mut self, stage_name: &str) -> Result<()> {
-        let stage = self.get_stage(stage_name).ok_or(Error::PipeNotFound)?;
+    pub fn exec_next(&mut self) -> Result<()> {
+        let stage_name = self.cli.stage.clone();
+        let stage = self.get_stage(&stage_name).ok_or(Error::PipeNotFound)?;
 
         let cli = self.cli.clone();
         let pm = PipeManager::new(cli, stage.clone())?.ok_or(Error::PipeNotFound)?;
         pm.exec().map_err(|e| Error::PipeExec(e.to_string()))?;
 
         if let Some(pipe) = stage.next_pipe() {
-            self.set_current_pipe(stage_name, pipe)?;
+            self.set_current_pipe(&stage_name, pipe)?;
         }
 
         Ok(())
@@ -209,7 +210,7 @@ mod tests {
         assert_eq!(state.stages[0].name, "main");
         assert_eq!(state.stages[0].current_pipe, PipeName::DoTally);
 
-        state.exec_next("main")?;
+        state.exec_next()?;
         assert_eq!(state.stages[0].current_pipe, PipeName::Consolidation);
 
         Ok(())
