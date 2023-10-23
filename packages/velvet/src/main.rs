@@ -16,7 +16,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error + 'static>> {
             let config = run.validate()?;
 
             let mut state = State::new(&run, &config)?;
-            state.exec_next();
+            state.exec_next()?;
         }
     }
 

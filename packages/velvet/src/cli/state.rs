@@ -86,10 +86,10 @@ impl State {
 }
 
 impl Stage {
-    pub fn previous_pipe(&self, stage: &str) -> Option<PipeName> {
+    pub fn previous_pipe(&self) -> Option<PipeName> {
         let curr_index = self.pipeline.iter().position(|p| *p == self.current_pipe);
         if let Some(curr_index) = curr_index {
-            if curr_index - 1 > 0 {
+            if curr_index > 0 {
                 return Some(self.pipeline[curr_index - 1]);
             }
         }
@@ -128,11 +128,23 @@ mod tests {
             map.insert(
                 "main".to_string(),
                 config::Stage {
-                    pipeline: vec![config::PipeConfig {
-                        id: "do-tally".to_string(),
-                        pipe: PipeName::DoTally,
-                        config: Some(serde_json::Value::Null),
-                    }],
+                    pipeline: vec![
+                        config::PipeConfig {
+                            id: "decode".to_string(),
+                            pipe: PipeName::DecodeBallots,
+                            config: Some(serde_json::Value::Null),
+                        },
+                        config::PipeConfig {
+                            id: "do-tally".to_string(),
+                            pipe: PipeName::DoTally,
+                            config: Some(serde_json::Value::Null),
+                        },
+                        config::PipeConfig {
+                            id: "consolidation".to_string(),
+                            pipe: PipeName::Consolidation,
+                            config: Some(serde_json::Value::Null),
+                        },
+                    ],
                 },
             );
             map
@@ -149,9 +161,12 @@ mod tests {
         };
 
         let state = State::new(&cli, &config)?;
+        let stage = &state.stages[0];
         assert_eq!(state.stages.len(), 1);
-        assert_eq!(state.stages[0].name, "main");
-        assert_eq!(state.stages[0].current_pipe, PipeName::DoTally);
+        assert_eq!(stage.name, "main");
+        assert_eq!(stage.previous_pipe(), Some(PipeName::DecodeBallots));
+        assert_eq!(stage.current_pipe, PipeName::DoTally);
+        assert_eq!(stage.next_pipe(), Some(PipeName::Consolidation));
 
         Ok(())
     }

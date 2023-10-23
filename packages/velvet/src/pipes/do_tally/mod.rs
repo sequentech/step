@@ -15,7 +15,9 @@ impl DoTally {
 
 impl Pipe for DoTally {
     fn exec(&self) -> Result<(), Box<dyn StdError>> {
-        dbg!("do tally pipe exec");
+        dbg!("previous", self.pipe_inputs.stage.previous_pipe());
+        dbg!("current", self.pipe_inputs.stage.current_pipe);
+        dbg!("next", self.pipe_inputs.stage.next_pipe());
         Ok(())
     }
 }
