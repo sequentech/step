@@ -220,6 +220,7 @@ pub struct ContestPresentation {
     pub shuffle_all_options: bool,
     pub shuffle_category_list: Option<Vec<String>>,
     pub show_points: bool,
+    pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
 }
 
 impl ContestPresentation {

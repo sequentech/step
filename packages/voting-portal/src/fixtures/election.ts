@@ -47,7 +47,7 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                         is_category_list: false,
                         is_write_in: false,
                         sort_order: 0,
-                    }
+                    },
                 },
                 {
                     id: "e7b58e4d-7297-4ceb-8f87-f93042f91576",
@@ -56,8 +56,8 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                     election_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
                     contest_id: "0879c2ff-1212-4c9d-a415-907c47a9e28f",
                     name: "Example option 2",
-                    description: 
-                    'An option can contain a description. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.',
+                    description:
+                        'An option can contain a description. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.',
                     candidate_type: "A",
                     presentation: {
                         is_explicit_invalid: false,
@@ -74,9 +74,9 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                                 url: "/XFQwVFL.jpg",
                                 title: "Image URL",
                                 is_image: true,
-                            }
-                        ]
-                    }
+                            },
+                        ],
+                    },
                 },
                 {
                     id: "d88d4872-49c3-4f7d-9e24-15a0c82efd01",
@@ -96,9 +96,9 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                                 url: "/XFQwVFL.jpg",
                                 title: "Image URL",
                                 is_image: true,
-                            }
-                        ]
-                    }
+                            },
+                        ],
+                    },
                 },
                 {
                     id: "d6d097c5-1079-4050-ac96-8f2fe5f0bb37",
@@ -114,7 +114,7 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                         is_write_in: false,
                         is_category_list: true,
                         sort_order: 3,
-                    }
+                    },
                 },
                 {
                     id: "8b7d848a-8d66-47af-8dbd-a811f5ff9582",
@@ -130,7 +130,7 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                         is_write_in: false,
                         is_category_list: true,
                         sort_order: 4,
-                    }
+                    },
                 },
                 {
                     id: "61320aac-0d78-4001-845e-a2f2bd8e800b",
@@ -144,7 +144,7 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                         is_write_in: true,
                         is_category_list: true,
                         sort_order: 5,
-                    }
+                    },
                 },
             ],
             presentation: {
@@ -155,9 +155,10 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                 shuffle_all_options: true,
                 shuffle_category_list: [],
                 show_points: false,
+                enable_checkable_lists: "allow-selecting-candidates-and-lists",
             },
-        }
-    ]
+        },
+    ],
 }
 
 export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
@@ -206,10 +207,10 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
                             {
                                 url: "/XFQwVFL.jpg",
                                 title: "Image URL",
-                                is_image: true
+                                is_image: true,
                             },
                         ],
-                    }
+                    },
                 },
                 {
                     id: "97ac7d0a-e0f5-4e51-a1ee-6614c0836fec",
@@ -218,8 +219,8 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
                     election_id: "60e4ddce-2d5b-4dea-bbae-e81010aa1f0f",
                     contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
                     name: "Example option 2",
-                    description: 
-                    'An option can contain a description. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.',
+                    description:
+                        'An option can contain a description. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.',
                     presentation: {
                         is_explicit_invalid: false,
                         is_category_list: false,
@@ -229,15 +230,15 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
                             {
                                 url: "https://sequentech.io",
                                 title: "URL",
-                                is_image: false
+                                is_image: false,
                             },
                             {
                                 url: "/XFQwVFL.jpg",
                                 title: "Image URL",
-                                is_image: true
+                                is_image: true,
                             },
                         ],
-                    }
+                    },
                 },
                 {
                     id: "94c9eafa-ebc6-4594-a176-24788f761ced",
@@ -251,7 +252,7 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
                         is_category_list: false,
                         is_write_in: false,
                         sort_order: 2,
-                    }
+                    },
                 },
             ],
             presentation: {
@@ -262,9 +263,10 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
                 shuffle_all_options: true,
                 shuffle_category_list: [],
                 show_points: false,
+                enable_checkable_lists: "allow-selecting-candidates-and-lists",
             },
-        }
-    ]
+        },
+    ],
 }
 
 export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
@@ -319,8 +321,8 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
                     election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
                     contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a",
                     name: "Example option 2",
-                    description: 
-                    'An option can contain a description. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.',
+                    description:
+                        'An option can contain a description. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.',
                     presentation: {
                         is_explicit_invalid: false,
                         is_category_list: false,
@@ -336,8 +338,8 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
                                 url: "/XFQwVFL.jpg",
                                 title: "Image URL",
                                 is_image: true,
-                            }
-                        ]
+                            },
+                        ],
                     },
                 },
                 {
@@ -374,9 +376,10 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
                 shuffle_categories: true,
                 shuffle_all_options: true,
                 show_points: false,
+                enable_checkable_lists: "allow-selecting-candidates-and-lists",
             },
-        }
-    ]
+        },
+    ],
 }
 
 export const ELECTION_WITH_INVALID: IBallotStyle = {
@@ -429,8 +432,8 @@ export const ELECTION_WITH_INVALID: IBallotStyle = {
                     election_id: "45b95ddb-e9b7-4a83-ac14-d6fe21574637",
                     contest_id: "87c19855-00de-4093-b155-6fdfa8a24d42",
                     name: "Example option 2",
-                    description: 
-                    'An option can contain a description. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.',
+                    description:
+                        'An option can contain a description. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.',
                     presentation: {
                         is_explicit_invalid: false,
                         is_category_list: false,
@@ -446,8 +449,8 @@ export const ELECTION_WITH_INVALID: IBallotStyle = {
                                 url: "/XFQwVFL.jpg",
                                 title: "Image URL",
                                 is_image: true,
-                            }
-                        ]
+                            },
+                        ],
                     },
                 },
                 {
@@ -486,11 +489,11 @@ export const ELECTION_WITH_INVALID: IBallotStyle = {
                 shuffle_categories: true,
                 shuffle_all_options: true,
                 show_points: false,
+                enable_checkable_lists: "allow-selecting-candidates-and-lists",
             },
-        }
-    ]
+        },
+    ],
 }
-
 
 export const ELECTIONS_LIST = [
     ELECTION_CATEGORIES,

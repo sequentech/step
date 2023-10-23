@@ -215,7 +215,7 @@ export const ReviewScreen: React.FC = () => {
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(t("reviewScreen.description"))}
             </Typography>
-            {ballotStyle.ballot_eml.configuration.questions.map((question, index) => (
+            {ballotStyle.ballot_eml.contests.map((question, index) => (
                 <Question
                     ballotStyle={ballotStyle}
                     question={question}
