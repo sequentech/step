@@ -50,6 +50,7 @@ impl CliRun {
         let file = File::open(&self.config).map_err(|_| Error::CannotOpenConfig)?;
         let config: Config = serde_json::from_reader(file)?;
 
+        // TODO: verify pipeId uniqueness
         for stage in &config.stages.order {
             if !config.stages.stages_def.contains_key(stage) {
                 return Err(Error::StageDefinition(format!(
