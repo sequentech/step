@@ -5,161 +5,159 @@ import {IBallotStyle} from "sequent-core"
 
 export const ELECTION_CATEGORIES: IBallotStyle = {
     id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
-    configuration: {
-        id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
-        layout: "simple",
-        director: "6xx-a1",
-        authorities: ["6xx-a2"],
-        title: "With categories",
-        description:
-            'This is the description of the election. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
-        questions: [
-            {
-                id: "0879c2ff-1212-4c9d-a415-907c47a9e28f",
-                description:
-                    'This is the description of this question. You can have multiple questions. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
-                layout: "simultaneous-questions",
-                max: 1,
-                min: 1,
-                num_winners: 1,
-                title: "Test question title",
-                tally_type: "plurality-at-large",
-                answer_total_votes_percentage: "over-total-valid-votes",
-                answers: [
-                    {
-                        id: "780b4eb5-4f83-47b7-a8e0-79343bfa5e43",
-                        category: "A",
-                        details: "This is an option with an simple example description.",
-                        sort_order: 0,
-                        urls: [],
-                        text: "Example option 1",
-                    },
-                    {
-                        id: "e7b58e4d-7297-4ceb-8f87-f93042f91576",
-                        category: "A",
-                        details:
-                            'An option can contain a description. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.',
-                        sort_order: 1,
-                        urls: [
-                            {
-                                title: "URL",
-                                url: "https://sequentech.io",
-                            },
-                            {
-                                title: "Image URL",
-                                url: "/XFQwVFL.jpg",
-                            },
-                        ],
-                        text: "Example option 2",
-                    },
-                    {
-                        id: "d88d4872-49c3-4f7d-9e24-15a0c82efd01",
-                        category: "B",
-                        details: "",
-                        sort_order: 2,
-                        urls: [
-                            {
-                                title: "Image URL",
-                                url: "/XFQwVFL.jpg",
-                            },
-                        ],
-                        text: "Example option 3",
-                    },
-                    {
-                        id: "d6d097c5-1079-4050-ac96-8f2fe5f0bb37",
-                        category: "A",
-                        details: "A Category",
-                        sort_order: 3,
-                        urls: [
-                            {
-                                title: "isCategoryList",
-                                url: "true",
-                            },
-                        ],
-                        text: "A",
-                    },
-                    {
-                        id: "8b7d848a-8d66-47af-8dbd-a811f5ff9582",
-                        category: "B",
-                        details: "B Category",
-                        sort_order: 4,
-                        urls: [
-                            {
-                                title: "isCategoryList",
-                                url: "true",
-                            },
-                        ],
-                        text: "B",
-                    },
-                    {
-                        id: "61320aac-0d78-4001-845e-a2f2bd8e800b",
-                        category: "B",
-                        details: "",
-                        sort_order: 5,
-                        urls: [
-                            {
-                                title: "isWriteIn",
-                                url: "true",
-                            },
-                        ],
-                        text: "",
-                    },
-                ],
-                extra_options: {
-                    shuffle_categories: true,
-                    shuffle_all_options: true,
-                    shuffle_category_list: [],
-                    show_points: false,
-                    allow_writeins: true,
-                    enable_checkable_lists: "allow-selecting-candidates-and-lists",
-                },
-            },
-        ],
-        presentation: {
-            share_text: [
-                {
-                    network: "Twitter",
-                    button_text: "",
-                    social_message: "I have just voted in election __URL__, you can too! #sequent",
-                },
-            ],
-            theme: "default",
-            urls: [],
-            theme_css: "",
-        },
-        extra_data: "{}",
-        tallyPipesConfig:
-            '{"version":"master","pipes":[{"type":"tally_pipes.pipes.results.do_tallies","params":{}},{"type":"tally_pipes.pipes.sort.sort_non_iterative","params":{}}]}',
-        ballotBoxesResultsConfig: "",
-        virtual: false,
-        tally_allowed: false,
-        publicCandidates: true,
-        virtualSubelections: [],
-        logo_url: "",
-    },
-    state: "started",
-    startDate: "2023-08-06T13:22:14.548",
+    tenant_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+    election_event_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+    election_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+    area_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+    description:
+        'This is the description of the election. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
     public_key: {
         public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
         is_demo: true,
     },
-    tallyPipesConfig:
-        '{"version":"master","pipes":[{"type":"tally_pipes.pipes.results.do_tallies","params":{}},{"type":"tally_pipes.pipes.sort.sort_non_iterative","params":{}}]}',
-    ballotBoxesResultsConfig: "",
-    virtual: false,
-    tallyAllowed: false,
-    publicCandidates: true,
-    logo_url: "",
-    trusteeKeysState: [
+    status: {
+        voting_status: "OPEN",
+    },
+    contests: [
         {
-            id: "6xx-a1",
-            state: "initial",
-        },
-        {
-            id: "6xx-a2",
-            state: "initial",
-        },
-    ],
+            id: "0879c2ff-1212-4c9d-a415-907c47a9e28f",
+            tenant_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+            election_event_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+            election_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+            name: "Test question title",
+            description:
+                'This is the description of this question. You can have multiple questions. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.',
+            max_votes: 1,
+            min_votes: 1,
+            voting_type: "first-past-the-post",
+            counting_algorithm: "plurality-at-large",
+            is_encrypted: true,
+            candidates: [
+                {
+                    id: "780b4eb5-4f83-47b7-a8e0-79343bfa5e43",
+                    tenant_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    election_event_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    election_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    contest_id: "0879c2ff-1212-4c9d-a415-907c47a9e28f",
+                    name: "Example option 1",
+                    description: "This is an option with an simple example description.",
+                    candidate_type: "A",
+                    presentation: {
+                        is_explicit_invalid: false,
+                        is_category_list: false,
+                        is_write_in: false,
+                        sort_order: 0,
+                    }
+                },
+                {
+                    id: "e7b58e4d-7297-4ceb-8f87-f93042f91576",
+                    tenant_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    election_event_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    election_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    contest_id: "0879c2ff-1212-4c9d-a415-907c47a9e28f",
+                    name: "Example option 2",
+                    description: 
+                    'An option can contain a description. You can add simple html like <strong>bold</strong> or <a href="https://sequentech.io" rel="nofollow">links to websites</a>. You can also set an image url below, but be sure it&#39;s HTTPS or else it won&#39;t load.\n\n<br /><br />You need to use two br element for new paragraphs.',
+                    candidate_type: "A",
+                    presentation: {
+                        is_explicit_invalid: false,
+                        is_category_list: false,
+                        is_write_in: false,
+                        sort_order: 1,
+                        urls: [
+                            {
+                                url: "https://sequentech.io",
+                                title: "URL",
+                                is_image: false,
+                            },
+                            {
+                                url: "/XFQwVFL.jpg",
+                                title: "Image URL",
+                                is_image: true,
+                            }
+                        ]
+                    }
+                },
+                {
+                    id: "d88d4872-49c3-4f7d-9e24-15a0c82efd01",
+                    tenant_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    election_event_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    election_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    contest_id: "0879c2ff-1212-4c9d-a415-907c47a9e28f",
+                    name: "Example option 3",
+                    candidate_type: "B",
+                    presentation: {
+                        is_explicit_invalid: false,
+                        is_category_list: false,
+                        is_write_in: false,
+                        sort_order: 2,
+                        urls: [
+                            {
+                                url: "/XFQwVFL.jpg",
+                                title: "Image URL",
+                                is_image: true,
+                            }
+                        ]
+                    }
+                },
+                {
+                    id: "d6d097c5-1079-4050-ac96-8f2fe5f0bb37",
+                    tenant_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    election_event_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    election_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    contest_id: "0879c2ff-1212-4c9d-a415-907c47a9e28f",
+                    name: "A",
+                    description: "A Category",
+                    candidate_type: "A",
+                    presentation: {
+                        is_explicit_invalid: false,
+                        is_write_in: false,
+                        is_category_list: true,
+                        sort_order: 3,
+                    }
+                },
+                {
+                    id: "8b7d848a-8d66-47af-8dbd-a811f5ff9582",
+                    tenant_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    election_event_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    election_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    contest_id: "0879c2ff-1212-4c9d-a415-907c47a9e28f",
+                    name: "B",
+                    description: "B Category",
+                    candidate_type: "B",
+                    presentation: {
+                        is_explicit_invalid: false,
+                        is_write_in: false,
+                        is_category_list: true,
+                        sort_order: 4,
+                    }
+                },
+                {
+                    id: "61320aac-0d78-4001-845e-a2f2bd8e800b",
+                    tenant_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    election_event_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    election_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
+                    contest_id: "0879c2ff-1212-4c9d-a415-907c47a9e28f",
+                    candidate_type: "B",
+                    presentation: {
+                        is_explicit_invalid: false,
+                        is_write_in: true,
+                        is_category_list: true,
+                        sort_order: 5,
+                    }
+                },
+            ],
+            presentation: {
+                allow_writeins: true,
+                base32_writeins: true,
+                invalid_vote_policy: "allowed",
+                shuffle_categories: true,
+                shuffle_all_options: true,
+                shuffle_category_list: [],
+                show_points: false,
+            },
+        }
+    ]
 }
 
 export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {

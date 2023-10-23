@@ -135,6 +135,7 @@ pub struct CandidateUrl {
 )]
 pub struct CandidatePresentation {
     pub is_explicit_invalid: bool,
+    pub is_category_list: bool,
     pub is_write_in: bool,
     pub sort_order: Option<i64>,
     pub urls: Option<Vec<CandidateUrl>>,
@@ -164,18 +165,27 @@ pub struct Candidate {
 }
 
 impl Candidate {
+    pub fn is_category_list(&self) -> bool {
+        self.presentation
+            .as_ref()
+            .map(|presentation| presentation.is_category_list)
+            .unwrap_or(false)
+    }
+
     pub fn is_explicit_invalid(&self) -> bool {
         self.presentation
             .as_ref()
             .map(|presentation| presentation.is_explicit_invalid)
             .unwrap_or(false)
     }
+
     pub fn is_write_in(&self) -> bool {
         self.presentation
             .as_ref()
             .map(|presentation| presentation.is_write_in)
             .unwrap_or(false)
     }
+
     pub fn set_is_write_in(&mut self, is_write_in: bool) {
         let mut presentation =
             self.presentation.clone().unwrap_or(CandidatePresentation {
