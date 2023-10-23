@@ -83,6 +83,7 @@ interface IContestPresentation {
     shuffle_all_options: boolean;
     shuffle_category_list?: Array<string>;
     show_points: boolean;
+    enable_checkable_lists?: string;
 }
 "#;
 

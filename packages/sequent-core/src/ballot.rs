@@ -191,9 +191,11 @@ impl Candidate {
         let mut presentation =
             self.presentation.clone().unwrap_or(CandidatePresentation {
                 is_explicit_invalid: false,
+                is_category_list: false,
                 is_write_in: false,
                 sort_order: Some(0),
                 urls: None,
+                invalid_vote_position: None,
             });
         presentation.is_write_in = is_write_in;
         self.presentation = Some(presentation);
@@ -234,6 +236,7 @@ impl ContestPresentation {
             shuffle_all_options: true,
             shuffle_category_list: None,
             show_points: false,
+            enable_checkable_lists: None,
         }
     }
 }
