@@ -38,6 +38,7 @@ const ICANDIDATE_PRESENTATION: &'static str = r#"
 interface ICandidatePresentation {
     is_explicit_invalid: boolean;
     is_category_list: boolean;
+    invalid_vote_position?: string;
     is_write_in: boolean;
     sort_order?: number;
     urls?: Array<ICandidateUrl>;

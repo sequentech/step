@@ -136,6 +136,7 @@ pub struct CandidateUrl {
 pub struct CandidatePresentation {
     pub is_explicit_invalid: bool,
     pub is_category_list: bool,
+    pub invalid_vote_position: Option<String>, // top|bottom
     pub is_write_in: bool,
     pub sort_order: Option<i64>,
     pub urls: Option<Vec<CandidateUrl>>,
