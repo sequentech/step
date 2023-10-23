@@ -54,25 +54,33 @@ impl State {
     }
 
     pub fn exec_next(&mut self, stage_name: &str) -> Result<()> {
-        let (current_pipe, next_pipe) = {
-            let stage = self.get_stage(stage_name).ok_or(Error::PipeNotFound)?;
-            (stage.current_pipe, stage.next_pipe())
-        };
+        let stage = self.get_stage(stage_name).ok_or(Error::PipeNotFound)?;
 
         let cli = self.cli.clone();
-        let pm = PipeManager::new(cli, current_pipe)?.ok_or(Error::PipeNotFound)?;
+        let pm = PipeManager::new(cli, stage)?.ok_or(Error::PipeNotFound)?;
         pm.exec().map_err(|e| Error::PipeExec(e.to_string()))?;
 
-        if let Some(pipe) = next_pipe {
-            let stage = self.get_stage(stage_name).ok_or(Error::PipeNotFound)?;
-            stage.current_pipe = pipe;
+        if let Some(pipe) = stage.next_pipe() {
+            self.set_current_pipe(stage_name, pipe)?;
         }
 
         Ok(())
     }
 
-    fn get_stage(&mut self, stage: &str) -> Option<&mut Stage> {
-        self.stages.iter_mut().find(|s| s.name == stage)
+    fn get_stage(&self, stage_name: &str) -> Option<&Stage> {
+        self.stages.iter().find(|s| s.name == stage_name)
+    }
+
+    fn set_current_pipe(&mut self, stage_name: &str, next_pipe: PipeName) -> Result<()> {
+        let stage = self
+            .stages
+            .iter_mut()
+            .find(|s| s.name == stage_name)
+            .ok_or(Error::PipeNotFound)?;
+
+        stage.current_pipe = next_pipe;
+
+        Ok(())
     }
 }
 
