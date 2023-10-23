@@ -318,6 +318,16 @@ impl Contest {
             .map(|presentation| presentation.show_points)
             .unwrap_or(false)
     }
+
+    pub fn get_invalid_candidate_ids(&self) -> Vec<Uuid> {
+        self.candidates
+            .iter()
+            .filter(|candidate| candidate.is_explicit_invalid())
+            .collect::<Vec<&Candidate>>()
+            .iter()
+            .map(|candidate| candidate.id.clone())
+            .collect()
+    }
 }
 
 #[derive(
