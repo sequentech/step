@@ -4,7 +4,7 @@ mod tests {
     use crate::cli::state::State;
     use crate::cli::CliRun;
     use crate::fixtures::TestFixture;
-    use crate::pipes::decode_ballots::ballot_codec::BallotCodec;
+    use sequent_core::ballot_codec::*;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
     use anyhow::{Error, Result};
     use rand::Rng;
