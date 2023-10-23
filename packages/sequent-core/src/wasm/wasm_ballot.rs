@@ -29,8 +29,8 @@ interface ICandidateUrl {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IPublicKeyConfig")]
-    pub type IPublicKeyConfig;
+    #[wasm_bindgen(typescript_type = "ICandidateUrl")]
+    pub type ICandidateUrl;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
