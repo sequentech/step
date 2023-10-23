@@ -38,7 +38,6 @@ pub(crate) mod tests {
     use crate::elgamal::*;
     use crate::serialization::StrandDeserialize;
     use crate::serialization::StrandSerialize;
-    use crate::shuffler::{ShuffleProof, Shuffler};
 
     use crate::util;
     use crate::zkp::Zkp;
@@ -252,6 +251,10 @@ pub(crate) mod tests {
         assert_eq!(data, recovered);
     }
 
+    cfg_if::cfg_if! {
+        if #[cfg(not(feature = "wasm"))] {
+        use crate::shuffler::{ShuffleProof, Shuffler};
+
     pub(crate) fn test_shuffle_generic<C: Ctx>(ctx: &C) {
         let sk = PrivateKey::gen(ctx);
         let pk = sk.get_pk();
@@ -314,4 +317,5 @@ pub(crate) mod tests {
 
         assert!(ok_d);
     }
+    }}
 }
