@@ -1,5 +1,5 @@
 use super::error::{Error, Result};
-use crate::cli::CliRun;
+use crate::cli::{state::Stage, CliRun};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -24,15 +24,20 @@ pub trait PipeInputsRead {
 #[derive(Debug)]
 pub struct PipeInputs {
     pub cli: CliRun,
+    pub stage: Stage,
     // TODO: Election Event Config
     pub election_list: Vec<ElectionConfig>,
 }
 
 impl PipeInputs {
-    pub fn new(cli: CliRun) -> Result<Self> {
+    pub fn new(cli: CliRun, stage: Stage) -> Result<Self> {
         let election_list = Self::read_input_dir_config(&cli.input_dir)?;
 
-        Ok(Self { cli, election_list })
+        Ok(Self {
+            cli,
+            stage,
+            election_list,
+        })
     }
 
     pub fn get_path_for_contest(

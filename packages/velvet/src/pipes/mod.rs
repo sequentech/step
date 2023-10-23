@@ -21,10 +21,10 @@ pub trait Pipe {
 pub struct PipeManager;
 
 impl PipeManager {
-    pub fn new(cli: CliRun, stage: &Stage) -> Result<Option<Box<dyn Pipe>>, Error> {
-        let pipe_inputs = PipeInputs::new(cli)?;
+    pub fn new(cli: CliRun, stage: Stage) -> Result<Option<Box<dyn Pipe>>, Error> {
+        let pipe_inputs = PipeInputs::new(cli, stage)?;
 
-        Ok(match stage.current_pipe {
+        Ok(match pipe_inputs.stage.current_pipe {
             PipeName::DecodeBallots => Some(Box::new(DecodeBallots::new(pipe_inputs))),
             PipeName::DoTally => Some(Box::new(DoTally::new(pipe_inputs))),
             _ => None,
