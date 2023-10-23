@@ -10,8 +10,7 @@ use crate::backend::ristretto::RistrettoCtx;
 use crate::context::Ctx;
 use crate::elgamal::{PrivateKey, PublicKey};
 use crate::rng::StrandRng;
-use crate::serialization::StrandSerialize;
-use crate::shuffler::Shuffler;
+// use crate::serialization::StrandSerialize;
 use crate::util;
 use crate::zkp::Zkp;
 use crate::util::StrandError;
@@ -37,9 +36,9 @@ pub fn bench(n: u32) {
     postMessage(">> strand wasm build NO rayon");
     bench_enc_pok(n);
     bench_modpow(n);
-    bench_shuffle(n as usize);
+    // bench_shuffle(n as usize);
 }
-
+/*
 #[wasm_bindgen]
 pub fn bench_shuffle(n: usize) {
     postMessage("> Ristretto shuffle");
@@ -53,7 +52,7 @@ pub fn bench_shuffle(n: usize) {
     postMessage("> Malachite shuffle");
     let ctx: MalachiteCtx<MP2048> = Default::default();
     bench_shuffle_serialization_generic(ctx, n);
-}
+}*/
 
 #[wasm_bindgen]
 pub fn bench_modpow(n: u32) {
@@ -105,7 +104,7 @@ pub fn bench_enc_pok(n: u32) {
     postMessage("> Malachite enc_pok");
     bench_enc_pok_generic(ctx, plaintext, n);
 }
-
+/*
 fn bench_shuffle_serialization_generic<C: Ctx>(ctx: C, n: usize) {
     let sk = PrivateKey::gen(&ctx);
     let pk: PublicKey<C> = sk.get_pk();
@@ -167,7 +166,7 @@ fn bench_shuffle_serialization_generic<C: Ctx>(ctx: C, n: usize) {
         "serialization raw {:.3} c / s",
         n as f64 / ((performance.now() - now) / 1000.0)
     ));
-}
+}*/
 
 fn bench_enc_pok_generic<C: Ctx>(ctx: C, data: C::P, n: u32) {
     let zkp = Zkp::new(&ctx);
