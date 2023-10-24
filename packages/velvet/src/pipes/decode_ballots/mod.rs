@@ -1,13 +1,12 @@
-pub mod ballot_codec;
 pub mod error;
 
 use self::error::Error;
 use crate::pipes::pipe_inputs::{PipeInputs, BALLOTS_FILE};
 use crate::pipes::Pipe;
 use num_bigint::{BigUint, ToBigUint};
-use sequent_core::ballot::*;
-use sequent_core::ballot_codec::*;
-use sequent_core::plaintext::*;
+use sequent_core::ballot::Contest;
+use sequent_core::ballot_codec::BigUIntCodec;
+use sequent_core::plaintext::DecodedVoteContest;
 use serde::{Deserialize, Serialize};
 use std::error::Error as StdError;
 use std::fs::{self, File};

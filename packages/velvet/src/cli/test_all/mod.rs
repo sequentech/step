@@ -9,9 +9,9 @@ mod tests {
     use crate::pipes::pipe_name::PipeNameOutputDir;
     use anyhow::{Error, Result};
     use rand::Rng;
-    use sequent_core::ballot::*;
-    use sequent_core::ballot_codec::*;
-    use sequent_core::plaintext::*;
+    use sequent_core::ballot::Contest;
+    use sequent_core::ballot_codec::BigUIntCodec;
+    use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use std::fs;
     use std::io::Write;
     use std::path::PathBuf;

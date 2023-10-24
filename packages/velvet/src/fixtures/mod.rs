@@ -1,7 +1,10 @@
 use anyhow::Result;
-use sequent_core::ballot::*;
-use sequent_core::ballot_codec::*;
-use sequent_core::plaintext::*;
+use sequent_core::ballot::{
+    BallotStyle, Candidate, CandidatePresentation, CandidateUrl, Contest, ContestPresentation,
+    ElectionStatus, PublicKeyConfig, VotingStatus,
+};
+use sequent_core::ballot_codec::BigUIntCodec;
+use sequent_core::plaintext::DecodedVoteContest;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
@@ -375,4 +378,3 @@ pub fn get_contest_config() -> String {
 
     serde_json::to_string(&contest).unwrap()
 }
-
