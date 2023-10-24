@@ -94,7 +94,7 @@ async fn upload_and_return_document(
 }
 
 #[instrument(skip_all)]
-#[celery::task]
+#[celery::task(time_limit = 60000)]
 pub async fn render_report(
     input: RenderTemplateBody,
     auth_headers: connection::AuthHeaders,
