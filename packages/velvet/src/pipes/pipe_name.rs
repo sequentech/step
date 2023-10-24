@@ -2,7 +2,7 @@ use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
 use std::str::FromStr;
-use strum_macros::EnumString;
+use strum_macros::{AsRefStr, EnumString};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, EnumString)]
 pub enum PipeName {
@@ -30,4 +30,20 @@ impl<'de> Visitor<'de> for PipeNameVisitor {
 
 pub fn deserialize_pipe<'de, D: Deserializer<'de>>(deserializer: D) -> Result<PipeName, D::Error> {
     deserializer.deserialize_str(PipeNameVisitor)
+}
+
+#[derive(Debug, AsRefStr)]
+pub enum PipeNameOutputDir {
+    #[strum(serialize = "velvet-decode-ballots")]
+    DecodeBallots,
+    #[strum(serialize = "velvet-do-tally")]
+    DoTally,
+    #[strum(serialize = "velvet-consolidation")]
+    Consolidation,
+    #[strum(serialize = "velvet-ties-resolution")]
+    TiesResolution,
+    #[strum(serialize = "velvet-compute-result")]
+    ComputeResult,
+    #[strum(serialize = "velvet-generate-report")]
+    GenerateReport,
 }

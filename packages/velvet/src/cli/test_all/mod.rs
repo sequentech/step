@@ -6,6 +6,7 @@ mod tests {
     use crate::fixtures;
     use crate::fixtures::TestFixture;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
+    use crate::pipes::pipe_name::PipeNameOutputDir;
     use anyhow::{Error, Result};
     use rand::Rng;
     use sequent_core::ballot::*;
@@ -163,7 +164,10 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        assert!(cli.output_dir.join("velvet-decode-ballots").exists());
+        assert!(cli
+            .output_dir
+            .join(PipeNameOutputDir::DecodeBallots.as_ref())
+            .exists());
 
         assert_eq!(
             WalkDir::new(cli.output_dir)

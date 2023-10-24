@@ -14,6 +14,8 @@ use std::fs::{self, File};
 use std::io::BufRead;
 use std::str::FromStr;
 
+use super::pipe_name::PipeNameOutputDir;
+
 pub const OUTPUT_DECODED_BALLOTS_FILE: &str = "decoded_ballots.json";
 
 pub struct DecodeBallots {
@@ -61,7 +63,7 @@ impl Pipe for DecodeBallots {
                         .pipe_inputs
                         .cli
                         .output_dir
-                        .join("velvet-decode-ballots"),
+                        .join(PipeNameOutputDir::DecodeBallots.as_ref()),
                     &election_input.id,
                     &contest_input.id,
                 );
