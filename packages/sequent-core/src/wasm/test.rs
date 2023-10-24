@@ -2,11 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
+use crate::ballot_codec::bigint::BigUIntCodec;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;
 use crate::encrypt::*;
 use crate::interpret_plaintext::{get_layout_properties, get_points};
 use crate::plaintext::*;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
+use crate::util::normalize_vote_question;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
@@ -46,13 +48,21 @@ pub fn to_hashable_ballot_js(
         serde_wasm_bindgen::from_value(auditable_ballot_json)
             .map_err(|err| format!("Error reading javascript string: {}", err))
             .into_json()?;
-    let base64_string: String =
+    let auditable_ballot: AuditableBallot<RistrettoCtx> =
         Base64Deserialize::deserialize(auditable_ballot_string)
             .map_err(|err| {
-                format!("Error deserializing auditable ballot {:?}", err)
+                format!("Error deserializing auditable ballot: {:?}", err)
             })
             .into_json()?;
-    serde_wasm_bindgen::to_value(&base64_string)
+    let hashable_ballot = HashableBallot::from(&auditable_ballot);
+
+    let hashable_ballot_serialized: String =
+        Base64Serialize::serialize(&hashable_ballot)
+            .map_err(|err| {
+                format!("Error serializing auditable ballot {:?}", err)
+            })
+            .into_json()?;
+    serde_wasm_bindgen::to_value(&hashable_ballot_serialized)
         .map_err(|err| format!("{:?}", err))
         .into_json()
 }
@@ -208,43 +218,96 @@ pub fn get_answer_points_js(
 }
 
 #[wasm_bindgen]
-pub fn find_errors_on_decoded_contest(
-    decoded_contests_json: JsValue,
+pub fn test_contest_reencoding_js(
+    decoded_contest_json: JsValue,
     ballot_style_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     // parse inputs
-    let decoded_contests: Vec<DecodedVoteContest> =
-        serde_wasm_bindgen::from_value(decoded_contests_json)
+    let decoded_contest: DecodedVoteContest =
+        serde_wasm_bindgen::from_value(decoded_contest_json)
             .map_err(|err| format!("Error parsing decoded contest: {}", err))
             .into_json()?;
     let ballot_style: BallotStyle =
         serde_wasm_bindgen::from_value(ballot_style_json)
             .map_err(|err| format!("Error parsing election: {}", err))
             .into_json()?;
-    // create context
-    let ctx = RistrettoCtx;
 
-    let mut modified_decoded_contests: Vec<DecodedVoteContest> = vec![];
-    for decoded_contest in &decoded_contests {
-        let contest = ballot_style
-            .configuration
-            .questions
-            .iter()
-            .find(|question| question.id == decoded_contest.contest_id)
-            .ok_or_else(|| {
-                format!(
-                    "Can't find contest with id {} on ballot style",
-                    decoded_contest.contest_id
-                )
-            })
-            .into_json()?;
-        let raw_ballot =
-            contest.encode_to_raw_ballot(decoded_contest).into_json()?;
-        let modified_decoded_contest =
-            contest.decode_from_raw_ballot(&raw_ballot).into_json()?;
-        modified_decoded_contests.push(modified_decoded_contest);
+    let contest = ballot_style
+        .configuration
+        .questions
+        .iter()
+        .find(|question| question.id == decoded_contest.contest_id)
+        .ok_or_else(|| {
+            format!(
+                "Can't find contest with id {} on ballot style",
+                decoded_contest.contest_id
+            )
+        })
+        .into_json()?;
+    let bigint = contest
+        .encode_plaintext_question_bigint(&decoded_contest)
+        .into_json()?;
+    let modified_decoded_contest = contest
+        .decode_plaintext_question_bigint(&bigint)
+        .into_json()?;
+
+    let input_compare = normalize_vote_question(
+        &decoded_contest,
+        contest.tally_type.as_str(),
+        true,
+    );
+    let output_compare = normalize_vote_question(
+        &modified_decoded_contest,
+        contest.tally_type.as_str(),
+        true,
+    );
+    if input_compare != output_compare {
+        return Err(format!(
+            "Consistency check failed. Input =! Output, {:?} != {:?}",
+            input_compare, output_compare
+        ))
+        .into_json();
     }
-    serde_wasm_bindgen::to_value(&modified_decoded_contests)
+
+    serde_wasm_bindgen::to_value(&modified_decoded_contest)
+        .map_err(|err| {
+            format!("Error converting decoded contest to json {:?}", err)
+        })
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn get_write_in_available_characters_js(
+    decoded_contest_json: JsValue,
+    ballot_style_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    // parse inputs
+    let decoded_contest: DecodedVoteContest =
+        serde_wasm_bindgen::from_value(decoded_contest_json)
+            .map_err(|err| format!("Error parsing decoded contest: {}", err))
+            .into_json()?;
+    let ballot_style: BallotStyle =
+        serde_wasm_bindgen::from_value(ballot_style_json)
+            .map_err(|err| format!("Error parsing election: {}", err))
+            .into_json()?;
+
+    let contest = ballot_style
+        .configuration
+        .questions
+        .iter()
+        .find(|question| question.id == decoded_contest.contest_id)
+        .ok_or_else(|| {
+            format!(
+                "Can't find contest with id {} on ballot style",
+                decoded_contest.contest_id
+            )
+        })
+        .into_json()?;
+    let num_available_chars = contest
+        .available_write_in_characters(&decoded_contest)
+        .into_json()?;
+
+    serde_wasm_bindgen::to_value(&num_available_chars)
         .map_err(|err| {
             format!("Error converting decoded contest to json {:?}", err)
         })

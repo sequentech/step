@@ -32,10 +32,12 @@ pub(crate) fn hasher() -> Hasher {
     Sha512::new()
 }
 
+
 pub(crate) use sha3::digest::{ExtendableOutput, Update, XofReader};
 pub(crate) fn hasher_xof() -> Shake256 {
     Shake256::default()
 }
+
 
 // Rustcrypto ecdsa signatures are only used on the wasm target
 cfg_if::cfg_if! {

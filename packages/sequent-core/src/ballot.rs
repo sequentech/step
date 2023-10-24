@@ -377,8 +377,8 @@ impl Question {
     pub fn base32_writeins(&self) -> bool {
         self.extra_options
             .as_ref()
-            .map(|options| options.base32_writeins.unwrap_or(false))
-            .unwrap_or(false)
+            .map(|options| options.base32_writeins.unwrap_or(true))
+            .unwrap_or(true)
     }
 
     pub fn allow_explicit_invalid(&self) -> bool {

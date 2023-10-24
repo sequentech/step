@@ -250,7 +250,8 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                         "shuffle_all_options": true,
                         "shuffle_category_list": [],
                         "show_points": false,
-                        "allow_writeins": true
+                        "allow_writeins": true,
+                        "base32_writeins": true
                     }
                 }
             ],
@@ -299,6 +300,49 @@ pub fn get_writein_ballot_style() -> BallotStyle {
     }"#;
     let question: BallotStyle = serde_json::from_str(question_str).unwrap();
     question
+}
+
+pub fn get_too_long_writein_plaintext(increase: i64) -> DecodedVoteContest {
+    let write_in = "THERE IS SOME VERY LARGE STRING BEING WRITTEN".to_string();
+
+    let mod_write_in = if 0 == increase {
+        write_in
+    } else if increase > 0 {
+        write_in + &"Z".repeat(increase as usize)
+    } else {
+        let trunc_len: i64 = write_in.len() as i64 + increase;
+        let mut res = write_in.clone();
+        res.truncate(trunc_len as usize);
+        res
+    };
+
+    DecodedVoteContest {
+        contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".to_string(),
+        is_explicit_invalid: false,
+        choices: vec![
+            DecodedVoteChoice {
+                id: "17325099-f5ab-4c48-a142-6d7ed721e9bb".to_string(),
+                selected: 0,
+                write_in_text: None,
+            },
+            DecodedVoteChoice {
+                id: "61320aac-0d78-4001-845e-a2f2bd8e800b".to_string(),
+                selected: 0,
+                write_in_text: Some(mod_write_in),
+            },
+            DecodedVoteChoice {
+                id: "e9ad3ed1-4fd5-4498-a0e7-3a3c22ef57d5".to_string(),
+                selected: -1,
+                write_in_text: None,
+            },
+            DecodedVoteChoice {
+                id: "f257cd3a-d1cf-4b97-91f8-2dfe156b015c".to_string(),
+                selected: -1,
+                write_in_text: None,
+            },
+        ],
+        invalid_errors: vec![],
+    }
 }
 
 pub fn get_writein_plaintext() -> DecodedVoteContest {

@@ -7,6 +7,7 @@ use crate::ballot_codec::*;
 use crate::mixed_radix::{decode, encode};
 use crate::plaintext::*;
 use num_bigint::BigUint;
+use std::cmp::max;
 
 pub fn encode_bigint_to_bytes(b: &BigUint) -> Result<Vec<u8>, String> {
     Ok(b.to_radix_le(256))
@@ -30,9 +31,83 @@ pub trait BigUIntCodec {
         &self,
         bigint: &BigUint,
     ) -> Result<RawBallotQuestion, String>;
+
+    fn available_write_in_characters(
+        &self,
+        plaintext: &DecodedVoteContest,
+    ) -> Result<i32, String>;
+}
+
+fn remove_character(raw_ballot: &RawBallotQuestion) -> RawBallotQuestion {
+    let mut bases = raw_ballot.bases.clone();
+    let mut choices = raw_ballot.choices.clone();
+    let mut i = choices.len() - 1;
+    while 0 == choices[i] {
+        i -= 1;
+    }
+    choices.remove(i);
+    bases.remove(i);
+    RawBallotQuestion {
+        bases: bases,
+        choices: choices,
+    }
+}
+
+fn add_character(raw_ballot: &RawBallotQuestion) -> RawBallotQuestion {
+    let mut bases = raw_ballot.bases.clone();
+    let mut choices = raw_ballot.choices.clone();
+    let mut i = choices.len() - 1;
+    while 0 == choices[i] {
+        i -= 1;
+    }
+    choices.insert(i, bases[i] - 1);
+    bases.insert(i, bases[i]);
+    RawBallotQuestion {
+        bases: bases,
+        choices: choices,
+    }
 }
 
 impl BigUIntCodec for Question {
+    fn available_write_in_characters(
+        &self,
+        plaintext: &DecodedVoteContest,
+    ) -> Result<i32, String> {
+        let available_chars_estimate =
+            self.available_write_in_characters_estimate(&plaintext)?;
+        let mut raw_ballot = self.encode_to_raw_ballot(plaintext)?;
+        let mut bigint = encode(&raw_ballot.choices, &raw_ballot.bases)?;
+        let mut bytes_vec = encode_bigint_to_bytes(&bigint)?;
+
+        if bytes_vec.len() <= 29 {
+            if available_chars_estimate > 10 {
+                Ok(available_chars_estimate)
+            } else {
+                let mut count = 0;
+                while bytes_vec.len() <= 29 {
+                    count += 1;
+                    raw_ballot = add_character(&raw_ballot);
+                    bigint = encode(&raw_ballot.choices, &raw_ballot.bases)?;
+                    bytes_vec = encode_bigint_to_bytes(&bigint)?;
+                }
+                Ok(count - 1)
+            }
+        } else {
+            if available_chars_estimate < -10 {
+                Ok(available_chars_estimate)
+            } else {
+                let mut count = 0;
+                while bytes_vec.len() > 29 {
+                    count += 1;
+                    raw_ballot = remove_character(&raw_ballot);
+                    bigint = encode(&raw_ballot.choices, &raw_ballot.bases)?;
+                    bytes_vec = encode_bigint_to_bytes(&bigint)?;
+                }
+                Ok(-count)
+            }
+        }
+    }
+
     fn encode_plaintext_question_bigint(
         &self,
         plaintext: &DecodedVoteContest,
@@ -70,6 +145,7 @@ impl BigUIntCodec for Question {
 mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
+    use crate::util::normalize_vote_question;
     use std::cmp;
 
     #[test]
@@ -112,17 +188,31 @@ mod tests {
                 assert_eq!(
                     normalize_vote_question(
                         &fixture.plaintext,
-                        fixture.question.tally_type.as_str()
+                        fixture.question.tally_type.as_str(),
+                        false
                     )
                     .choices,
                     normalize_vote_question(
                         &decoded_plaintext
                             .expect("Expected value but got error"),
-                        fixture.question.tally_type.as_str()
+                        fixture.question.tally_type.as_str(),
+                        false
                     )
                     .choices
                 );
             }
+        }
+    }
+
+    #[test]
+    fn test_available_write_in_characters() {
+        let ballot_style = get_writein_ballot_style();
+        let contest = ballot_style.configuration.questions[0].clone();
+        for n in -8..8 {
+            let plaintext = get_too_long_writein_plaintext(n);
+            let available_chars =
+                contest.available_write_in_characters(&plaintext).unwrap();
+            assert_eq!(available_chars as i64, -n);
         }
     }
 }

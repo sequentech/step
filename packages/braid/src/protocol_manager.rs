@@ -71,6 +71,7 @@ pub async fn add_config_to_board<C: Ctx>(
     init(&mut board, configuration, pm, board_name).await
 }
 
+
 #[instrument(skip(user, password))]
 pub async fn get_board_public_key<C: Ctx>(
     server_url: &str,

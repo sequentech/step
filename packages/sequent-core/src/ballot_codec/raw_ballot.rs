@@ -23,9 +23,37 @@ pub trait RawBallotCodec {
         &self,
         raw_ballot: &RawBallotQuestion,
     ) -> Result<DecodedVoteContest, String>;
+
+    fn available_write_in_characters_estimate(
+        &self,
+        plaintext: &DecodedVoteContest,
+    ) -> Result<i32, String>;
 }
 
 impl RawBallotCodec for Question {
+    fn available_write_in_characters_estimate(
+        &self,
+        plaintext: &DecodedVoteContest,
+    ) -> Result<i32, String> {
+        let raw_ballot = self.encode_to_raw_ballot(&plaintext)?;
+        let used_bits = raw_ballot
+            .bases
+            .iter()
+            .map(|el| (*el as f64).log2().ceil() as u64)
+            .sum::<u64>() as i32;
+        // we have a maximum of 29 bytes and each character takes 5 bits
+        let remaining_bits: i32 = 29 * 8 - used_bits;
+
+        let char_map = self.get_char_map();
+        let base_bits = (char_map.base() as f64).log2().ceil() as i32;
+
+        if remaining_bits > 0 {
+            Ok(remaining_bits.div_ceil(base_bits))
+        } else {
+            Ok(remaining_bits.div_floor(base_bits))
+        }
+    }
+
     fn encode_to_raw_ballot(
         &self,
         plaintext: &DecodedVoteContest,

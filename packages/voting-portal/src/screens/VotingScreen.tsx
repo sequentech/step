@@ -22,7 +22,10 @@ import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-sol
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {Link as RouterLink, useNavigate, useParams} from "react-router-dom"
-import {selectBallotSelectionByElectionId} from "../store/ballotSelections/ballotSelectionsSlice"
+import {
+    selectBallotSelectionByElectionId,
+    setBallotSelection,
+} from "../store/ballotSelections/ballotSelectionsSlice"
 import {provideBallotService} from "../services/BallotService"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
@@ -66,11 +69,12 @@ const StyledButton = styled(Button)`
 
 interface ActionButtonProps {
     ballotStyle: IBallotStyle
+    disableNext: boolean
 }
 
-const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
+const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) => {
     const {t} = useTranslation()
-    const {encryptBallotSelection} = provideBallotService()
+    const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
     )
@@ -78,7 +82,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
     const dispatch = useAppDispatch()
 
     const encryptAndReview = () => {
-        if (isUndefined(selectionState)) {
+        if (isUndefined(selectionState) || disableNext) {
             return
         }
         try {
@@ -93,6 +97,15 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
                     auditableBallot,
                 })
             )
+            let decodedSelectionState = decodeAuditableBallot(auditableBallot)
+            if (null !== decodedSelectionState) {
+                dispatch(
+                    setBallotSelection({
+                        ballotStyle,
+                        ballotSelection: decodedSelectionState,
+                    })
+                )
+            }
             navigate(`/election/${ballotStyle.election_id}/review`)
         } catch (error) {
             console.log("ERROR encrypting ballot:")
@@ -108,7 +121,11 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
                     <Box>{t("votingScreen.backButton")}</Box>
                 </StyledButton>
             </StyledLink>
-            <StyledButton sx={{width: {xs: "100%", sm: "200px"}}} onClick={encryptAndReview}>
+            <StyledButton
+                sx={{width: {xs: "100%", sm: "200px"}}}
+                onClick={encryptAndReview}
+                disabled={disableNext}
+            >
                 <Box>{t("votingScreen.reviewButton")}</Box>
                 <Icon icon={faAngleRight} size="sm" />
             </StyledButton>
@@ -117,11 +134,19 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle}) => {
 }
 
 export const VotingScreen: React.FC = () => {
+    let [disableNext, setDisableNext] = useState<Record<string, boolean>>({})
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const election = useAppSelector(selectElectionById(String(electionId)))
     const {t} = useTranslation()
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
+
+    const onSetDisableNext = (id: string) => (value: boolean) => {
+        setDisableNext({
+            ...disableNext,
+            [id]: value,
+        })
+    }
 
     if (!ballotStyle || !election) {
         return <CircularProgress />
@@ -170,9 +195,13 @@ export const VotingScreen: React.FC = () => {
                     questionIndex={index}
                     key={index}
                     isReview={false}
+                    setDisableNext={onSetDisableNext(question.id)}
                 />
             ))}
-            <ActionButtons ballotStyle={ballotStyle} />
+            <ActionButtons
+                ballotStyle={ballotStyle}
+                disableNext={Object.values(disableNext).some((v) => v)}
+            />
         </PageLimit>
     )
 }
