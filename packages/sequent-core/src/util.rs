@@ -20,7 +20,7 @@ pub fn normalize_vote_contest(
     let filtered_choices: Vec<&DecodedVoteChoice> = original
         .choices
         .iter()
-        .filter(|choice| invalid_choice_ids.contains(&choice.id))
+        .filter(|choice| !invalid_choice_ids.contains(&choice.id))
         .collect();
     let mut choices: Vec<DecodedVoteChoice> = filtered_choices
         .into_iter()
