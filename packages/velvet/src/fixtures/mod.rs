@@ -77,6 +77,7 @@ impl TestFixture {
         );
         fs::create_dir_all(dir)?;
 
+
         writeln!(file, "{}", get_contest_config())?;
 
         Ok(uuid)

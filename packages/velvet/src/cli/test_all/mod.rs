@@ -38,43 +38,75 @@ mod tests {
                         "{}/election__{}/contest__{}/ballots.csv",
                         fixture.input_dir_ballots, uuid_election, uuid_contest
                     ))?;
-                (0..ballots_num).try_for_each(|_| {
+                (0..ballots_num).try_for_each(|i| {
                     let contest_str = fixtures::get_contest_config();
                     let contest = serde_json::from_str::<Contest>(&contest_str)?;
 
-                    let plaintext_prepare = DecodedVoteContest {
+                    let mut choices = vec![];
+                    let mut plaintext_prepare = DecodedVoteContest {
                         contest_id: contest.id.clone(),
                         is_explicit_invalid: false,
                         invalid_errors: vec![],
-                        // TODO: randomize choices
-                        choices: vec![
+                        choices: vec![],
+                    };
+                    if i == 4 {
+                        choices = vec![
                             DecodedVoteChoice {
                                 id: "0".to_owned(),
-                                selected: 0,
+                                selected: -1,
                                 write_in_text: None,
                             },
                             DecodedVoteChoice {
                                 id: "1".to_owned(),
-                                selected: 1,
+                                selected: 0,
                                 write_in_text: None,
                             },
                             DecodedVoteChoice {
                                 id: "2".to_owned(),
-                                selected: 0,
+                                selected: -1,
                                 write_in_text: None,
                             },
                             DecodedVoteChoice {
                                 id: "3".to_owned(),
-                                selected: 0,
+                                selected: 110,
                                 write_in_text: None,
                             },
                             DecodedVoteChoice {
                                 id: "4".to_owned(),
+                                selected: -1,
+                                write_in_text: None,
+                            },
+                        ]
+                    } else {
+                        choices = vec![
+                            DecodedVoteChoice {
+                                id: "0".to_owned(),
+                                selected: -1,
+                                write_in_text: None,
+                            },
+                            DecodedVoteChoice {
+                                id: "1".to_owned(),
                                 selected: 0,
                                 write_in_text: None,
                             },
-                        ],
-                    };
+                            DecodedVoteChoice {
+                                id: "2".to_owned(),
+                                selected: -1,
+                                write_in_text: None,
+                            },
+                            DecodedVoteChoice {
+                                id: "3".to_owned(),
+                                selected: -1,
+                                write_in_text: None,
+                            },
+                            DecodedVoteChoice {
+                                id: "4".to_owned(),
+                                selected: -1,
+                                write_in_text: None,
+                            },
+                        ]
+                    }
+                    plaintext_prepare.choices = choices;
 
                     let plaintext = contest
                         .encode_plaintext_contest_bigint(&plaintext_prepare)
