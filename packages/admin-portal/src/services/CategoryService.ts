@@ -2,30 +2,30 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {IAnswer, IQuestion} from "sequent-core"
+import {ICandidate, IContest} from "sequent-core"
 import {shuffle, splitList} from "@sequentech/ui-essentials"
-import {checkIsInvalidVote} from "./ElectionConfigService"
+import {checkIsCategoryList, checkIsInvalidVote} from "./ElectionConfigService"
 
 export interface ICategory {
-    header?: IAnswer
-    candidates: Array<IAnswer>
+    header?: ICandidate
+    candidates: Array<ICandidate>
 }
 
 export type CategoriesMap = {[category: string]: ICategory}
 
 export interface ICategorizedCandidates {
-    invalidCandidates: Array<IAnswer>
-    noCategoryCandidates: Array<IAnswer>
+    invalidCandidates: Array<ICandidate>
+    noCategoryCandidates: Array<ICandidate>
     categoriesMap: CategoriesMap
 }
 
-export const categorizeCandidates = (question: IQuestion): ICategorizedCandidates => {
-    const [validCandidates, invalidCandidates] = splitList(question.answers, checkIsInvalidVote)
-    const nonCategoryCandidates: Array<IAnswer> = []
+export const categorizeCandidates = (question: IContest): ICategorizedCandidates => {
+    const [validCandidates, invalidCandidates] = splitList(question.candidates, checkIsInvalidVote)
+    const nonCategoryCandidates: Array<ICandidate> = []
 
     const categoriesMap: CategoriesMap = {}
     for (let answer of validCandidates) {
-        let category = answer.category
+        let category = answer.candidate_type
         if (!category) {
             nonCategoryCandidates.push(answer)
             continue
@@ -36,9 +36,8 @@ export const categorizeCandidates = (question: IQuestion): ICategorizedCandidate
                 candidates: [],
             }
         }
-        const isCategoryHeader = answer.urls.some(
-            (url) => "isCategoryList" === url.title && "true" === url.url
-        )
+        const isCategoryHeader = checkIsCategoryList(answer)
+
         if (isCategoryHeader) {
             categoriesMap[category].header = answer
         } else {
