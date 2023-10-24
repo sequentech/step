@@ -59,6 +59,7 @@ pub struct InsertBallotStyle;
 #[instrument(skip_all)]
 pub async fn insert_ballot_style(
     auth_headers: connection::AuthHeaders,
+    ballot_style_id: String,
     tenant_id: String,
     election_event_id: String,
     election_id: String,
@@ -68,6 +69,7 @@ pub async fn insert_ballot_style(
     status: Option<String>,
 ) -> Result<Response<insert_ballot_style::ResponseData>> {
     let variables = insert_ballot_style::Variables {
+        id: ballot_style_id,
         tenant_id: tenant_id,
         election_event_id: election_event_id,
         election_id: election_id,

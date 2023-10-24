@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::convert::From;
 use std::env;
 use tracing::{event, instrument, Level};
+use uuid::Uuid;
 
 use crate::connection;
 use crate::hasura;
@@ -154,6 +155,31 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
     }
 }
 
+impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendArea>
+    for sequent_core::hasura_types::Area
+{
+    fn from(area: &get_ballot_style_area::GetBallotStyleAreaSequentBackendArea) -> Self {
+        sequent_core::hasura_types::Area {
+            id: area.id.clone(),
+            tenant_id: area.tenant_id.clone(),
+            election_event_id: area.election_event_id.clone(),
+            created_at: area
+                .created_at
+                .clone()
+                .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
+            last_updated_at: area
+                .last_updated_at
+                .clone()
+                .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
+            labels: area.labels.clone(),
+            annotations: area.annotations.clone(),
+            name: area.name.clone(),
+            description: area.description.clone(),
+            r#type: area.type_.clone(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct CreateBallotStylePayload {
@@ -243,7 +269,7 @@ pub async fn create_ballot_style(
             )
             .collect::<Result<Vec<sequent_core::hasura_types::Contest>>>()
             .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-        let candidates = contest_ids
+        let candidates: Vec<sequent_core::hasura_types::Candidate> = contest_ids
             .into_iter()
             .map(
                 |contest_id| -> Result<Vec<sequent_core::hasura_types::Candidate>> {
@@ -276,7 +302,10 @@ pub async fn create_ballot_style(
             .flatten()
             .collect();
 
+        let ballot_style_id = Uuid::new_v4();
         let election_dto = sequent_core::ballot_style::create_ballot_style(
+            ballot_style_id.clone().to_string(),
+            sequent_core::hasura_types::Area::from(area),
             sequent_core::hasura_types::ElectionEvent::from(election_event),
             sequent_core::hasura_types::Election::from(election),
             contests,
@@ -286,6 +315,7 @@ pub async fn create_ballot_style(
             .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
         let hasura_response = hasura::ballot_style::insert_ballot_style(
             auth_headers.clone(),
+            ballot_style_id.to_string(),
             tenant_id.clone(),
             election_event_id.clone(),
             election.id.clone(),
