@@ -10,4 +10,5 @@ members = [
     "ballot-verifier",
     "braid-messages",
     "velvet",
+    "windmill",
 ]

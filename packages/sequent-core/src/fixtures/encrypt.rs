@@ -14,17 +14,17 @@ pub fn get_encrypt_decoded_test_fixture(
            ],
            "title":"New election",
            "description":"This is the description of the election. You can add simple html like <strong>bold</strong> or <a href=\"https://sequentech.io\" rel=\"nofollow\">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.",
-           "questions":[
+           "contests":[
               {
-                 "description":"This is the description of this question. You can have multiple questions. You can add simple html like <strong>bold</strong> or <a href=\"https://sequentech.io\" rel=\"nofollow\">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.",
-                 "layout":"simultaneous-questions",
+                 "description":"This is the description of this contest. You can have multiple contests. You can add simple html like <strong>bold</strong> or <a href=\"https://sequentech.io\" rel=\"nofollow\">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.",
+                 "layout":"simultaneous-contests",
                  "max":3,
                  "min":1,
                  "num_winners":1,
-                 "title":"Test question title",
+                 "title":"Test contest title",
                  "tally_type":"plurality-at-large",
-                 "answer_total_votes_percentage":"over-total-valid-votes",
-                 "answers":[
+                 "candidate_total_votes_percentage":"over-total-valid-votes",
+                 "candidates":[
                     {
                        "id":0,
                        "category":"",
@@ -120,7 +120,7 @@ pub fn get_encrypt_decoded_test_fixture(
            }
         ]
     }"#;
-    let decoded_questions_str = r#"[
+    let decoded_contests_str = r#"[
         {
             "is_explicit_invalid": false,
             "invalid_errors": [],
@@ -141,8 +141,8 @@ pub fn get_encrypt_decoded_test_fixture(
         }
     ]"#;
     let election: BallotStyle = serde_json::from_str(election_str).unwrap();
-    let decoded_questions: Vec<DecodedVoteContest> =
-        serde_json::from_str(decoded_questions_str).unwrap();
+    let decoded_contests: Vec<DecodedVoteContest> =
+        serde_json::from_str(decoded_contests_str).unwrap();
 
-    (decoded_questions, election)
+    (decoded_contests, election)
 }

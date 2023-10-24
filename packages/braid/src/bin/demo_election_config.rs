@@ -20,10 +20,10 @@ use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 
-use braid_messages::artifact::Configuration;
 use braid::protocol2::trustee::ProtocolManager;
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::{ProtocolManagerConfig, TrusteeConfig};
+use braid_messages::artifact::Configuration;
 
 const CONFIG: &str = "config.bin";
 const PROTOCOL_MANAGER: &str = "pm.toml";
@@ -40,11 +40,11 @@ fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
         phantom: PhantomData,
     };
     let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
-        .map(|_| {
+        .map(|i| {
             let sk = StrandSignatureSk::gen().unwrap();
             let pk = StrandSignaturePk::from(&sk).unwrap();
             let encryption_key: symm::SymmetricKey = symm::gen_key();
-            (Trustee::new(sk, encryption_key), pk)
+            (Trustee::new(i.to_string(), sk, encryption_key), pk)
         })
         .unzip();
 

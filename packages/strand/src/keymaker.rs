@@ -175,7 +175,7 @@ pub(crate) mod tests {
     use crate::serialization::StrandDeserialize;
     use crate::serialization::StrandSerialize;
 
-    use crate::zkp::{ChaumPedersen, Schnorr, Zkp}; 
+    use crate::zkp::{ChaumPedersen, Schnorr, Zkp};
 
     pub(crate) fn test_distributed_generic<C: Ctx>(ctx: &C, data: C::P) {
         let zkp = Zkp::new(ctx);
@@ -317,5 +317,4 @@ pub(crate) mod tests {
 
         assert_eq!(data, recovered);
     }
-
 }

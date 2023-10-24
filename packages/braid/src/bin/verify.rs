@@ -43,7 +43,8 @@ async fn main() -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
 
     info!("Connecting to board '{}'..", args.board);
-    let trustee: Trustee<RistrettoCtx> = Trustee::new(dummy_sk, dummy_encryption_key);
+    let trustee: Trustee<RistrettoCtx> =
+        Trustee::new("Verifier".to_string(), dummy_sk, dummy_encryption_key);
     let board = ImmudbBoard::new(
         &args.server_url,
         IMMUDB_USER,

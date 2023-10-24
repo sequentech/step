@@ -43,6 +43,9 @@ num-bigint = { version = "0.4", features = ["rand"] }
 num-traits = "0.2"
 quick-error = "2.0.0"
 
+strum = "0.25"
+strum_macros = "0.25"
+
 # error logging
 console_error_panic_hook = "0.1.7"
 

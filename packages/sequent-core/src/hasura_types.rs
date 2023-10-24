@@ -7,6 +7,20 @@ use serde_json::value::Value;
 pub type Uuid = String;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
+pub struct Area {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub election_event_id: Uuid,
+    pub created_at: Option<NaiveDateTime>,
+    pub last_updated_at: Option<NaiveDateTime>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub r#type: Option<String>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ElectionEvent {
     pub id: Uuid,
     pub created_at: Option<NaiveDateTime>,

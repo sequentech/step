@@ -32,7 +32,7 @@ pub fn default_public_key_ristretto() -> (String, <RistrettoCtx as Ctx>::E) {
     (pk_str, pk)
 }
 
-pub fn encrypt_plaintext_answer<C: Ctx<P = [u8; 30]>>(
+pub fn encrypt_plaintext_candidate<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     public_key_element: <C>::E,
     plaintext: <C>::P,
@@ -89,10 +89,10 @@ pub fn recreate_encrypt_cyphertext<C: Ctx>(
 ) -> Result<Vec<ReplicationChoice<C>>, BallotError> {
     let public_key = parse_public_key::<C>(&ballot.config)?;
     // check ballot version
-    // sanity checks for number of answers/choices
-    if ballot.contests.len() != ballot.config.configuration.questions.len() {
+    // sanity checks for number of candidates/choices
+    if ballot.contests.len() != ballot.config.contests.len() {
         return Err(BallotError::ConsistencyCheck(String::from(
-            "Number of election questions should match number of answers in the ballot",
+            "Number of election contests should match number of candidates in the ballot",
         )));
     }
 
@@ -101,14 +101,14 @@ pub fn recreate_encrypt_cyphertext<C: Ctx>(
         .clone()
         .into_iter()
         .map(|contests| {
-            recreate_encrypt_answer(ctx, &public_key, &contests.choice)
+            recreate_encrypt_candidate(ctx, &public_key, &contests.choice)
         })
         .collect::<Vec<Result<ReplicationChoice<C>, BallotError>>>()
         .into_iter()
         .collect()
 }
 
-fn recreate_encrypt_answer<C: Ctx>(
+fn recreate_encrypt_candidate<C: Ctx>(
     ctx: &C,
     public_key_element: &C::E,
     choice: &ReplicationChoice<C>,
@@ -130,16 +130,16 @@ fn recreate_encrypt_answer<C: Ctx>(
     })
 }
 
-pub fn encrypt_decoded_question<C: Ctx<P = [u8; 30]>>(
+pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
-    decoded_questions: &Vec<DecodedVoteContest>,
+    decoded_contests: &Vec<DecodedVoteContest>,
     config: &BallotStyle,
 ) -> Result<AuditableBallot<C>, BallotError> {
-    if config.configuration.questions.len() != decoded_questions.len() {
+    if config.contests.len() != decoded_contests.len() {
         return Err(BallotError::ConsistencyCheck(format!(
-            "Invalid number of decoded questions {} != {}",
-            config.configuration.questions.len(),
-            decoded_questions.len()
+            "Invalid number of decoded contests {} != {}",
+            config.contests.len(),
+            decoded_contests.len()
         )));
     }
 
@@ -147,30 +147,29 @@ pub fn encrypt_decoded_question<C: Ctx<P = [u8; 30]>>(
 
     let mut contests: Vec<AuditableBallotContest<C>> = vec![];
 
-    for decoded_question in decoded_questions {
-        let question = config
-            .configuration
-            .questions
+    for decoded_contest in decoded_contests {
+        let contest = config
+            .contests
             .iter()
-            .find(|question| question.id == decoded_question.contest_id)
+            .find(|contest| contest.id == decoded_contest.contest_id)
             .ok_or_else(|| {
                 BallotError::Serialization(format!(
                     "Can't find contest with id {} on ballot style",
-                    decoded_question.contest_id
+                    decoded_contest.contest_id
                 ))
             })?;
-        let plaintext = question
-            .encode_plaintext_question(&decoded_question)
+        let plaintext = contest
+            .encode_plaintext_contest(&decoded_contest)
             .map_err(|err| {
-            BallotError::Serialization(format!(
-                "Error encrypting plaintext: {}",
-                err
-            ))
-        })?;
+                BallotError::Serialization(format!(
+                    "Error encrypting plaintext: {}",
+                    err
+                ))
+            })?;
         let (choice, proof) =
-            encrypt_plaintext_answer(ctx, public_key.clone(), plaintext)?;
+            encrypt_plaintext_candidate(ctx, public_key.clone(), plaintext)?;
         contests.push(AuditableBallotContest::<C> {
-            contest_id: question.id.clone(),
+            contest_id: contest.id.clone(),
             choice: choice,
             proof: proof,
         });
@@ -208,18 +207,18 @@ pub fn hash_ballot<C: Ctx>(
 #[cfg(test)]
 mod tests {
     use crate::ballot_codec::bigint;
-    use crate::ballot_codec::plaintext_question::PlaintextCodec;
+    use crate::ballot_codec::plaintext_contest::PlaintextCodec;
     use crate::ballot_codec::vec;
     use crate::encrypt;
     use crate::fixtures::ballot_codec::*;
-    use crate::util::normalize_vote_question;
+    use crate::util::normalize_vote_contest;
 
     use strand::backend::ristretto::RistrettoCtx;
     use strand::context::Ctx;
     use strand::rng::StrandRng;
 
     #[test]
-    fn test_encrypt_plaintext_answer() {
+    fn test_encrypt_plaintext_candidate() {
         let mut csprng = StrandRng;
         let ctx = RistrettoCtx;
 
@@ -227,7 +226,8 @@ mod tests {
 
         let plaintext = ctx.rnd_plaintext(&mut csprng);
 
-        encrypt::encrypt_plaintext_answer(&ctx, pk_element, plaintext).unwrap();
+        encrypt::encrypt_plaintext_candidate(&ctx, pk_element, plaintext)
+            .unwrap();
         assert_eq!(
             pk_string.as_str(),
             encrypt::DEFAULT_PUBLIC_KEY_RISTRETTO_STR
@@ -235,18 +235,18 @@ mod tests {
     }
 
     #[test]
-    fn test_encrypt_writein_answer() {
+    fn test_encrypt_writein_candidate() {
         let ctx = RistrettoCtx;
         let ballot_style = get_writein_ballot_style();
-        let question = ballot_style.configuration.questions[0].clone();
-        let decoded_question = get_writein_plaintext();
-        let plaintext_bytes_vec = question
-            .encode_plaintext_question_to_bytes(&decoded_question)
+        let contest = ballot_style.contests[0].clone();
+        let decoded_contest = get_writein_plaintext();
+        let plaintext_bytes_vec = contest
+            .encode_plaintext_contest_to_bytes(&decoded_contest)
             .unwrap(); // compare
         let auditable_ballot =
-            encrypt::encrypt_decoded_question::<RistrettoCtx>(
+            encrypt::encrypt_decoded_contest::<RistrettoCtx>(
                 &ctx,
-                &vec![decoded_question.clone()],
+                &vec![decoded_contest.clone()],
                 &ballot_style,
             )
             .unwrap();
@@ -255,56 +255,56 @@ mod tests {
         assert_eq!(plaintext_vec, plaintext_bytes_vec);
         assert_eq!(plaintext_vec, vec![198, 20, 150, 48]);
         let decoded_plaintext =
-            question.decode_plaintext_question(&plaintext).unwrap();
+            contest.decode_plaintext_contest(&plaintext).unwrap();
         assert_eq!(
-            normalize_vote_question(
+            normalize_vote_contest(
                 &decoded_plaintext,
-                question.tally_type.as_str(),
+                contest.get_counting_algorithm().as_str(),
                 false
             ),
-            normalize_vote_question(
-                &decoded_question,
-                question.tally_type.as_str(),
+            normalize_vote_contest(
+                &decoded_contest,
+                contest.get_counting_algorithm().as_str(),
                 false
             )
         );
     }
 
     #[test]
-    fn test_encrypt_writein_answer2() {
+    fn test_encrypt_writein_candidate2() {
         use crate::ballot_codec::bigint::BigUIntCodec;
         use crate::ballot_codec::raw_ballot::RawBallotCodec;
 
         let ctx = RistrettoCtx;
         let ballot_style = get_writein_ballot_style();
-        let question = ballot_style.configuration.questions[0].clone();
+        let contest = ballot_style.contests[0].clone();
         let bigint_vec2: Vec<u8> = vec![198, 20, 150, 48];
         let bigint2 =
             bigint::decode_bigint_from_bytes(bigint_vec2.as_slice()).unwrap();
         assert_eq!(bigint2.to_str_radix(10), "815142086");
 
-        let decoded_question = get_writein_plaintext();
+        let decoded_contest = get_writein_plaintext();
 
         let raw_ballot =
-            question.encode_to_raw_ballot(&decoded_question).unwrap();
-        let bigint = question
-            .encode_plaintext_question_bigint(&decoded_question)
+            contest.encode_to_raw_ballot(&decoded_contest).unwrap();
+        let bigint = contest
+            .encode_plaintext_contest_bigint(&decoded_contest)
             .unwrap();
-        let raw_ballot2 = question.bigint_to_raw_ballot(&bigint).unwrap();
+        let raw_ballot2 = contest.bigint_to_raw_ballot(&bigint).unwrap();
         //assert_eq!(raw_ballot, raw_ballot2);
 
         assert_eq!(bigint2.to_str_radix(10), bigint.to_str_radix(10));
-        let decoded_question2 =
-            question.decode_plaintext_question_bigint(&bigint).unwrap();
+        let decoded_contest2 =
+            contest.decode_plaintext_contest_bigint(&bigint).unwrap();
         assert_eq!(
-            normalize_vote_question(
-                &decoded_question,
-                question.tally_type.as_str(),
+            normalize_vote_contest(
+                &decoded_contest,
+                contest.get_counting_algorithm().as_str(),
                 false
             ),
-            normalize_vote_question(
-                &decoded_question2,
-                question.tally_type.as_str(),
+            normalize_vote_contest(
+                &decoded_contest2,
+                contest.get_counting_algorithm().as_str(),
                 false
             )
         );

@@ -7,9 +7,9 @@ use rocket::response::Debug;
 use rocket::serde::json::Json;
 use rocket::serde::{Deserialize, Serialize};
 use tracing::instrument;
+use windmill::connection;
+use windmill::hasura;
 
-use crate::connection;
-use crate::hasura;
 use crate::s3;
 
 #[derive(Deserialize, Debug)]

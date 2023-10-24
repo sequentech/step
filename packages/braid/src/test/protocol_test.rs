@@ -13,9 +13,9 @@ use strand::elgamal::Ciphertext;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-use braid_messages::artifact::{Configuration, Ballots, Plaintexts};
-use braid_messages::newtypes::PublicKeyHash;
+use braid_messages::artifact::{Ballots, Configuration, Plaintexts};
 use braid_messages::message::Message;
+use braid_messages::newtypes::PublicKeyHash;
 use braid_messages::newtypes::MAX_TRUSTEES;
 use braid_messages::newtypes::NULL_TRUSTEE;
 
@@ -57,7 +57,7 @@ fn run_protocol_test<C: Ctx>(
     threshold: &[usize],
 ) -> Result<()> {
     info!("{}", strand::info_string());
-    
+
     let remote = test.remote.clone();
     let ctx = test.ctx.clone();
     let mut sessions = vec![];
@@ -185,12 +185,12 @@ pub fn create_protocol_test<C: Ctx>(
         phantom: PhantomData,
     };
     let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
-        .map(|_| {
+        .map(|i| {
             let sk = StrandSignatureSk::gen().unwrap();
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
             let pk = StrandSignaturePk::from(&sk).unwrap();
-            (Trustee::new(sk, encryption_key), pk)
+            (Trustee::new(i.to_string(), sk, encryption_key), pk)
         })
         .unzip();
 

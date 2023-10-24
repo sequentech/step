@@ -544,8 +544,8 @@ impl BorshDeserialize for BigUintP {
 mod tests {
     use crate::backend::num_bigint::*;
     use crate::backend::tests::*;
-    use crate::keymaker::tests::*;
     use crate::context::Ctx;
+    use crate::keymaker::tests::*;
     use crate::serialization::tests::*;
     use crate::threshold::tests::test_threshold_generic;
 
@@ -581,6 +581,12 @@ mod tests {
     fn test_chaumpedersen() {
         let ctx = BigintCtx::<P2048>::default();
         test_chaumpedersen_generic(&ctx);
+    }
+
+    #[test]
+    fn test_rerand() {
+        let ctx = BigintCtx::<P2048>::default();
+        test_rerand_generic(&ctx);
     }
 
     #[test]

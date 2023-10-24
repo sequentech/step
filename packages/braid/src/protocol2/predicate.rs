@@ -1,13 +1,13 @@
+use log::trace;
 use std::collections::HashSet;
 use strum::Display;
-use log::trace;
 
-use strand::signature::StrandSignaturePk;
 use strand::context::Ctx;
+use strand::signature::StrandSignaturePk;
 
 use braid_messages::artifact::Configuration;
-use braid_messages::statement::Statement;
 use braid_messages::newtypes::*;
+use braid_messages::statement::Statement;
 
 use braid_messages::newtypes::NULL_TRUSTEE;
 use braid_messages::newtypes::PROTOCOL_MANAGER_INDEX;
@@ -25,7 +25,7 @@ use braid_messages::newtypes::VERIFIER_INDEX;
 // Predicate::from_statement method.
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Display)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Display, Debug)]
 pub(crate) enum Predicate {
     // Input predicates
     /// Bootstrap //////////////////////////////////////////////////////////////////
@@ -166,7 +166,6 @@ impl Predicate {
             ),
             // Ballots(Timestamp, ConfigurationH, usize, CiphertextsH, PublicKeyH, TrusteeSet)
             Statement::Ballots(_ts, cfg_h, batch, ballots_h, pk_h, trustees) => {
-                
                 // Verify that all selected trustees are valid
                 let mut selected = vec![];
                 trustees.iter().for_each(|s| {
@@ -189,7 +188,7 @@ impl Predicate {
                 )
             }
             // Mix(Timestamp, ConfigurationH, usize, CiphertextsH, CiphertextsH)
-            Statement::Mix(_ts, cfg_h, batch, source_h, mix_h, mix_number) => Self::Mix (
+            Statement::Mix(_ts, cfg_h, batch, source_h, mix_h, mix_number) => Self::Mix(
                 ConfigurationHash(cfg_h.0),
                 *batch,
                 CiphertextsHash(source_h.0),
@@ -275,102 +274,5 @@ impl Predicate {
         );
 
         Some(p)
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Debug
-///////////////////////////////////////////////////////////////////////////
-
-use crate::util::dbg_hash;
-
-impl std::fmt::Debug for Predicate {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Predicate::Configuration(h, t, c, th) => write!(
-                f,
-                "Configuration(Bootstrap){{ hash={:?}, self={:?}, #trustees={:?}, th={:?} }}",
-                dbg_hash(&h.0), t, c, th
-            ),
-            Predicate::ConfigurationSigned(h, t) => write!(
-                f,
-                "ConfigurationSigned{{ cfg hash={:?}, signer={:?} }}",
-                dbg_hash(&h.0), t
-            ),
-            Predicate::ConfigurationSignedAll(h, t, c, th) => write!(
-                f,
-                "ConfigurationSignedAll{{ cfg hash={:?}, signer={:?}, #trustees={:?}, th={:?} }}",
-                dbg_hash(&h.0), t, c, th
-            ),
-            Predicate::Channel(ch, h, t) => write!(
-                f,
-                "Commitments{{ cfg hash={:?}, hash={:?}, signer={:?} }}",
-                dbg_hash(&ch.0), h.0, t
-            ),
-            Predicate::ChannelsSigned(ch, h, t) => write!(
-                f,
-                "CommitmentsSigned{{ cfg hash={:?}, hash={:?}, signer={:?} }}",
-                dbg_hash(&ch.0), h, t
-            ),
-            Predicate::ChannelsAllSignedAll(ch, h) => write!(
-                f,
-                "CommitmentsAllSignedAll{{ cfg hash={:?}, hash={:?} }}",
-                dbg_hash(&ch.0), h
-            ),
-            Predicate::Shares(ch, h, t) => write!(
-                f,
-                "Shares{{ cfg hash={:?}, hash={:?}, signer={:?} }}",
-                dbg_hash(&ch.0), h.0, t
-            ),
-            Predicate::PublicKey(cfg_h, pk_h, _shares_hs, _channels_hs, t) => write!(
-                f,
-                "PublicKey{{ cfg hash={:?}, pk_h={:?}, signer={:?} }}",
-                dbg_hash(&cfg_h.0), dbg_hash(&pk_h.0), t
-            ),
-            Predicate::PublicKeySigned(cfg_h, pk_h, _shares_hs, _channels_hs, t) => write!(
-                f,
-                "PublicKeySigned{{ cfg hash={:?}, pk_h={:?}, signer={:?} }}",
-                dbg_hash(&cfg_h.0), dbg_hash(&pk_h.0), t
-            ),
-            Predicate::PublicKeySignedAll(cfg_h, pk_h, _shares_hs) => write!(
-                f,
-                "PublicKeySignedAll{{ cfg hash={:?}, pk_hash={:?} }}",
-                dbg_hash(&cfg_h.0), dbg_hash(&pk_h.0)
-            ),
-            Predicate::Ballots(cfg_h, batch, cipher_h, pk_h, _ts) => write!(
-                f,
-                "Ballots{{ cfg hash={:?}, batch={:?}, pk_h={:?} cipher_h={:?} }}",
-                dbg_hash(&cfg_h.0), batch, dbg_hash(&pk_h.0), dbg_hash(&cipher_h.0),
-            ),
-            Predicate::Mix(_cfg_h, _batch, source_h, cipher_h, mix_n, signer_t) => write!(
-                f,
-                "Mix{{ source_h={:?} cipher_h={:?} mix_n={:?} signer_t={:?} }}",
-                dbg_hash(&source_h.0), dbg_hash(&cipher_h.0), mix_n, signer_t
-            ),
-            Predicate::MixSigned(_cfg_h, _batchh, source_h, cipher_h, signer_t) => write!(
-                f,
-                "MixSigned{{ source_h={:?} cipher_h={:?} signer_t={:?} }}",
-                source_h, dbg_hash(&cipher_h.0), signer_t,
-            ),
-            Predicate::MixComplete(cfg_h, batch, mix_n, ciphertexts_h, t) => write!(
-                f,
-                "MixComplete{{ cfg hash={:?}, batch={:?}, mix_n={:?}, ciphertexts={:?} signer_t={:?} }}",
-                dbg_hash(&cfg_h.0), batch, mix_n, dbg_hash(&ciphertexts_h.0), t
-            ),
-            Predicate::DecryptionFactors(_cfg_h, _batch, dfactors_h, _mix_h, _shares_hs, signer_t) => write!(
-                f,
-                "DecryptionFactors{{ dfactors_h={dfactors_h:?} signer_t={signer_t:?} }}"
-            ),
-            Predicate::Plaintexts(cfg_h, batch, plaintexts_h, _dfactors_hs, _ciph_h, _pk_h, signer_t) => write!(
-                f,
-                "Plaintexts{{ cfg hash={:?}, batch={:?}, plaintexts_h={:?}, signer_t={:?} }}",
-                dbg_hash(&cfg_h.0), batch, plaintexts_h, signer_t
-            ),
-            Predicate::PlaintextsSigned(cfg_h, batch, plaintexts_h, _df_hs, _ciph_h, _pk_h, signer_t) => write!(
-                f,
-                "PlaintextsSigned{{ cfg hash={:?}, batch={:?}, plaintexts_h={:?}, signer_t={:?} }}",
-                dbg_hash(&cfg_h.0), batch, plaintexts_h, signer_t
-            ),
-        }
     }
 }

@@ -2,12 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
-use crate::ballot_codec::RawBallotQuestion;
+use crate::ballot_codec::RawBallotContest;
 use crate::ballot_codec::*;
 use crate::mixed_radix::{decode, encode};
 use crate::plaintext::*;
 use num_bigint::BigUint;
-use std::cmp::max;
 
 pub fn encode_bigint_to_bytes(b: &BigUint) -> Result<Vec<u8>, String> {
     Ok(b.to_radix_le(256))
@@ -18,11 +17,11 @@ pub fn decode_bigint_from_bytes(b: &[u8]) -> Result<BigUint, String> {
 }
 
 pub trait BigUIntCodec {
-    fn encode_plaintext_question_bigint(
+    fn encode_plaintext_contest_bigint(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<BigUint, String>;
-    fn decode_plaintext_question_bigint(
+    fn decode_plaintext_contest_bigint(
         &self,
         bigint: &BigUint,
     ) -> Result<DecodedVoteContest, String>;
@@ -30,7 +29,7 @@ pub trait BigUIntCodec {
     fn bigint_to_raw_ballot(
         &self,
         bigint: &BigUint,
-    ) -> Result<RawBallotQuestion, String>;
+    ) -> Result<RawBallotContest, String>;
 
     fn available_write_in_characters(
         &self,
@@ -38,7 +37,7 @@ pub trait BigUIntCodec {
     ) -> Result<i32, String>;
 }
 
-fn remove_character(raw_ballot: &RawBallotQuestion) -> RawBallotQuestion {
+fn remove_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
     let mut bases = raw_ballot.bases.clone();
     let mut choices = raw_ballot.choices.clone();
     let mut i = choices.len() - 1;
@@ -47,13 +46,13 @@ fn remove_character(raw_ballot: &RawBallotQuestion) -> RawBallotQuestion {
     }
     choices.remove(i);
     bases.remove(i);
-    RawBallotQuestion {
+    RawBallotContest {
         bases: bases,
         choices: choices,
     }
 }
 
-fn add_character(raw_ballot: &RawBallotQuestion) -> RawBallotQuestion {
+fn add_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
     let mut bases = raw_ballot.bases.clone();
     let mut choices = raw_ballot.choices.clone();
     let mut i = choices.len() - 1;
@@ -62,13 +61,13 @@ fn add_character(raw_ballot: &RawBallotQuestion) -> RawBallotQuestion {
     }
     choices.insert(i, bases[i] - 1);
     bases.insert(i, bases[i]);
-    RawBallotQuestion {
+    RawBallotContest {
         bases: bases,
         choices: choices,
     }
 }
 
-impl BigUIntCodec for Question {
+impl BigUIntCodec for Contest {
     fn available_write_in_characters(
         &self,
         plaintext: &DecodedVoteContest,
@@ -108,7 +107,7 @@ impl BigUIntCodec for Question {
         }
     }
 
-    fn encode_plaintext_question_bigint(
+    fn encode_plaintext_contest_bigint(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<BigUint, String> {
@@ -119,7 +118,7 @@ impl BigUIntCodec for Question {
     fn bigint_to_raw_ballot(
         &self,
         bigint: &BigUint,
-    ) -> Result<RawBallotQuestion, String> {
+    ) -> Result<RawBallotContest, String> {
         let mut bases = self.get_bases();
         let last_base = self.get_char_map().base();
         let choices = decode(&bases, &bigint, last_base)?;
@@ -128,10 +127,10 @@ impl BigUIntCodec for Question {
             bases.push(last_base);
         }
 
-        Ok(RawBallotQuestion { bases, choices })
+        Ok(RawBallotContest { bases, choices })
     }
 
-    fn decode_plaintext_question_bigint(
+    fn decode_plaintext_contest_bigint(
         &self,
         bigint: &BigUint,
     ) -> Result<DecodedVoteContest, String> {
@@ -145,7 +144,7 @@ impl BigUIntCodec for Question {
 mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
-    use crate::util::normalize_vote_question;
+    use crate::util::normalize_vote_contest;
     use std::cmp;
 
     #[test]
@@ -154,12 +153,12 @@ mod tests {
         for fixture in fixtures {
             println!("fixture: {}", &fixture.title);
             let encoded_bigint = fixture
-                .question
-                .encode_plaintext_question_bigint(&fixture.plaintext);
+                .contest
+                .encode_plaintext_contest_bigint(&fixture.plaintext);
             let decoded_plaintext = encoded_bigint.clone().map(|value| {
                 fixture
-                    .question
-                    .decode_plaintext_question_bigint(&value)
+                    .contest
+                    .decode_plaintext_contest_bigint(&value)
                     .unwrap()
             });
 
@@ -186,16 +185,16 @@ mod tests {
                         .to_str_radix(10)
                 );
                 assert_eq!(
-                    normalize_vote_question(
+                    normalize_vote_contest(
                         &fixture.plaintext,
-                        fixture.question.tally_type.as_str(),
+                        fixture.contest.get_counting_algorithm().as_str(),
                         false
                     )
                     .choices,
-                    normalize_vote_question(
+                    normalize_vote_contest(
                         &decoded_plaintext
                             .expect("Expected value but got error"),
-                        fixture.question.tally_type.as_str(),
+                        fixture.contest.get_counting_algorithm().as_str(),
                         false
                     )
                     .choices
@@ -207,7 +206,7 @@ mod tests {
     #[test]
     fn test_available_write_in_characters() {
         let ballot_style = get_writein_ballot_style();
-        let contest = ballot_style.configuration.questions[0].clone();
+        let contest = ballot_style.contests[0].clone();
         for n in -8..8 {
             let plaintext = get_too_long_writein_plaintext(n);
             let available_chars =

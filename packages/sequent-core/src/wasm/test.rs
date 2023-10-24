@@ -8,7 +8,7 @@ use crate::encrypt::*;
 use crate::interpret_plaintext::{get_layout_properties, get_points};
 use crate::plaintext::*;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
-use crate::util::normalize_vote_question;
+use crate::util::normalize_vote_contest;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
@@ -101,7 +101,7 @@ pub fn encrypt_decoded_contest_js(
     election_json: JsValue,
 ) -> Result<JsValue, JsValue> {
     // parse inputs
-    let decoded_questions: Vec<DecodedVoteContest> =
+    let decoded_contests: Vec<DecodedVoteContest> =
         serde_wasm_bindgen::from_value(decoded_contests_json)
             .map_err(|err| format!("Error parsing decoded contests: {}", err))
             .into_json()?;
@@ -112,12 +112,12 @@ pub fn encrypt_decoded_contest_js(
     let ctx = RistrettoCtx;
 
     // encrypt ballot
-    let auditable_ballot = encrypt_decoded_question::<RistrettoCtx>(
+    let auditable_ballot = encrypt_decoded_contest::<RistrettoCtx>(
         &ctx,
-        &decoded_questions,
+        &decoded_contests,
         &election,
     )
-    .map_err(|err| format!("Error encrypting decoded questions {:?}", err))
+    .map_err(|err| format!("Error encrypting decoded contests {:?}", err))
     .into_json()?;
 
     let auditable_ballot_serialized: String =
@@ -154,7 +154,7 @@ pub fn decode_auditable_ballot_js(
         Base64Deserialize::deserialize(auditable_ballot_string)
             .map_err(|err| format!("Error parsing auditable ballot: {:?}", err))
             .into_json()?;
-    let plaintext = map_to_decoded_question(&auditable_ballot).into_json()?;
+    let plaintext = map_to_decoded_contest(&auditable_ballot).into_json()?;
     // https://crates.io/crates/serde-wasm-bindgen
     serde_wasm_bindgen::to_value(&plaintext)
         .map_err(|err| {
@@ -191,27 +191,28 @@ pub fn get_ballot_style_from_auditable_ballot_js(
 pub fn get_layout_properties_from_contest_js(
     val: JsValue,
 ) -> Result<JsValue, JsValue> {
-    let question: Question = serde_wasm_bindgen::from_value(val)
-        .map_err(|err| format!("Error parsing question: {}", err))
+    let contest: Contest = serde_wasm_bindgen::from_value(val)
+        .map_err(|err| format!("Error parsing contest: {}", err))
         .into_json()?;
-    let properties = get_layout_properties(&question);
+    let properties = get_layout_properties(&contest);
     serde_wasm_bindgen::to_value(&properties)
         .map_err(|err| format!("{:?}", err))
         .into_json()
 }
 
 #[wasm_bindgen]
-pub fn get_answer_points_js(
-    question_val: JsValue,
-    answer_val: JsValue,
+pub fn get_candidate_points_js(
+    contest_val: JsValue,
+    candidate_val: JsValue,
 ) -> Result<JsValue, JsValue> {
-    let question: Question = serde_wasm_bindgen::from_value(question_val)
-        .map_err(|err| format!("Error parsing question: {}", err))
+    let contest: Contest = serde_wasm_bindgen::from_value(contest_val)
+        .map_err(|err| format!("Error parsing contest: {}", err))
         .into_json()?;
-    let answer: DecodedVoteChoice = serde_wasm_bindgen::from_value(answer_val)
-        .map_err(|err| format!("Error parsing vote choice: {}", err))
-        .into_json()?;
-    let points = get_points(&question, &answer);
+    let candidate: DecodedVoteChoice =
+        serde_wasm_bindgen::from_value(candidate_val)
+            .map_err(|err| format!("Error parsing vote choice: {}", err))
+            .into_json()?;
+    let points = get_points(&contest, &candidate);
     serde_wasm_bindgen::to_value(&points)
         .map_err(|err| format!("{:?}", err))
         .into_json()
@@ -234,9 +235,9 @@ pub fn test_contest_reencoding_js(
 
     let contest = ballot_style
         .configuration
-        .questions
+        .contests
         .iter()
-        .find(|question| question.id == decoded_contest.contest_id)
+        .find(|contest| contest.id == decoded_contest.contest_id)
         .ok_or_else(|| {
             format!(
                 "Can't find contest with id {} on ballot style",
@@ -245,18 +246,18 @@ pub fn test_contest_reencoding_js(
         })
         .into_json()?;
     let bigint = contest
-        .encode_plaintext_question_bigint(&decoded_contest)
+        .encode_plaintext_contest_bigint(&decoded_contest)
         .into_json()?;
     let modified_decoded_contest = contest
-        .decode_plaintext_question_bigint(&bigint)
+        .decode_plaintext_contest_bigint(&bigint)
         .into_json()?;
 
-    let input_compare = normalize_vote_question(
+    let input_compare = normalize_vote_contest(
         &decoded_contest,
         contest.tally_type.as_str(),
         true,
     );
-    let output_compare = normalize_vote_question(
+    let output_compare = normalize_vote_contest(
         &modified_decoded_contest,
         contest.tally_type.as_str(),
         true,
@@ -293,9 +294,9 @@ pub fn get_write_in_available_characters_js(
 
     let contest = ballot_style
         .configuration
-        .questions
+        .contests
         .iter()
-        .find(|question| question.id == decoded_contest.contest_id)
+        .find(|contest| contest.id == decoded_contest.contest_id)
         .ok_or_else(|| {
             format!(
                 "Can't find contest with id {} on ballot style",

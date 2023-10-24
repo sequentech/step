@@ -19,7 +19,7 @@ pub enum InvalidPlaintextErrorType {
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct InvalidPlaintextError {
     pub error_type: InvalidPlaintextErrorType,
-    pub answer_id: Option<Uuid>,
+    pub candidate_id: Option<Uuid>,
     pub message: Option<String>,
     pub message_map: HashMap<String, String>,
 }
@@ -40,24 +40,23 @@ pub struct DecodedVoteChoice {
     pub write_in_text: Option<String>,
 }
 
-pub fn map_to_decoded_question<C: Ctx<P = [u8; 30]>>(
+pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
     ballot: &AuditableBallot<C>,
 ) -> Result<Vec<DecodedVoteContest>, String> {
-    let mut decoded_questions = vec![];
-    if ballot.config.configuration.questions.len() != ballot.contests.len() {
+    let mut decoded_contests = vec![];
+    if ballot.config.contests.len() != ballot.contests.len() {
         return Err(format!(
             "Invalid number of contests {} != {}",
-            ballot.config.configuration.questions.len(),
+            ballot.config.contests.len(),
             ballot.contests.len()
         ));
     }
     for contest in &ballot.contests {
-        let question = ballot
+        let found_contest = ballot
             .config
-            .configuration
-            .questions
+            .contests
             .iter()
-            .find(|question| question.id == contest.contest_id)
+            .find(|contest_el| contest_el.id == contest.contest_id)
             .ok_or_else(|| {
                 format!(
                     "Can't find contest with id {} on ballot style",
@@ -65,9 +64,9 @@ pub fn map_to_decoded_question<C: Ctx<P = [u8; 30]>>(
                 )
             })?;
         let replication_choice: &ReplicationChoice<C> = &contest.choice;
-        let decoded_plaintext = question
-            .decode_plaintext_question(&replication_choice.plaintext)?;
-        decoded_questions.push(decoded_plaintext);
+        let decoded_plaintext = found_contest
+            .decode_plaintext_contest(&replication_choice.plaintext)?;
+        decoded_contests.push(decoded_plaintext);
     }
-    Ok(decoded_questions)
+    Ok(decoded_contests)
 }

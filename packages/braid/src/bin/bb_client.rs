@@ -1,4 +1,3 @@
-// cargo run --bin bb_client --features=bb-test -- --server-url http://immudb:3322 --indexdb defaultboardindex --dbname defaultboard <init|ballots|list|boards>
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose, Engine as _};
 use clap::Parser;
@@ -10,13 +9,13 @@ use tracing::{info, instrument};
 use braid::util::init_log;
 use immu_board::{Board, BoardClient, BoardMessage};
 
+use braid::protocol2::trustee::ProtocolManager;
+use braid::run::config::ProtocolManagerConfig;
 use braid_messages::artifact::Configuration;
 use braid_messages::artifact::DkgPublicKey;
 use braid_messages::message::Message;
 use braid_messages::newtypes::PublicKeyHash;
 use braid_messages::statement::StatementType;
-use braid::protocol2::trustee::ProtocolManager;
-use braid::run::config::ProtocolManagerConfig;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;

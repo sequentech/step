@@ -4,20 +4,20 @@
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(typescript_custom_section)]
-const QUESTION_STATE: &'static str = r#"
-enum IQuestionStateEnum {
+const CONTEST_STATE: &'static str = r#"
+enum IContestStateEnum {
     ElectionChooserScreen = "ElectionChooserScreen",
     ReceivingElection = "ReceivingElection",
     ErrorScreen = "ErrorScreen",
     HelpScreen = "HelpScreen",
     StartScreen = "StartScreen",
-    MultiQuestion = "MultiQuestion",
+    MultiContest = "MultiContest",
     PairwiseBeta = "PairwiseBeta",
     DraftsElectionScreen = "DraftsElectionScreen",
     AuditBallotScreen = "AuditBallotScreen",
     PcandidatesElectionScreen = "PcandidatesElectionScreen",
-    TwoQuestionsConditionalScreen = "TwoQuestionsConditionalScreen",
-    SimultaneousQuestionsScreen = "SimultaneousQuestionsScreen",
+    TwoContestsConditionalScreen = "TwoContestsConditionalScreen",
+    SimultaneousContestsScreen = "SimultaneousContestsScreen",
     ConditionalAccordionScreen = "ConditionalAccordionScreen",
     EncryptingBallotScreen = "EncryptingBallotScreen",
     CastOrCancelScreen = "CastOrCancelScreen",
@@ -30,13 +30,13 @@ enum IQuestionStateEnum {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IQuestionStateEnum")]
-    pub type IQuestionStateEnum;
+    #[wasm_bindgen(typescript_type = "IContestStateEnum")]
+    pub type IContestStateEnum;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
 const IANSWER_PROPERTIES: &'static str = r#"
-interface IAnswerProperties {
+interface ICandidateProperties {
     points?: number;
     write_in?: string;
 }
@@ -44,13 +44,13 @@ interface IAnswerProperties {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IAnswerProperties")]
-    pub type IAnswerProperties;
+    #[wasm_bindgen(typescript_type = "ICandidateProperties")]
+    pub type ICandidateProperties;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
-const IQUESTION_LAYOUT_PROPERTIES: &'static str = r#"
-interface IQuestionLayoutProperties {
+const ICONTEST_LAYOUT_PROPERTIES: &'static str = r#"
+interface IContestLayoutProperties {
     state: string;
     sorted: boolean;
     ordered: boolean;
@@ -59,6 +59,6 @@ interface IQuestionLayoutProperties {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IQuestionLayoutProperties")]
-    pub type IQuestionLayoutProperties;
+    #[wasm_bindgen(typescript_type = "IContestLayoutProperties")]
+    pub type IContestLayoutProperties;
 }

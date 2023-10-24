@@ -11,6 +11,7 @@ use crate::util::StrandError;
 pub const STRAND_HASH_LENGTH_BYTES: usize = 64;
 /// Sha-512 hashes are 64 byte arrays: [u8; 64].
 pub type Hash = [u8; STRAND_HASH_LENGTH_BYTES];
+
 pub(crate) type Hasher = Sha512;
 pub(crate) use sha2::Digest;
 
@@ -32,12 +33,10 @@ pub(crate) fn hasher() -> Hasher {
     Sha512::new()
 }
 
-
 pub(crate) use sha3::digest::{ExtendableOutput, Update, XofReader};
 pub(crate) fn hasher_xof() -> Shake256 {
     Shake256::default()
 }
-
 
 // Rustcrypto ecdsa signatures are only used on the wasm target
 cfg_if::cfg_if! {

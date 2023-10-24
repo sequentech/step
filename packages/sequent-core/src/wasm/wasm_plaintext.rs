@@ -22,7 +22,7 @@ extern "C" {
 const IINVALID_PLAINTEXT_ERROR: &'static str = r#"
 interface IInvalidPlaintextError {
     error_type: IInvalidPlaintextErrorType;
-    answer_id?: number;
+    candidate_id?: number;
     message?: string;
     message_map: Map<string, string>;
 }
@@ -35,7 +35,7 @@ extern "C" {
 }
 
 #[wasm_bindgen(typescript_custom_section)]
-const IDECODED_VOTE_QUESTION: &'static str = r#"
+const IDECODED_VOTE_CONTEST: &'static str = r#"
 interface IDecodedVoteContest {
     contest_id: string;
     is_explicit_invalid: boolean;

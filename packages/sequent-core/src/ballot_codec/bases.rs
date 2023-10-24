@@ -9,39 +9,39 @@ pub trait BasesCodec {
     fn get_bases(&self) -> Vec<u64>;
 }
 
-impl BasesCodec for Question {
+impl BasesCodec for Contest {
     fn get_bases(&self) -> Vec<u64> {
-        // Calculate the base for answers. It depends on the
-        // `question.tally_type`:
+        // Calculate the base for candidates. It depends on the
+        // `contest.counting_algorithm`:
         // - plurality-at-large: base 2 (value can be either 0 o 1)
-        // - preferential (*bordas*): question.max + 1
-        // - cummulative: question.extra_options.cumulative_number_of_checkboxes
+        // - preferential (*bordas*): contest.max + 1
+        // - cummulative: contest.extra_options.cumulative_number_of_checkboxes
         //   + 1
-        let answer_base: u64 = match self.tally_type.as_str() {
+        let candidate_base: u64 = match self.get_counting_algorithm().as_str() {
             "plurality-at-large" => 2,
             "cumulative" => self.cumulative_number_of_checkboxes() + 1u64,
-            _ => (self.max + 1i64).try_into().unwrap(),
+            _ => (self.max_votes + 1i64).try_into().unwrap(),
         };
 
-        let num_valid_answers: usize = self
-            .answers
+        let num_valid_candidates: usize = self
+            .candidates
             .iter()
-            .filter(|answer| !answer.is_explicit_invalid())
+            .filter(|candidate| !candidate.is_explicit_invalid())
             .count();
 
         // Set the initial bases and raw ballot, populate bases using the valid
-        // answers list
+        // candidates list
         let mut bases: Vec<u64> = vec![2];
-        for _i in 0..num_valid_answers {
-            bases.push(answer_base);
+        for _i in 0..num_valid_candidates {
+            bases.push(candidate_base);
         }
 
         // Add bases for null terminators.
         if self.allow_writeins() {
             let char_map = self.get_char_map();
             let write_in_base = char_map.base();
-            for question in self.answers.iter() {
-                if question.is_write_in() {
+            for candidate in self.candidates.iter() {
+                if candidate.is_write_in() {
                     bases.push(write_in_base);
                 }
             }
@@ -57,24 +57,24 @@ mod tests {
     use crate::fixtures::ballot_codec::get_fixtures;
 
     #[test]
-    fn test_question_bases() {
+    fn test_contest_bases() {
         let fixtures = get_fixtures();
         for fixture in fixtures {
             println!("fixture: {}", &fixture.title);
 
             let expected_error =
                 fixture.expected_errors.and_then(|expected_map| {
-                    expected_map.get("question_bases").cloned()
+                    expected_map.get("contest_bases").cloned()
                 });
 
             if expected_error.is_some() {
                 assert_ne!(
-                    &fixture.question.get_bases(),
+                    &fixture.contest.get_bases(),
                     &fixture.raw_ballot.bases
                 );
             } else {
                 assert_eq!(
-                    &fixture.question.get_bases(),
+                    &fixture.contest.get_bases(),
                     &fixture.raw_ballot.bases
                 );
             }
@@ -85,7 +85,7 @@ mod tests {
     fn test_bases() {
         let fixtures = bases_fixture();
         for fixture in fixtures.iter() {
-            let bases = fixture.question.get_bases();
+            let bases = fixture.contest.get_bases();
             assert_eq!(bases, fixture.bases);
         }
     }
