@@ -3,11 +3,14 @@ mod tests {
     use super::*;
     use crate::cli::state::State;
     use crate::cli::CliRun;
+    use crate::fixtures;
     use crate::fixtures::TestFixture;
-    use crate::pipes::decode_ballots::ballot_codec::BallotCodec;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
     use anyhow::{Error, Result};
     use rand::Rng;
+    use sequent_core::ballot::*;
+    use sequent_core::ballot_codec::*;
+    use sequent_core::plaintext::*;
     use std::fs;
     use std::io::Write;
     use std::path::PathBuf;
@@ -19,8 +22,6 @@ mod tests {
         contest_num: u32,
         ballots_num: u32,
     ) -> Result<()> {
-        let bases = vec![2, 2, 2, 2, 2, 2];
-        let ballot_codec = BallotCodec::new(bases.clone());
         let mut rng = rand::thread_rng();
 
         (0..election_num).try_for_each(|_| {
@@ -37,12 +38,48 @@ mod tests {
                         fixture.input_dir_ballots, uuid_election, uuid_contest
                     ))?;
                 (0..ballots_num).try_for_each(|_| {
-                    let mut choices = bases.clone().iter_mut().map(|_| 0).collect::<Vec<u32>>();
-                    let index = rng.gen_range(0..choices.len());
-                    choices[index] = 1;
+                    let contest_str = fixtures::get_contest_config();
+                    let contest = serde_json::from_str::<Contest>(&contest_str)?;
 
-                    let encoded_ballot = ballot_codec.encode_ballot(choices.clone());
-                    writeln!(file, "{}", encoded_ballot)?;
+                    let plaintext_prepare = DecodedVoteContest {
+                        contest_id: contest.id.clone(),
+                        is_explicit_invalid: false,
+                        invalid_errors: vec![],
+                        // TODO: randomize choices
+                        choices: vec![
+                            DecodedVoteChoice {
+                                id: "0".to_owned(),
+                                selected: 0,
+                                write_in_text: None,
+                            },
+                            DecodedVoteChoice {
+                                id: "1".to_owned(),
+                                selected: 1,
+                                write_in_text: None,
+                            },
+                            DecodedVoteChoice {
+                                id: "2".to_owned(),
+                                selected: 0,
+                                write_in_text: None,
+                            },
+                            DecodedVoteChoice {
+                                id: "3".to_owned(),
+                                selected: 0,
+                                write_in_text: None,
+                            },
+                            DecodedVoteChoice {
+                                id: "4".to_owned(),
+                                selected: 0,
+                                write_in_text: None,
+                            },
+                        ],
+                    };
+
+                    let plaintext = contest
+                        .encode_plaintext_contest_bigint(&plaintext_prepare)
+                        .unwrap();
+
+                    writeln!(file, "{}", plaintext)?;
 
                     Ok::<(), Error>(())
                 })?;
@@ -83,15 +120,6 @@ mod tests {
     }
 
     #[test]
-    fn test_ballot_codec() {
-        let choices = vec![0, 0, 0, 1, 0, 0];
-        let ballot_codec = BallotCodec::new(vec![2, 2, 2, 2, 2, 2]);
-        let encoded_ballot = ballot_codec.encode_ballot(choices.clone());
-        let decoded_ballot = ballot_codec.decode_ballot(encoded_ballot);
-
-        assert_eq!(decoded_ballot, choices);
-    }
-    #[test]
     fn test_create_ballots() -> Result<()> {
         let fixture = TestFixture::new()?;
 
@@ -102,8 +130,8 @@ mod tests {
         let count = entries.count();
         assert_eq!(count, 5);
 
-        // count contests
         let mut entries = fs::read_dir(&fixture.input_dir_ballots)?;
+        // count contests
         let entry = entries.next().unwrap()?;
         let contest_path = entry.path();
         let entries = fs::read_dir(contest_path)?;

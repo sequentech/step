@@ -1,4 +1,7 @@
 use anyhow::Result;
+use sequent_core::ballot::*;
+use sequent_core::ballot_codec::*;
+use sequent_core::plaintext::*;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
@@ -133,136 +136,240 @@ fn get_config() -> String {
 }
 
 fn get_election_config() -> String {
-    let election_str = r#"
-        {
-            "id":34570002,
-            "configuration":{
-            "id":34570002,
-            "layout":"simple",
-            "director":"6xx-a1",
-            "authorities":[
-                "6xx-a2"
+    let ballot_style = BallotStyle {
+        id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+        tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+        election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+        election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+        description: Some("Write-ins simple".into()),
+        public_key: Some(PublicKeyConfig {
+            public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into(),
+            is_demo: false,
+        }),
+        area_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+        status: Some(ElectionStatus {
+            voting_status: VotingStatus::OPEN,
+        }),
+        contests: vec![Contest {
+            id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
+            tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+            election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+            election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+            name: Some("Test contest title".into()),
+            description: None,
+            max_votes: 2,
+            min_votes: 1,
+            voting_type: Some("first-past-the-post".into()),
+            counting_algorithm: Some("plurality-at-large".into()),
+            is_encrypted: true,
+            candidates: vec![
+                Candidate {
+                    id: "f257cd3a-d1cf-4b97-91f8-2dfe156b015c".into(),
+                    tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+                    election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+                    election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+                    contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
+                    name: Some("Example option 1".into()),
+                    description: Some(
+                        "This is an option with an simple example description.".into(),
+                    ),
+                    candidate_type: None,
+                    presentation: Some(CandidatePresentation {
+                        is_explicit_invalid: false,
+                        is_write_in: false,
+                        sort_order: Some(0),
+                        urls: None,
+                    }),
+                },
+                Candidate {
+                    id: "17325099-f5ab-4c48-a142-6d7ed721e9bb".into(),
+                    tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+                    election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+                    election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+                    contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
+                    name: Some("Example option 1".into()),
+                    description: Some(
+                        "This is an option with an simple example description.".into(),
+                    ),
+                    candidate_type: None,
+                    presentation: Some(CandidatePresentation {
+                        is_explicit_invalid: false,
+                        is_write_in: false,
+                        sort_order: Some(1),
+                        urls: Some(vec![
+                            CandidateUrl {
+                                url: "https://sequentech.io".into(),
+                                kind: None,
+                                title: None,
+                                is_image: false,
+                            },
+                            CandidateUrl {
+                                url: "/XFQwVFL.jpg".into(),
+                                kind: None,
+                                title: None,
+                                is_image: true,
+                            },
+                        ]),
+                    }),
+                },
+                Candidate {
+                    id: "61320aac-0d78-4001-845e-a2f2bd8e800b".into(),
+                    tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+                    election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+                    election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+                    contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
+                    name: None,
+                    description: None,
+                    candidate_type: None,
+                    presentation: Some(CandidatePresentation {
+                        is_explicit_invalid: false,
+                        is_write_in: true,
+                        sort_order: Some(2),
+                        urls: None,
+                    }),
+                },
+                Candidate {
+                    id: "e9ad3ed1-4fd5-4498-a0e7-3a3c22ef57d5".into(),
+                    tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+                    election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+                    election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
+                    contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
+                    name: None,
+                    description: None,
+                    candidate_type: None,
+                    presentation: Some(CandidatePresentation {
+                        is_explicit_invalid: false,
+                        is_write_in: true,
+                        sort_order: Some(3),
+                        urls: None,
+                    }),
+                },
             ],
-            "title":"New election",
-            "description":"This is the description of the election. You can add simple html like <strong>bold</strong> or <a href=\"https://sequentech.io\" rel=\"nofollow\">links to websites</a>.\n\n<br /><br />You need to use two br element for new paragraphs.",
-            "presentation":{
-                "share_text":[
-                    {
-                        "network":"Twitter",
-                        "button_text":"",
-                        "social_message":"I have just voted in election __URL__, you can too! #sequent"
-                    }
-                ],
-                "theme":"default",
-                "urls":[
-                    
-                ],
-                "theme_css":""
-            },
-            "extra_data":"{}",
-            "tallyPipesConfig":"{\"version\":\"master\",\"pipes\":[{\"type\":\"tally_pipes.pipes.results.do_tallies\",\"params\":{}},{\"type\":\"tally_pipes.pipes.sort.sort_non_iterative\",\"params\":{}}]}",
-            "ballotBoxesResultsConfig":"",
-            "virtual":false,
-            "tally_allowed":false,
-            "publicCandidates":true,
-            "virtualSubelections":[
-                
-            ],
-            "logo_url":""
-            },
-            "state":"created",
-            "pks":"[{\"q\":\"24792774508736884642868649594982829646677044143456685966902090450389126928108831401260556520412635107010557472033959413182721740344201744439332485685961403243832055703485006331622597516714353334475003356107214415133930521931501335636267863542365051534250347372371067531454567272385185891163945756520887249904654258635354225185183883072436706698802915430665330310171817147030511296815138402638418197652072758525915640803066679883309656829521003317945389314422254112846989412579196000319352105328237736727287933765675623872956765501985588170384171812463052893055840132089533980513123557770728491280124996262883108653723\",\"p\":\"49585549017473769285737299189965659293354088286913371933804180900778253856217662802521113040825270214021114944067918826365443480688403488878664971371922806487664111406970012663245195033428706668950006712214428830267861043863002671272535727084730103068500694744742135062909134544770371782327891513041774499809308517270708450370367766144873413397605830861330660620343634294061022593630276805276836395304145517051831281606133359766619313659042006635890778628844508225693978825158392000638704210656475473454575867531351247745913531003971176340768343624926105786111680264179067961026247115541456982560249992525766217307447\",\"y\":\"3192515660619108169365014720875495689510715604656883748612343903823995403425790631339251205893892434659355505746651700479054838604440185058106195965495195908647156080974534267530239429053856517521625301507367856050050239682969661184674721546490963923812051964716874579616239470644906006000375420650293188431637635599268098297680517168870031026335774002504842468275787458511150985008555696193983445399118752579412134160463549182761208081376034003185079445259071999506915005558311361669768641321142183454952311775988265966400753950365761816295744457795066374773015741196128191865863027069409284986816791016922657728787\",\"g\":\"27257469383433468307851821232336029008797963446516266868278476598991619799718416119050669032044861635977216445034054414149795443466616532657735624478207460577590891079795564114912418442396707864995938563067755479563850474870766067031326511471051504594777928264027177308453446787478587442663554203039337902473879502917292403539820877956251471612701203572143972352943753791062696757791667318486190154610777475721752749567975013100844032853600120195534259802017090281900264646220781224136443700521419393245058421718455034330177739612895494553069450438317893406027741045575821283411891535713793639123109933196544017309147\"}]",
-            "tallyPipesConfig":"{\"version\":\"master\",\"pipes\":[{\"type\":\"tally_pipes.pipes.results.do_tallies\",\"params\":{}},{\"type\":\"tally_pipes.pipes.sort.sort_non_iterative\",\"params\":{}}]}",
-            "ballotBoxesResultsConfig":"",
-            "virtual":false,
-            "tallyAllowed":false,
-            "publicCandidates":true,
-            "logo_url":"",
-            "trusteeKeysState":[
-            {
-                "id":"6xx-a1",
-                "state":"initial"
-            },
-            {
-                "id":"6xx-a2",
-                "state":"initial"
-            }
-            ]
-        }
-    "#;
+            presentation: Some(ContestPresentation {
+                allow_writeins: true,
+                base32_writeins: true,
+                invalid_vote_policy: "allowed".into(),
+                cumulative_number_of_checkboxes: None,
+                shuffle_categories: true,
+                shuffle_all_options: true,
+                shuffle_category_list: None,
+                show_points: false,
+            }),
+        }],
+    };
 
-    election_str.to_string()
+    serde_json::to_string(&ballot_style).unwrap()
 }
 
-fn get_contest_config() -> String {
-    let contest_str = r#"
-        {
-            "id":"1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
-            "description":"Elige quien quieres que sea tu Secretario General en tu municipio",
-            "layout":"",
-            "min":1,
-            "max":1,
-            "num_winners":1,
-            "title":"Secretario General",
-            "tally_type":"plurality-at-large",
-            "answer_total_votes_percentage":"over-total-valid-votes",
-            "answers":[
-                {
-                    "id":"0",
-                    "category":"Candidaturas no agrupadas",
-                    "details":"",
-                    "sort_order":0,
-                    "urls":[
-                        
-                    ],
-                    "text":"José Rabano Pimiento"
-                },
-                {
-                    "id":"1",
-                    "category":"Candidaturas no agrupadas",
-                    "details":"",
-                    "sort_order":1,
-                    "urls":[
-                        
-                    ],
-                    "text":"Miguel Pimentel Inventado"
-                },
-                {
-                    "category":"Candidaturas no agrupadas",
-                    "text":"Juan Iglesias Torquemada",
-                    "sort_order":2,
-                    "details":"",
-                    "urls":[
-                        
-                    ],
-                    "id":"2"
-                },
-                {
-                    "category":"Candidaturas no agrupadas",
-                    "text":"Mari Pili Hernández Ordoñez",
-                    "sort_order":3,
-                    "details":"",
-                    "urls":[
-                        
-                    ],
-                    "id":"3"
-                },
-                {
-                    "category":"Candidaturas no agrupadas",
-                    "text":"Juan Y Medio",
-                    "sort_order":4,
-                    "details":"",
-                    "urls":[
-                        
-                    ],
-                    "id":"4"
-                }
-            ],
-            "extra_options":{
-                "base32_writeins":true
-            }
-        }
-    "#;
+pub fn get_contest_config() -> String {
+    let contest = Contest {
+        id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+        tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+        election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+        election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+        name: Some("Secretario General".into()),
+        description: Some(
+            "Elige quien quieres que sea tu Secretario General en tu municipio".into(),
+        ),
+        max_votes: 1,
+        min_votes: 0,
+        voting_type: Some("first-past-the-post".into()),
+        counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
+        is_encrypted: true,
+        candidates: vec![
+            Candidate {
+                id: "0".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("José Rabano Pimiento".into()),
+                description: None,
+                candidate_type: None,
+                presentation: Some(CandidatePresentation {
+                    is_explicit_invalid: false,
+                    is_write_in: false,
+                    sort_order: Some(0),
+                    urls: None,
+                }),
+            },
+            Candidate {
+                id: "1".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("Miguel Pimentel Inventado".into()),
+                description: None,
+                candidate_type: None,
+                presentation: Some(CandidatePresentation {
+                    is_explicit_invalid: false,
+                    is_write_in: false,
+                    sort_order: Some(1),
+                    urls: None,
+                }),
+            },
+            Candidate {
+                id: "2".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("Juan Iglesias Torquemada".into()),
+                description: None,
+                candidate_type: None,
+                presentation: Some(CandidatePresentation {
+                    is_explicit_invalid: false,
+                    is_write_in: false,
+                    sort_order: Some(2),
+                    urls: None,
+                }),
+            },
+            Candidate {
+                id: "3".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("Mari Pili Hernández Ordoñez".into()),
+                description: None,
+                candidate_type: None,
+                presentation: Some(CandidatePresentation {
+                    is_explicit_invalid: false,
+                    is_write_in: false,
+                    sort_order: Some(3),
+                    urls: None,
+                }),
+            },
+            Candidate {
+                id: "4".into(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                name: Some("Juan Y Medio".into()),
+                description: None,
+                candidate_type: None,
+                presentation: Some(CandidatePresentation {
+                    is_explicit_invalid: false,
+                    is_write_in: false,
+                    sort_order: Some(4),
+                    urls: None,
+                }),
+            },
+        ],
+        presentation: Some(ContestPresentation {
+            allow_writeins: false,
+            base32_writeins: true,
+            invalid_vote_policy: "allowed".into(),
+            cumulative_number_of_checkboxes: None,
+            shuffle_categories: true,
+            shuffle_all_options: true,
+            shuffle_category_list: None,
+            show_points: false,
+        }),
+    };
 
-    contest_str.to_string()
+    serde_json::to_string(&contest).unwrap()
 }
+
