@@ -141,7 +141,7 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
                     candidate_type: "B",
                     presentation: {
                         is_explicit_invalid: false,
-                        is_write_in: true,
+                        is_write_in: false,
                         is_category_list: true,
                         sort_order: 5,
                     },
