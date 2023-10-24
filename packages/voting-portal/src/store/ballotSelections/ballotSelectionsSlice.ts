@@ -43,17 +43,15 @@ export const ballotSelectionsSlice = createSlice({
             let currentElection = state[action.payload.ballotStyle.election_id]
             if (!currentElection || action.payload.force) {
                 state[action.payload.ballotStyle.election_id] =
-                    action.payload.ballotStyle.ballot_eml.configuration.questions.map(
-                        (question) => ({
-                            contest_id: question.id,
-                            is_explicit_invalid: false,
-                            invalid_errors: [],
-                            choices: question.answers.map((answer) => ({
-                                id: answer.id,
-                                selected: -1,
-                            })),
-                        })
-                    )
+                    action.payload.ballotStyle.ballot_eml.contests.map((question) => ({
+                        contest_id: question.id,
+                        is_explicit_invalid: false,
+                        invalid_errors: [],
+                        choices: question.candidates.map((answer) => ({
+                            id: answer.id,
+                            selected: -1,
+                        })),
+                    }))
             }
 
             return state
@@ -69,7 +67,7 @@ export const ballotSelectionsSlice = createSlice({
             // check bounds
             if (
                 action.payload.questionIndex >=
-                action.payload.ballotStyle.ballot_eml.configuration.questions.length
+                action.payload.ballotStyle.ballot_eml.contests.length
             ) {
                 return state
             }
@@ -93,7 +91,7 @@ export const ballotSelectionsSlice = createSlice({
             // check bounds
             if (
                 action.payload.questionIndex >=
-                action.payload.ballotStyle.ballot_eml.configuration.questions.length
+                action.payload.ballotStyle.ballot_eml.contests.length
             ) {
                 return state
             }

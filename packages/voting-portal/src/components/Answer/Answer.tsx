@@ -4,7 +4,7 @@
 import React from "react"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {Candidate, stringToHtml, isUndefined, normalizeWriteInText} from "@sequentech/ui-essentials"
-import {IAnswer} from "sequent-core"
+import {ICandidate} from "sequent-core"
 import Image from "mui-image"
 import {
     selectBallotSelectionQuestion,
@@ -21,7 +21,7 @@ import {
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 
 export interface IAnswerProps {
-    answer: IAnswer
+    answer: ICandidate
     questionIndex: number
     ballotStyle: IBallotStyle
     hasCategory?: boolean
@@ -47,7 +47,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     const questionState = useAppSelector(
         selectBallotSelectionQuestion(ballotStyle.election_id, questionIndex)
     )
-    const question = ballotStyle.ballot_eml.configuration.questions[questionIndex]
+    const question = ballotStyle.ballot_eml.contests[questionIndex]
     const dispatch = useAppDispatch()
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
@@ -118,8 +118,8 @@ export const Answer: React.FC<IAnswerProps> = ({
 
     return (
         <Candidate
-            title={answer.text}
-            description={stringToHtml(answer.details)}
+            title={answer.name}
+            description={stringToHtml(answer.description || "")}
             isActive={isActive}
             checked={isChecked()}
             setChecked={setChecked}

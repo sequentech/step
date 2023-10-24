@@ -5,6 +5,7 @@ use anyhow::{bail, Context, Result};
 use celery::error::TaskError;
 use celery::prelude::*;
 use rocket::serde::{Deserialize, Serialize};
+use sequent_core::ballot::ElectionEventStatus;
 use serde_json::Value;
 use tracing::instrument;
 
@@ -14,7 +15,6 @@ use crate::hasura::cast_ballot;
 use crate::hasura::election_event::update_election_event_status;
 use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::election_event_board::{get_election_event_board, BoardSerializable};
-use crate::services::election_event_status;
 use crate::services::protocol_manager;
 use crate::types::scheduled_event::ScheduledEvent;
 
@@ -56,18 +56,21 @@ pub async fn insert_ballots(
         .sequent_backend_election_event[0];
 
     // check config is already created
-    let status: Option<election_event_status::ElectionEventStatus> =
-        match election_event.status.clone() {
-            Some(value) => serde_json::from_value(value)
-                .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?,
-            None => None,
-        };
-    if !election_event_status::is_config_created(&status) {
+    let status: Option<ElectionEventStatus> = match election_event.status.clone() {
+        Some(value) => serde_json::from_value(value)
+            .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?,
+        None => None,
+    };
+    if !status
+        .clone()
+        .map(|val| val.is_config_created())
+        .unwrap_or(false)
+    {
         return Err(TaskError::UnexpectedError(
             "bulletin board config missing".into(),
         ));
     }
-    if !election_event_status::is_stopped(&status) {
+    if !status.map(|val| val.is_stopped()).unwrap_or(false) {
         return Err(TaskError::UnexpectedError(
             "election event is not stopped".into(),
         ));

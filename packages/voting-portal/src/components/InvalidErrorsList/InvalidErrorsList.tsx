@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {WarnBox} from "@sequentech/ui-essentials"
-import {IQuestion} from "sequent-core"
+import {IContest} from "sequent-core"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {provideBallotService} from "../../services/BallotService"
 import {useAppSelector} from "../../store/hooks"
@@ -12,7 +12,7 @@ import {useTranslation} from "react-i18next"
 
 export interface IInvalidErrorsListProps {
     ballotStyle: IBallotStyle
-    question: IQuestion
+    question: IContest
     isInvalidWriteIns: boolean
     setIsInvalidWriteIns: (input: boolean) => void
 }

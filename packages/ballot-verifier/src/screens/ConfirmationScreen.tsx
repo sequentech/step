@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState, useEffect, PropsWithChildren} from "react"
-import Container from "@mui/material/Container"
 import Typography from "@mui/material/Typography"
 import Paper, {PaperProps} from "@mui/material/Paper"
 import Box from "@mui/material/Box"
@@ -11,9 +10,8 @@ import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import Skeleton from "@mui/material/Skeleton"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
-import {IDecodedVoteContest, IQuestion} from "sequent-core"
+import {IDecodedVoteContest, IContest} from "sequent-core"
 import Button from "@mui/material/Button"
-import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {
     faCircleQuestion,
     faTimesCircle,
@@ -31,9 +29,9 @@ import {
     theme,
 } from "@sequentech/ui-essentials"
 import {keyBy} from "lodash"
-import {IAnswer} from "sequent-core"
+import {ICandidate} from "sequent-core"
 import Image from "mui-image"
-import { checkIsWriteIn } from "../services/ElectionConfigService"
+import { checkIsInvalidVote, checkIsWriteIn, getImageUrl } from "../services/ElectionConfigService"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -113,7 +111,7 @@ const VoteChoice: React.FC<VoteChoiceProps> = ({text, points, ordered}) => {
 }
 
 interface CandidateChoiceProps {
-    answer?: IAnswer
+    answer?: ICandidate
     points: number | null
     ordered: boolean
     isWriteIn: boolean
@@ -121,10 +119,10 @@ interface CandidateChoiceProps {
 }
 
 const CandidateChoice: React.FC<CandidateChoiceProps> = ({answer, isWriteIn, writeInValue}) => {
-    const imageUrl = answer?.urls.find((url) => "Image URL" === url.title)?.url
+    const imageUrl = answer && getImageUrl(answer)
 
     return (
-        <Candidate title={answer?.text || ""} description={answer?.details} isWriteIn={isWriteIn} writeInValue={writeInValue}>
+        <Candidate title={answer?.name || ""} description={answer?.description} isWriteIn={isWriteIn} writeInValue={writeInValue}>
             {imageUrl ? <Image src={imageUrl} duration={100} /> : null}
         </Candidate>
     )
@@ -132,7 +130,7 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({answer, isWriteIn, wri
 
 interface PlaintextVoteQuestionProps {
     questionPlaintext: IDecodedVoteContest
-    question: IQuestion
+    question: IContest
     ballotService: IBallotService
 }
 
@@ -145,19 +143,18 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
     const selectedAnswers = questionPlaintext.choices.filter((a) => a.selected > -1)
     const explicitInvalidAnswer =
         (questionPlaintext.is_explicit_invalid &&
-            question.extra_options?.invalid_vote_policy !== "not-allowed" &&
-            question.answers.find((answer) =>
-                answer.urls?.find((url) => "invalidVoteFlag" === url.title && "true" === url.url)
+            question.presentation?.invalid_vote_policy !== "not-allowed" &&
+            question.candidates.find((answer) => checkIsInvalidVote(answer)
             )) ||
         null
-    const answersById = keyBy(question.answers, (a) => a.id)
+    const answersById = keyBy(question.candidates, (a) => a.id)
     const properties = ballotService.getLayoutProperties(question)
-    const showPoints = !!question.extra_options?.show_points
+    const showPoints = !!question.presentation?.show_points
 
     return (
         <>
             <Typography variant="body2" fontWeight={"bold"}>
-                {question.title}
+                {question.name || ""}
             </Typography>
             {questionPlaintext.invalid_errors.map((error, index) => (
                 <WarnBox variant="warning" key={index}>
@@ -169,7 +166,7 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
             ))}
             {questionPlaintext.is_explicit_invalid ? (
                 <VoteChoice
-                    text={explicitInvalidAnswer?.text || t("confirmationScreen.markedInvalid")}
+                    text={explicitInvalidAnswer?.name || t("confirmationScreen.markedInvalid")}
                     points={null}
                     ordered={properties?.ordered || false}
                 />
@@ -348,7 +345,7 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
     const {t} = useTranslation()
     const [verifySelectionsHelp, setVerifySelectionsHelp] = useState(false)
     const plaintextVoteQuestions = confirmationBallot?.decoded_questions || []
-    const questions = confirmationBallot?.election_config.configuration.questions || []
+    const questions = confirmationBallot?.election_config.contests || []
 
     return (
         <>
@@ -387,10 +384,10 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
             ) : (
                 <>
                     <Typography variant="h5" textAlign="left">
-                        {confirmationBallot?.election_config.configuration.title}
+                        {confirmationBallot?.election_config.description}
                     </Typography>
                     <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                        {confirmationBallot?.election_config.configuration.description}
+                        {confirmationBallot?.election_config.description}
                     </Typography>
                 </>
             )}

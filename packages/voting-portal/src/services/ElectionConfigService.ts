@@ -1,41 +1,44 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {IAnswer, IQuestion} from "sequent-core"
+import {ICandidate, IContest} from "sequent-core"
 
-export const findUrlByTitle = (answer: IAnswer, urlTitle: string): string | undefined =>
-    answer.urls.find((url) => urlTitle === url.title)?.url
+export const findUrlByTitle = (answer: ICandidate, urlTitle: string): string | undefined =>
+    answer.presentation?.urls?.find((url) => urlTitle === url.title)?.url
 
-export const getImageUrl = (answer: IAnswer): string | undefined =>
-    findUrlByTitle(answer, "Image URL")
+export const getImageUrl = (answer: ICandidate): string | undefined =>
+    answer.presentation?.urls?.find((url) => url.is_image)?.url
 
-export const getLinkUrl = (answer: IAnswer): string | undefined => findUrlByTitle(answer, "URL")
+export const getLinkUrl = (answer: ICandidate): string | undefined => findUrlByTitle(answer, "URL")
 
-export const checkIsWriteIn = (answer: IAnswer): boolean =>
-    "true" === findUrlByTitle(answer, "isWriteIn")
+export const checkIsCategoryList = (candidate: ICandidate): boolean =>
+    candidate.presentation?.is_category_list || false
 
-export const checkIsInvalidVote = (answer: IAnswer): boolean =>
-    "true" === findUrlByTitle(answer, "invalidVoteFlag")
+export const checkIsWriteIn = (answer: ICandidate): boolean =>
+    answer.presentation?.is_write_in || false
 
-export const checkPositionIsTop = (answer: IAnswer): boolean =>
-    "top" === findUrlByTitle(answer, "positionFlag")
+export const checkIsInvalidVote = (answer: ICandidate): boolean =>
+    answer.presentation?.is_explicit_invalid || false
 
-export const checkAllowWriteIns = (question: IQuestion): boolean =>
-    !!question.extra_options?.allow_writeins
+export const checkPositionIsTop = (answer: ICandidate): boolean =>
+    "top" === answer.presentation?.invalid_vote_position
 
-export const checkShuffleCategories = (question: IQuestion): boolean =>
-    !!question.extra_options?.shuffle_categories
+export const checkAllowWriteIns = (question: IContest): boolean =>
+    !!question.presentation?.allow_writeins
 
-export const checkShuffleAllOptions = (question: IQuestion): boolean =>
-    !!question.extra_options?.shuffle_all_options
+export const checkShuffleCategories = (question: IContest): boolean =>
+    !!question.presentation?.shuffle_categories
 
-export const checkShuffleCategoryList = (question: IQuestion): Array<string> =>
-    question.extra_options?.shuffle_category_list || []
+export const checkShuffleAllOptions = (question: IContest): boolean =>
+    !!question.presentation?.shuffle_all_options
+
+export const checkShuffleCategoryList = (question: IContest): Array<string> =>
+    question.presentation?.shuffle_category_list || []
 
 export const getCheckableOptions = (
-    question: IQuestion
+    question: IContest
 ): {checkableLists: boolean; checkableCandidates: boolean} => {
-    const enableCheckableLists = question.extra_options?.enable_checkable_lists || "disabled"
+    const enableCheckableLists = question.presentation?.enable_checkable_lists || "disabled"
     switch (enableCheckableLists) {
         case "allow-selecting-candidates-and-lists":
             return {checkableLists: true, checkableCandidates: true}

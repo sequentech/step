@@ -72,6 +72,7 @@ mod tests {
     fn test_encoding_plaintext() {
         let decoded_contest = get_test_decoded_vote_contest();
         let contest = get_test_contest();
+        let invalid_candidate_ids = contest.get_invalid_candidate_ids();
         let encoded_bigint = contest
             .encode_plaintext_contest_bigint(&decoded_contest)
             .unwrap(); // test
@@ -99,12 +100,14 @@ mod tests {
             normalize_vote_contest(
                 &decoded_contest,
                 contest.get_counting_algorithm().as_str(),
-                false
+                false,
+                &invalid_candidate_ids
             ),
             normalize_vote_contest(
                 &decoded_plaintext,
                 contest.get_counting_algorithm().as_str(),
-                false
+                false,
+                &invalid_candidate_ids
             )
         );
     }
@@ -173,16 +176,20 @@ mod tests {
                     .unwrap()
                     .contains(&"decode_choices".to_string())
             {
+                let invalid_candidate_ids =
+                    fixture.contest.get_invalid_candidate_ids();
                 assert_eq!(
                     normalize_vote_contest(
                         &decoded_ballot,
                         fixture.contest.get_counting_algorithm().as_str(),
-                        false
+                        false,
+                        &invalid_candidate_ids
                     ),
                     normalize_vote_contest(
                         &fixture.plaintext,
                         fixture.contest.get_counting_algorithm().as_str(),
-                        false
+                        false,
+                        &invalid_candidate_ids
                     )
                 );
             }

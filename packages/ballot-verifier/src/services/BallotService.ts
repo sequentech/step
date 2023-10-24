@@ -5,12 +5,12 @@ import {
     hash_auditable_ballot_js,
     decode_auditable_ballot_js,
     get_layout_properties_from_contest_js,
-    get_answer_points_js,
+    get_candidate_points_js,
     get_ballot_style_from_auditable_ballot_js,
     IBallotStyle,
     IDecodedVoteContest,
-    IQuestion,
-    IQuestionLayoutProperties,
+    IContest,
+    IContestLayoutProperties,
     IDecodedVoteChoice,
 } from "sequent-core"
 //import PlaintextVote from "../fixtures/plaintext_vote.json"
@@ -24,8 +24,8 @@ export interface IConfirmationBallot {
 export interface IBallotService {
     hashBallot512: (auditableBallot: string) => string
     decodeAuditableBallot: (auditableBallot: string) => Array<IDecodedVoteContest> | null
-    getLayoutProperties: (question: IQuestion) => IQuestionLayoutProperties | null
-    getPoints: (question: IQuestion, answer: IDecodedVoteChoice) => number | null
+    getLayoutProperties: (question: IContest) => IContestLayoutProperties | null
+    getPoints: (question: IContest, answer: IDecodedVoteChoice) => number | null
     getBallotStyleFromAuditableBallot: (
         auditableBallot: string
     ) => IBallotStyle | null
@@ -64,19 +64,19 @@ export const getBallotStyleFromAuditableBallot = (
     }
 }
 
-export const getLayoutProperties = (question: IQuestion): IQuestionLayoutProperties | null => {
+export const getLayoutProperties = (question: IContest): IContestLayoutProperties | null => {
     try {
         let properties = get_layout_properties_from_contest_js(question)
-        return (properties || null) as IQuestionLayoutProperties | null
+        return (properties || null) as IContestLayoutProperties | null
     } catch (error) {
         console.log(error)
         return null
     }
 }
 
-export const getPoints = (question: IQuestion, answer: IDecodedVoteChoice): number | null => {
+export const getPoints = (question: IContest, answer: IDecodedVoteChoice): number | null => {
     try {
-        let points: number | undefined = get_answer_points_js(question, answer)
+        let points: number | undefined = get_candidate_points_js(question, answer)
         return points || null
     } catch (error) {
         console.log(error)
