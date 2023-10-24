@@ -163,6 +163,8 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
+        assert!(cli.output_dir.join("velvet-decode-ballots").exists());
+
         assert_eq!(
             WalkDir::new(cli.output_dir)
                 .into_iter()

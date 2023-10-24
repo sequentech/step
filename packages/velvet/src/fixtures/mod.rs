@@ -9,8 +9,11 @@ use uuid::Uuid;
 
 pub struct TestFixture {
     pub config_path: PathBuf,
+    // TODO: refact into PathBuf instead of String
     pub root_dir: String,
+    // TODO: refact into PathBuf instead of String
     pub input_dir_configs: String,
+    // TODO: refact into PathBuf instead of String
     pub input_dir_ballots: String,
 }
 

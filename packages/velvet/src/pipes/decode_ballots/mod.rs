@@ -57,7 +57,11 @@ impl Pipe for DecodeBallots {
                 }
 
                 let mut file = self.pipe_inputs.get_path_for_contest(
-                    &self.pipe_inputs.cli.output_dir,
+                    &self
+                        .pipe_inputs
+                        .cli
+                        .output_dir
+                        .join("velvet-decode-ballots"),
                     &election_input.id,
                     &contest_input.id,
                 );
