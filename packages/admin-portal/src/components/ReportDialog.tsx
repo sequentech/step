@@ -27,6 +27,7 @@ const Vertical = styled(Box)`
     flex-direction: column;
 `
 
+
 export const ReportDialog: React.FC = () => {
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
