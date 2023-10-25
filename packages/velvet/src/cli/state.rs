@@ -179,8 +179,8 @@ mod tests {
             stage: "main".to_string(),
             pipe_id: "do-tally".to_string(),
             config: PathBuf::new(),
-            input_dir: PathBuf::from(format!("{}/tests/input-dir", &fixture.root_dir)),
-            output_dir: PathBuf::from(format!("{}/tests/output-dir", &fixture.root_dir)),
+            input_dir: fixture.root_dir.join("tests").join("input-dir"),
+            output_dir: fixture.root_dir.join("tests").join("output-dir"),
         };
 
         let stages_def = {

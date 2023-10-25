@@ -35,18 +35,19 @@ mod tests {
                 (0..region_num).try_for_each(|_| {
                     let uuid_region = fixture.create_region_dir(&uuid_election, &uuid_contest)?;
 
-                    dbg!(format!(
-                        "{}/election__{}/contest__{}/region__{}/ballots.csv",
-                        fixture.input_dir_ballots, uuid_election, uuid_contest, uuid_region
-                    ));
+                    let file = fixture
+                        .input_dir_ballots
+                        .join(format!("election__{uuid_election}"))
+                        .join(format!("contest__{uuid_contest}"))
+                        .join(format!("region__{uuid_region}"))
+                        .join("ballots.csv");
+                    dbg!(&file);
                     let mut file = fs::OpenOptions::new()
                         .write(true)
                         .append(true)
                         .create(true)
-                        .open(format!(
-                            "{}/election__{}/contest__{}/region__{}/ballots.csv",
-                            fixture.input_dir_ballots, uuid_election, uuid_contest, uuid_region
-                        ))?;
+                        .open(file)?;
+
                     (0..ballots_num).try_for_each(|i| {
                         let contest = fixtures::get_contest_config();
 
@@ -148,17 +149,20 @@ mod tests {
         let count = entries.count();
         assert_eq!(count, 1);
 
-        let entries = fs::read_dir(format!(
-            "{}/election__{}",
-            &fixture.input_dir_configs, uuid_election
-        ))?;
+        let entries = fs::read_dir(
+            &fixture
+                .input_dir_configs
+                .join(format!("election__{uuid_election}")),
+        )?;
         let count = entries.count();
         assert_eq!(count, 2);
 
-        let entries = fs::read_dir(format!(
-            "{}/election__{}/contest__{}",
-            &fixture.input_dir_configs, uuid_election, uuid_contest
-        ))?;
+        let entries = fs::read_dir(
+            &fixture
+                .input_dir_configs
+                .join(format!("election__{uuid_election}"))
+                .join(format!("config__{uuid_contest}")),
+        )?;
         let count = entries.count();
         assert_eq!(count, 1);
 
@@ -210,8 +214,8 @@ mod tests {
             stage: "main".to_string(),
             pipe_id: "decode-ballots".to_string(),
             config: fixture.config_path.clone(),
-            input_dir: PathBuf::from(format!("{}/tests/input-dir", &fixture.root_dir)),
-            output_dir: PathBuf::from(format!("{}/tests/output-dir", &fixture.root_dir)),
+            input_dir: fixture.root_dir.join("tests").join("input-dir"),
+            output_dir: fixture.root_dir.join("tests").join("output-dir"),
         };
 
         let config = cli.parse_config()?;
