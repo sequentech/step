@@ -39,14 +39,14 @@ mod tests {
                         .input_dir_ballots
                         .join(format!("election__{uuid_election}"))
                         .join(format!("contest__{uuid_contest}"))
-                        .join(format!("region__{uuid_region}"))
-                        .join("ballots.csv");
-                    dbg!(&file);
+                        .join(format!("region__{uuid_region}"));
+                    fs::create_dir_all(file.as_path())?;
+
                     let mut file = fs::OpenOptions::new()
                         .write(true)
                         .append(true)
                         .create(true)
-                        .open(file)?;
+                        .open(file.join("ballots.csv"))?;
 
                     (0..ballots_num).try_for_each(|i| {
                         let contest = fixtures::get_contest_config();
@@ -172,8 +172,6 @@ mod tests {
     #[test]
     fn test_create_ballots() -> Result<()> {
         let fixture = TestFixture::new()?;
-
-        dbg!(&fixture.input_dir_ballots);
 
         generate_ballots(&fixture, 5, 10, 3, 5)?;
 
