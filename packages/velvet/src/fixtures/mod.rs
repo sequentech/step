@@ -5,10 +5,14 @@ use sequent_core::ballot::{
 };
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::DecodedVoteContest;
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 use uuid::Uuid;
+
+use crate::config::{self, Config};
+use crate::pipes::pipe_name::PipeName;
 
 pub struct TestFixture {
     pub config_path: PathBuf,
@@ -28,7 +32,7 @@ impl TestFixture {
             .create(true)
             .open(&config_path)?;
 
-        writeln!(file, "{}", get_config())?;
+        writeln!(file, "{}", serde_json::to_string(&get_config())?)?;
 
         let root_dir = format!("./tests-input__{}", Uuid::new_v4());
         let input_dir_configs = format!("{}/tests/input-dir/default/configs", &root_dir);
@@ -55,7 +59,7 @@ impl TestFixture {
         let dir = format!("{}/election__{}", self.input_dir_ballots, uuid);
         fs::create_dir_all(dir)?;
 
-        writeln!(file, "{}", get_election_config())?;
+        writeln!(file, "{}", serde_json::to_string(&get_election_config())?)?;
 
         Ok(uuid)
     }
@@ -77,8 +81,7 @@ impl TestFixture {
         );
         fs::create_dir_all(dir)?;
 
-
-        writeln!(file, "{}", get_contest_config())?;
+        writeln!(file, "{}", serde_json::to_string(&get_contest_config())?)?;
 
         Ok(uuid)
     }
@@ -91,58 +94,63 @@ impl Drop for TestFixture {
     }
 }
 
-fn get_config() -> String {
-    let config_content = r#"
-        {
-            "version": "0.0.0",
-            "stages": {
-                "order": ["main"],
-                "main": {
-                    "pipeline": [
-                        {
-                            "id": "decode-ballots",
-                            "pipe": "VelvetDecodeBallots",
-                            "config": {}
-                        },
-                        {
-                            "id": "do-tally",
-                            "pipe": "VelvetDoTally",
-                            "config": {
-                                "invalidateVotes": "Fail"
-                            }
-                        },
-                        {
-                            "id": "consolidation",
-                            "pipe": "VelvetConsolidation",
-                            "config": {}
-                        },
-                        {
-                            "id": "ties-resolution",
-                            "pipe": "VelvetTiesResolution",
-                            "config": {}
-                        },
-                        {
-                            "id": "compute-result",
-                            "pipe": "VelvetComputeResult",
-                            "config": {}
-                        },
-                        {
-                            "id": "gen-report",
-                            "pipe": "VelvetGenerateReport",
-                            "config": {
-                                "formats": ["pdf", "csv"]
-                            }
-                        }
-                    ]
-                }
-            }
-        }
-    "#;
+fn get_config() -> Config {
+    let stages_def = {
+        let mut map = HashMap::new();
+        map.insert(
+            "main".to_string(),
+            config::Stage {
+                pipeline: vec![
+                    config::PipeConfig {
+                        id: "decode-ballots".to_string(),
+                        pipe: PipeName::DecodeBallots,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "do-tally".to_string(),
+                        pipe: PipeName::DoTally,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "consolidation".to_string(),
+                        pipe: PipeName::Consolidation,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "ties-resolution".to_string(),
+                        pipe: PipeName::TiesResolution,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "compute-result".to_string(),
+                        pipe: PipeName::ComputeResult,
+                        config: Some(serde_json::Value::Null),
+                    },
+                    config::PipeConfig {
+                        id: "gen-report".to_string(),
+                        pipe: PipeName::GenerateReport,
+                        config: Some(serde_json::Value::Null),
+                    },
+                ],
+            },
+        );
+        map
+    };
 
-    config_content.to_string()
+    let stages = config::Stages {
+        order: vec!["main".to_string()],
+        stages_def,
+    };
+
+    let config = Config {
+        version: "0.0.0".to_string(),
+        stages,
+    };
+
+    config
 }
 
-fn get_election_config() -> String {
+fn get_election_config() -> BallotStyle {
     let ballot_style = BallotStyle {
         id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
         tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
@@ -157,118 +165,13 @@ fn get_election_config() -> String {
         status: Some(ElectionStatus {
             voting_status: VotingStatus::OPEN,
         }),
-        contests: vec![Contest {
-            id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
-            tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-            election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-            election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-            name: Some("Test contest title".into()),
-            description: None,
-            max_votes: 2,
-            min_votes: 1,
-            voting_type: Some("first-past-the-post".into()),
-            counting_algorithm: Some("plurality-at-large".into()),
-            is_encrypted: true,
-            candidates: vec![
-                Candidate {
-                    id: "f257cd3a-d1cf-4b97-91f8-2dfe156b015c".into(),
-                    tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-                    election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-                    election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-                    contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
-                    name: Some("Example option 1".into()),
-                    description: Some(
-                        "This is an option with an simple example description.".into(),
-                    ),
-                    candidate_type: None,
-                    presentation: Some(CandidatePresentation {
-                        is_explicit_invalid: false,
-                        is_write_in: false,
-                        sort_order: Some(0),
-                        urls: None,
-                    }),
-                },
-                Candidate {
-                    id: "17325099-f5ab-4c48-a142-6d7ed721e9bb".into(),
-                    tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-                    election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-                    election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-                    contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
-                    name: Some("Example option 1".into()),
-                    description: Some(
-                        "This is an option with an simple example description.".into(),
-                    ),
-                    candidate_type: None,
-                    presentation: Some(CandidatePresentation {
-                        is_explicit_invalid: false,
-                        is_write_in: false,
-                        sort_order: Some(1),
-                        urls: Some(vec![
-                            CandidateUrl {
-                                url: "https://sequentech.io".into(),
-                                kind: None,
-                                title: None,
-                                is_image: false,
-                            },
-                            CandidateUrl {
-                                url: "/XFQwVFL.jpg".into(),
-                                kind: None,
-                                title: None,
-                                is_image: true,
-                            },
-                        ]),
-                    }),
-                },
-                Candidate {
-                    id: "61320aac-0d78-4001-845e-a2f2bd8e800b".into(),
-                    tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-                    election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-                    election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-                    contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
-                    name: None,
-                    description: None,
-                    candidate_type: None,
-                    presentation: Some(CandidatePresentation {
-                        is_explicit_invalid: false,
-                        is_write_in: true,
-                        sort_order: Some(2),
-                        urls: None,
-                    }),
-                },
-                Candidate {
-                    id: "e9ad3ed1-4fd5-4498-a0e7-3a3c22ef57d5".into(),
-                    tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-                    election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-                    election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-                    contest_id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
-                    name: None,
-                    description: None,
-                    candidate_type: None,
-                    presentation: Some(CandidatePresentation {
-                        is_explicit_invalid: false,
-                        is_write_in: true,
-                        sort_order: Some(3),
-                        urls: None,
-                    }),
-                },
-            ],
-            presentation: Some(ContestPresentation {
-                allow_writeins: true,
-                base32_writeins: true,
-                invalid_vote_policy: "allowed".into(),
-                cumulative_number_of_checkboxes: None,
-                shuffle_categories: true,
-                shuffle_all_options: true,
-                shuffle_category_list: None,
-                show_points: false,
-            }),
-        }],
+        contests: vec![get_contest_config()],
     };
 
-    serde_json::to_string(&ballot_style).unwrap()
+    ballot_style
 }
 
-pub fn get_contest_config() -> String {
+pub fn get_contest_config() -> Contest {
     let contest = Contest {
         id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
@@ -298,6 +201,8 @@ pub fn get_contest_config() -> String {
                     is_write_in: false,
                     sort_order: Some(0),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
             Candidate {
@@ -314,6 +219,8 @@ pub fn get_contest_config() -> String {
                     is_write_in: false,
                     sort_order: Some(1),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
             Candidate {
@@ -330,6 +237,8 @@ pub fn get_contest_config() -> String {
                     is_write_in: false,
                     sort_order: Some(2),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
             Candidate {
@@ -346,6 +255,8 @@ pub fn get_contest_config() -> String {
                     is_write_in: false,
                     sort_order: Some(3),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
             Candidate {
@@ -362,6 +273,8 @@ pub fn get_contest_config() -> String {
                     is_write_in: false,
                     sort_order: Some(4),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
         ],
@@ -374,8 +287,9 @@ pub fn get_contest_config() -> String {
             shuffle_all_options: true,
             shuffle_category_list: None,
             show_points: false,
+            enable_checkable_lists: None,
         }),
     };
 
-    serde_json::to_string(&contest).unwrap()
+    contest
 }

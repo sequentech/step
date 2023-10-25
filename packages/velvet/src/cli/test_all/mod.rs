@@ -39,8 +39,7 @@ mod tests {
                         fixture.input_dir_ballots, uuid_election, uuid_contest
                     ))?;
                 (0..ballots_num).try_for_each(|i| {
-                    let contest_str = fixtures::get_contest_config();
-                    let contest = serde_json::from_str::<Contest>(&contest_str)?;
+                    let contest = fixtures::get_contest_config();
 
                     let mut choices = vec![];
                     let mut plaintext_prepare = DecodedVoteContest {
