@@ -6,3 +6,5 @@
 pub mod pdf;
 #[cfg(feature = "reports")]
 pub mod reports;
+#[cfg(feature = "openid")]
+pub mod openid;
