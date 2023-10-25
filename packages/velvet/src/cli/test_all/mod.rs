@@ -26,15 +26,19 @@ mod tests {
         region_num: u32,
         ballots_num: u32,
     ) -> Result<()> {
-        let mut rng = rand::thread_rng();
+        let rng = rand::thread_rng();
 
         (0..election_num).try_for_each(|_| {
             let uuid_election = fixture.create_election_config()?;
             (0..contest_num).try_for_each(|_| {
                 let uuid_contest = fixture.create_contest_config(&uuid_election)?;
-
                 (0..region_num).try_for_each(|_| {
-                    let uuid_region = Uuid::new_v4().to_string();
+                    let uuid_region = fixture.create_region_dir(&uuid_election, &uuid_contest)?;
+
+                    dbg!(format!(
+                        "{}/election__{}/contest__{}/region__{}/ballots.csv",
+                        fixture.input_dir_ballots, uuid_election, uuid_contest, uuid_region
+                    ));
                     let mut file = fs::OpenOptions::new()
                         .write(true)
                         .append(true)
@@ -165,6 +169,8 @@ mod tests {
     fn test_create_ballots() -> Result<()> {
         let fixture = TestFixture::new()?;
 
+        dbg!(&fixture.input_dir_ballots);
+
         generate_ballots(&fixture, 5, 10, 3, 5)?;
 
         // count elections
@@ -179,6 +185,15 @@ mod tests {
         let entries = fs::read_dir(contest_path)?;
         let count = entries.count();
         assert_eq!(count, 10);
+
+        let mut entries = fs::read_dir(&fixture.input_dir_ballots)?;
+        // count contests
+        let entry = entries.next().unwrap()?;
+        let contest_path = entry.path();
+        let entries = fs::read_dir(contest_path)?;
+        let count = entries.count();
+
+        assert_eq!(count, 3);
 
         Ok(())
     }

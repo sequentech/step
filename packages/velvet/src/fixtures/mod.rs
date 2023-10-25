@@ -54,11 +54,8 @@ impl TestFixture {
 
         let dir = format!("{}/election__{}", self.input_dir_configs, uuid);
         fs::create_dir_all(&dir)?;
+
         let mut file = fs::File::create(format!("{}/election-config.json", dir))?;
-
-        let dir = format!("{}/election__{}", self.input_dir_ballots, uuid);
-        fs::create_dir_all(dir)?;
-
         writeln!(file, "{}", serde_json::to_string(&get_election_config())?)?;
 
         Ok(uuid)
@@ -71,17 +68,22 @@ impl TestFixture {
             "{}/election__{}/contest__{}",
             self.input_dir_configs, election_uuid, uuid
         );
-
         fs::create_dir_all(&dir)?;
+
         let mut file = fs::File::create(format!("{}/contest-config.json", dir))?;
+        writeln!(file, "{}", serde_json::to_string(&get_contest_config())?)?;
+
+        Ok(uuid)
+    }
+
+    pub fn create_region_dir(&self, election_uuid: &Uuid, contest_uuid: &Uuid) -> Result<Uuid> {
+        let uuid = Uuid::new_v4();
 
         let dir = format!(
-            "{}/election__{}/contest__{}",
-            self.input_dir_ballots, election_uuid, uuid
+            "{}/election__{}/contest__{}/region__{}",
+            self.input_dir_configs, election_uuid, contest_uuid, uuid
         );
         fs::create_dir_all(dir)?;
-
-        writeln!(file, "{}", serde_json::to_string(&get_contest_config())?)?;
 
         Ok(uuid)
     }
