@@ -6,7 +6,7 @@ use crate::config::Config;
 
 use self::error::{Error, Result};
 use clap::{Parser, Subcommand};
-use std::{fs::File, path::PathBuf};
+use std::{collections::HashSet, fs::File, path::PathBuf};
 
 #[derive(Parser)]
 #[command(name = "Velvet")]
@@ -50,12 +50,18 @@ impl CliRun {
         let file = File::open(&self.config).map_err(|_| Error::CannotOpenConfig)?;
         let config: Config = serde_json::from_reader(file)?;
 
-        // TODO: verify pipeId uniqueness
         for stage in &config.stages.order {
             if !config.stages.stages_def.contains_key(stage) {
                 return Err(Error::StageDefinition(format!(
                     "Stage '{stage}', defined in stages.order, is not defined in stages."
                 )));
+            } else {
+                let stage_def = config.stages.stages_def.get(stage).unwrap();
+                let pipeline = &stage_def.pipeline;
+                let hash_set: HashSet<_> = pipeline.iter().map(|p| p.pipe.as_ref()).collect();
+                if hash_set.len() != pipeline.len() {
+                    return Err(Error::StageDefinition(format!("Pipeline, defined in stages[{stage}].pipeline, should have unique pipe definition")));
+                }
             }
         }
 
@@ -64,8 +70,14 @@ impl CliRun {
 }
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use super::*;
-    use crate::fixtures::TestFixture;
+    use crate::{
+        config,
+        fixtures::{self, TestFixture},
+        pipes::pipe_name::PipeName,
+    };
     use anyhow::Result;
 
     #[test]
@@ -86,6 +98,42 @@ mod tests {
         let main_stage = config.stages.stages_def.get("main").unwrap();
         assert_eq!(main_stage.pipeline.len(), 6);
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_clirun_validate_pipeline_definition() -> Result<()> {
+        let fixture = TestFixture::new()?;
+        let mut config = fixtures::get_config();
+
+        config
+            .stages
+            .stages_def
+            .get_mut("main")
+            .unwrap()
+            .pipeline
+            .push(config::PipeConfig {
+                id: "gen-report".to_string(),
+                pipe: PipeName::GenerateReport,
+                config: Some(serde_json::Value::Null),
+            });
+
+        fs::write(
+            fixture.config_path.clone(),
+            &serde_json::to_string(&config)?,
+        )?;
+
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "do-tally".to_string(),
+            config: fixture.config_path.clone(),
+            input_dir: PathBuf::new(),
+            output_dir: PathBuf::new(),
+        };
+
+        let res = cli.validate();
+
+        assert!(res.is_err());
         Ok(())
     }
 

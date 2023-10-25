@@ -94,7 +94,7 @@ impl Drop for TestFixture {
     }
 }
 
-fn get_config() -> Config {
+pub fn get_config() -> Config {
     let stages_def = {
         let mut map = HashMap::new();
         map.insert(
@@ -150,7 +150,7 @@ fn get_config() -> Config {
     config
 }
 
-fn get_election_config() -> BallotStyle {
+pub fn get_election_config() -> BallotStyle {
     let ballot_style = BallotStyle {
         id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
         tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
