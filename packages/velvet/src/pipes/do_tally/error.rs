@@ -1,6 +1,7 @@
-pub type Result<T, E = Error> = std::result::Result<T, E>;
-
 pub use crate::pipes::error::Error as PipesError;
+use std::error::Error as StdError;
+
+pub type Result<T, E = Box<dyn StdError>> = std::result::Result<T, E>;
 
 #[derive(Debug)]
 pub enum Error {

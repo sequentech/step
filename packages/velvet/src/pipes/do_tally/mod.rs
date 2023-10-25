@@ -1,10 +1,10 @@
 mod error;
 
-use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
-use serde::Serialize;
-
+use self::error::{Error, Result};
 use super::{pipe_inputs::PipeInputs, pipe_name::PipeName, Pipe};
 use crate::pipes::{decode_ballots::OUTPUT_DECODED_BALLOTS_FILE, pipe_name::PipeNameOutputDir};
+use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
+use serde::Serialize;
 use std::{collections::HashMap, error::Error as StdError, fs, path::Path};
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
@@ -20,7 +20,7 @@ impl DoTally {
 }
 
 impl Pipe for DoTally {
-    fn exec(&self) -> Result<(), Box<dyn StdError>> {
+    fn exec(&self) -> Result<()> {
         let input_dir = self
             .pipe_inputs
             .cli
@@ -72,7 +72,7 @@ impl DoTally {
         contest_id: &str,
         config: &Path,
         votes: Vec<DecodedVoteContest>,
-    ) -> Result<ContestResult, Box<dyn StdError>> {
+    ) -> Result<ContestResult> {
         let file = fs::File::open(config).unwrap();
         let contest: Contest = serde_json::from_reader(file)?;
 

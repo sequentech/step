@@ -1,6 +1,6 @@
 pub mod error;
 
-use self::error::Error;
+use self::error::{Error, Result};
 use crate::pipes::pipe_inputs::{PipeInputs, BALLOTS_FILE};
 use crate::pipes::Pipe;
 use num_bigint::{BigUint, ToBigUint};
@@ -8,7 +8,6 @@ use sequent_core::ballot::Contest;
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::DecodedVoteContest;
 use serde::{Deserialize, Serialize};
-use std::error::Error as StdError;
 use std::fs::{self, File};
 use std::io::BufRead;
 use std::str::FromStr;
@@ -28,7 +27,7 @@ impl DecodeBallots {
 }
 
 impl Pipe for DecodeBallots {
-    fn exec(&self) -> Result<(), Box<dyn StdError>> {
+    fn exec(&self) -> Result<()> {
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
                 let contest_config_file = fs::File::open(&contest_input.config)?;
