@@ -8,6 +8,7 @@ use handlebars::Handlebars;
 use headless_chrome::types::PrintToPdfOptions;
 use rocket::serde::json::Json;
 use rocket::serde::{Deserialize, Serialize};
+use sequent_core::services::{pdf, reports};
 use serde_json::json;
 use serde_json::{Map, Value};
 use std::fs::File;
@@ -19,7 +20,6 @@ use tracing::instrument;
 use crate::connection;
 use crate::hasura;
 use crate::hasura::event_execution::insert_event_execution_with_result;
-use crate::services::pdf;
 use crate::services::s3;
 use crate::types::scheduled_event::ScheduledEvent;
 
@@ -118,9 +118,7 @@ pub async fn render_report(
     }
 
     // render handlebars template
-    let reg = Handlebars::new();
-    let render = reg
-        .render_template(input.template.as_str(), &json!(variables_map))
+    let render = reports::render_template_text(input.template.as_str(), variables_map)
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     // if output format is text/html, just return that
@@ -138,39 +136,8 @@ pub async fn render_report(
         return Ok(());
     }
 
-    // Create temp html file
-    let dir = tempdir().map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let file_path = dir.path().join("index.html");
-    let mut file = File::create(file_path.clone())
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let file_path_str = file_path.to_str().unwrap();
-    file.write_all(render.as_bytes())
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let url_path = format!("file://{}", file_path_str);
-
-    let bytes = pdf::print_to_pdf(
-        url_path.as_str(),
-        PrintToPdfOptions {
-            landscape: None,
-            display_header_footer: None,
-            print_background: None,
-            scale: None,
-            paper_width: None,
-            paper_height: None,
-            margin_top: None,
-            margin_bottom: None,
-            margin_left: None,
-            margin_right: None,
-            page_ranges: None,
-            ignore_invalid_page_ranges: None,
-            header_template: None,
-            footer_template: None,
-            prefer_css_page_size: None,
-            transfer_mode: None,
-        },
-        Some(Duration::new(1, 0)),
-    )
-    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    let bytes =
+        pdf::html_to_pdf(render).map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     let document_json = upload_and_return_document(
         bytes,
