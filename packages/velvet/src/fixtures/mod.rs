@@ -8,7 +8,7 @@ use sequent_core::plaintext::DecodedVoteContest;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 use crate::config::{self, Config};
@@ -78,12 +78,18 @@ impl TestFixture {
     pub fn create_region_dir(&self, election_uuid: &Uuid, contest_uuid: &Uuid) -> Result<Uuid> {
         let uuid = Uuid::new_v4();
 
-        let dir = self
+        let dir_configs = self
             .input_dir_configs
             .join(format!("election__{election_uuid}"))
             .join(format!("contest__{contest_uuid}"))
             .join(format!("region__{uuid}"));
-        fs::create_dir_all(dir)?;
+        let dir_ballots = self
+            .input_dir_ballots
+            .join(format!("election__{election_uuid}"))
+            .join(format!("contest__{contest_uuid}"))
+            .join(format!("region__{uuid}"));
+        fs::create_dir_all(dir_configs)?;
+        fs::create_dir_all(dir_ballots)?;
 
         Ok(uuid)
     }

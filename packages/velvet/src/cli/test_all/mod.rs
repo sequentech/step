@@ -40,7 +40,6 @@ mod tests {
                         .join(format!("election__{uuid_election}"))
                         .join(format!("contest__{uuid_contest}"))
                         .join(format!("region__{uuid_region}"));
-                    fs::create_dir_all(file.as_path())?;
 
                     let mut file = fs::OpenOptions::new()
                         .write(true)
@@ -161,7 +160,7 @@ mod tests {
             &fixture
                 .input_dir_configs
                 .join(format!("election__{uuid_election}"))
-                .join(format!("config__{uuid_contest}")),
+                .join(format!("contest__{uuid_contest}")),
         )?;
         let count = entries.count();
         assert_eq!(count, 1);
@@ -180,16 +179,17 @@ mod tests {
         let count = entries.count();
         assert_eq!(count, 5);
 
-        let mut entries = fs::read_dir(&fixture.input_dir_ballots)?;
         // count contests
+        let mut entries = fs::read_dir(&fixture.input_dir_ballots)?;
         let entry = entries.next().unwrap()?;
         let contest_path = entry.path();
-        let entries = fs::read_dir(contest_path)?;
+        let election_uuid = contest_path.components().last().unwrap();
+        let entries = fs::read_dir(&contest_path)?;
         let count = entries.count();
         assert_eq!(count, 10);
 
-        let mut entries = fs::read_dir(&fixture.input_dir_ballots)?;
-        // count contests
+        // count count regions
+        let mut entries = fs::read_dir(&fixture.input_dir_ballots.join(&election_uuid))?;
         let entry = entries.next().unwrap()?;
         let contest_path = entry.path();
         let entries = fs::read_dir(contest_path)?;
