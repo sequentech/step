@@ -29,6 +29,7 @@ mutation InsertScheduledEvent(
       cron_config
       event_payload
       created_by
+      task_id
     }
   }
 }

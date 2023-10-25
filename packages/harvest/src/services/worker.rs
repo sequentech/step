@@ -19,7 +19,7 @@ use windmill::tasks::render_report;
 use windmill::tasks::set_public_key::*;
 use windmill::tasks::update_voting_status;
 use windmill::types::scheduled_event::*;
-use windmill::hasura::event_execution;
+use windmill::hasura;
 
 use crate::routes::scheduled_event;
 
@@ -29,6 +29,7 @@ pub async fn process_scheduled_event(
     event: ScheduledEvent,
 ) -> Result<()> {
     let celery_app = get_celery_app().await;
+    let mut task_id: String = "".into();
     match event.clone().event_processor.unwrap() {
         EventProcessors::CREATE_REPORT => {
             let body: render_report::RenderTemplateBody =
@@ -40,6 +41,7 @@ pub async fn process_scheduled_event(
                     event.clone(),
                 ))
                 .await?;
+            task_id = task.task_id.clone();
             event!(
                 Level::INFO,
                 "Sent CREATE_REPORT task {}",
@@ -56,6 +58,7 @@ pub async fn process_scheduled_event(
                     payload,
                 ))
                 .await?;
+            task_id = task.task_id.clone();
             event!(
                 Level::INFO,
                 "Sent UPDATE_VOTING_STATUS task {}",
@@ -72,6 +75,7 @@ pub async fn process_scheduled_event(
                     payload,
                 ))
                 .await?;
+            task_id = task.task_id.clone();
             event!(Level::INFO, "Sent SET_PUBLIC_KEY task {}", task.task_id);
         }
         EventProcessors::CREATE_KEYS => {
@@ -84,6 +88,7 @@ pub async fn process_scheduled_event(
                     payload,
                 ))
                 .await?;
+            task_id = task.task_id.clone();
             event!(Level::INFO, "Sent CREATE_KEYS task {}", task.task_id);
         }
         EventProcessors::SET_PUBLIC_KEY => {
@@ -93,6 +98,7 @@ pub async fn process_scheduled_event(
                     event.clone(),
                 ))
                 .await?;
+            task_id = task.task_id.clone();
             event!(Level::INFO, "Sent SET_PUBLIC_KEY task {}", task.task_id);
         }
         EventProcessors::CREATE_BALLOT_STYLE => {
@@ -105,6 +111,7 @@ pub async fn process_scheduled_event(
                     payload,
                 ))
                 .await?;
+            task_id = task.task_id.clone();
             event!(
                 Level::INFO,
                 "Sent CREATE_BALLOT_STYLE task {}",
@@ -121,8 +128,16 @@ pub async fn process_scheduled_event(
                     payload,
                 ))
                 .await?;
+            task_id = task.task_id.clone();
             event!(Level::INFO, "Sent INSERT_BALLOTS task {}", task.task_id);
         }
     }
+    hasura::scheduled_event::update_scheduled_event_task_id(
+        auth_headers.clone(),
+        event.id.clone(),
+        event.tenant_id.clone().unwrap(),
+        event.election_event_id.clone().unwrap(),
+        task_id,
+    ).await?;
     Ok(())
 }
