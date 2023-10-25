@@ -188,7 +188,7 @@ export const VotingScreen: React.FC = () => {
                     {stringToHtml(election.description)}
                 </Typography>
             ) : null}
-            {ballotStyle.ballot_eml.configuration.questions.map((question, index) => (
+            {ballotStyle.ballot_eml.contests.map((question, index) => (
                 <Question
                     ballotStyle={ballotStyle}
                     question={question}

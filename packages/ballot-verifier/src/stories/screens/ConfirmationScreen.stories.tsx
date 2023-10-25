@@ -13,7 +13,7 @@ import {
     IConfirmationBallot,
     provideBallotService,
 } from "../../services/BallotService"
-import {IDecodedVoteChoice, IQuestion, IQuestionLayoutProperties} from "sequent-core"
+import {IDecodedVoteChoice, IContest, IContestLayoutProperties} from "sequent-core"
 
 export default {
     title: "screens/ConfirmationScreen",
@@ -47,9 +47,9 @@ export default {
 const getBallotServiceProvider = (ordered: boolean): IBallotService => {
     const service = provideBallotService()
 
-    const getPoints = (question: IQuestion, answer: IDecodedVoteChoice) => 4
+    const getPoints = (question: IContest, answer: IDecodedVoteChoice) => 4
 
-    const getLayoutProperties = (question: IQuestion): IQuestionLayoutProperties | null => ({
+    const getLayoutProperties = (question: IContest): IContestLayoutProperties | null => ({
         state: "state",
         sorted: false,
         ordered: ordered,

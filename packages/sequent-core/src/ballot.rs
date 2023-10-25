@@ -135,6 +135,8 @@ pub struct CandidateUrl {
 )]
 pub struct CandidatePresentation {
     pub is_explicit_invalid: bool,
+    pub is_category_list: bool,
+    pub invalid_vote_position: Option<String>, // top|bottom
     pub is_write_in: bool,
     pub sort_order: Option<i64>,
     pub urls: Option<Vec<CandidateUrl>>,
@@ -164,25 +166,36 @@ pub struct Candidate {
 }
 
 impl Candidate {
+    pub fn is_category_list(&self) -> bool {
+        self.presentation
+            .as_ref()
+            .map(|presentation| presentation.is_category_list)
+            .unwrap_or(false)
+    }
+
     pub fn is_explicit_invalid(&self) -> bool {
         self.presentation
             .as_ref()
             .map(|presentation| presentation.is_explicit_invalid)
             .unwrap_or(false)
     }
+
     pub fn is_write_in(&self) -> bool {
         self.presentation
             .as_ref()
             .map(|presentation| presentation.is_write_in)
             .unwrap_or(false)
     }
+
     pub fn set_is_write_in(&mut self, is_write_in: bool) {
         let mut presentation =
             self.presentation.clone().unwrap_or(CandidatePresentation {
                 is_explicit_invalid: false,
+                is_category_list: false,
                 is_write_in: false,
                 sort_order: Some(0),
                 urls: None,
+                invalid_vote_position: None,
             });
         presentation.is_write_in = is_write_in;
         self.presentation = Some(presentation);
@@ -209,6 +222,7 @@ pub struct ContestPresentation {
     pub shuffle_all_options: bool,
     pub shuffle_category_list: Option<Vec<String>>,
     pub show_points: bool,
+    pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
 }
 
 impl ContestPresentation {
@@ -222,6 +236,7 @@ impl ContestPresentation {
             shuffle_all_options: true,
             shuffle_category_list: None,
             show_points: false,
+            enable_checkable_lists: None,
         }
     }
 }
@@ -302,6 +317,16 @@ impl Contest {
             .as_ref()
             .map(|presentation| presentation.show_points)
             .unwrap_or(false)
+    }
+
+    pub fn get_invalid_candidate_ids(&self) -> Vec<Uuid> {
+        self.candidates
+            .iter()
+            .filter(|candidate| candidate.is_explicit_invalid())
+            .collect::<Vec<&Candidate>>()
+            .iter()
+            .map(|candidate| candidate.id.clone())
+            .collect()
     }
 }
 

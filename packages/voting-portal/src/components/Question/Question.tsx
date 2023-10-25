@@ -6,7 +6,7 @@ import {Box} from "@mui/material"
 import {theme, stringToHtml, shuffle, splitList, keyBy} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
-import {IQuestion} from "sequent-core"
+import {IContest} from "sequent-core"
 import {Answer} from "../Answer/Answer"
 import {AnswersList} from "../AnswersList/AnswersList"
 import {
@@ -24,7 +24,6 @@ import {
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
 
-
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
     display: flex;
@@ -41,7 +40,7 @@ const CandidatesWrapper = styled(Box)`
 
 export interface IQuestionProps {
     ballotStyle: IBallotStyle
-    question: IQuestion
+    question: IContest
     questionIndex: number
     isReview: boolean
     setDisableNext?: (value: boolean) => void
@@ -91,7 +90,7 @@ export const Question: React.FC<IQuestionProps> = ({
 
     return (
         <Box>
-            <StyledTitle variant="h5">{question.title}</StyledTitle>
+            <StyledTitle variant="h5">{question.name || ""}</StyledTitle>
             {question.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                     {stringToHtml(question.description)}

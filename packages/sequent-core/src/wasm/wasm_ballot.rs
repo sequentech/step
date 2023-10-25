@@ -29,14 +29,16 @@ interface ICandidateUrl {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(typescript_type = "IPublicKeyConfig")]
-    pub type IPublicKeyConfig;
+    #[wasm_bindgen(typescript_type = "ICandidateUrl")]
+    pub type ICandidateUrl;
 }
 
 #[wasm_bindgen(typescript_custom_section)]
 const ICANDIDATE_PRESENTATION: &'static str = r#"
 interface ICandidatePresentation {
     is_explicit_invalid: boolean;
+    is_category_list: boolean;
+    invalid_vote_position?: string;
     is_write_in: boolean;
     sort_order?: number;
     urls?: Array<ICandidateUrl>;
@@ -81,6 +83,7 @@ interface IContestPresentation {
     shuffle_all_options: boolean;
     shuffle_category_list?: Array<string>;
     show_points: boolean;
+    enable_checkable_lists?: string;
 }
 "#;
 

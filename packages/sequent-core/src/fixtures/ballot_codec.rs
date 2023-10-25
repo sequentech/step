@@ -57,6 +57,8 @@ fn get_contest_plurality() -> Contest {
                     is_write_in: false,
                     sort_order: Some(0),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
             Candidate {
@@ -74,6 +76,8 @@ fn get_contest_plurality() -> Contest {
                     is_write_in: false,
                     sort_order: Some(1),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
             Candidate {
@@ -91,6 +95,8 @@ fn get_contest_plurality() -> Contest {
                     is_write_in: false,
                     sort_order: Some(2),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
             Candidate {
@@ -108,6 +114,8 @@ fn get_contest_plurality() -> Contest {
                     is_write_in: false,
                     sort_order: Some(3),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
             Candidate {
@@ -125,6 +133,8 @@ fn get_contest_plurality() -> Contest {
                     is_write_in: false,
                     sort_order: Some(4),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
         ],
@@ -137,6 +147,7 @@ fn get_contest_plurality() -> Contest {
             shuffle_all_options: true,
             shuffle_category_list: None,
             show_points: false,
+            enable_checkable_lists: None,
         }),
     }
 }
@@ -219,6 +230,8 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                         is_write_in: false,
                         sort_order: Some(0),
                         urls: None,
+                        invalid_vote_position: None,
+                        is_category_list: false,
                     }),
                 },
                 Candidate {
@@ -238,6 +251,8 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                         is_explicit_invalid: false,
                         is_write_in: false,
                         sort_order: Some(1),
+                        invalid_vote_position: None,
+                        is_category_list: false,
                         urls: Some(vec![
                             CandidateUrl {
                                 url: "https://sequentech.io".into(),
@@ -269,6 +284,8 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                         is_write_in: true,
                         sort_order: Some(2),
                         urls: None,
+                        invalid_vote_position: None,
+                        is_category_list: false,
                     }),
                 },
                 Candidate {
@@ -286,6 +303,8 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                         is_write_in: true,
                         sort_order: Some(3),
                         urls: None,
+                        invalid_vote_position: None,
+                        is_category_list: false,
                     }),
                 },
             ],
@@ -298,6 +317,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 shuffle_all_options: true,
                 shuffle_category_list: None,
                 show_points: false,
+                enable_checkable_lists: None,
             }),
         }],
     }
@@ -403,6 +423,8 @@ pub fn get_test_contest() -> Contest {
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(0),
+                    invalid_vote_position: None,
+                    is_category_list: false,
                     urls: Some(vec![
                         CandidateUrl {
                             url: "https://i.imgur.com/XFQwVFL.jpg".into(),
@@ -426,6 +448,8 @@ pub fn get_test_contest() -> Contest {
                     is_explicit_invalid: false,
                     is_write_in: false,
                     sort_order: Some(1),
+                    invalid_vote_position: None,
+                    is_category_list: false,
                     urls: Some(vec![
                         CandidateUrl {
                             url: "https://sequentech.io".into(),
@@ -456,6 +480,8 @@ pub fn get_test_contest() -> Contest {
                     is_write_in: false,
                     sort_order: Some(2),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             }
         ],
@@ -468,6 +494,7 @@ pub fn get_test_contest() -> Contest {
             shuffle_all_options: true,
             shuffle_category_list: None,
             show_points: false,
+            enable_checkable_lists: None,
         }),
     }
 }
@@ -511,6 +538,8 @@ pub(crate) fn get_configurable_contest(
                     is_write_in: false,
                     sort_order: Some(0),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
             Candidate {
@@ -528,6 +557,8 @@ pub(crate) fn get_configurable_contest(
                     is_write_in: false,
                     sort_order: Some(1),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
             Candidate {
@@ -545,6 +576,8 @@ pub(crate) fn get_configurable_contest(
                     is_write_in: false,
                     sort_order: Some(2),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
             Candidate {
@@ -562,6 +595,8 @@ pub(crate) fn get_configurable_contest(
                     is_write_in: false,
                     sort_order: Some(3),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
             Candidate {
@@ -579,6 +614,8 @@ pub(crate) fn get_configurable_contest(
                     is_write_in: false,
                     sort_order: Some(4),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
             Candidate {
@@ -596,6 +633,8 @@ pub(crate) fn get_configurable_contest(
                     is_write_in: false,
                     sort_order: Some(5),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
             Candidate {
@@ -613,6 +652,8 @@ pub(crate) fn get_configurable_contest(
                     is_write_in: false,
                     sort_order: Some(6),
                     urls: None,
+                    invalid_vote_position: None,
+                    is_category_list: false,
                 }),
             },
         ],
@@ -625,6 +666,7 @@ pub(crate) fn get_configurable_contest(
             shuffle_all_options: true,
             shuffle_category_list: None,
             show_points: false,
+            enable_checkable_lists: None,
         }),
     };
 
@@ -781,6 +823,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(0),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                     Candidate {
@@ -797,6 +841,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(1),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                     Candidate {
@@ -813,6 +859,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(2),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                     Candidate {
@@ -829,6 +877,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(3),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                 ],
@@ -841,6 +891,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_all_options: true,
                     shuffle_category_list: None,
                     show_points: false,
+                    enable_checkable_lists: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -912,6 +963,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(0),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                     Candidate {
@@ -928,6 +981,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(1),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                     Candidate {
@@ -944,6 +999,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(2),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                     Candidate {
@@ -960,6 +1017,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(3),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                 ],
@@ -972,6 +1031,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_all_options: true,
                     shuffle_category_list: None,
                     show_points: false,
+                    enable_checkable_lists: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1033,6 +1093,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(0),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                     Candidate {
@@ -1049,6 +1111,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(1),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                     Candidate {
@@ -1065,6 +1129,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(2),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                     Candidate {
@@ -1081,6 +1147,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(3),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                 ],
@@ -1093,6 +1161,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_all_options: true,
                     shuffle_category_list: None,
                     show_points: false,
+                    enable_checkable_lists: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1164,6 +1233,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(0),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                     Candidate {
@@ -1180,6 +1251,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(1),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                     Candidate {
@@ -1196,6 +1269,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(2),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                 ],
@@ -1208,6 +1283,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_all_options: true,
                     shuffle_category_list: None,
                     show_points: false,
+                    enable_checkable_lists: None,
                 }),
             },
             raw_ballot: RawBallotContest {
@@ -1279,6 +1355,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(0),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                     Candidate {
@@ -1295,6 +1373,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(1),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                     Candidate {
@@ -1311,6 +1391,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                             is_write_in: false,
                             sort_order: Some(2),
                             urls: None,
+                            invalid_vote_position: None,
+                            is_category_list: false,
                         }),
                     },
                 ],
@@ -1323,6 +1405,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     shuffle_all_options: true,
                     shuffle_category_list: None,
                     show_points: false,
+                    enable_checkable_lists: None,
                 }),
             },
             raw_ballot: RawBallotContest {

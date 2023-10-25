@@ -8,6 +8,7 @@ use celery::export::Arc;
 use celery::prelude::*;
 use celery::Celery;
 use rocket::serde::{Deserialize, Serialize};
+use sequent_core::ballot::ElectionEventStatus;
 use serde_json::Value;
 use tracing::{event, instrument, Level};
 
@@ -17,7 +18,6 @@ use crate::hasura::election_event::update_election_event_status;
 use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::celery_app::*;
 use crate::services::election_event_board::{get_election_event_board, BoardSerializable};
-use crate::services::election_event_status;
 use crate::services::protocol_manager;
 use crate::tasks::set_public_key::set_public_key;
 use crate::types::scheduled_event::ScheduledEvent;
@@ -62,13 +62,12 @@ pub async fn create_keys(
         .sequent_backend_election_event[0];
 
     // check config is not already created
-    let status: Option<election_event_status::ElectionEventStatus> =
-        match election_event.status.clone() {
-            Some(value) => serde_json::from_value(value)
-                .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?,
-            None => None,
-        };
-    if election_event_status::is_config_created(&status) {
+    let status: Option<ElectionEventStatus> = match election_event.status.clone() {
+        Some(value) => serde_json::from_value(value)
+            .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?,
+        None => None,
+    };
+    if status.map(|val| val.is_config_created()).unwrap_or(false) {
         return Err(TaskError::UnexpectedError(
             "bulletin board config already created".into(),
         ));
@@ -88,7 +87,7 @@ pub async fn create_keys(
     .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     // update election event with status: keys created
-    let new_status = serde_json::to_value(election_event_status::ElectionEventStatus {
+    let new_status = serde_json::to_value(ElectionEventStatus {
         config_created: Some(true),
         stopped: Some(false),
     })

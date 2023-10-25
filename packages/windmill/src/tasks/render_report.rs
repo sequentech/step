@@ -9,6 +9,7 @@ use headless_chrome::types::PrintToPdfOptions;
 use rocket::serde::json::Json;
 use rocket::serde::{Deserialize, Serialize};
 use serde_json::json;
+use serde_json::{Map, Value};
 use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
@@ -36,6 +37,7 @@ pub struct RenderTemplateBody {
     tenant_id: String,
     election_event_id: String,
     name: String,
+    variables: Map<String, Value>,
     format: FormatType,
 }
 
@@ -94,12 +96,12 @@ async fn upload_and_return_document(
 }
 
 #[instrument(skip_all)]
-#[celery::task]
+#[celery::task(time_limit = 60000)]
 pub async fn render_report(
     input: RenderTemplateBody,
     auth_headers: connection::AuthHeaders,
     event: ScheduledEvent,
-) -> TaskResult<Json<RenderTemplateResponse>> {
+) -> TaskResult<()> {
     println!("auth headers: {:#?}", auth_headers);
     let hasura_response = hasura::tenant::get_tenant(auth_headers.clone(), input.tenant_id.clone())
         .await
@@ -110,17 +112,20 @@ pub async fn render_report(
         .sequent_backend_tenant[0]
         .username
         .clone();
-    let variables = json!({ "username": username });
+    let mut variables_map = input.variables.clone();
+    if !variables_map.contains_key("username") {
+        variables_map.insert("username".to_string(), json!(username));
+    }
 
     // render handlebars template
     let reg = Handlebars::new();
     let render = reg
-        .render_template(input.template.as_str(), &variables)
+        .render_template(input.template.as_str(), &json!(variables_map))
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {
-        return upload_and_return_document(
+        upload_and_return_document(
             render.into_bytes(),
             "text/plain".to_string(),
             auth_headers.clone(),
@@ -129,7 +134,8 @@ pub async fn render_report(
             input.name,
         )
         .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)));
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        return Ok(());
     }
 
     // Create temp html file
@@ -185,5 +191,5 @@ pub async fn render_report(
         .await
         .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
-    Ok(document_json)
+    Ok(())
 }

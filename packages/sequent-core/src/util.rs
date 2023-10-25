@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::hasura_types::Uuid;
 use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use chrono::{DateTime, Local};
 
@@ -13,11 +14,16 @@ pub fn normalize_vote_contest(
     input: &DecodedVoteContest,
     tally_type: &str,
     remove_errors: bool,
+    invalid_choice_ids: &Vec<Uuid>,
 ) -> DecodedVoteContest {
     let mut original = input.clone();
-    let mut choices: Vec<DecodedVoteChoice> = original
+    let filtered_choices: Vec<&DecodedVoteChoice> = original
         .choices
         .iter()
+        .filter(|choice| !invalid_choice_ids.contains(&choice.id))
+        .collect();
+    let mut choices: Vec<DecodedVoteChoice> = filtered_choices
+        .into_iter()
         .map(|choice| normalize_vote_choice(choice, tally_type))
         .collect();
     choices.sort_by_key(|q| q.id.clone());

@@ -27,12 +27,6 @@ const Vertical = styled(Box)`
     flex-direction: column;
 `
 
-interface FetchDocumentVariables {
-    tenantId: string
-    electionEventId: string
-    documentId: string
-}
-
 export const ReportDialog: React.FC = () => {
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -105,6 +99,7 @@ export const ReportDialog: React.FC = () => {
                     election_event_id: record.id,
                     name: reportName,
                     format: format,
+                    variables: {},
                 },
                 createdBy: "admin",
             },

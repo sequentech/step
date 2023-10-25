@@ -6,6 +6,7 @@ use anyhow::{bail, Context, Result};
 use celery::error::TaskError;
 use celery::prelude::*;
 use rocket::serde::{Deserialize, Serialize};
+use sequent_core::ballot::{ElectionStatus, VotingStatus};
 use tracing::instrument;
 
 use crate::connection;

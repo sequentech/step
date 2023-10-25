@@ -2,10 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::protocol2::trustee::ProtocolManager;
 use crate::run::config::ProtocolManagerConfig;
-use crate::util::assert_folder;
 use braid_messages::artifact::DkgPublicKey;
 use braid_messages::statement::StatementType;
 
@@ -78,24 +76,28 @@ pub async fn get_board_public_key<C: Ctx>(
     password: &str,
     board_name: &str,
 ) -> Result<C::E> {
-    let store_root = std::env::current_dir().unwrap().join("message_store");
-    assert_folder(store_root.clone())?;
-    let mut board = ImmudbBoard::new(
-        server_url,
-        user,
-        password,
-        board_name.to_string(),
-        store_root.clone(),
-    )
-    .await?;
-    let messages = board.get_messages(-1).await?;
+
+    let mut board = BoardClient::new(&server_url, &user, &password).await?;
+
+    let messages = board.get_messages(board_name, -1).await?;
     let pks_message = messages
         .into_iter()
-        .find(|message| match message.statement.get_kind() {
-            StatementType::PublicKey => true,
-            _ => false,
+        .map(|message| {
+            Message::strand_deserialize(&message.message)
         })
-        .with_context(|| format!("Public Key not found on board {}", board_name))?;
+        .find(|message| {
+            if let Ok(m) = message {
+                match m.statement.get_kind() {
+                StatementType::PublicKey => true,
+                _ => false,
+                }
+            }
+            else {
+                false
+            }
+        })
+        .with_context(|| format!("Public Key not found on board {}", board_name))??;
+    
     let bytes = pks_message.artifact.with_context(|| {
         format!(
             "Artifact missing on Public Key message on board {}",

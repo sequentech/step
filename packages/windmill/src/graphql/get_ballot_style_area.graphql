@@ -17,6 +17,7 @@ query GetBallotStyleArea(
     last_updated_at
     labels
     annotations
+    name
     description
     type
   }

@@ -239,6 +239,7 @@ mod tests {
         let ctx = RistrettoCtx;
         let ballot_style = get_writein_ballot_style();
         let contest = ballot_style.contests[0].clone();
+        let invalid_candidate_ids = contest.get_invalid_candidate_ids();
         let decoded_contest = get_writein_plaintext();
         let plaintext_bytes_vec = contest
             .encode_plaintext_contest_to_bytes(&decoded_contest)
@@ -260,12 +261,14 @@ mod tests {
             normalize_vote_contest(
                 &decoded_plaintext,
                 contest.get_counting_algorithm().as_str(),
-                false
+                false,
+                &invalid_candidate_ids,
             ),
             normalize_vote_contest(
                 &decoded_contest,
                 contest.get_counting_algorithm().as_str(),
-                false
+                false,
+                &invalid_candidate_ids,
             )
         );
     }
@@ -278,6 +281,7 @@ mod tests {
         let ctx = RistrettoCtx;
         let ballot_style = get_writein_ballot_style();
         let contest = ballot_style.contests[0].clone();
+        let invalid_candidate_ids = contest.get_invalid_candidate_ids();
         let bigint_vec2: Vec<u8> = vec![198, 20, 150, 48];
         let bigint2 =
             bigint::decode_bigint_from_bytes(bigint_vec2.as_slice()).unwrap();
@@ -300,12 +304,14 @@ mod tests {
             normalize_vote_contest(
                 &decoded_contest,
                 contest.get_counting_algorithm().as_str(),
-                false
+                false,
+                &invalid_candidate_ids,
             ),
             normalize_vote_contest(
                 &decoded_contest2,
                 contest.get_counting_algorithm().as_str(),
-                false
+                false,
+                &invalid_candidate_ids,
             )
         );
     }

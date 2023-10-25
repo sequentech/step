@@ -234,7 +234,6 @@ pub fn test_contest_reencoding_js(
             .into_json()?;
 
     let contest = ballot_style
-        .configuration
         .contests
         .iter()
         .find(|contest| contest.id == decoded_contest.contest_id)
@@ -252,15 +251,19 @@ pub fn test_contest_reencoding_js(
         .decode_plaintext_contest_bigint(&bigint)
         .into_json()?;
 
+    let invalid_candidate_ids = contest.get_invalid_candidate_ids();
+
     let input_compare = normalize_vote_contest(
         &decoded_contest,
-        contest.tally_type.as_str(),
+        contest.get_counting_algorithm().as_str(),
         true,
+        &invalid_candidate_ids,
     );
     let output_compare = normalize_vote_contest(
         &modified_decoded_contest,
-        contest.tally_type.as_str(),
+        contest.get_counting_algorithm().as_str(),
         true,
+        &invalid_candidate_ids,
     );
     if input_compare != output_compare {
         return Err(format!(
@@ -293,7 +296,6 @@ pub fn get_write_in_available_characters_js(
             .into_json()?;
 
     let contest = ballot_style
-        .configuration
         .contests
         .iter()
         .find(|contest| contest.id == decoded_contest.contest_id)
