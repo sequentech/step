@@ -42,7 +42,7 @@ pub async fn process_scheduled_event(
                 .await?;
             event!(
                 Level::INFO,
-                "Sent UPDATE_VOTING_STATUS task {}",
+                "Sent CREATE_REPORT task {}",
                 task.task_id
             );
         }
