@@ -99,6 +99,7 @@ export const ReportDialog: React.FC = () => {
                     election_event_id: record.id,
                     name: reportName,
                     format: format,
+                    variables: {},
                 },
                 createdBy: "admin",
             },
