@@ -6,6 +6,7 @@ mod tests {
     use crate::fixtures;
     use crate::fixtures::TestFixture;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
+    use crate::pipes::do_tally::OUTPUT_CONTEST_RESULT_FILE;
     use crate::pipes::pipe_name::PipeNameOutputDir;
     use anyhow::{Error, Result};
     use rand::Rng;
@@ -201,7 +202,7 @@ mod tests {
             .exists());
 
         assert_eq!(
-            WalkDir::new(cli.output_dir)
+            WalkDir::new(cli.output_dir.as_path())
                 .into_iter()
                 .filter_map(Result::ok)
                 .filter(|e| {
@@ -216,6 +217,18 @@ mod tests {
         // DoTally
         state.exec_next()?;
 
+        assert_eq!(
+            WalkDir::new(cli.output_dir.as_path())
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter(|e| {
+                    e.path()
+                        .file_name()
+                        .map_or(false, |f| f == OUTPUT_CONTEST_RESULT_FILE)
+                })
+                .count(),
+            election_num * contest_num
+        );
         Ok(())
     }
 }

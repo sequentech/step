@@ -1,10 +1,13 @@
 mod error;
 
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
+use serde::Serialize;
 
-use super::{pipe_inputs::PipeInputs, Pipe};
+use super::{pipe_inputs::PipeInputs, pipe_name::PipeName, Pipe};
 use crate::pipes::{decode_ballots::OUTPUT_DECODED_BALLOTS_FILE, pipe_name::PipeNameOutputDir};
 use std::{collections::HashMap, error::Error as StdError, fs, path::Path};
+
+pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
 
 pub struct DoTally {
     pub pipe_inputs: PipeInputs,
@@ -24,6 +27,12 @@ impl Pipe for DoTally {
             .output_dir
             .as_path()
             .join(PipeNameOutputDir::DecodeBallots.as_ref());
+        let output_dir = self
+            .pipe_inputs
+            .cli
+            .output_dir
+            .as_path()
+            .join(PipeNameOutputDir::DoTally.as_ref());
 
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
@@ -39,6 +48,18 @@ impl Pipe for DoTally {
                     contest_input.config.as_path(),
                     res,
                 )?;
+
+                let mut file = self.pipe_inputs.get_path_for_contest(
+                    &output_dir,
+                    &contest_input.election_id,
+                    &contest_input.id,
+                );
+
+                fs::create_dir_all(&file)?;
+                file.push(OUTPUT_CONTEST_RESULT_FILE);
+                let file = fs::File::create(file)?;
+
+                serde_json::to_writer(file, &res)?;
             }
         }
 
@@ -107,7 +128,7 @@ impl DoTally {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ContestResult {
     pub contest_id: String,
     pub total_valid_votes: u64,
@@ -115,7 +136,7 @@ pub struct ContestResult {
     pub choice_result: Vec<ContestChoiceResult>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ContestChoiceResult {
     pub choice_id: String,
     pub total_count: u64,
