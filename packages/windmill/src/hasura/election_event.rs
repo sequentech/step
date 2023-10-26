@@ -49,8 +49,8 @@ pub struct GetElectionEvent;
 #[graphql(
     schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/insert_election_event.graphql",
-    response_derives = "Debug, Clone",
-    variables_derives = "Debug, Clone",
+    response_derives = "Debug, Clone, Deserialize",
+    variables_derives = "Debug, Clone, Deserialize",
 )]
 pub struct InsertElectionEvent;
 
