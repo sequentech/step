@@ -10,6 +10,7 @@ use sequent_core::plaintext::DecodedVoteContest;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::BufRead;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use super::pipe_name::PipeNameOutputDir;
@@ -30,7 +31,9 @@ impl Pipe for DecodeBallots {
     fn exec(&self) -> Result<()> {
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
-                let contest_config_file = fs::File::open(&contest_input.config)?;
+                let contest_config_file = fs::File::open(&contest_input.config)
+                    .map_err(|e| Error::IO(contest_input.config.clone(), e))?;
+                // .map_err(|e| Error::FS(abc, e))?;
                 let contest: Contest = serde_json::from_reader(contest_config_file)?;
 
                 let mut file = self.pipe_inputs.get_path_for_contest(
@@ -39,7 +42,7 @@ impl Pipe for DecodeBallots {
                     &contest_input.id,
                 );
                 file.push(BALLOTS_FILE);
-                let file = fs::File::open(file)?;
+                let file = fs::File::open(&file).map_err(|e| Error::IO(file.clone(), e))?;
 
                 let reader = std::io::BufReader::new(file);
 

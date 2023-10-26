@@ -7,7 +7,7 @@ pub type Result<T, E = Box<dyn StdError>> = std::result::Result<T, E>;
 pub enum Error {
     JsonParse(serde_json::Error),
     FromPipes(PipesError),
-    FS(std::io::Error),
+    IO(std::path::PathBuf, std::io::Error),
     WrongBallotsFormat,
 }
 
@@ -26,12 +26,6 @@ impl From<serde_json::Error> for Error {
 impl From<PipesError> for Error {
     fn from(val: PipesError) -> Self {
         Self::FromPipes(val)
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(val: std::io::Error) -> Self {
-        Self::FS(val)
     }
 }
 
