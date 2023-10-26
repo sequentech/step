@@ -4,8 +4,8 @@
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
-use serde_json::Value;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::env;
 use strum_macros::Display;
 use strum_macros::EnumString;

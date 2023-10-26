@@ -10,15 +10,12 @@ use tracing::instrument;
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::protocol_manager;
+use crate::services::public_keys;
 use crate::types::scheduled_event::ScheduledEvent;
 
 #[instrument]
 #[celery::task(max_retries = 10)]
-pub async fn set_public_key(
-    tenant_id: String,
-    election_event_id: String,
-) -> TaskResult<()> {
+pub async fn set_public_key(tenant_id: String, election_event_id: String) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
@@ -44,7 +41,7 @@ pub async fn set_public_key(
         return Ok(());
     }
 
-    let public_key = protocol_manager::get_public_key(board_name)
+    let public_key = public_keys::get_public_key(board_name)
         .await
         .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
     hasura::election_event::update_election_event_public_key(

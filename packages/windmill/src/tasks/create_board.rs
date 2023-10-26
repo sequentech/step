@@ -6,9 +6,9 @@ use anyhow::Result;
 use celery::error::TaskError;
 use celery::prelude::*;
 use immu_board::BoardClient;
-use serde::{Deserialize, Serialize};
 use sequent_core;
 use sequent_core::services::openid;
+use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::instrument;
 

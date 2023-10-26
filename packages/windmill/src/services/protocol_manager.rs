@@ -2,81 +2,104 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
-use base64::engine::general_purpose;
-use base64::Engine;
-use braid::protocol_manager;
-use std::env;
-use strand::backend::ristretto::RistrettoCtx;
-use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::StrandSignaturePk;
-use tracing::instrument;
+use braid::protocol2::trustee::ProtocolManager;
+use braid::run::config::ProtocolManagerConfig;
+use braid_messages::artifact::DkgPublicKey;
+use braid_messages::statement::StatementType;
 
-use crate::services::vault;
-use crate::tasks::create_keys;
+use braid_messages::artifact::Configuration;
+use braid_messages::message::Message;
 
-#[instrument(skip(trustee_pks, threshold))]
-pub async fn create_keys(
-    board_name: &str,
-    trustee_pks: Vec<String>,
-    threshold: usize,
-) -> Result<()> {
-    // 1. get env vars
-    let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
-    let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
-    let server_url =
-        env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
+use strand::context::Ctx;
+use strand::serialization::StrandDeserialize;
 
-    // 2. create protocol manager keys
-    let pm = protocol_manager::gen_protocol_manager::<RistrettoCtx>();
+use anyhow::{Context, Result};
+use std::marker::PhantomData;
+use tracing::{info, instrument};
 
-    // 3. save pm keys in vault
-    let pm_config = protocol_manager::serialize_protocol_manager::<RistrettoCtx>(&pm);
-    vault::save_secret(format!("boards/{}/protocol-manager", board_name), pm_config).await?;
+use immu_board::{BoardClient, BoardMessage};
+use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-    // 4. create trustees keys from input strings
-    let trustee_pks: Vec<StrandSignaturePk> = trustee_pks
-        .clone()
-        .into_iter()
-        .map(|public_key_string| {
-            let bytes = general_purpose::STANDARD_NO_PAD
-                .decode(&public_key_string)
-                .unwrap();
-            let public_key: StrandSignaturePk =
-                StrandSignaturePk::strand_deserialize(&bytes).unwrap();
-            public_key
-        })
-        .collect();
+pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().unwrap();
+    let pm: ProtocolManager<C> = ProtocolManager {
+        signing_key: pmkey,
+        phantom: PhantomData,
+    };
+    pm
+}
 
-    // 5. add config to board on immudb
-    protocol_manager::add_config_to_board::<RistrettoCtx>(
-        server_url.as_str(),
-        user.as_str(),
-        password.as_str(),
-        threshold.clone(),
-        board_name,
-        trustee_pks,
-        pm,
-    )
-    .await?;
-
-    Ok(())
+pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> String {
+    let pmc = ProtocolManagerConfig::from(&pm);
+    toml::to_string(&pmc).unwrap()
 }
 
 #[instrument]
-pub async fn get_public_key(board_name: String) -> Result<String> {
-    // 1. get env vars
-    let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
-    let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
-    let server_url =
-        env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
-    let pk = protocol_manager::get_board_public_key::<RistrettoCtx>(
-        server_url.as_str(),
-        user.as_str(),
-        password.as_str(),
-        board_name.as_str(),
-    )
-    .await?;
-    let pk_bytes = pk.strand_serialize()?;
-    Ok(general_purpose::STANDARD_NO_PAD.encode(pk_bytes))
+async fn init<C: Ctx>(
+    board: &mut BoardClient,
+    configuration: Configuration<C>,
+    pm: ProtocolManager<C>,
+    board_name: &str,
+) -> Result<()> {
+    let message: BoardMessage = Message::bootstrap_msg(&configuration, &pm)?.try_into()?;
+    info!("Adding configuration to the board..");
+    board.insert_messages(board_name, &vec![message]).await
+}
+
+#[instrument(skip(user, password, pm))]
+pub async fn add_config_to_board<C: Ctx>(
+    server_url: &str,
+    user: &str,
+    password: &str,
+    threshold: usize,
+    board_name: &str,
+    trustee_pks: Vec<StrandSignaturePk>,
+    pm: ProtocolManager<C>,
+) -> Result<()> {
+    let configuration = Configuration::<C>::new(
+        0,
+        StrandSignaturePk::from(&pm.signing_key)?,
+        trustee_pks,
+        threshold,
+        PhantomData,
+    );
+
+    let mut board = BoardClient::new(&server_url, &user, &password).await?;
+
+    init(&mut board, configuration, pm, board_name).await
+}
+
+#[instrument(skip(user, password))]
+pub async fn get_board_public_key<C: Ctx>(
+    server_url: &str,
+    user: &str,
+    password: &str,
+    board_name: &str,
+) -> Result<C::E> {
+    let mut board = BoardClient::new(&server_url, &user, &password).await?;
+
+    let messages = board.get_messages(board_name, -1).await?;
+    let pks_message = messages
+        .into_iter()
+        .map(|message| Message::strand_deserialize(&message.message))
+        .find(|message| {
+            if let Ok(m) = message {
+                match m.statement.get_kind() {
+                    StatementType::PublicKey => true,
+                    _ => false,
+                }
+            } else {
+                false
+            }
+        })
+        .with_context(|| format!("Public Key not found on board {}", board_name))??;
+
+    let bytes = pks_message.artifact.with_context(|| {
+        format!(
+            "Artifact missing on Public Key message on board {}",
+            board_name
+        )
+    })?;
+    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
+    Ok(dkgpk.pk)
 }

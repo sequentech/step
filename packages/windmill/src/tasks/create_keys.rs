@@ -7,9 +7,9 @@ use celery::error::TaskError;
 use celery::export::Arc;
 use celery::prelude::*;
 use celery::Celery;
-use serde::{Deserialize, Serialize};
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::openid;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{event, instrument, Level};
 
@@ -17,7 +17,7 @@ use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
 use crate::services::celery_app::*;
 use crate::services::election_event_board::{get_election_event_board, BoardSerializable};
-use crate::services::protocol_manager;
+use crate::services::public_keys;
 use crate::tasks::set_public_key::set_public_key;
 use crate::types::scheduled_event::ScheduledEvent;
 
@@ -68,7 +68,7 @@ pub async fn create_keys(
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     // create config/keys for board
-    protocol_manager::create_keys(
+    public_keys::create_keys(
         board_name.as_str(),
         body.trustee_pks.clone(),
         body.threshold.clone(),

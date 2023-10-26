@@ -4,8 +4,8 @@
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
-use serde_json::Value;
 use serde::Deserialize;
+use serde_json::Value;
 use std::env;
 use tracing::{event, instrument, Level};
 
