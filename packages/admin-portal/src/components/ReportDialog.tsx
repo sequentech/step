@@ -96,8 +96,6 @@ export const ReportDialog: React.FC = () => {
                 cronConfig: undefined,
                 eventPayload: {
                     template: template,
-                    tenant_id: tenantId,
-                    election_event_id: record.id,
                     name: reportName,
                     format: format,
                     variables: {},
