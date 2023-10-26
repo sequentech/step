@@ -41,11 +41,12 @@ impl PipeInputs {
         })
     }
 
-    pub fn get_path_for_contest(
+    pub fn get_path_for_data(
         &self,
         root: &Path,
         election_id: &Uuid,
         contest_id: &Uuid,
+        region_id: &Uuid,
     ) -> PathBuf {
         let mut path = PathBuf::new();
 
@@ -53,6 +54,7 @@ impl PipeInputs {
         path.push(DEFAULT_DIR_BALLOTS);
         path.push(format!("{}{}", PREFIX_ELECTION, election_id));
         path.push(format!("{}{}", PREFIX_CONTEST, contest_id));
+        path.push(format!("{}{}", PREFIX_REGION, region_id));
 
         path
     }

@@ -204,9 +204,12 @@ mod tests {
     fn test_decode_ballots() -> Result<()> {
         let election_num = 5;
         let contest_num = 10;
+        let region_num = 3;
+        let ballot_num = 20;
+
         let fixture = TestFixture::new()?;
 
-        generate_ballots(&fixture, 5, 10, 3, 20)?;
+        generate_ballots(&fixture, election_num, contest_num, region_num, ballot_num)?;
 
         let cli = CliRun {
             stage: "main".to_string(),
@@ -236,8 +239,8 @@ mod tests {
                         .file_name()
                         .map_or(false, |f| f == OUTPUT_DECODED_BALLOTS_FILE)
                 })
-                .count(),
-            election_num * contest_num
+                .count() as u32,
+            election_num * contest_num * region_num
         );
 
         // DoTally
@@ -252,8 +255,8 @@ mod tests {
                         .file_name()
                         .map_or(false, |f| f == OUTPUT_CONTEST_RESULT_FILE)
                 })
-                .count(),
-            election_num * contest_num
+                .count() as u32,
+            election_num * contest_num * region_num
         );
         Ok(())
     }

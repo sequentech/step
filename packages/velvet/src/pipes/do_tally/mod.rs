@@ -36,30 +36,38 @@ impl Pipe for DoTally {
 
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
-                let decoded_ballots_file = self
-                    .pipe_inputs
-                    .get_path_for_contest(&input_dir, &contest_input.election_id, &contest_input.id)
-                    .join(OUTPUT_DECODED_BALLOTS_FILE);
+                for region_input in &contest_input.region_list {
+                    let decoded_ballots_file = self
+                        .pipe_inputs
+                        .get_path_for_data(
+                            &input_dir,
+                            &contest_input.election_id,
+                            &contest_input.id,
+                            &region_input.id,
+                        )
+                        .join(OUTPUT_DECODED_BALLOTS_FILE);
 
-                let file = fs::File::open(decoded_ballots_file)?;
-                let res: Vec<DecodedVoteContest> = serde_json::from_reader(file)?;
-                let res = DoTally::count_choices(
-                    &contest_input.id.to_string(),
-                    contest_input.config.as_path(),
-                    res,
-                )?;
+                    let file = fs::File::open(decoded_ballots_file)?;
+                    let res: Vec<DecodedVoteContest> = serde_json::from_reader(file)?;
+                    let res = DoTally::count_choices(
+                        &contest_input.id.to_string(),
+                        contest_input.config.as_path(),
+                        res,
+                    )?;
 
-                let mut file = self.pipe_inputs.get_path_for_contest(
-                    &output_dir,
-                    &contest_input.election_id,
-                    &contest_input.id,
-                );
+                    let mut file = self.pipe_inputs.get_path_for_data(
+                        &output_dir,
+                        &contest_input.election_id,
+                        &contest_input.id,
+                        &region_input.id,
+                    );
 
-                fs::create_dir_all(&file)?;
-                file.push(OUTPUT_CONTEST_RESULT_FILE);
-                let file = fs::File::create(file)?;
+                    fs::create_dir_all(&file)?;
+                    file.push(OUTPUT_CONTEST_RESULT_FILE);
+                    let file = fs::File::create(file)?;
 
-                serde_json::to_writer(file, &res)?;
+                    serde_json::to_writer(file, &res)?;
+                }
             }
         }
 
