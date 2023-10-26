@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 pub const PREFIX_ELECTION: &str = "election__";
 pub const PREFIX_CONTEST: &str = "contest__";
+pub const PREFIX_REGION: &str = "region__";
 
 pub const DEFAULT_DIR_CONFIGS: &str = "default/configs";
 pub const DEFAULT_DIR_BALLOTS: &str = "default/ballots";
@@ -105,10 +106,25 @@ impl PipeInputs {
             return Err(Error::ContestConfigNotFound(contest_id));
         }
 
+        let entries = fs::read_dir(path)?;
+        let mut configs = vec![];
+        for entry in entries {
+            let path = entry?.path();
+            if path.is_dir() {
+                let region_id =
+                    Self::parse_path_components(&path, PREFIX_REGION).ok_or(Error::IDNotFound)?;
+                configs.push(Region {
+                    id: region_id,
+                    contest_id,
+                });
+            }
+        }
+
         Ok(ContestForElectionConfig {
             id: contest_id,
             election_id,
             config: config.to_owned(),
+            region_list: configs,
         })
     }
 
@@ -137,5 +153,11 @@ pub struct ContestForElectionConfig {
     pub id: Uuid,
     pub election_id: Uuid,
     pub config: PathBuf,
-    // TODO: areas
+    pub region_list: Vec<Region>,
+}
+
+#[derive(Debug)]
+pub struct Region {
+    pub id: Uuid,
+    pub contest_id: Uuid,
 }
