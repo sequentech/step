@@ -1,6 +1,11 @@
 mod error;
+mod tally;
+mod voting_system;
 
-use self::error::{Error, Result};
+use self::{
+    error::{Error, Result},
+    voting_system::VotingSystem,
+};
 use super::{pipe_inputs::PipeInputs, pipe_name::PipeName, Pipe};
 use crate::pipes::{decode_ballots::OUTPUT_DECODED_BALLOTS_FILE, pipe_name::PipeNameOutputDir};
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
@@ -47,13 +52,12 @@ impl Pipe for DoTally {
                         )
                         .join(OUTPUT_DECODED_BALLOTS_FILE);
 
-                    let file = fs::File::open(decoded_ballots_file)?;
-                    let res: Vec<DecodedVoteContest> = serde_json::from_reader(file)?;
-                    let res = DoTally::count_choices(
-                        &contest_input.id.to_string(),
+                    let tally = voting_system::create_tally(
                         contest_input.config.as_path(),
-                        res,
+                        decoded_ballots_file.as_path(),
                     )?;
+                    
+                    let res = tally.please_do()?;
 
                     let mut file = self.pipe_inputs.get_path_for_data(
                         &output_dir,
@@ -73,79 +77,4 @@ impl Pipe for DoTally {
 
         Ok(())
     }
-}
-
-impl DoTally {
-    fn count_choices(
-        contest_id: &str,
-        config: &Path,
-        votes: Vec<DecodedVoteContest>,
-    ) -> Result<ContestResult> {
-        let file = fs::File::open(config).unwrap();
-        let contest: Contest = serde_json::from_reader(file)?;
-
-        let mut vote_count: HashMap<String, u64> = HashMap::new();
-        let mut count_valid: u64 = 0;
-        let mut count_invalid: u64 = 0;
-
-        for vote in votes {
-            // TODO: how to handle invalid ballots?
-            if vote.invalid_errors.len() > 0 || vote.is_explicit_invalid {
-                count_invalid += 1;
-            } else {
-                for choice in vote.choices {
-                    if choice.selected >= 0 {
-                        *vote_count.entry(choice.id).or_insert(0) += 1;
-                        count_valid += 1;
-                    }
-                }
-            }
-        }
-
-        let result: Vec<ContestChoiceResult> = vote_count
-            .into_iter()
-            .map(|(choice_id, total_count)| ContestChoiceResult {
-                choice_id,
-                total_count,
-            })
-            .collect();
-
-        let result = contest
-            .candidates
-            .iter()
-            .map(|c| {
-                result
-                    .iter()
-                    .find(|r| r.choice_id == c.id)
-                    .cloned()
-                    .unwrap_or(ContestChoiceResult {
-                        choice_id: c.id.clone(),
-                        total_count: 0,
-                    })
-            })
-            .collect::<Vec<ContestChoiceResult>>();
-
-        let contest_result = ContestResult {
-            contest_id: contest_id.to_string(),
-            total_valid_votes: count_valid,
-            total_invalid_votes: 1,
-            choice_result: result,
-        };
-
-        Ok(contest_result)
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct ContestResult {
-    pub contest_id: String,
-    pub total_valid_votes: u64,
-    pub total_invalid_votes: u64,
-    pub choice_result: Vec<ContestChoiceResult>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct ContestChoiceResult {
-    pub choice_id: String,
-    pub total_count: u64,
 }

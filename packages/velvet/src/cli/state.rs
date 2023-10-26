@@ -1,6 +1,6 @@
 use super::error::{Error, Result};
 use super::CliRun;
-use crate::pipes::{Pipe, PipeManager};
+use crate::pipes::PipeManager;
 use crate::{config::Config, pipes::pipe_name::PipeName};
 
 #[derive(Debug)]
