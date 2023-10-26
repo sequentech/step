@@ -5,9 +5,9 @@
 use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
+use sequent_core::services::connection;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use windmill::connection;
 use windmill::hasura;
 
 use crate::s3;

@@ -18,7 +18,7 @@ type Query {
 }
 
 type Query {
-  listPgaudit (
+  listPgaudit(
     limit: Int
     offset: Int
     order_by: PgAuditOrderBy
@@ -87,15 +87,15 @@ type PgAuditRow {
 }
 
 type Aggregate {
-  count : Int!
+  count: Int!
 }
 
 type DataListPgAudit {
-  items : [PgAuditRow]!
-  total : TotalAggregate!
+  items: [PgAuditRow]!
+  total: TotalAggregate!
 }
 
 type TotalAggregate {
-  aggregate : Aggregate!
+  aggregate: Aggregate!
 }
 

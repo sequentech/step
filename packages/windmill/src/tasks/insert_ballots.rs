@@ -4,18 +4,17 @@
 use anyhow::{bail, Context, Result};
 use celery::error::TaskError;
 use celery::prelude::*;
-use serde::{Deserialize, Serialize};
 use sequent_core::ballot::ElectionEventStatus;
+use sequent_core::services::openid;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
 
-use crate::connection;
 use crate::hasura;
 use crate::hasura::cast_ballot;
 use crate::hasura::election_event::update_election_event_status;
-use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::election_event_board::{get_election_event_board, BoardSerializable};
-use crate::services::protocol_manager;
+use crate::services::public_keys;
 use crate::types::scheduled_event::ScheduledEvent;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
@@ -23,23 +22,15 @@ pub struct InsertBallotsPayload {
     pub trustee_pks: Vec<String>,
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument]
 #[celery::task]
 pub async fn insert_ballots(
-    auth_headers: connection::AuthHeaders,
-    event: ScheduledEvent,
     body: InsertBallotsPayload,
+    tenant_id: String,
+    election_event_id: String,
 ) -> TaskResult<()> {
-    // read tenant_id and election_event_id
-    let tenant_id = event
-        .tenant_id
-        .clone()
-        .with_context(|| "scheduled event is missing tenant_id")
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let election_event_id = event
-        .election_event_id
-        .clone()
-        .with_context(|| "scheduled event is missing election_event_id")
+    let auth_headers = openid::get_client_credentials()
+        .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     // fetch election_event
     let hasura_response = hasura::election_event::get_election_event(
@@ -86,10 +77,6 @@ pub async fn insert_ballots(
     )
     .await
     .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-
-    insert_event_execution_with_result(auth_headers, event, None)
-        .await
-        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
     Ok(())
 }

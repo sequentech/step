@@ -7,6 +7,7 @@ pub mod date;
 pub mod election_event_board;
 pub mod pdf;
 pub mod protocol_manager;
+pub mod public_keys;
 pub mod s3;
 pub mod to_result;
 pub mod vault;

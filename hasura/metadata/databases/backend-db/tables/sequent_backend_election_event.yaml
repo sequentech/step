@@ -26,6 +26,30 @@ insert_permissions:
         - user_boards
         - voting_channels
     comment: ""
+  - role: service-account
+    permission:
+      check: {}
+      columns:
+        - is_archived
+        - is_audit
+        - encryption_protocol
+        - name
+        - user_boards
+        - annotations
+        - bulletin_board_reference
+        - dates
+        - labels
+        - presentation
+        - status
+        - voting_channels
+        - description
+        - public_key
+        - created_at
+        - updated_at
+        - audit_election_event_id
+        - id
+        - tenant_id
+    comment: ""
 select_permissions:
   - role: admin-user
     permission:
@@ -49,6 +73,31 @@ select_permissions:
         - updated_at
         - user_boards
         - voting_channels
+      filter: {}
+      allow_aggregations: true
+    comment: ""
+  - role: service-account
+    permission:
+      columns:
+        - is_archived
+        - is_audit
+        - encryption_protocol
+        - name
+        - user_boards
+        - annotations
+        - bulletin_board_reference
+        - dates
+        - labels
+        - presentation
+        - status
+        - voting_channels
+        - description
+        - public_key
+        - created_at
+        - updated_at
+        - audit_election_event_id
+        - id
+        - tenant_id
       filter: {}
       allow_aggregations: true
     comment: ""
@@ -104,8 +153,37 @@ update_permissions:
       filter: {}
       check: {}
     comment: ""
+  - role: service-account
+    permission:
+      columns:
+        - is_archived
+        - is_audit
+        - encryption_protocol
+        - name
+        - user_boards
+        - annotations
+        - bulletin_board_reference
+        - dates
+        - labels
+        - presentation
+        - status
+        - voting_channels
+        - description
+        - public_key
+        - created_at
+        - updated_at
+        - audit_election_event_id
+        - id
+        - tenant_id
+      filter: {}
+      check: {}
+    comment: ""
 delete_permissions:
   - role: admin-user
+    permission:
+      filter: {}
+    comment: ""
+  - role: service-account
     permission:
       filter: {}
     comment: ""

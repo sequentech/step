@@ -7,9 +7,9 @@ use reqwest;
 use std::env;
 use tracing::instrument;
 
-use crate::connection;
 use crate::services::to_result::ToResult;
 pub use crate::types::hasura_types::*;
+use sequent_core::services::connection;
 
 #[derive(GraphQLQuery)]
 #[graphql(

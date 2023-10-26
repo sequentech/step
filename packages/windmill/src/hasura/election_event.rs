@@ -3,15 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
-use serde::{Deserialize, Serialize};
 use reqwest;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::env;
 use tracing::instrument;
 
-use crate::connection;
 use crate::services::to_result::ToResult;
 pub use crate::types::hasura_types::*;
+use sequent_core::services::connection;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -50,7 +50,7 @@ pub struct GetElectionEvent;
     schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/insert_election_event.graphql",
     response_derives = "Debug, Clone, Deserialize",
-    variables_derives = "Debug, Clone, Deserialize",
+    variables_derives = "Debug, Clone, Deserialize"
 )]
 pub struct InsertElectionEvent;
 
@@ -164,7 +164,7 @@ pub async fn update_election_event_public_key(
 #[instrument(skip_all)]
 pub async fn insert_election_event_f(
     auth_headers: connection::AuthHeaders,
-    object: insert_election_event::sequent_backend_election_event_insert_input
+    object: insert_election_event::sequent_backend_election_event_insert_input,
 ) -> Result<Response<insert_election_event::ResponseData>> {
     use insert_election_event::*;
     let variables = Variables { object };

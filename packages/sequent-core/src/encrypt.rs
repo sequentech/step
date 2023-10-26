@@ -32,7 +32,8 @@ pub fn default_public_key_ristretto() -> (String, <RistrettoCtx as Ctx>::E) {
     (pk_str, pk)
 }
 
-pub fn encrypt_plaintext_candidate<C: Ctx<P = [u8; 30]>>(
+//pub fn encrypt_plaintext_candidate<C: Ctx<P = [u8; 30]>>(
+pub fn encrypt_plaintext_candidate<C: Ctx>(
     ctx: &C,
     public_key_element: <C>::E,
     plaintext: <C>::P,

@@ -7,6 +7,8 @@ use celery::prelude::*;
 use handlebars::Handlebars;
 use headless_chrome::types::PrintToPdfOptions;
 use rocket::serde::json::Json;
+use sequent_core::services::connection;
+use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::{Map, Value};
@@ -16,12 +18,10 @@ use std::time::Duration;
 use tempfile::tempdir;
 use tracing::instrument;
 
-use crate::connection;
 use crate::hasura;
-use crate::hasura::event_execution::insert_event_execution_with_result;
-use crate::services::pdf;
 use crate::services::s3;
 use crate::types::scheduled_event::ScheduledEvent;
+use sequent_core::services::openid;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum FormatType {
@@ -32,8 +32,6 @@ pub enum FormatType {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RenderTemplateBody {
     template: String,
-    tenant_id: String,
-    election_event_id: String,
     name: String,
     variables: Map<String, Value>,
     format: FormatType,
@@ -92,15 +90,18 @@ async fn upload_and_return_document(
     }))
 }
 
-#[instrument(skip_all)]
+#[instrument]
 #[celery::task(time_limit = 60000)]
 pub async fn render_report(
     input: RenderTemplateBody,
-    auth_headers: connection::AuthHeaders,
-    event: ScheduledEvent,
+    tenant_id: String,
+    election_event_id: String,
 ) -> TaskResult<()> {
+    let auth_headers = openid::get_client_credentials()
+        .await
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     println!("auth headers: {:#?}", auth_headers);
-    let hasura_response = hasura::tenant::get_tenant(auth_headers.clone(), input.tenant_id.clone())
+    let hasura_response = hasura::tenant::get_tenant(auth_headers.clone(), tenant_id.clone())
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let username = hasura_response
@@ -115,9 +116,7 @@ pub async fn render_report(
     }
 
     // render handlebars template
-    let reg = Handlebars::new();
-    let render = reg
-        .render_template(input.template.as_str(), &json!(variables_map))
+    let render = reports::render_template_text(input.template.as_str(), variables_map)
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     // if output format is text/html, just return that
@@ -126,8 +125,8 @@ pub async fn render_report(
             render.into_bytes(),
             "text/plain".to_string(),
             auth_headers.clone(),
-            input.tenant_id,
-            input.election_event_id,
+            tenant_id,
+            election_event_id,
             input.name,
         )
         .await
@@ -135,46 +134,15 @@ pub async fn render_report(
         return Ok(());
     }
 
-    // Create temp html file
-    let dir = tempdir().map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let file_path = dir.path().join("index.html");
-    let mut file = File::create(file_path.clone())
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let file_path_str = file_path.to_str().unwrap();
-    file.write_all(render.as_bytes())
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let url_path = format!("file://{}", file_path_str);
-
-    let bytes = pdf::print_to_pdf(
-        url_path.as_str(),
-        PrintToPdfOptions {
-            landscape: None,
-            display_header_footer: None,
-            print_background: None,
-            scale: None,
-            paper_width: None,
-            paper_height: None,
-            margin_top: None,
-            margin_bottom: None,
-            margin_left: None,
-            margin_right: None,
-            page_ranges: None,
-            ignore_invalid_page_ranges: None,
-            header_template: None,
-            footer_template: None,
-            prefer_css_page_size: None,
-            transfer_mode: None,
-        },
-        Some(Duration::new(1, 0)),
-    )
-    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    let bytes =
+        pdf::html_to_pdf(render).map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     let document_json = upload_and_return_document(
         bytes,
         "application/pdf".to_string(),
         auth_headers.clone(),
-        input.tenant_id,
-        input.election_event_id,
+        tenant_id,
+        election_event_id,
         input.name,
     )
     .await
@@ -183,10 +151,6 @@ pub async fn render_report(
     let document = document_json.clone().into_inner();
     let document_value = serde_json::to_value(document)
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-
-    insert_event_execution_with_result(auth_headers, event, Some(document_value))
-        .await
-        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
     Ok(())
 }

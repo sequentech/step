@@ -5,15 +5,14 @@
 use anyhow::{bail, Context, Result};
 use celery::error::TaskError;
 use celery::prelude::*;
-use serde::{Deserialize, Serialize};
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
+use sequent_core::services::openid;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-use crate::connection;
 use crate::hasura;
-use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::protocol_manager;
+use crate::services::public_keys;
 use crate::types::scheduled_event::ScheduledEvent;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -22,15 +21,16 @@ pub struct UpdateVotingStatusPayload {
     pub status: VotingStatus,
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument]
 #[celery::task]
 pub async fn update_voting_status(
-    auth_headers: connection::AuthHeaders,
-    event: ScheduledEvent,
     payload: UpdateVotingStatusPayload,
+    tenant_id: String,
+    election_event_id: String,
 ) -> TaskResult<()> {
-    let tenant_id: String = event.tenant_id.clone().unwrap();
-    let election_event_id: String = event.election_event_id.clone().unwrap();
+    let auth_headers = openid::get_client_credentials()
+        .await
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let new_status = ElectionStatus {
         voting_status: payload.status.clone(),
     };
@@ -68,10 +68,6 @@ pub async fn update_voting_status(
         .update_sequent_backend_election
         .unwrap()
         .returning[0];
-
-    insert_event_execution_with_result(auth_headers, event, None)
-        .await
-        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
     Ok(())
 }

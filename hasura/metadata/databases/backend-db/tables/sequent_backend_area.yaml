@@ -17,8 +17,39 @@ insert_permissions:
         - id
         - tenant_id
     comment: ""
+  - role: service-account
+    permission:
+      check: {}
+      columns:
+        - name
+        - type
+        - annotations
+        - labels
+        - description
+        - created_at
+        - last_updated_at
+        - election_event_id
+        - id
+        - tenant_id
+    comment: ""
 select_permissions:
   - role: admin-user
+    permission:
+      columns:
+        - name
+        - type
+        - annotations
+        - labels
+        - description
+        - created_at
+        - last_updated_at
+        - election_event_id
+        - id
+        - tenant_id
+      filter: {}
+      allow_aggregations: true
+    comment: ""
+  - role: service-account
     permission:
       columns:
         - name
@@ -71,8 +102,28 @@ update_permissions:
       filter: {}
       check: {}
     comment: ""
+  - role: service-account
+    permission:
+      columns:
+        - name
+        - type
+        - annotations
+        - labels
+        - description
+        - created_at
+        - last_updated_at
+        - election_event_id
+        - id
+        - tenant_id
+      filter: {}
+      check: {}
+    comment: ""
 delete_permissions:
   - role: admin-user
+    permission:
+      filter: {}
+    comment: ""
+  - role: service-account
     permission:
       filter: {}
     comment: ""

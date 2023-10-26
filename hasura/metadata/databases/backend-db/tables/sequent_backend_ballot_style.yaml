@@ -19,6 +19,23 @@ insert_permissions:
         - id
         - tenant_id
     comment: ""
+  - role: service-account
+    permission:
+      check: {}
+      columns:
+        - ballot_signature
+        - status
+        - annotations
+        - labels
+        - ballot_eml
+        - created_at
+        - last_updated_at
+        - area_id
+        - election_event_id
+        - election_id
+        - id
+        - tenant_id
+    comment: ""
 select_permissions:
   - role: admin-user
     permission:
@@ -37,6 +54,23 @@ select_permissions:
         - tenant_id
       filter: {}
       allow_aggregations: true
+    comment: ""
+  - role: service-account
+    permission:
+      columns:
+        - ballot_signature
+        - status
+        - annotations
+        - labels
+        - ballot_eml
+        - created_at
+        - last_updated_at
+        - area_id
+        - election_event_id
+        - election_id
+        - id
+        - tenant_id
+      filter: {}
     comment: ""
   - role: user
     permission:
@@ -79,8 +113,30 @@ update_permissions:
       filter: {}
       check: {}
     comment: ""
+  - role: service-account
+    permission:
+      columns:
+        - ballot_signature
+        - status
+        - annotations
+        - labels
+        - ballot_eml
+        - created_at
+        - last_updated_at
+        - area_id
+        - election_event_id
+        - election_id
+        - id
+        - tenant_id
+      filter: {}
+      check: {}
+    comment: ""
 delete_permissions:
   - role: admin-user
+    permission:
+      filter: {}
+    comment: ""
+  - role: service-account
     permission:
       filter: {}
     comment: ""

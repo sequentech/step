@@ -14,7 +14,6 @@ use dotenv::dotenv;
 use structopt::StructOpt;
 use tracing::{event, instrument, Level};
 
-pub mod connection;
 pub mod hasura;
 pub mod services;
 pub mod tasks;

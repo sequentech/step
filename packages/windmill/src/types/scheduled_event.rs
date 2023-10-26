@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use serde_json::Value;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use strum_macros::Display;
 use strum_macros::EnumString;
 
