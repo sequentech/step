@@ -6,10 +6,10 @@ use celery::error::TaskError;
 use celery::prelude::*;
 use rocket::serde::{Deserialize, Serialize};
 use sequent_core::ballot::ElectionEventStatus;
+use sequent_core::services::openid;
 use serde_json::Value;
 use tracing::instrument;
 
-use crate::connection;
 use crate::hasura;
 use crate::hasura::cast_ballot;
 use crate::hasura::election_event::update_election_event_status;
@@ -24,13 +24,12 @@ pub struct InsertBallotsPayload {
     pub trustee_pks: Vec<String>,
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument]
 #[celery::task]
-pub async fn insert_ballots(
-    auth_headers: connection::AuthHeaders,
-    event: ScheduledEvent,
-    body: InsertBallotsPayload,
-) -> TaskResult<()> {
+pub async fn insert_ballots(event: ScheduledEvent, body: InsertBallotsPayload) -> TaskResult<()> {
+    let auth_headers = openid::get_client_credentials()
+        .await
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     // read tenant_id and election_event_id
     let tenant_id = event
         .tenant_id

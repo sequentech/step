@@ -11,11 +11,11 @@ use strum_macros::Display;
 use strum_macros::EnumString;
 use tracing::instrument;
 
-use crate::connection;
 use crate::hasura::event_execution;
 use crate::services::to_result::ToResult;
 pub use crate::types::hasura_types::*;
 use crate::types::scheduled_event::ScheduledEvent;
+use sequent_core::services::connection;
 use std::str::FromStr;
 
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]

@@ -4,7 +4,6 @@
 #[macro_use]
 extern crate lazy_static;
 
-pub mod connection;
 pub mod hasura;
 pub mod services;
 pub mod tasks;

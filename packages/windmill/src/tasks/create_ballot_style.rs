@@ -8,13 +8,13 @@ use celery::prelude::*;
 use immu_board::BoardClient;
 use rocket::serde::{Deserialize, Serialize};
 use sequent_core;
+use sequent_core::services::openid;
 use std::collections::HashMap;
 use std::convert::From;
 use std::env;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use crate::connection;
 use crate::hasura;
 use crate::hasura::ballot_style::get_ballot_style_area;
 use crate::hasura::event_execution::insert_event_execution_with_result;
@@ -186,13 +186,15 @@ pub struct CreateBallotStylePayload {
     pub area_id: String,
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument]
 #[celery::task]
 pub async fn create_ballot_style(
-    auth_headers: connection::AuthHeaders,
     event: ScheduledEvent,
     body: CreateBallotStylePayload,
 ) -> TaskResult<()> {
+    let auth_headers = openid::get_client_credentials()
+        .await
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     // read tenant_id and election_event_id
     let tenant_id = event
         .tenant_id

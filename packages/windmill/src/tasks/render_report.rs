@@ -8,6 +8,7 @@ use handlebars::Handlebars;
 use headless_chrome::types::PrintToPdfOptions;
 use rocket::serde::json::Json;
 use rocket::serde::{Deserialize, Serialize};
+use sequent_core::services::connection;
 use sequent_core::services::{pdf, reports};
 use serde_json::json;
 use serde_json::{Map, Value};
@@ -17,11 +18,11 @@ use std::time::Duration;
 use tempfile::tempdir;
 use tracing::instrument;
 
-use crate::connection;
 use crate::hasura;
 use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::s3;
 use crate::types::scheduled_event::ScheduledEvent;
+use sequent_core::services::openid;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(crate = "rocket::serde")]
@@ -95,13 +96,12 @@ async fn upload_and_return_document(
     }))
 }
 
-#[instrument(skip_all)]
+#[instrument]
 #[celery::task(time_limit = 60000)]
-pub async fn render_report(
-    input: RenderTemplateBody,
-    auth_headers: connection::AuthHeaders,
-    event: ScheduledEvent,
-) -> TaskResult<()> {
+pub async fn render_report(input: RenderTemplateBody, event: ScheduledEvent) -> TaskResult<()> {
+    let auth_headers = openid::get_client_credentials()
+        .await
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     println!("auth headers: {:#?}", auth_headers);
     let hasura_response = hasura::tenant::get_tenant(auth_headers.clone(), input.tenant_id.clone())
         .await

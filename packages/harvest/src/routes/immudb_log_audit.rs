@@ -9,10 +9,10 @@ use immudb_rs::{
 use rocket::response::Debug;
 use rocket::serde::json::{Json, Value};
 use rocket::serde::{Deserialize, Serialize};
+use sequent_core::services::connection;
 use serde_json::json;
 use std::env;
 use tracing::instrument;
-use windmill::connection;
 
 macro_rules! assign_value {
     ($enum_variant:path, $value:expr, $target:ident) => {

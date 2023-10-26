@@ -9,10 +9,10 @@ use celery::prelude::*;
 use celery::Celery;
 use rocket::serde::{Deserialize, Serialize};
 use sequent_core::ballot::ElectionEventStatus;
+use sequent_core::services::openid;
 use serde_json::Value;
 use tracing::{event, instrument, Level};
 
-use crate::connection;
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
 use crate::hasura::event_execution::insert_event_execution_with_result;
@@ -29,13 +29,12 @@ pub struct CreateKeysBody {
     pub threshold: usize,
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument]
 #[celery::task]
-pub async fn create_keys(
-    auth_headers: connection::AuthHeaders,
-    event: ScheduledEvent,
-    body: CreateKeysBody,
-) -> TaskResult<()> {
+pub async fn create_keys(event: ScheduledEvent, body: CreateKeysBody) -> TaskResult<()> {
+    let auth_headers = openid::get_client_credentials()
+        .await
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let celery_app = get_celery_app().await;
     // read tenant_id and election_event_id
     let tenant_id = event
@@ -103,7 +102,7 @@ pub async fn create_keys(
     .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     let task = celery_app
-        .send_task(set_public_key::new(auth_headers.clone(), event.clone()))
+        .send_task(set_public_key::new(event.clone()))
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     event!(Level::INFO, "Sent SET_PUBLIC_KEY task {}", task.task_id);

@@ -67,6 +67,7 @@ tempfile = { version = "3.8.0", optional = true }
 # openid connection
 openid = { version = "0.12.1", optional = true }
 serde_urlencoded = { version = "0.7.1", optional = true }
+rocket = { version = "=0.5.0-rc.3", features = ["json"], optional = true }
 
 [dev-dependencies]
 rand = { package="rand", version = "0.8" }
@@ -76,4 +77,4 @@ wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]
 wasm = ["wasm-bindgen"]
 default = []
 reports = ["dep:handlebars", "dep:headless_chrome", "dep:tracing", "dep:tempfile"]
-openid = ["dep:openid", "dep:reqwest", "dep:serde_urlencoded"]
+openid = ["dep:openid", "dep:reqwest", "dep:serde_urlencoded", "dep:rocket"]

@@ -7,9 +7,9 @@ use celery::error::TaskError;
 use celery::prelude::*;
 use rocket::serde::{Deserialize, Serialize};
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
+use sequent_core::services::openid;
 use tracing::instrument;
 
-use crate::connection;
 use crate::hasura;
 use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::election_event_board::get_election_event_board;
@@ -23,13 +23,15 @@ pub struct UpdateVotingStatusPayload {
     pub status: VotingStatus,
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument]
 #[celery::task]
 pub async fn update_voting_status(
-    auth_headers: connection::AuthHeaders,
     event: ScheduledEvent,
     payload: UpdateVotingStatusPayload,
 ) -> TaskResult<()> {
+    let auth_headers = openid::get_client_credentials()
+        .await
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let tenant_id: String = event.tenant_id.clone().unwrap();
     let election_event_id: String = event.election_event_id.clone().unwrap();
     let new_status = ElectionStatus {

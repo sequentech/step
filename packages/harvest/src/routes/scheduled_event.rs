@@ -7,13 +7,13 @@ use rocket::response::Debug;
 use rocket::serde::json::Json;
 use rocket::serde::json::Value;
 use rocket::serde::{Deserialize, Serialize};
+use sequent_core::services::connection;
 use std::str::FromStr;
 use strum_macros::Display;
 use strum_macros::EnumString;
 use tracing::instrument;
-use windmill::connection;
-use windmill::types::scheduled_event::*;
 use windmill::hasura;
+use windmill::types::scheduled_event::*;
 
 use crate::services;
 

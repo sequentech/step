@@ -5,21 +5,21 @@
 use anyhow::{Context, Result};
 use celery::error::TaskError;
 use celery::prelude::*;
+use sequent_core::services::openid;
 use tracing::instrument;
 
-use crate::connection;
 use crate::hasura;
 use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::types::scheduled_event::ScheduledEvent;
 
-#[instrument(skip(auth_headers))]
+#[instrument]
 #[celery::task(max_retries = 10)]
-pub async fn set_public_key(
-    auth_headers: connection::AuthHeaders,
-    event: ScheduledEvent,
-) -> TaskResult<()> {
+pub async fn set_public_key(event: ScheduledEvent) -> TaskResult<()> {
+    let auth_headers = openid::get_client_credentials()
+        .await
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let tenant_id = event
         .tenant_id
         .clone()

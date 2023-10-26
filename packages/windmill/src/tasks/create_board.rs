@@ -8,10 +8,10 @@ use celery::prelude::*;
 use immu_board::BoardClient;
 use rocket::serde::{Deserialize, Serialize};
 use sequent_core;
+use sequent_core::services::openid;
 use std::env;
 use tracing::instrument;
 
-use crate::connection;
 use crate::hasura;
 use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::election_event_board::BoardSerializable;
@@ -34,13 +34,15 @@ async fn get_client() -> Result<BoardClient> {
     Ok(client)
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument]
 #[celery::task]
 pub async fn create_board(
-    auth_headers: connection::AuthHeaders,
     event: ScheduledEvent,
     payload: CreateBoardPayload,
 ) -> TaskResult<BoardSerializable> {
+    let auth_headers = openid::get_client_credentials()
+        .await
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let tenant_id: String = event.tenant_id.clone().unwrap();
     let election_event_id: String = event.election_event_id.clone().unwrap();
     let board_db: String = payload.board_name;

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::connection;
 use anyhow::{anyhow, Result};
 use reqwest;
 use serde::{Deserialize, Serialize};
@@ -24,7 +25,7 @@ pub struct TokenResponse {
 // Client Credentials OpenID Authentication flow.
 // This enables servers to authenticate, without using a browser.
 #[instrument]
-pub async fn client_credentials_login() -> Result<TokenResponse> {
+pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     let keycloak_endpoint = env::var("KEYCLOAK_ENDPOINT")
         .expect(&format!("KEYCLOAK_ENDPOINT must be set"));
     let client_id = env::var("KEYCLOAK_CLIENT_ID")
@@ -48,6 +49,10 @@ pub async fn client_credentials_login() -> Result<TokenResponse> {
         .await?;
     let text = res.text().await?;
 
-    serde_json::from_str(&text)
-        .map_err(|err| anyhow!(format!("{:?}, Response: {}", err, text)))
+    let credentials: TokenResponse = serde_json::from_str(&text)
+        .map_err(|err| anyhow!(format!("{:?}, Response: {}", err, text)))?;
+    Ok(connection::AuthHeaders {
+        key: "authorization".into(),
+        value: format!("Bearer {}", credentials.access_token),
+    })
 }
