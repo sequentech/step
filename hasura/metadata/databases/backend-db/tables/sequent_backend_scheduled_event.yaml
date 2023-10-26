@@ -18,6 +18,23 @@ insert_permissions:
         - id
         - tenant_id
     comment: ""
+  - role: service-account
+    permission:
+      check: {}
+      columns:
+        - created_by
+        - cron_config
+        - event_processor
+        - task_id
+        - annotations
+        - event_payload
+        - labels
+        - created_at
+        - stopped_at
+        - election_event_id
+        - id
+        - tenant_id
+    comment: ""
 select_permissions:
   - role: admin-user
     permission:
@@ -25,6 +42,24 @@ select_permissions:
         - created_by
         - cron_config
         - event_processor
+        - annotations
+        - event_payload
+        - labels
+        - created_at
+        - stopped_at
+        - election_event_id
+        - id
+        - tenant_id
+      filter: {}
+      allow_aggregations: true
+    comment: ""
+  - role: service-account
+    permission:
+      columns:
+        - created_by
+        - cron_config
+        - event_processor
+        - task_id
         - annotations
         - event_payload
         - labels
@@ -54,8 +89,30 @@ update_permissions:
       filter: {}
       check: {}
     comment: ""
+  - role: service-account
+    permission:
+      columns:
+        - created_by
+        - cron_config
+        - event_processor
+        - task_id
+        - annotations
+        - event_payload
+        - labels
+        - created_at
+        - stopped_at
+        - election_event_id
+        - id
+        - tenant_id
+      filter: {}
+      check: {}
+    comment: ""
 delete_permissions:
   - role: admin-user
+    permission:
+      filter: {}
+    comment: ""
+  - role: service-account
     permission:
       filter: {}
     comment: ""
