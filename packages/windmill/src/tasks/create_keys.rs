@@ -15,7 +15,6 @@ use tracing::{event, instrument, Level};
 
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
-use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::celery_app::*;
 use crate::services::election_event_board::{get_election_event_board, BoardSerializable};
 use crate::services::protocol_manager;
@@ -30,22 +29,15 @@ pub struct CreateKeysBody {
 
 #[instrument]
 #[celery::task]
-pub async fn create_keys(event: ScheduledEvent, body: CreateKeysBody) -> TaskResult<()> {
+pub async fn create_keys(
+    body: CreateKeysBody,
+    tenant_id: String,
+    election_event_id: String,
+) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let celery_app = get_celery_app().await;
-    // read tenant_id and election_event_id
-    let tenant_id = event
-        .tenant_id
-        .clone()
-        .with_context(|| "scheduled event is missing tenant_id")
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let election_event_id = event
-        .election_event_id
-        .clone()
-        .with_context(|| "scheduled event is missing election_event_id")
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     // fetch election_event
     let hasura_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
@@ -93,22 +85,18 @@ pub async fn create_keys(event: ScheduledEvent, body: CreateKeysBody) -> TaskRes
 
     update_election_event_status(
         auth_headers.clone(),
-        tenant_id,
-        election_event_id,
+        tenant_id.clone(),
+        election_event_id.clone(),
         new_status,
     )
     .await
     .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     let task = celery_app
-        .send_task(set_public_key::new(event.clone()))
+        .send_task(set_public_key::new(tenant_id, election_event_id))
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     event!(Level::INFO, "Sent SET_PUBLIC_KEY task {}", task.task_id);
-
-    insert_event_execution_with_result(auth_headers, event, None)
-        .await
-        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
     Ok(())
 }

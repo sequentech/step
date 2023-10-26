@@ -13,7 +13,6 @@ use tracing::instrument;
 use crate::hasura;
 use crate::hasura::cast_ballot;
 use crate::hasura::election_event::update_election_event_status;
-use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::election_event_board::{get_election_event_board, BoardSerializable};
 use crate::services::protocol_manager;
 use crate::types::scheduled_event::ScheduledEvent;
@@ -25,20 +24,13 @@ pub struct InsertBallotsPayload {
 
 #[instrument]
 #[celery::task]
-pub async fn insert_ballots(event: ScheduledEvent, body: InsertBallotsPayload) -> TaskResult<()> {
+pub async fn insert_ballots(
+    body: InsertBallotsPayload,
+    tenant_id: String,
+    election_event_id: String,
+) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    // read tenant_id and election_event_id
-    let tenant_id = event
-        .tenant_id
-        .clone()
-        .with_context(|| "scheduled event is missing tenant_id")
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let election_event_id = event
-        .election_event_id
-        .clone()
-        .with_context(|| "scheduled event is missing election_event_id")
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     // fetch election_event
     let hasura_response = hasura::election_event::get_election_event(
@@ -85,10 +77,6 @@ pub async fn insert_ballots(event: ScheduledEvent, body: InsertBallotsPayload) -
     )
     .await
     .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-
-    insert_event_execution_with_result(auth_headers, event, None)
-        .await
-        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
     Ok(())
 }

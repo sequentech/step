@@ -19,7 +19,6 @@ use tempfile::tempdir;
 use tracing::instrument;
 
 use crate::hasura;
-use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::s3;
 use crate::types::scheduled_event::ScheduledEvent;
 use sequent_core::services::openid;
@@ -33,8 +32,6 @@ pub enum FormatType {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RenderTemplateBody {
     template: String,
-    tenant_id: String,
-    election_event_id: String,
     name: String,
     variables: Map<String, Value>,
     format: FormatType,
@@ -95,12 +92,16 @@ async fn upload_and_return_document(
 
 #[instrument]
 #[celery::task(time_limit = 60000)]
-pub async fn render_report(input: RenderTemplateBody, event: ScheduledEvent) -> TaskResult<()> {
+pub async fn render_report(
+    input: RenderTemplateBody,
+    tenant_id: String,
+    election_event_id: String,
+) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     println!("auth headers: {:#?}", auth_headers);
-    let hasura_response = hasura::tenant::get_tenant(auth_headers.clone(), input.tenant_id.clone())
+    let hasura_response = hasura::tenant::get_tenant(auth_headers.clone(), tenant_id.clone())
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let username = hasura_response
@@ -124,8 +125,8 @@ pub async fn render_report(input: RenderTemplateBody, event: ScheduledEvent) -> 
             render.into_bytes(),
             "text/plain".to_string(),
             auth_headers.clone(),
-            input.tenant_id,
-            input.election_event_id,
+            tenant_id,
+            election_event_id,
             input.name,
         )
         .await
@@ -140,8 +141,8 @@ pub async fn render_report(input: RenderTemplateBody, event: ScheduledEvent) -> 
         bytes,
         "application/pdf".to_string(),
         auth_headers.clone(),
-        input.tenant_id,
-        input.election_event_id,
+        tenant_id,
+        election_event_id,
         input.name,
     )
     .await
@@ -150,10 +151,6 @@ pub async fn render_report(input: RenderTemplateBody, event: ScheduledEvent) -> 
     let document = document_json.clone().into_inner();
     let document_value = serde_json::to_value(document)
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-
-    insert_event_execution_with_result(auth_headers, event, Some(document_value))
-        .await
-        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
     Ok(())
 }

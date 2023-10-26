@@ -8,13 +8,13 @@ use immudb_rs::{
 };
 use rocket::response::Debug;
 use rocket::serde::json::Json;
-use serde_json::Value;
+use sequent_core::services::connection;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use serde_json::Value;
+use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
-use sequent_core::services::connection;
-use std::collections::HashMap;
 
 macro_rules! assign_value {
     ($enum_variant:path, $value:expr, $target:ident) => {
@@ -46,7 +46,7 @@ enum OrderField {
     ServerTimestamp,
     SessionId,
     Statement,
-    User
+    User,
 }
 
 // Enumeration for the valid order directions
@@ -63,7 +63,7 @@ pub struct GetPgauditBody {
     election_event_id: String,
     limit: Option<i64>,
     offset: Option<i64>,
-    order_by: Option<HashMap<OrderField, OrderDirection>>
+    order_by: Option<HashMap<OrderField, OrderDirection>>,
 }
 
 impl GetPgauditBody {
@@ -75,7 +75,9 @@ impl GetPgauditBody {
         if let Some(order_by_map) = &self.order_by {
             let order_clauses: Vec<String> = order_by_map
                 .iter()
-                .map(|(field, direction)| format!("{:?} {:?}", field, direction))
+                .map(|(field, direction)| {
+                    format!("{:?} {:?}", field, direction)
+                })
                 .collect();
             if !order_clauses.is_empty() {
                 clauses.push(format!("ORDER BY {}", order_clauses.join(", ")));
@@ -284,7 +286,8 @@ mod tests {
             "tenant_id": "some_tenant",
             "election_event_id": "some_event",
             "order_by": {"id":"asc"}
-        })).unwrap();
+        }))
+        .unwrap();
         assert_eq!(
             get_pgaudit_body.as_sql_clauses(),
             "ORDER BY Id Asc LIMIT 10"
@@ -296,7 +299,8 @@ mod tests {
             "limit": 15,
             "offset": 5,
             "order_by": {"id":"asc"}
-        })).unwrap();
+        }))
+        .unwrap();
         assert_eq!(
             get_pgaudit_body.as_sql_clauses(),
             "ORDER BY Id Asc LIMIT 15 OFFSET 5"
@@ -306,7 +310,8 @@ mod tests {
             "tenant_id": "some_tenant",
             "election_event_id": "some_event",
             "limit": 550
-        })).unwrap();
+        }))
+        .unwrap();
         assert_eq!(get_pgaudit_body.as_sql_clauses(), "LIMIT 500");
     }
 }

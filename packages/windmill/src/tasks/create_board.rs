@@ -36,14 +36,13 @@ async fn get_client() -> Result<BoardClient> {
 #[instrument]
 #[celery::task]
 pub async fn create_board(
-    event: ScheduledEvent,
     payload: CreateBoardPayload,
+    tenant_id: String,
+    election_event_id: String,
 ) -> TaskResult<BoardSerializable> {
     let auth_headers = openid::get_client_credentials()
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let tenant_id: String = event.tenant_id.clone().unwrap();
-    let election_event_id: String = event.election_event_id.clone().unwrap();
     let board_db: String = payload.board_name;
 
     let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
@@ -69,10 +68,6 @@ pub async fn create_board(
 
     let board_json = serde_json::to_value(board_serializable.clone())
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-
-    insert_event_execution_with_result(auth_headers, event, Some(board_json.clone()))
-        .await
-        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
     Ok(board_serializable)
 }

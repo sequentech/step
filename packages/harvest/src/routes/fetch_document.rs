@@ -5,8 +5,8 @@
 use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
-use serde::{Deserialize, Serialize};
 use sequent_core::services::connection;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::hasura;
 

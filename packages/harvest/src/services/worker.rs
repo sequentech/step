@@ -4,8 +4,8 @@
 
 use anyhow::Result;
 use rocket::serde::json::Json;
-use serde_json::Value;
 use sequent_core::services::connection;
+use serde_json::Value;
 use std::error::Error;
 use std::fmt;
 use std::str::FromStr;
@@ -22,22 +22,21 @@ use windmill::tasks::update_voting_status;
 use windmill::types::scheduled_event::*;
 
 use crate::routes::scheduled_event;
+use crate::services::worker::scheduled_event::CreateEventBody;
 
-#[instrument(skip(auth_headers))]
-pub async fn process_scheduled_event(
-    auth_headers: connection::AuthHeaders,
-    event: ScheduledEvent,
-) -> Result<()> {
+#[instrument]
+pub async fn process_scheduled_event(event: CreateEventBody) -> Result<()> {
     let celery_app = get_celery_app().await;
     let mut task_id: String = "".into();
-    match event.clone().event_processor.unwrap() {
+    match event.event_processor.clone() {
         EventProcessors::CREATE_REPORT => {
             let body: render_report::RenderTemplateBody =
-                serde_json::from_value(event.event_payload.clone().unwrap())?;
+                serde_json::from_value(event.event_payload.clone())?;
             let task = celery_app
                 .send_task(render_report::render_report::new(
                     body,
-                    event.clone(),
+                    event.tenant_id,
+                    event.election_event_id,
                 ))
                 .await?;
             task_id = task.task_id.clone();
@@ -45,11 +44,12 @@ pub async fn process_scheduled_event(
         }
         EventProcessors::UPDATE_VOTING_STATUS => {
             let payload: update_voting_status::UpdateVotingStatusPayload =
-                serde_json::from_value(event.event_payload.clone().unwrap())?;
+                serde_json::from_value(event.event_payload.clone())?;
             let task = celery_app
                 .send_task(update_voting_status::update_voting_status::new(
-                    event.clone(),
                     payload,
+                    event.tenant_id,
+                    event.election_event_id,
                 ))
                 .await?;
             task_id = task.task_id.clone();
@@ -61,11 +61,12 @@ pub async fn process_scheduled_event(
         }
         EventProcessors::CREATE_BOARD => {
             let payload: create_board::CreateBoardPayload =
-                serde_json::from_value(event.event_payload.clone().unwrap())?;
+                serde_json::from_value(event.event_payload.clone())?;
             let task = celery_app
                 .send_task(create_board::create_board::new(
-                    event.clone(),
                     payload,
+                    event.tenant_id,
+                    event.election_event_id,
                 ))
                 .await?;
             task_id = task.task_id.clone();
@@ -73,11 +74,12 @@ pub async fn process_scheduled_event(
         }
         EventProcessors::CREATE_KEYS => {
             let payload: create_keys::CreateKeysBody =
-                serde_json::from_value(event.event_payload.clone().unwrap())?;
+                serde_json::from_value(event.event_payload.clone())?;
             let task = celery_app
                 .send_task(create_keys::create_keys::new(
-                    event.clone(),
                     payload,
+                    event.tenant_id,
+                    event.election_event_id,
                 ))
                 .await?;
             task_id = task.task_id.clone();
@@ -85,18 +87,22 @@ pub async fn process_scheduled_event(
         }
         EventProcessors::SET_PUBLIC_KEY => {
             let task = celery_app
-                .send_task(set_public_key::new(event.clone()))
+                .send_task(set_public_key::new(
+                    event.tenant_id,
+                    event.election_event_id,
+                ))
                 .await?;
             task_id = task.task_id.clone();
             event!(Level::INFO, "Sent SET_PUBLIC_KEY task {}", task.task_id);
         }
         EventProcessors::CREATE_BALLOT_STYLE => {
             let payload: create_ballot_style::CreateBallotStylePayload =
-                serde_json::from_value(event.event_payload.clone().unwrap())?;
+                serde_json::from_value(event.event_payload.clone())?;
             let task = celery_app
                 .send_task(create_ballot_style::create_ballot_style::new(
-                    event.clone(),
                     payload,
+                    event.tenant_id,
+                    event.election_event_id,
                 ))
                 .await?;
             task_id = task.task_id.clone();
@@ -108,24 +114,17 @@ pub async fn process_scheduled_event(
         }
         EventProcessors::INSERT_BALLOTS => {
             let payload: insert_ballots::InsertBallotsPayload =
-                serde_json::from_value(event.event_payload.clone().unwrap())?;
+                serde_json::from_value(event.event_payload.clone())?;
             let task = celery_app
                 .send_task(insert_ballots::insert_ballots::new(
-                    event.clone(),
                     payload,
+                    event.tenant_id,
+                    event.election_event_id,
                 ))
                 .await?;
             task_id = task.task_id.clone();
             event!(Level::INFO, "Sent INSERT_BALLOTS task {}", task.task_id);
         }
     }
-    hasura::scheduled_event::update_scheduled_event_task_id(
-        auth_headers.clone(),
-        event.id.clone(),
-        event.tenant_id.clone().unwrap(),
-        event.election_event_id.clone().unwrap(),
-        task_id,
-    )
-    .await?;
     Ok(())
 }

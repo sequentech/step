@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use sequent_core::ballot::ElectionEventStatus;
 use serde_json::Value;
 use tracing::{event, instrument, Level};
+use sequent_core::services::connection;
 
-use crate::connection;
 use crate::hasura;
 use crate::hasura::election_event::{insert_election_event, insert_election_event_f};
 use crate::services::celery_app::*;

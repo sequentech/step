@@ -9,26 +9,18 @@ use sequent_core::services::openid;
 use tracing::instrument;
 
 use crate::hasura;
-use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::types::scheduled_event::ScheduledEvent;
 
 #[instrument]
 #[celery::task(max_retries = 10)]
-pub async fn set_public_key(event: ScheduledEvent) -> TaskResult<()> {
+pub async fn set_public_key(
+    tenant_id: String,
+    election_event_id: String,
+) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let tenant_id = event
-        .tenant_id
-        .clone()
-        .with_context(|| "missing tenant id")
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let election_event_id = event
-        .election_event_id
-        .clone()
-        .with_context(|| "missing election event id")
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let election_event_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
@@ -63,9 +55,5 @@ pub async fn set_public_key(event: ScheduledEvent) -> TaskResult<()> {
     )
     .await
     .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
-
-    insert_event_execution_with_result(auth_headers, event, None)
-        .await
-        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
     Ok(())
 }

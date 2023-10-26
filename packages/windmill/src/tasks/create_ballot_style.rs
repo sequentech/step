@@ -17,7 +17,6 @@ use uuid::Uuid;
 
 use crate::hasura;
 use crate::hasura::ballot_style::get_ballot_style_area;
-use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::date::ISO8601;
 use crate::types::scheduled_event::ScheduledEvent;
 
@@ -188,22 +187,12 @@ pub struct CreateBallotStylePayload {
 #[instrument]
 #[celery::task]
 pub async fn create_ballot_style(
-    event: ScheduledEvent,
     body: CreateBallotStylePayload,
+    tenant_id: String,
+    election_event_id: String,
 ) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    // read tenant_id and election_event_id
-    let tenant_id = event
-        .tenant_id
-        .clone()
-        .with_context(|| "scheduled event is missing tenant_id")
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let election_event_id = event
-        .election_event_id
-        .clone()
-        .with_context(|| "scheduled event is missing election_event_id")
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let hasura_response = hasura::ballot_style::get_ballot_style_area(
         auth_headers.clone(),
@@ -328,10 +317,6 @@ pub async fn create_ballot_style(
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     }
-
-    insert_event_execution_with_result(auth_headers, event, None)
-        .await
-        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
     Ok(())
 }

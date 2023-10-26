@@ -11,7 +11,6 @@ use sequent_core::services::openid;
 use tracing::instrument;
 
 use crate::hasura;
-use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::types::scheduled_event::ScheduledEvent;
@@ -25,14 +24,13 @@ pub struct UpdateVotingStatusPayload {
 #[instrument]
 #[celery::task]
 pub async fn update_voting_status(
-    event: ScheduledEvent,
     payload: UpdateVotingStatusPayload,
+    tenant_id: String,
+    election_event_id: String,
 ) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let tenant_id: String = event.tenant_id.clone().unwrap();
-    let election_event_id: String = event.election_event_id.clone().unwrap();
     let new_status = ElectionStatus {
         voting_status: payload.status.clone(),
     };
@@ -70,10 +68,6 @@ pub async fn update_voting_status(
         .update_sequent_backend_election
         .unwrap()
         .returning[0];
-
-    insert_event_execution_with_result(auth_headers, event, None)
-        .await
-        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
     Ok(())
 }
