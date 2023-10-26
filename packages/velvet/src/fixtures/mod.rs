@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use anyhow::Result;
 use sequent_core::ballot::{
     BallotStyle, Candidate, CandidatePresentation, CandidateUrl, Contest, ContestPresentation,

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 use std::{collections::HashMap, fs, path::Path};
 
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
