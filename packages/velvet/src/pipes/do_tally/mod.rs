@@ -1,4 +1,5 @@
 mod error;
+mod invalid_vote;
 mod tally;
 mod voting_system;
 
@@ -56,7 +57,7 @@ impl Pipe for DoTally {
                         contest_input.config.as_path(),
                         decoded_ballots_file.as_path(),
                     )?;
-                    
+
                     let res = tally.please_do()?;
 
                     let mut file = self.pipe_inputs.get_path_for_data(

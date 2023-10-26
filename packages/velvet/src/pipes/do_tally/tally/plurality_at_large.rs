@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs, path::Path};
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 
 use super::{ContestChoiceResult, ContestResult, Tally};
-use crate::pipes::do_tally::voting_system::VotingSystem;
+use crate::pipes::do_tally::{invalid_vote::InvalidVote, voting_system::VotingSystem};
 
 use super::{Error, Result};
 
@@ -29,13 +29,17 @@ impl PluralityAtLargeTally {
         let votes = &self.vs.ballots;
 
         let mut vote_count: HashMap<String, u64> = HashMap::new();
+        let mut vote_count_invalid: HashMap<InvalidVote, u64> = HashMap::new();
         let mut count_valid: u64 = 0;
-        let mut count_invalid: u64 = 0;
 
         for vote in votes {
-            // TODO: how to handle invalid ballots?
-            if vote.invalid_errors.len() > 0 || vote.is_explicit_invalid {
-                count_invalid += 1;
+            if vote.invalid_errors.len() > 0 {
+                if vote.is_explicit_invalid {
+                    *vote_count_invalid.entry(InvalidVote::Explicit).or_insert(0) += 1;
+                } else {
+                    *vote_count_invalid.entry(InvalidVote::Implicit).or_insert(0) += 1;
+                }
+            // TODO: how to get InvalidVote::MarkedAsInvalid information?
             } else {
                 for choice in &vote.choices {
                     if choice.selected >= 0 {
@@ -72,7 +76,7 @@ impl PluralityAtLargeTally {
         let contest_result = ContestResult {
             contest_id: self.vs.contest.id.to_string(),
             total_valid_votes: count_valid,
-            total_invalid_votes: 1,
+            total_invalid_votes: vote_count_invalid,
             choice_result: result,
         };
 
