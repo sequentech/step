@@ -2,13 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use rocket::serde::json::Value;
-use rocket::serde::{Deserialize, Serialize};
+use serde_json::Value;
+use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 use strum_macros::EnumString;
 
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
-#[serde(crate = "rocket::serde")]
 pub enum EventProcessors {
     CREATE_REPORT,
     UPDATE_VOTING_STATUS,
@@ -20,7 +19,6 @@ pub enum EventProcessors {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
 pub struct ScheduledEvent {
     pub id: String,
     pub tenant_id: Option<String>,

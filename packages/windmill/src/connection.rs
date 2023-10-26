@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
-use rocket::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthHeaders {

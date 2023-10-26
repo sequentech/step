@@ -385,7 +385,6 @@ pub enum VotingStatus {
     Debug,
     Clone,
 )]
-//#[serde(crate = "rocket::serde")]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,
 }
