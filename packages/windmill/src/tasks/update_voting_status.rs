@@ -5,7 +5,7 @@
 use anyhow::{bail, Context, Result};
 use celery::error::TaskError;
 use celery::prelude::*;
-use rocket::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
 use tracing::instrument;
 
@@ -17,7 +17,6 @@ use crate::services::protocol_manager;
 use crate::types::scheduled_event::ScheduledEvent;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
 pub struct UpdateVotingStatusPayload {
     pub election_id: String,
     pub status: VotingStatus,

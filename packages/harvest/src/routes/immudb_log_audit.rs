@@ -7,8 +7,9 @@ use immudb_rs::{
     sql_value::Value as SqlValue, Client, NamedParam, Row, TxMode,
 };
 use rocket::response::Debug;
-use rocket::serde::json::{Json, Value};
-use rocket::serde::{Deserialize, Serialize};
+use rocket::serde::json::Json;
+use serde_json::Value;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::env;
 use tracing::instrument;
@@ -35,7 +36,7 @@ macro_rules! assign_value {
 
 // Enumeration for the valid fields in the immudb table
 #[derive(Debug, Deserialize, Hash, PartialEq, Eq)]
-#[serde(crate = "rocket::serde", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 enum OrderField {
     Id,
     AuditType,
@@ -50,14 +51,13 @@ enum OrderField {
 
 // Enumeration for the valid order directions
 #[derive(Debug, Deserialize)]
-#[serde(crate = "rocket::serde", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
 enum OrderDirection {
     Asc,
     Desc,
 }
 
 #[derive(Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
 pub struct GetPgauditBody {
     tenant_id: String,
     election_event_id: String,
@@ -96,7 +96,6 @@ impl GetPgauditBody {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
 pub struct PgAuditRow {
     id: i64,
     audit_type: String,
@@ -172,13 +171,11 @@ impl TryFrom<&Row> for PgAuditRow {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
 pub struct Aggregate {
     count: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
 pub struct TotalAggregate {
     aggregate: Aggregate,
 }
@@ -199,7 +196,6 @@ impl TryFrom<&Row> for Aggregate {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
 pub struct DataList<T> {
     items: Vec<T>,
     total: TotalAggregate,
