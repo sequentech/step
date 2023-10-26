@@ -7,7 +7,7 @@ use celery::error::TaskError;
 use celery::export::Arc;
 use celery::prelude::*;
 use celery::Celery;
-use rocket::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::openid;
 use serde_json::Value;
@@ -23,7 +23,6 @@ use crate::tasks::set_public_key::set_public_key;
 use crate::types::scheduled_event::ScheduledEvent;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
-#[serde(crate = "rocket::serde")]
 pub struct CreateKeysBody {
     pub trustee_pks: Vec<String>,
     pub threshold: usize,

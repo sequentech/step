@@ -4,7 +4,7 @@
 use anyhow::{bail, Context, Result};
 use celery::error::TaskError;
 use celery::prelude::*;
-use rocket::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::openid;
 use serde_json::Value;
@@ -19,7 +19,6 @@ use crate::services::protocol_manager;
 use crate::types::scheduled_event::ScheduledEvent;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
-#[serde(crate = "rocket::serde")]
 pub struct InsertBallotsPayload {
     pub trustee_pks: Vec<String>,
 }

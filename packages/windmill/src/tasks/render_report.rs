@@ -7,7 +7,7 @@ use celery::prelude::*;
 use handlebars::Handlebars;
 use headless_chrome::types::PrintToPdfOptions;
 use rocket::serde::json::Json;
-use rocket::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use sequent_core::services::connection;
 use sequent_core::services::{pdf, reports};
 use serde_json::json;
@@ -25,14 +25,12 @@ use crate::types::scheduled_event::ScheduledEvent;
 use sequent_core::services::openid;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-#[serde(crate = "rocket::serde")]
 pub enum FormatType {
     TEXT,
     PDF,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
 pub struct RenderTemplateBody {
     template: String,
     tenant_id: String,
@@ -43,7 +41,6 @@ pub struct RenderTemplateBody {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
 pub struct RenderTemplateResponse {
     id: String,
     election_event_id: Option<String>,

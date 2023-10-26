@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use rocket::serde::json::Json;
-use rocket::serde::json::Value;
+use serde_json::Value;
 use sequent_core::services::connection;
 use std::error::Error;
 use std::fmt;

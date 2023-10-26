@@ -5,8 +5,8 @@
 use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
-use rocket::serde::json::Value;
-use rocket::serde::{Deserialize, Serialize};
+use serde_json::Value;
+use serde::{Deserialize, Serialize};
 use sequent_core::services::connection;
 use std::str::FromStr;
 use strum_macros::Display;
@@ -18,7 +18,6 @@ use windmill::types::scheduled_event::*;
 use crate::services;
 
 #[derive(Deserialize, Debug)]
-#[serde(crate = "rocket::serde")]
 pub struct CreateScheduledEventBody {
     tenant_id: String,
     election_event_id: String,

@@ -6,7 +6,7 @@ use anyhow::Result;
 use celery::error::TaskError;
 use celery::prelude::*;
 use immu_board::BoardClient;
-use rocket::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use sequent_core;
 use sequent_core::services::openid;
 use std::env;
@@ -18,7 +18,6 @@ use crate::services::election_event_board::BoardSerializable;
 use crate::types::scheduled_event::ScheduledEvent;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
 pub struct CreateBoardPayload {
     pub board_name: String,
 }

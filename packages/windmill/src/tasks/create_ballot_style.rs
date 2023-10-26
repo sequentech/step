@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use celery::error::TaskError;
 use celery::prelude::*;
 use immu_board::BoardClient;
-use rocket::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use sequent_core;
 use sequent_core::services::openid;
 use std::collections::HashMap;
@@ -181,7 +181,6 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendArea>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
 pub struct CreateBallotStylePayload {
     pub area_id: String,
 }
