@@ -7,7 +7,9 @@ use std::{collections::HashMap, fs, path::Path};
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 
 use super::CountingAlgorithm;
-use crate::pipes::do_tally::{invalid_vote::InvalidVote, tally::Tally, ContestResult, CandidateResult};
+use crate::pipes::do_tally::{
+    invalid_vote::InvalidVote, tally::Tally, CandidateResult, ContestResult,
+};
 
 use super::{Error, Result};
 
@@ -49,8 +51,15 @@ impl CountingAlgorithm for PluralityAtLarge {
 
         let result: Vec<CandidateResult> = vote_count
             .into_iter()
-            .map(|(choice_id, total_count)| CandidateResult {
-                choice_id,
+            .map(|(id, total_count)| CandidateResult {
+                candidate: self
+                    .tally
+                    .contest
+                    .candidates
+                    .iter()
+                    .find(|c| c.id == id)
+                    .cloned()
+                    .unwrap(),
                 total_count,
             })
             .collect();
@@ -61,17 +70,24 @@ impl CountingAlgorithm for PluralityAtLarge {
             .map(|c| {
                 result
                     .iter()
-                    .find(|r| r.choice_id == c.id)
+                    .find(|rc| c.id == c.id)
                     .cloned()
                     .unwrap_or(CandidateResult {
-                        choice_id: c.id.clone(),
+                        candidate: self
+                            .tally
+                            .contest
+                            .candidates
+                            .iter()
+                            .find(|rc| rc.id == c.id)
+                            .unwrap()
+                            .clone(),
                         total_count: 0,
                     })
             })
             .collect::<Vec<CandidateResult>>();
 
         let contest_result = ContestResult {
-            contest_id: self.tally.contest.id.to_string(),
+            contest: self.tally.contest.clone(),
             total_valid_votes: count_valid,
             total_invalid_votes: vote_count_invalid,
             candidate_result: result,

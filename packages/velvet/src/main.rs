@@ -5,6 +5,7 @@
 mod cli;
 mod config;
 mod pipes;
+mod utils;
 
 #[cfg(test)]
 mod fixtures;

@@ -8,8 +8,10 @@ use crate::pipes::{
     decode_ballots::OUTPUT_DECODED_BALLOTS_FILE, pipe_inputs::PipeInputs, pipe_name::PipeName,
     pipe_name::PipeNameOutputDir, Pipe,
 };
+use crate::utils::{to_id, HasId};
+use sequent_core::ballot::Candidate;
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use std::{collections::HashMap, error::Error as StdError, fs, path::Path};
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
@@ -99,18 +101,28 @@ impl Pipe for DoTally {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContestResult {
-    pub contest_id: String,
+    // #[serde(serialize_with = "to_id")]
+    pub contest: Contest,
     pub total_valid_votes: u64,
     pub total_invalid_votes: HashMap<InvalidVote, u64>,
     pub candidate_result: Vec<CandidateResult>,
-    // TODO:
-    // contest: Contest
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CandidateResult {
-    pub choice_id: String,
+    // #[serde(serialize_with = "to_id")]
+    pub candidate: Candidate,
     pub total_count: u64,
-    // TODO:
-    // candidate: Candidate
+}
+
+impl HasId for Contest {
+    fn id(&self) -> &str {
+        &self.id
+    }
+}
+
+impl HasId for Candidate {
+    fn id(&self) -> &str {
+        &self.id
+    }
 }
