@@ -63,7 +63,6 @@ async fn main() -> Result<()> {
             let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
 
             celery_app
-                //.consume_from(&["short_queue", "reports_queue", "tally_queue"])
                 .consume_from(&vec_str[..])
                 .await?;
             celery_app.close().await?;
