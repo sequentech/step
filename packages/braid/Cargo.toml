@@ -64,6 +64,8 @@ reedline-repl-rs = { version = "1.0.7" }
 ascii_table = { version = "4.0.2" }
 async-trait = "0.1.73"
 
+sequent-core = { path="../sequent-core", features = ["log"] }
+
 [dev-dependencies]
 criterion = {version = "0.4", features=["html_reports"]}
 

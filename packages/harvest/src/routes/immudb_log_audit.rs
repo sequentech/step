@@ -4,14 +4,12 @@
 
 use anyhow::{anyhow, Context, Result};
 use immudb_rs::{
-    sql_value::Value as SqlValue, Client, NamedParam, Row, TxMode,
+    sql_value::Value as SqlValue, Client, Row,
 };
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
 use tracing::instrument;

@@ -3,16 +3,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-#[macro_use]
 extern crate lazy_static;
 
 use anyhow::Result;
-use async_trait::async_trait;
-use braid::util::init_log;
-use celery::prelude::*;
+use sequent_core::util::init_log::init_log;
 use dotenv::dotenv;
 use structopt::StructOpt;
-use tracing::{event, instrument, Level};
+use tracing::{event, Level};
 use windmill::services::celery_app::*;
 extern crate chrono;
 use chrono::{DateTime, Duration, Utc};

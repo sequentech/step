@@ -1,9 +1,9 @@
-use crate::protocol2::trustee::{ProtocolManager, Trustee};
+use crate::protocol2::trustee::Trustee;
 use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 use strand::context::Ctx;
-use strand::serialization::{StrandDeserialize, StrandSerialize};
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use strand::serialization::StrandSerialize;
+use strand::signature::StrandSignaturePk;
 
 #[derive(Serialize, Deserialize)]
 pub struct TrusteeConfig {
@@ -33,27 +33,5 @@ impl TrusteeConfig {
             signing_key_pk: pk_string,
             encryption_key: ek_string,
         }
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct ProtocolManagerConfig {
-    // base64 encoding of a StrandSignatureSk serialization
-    pub signing_key: String,
-}
-impl ProtocolManagerConfig {
-    pub fn from<C: Ctx>(pm: &ProtocolManager<C>) -> ProtocolManagerConfig {
-        let sk_bytes = pm.signing_key.strand_serialize().unwrap();
-
-        let sk_string: String = general_purpose::STANDARD_NO_PAD.encode(sk_bytes);
-
-        ProtocolManagerConfig {
-            signing_key: sk_string,
-        }
-    }
-    pub fn get_signing_key(&self) -> anyhow::Result<StrandSignatureSk> {
-        let bytes = general_purpose::STANDARD_NO_PAD.decode(&self.signing_key)?;
-
-        Ok(StrandSignatureSk::strand_deserialize(&bytes)?)
     }
 }

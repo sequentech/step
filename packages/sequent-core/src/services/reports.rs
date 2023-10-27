@@ -5,8 +5,6 @@ use handlebars::{Handlebars, RenderError};
 use serde_json::{json, Map, Value};
 use tracing::instrument;
 
-use crate::services::pdf;
-
 #[instrument(skip_all)]
 pub fn render_template_text(
     template: &str,

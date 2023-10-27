@@ -5,7 +5,6 @@
 pub mod celery_app;
 pub mod date;
 pub mod election_event_board;
-pub mod pdf;
 pub mod protocol_manager;
 pub mod public_keys;
 pub mod s3;

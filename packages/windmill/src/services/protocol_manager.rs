@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use braid::protocol2::trustee::ProtocolManager;
-use braid::run::config::ProtocolManagerConfig;
+use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use braid_messages::artifact::DkgPublicKey;
 use braid_messages::statement::StatementType;
 

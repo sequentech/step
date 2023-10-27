@@ -3,7 +3,6 @@ use anyhow::{anyhow, Context, Result};
 use log::{debug, error, info, trace, warn};
 use rayon::prelude::*;
 use std::collections::HashSet;
-use std::marker::PhantomData;
 use tracing_attributes::instrument;
 
 use strand::serialization::{StrandDeserialize, StrandSerialize};
@@ -474,35 +473,11 @@ impl<C: Ctx> Trustee<C> {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// ProtocolManager
-///////////////////////////////////////////////////////////////////////////
-
-pub struct ProtocolManager<C: Ctx> {
-    pub signing_key: StrandSignatureSk,
-    pub phantom: PhantomData<C>,
-}
-
-impl<C: Ctx> braid_messages::message::Signer for ProtocolManager<C> {
-    fn get_signing_key(&self) -> &StrandSignatureSk {
-        &self.signing_key
-    }
-    fn get_name(&self) -> String {
-        "Protocol Manager".to_string()
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Debug
 ///////////////////////////////////////////////////////////////////////////
 
 impl<C: Ctx> std::fmt::Debug for Trustee<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Trustee({})", self.name)
-    }
-}
-
-impl<C: Ctx> std::fmt::Debug for ProtocolManager<C> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ProtcolManager()")
     }
 }

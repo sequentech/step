@@ -13,9 +13,7 @@ use std::env;
 use tracing::instrument;
 
 use crate::hasura;
-use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::election_event_board::BoardSerializable;
-use crate::types::scheduled_event::ScheduledEvent;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CreateBoardPayload {
