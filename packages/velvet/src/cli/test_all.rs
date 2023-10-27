@@ -223,7 +223,7 @@ mod tests {
             output_dir: fixture.root_dir.join("tests").join("output-dir"),
         };
 
-        let config = cli.parse_config()?;
+        let config = cli.validate()?;
         let mut state = State::new(&cli, &config)?;
 
         // DecodeBallots
