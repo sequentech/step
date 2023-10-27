@@ -8,7 +8,8 @@ use celery::beat::DeltaSchedule;
 use dotenv::dotenv;
 use std;
 use tokio::time::Duration;
-use windmill::tasks::add::add;
+use windmill::tasks::review_boards::review_boards;
+use sequent_core::util::date::get_seconds_later;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -18,14 +19,14 @@ async fn main() -> Result<()> {
     let mut beat = celery::beat!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
-            "add" => {
-                add,
+            "review_boards" => {
+                review_boards,
                 schedule = DeltaSchedule::new(Duration::from_secs(60)),
-                args = (1, 2),
+                args = (),
             },
         ],
         task_routes = [
-            "add" => "beat",
+            "review_boards" => "beat",
         ],
     ).await?;
 

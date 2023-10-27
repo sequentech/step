@@ -4,9 +4,15 @@
 
 use celery::task::TaskResult;
 use tracing::instrument;
+use tracing::{event, Level};
+use chrono::{Utc, DateTime};
 
 #[instrument]
 #[celery::task]
-pub fn add(x: i32, y: i32) -> TaskResult<i32> {
-    Ok(x + y)
+pub fn review_boards() -> TaskResult<()> {
+    let current_time = Utc::now();
+
+    event!(Level::INFO, "This is too late");
+
+    Ok(())
 }

@@ -8,7 +8,7 @@ use celery::Celery;
 use std;
 use tracing::{event, instrument, Level};
 
-use crate::tasks::add::add;
+use crate::tasks::review_boards::review_boards;
 use crate::tasks::create_ballot_style::create_ballot_style;
 use crate::tasks::create_board::create_board;
 use crate::tasks::insert_ballots::insert_ballots;
@@ -49,7 +49,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
     celery::app!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
-            add,
+            review_boards,
             create_ballot_style,
             create_board,
             create_keys,
@@ -60,7 +60,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
-            "add" => "beat",
+            "review_boards" => "beat",
             "create_ballot_style" => "short_queue",
             "create_board" => "short_queue",
             "create_keys" => "short_queue",
