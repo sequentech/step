@@ -10,3 +10,4 @@ pub mod insert_election_event;
 pub mod render_report;
 pub mod set_public_key;
 pub mod update_voting_status;
+pub mod add;
