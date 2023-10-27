@@ -1,21 +1,16 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{bail, Context, Result};
+use anyhow::Context;
 use celery::error::TaskError;
 use celery::prelude::*;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::openid;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use tracing::instrument;
 
 use crate::hasura;
-use crate::hasura::cast_ballot;
-use crate::hasura::election_event::update_election_event_status;
-use crate::services::election_event_board::{get_election_event_board, BoardSerializable};
-use crate::services::public_keys;
-use crate::types::scheduled_event::ScheduledEvent;
+use crate::services::election_event_board::get_election_event_board;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct InsertBallotsPayload {

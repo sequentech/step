@@ -2,11 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use rocket::http::Status;
-use rocket::response::Debug;
 use rocket::serde::json::Json;
 use rocket::Request;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
 use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug)]

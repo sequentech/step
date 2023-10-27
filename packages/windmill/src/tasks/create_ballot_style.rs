@@ -5,20 +5,17 @@
 use anyhow::{Context, Result};
 use celery::error::TaskError;
 use celery::prelude::*;
-use immu_board::BoardClient;
 use sequent_core;
 use sequent_core::services::openid;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::From;
-use std::env;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 use crate::hasura;
 use crate::hasura::ballot_style::get_ballot_style_area;
 use crate::services::date::ISO8601;
-use crate::types::scheduled_event::ScheduledEvent;
 
 impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
     for sequent_core::hasura_types::ElectionEvent

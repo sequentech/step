@@ -13,7 +13,6 @@ use tracing::instrument;
 
 use super::protocol_manager;
 use crate::services::vault;
-use crate::tasks::create_keys;
 
 #[instrument(skip(trustee_pks, threshold))]
 pub async fn create_keys(

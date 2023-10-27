@@ -18,7 +18,7 @@ use crate::ballot_codec::PlaintextCodec;
 use crate::error::BallotError;
 use crate::plaintext::DecodedVoteContest;
 use crate::serialization::base64::Base64Deserialize;
-use crate::util::get_current_date;
+use crate::util::date::get_current_date;
 
 pub const DEFAULT_PUBLIC_KEY_RISTRETTO_STR: &str =
     "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4";

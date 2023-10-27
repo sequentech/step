@@ -5,10 +5,9 @@ use super::connection;
 use anyhow::{anyhow, Result};
 use reqwest;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use serde_urlencoded;
 use std::env;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct TokenResponse {

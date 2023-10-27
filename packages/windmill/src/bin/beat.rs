@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use celery::beat::{CronSchedule, DeltaSchedule};
-use celery::task::TaskResult;
+use celery::beat::DeltaSchedule;
 use dotenv::dotenv;
 use std;
 use tokio::time::Duration;

@@ -6,13 +6,9 @@ use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
-use std::str::FromStr;
-use strum_macros::Display;
-use strum_macros::EnumString;
 use tracing::instrument;
-use windmill::hasura;
 use windmill::types::scheduled_event::*;
 
 use crate::services;

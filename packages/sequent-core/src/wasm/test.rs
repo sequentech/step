@@ -8,7 +8,7 @@ use crate::encrypt::*;
 use crate::interpret_plaintext::{get_layout_properties, get_points};
 use crate::plaintext::*;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
-use crate::util::normalize_vote_contest;
+use crate::util::normalize_vote::normalize_vote_contest;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;

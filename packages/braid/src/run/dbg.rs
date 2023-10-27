@@ -25,9 +25,8 @@ use braid_messages::artifact::Configuration;
 use braid_messages::message::Message;
 use braid_messages::newtypes::PublicKeyHash;
 use braid_messages::newtypes::NULL_TRUSTEE;
+use braid_messages::protocol_manager::ProtocolManager;
 
-// use crate::protocol2::predicate::PublicKeyHash;
-use crate::protocol2::trustee::ProtocolManager;
 use crate::protocol2::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
 use braid_messages::newtypes::MAX_TRUSTEES;

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use celery::task::TaskResult;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 #[instrument]
 #[celery::task]

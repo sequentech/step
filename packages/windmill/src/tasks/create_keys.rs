@@ -2,24 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use celery::error::TaskError;
-use celery::export::Arc;
 use celery::prelude::*;
-use celery::Celery;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::openid;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use tracing::{event, instrument, Level};
 
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
 use crate::services::celery_app::*;
-use crate::services::election_event_board::{get_election_event_board, BoardSerializable};
+use crate::services::election_event_board::{get_election_event_board};
 use crate::services::public_keys;
 use crate::tasks::set_public_key::set_public_key;
-use crate::types::scheduled_event::ScheduledEvent;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct CreateKeysBody {

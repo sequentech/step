@@ -4,23 +4,16 @@
 use anyhow::Result;
 use celery::error::TaskError;
 use celery::prelude::*;
-use handlebars::Handlebars;
-use headless_chrome::types::PrintToPdfOptions;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::{Map, Value};
-use std::fs::File;
-use std::io::Write;
-use std::time::Duration;
-use tempfile::tempdir;
 use tracing::instrument;
 
 use crate::hasura;
 use crate::services::s3;
-use crate::types::scheduled_event::ScheduledEvent;
 use sequent_core::services::openid;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]

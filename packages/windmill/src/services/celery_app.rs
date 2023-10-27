@@ -4,33 +4,31 @@
 
 use async_once::AsyncOnce;
 use celery::export::Arc;
-use celery::prelude::*;
 use celery::Celery;
 use std;
-use tokio::runtime::Builder;
 use tracing::{event, instrument, Level};
 
 use crate::tasks::add::add;
 use crate::tasks::create_ballot_style::create_ballot_style;
 use crate::tasks::create_board::create_board;
-use crate::tasks::create_keys::create_keys;
 use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::render_report::render_report;
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_voting_status::update_voting_status;
+use crate::tasks::create_keys::create_keys;
 
-static mut prefetch_count_s: u16 = 100;
-static mut acks_late_s: bool = true;
+static mut PREFETCH_COUNT_S: u16 = 100;
+static mut ACKS_LATE_S: bool = true;
 
 pub fn set_prefetch_count(new_val: u16) {
     unsafe {
-        prefetch_count_s = new_val;
+        PREFETCH_COUNT_S = new_val;
     }
 }
 
 pub fn set_acks_late(new_val: bool) {
     unsafe {
-        acks_late_s = new_val;
+        ACKS_LATE_S = new_val;
     }
 }
 
@@ -39,8 +37,8 @@ pub async fn generate_celery_app() -> Arc<Celery> {
     let prefetch_count: u16;
     let acks_late: bool;
     unsafe {
-        prefetch_count = prefetch_count_s;
-        acks_late = acks_late_s;
+        prefetch_count = PREFETCH_COUNT_S;
+        acks_late = ACKS_LATE_S;
     }
     event!(
         Level::INFO,

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{bail, Context, Result};
+use anyhow::Context;
 use celery::error::TaskError;
 use celery::prelude::*;
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
@@ -11,9 +11,6 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::hasura;
-use crate::services::election_event_board::get_election_event_board;
-use crate::services::public_keys;
-use crate::types::scheduled_event::ScheduledEvent;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UpdateVotingStatusPayload {
