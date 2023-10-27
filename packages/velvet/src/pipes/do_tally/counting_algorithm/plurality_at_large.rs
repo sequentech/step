@@ -6,8 +6,8 @@ use std::{collections::HashMap, fs, path::Path};
 
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 
-use super::{CandidateResult, ContestResult, CountingAlgorithm};
-use crate::pipes::do_tally::{invalid_vote::InvalidVote, tally::Tally};
+use super::CountingAlgorithm;
+use crate::pipes::do_tally::{invalid_vote::InvalidVote, tally::Tally, ContestResult, CandidateResult};
 
 use super::{Error, Result};
 

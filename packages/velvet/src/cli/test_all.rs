@@ -205,7 +205,7 @@ mod tests {
     }
 
     #[test]
-    fn test_decode_ballots() -> Result<()> {
+    fn test_pipes_exec() -> Result<()> {
         let election_num = 5;
         let contest_num = 10;
         let region_num = 3;
@@ -248,6 +248,22 @@ mod tests {
         );
 
         // DoTally
+        state.exec_next()?;
+
+        assert_eq!(
+            WalkDir::new(cli.output_dir.as_path())
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter(|e| {
+                    e.path()
+                        .file_name()
+                        .map_or(false, |f| f == OUTPUT_CONTEST_RESULT_FILE)
+                })
+                .count() as u32,
+            election_num * contest_num * region_num + election_num * contest_num
+        );
+        
+        // MarkWinners
         state.exec_next()?;
 
         assert_eq!(

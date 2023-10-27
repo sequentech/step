@@ -2,13 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::{error::Result, tally};
+use super::tally;
+use super::{error::Result, invalid_vote::InvalidVote};
 use crate::pipes::{
     decode_ballots::OUTPUT_DECODED_BALLOTS_FILE, pipe_inputs::PipeInputs, pipe_name::PipeName,
     pipe_name::PipeNameOutputDir, Pipe,
 };
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error as StdError, fs, path::Path};
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
@@ -95,4 +96,21 @@ impl Pipe for DoTally {
 
         Ok(())
     }
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContestResult {
+    pub contest_id: String,
+    pub total_valid_votes: u64,
+    pub total_invalid_votes: HashMap<InvalidVote, u64>,
+    pub candidate_result: Vec<CandidateResult>,
+    // TODO:
+    // contest: Contest
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CandidateResult {
+    pub choice_id: String,
+    pub total_count: u64,
+    // TODO:
+    // candidate: Candidate
 }
