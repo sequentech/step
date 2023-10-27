@@ -2,9 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::decode_ballots::DecodeBallots;
 use super::error::Error;
+use super::mark_winners::MarkWinners;
 use super::pipe_inputs::PipeInputs;
-use super::{decode_ballots::DecodeBallots, pipe_name::PipeName};
+use super::pipe_name::PipeName;
 use crate::cli::state::Stage;
 use crate::cli::CliRun;
 use crate::pipes::do_tally::DoTally;
@@ -23,6 +25,7 @@ impl PipeManager {
         Ok(match pipe_inputs.stage.current_pipe {
             PipeName::DecodeBallots => Some(Box::new(DecodeBallots::new(pipe_inputs))),
             PipeName::DoTally => Some(Box::new(DoTally::new(pipe_inputs))),
+            PipeName::MarkWinners => Some(Box::new(MarkWinners::new(pipe_inputs))),
             _ => None,
         })
     }

@@ -144,8 +144,8 @@ mod tests {
                             config: Some(serde_json::Value::Null),
                         },
                         config::PipeConfig {
-                            id: "consolidation".to_string(),
-                            pipe: PipeName::Consolidation,
+                            id: "mark-winners".to_string(),
+                            pipe: PipeName::MarkWinners,
                             config: Some(serde_json::Value::Null),
                         },
                     ],
@@ -170,7 +170,7 @@ mod tests {
         assert_eq!(stage.name, "main");
         assert_eq!(stage.previous_pipe(), Some(PipeName::DecodeBallots));
         assert_eq!(stage.current_pipe, PipeName::DoTally);
-        assert_eq!(stage.next_pipe(), Some(PipeName::Consolidation));
+        assert_eq!(stage.next_pipe(), Some(PipeName::MarkWinners));
 
         Ok(())
     }
@@ -204,8 +204,8 @@ mod tests {
                             config: Some(serde_json::Value::Null),
                         },
                         config::PipeConfig {
-                            id: "consolidation".to_string(),
-                            pipe: PipeName::Consolidation,
+                            id: "mark-winners".to_string(),
+                            pipe: PipeName::MarkWinners,
                             config: Some(serde_json::Value::Null),
                         },
                     ],
@@ -230,7 +230,7 @@ mod tests {
         assert_eq!(state.stages[0].current_pipe, PipeName::DoTally);
 
         state.exec_next()?;
-        assert_eq!(state.stages[0].current_pipe, PipeName::Consolidation);
+        assert_eq!(state.stages[0].current_pipe, PipeName::MarkWinners);
 
         Ok(())
     }

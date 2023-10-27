@@ -124,18 +124,8 @@ pub fn get_config() -> Config {
                         config: Some(serde_json::Value::Null),
                     },
                     config::PipeConfig {
-                        id: "consolidation".to_string(),
-                        pipe: PipeName::Consolidation,
-                        config: Some(serde_json::Value::Null),
-                    },
-                    config::PipeConfig {
-                        id: "ties-resolution".to_string(),
-                        pipe: PipeName::TiesResolution,
-                        config: Some(serde_json::Value::Null),
-                    },
-                    config::PipeConfig {
-                        id: "compute-result".to_string(),
-                        pipe: PipeName::ComputeResult,
+                        id: "mark-winners".to_string(),
+                        pipe: PipeName::MarkWinners,
                         config: Some(serde_json::Value::Null),
                     },
                     config::PipeConfig {

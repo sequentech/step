@@ -12,9 +12,7 @@ use strum_macros::{AsRefStr, EnumString};
 pub enum PipeName {
     DecodeBallots,
     DoTally,
-    Consolidation,
-    TiesResolution,
-    ComputeResult,
+    MarkWinners,
     GenerateReport,
 }
 
@@ -42,12 +40,8 @@ pub enum PipeNameOutputDir {
     DecodeBallots,
     #[strum(serialize = "velvet-do-tally")]
     DoTally,
-    #[strum(serialize = "velvet-consolidation")]
-    Consolidation,
-    #[strum(serialize = "velvet-ties-resolution")]
-    TiesResolution,
-    #[strum(serialize = "velvet-compute-result")]
-    ComputeResult,
+    #[strum(serialize = "velvet-mark-winners")]
+    MarkWinners,
     #[strum(serialize = "velvet-generate-report")]
     GenerateReport,
 }
