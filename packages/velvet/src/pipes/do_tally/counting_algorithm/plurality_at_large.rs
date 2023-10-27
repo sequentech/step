@@ -6,31 +6,25 @@ use std::{collections::HashMap, fs, path::Path};
 
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 
-use super::{ContestChoiceResult, ContestResult, Tally};
-use crate::pipes::do_tally::{invalid_vote::InvalidVote, voting_system::VotingSystem};
+use super::{CandidateResult, ContestResult, CountingAlgorithm};
+use crate::pipes::do_tally::{invalid_vote::InvalidVote, tally::Tally};
 
 use super::{Error, Result};
 
-pub struct PluralityAtLargeTally {
-    pub vs: VotingSystem,
+pub struct PluralityAtLarge {
+    pub tally: Tally,
 }
 
-impl Tally for PluralityAtLargeTally {
-    fn please_do(&self) -> Result<ContestResult> {
-        let res = self.count_choices()?;
-
-        Ok(res)
+impl PluralityAtLarge {
+    pub fn new(tally: Tally) -> Self {
+        Self { tally }
     }
 }
 
-impl PluralityAtLargeTally {
-    pub fn new(vs: VotingSystem) -> Self {
-        Self { vs }
-    }
-
-    fn count_choices(&self) -> Result<ContestResult> {
-        let contest = &self.vs.contest;
-        let votes = &self.vs.ballots;
+impl CountingAlgorithm for PluralityAtLarge {
+    fn tally(&self) -> Result<ContestResult> {
+        let contest = &self.tally.contest;
+        let votes = &self.tally.ballots;
 
         let mut vote_count: HashMap<String, u64> = HashMap::new();
         let mut vote_count_invalid: HashMap<InvalidVote, u64> = HashMap::new();
@@ -43,7 +37,6 @@ impl PluralityAtLargeTally {
                 } else {
                     *vote_count_invalid.entry(InvalidVote::Implicit).or_insert(0) += 1;
                 }
-            // TODO: how to get InvalidVote::MarkedAsInvalid information?
             } else {
                 for choice in &vote.choices {
                     if choice.selected >= 0 {
@@ -54,9 +47,9 @@ impl PluralityAtLargeTally {
             }
         }
 
-        let result: Vec<ContestChoiceResult> = vote_count
+        let result: Vec<CandidateResult> = vote_count
             .into_iter()
-            .map(|(choice_id, total_count)| ContestChoiceResult {
+            .map(|(choice_id, total_count)| CandidateResult {
                 choice_id,
                 total_count,
             })
@@ -70,18 +63,18 @@ impl PluralityAtLargeTally {
                     .iter()
                     .find(|r| r.choice_id == c.id)
                     .cloned()
-                    .unwrap_or(ContestChoiceResult {
+                    .unwrap_or(CandidateResult {
                         choice_id: c.id.clone(),
                         total_count: 0,
                     })
             })
-            .collect::<Vec<ContestChoiceResult>>();
+            .collect::<Vec<CandidateResult>>();
 
         let contest_result = ContestResult {
-            contest_id: self.vs.contest.id.to_string(),
+            contest_id: self.tally.contest.id.to_string(),
             total_valid_votes: count_valid,
             total_invalid_votes: vote_count_invalid,
-            choice_result: result,
+            candidate_result: result,
         };
 
         Ok(contest_result)

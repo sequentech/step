@@ -4,8 +4,8 @@
 
 mod error;
 mod invalid_vote;
+mod counting_algorithm;
 mod tally;
-mod voting_system;
 
 mod do_tally;
 pub use do_tally::*;

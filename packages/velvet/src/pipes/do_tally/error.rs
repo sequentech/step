@@ -11,7 +11,7 @@ pub type Result<T, E = Box<dyn StdError>> = std::result::Result<T, E>;
 pub enum Error {
     JsonParse(serde_json::Error),
     FromPipes(PipesError),
-    FS(std::io::Error),
+    IO(std::io::Error),
 }
 
 impl core::fmt::Display for Error {
@@ -34,7 +34,7 @@ impl From<PipesError> for Error {
 
 impl From<std::io::Error> for Error {
     fn from(val: std::io::Error) -> Self {
-        Self::FS(val)
+        Self::IO(val)
     }
 }
 

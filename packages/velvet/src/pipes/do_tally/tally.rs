@@ -7,24 +7,25 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::tally::{plurality_at_large::PluralityAtLargeTally, Tally};
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 
-pub enum VotingSystemId {
+use super::counting_algorithm::{plurality_at_large::PluralityAtLarge, CountingAlgorithm};
+
+pub enum TallyType {
     PluralityAtLarge,
 }
 
-pub struct VotingSystem {
-    pub id: VotingSystemId,
+pub struct Tally {
+    pub id: TallyType,
     pub contest: Contest,
     pub ballots: Vec<DecodedVoteContest>,
 }
 
-impl VotingSystem {
+impl Tally {
     pub fn new(contest_config: &Path, ballots_file: &Path) -> Result<Self> {
         let contest = Self::get_contest(contest_config)?;
         let ballots = Self::get_ballots(ballots_file)?;
-        let id = Self::get_voting_system_id(&contest)?;
+        let id = Self::get_tally_type(&contest)?;
 
         Ok(Self {
             id,
@@ -33,16 +34,16 @@ impl VotingSystem {
         })
     }
 
-    fn get_voting_system_id(contest: &Contest) -> Result<VotingSystemId> {
+    fn get_tally_type(contest: &Contest) -> Result<TallyType> {
         if let Some(val) = &contest.counting_algorithm {
             if val == "plurality-at-large" {
-                return Ok(VotingSystemId::PluralityAtLarge);
+                return Ok(TallyType::PluralityAtLarge);
             } else {
-                return Err(Error::VotingSystemNotImplemented(val.to_owned()));
+                return Err(Error::TallyTypeNotImplemented(val.to_owned()));
             }
         }
 
-        Err(Error::VotingSystemNotFound)
+        Err(Error::TallyTypeNotFound)
     }
 
     fn get_contest(file: &Path) -> Result<Contest> {
@@ -60,20 +61,20 @@ impl VotingSystem {
     }
 }
 
-pub fn create_tally(contest_config: &Path, ballots_file: &Path) -> Result<Box<dyn Tally>> {
-    let vs = VotingSystem::new(contest_config, ballots_file)?;
+pub fn create_tally(contest_config: &Path, ballots_file: &Path) -> Result<Box<dyn CountingAlgorithm>> {
+    let tally = Tally::new(contest_config, ballots_file)?;
 
-    let tally = match vs.id {
-        VotingSystemId::PluralityAtLarge => PluralityAtLargeTally::new(vs),
+    let ca = match tally.id {
+        TallyType::PluralityAtLarge => PluralityAtLarge::new(tally),
     };
 
-    Ok(Box::new(tally))
+    Ok(Box::new(ca))
 }
 
 #[derive(Debug)]
 pub enum Error {
-    VotingSystemNotFound,
-    VotingSystemNotImplemented(String),
+    TallyTypeNotFound,
+    TallyTypeNotImplemented(String),
     IO(PathBuf, std::io::Error),
     Serde(serde_json::Error),
 }

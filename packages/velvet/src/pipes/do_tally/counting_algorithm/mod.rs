@@ -5,5 +5,5 @@
 mod error;
 pub mod plurality_at_large;
 
-mod tally;
-pub use tally::*;
+mod counting_algorithm;
+pub use counting_algorithm::*;

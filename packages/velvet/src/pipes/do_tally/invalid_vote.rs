@@ -10,5 +10,4 @@ use strum_macros::AsRefStr;
 pub enum InvalidVote {
     Implicit,
     Explicit,
-    MarkedAsInvalid,
 }

@@ -2,10 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::{
-    error::{Error, Result},
-    voting_system::{self, VotingSystem},
-};
+use super::{error::Result, tally};
 use crate::pipes::{
     decode_ballots::OUTPUT_DECODED_BALLOTS_FILE, pipe_inputs::PipeInputs, pipe_name::PipeName,
     pipe_name::PipeNameOutputDir, Pipe,
@@ -54,12 +51,12 @@ impl Pipe for DoTally {
                         )
                         .join(OUTPUT_DECODED_BALLOTS_FILE);
 
-                    let tally = voting_system::create_tally(
+                    let ca = tally::create_tally(
                         contest_input.config.as_path(),
                         decoded_ballots_file.as_path(),
                     )?;
 
-                    let res = tally.please_do()?;
+                    let res = ca.tally()?;
 
                     let mut file = self.pipe_inputs.get_path_for_data(
                         &output_dir,
