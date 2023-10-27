@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod add;
 pub mod create_ballot_style;
 pub mod create_board;
 pub mod create_keys;
