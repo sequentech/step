@@ -15,7 +15,7 @@ use structopt::StructOpt;
 use tracing::{event, instrument, Level};
 use windmill::services::celery_app::*;
 extern crate chrono;
-use chrono::{Utc, Duration, DateTime};
+use chrono::{DateTime, Duration, Utc};
 use windmill::tasks::add::add;
 
 #[derive(Debug, StructOpt)]
@@ -25,20 +25,17 @@ use windmill::tasks::add::add;
     setting = structopt::clap::AppSettings::ColoredHelp,
 )]
 enum CeleryOpt {
-    Consume,
-    Produce {
-        #[structopt(possible_values = &[
-            "add",
-            "create_ballot_style",
-            "create_board",
-            "create_keys",
-            "insert_ballots",
-            "render_report",
-            "set_public_key",
-            "update_voting_status",
-        ])]
-        tasks: Vec<String>,
+    Consume {
+        #[structopt(short, long, possible_values = &[
+            "short_queue", "reports_queue", "tally_queue", "beat"
+        ], default_value = "beat")]
+        queues: Vec<String>,
+        #[structopt(short, long, default_value = "100")]
+        prefetch_count: u16,
+        #[structopt(short, long)]
+        acks_late: bool,
     },
+    Produce,
 }
 
 fn get_seconds_later(seconds: i64) -> DateTime<Utc> {
@@ -52,41 +49,41 @@ async fn main() -> Result<()> {
     init_log(true);
     let opt = CeleryOpt::from_args();
 
-    let celery_app = get_celery_app().await;
-
     match opt {
-        CeleryOpt::Consume => {
+        CeleryOpt::Consume {
+            queues,
+            prefetch_count,
+            acks_late,
+        } => {
+            set_prefetch_count(prefetch_count);
+            set_acks_late(acks_late);
+            let celery_app = get_celery_app().await;
             celery_app.display_pretty().await;
+
+            let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
+
             celery_app
                 //.consume_from(&["short_queue", "reports_queue", "tally_queue"])
-                .consume_from(&["beat"])
+                .consume_from(&vec_str[..])
                 .await?;
+            celery_app.close().await?;
         }
-        CeleryOpt::Produce { tasks } => {
-            if tasks.is_empty() {
-                event!(Level::INFO, "Task is empty, not adding any new tasks");
-                // Basic task sending.
-                let task1 = celery_app
-                    .send_task(
-                        add::new(1, 2)
-                        .with_eta(get_seconds_later(100))
-                    )
-                    .await?;
-                event!(Level::INFO, "Sent task {}", task1.task_id);
+        CeleryOpt::Produce => {
+            let celery_app = get_celery_app().await;
+            event!(Level::INFO, "Task is empty, not adding any new tasks");
+            // Basic task sending.
+            let task1 = celery_app
+                .send_task(add::new(1, 2).with_eta(get_seconds_later(100)))
+                .await?;
+            event!(Level::INFO, "Sent task {}", task1.task_id);
 
-                let task2 = celery_app
-                    .send_task(
-                        add::new(0, 0)
-                        .with_eta(get_seconds_later(5))
-                    )
-                    .await?;
-                event!(Level::INFO, "Sent task {}", task2.task_id);
-            } else {
-                event!(Level::INFO, "There are {} tasks", tasks.len());
-            }
+            let task2 = celery_app
+                .send_task(add::new(0, 0).with_eta(get_seconds_later(5)))
+                .await?;
+            event!(Level::INFO, "Sent task {}", task2.task_id);
+            celery_app.close().await?;
         }
     };
 
-    celery_app.close().await?;
     Ok(())
 }

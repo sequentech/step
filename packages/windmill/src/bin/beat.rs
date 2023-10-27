@@ -6,9 +6,9 @@
 use anyhow::Result;
 use celery::beat::{CronSchedule, DeltaSchedule};
 use celery::task::TaskResult;
-use tokio::time::Duration;
 use dotenv::dotenv;
 use std;
+use tokio::time::Duration;
 use windmill::tasks::add::add;
 
 #[tokio::main]

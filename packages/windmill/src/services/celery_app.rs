@@ -6,9 +6,9 @@ use async_once::AsyncOnce;
 use celery::export::Arc;
 use celery::prelude::*;
 use celery::Celery;
-use tokio::runtime::Builder;
 use std;
-use tracing::{instrument, event, Level};
+use tokio::runtime::Builder;
+use tracing::{event, instrument, Level};
 
 use crate::tasks::add::add;
 use crate::tasks::create_ballot_style::create_ballot_style;
@@ -19,11 +19,35 @@ use crate::tasks::render_report::render_report;
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_voting_status::update_voting_status;
 
+static mut prefetch_count_s: u16 = 100;
+static mut acks_late_s: bool = true;
+
+pub fn set_prefetch_count(new_val: u16) {
+    unsafe {
+        prefetch_count_s = new_val;
+    }
+}
+
+pub fn set_acks_late(new_val: bool) {
+    unsafe {
+        acks_late_s = new_val;
+    }
+}
+
 #[instrument]
 pub async fn generate_celery_app() -> Arc<Celery> {
-    let prefetch_count: u16 = std::env::var("PREFETCH_COUNT").unwrap_or_else(|_| "100".into()).parse().unwrap();
-    let acks_late: bool = std::env::var("ACKS_LATE").unwrap_or_else(|_| "true".into()) == "true";
-    event!(Level::INFO, "prefetch_count: {}, acks_late: {}", prefetch_count, acks_late);
+    let prefetch_count: u16;
+    let acks_late: bool;
+    unsafe {
+        prefetch_count = prefetch_count_s;
+        acks_late = acks_late_s;
+    }
+    event!(
+        Level::INFO,
+        "prefetch_count: {}, acks_late: {}",
+        prefetch_count,
+        acks_late
+    );
     celery::app!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
@@ -54,7 +78,8 @@ pub async fn generate_celery_app() -> Arc<Celery> {
 }
 
 lazy_static! {
-    static ref CELERY_APP: AsyncOnce<Arc<Celery>> = AsyncOnce::new(async {generate_celery_app().await});
+    static ref CELERY_APP: AsyncOnce<Arc<Celery>> =
+        AsyncOnce::new(async { generate_celery_app().await });
 }
 
 pub async fn get_celery_app() -> Arc<Celery> {
