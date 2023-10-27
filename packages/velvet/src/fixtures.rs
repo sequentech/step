@@ -54,18 +54,24 @@ impl TestFixture {
     pub fn create_election_config(&self) -> Result<Uuid> {
         let uuid = Uuid::new_v4();
 
+        let mut ballot_style = get_election_config();
+        ballot_style.id = uuid.to_string();
+
         let mut path = self.input_dir_configs.join(format!("election__{uuid}"));
         fs::create_dir_all(path.as_path())?;
 
         path.push("election-config.json");
         let mut file = fs::File::create(path)?;
-        writeln!(file, "{}", serde_json::to_string(&get_election_config())?)?;
+        writeln!(file, "{}", serde_json::to_string(&ballot_style)?)?;
 
         Ok(uuid)
     }
 
     pub fn create_contest_config(&self, election_uuid: &Uuid) -> Result<Uuid> {
         let uuid = Uuid::new_v4();
+
+        let mut contest = get_contest_config();
+        contest.id = uuid.to_string();
 
         let dir = self
             .input_dir_configs
@@ -74,7 +80,7 @@ impl TestFixture {
         fs::create_dir_all(&dir)?;
 
         let mut file = fs::File::create(dir.join("contest-config.json"))?;
-        writeln!(file, "{}", serde_json::to_string(&get_contest_config())?)?;
+        writeln!(file, "{}", serde_json::to_string(&contest)?)?;
 
         Ok(uuid)
     }
