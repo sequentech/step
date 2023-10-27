@@ -22,9 +22,9 @@ pub struct Tally {
 }
 
 impl Tally {
-    pub fn new(contest_config: &Path, ballots_file: &Path) -> Result<Self> {
+    pub fn new(contest_config: &Path, ballots_files: Vec<PathBuf>) -> Result<Self> {
         let contest = Self::get_contest(contest_config)?;
-        let ballots = Self::get_ballots(ballots_file)?;
+        let ballots = Self::get_ballots(ballots_files)?;
         let id = Self::get_tally_type(&contest)?;
 
         Ok(Self {
@@ -53,16 +53,27 @@ impl Tally {
         Ok(res)
     }
 
-    fn get_ballots(file: &Path) -> Result<Vec<DecodedVoteContest>> {
-        let file = fs::File::open(&file).map_err(|e| Error::IO(PathBuf::from(file), e))?;
-        let res: Vec<DecodedVoteContest> = serde_json::from_reader(file)?;
+    fn get_ballots(files: Vec<PathBuf>) -> Result<Vec<DecodedVoteContest>> {
+        let mut res = vec![];
 
-        Ok(res)
+        for f in files {
+            let f = fs::File::open(&f).map_err(|e| Error::IO(PathBuf::from(f), e))?;
+            let votes: Vec<DecodedVoteContest> = serde_json::from_reader(f)?;
+            res.push(votes);
+        }
+
+        Ok(res
+            .into_iter()
+            .flatten()
+            .collect::<Vec<DecodedVoteContest>>())
     }
 }
 
-pub fn create_tally(contest_config: &Path, ballots_file: &Path) -> Result<Box<dyn CountingAlgorithm>> {
-    let tally = Tally::new(contest_config, ballots_file)?;
+pub fn create_tally(
+    contest_config: &Path,
+    ballots_files: Vec<PathBuf>,
+) -> Result<Box<dyn CountingAlgorithm>> {
+    let tally = Tally::new(contest_config, ballots_files)?;
 
     let ca = match tally.id {
         TallyType::PluralityAtLarge => PluralityAtLarge::new(tally),

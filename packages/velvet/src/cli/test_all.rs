@@ -260,7 +260,7 @@ mod tests {
                         .map_or(false, |f| f == OUTPUT_CONTEST_RESULT_FILE)
                 })
                 .count() as u32,
-            election_num * contest_num * region_num
+            election_num * contest_num * region_num + election_num * contest_num
         );
         Ok(())
     }

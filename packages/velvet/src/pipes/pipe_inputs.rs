@@ -50,7 +50,7 @@ impl PipeInputs {
         root: &Path,
         election_id: &Uuid,
         contest_id: &Uuid,
-        region_id: &Uuid,
+        region_id: Option<&Uuid>,
     ) -> PathBuf {
         let mut path = PathBuf::new();
 
@@ -58,7 +58,10 @@ impl PipeInputs {
         path.push(DEFAULT_DIR_BALLOTS);
         path.push(format!("{}{}", PREFIX_ELECTION, election_id));
         path.push(format!("{}{}", PREFIX_CONTEST, contest_id));
-        path.push(format!("{}{}", PREFIX_REGION, region_id));
+
+        if let Some(region_id) = region_id {
+            path.push(format!("{}{}", PREFIX_REGION, region_id));
+        }
 
         path
     }

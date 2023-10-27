@@ -42,7 +42,7 @@ impl Pipe for DecodeBallots {
                         &self.pipe_inputs.cli.input_dir,
                         &election_input.id,
                         &contest_input.id,
-                        &region_input.id,
+                        Some(&region_input.id),
                     );
                     file.push(BALLOTS_FILE);
                     let file = fs::File::open(&file).map_err(|e| Error::IO(file.clone(), e))?;
@@ -70,7 +70,7 @@ impl Pipe for DecodeBallots {
                             .join(PipeNameOutputDir::DecodeBallots.as_ref()),
                         &election_input.id,
                         &contest_input.id,
-                        &region_input.id,
+                        Some(&region_input.id),
                     );
 
                     fs::create_dir_all(&file)?;
