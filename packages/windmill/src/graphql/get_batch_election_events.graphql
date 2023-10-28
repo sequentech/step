@@ -1,0 +1,18 @@
+query GetBatchElectionEvents (
+   $limit: Int!,
+   $offset: Int!
+) {
+    sequent_backend_election_event(
+        where: {
+            is_archived: {_eq: false},
+        },
+        order_by: {
+          created_at: asc
+        },
+        limit: $limit,
+        offset: $offset
+    ) {
+        id
+        created_at
+    }
+}
