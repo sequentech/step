@@ -6,6 +6,7 @@ use celery::error::TaskError;
 use celery::prelude::*;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
+use sequent_core::services::openid;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -14,7 +15,7 @@ use tracing::instrument;
 
 use crate::hasura;
 use crate::services::s3;
-use sequent_core::services::openid;
+use crate::types::task_error::into_task_error;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum FormatType {
@@ -92,11 +93,11 @@ pub async fn render_report(
 ) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        .map_err(into_task_error)?;
     println!("auth headers: {:#?}", auth_headers);
     let hasura_response = hasura::tenant::get_tenant(auth_headers.clone(), tenant_id.clone())
         .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        .map_err(into_task_error)?;
     let username = hasura_response
         .data
         .expect("expected data".into())
@@ -110,7 +111,7 @@ pub async fn render_report(
 
     // render handlebars template
     let render = reports::render_template_text(input.template.as_str(), variables_map)
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        .map_err(into_task_error)?;
 
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {
@@ -123,12 +124,11 @@ pub async fn render_report(
             input.name,
         )
         .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        .map_err(into_task_error)?;
         return Ok(());
     }
 
-    let bytes =
-        pdf::html_to_pdf(render).map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    let bytes = pdf::html_to_pdf(render).map_err(into_task_error)?;
 
     let document_json = upload_and_return_document(
         bytes,
@@ -139,11 +139,10 @@ pub async fn render_report(
         input.name,
     )
     .await
-    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    .map_err(into_task_error)?;
 
     let document = document_json.clone().into_inner();
-    let _document_value = serde_json::to_value(document)
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    let _document_value = serde_json::to_value(document).map_err(into_task_error)?;
 
     Ok(())
 }

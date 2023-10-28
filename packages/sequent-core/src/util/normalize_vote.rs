@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::hasura_types::Uuid;
+use crate::types::hasura_types::Uuid;
 use crate::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 
 pub fn normalize_vote_contest(

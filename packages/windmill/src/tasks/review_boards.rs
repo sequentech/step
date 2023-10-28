@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::hasura;
+use crate::types::task_error::into_task_error;
 use celery::error::TaskError;
 use celery::task::TaskResult;
 use chrono::Utc;
@@ -18,7 +19,7 @@ pub async fn review_boards() -> TaskResult<()> {
     let mut last_length = limit;
     let auth_headers = openid::get_client_credentials()
         .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        .map_err(into_task_error)?;
 
     while last_length == limit {
         let hasura_response = hasura::election_event::get_batch_election_events(
@@ -27,7 +28,7 @@ pub async fn review_boards() -> TaskResult<()> {
             offset.clone(),
         )
         .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        .map_err(into_task_error)?;
         let election_events = &hasura_response
             .data
             .expect("expected data".into())

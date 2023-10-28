@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//use sequent_core::types::to_result::ToResult;
 use anyhow::{anyhow, Result};
 use graphql_client::Response;
 use tracing::{event, instrument, Level};
@@ -10,7 +11,7 @@ pub trait ToResult<T, E> {
     fn ok(self) -> Result<T, E>;
 }
 
-impl<T> ToResult<Response<T>, anyhow::Error> for Response<T> {
+impl ToResult<Response<T>, anyhow::Error> for Response<T> {
     #[instrument(skip_all)]
     fn ok(self) -> Result<Response<T>, anyhow::Error> {
         if self.errors.is_some() {

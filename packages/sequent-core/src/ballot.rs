@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_snake_case)]
 #![allow(dead_code)]
-use crate::hasura_types::Uuid;
+use crate::types::hasura_types::Uuid;
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

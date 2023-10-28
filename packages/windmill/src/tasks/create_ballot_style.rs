@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::types::task_error::into_task_error;
 use anyhow::{Context, Result};
 use celery::error::TaskError;
 use celery::prelude::*;
@@ -18,12 +19,12 @@ use crate::hasura::ballot_style::get_ballot_style_area;
 use crate::services::date::ISO8601;
 
 impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
-    for sequent_core::hasura_types::ElectionEvent
+    for sequent_core::types::hasura_types::ElectionEvent
 {
     fn from(
         election_event: &get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent,
     ) -> Self {
-        sequent_core::hasura_types::ElectionEvent {
+        sequent_core::types::hasura_types::ElectionEvent {
             id: election_event.id.clone(),
             created_at: election_event
                 .created_at
@@ -54,10 +55,10 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
 }
 
 impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElection>
-    for sequent_core::hasura_types::Election
+    for sequent_core::types::hasura_types::Election
 {
     fn from(election: &get_ballot_style_area::GetBallotStyleAreaSequentBackendElection) -> Self {
-        sequent_core::hasura_types::Election {
+        sequent_core::types::hasura_types::Election {
             id: election.id.clone(),
             tenant_id: election.tenant_id.clone(),
             election_event_id: election.election_event_id.clone(),
@@ -85,12 +86,12 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElection>
 }
 
 impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestContest>
-    for sequent_core::hasura_types::Contest
+    for sequent_core::types::hasura_types::Contest
 {
     fn from(
         contest: get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestContest,
     ) -> Self {
-        sequent_core::hasura_types::Contest {
+        sequent_core::types::hasura_types::Contest {
             id: contest.id.clone(),
             tenant_id: contest.tenant_id.clone(),
             election_event_id: contest.election_event_id.clone(),
@@ -122,12 +123,12 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
 }
 
 impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestContestCandidates>
-    for sequent_core::hasura_types::Candidate
+    for sequent_core::types::hasura_types::Candidate
 {
     fn from(
         candidate: get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestContestCandidates,
     ) -> Self {
-        sequent_core::hasura_types::Candidate {
+        sequent_core::types::hasura_types::Candidate {
             id: candidate.id.clone(),
             tenant_id: candidate.tenant_id.clone(),
             election_event_id: candidate.election_event_id.clone(),
@@ -152,10 +153,10 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
 }
 
 impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendArea>
-    for sequent_core::hasura_types::Area
+    for sequent_core::types::hasura_types::Area
 {
     fn from(area: &get_ballot_style_area::GetBallotStyleAreaSequentBackendArea) -> Self {
-        sequent_core::hasura_types::Area {
+        sequent_core::types::hasura_types::Area {
             id: area.id.clone(),
             tenant_id: area.tenant_id.clone(),
             election_event_id: area.election_event_id.clone(),
@@ -190,7 +191,7 @@ pub async fn create_ballot_style(
 ) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        .map_err(into_task_error)?;
     let hasura_response = hasura::ballot_style::get_ballot_style_area(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -198,10 +199,10 @@ pub async fn create_ballot_style(
         body.area_id.clone(),
     )
     .await
-    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?
+    .map_err(into_task_error)?
     .data
     .with_context(|| "can't find election event")
-    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    .map_err(into_task_error)?;
 
     let area = &hasura_response.sequent_backend_area[0];
     let election_event: &get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent =
@@ -225,7 +226,7 @@ pub async fn create_ballot_style(
             .contest
             .clone()
             .with_context(|| format!("contest not found for area contest {}", area_contest.id))
-            .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+            .map_err(into_task_error)?;
         let _election_id = contest.election_id.clone();
         election_contest_map
             .entry(contest.election_id.clone())
@@ -238,53 +239,53 @@ pub async fn create_ballot_style(
             .iter()
             .find(|election| election.id == election_id)
             .with_context(|| format!("election id not found {}", election_id))
-            .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+            .map_err(into_task_error)?;
         let contests = contest_ids
             .clone()
             .into_iter()
             .map(
-                |contest_id| -> Result<sequent_core::hasura_types::Contest> {
+                |contest_id| -> Result<sequent_core::types::hasura_types::Contest> {
                     let area_contest = area_contests
                         .iter()
                         .find(|area_contest| area_contest.contest_id == Some(contest_id.clone()))
                         .with_context(|| format!("contest id not found {}", contest_id))
-                        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-                    Ok(sequent_core::hasura_types::Contest::from(
+                        .map_err(into_task_error)?;
+                    Ok(sequent_core::types::hasura_types::Contest::from(
                         area_contest.contest.clone().unwrap(),
                     ))
                 },
             )
-            .collect::<Result<Vec<sequent_core::hasura_types::Contest>>>()
-            .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-        let candidates: Vec<sequent_core::hasura_types::Candidate> = contest_ids
+            .collect::<Result<Vec<sequent_core::types::hasura_types::Contest>>>()
+            .map_err(into_task_error)?;
+        let candidates: Vec<sequent_core::types::hasura_types::Candidate> = contest_ids
             .into_iter()
             .map(
-                |contest_id| -> Result<Vec<sequent_core::hasura_types::Candidate>> {
+                |contest_id| -> Result<Vec<sequent_core::types::hasura_types::Candidate>> {
                     let area_contest = area_contests
                         .iter()
                         .find(|area_contest| area_contest.contest_id == Some(contest_id.clone()))
                         .with_context(|| format!("contest id not found {}", contest_id))
-                        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+                        .map_err(into_task_error)?;
                     area_contest
                         .contest
                         .clone()
                         .with_context(|| {
                             format!("contest missing on area contest id {}", area_contest.id)
                         })
-                        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?
+                        .map_err(into_task_error)?
                         .candidates
                         .into_iter()
                         .map(|candidate| {
-                            Ok(sequent_core::hasura_types::Candidate::from(
+                            Ok(sequent_core::types::hasura_types::Candidate::from(
                                 candidate.clone(),
                             ))
                         })
-                        .collect::<Result<Vec<sequent_core::hasura_types::Candidate>>>()
+                        .collect::<Result<Vec<sequent_core::types::hasura_types::Candidate>>>()
                 },
             )
             .into_iter()
-            .collect::<Result<Vec<Vec<sequent_core::hasura_types::Candidate>>>>()
-            .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?
+            .collect::<Result<Vec<Vec<sequent_core::types::hasura_types::Candidate>>>>()
+            .map_err(into_task_error)?
             .into_iter()
             .flatten()
             .collect();
@@ -292,14 +293,14 @@ pub async fn create_ballot_style(
         let ballot_style_id = Uuid::new_v4();
         let election_dto = sequent_core::ballot_style::create_ballot_style(
             ballot_style_id.clone().to_string(),
-            sequent_core::hasura_types::Area::from(area),
-            sequent_core::hasura_types::ElectionEvent::from(election_event),
-            sequent_core::hasura_types::Election::from(election),
+            sequent_core::types::hasura_types::Area::from(area),
+            sequent_core::types::hasura_types::ElectionEvent::from(election_event),
+            sequent_core::types::hasura_types::Election::from(election),
             contests,
             candidates,
         );
-        let election_dto_json_string = serde_json::to_string(&election_dto)
-            .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        let election_dto_json_string =
+            serde_json::to_string(&election_dto).map_err(into_task_error)?;
         let _hasura_response = hasura::ballot_style::insert_ballot_style(
             auth_headers.clone(),
             ballot_style_id.to_string(),
@@ -312,7 +313,7 @@ pub async fn create_ballot_style(
             None,
         )
         .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        .map_err(into_task_error)?;
     }
 
     Ok(())

@@ -11,6 +11,7 @@ use tracing::instrument;
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
+use crate::types::task_error::into_task_error;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct InsertBallotsPayload {
@@ -26,7 +27,7 @@ pub async fn insert_ballots(
 ) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        .map_err(into_task_error)?;
     // fetch election_event
     let hasura_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
@@ -34,7 +35,7 @@ pub async fn insert_ballots(
         election_event_id.clone(),
     )
     .await
-    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    .map_err(into_task_error)?;
     let election_event = &hasura_response
         .data
         .expect("expected data".into())
@@ -42,8 +43,7 @@ pub async fn insert_ballots(
 
     // check config is already created
     let status: Option<ElectionEventStatus> = match election_event.status.clone() {
-        Some(value) => serde_json::from_value(value)
-            .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?,
+        Some(value) => serde_json::from_value(value).map_err(into_task_error)?,
         None => None,
     };
     if !status
@@ -63,7 +63,7 @@ pub async fn insert_ballots(
 
     let _board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        .map_err(into_task_error)?;
 
     let _cast_ballots_response = hasura::cast_ballot::find_ballots(
         auth_headers.clone(),
@@ -71,7 +71,7 @@ pub async fn insert_ballots(
         election_event_id.clone(),
     )
     .await
-    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    .map_err(into_task_error)?;
 
     Ok(())
 }
