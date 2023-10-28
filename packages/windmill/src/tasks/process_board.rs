@@ -15,6 +15,7 @@ use crate::types::task_error::into_task_error;
 #[instrument]
 #[celery::task]
 pub async fn process_board(election_event_id: String, tenant_id: String) -> TaskResult<()> {
+    // get credentials
     let auth_headers = openid::get_client_credentials()
         .await
         .map_err(into_task_error)?;
@@ -30,5 +31,7 @@ pub async fn process_board(election_event_id: String, tenant_id: String) -> Task
         .data
         .expect("expected data".into())
         .sequent_backend_election_event[0];
+    
+    
     Ok(())
 }
