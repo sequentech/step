@@ -8,9 +8,12 @@ use sequent_core::services::connection::AuthHeaders;
 use sequent_core::services::openid;
 use tracing::instrument;
 use tracing::{event, Level};
+use strand::backend::ristretto::RistrettoCtx;
 
+use crate::services::election_event_board::get_election_event_board;
 use crate::hasura;
 use crate::types::task_error::into_task_error;
+use crate::services::protocol_manager;
 
 #[instrument]
 #[celery::task]
@@ -32,6 +35,13 @@ pub async fn process_board(election_event_id: String, tenant_id: String) -> Task
         .expect("expected data".into())
         .sequent_backend_election_event[0];
     
-    
+    let bulletin_board_opt = get_election_event_board(election_event.bulletin_board_reference.clone());
+    if bulletin_board_opt.is_none() {
+        return Ok(());
+    }
+    let bulletin_board = bulletin_board_opt.unwrap();
+
+    let pm = protocol_manager::gen_protocol_manager::<RistrettoCtx>();
+
     Ok(())
 }

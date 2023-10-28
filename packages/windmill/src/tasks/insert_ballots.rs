@@ -65,13 +65,18 @@ pub async fn insert_ballots(
         .with_context(|| "missing bulletin board")
         .map_err(into_task_error)?;
 
-    let _cast_ballots_response = hasura::cast_ballot::find_ballots(
+    let cast_ballots_response = hasura::cast_ballot::find_ballots(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
     )
     .await
     .map_err(into_task_error)?;
+
+    let ballots_list = &cast_ballots_response
+        .data
+        .expect("expected data".into())
+        .sequent_backend_cast_vote;
 
     Ok(())
 }
