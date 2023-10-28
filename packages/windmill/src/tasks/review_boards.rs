@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
 use crate::hasura;
+use crate::services::celery_app::get_celery_app;
 use crate::tasks::process_board::process_board;
 use crate::types::task_error::into_task_error;
 use celery::error::TaskError;
@@ -21,6 +21,7 @@ pub async fn review_boards() -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
         .map_err(into_task_error)?;
+    let celery_app = get_celery_app().await;
 
     while last_length == limit {
         let hasura_response = hasura::election_event::get_batch_election_events(
@@ -39,8 +40,12 @@ pub async fn review_boards() -> TaskResult<()> {
 
         for election_event in election_events {
             let task2 = celery_app
-                .send_task(process_board::new(election_event.id, election_event.tenant_id))
-                .await?;
+                .send_task(process_board::new(
+                    election_event.id.clone(),
+                    election_event.tenant_id.clone(),
+                ))
+                .await
+                .map_err(into_task_error)?;
             event!(Level::INFO, "Sent task {}", task2.task_id);
         }
     }

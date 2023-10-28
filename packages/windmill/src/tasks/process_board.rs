@@ -18,7 +18,7 @@ pub async fn process_board(election_event_id: String, tenant_id: String) -> Task
     let auth_headers = openid::get_client_credentials()
         .await
         .map_err(into_task_error)?;
-        // fetch election_event
+    // fetch election_event
     let hasura_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
         tenant_id.clone(),
