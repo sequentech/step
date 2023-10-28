@@ -6,10 +6,22 @@
 use anyhow::Result;
 use celery::beat::DeltaSchedule;
 use dotenv::dotenv;
+use sequent_core::util::date::get_seconds_later;
 use std;
+use structopt::StructOpt;
 use tokio::time::Duration;
 use windmill::tasks::review_boards::review_boards;
-use sequent_core::util::date::get_seconds_later;
+
+#[derive(Debug, StructOpt)]
+#[structopt(
+    name = "windmill",
+    about = "Run a Rust Celery producer or consumer.",
+    setting = structopt::clap::AppSettings::ColoredHelp,
+)]
+struct CeleryOpt {
+    #[structopt(short, long, default_value = "60")]
+    interval: u64,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -21,7 +33,7 @@ async fn main() -> Result<()> {
         tasks = [
             "review_boards" => {
                 review_boards,
-                schedule = DeltaSchedule::new(Duration::from_secs(60)),
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().interval)),
                 args = (),
             },
         ],

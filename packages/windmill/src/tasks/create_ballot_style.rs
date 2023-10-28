@@ -226,7 +226,7 @@ pub async fn create_ballot_style(
             .clone()
             .with_context(|| format!("contest not found for area contest {}", area_contest.id))
             .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-        let election_id = contest.election_id.clone();
+        let _election_id = contest.election_id.clone();
         election_contest_map
             .entry(contest.election_id.clone())
             .and_modify(|contest_ids| contest_ids.push(contest.id.clone()))
@@ -300,7 +300,7 @@ pub async fn create_ballot_style(
         );
         let election_dto_json_string = serde_json::to_string(&election_dto)
             .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-        let hasura_response = hasura::ballot_style::insert_ballot_style(
+        let _hasura_response = hasura::ballot_style::insert_ballot_style(
             auth_headers.clone(),
             ballot_style_id.to_string(),
             tenant_id.clone(),

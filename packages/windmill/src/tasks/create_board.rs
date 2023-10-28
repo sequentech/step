@@ -55,7 +55,7 @@ pub async fn create_board(
     let board_value = serde_json::to_value(board_serializable.clone())
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
-    let hasura_response = hasura::election_event::update_election_event_board(
+    let _hasura_response = hasura::election_event::update_election_event_board(
         auth_headers.clone(),
         tenant_id.to_string(),
         election_event_id.to_string(),
@@ -64,7 +64,7 @@ pub async fn create_board(
     .await
     .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
-    let board_json = serde_json::to_value(board_serializable.clone())
+    let _board_json = serde_json::to_value(board_serializable.clone())
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     Ok(board_serializable)

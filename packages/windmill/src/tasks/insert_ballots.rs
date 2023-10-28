@@ -61,11 +61,11 @@ pub async fn insert_ballots(
         ));
     }
 
-    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+    let _board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
-    let cast_ballots_response = hasura::cast_ballot::find_ballots(
+    let _cast_ballots_response = hasura::cast_ballot::find_ballots(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),

@@ -8,14 +8,14 @@ use celery::Celery;
 use std;
 use tracing::{event, instrument, Level};
 
-use crate::tasks::review_boards::review_boards;
 use crate::tasks::create_ballot_style::create_ballot_style;
 use crate::tasks::create_board::create_board;
+use crate::tasks::create_keys::create_keys;
 use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::render_report::render_report;
+use crate::tasks::review_boards::review_boards;
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_voting_status::update_voting_status;
-use crate::tasks::create_keys::create_keys;
 
 static mut PREFETCH_COUNT_S: u16 = 100;
 static mut ACKS_LATE_S: bool = true;

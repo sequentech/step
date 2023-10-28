@@ -142,7 +142,7 @@ pub async fn render_report(
     .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     let document = document_json.clone().into_inner();
-    let document_value = serde_json::to_value(document)
+    let _document_value = serde_json::to_value(document)
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
     Ok(())

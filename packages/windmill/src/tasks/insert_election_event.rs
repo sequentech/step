@@ -11,8 +11,8 @@ use crate::hasura::election_event::insert_election_event;
 #[instrument(skip_all)]
 #[celery::task]
 pub async fn insert_election_event_t(
-    auth_headers: connection::AuthHeaders,
-    object: insert_election_event::sequent_backend_election_event_insert_input,
+    _auth_headers: connection::AuthHeaders,
+    _object: insert_election_event::sequent_backend_election_event_insert_input,
 ) -> TaskResult<()> {
     // TODO
     Ok(())

@@ -7,13 +7,12 @@ extern crate lazy_static;
 
 use anyhow::Result;
 use sequent_core::util::init_log::init_log;
-use sequent_core::util::date::get_seconds_later;
+
 use dotenv::dotenv;
 use structopt::StructOpt;
 use tracing::{event, Level};
 use windmill::services::celery_app::*;
 extern crate chrono;
-use chrono::{DateTime, Duration, Utc};
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -54,9 +53,7 @@ async fn main() -> Result<()> {
 
             let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
 
-            celery_app
-                .consume_from(&vec_str[..])
-                .await?;
+            celery_app.consume_from(&vec_str[..]).await?;
             celery_app.close().await?;
         }
         CeleryOpt::Produce => {

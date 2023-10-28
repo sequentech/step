@@ -13,7 +13,7 @@ use tracing::{event, instrument, Level};
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
 use crate::services::celery_app::*;
-use crate::services::election_event_board::{get_election_event_board};
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::public_keys;
 use crate::tasks::set_public_key::set_public_key;
 
