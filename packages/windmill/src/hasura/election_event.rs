@@ -53,6 +53,14 @@ pub struct GetElectionEvent;
 )]
 pub struct InsertElectionEvent;
 
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/get_batch_election_events.graphql",
+    response_derives = "Debug"
+)]
+pub struct GetBatchElectionEvents;
+
 #[instrument(skip_all)]
 pub async fn update_election_event_board(
     auth_headers: connection::AuthHeaders,
@@ -181,14 +189,6 @@ pub async fn insert_election_event_f(
     let response_body: Response<insert_election_event::ResponseData> = res.json().await?;
     response_body.ok()
 }
-
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/get_batch_election_events.graphql",
-    response_derives = "Debug"
-)]
-pub struct GetBatchElectionEvents;
 
 #[instrument(skip_all)]
 pub async fn get_batch_election_events(

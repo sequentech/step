@@ -2,17 +2,39 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::hasura;
+use celery::error::TaskError;
 use celery::task::TaskResult;
 use chrono::Utc;
+use sequent_core::services::openid;
 use tracing::instrument;
 use tracing::{event, Level};
 
 #[instrument]
 #[celery::task]
-pub fn review_boards() -> TaskResult<()> {
-    let _current_time = Utc::now();
+pub async fn review_boards() -> TaskResult<()> {
+    let limit: i64 = 100;
+    let mut offset: i64 = 0;
+    let mut last_length = limit;
+    let auth_headers = openid::get_client_credentials()
+        .await
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
 
-    event!(Level::INFO, "This is too late");
+    while last_length == limit {
+        let hasura_response = hasura::election_event::get_batch_election_events(
+            auth_headers.clone(),
+            limit.clone(),
+            offset.clone(),
+        )
+        .await
+        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        let election_events = &hasura_response
+            .data
+            .expect("expected data".into())
+            .sequent_backend_election_event;
+        last_length = election_events.len() as i64;
+        offset = offset + last_length;
+    }
 
     Ok(())
 }
