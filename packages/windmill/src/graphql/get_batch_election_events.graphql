@@ -13,6 +13,7 @@ query GetBatchElectionEvents (
         offset: $offset
     ) {
         id
+        tenant_id
         created_at
     }
 }

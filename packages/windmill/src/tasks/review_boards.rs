@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::hasura;
+use crate::tasks::process_board::process_board;
 use crate::types::task_error::into_task_error;
 use celery::error::TaskError;
 use celery::task::TaskResult;
@@ -35,6 +36,13 @@ pub async fn review_boards() -> TaskResult<()> {
             .sequent_backend_election_event;
         last_length = election_events.len() as i64;
         offset = offset + last_length;
+
+        for election_event in election_events {
+            let task2 = celery_app
+                .send_task(process_board::new(election_event.id, election_event.tenant_id))
+                .await?;
+            event!(Level::INFO, "Sent task {}", task2.task_id);
+        }
     }
 
     Ok(())
