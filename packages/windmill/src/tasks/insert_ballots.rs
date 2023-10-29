@@ -11,6 +11,7 @@ use sequent_core::services::openid;
 use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
 use tracing::instrument;
+use strand::elgamal::Ciphertext;
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
@@ -95,15 +96,15 @@ pub async fn insert_ballots(
                         value
                             .contests
                             .iter()
-                            .find(|contest| contest.id == contest_id)
-                            .map(|contest| contest.map(|val| val.ciphertext))
-                            .collect()
+                            .find(|contest| contest.contest_id == contest_id)
+                            .map(|contest| contest.ciphertext.clone())
                     })
+                    .flatten()
                 })
                 .flatten()
         })
         .filter(|ballot| ballot.is_some())
-        .map(|ballot| ballot.unwrap())
+        .map(|ballot| ballot.clone().unwrap())
         .collect();
 
     Ok(())
