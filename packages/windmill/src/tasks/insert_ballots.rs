@@ -123,6 +123,7 @@ pub async fn insert_ballots(
         password.as_str(),
         board_name.as_str(),
         insertable_ballots,
+        &pm,
     )
     .await
     .map_err(into_task_error)?;

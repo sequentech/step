@@ -5,8 +5,9 @@
 use braid_messages::artifact::DkgPublicKey;
 use braid_messages::artifact::{Ballots, Configuration, Plaintexts};
 use braid_messages::message::Message;
+use braid_messages::newtypes::BatchNumber;
 use braid_messages::newtypes::PublicKeyHash;
-use braid_messages::newtypes::{MAX_TRUSTEES, NULL_TRUSTEE, TrusteeSet};
+use braid_messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
 use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use braid_messages::statement::StatementType;
 
@@ -14,6 +15,7 @@ use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
+use strand::serialization::StrandSerialize;
 use strand::util::StrandError;
 
 use anyhow::{Context, Result};
@@ -114,7 +116,7 @@ pub async fn add_ballots_to_board<C: Ctx>(
     password: &str,
     board_name: &str,
     ballots: Vec<Ciphertext<C>>,
-    pm: &ProtocolManager<C>
+    pm: &ProtocolManager<C>,
 ) -> Result<()> {
     let mut board = BoardClient::new(&server_url, &user, &password).await?;
     let board_messages = board.get_messages(board_name, -1).await?;
@@ -129,10 +131,22 @@ pub async fn add_ballots_to_board<C: Ctx>(
                 && message.artifact.is_some()
         })
         .unwrap();
-    let configuration = Configuration::<C>::strand_deserialize(
-        &configuration_msg.artifact.clone().unwrap(),
-    )
-    .unwrap();
+    let configuration =
+        Configuration::<C>::strand_deserialize(&configuration_msg.artifact.clone().unwrap())
+            .unwrap();
+
+    let public_key_message = messages
+        .iter()
+        .find(|message| {
+            StatementType::PublicKey == message.statement.get_kind() && message.artifact.is_some()
+        })
+        .unwrap();
+    let public_key_bytes = public_key_message.artifact.clone().unwrap();
+    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&public_key_bytes).unwrap();
+    let pk_bytes = dkgpk.strand_serialize()?;
+    let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
+    let public_key_hash = PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap());
+
     let mut selected_trustees: TrusteeSet = [NULL_TRUSTEE; MAX_TRUSTEES];
     for i in 0..configuration.trustees.len() {
         selected_trustees[i] = i + 1;
@@ -140,12 +154,12 @@ pub async fn add_ballots_to_board<C: Ctx>(
 
     let batch: BatchNumber = 0;
 
-    let message = Message::ballots_msg::<C>(
+    let message = Message::ballots_msg::<C, ProtocolManager<C>>(
         &configuration,
         batch,
         &Ballots::<C>::new(ballots),
         selected_trustees,
-        pk_h: PublicKeyHash,
+        public_key_hash,
         pm,
     )?;
     info!("Adding configuration to the board..");
