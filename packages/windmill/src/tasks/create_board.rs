@@ -4,7 +4,6 @@
 
 use crate::types::task_error::into_task_error;
 use anyhow::Result;
-use celery::error::TaskError;
 use celery::prelude::*;
 use immu_board::BoardClient;
 use sequent_core;

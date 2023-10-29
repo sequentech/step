@@ -7,7 +7,6 @@ use sequent_core::services::connection;
 use tracing::instrument;
 
 use crate::hasura::election_event::insert_election_event;
-use crate::types::task_error::into_task_error;
 
 #[instrument(skip_all)]
 #[celery::task]

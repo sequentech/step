@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use braid_messages::artifact::DkgPublicKey;
-use braid_messages::artifact::{Ballots, Configuration, Plaintexts};
+use braid_messages::artifact::{Ballots, Configuration};
 use braid_messages::message::Message;
 use braid_messages::newtypes::BatchNumber;
 use braid_messages::newtypes::PublicKeyHash;
@@ -11,7 +11,6 @@ use braid_messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
 use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use braid_messages::statement::StatementType;
 
-use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
@@ -21,6 +20,7 @@ use strand::util::StrandError;
 use anyhow::{Context, Result};
 use std::marker::PhantomData;
 use tracing::{info, instrument};
+use std::env;
 
 use immu_board::{BoardClient, BoardMessage};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -156,13 +156,17 @@ pub async fn get_board_messages(board: &mut BoardClient, board_name: &str) -> Re
 
 #[instrument(skip_all)]
 pub async fn add_ballots_to_board<C: Ctx>(
-    server_url: &str,
-    user: &str,
-    password: &str,
     board_name: &str,
     ballots: Vec<Ciphertext<C>>,
-    pm: &ProtocolManager<C>,
 ) -> Result<()> {
+    // 1. get env vars
+    let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
+    let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
+    let server_url =
+        env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
+
+    let pm = gen_protocol_manager::<C>();
+
     let mut board = BoardClient::new(&server_url, &user, &password).await?;
     let messages: Vec<Message> = get_board_messages(&mut board, board_name).await?;
     let configuration = get_configuration::<C>(&messages)?;
@@ -177,9 +181,11 @@ pub async fn add_ballots_to_board<C: Ctx>(
         &Ballots::<C>::new(ballots),
         selected_trustees,
         public_key_hash,
-        pm,
+        &pm,
     )?;
     info!("Adding configuration to the board..");
     let board_message: BoardMessage = message.try_into()?;
-    board.insert_messages(board_name, &vec![board_message]).await
+    board
+        .insert_messages(board_name, &vec![board_message])
+        .await
 }

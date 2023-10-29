@@ -4,7 +4,6 @@
 
 use crate::types::task_error::into_task_error;
 use anyhow::{Context, Result};
-use celery::error::TaskError;
 use celery::prelude::*;
 use sequent_core;
 use sequent_core::services::openid;

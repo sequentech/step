@@ -9,7 +9,6 @@ use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::services::openid;
 use serde::{Deserialize, Serialize};
-use std::env;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use tracing::instrument;
@@ -109,24 +108,10 @@ pub async fn insert_ballots(
         .filter(|ballot| ballot.is_some())
         .map(|ballot| ballot.clone().unwrap())
         .collect();
-    // 1. get env vars
-    let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
-    let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
-    let server_url =
-        env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
 
-    let pm = gen_protocol_manager::<RistrettoCtx>();
-
-    add_ballots_to_board(
-        server_url.as_str(),
-        user.as_str(),
-        password.as_str(),
-        board_name.as_str(),
-        insertable_ballots,
-        &pm,
-    )
-    .await
-    .map_err(into_task_error)?;
+    add_ballots_to_board(board_name.as_str(), insertable_ballots)
+        .await
+        .map_err(into_task_error)?;
 
     Ok(())
 }

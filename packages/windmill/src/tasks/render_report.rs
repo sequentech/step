@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
-use celery::error::TaskError;
 use celery::prelude::*;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;

@@ -355,6 +355,7 @@ impl ElectionEventStatus {
     }
 }
 
+#[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
     BorshDeserialize,

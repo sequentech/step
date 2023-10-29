@@ -6,7 +6,6 @@
 use anyhow::Result;
 use celery::beat::DeltaSchedule;
 use dotenv::dotenv;
-use sequent_core::util::date::get_seconds_later;
 use std;
 use structopt::StructOpt;
 use tokio::time::Duration;

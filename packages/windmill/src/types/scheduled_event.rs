@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+#![allow(non_camel_case_types)]
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
