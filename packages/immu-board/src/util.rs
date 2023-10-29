@@ -29,3 +29,8 @@ pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     tracing_log::LogTracer::init().unwrap();
     reload_handle
 }
+
+pub fn get_board_name(tenant_id: &str, election_event_id: &str)
+-> String {
+    format!("tenant/{}/event/{}", tenant_id, election_event_id)
+}
