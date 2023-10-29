@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
 use celery::error::TaskError;
 use celery::prelude::*;
 use immu_board::{BoardClient, util::get_board_name};
@@ -14,6 +13,7 @@ use std::env;
 use tracing::instrument;
 
 use crate::hasura;
+use crate::types::error::{Error, Result};
 use crate::services::election_event_board::BoardSerializable;
 use crate::hasura::election_event::{
     insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput
@@ -36,17 +36,15 @@ pub async fn create_immu_board(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,
     election_event_id: &str,
-) -> TaskResult<()> {
+) -> Result<()> {
 
     let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
     let board_name = get_board_name(tenant_id, election_event_id);
     let mut board_client = get_board_client()
-        .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        .await?;
     let board = board_client
         .create_board(&index_db, &board_name)
-        .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        .await?;
     Ok(())
 }
 
@@ -54,7 +52,7 @@ pub async fn create_immu_board(
 pub async fn create_keycloak_realm(
     auth_headers: &connection::AuthHeaders,
     object: &InsertElectionEventInput,
-) -> TaskResult<()> {
+) -> Result<()> {
     todo!()
 }
 
@@ -62,13 +60,12 @@ pub async fn create_keycloak_realm(
 pub async fn insert_election_event_db(
     auth_headers: &connection::AuthHeaders,
     object: &InsertElectionEventInput,
-) -> TaskResult<()> {
+) -> Result<()> {
     let hasura_response = hasura::election_event::insert_election_event_f(
         auth_headers.clone(),
         object.clone(),
     )
-    .await
-    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    .await?;
 
     Ok(())
 }
@@ -80,18 +77,18 @@ pub async fn insert_election_event_t(
 ) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        .map_err(Error::from)?;
 
     create_immu_board(
         &auth_headers,
         &object.tenant_id
             .as_ref()
             .ok_or("empty-tenant-id")
-            .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?,
+            .map_err(Error::from)?,
         &object.id
             .as_ref()
-            .ok_or("empty-tenant-id")
-            .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?,
+            .ok_or("empty-election-event-id")
+            .map_err(Error::from)?,
     ).await?;
     create_keycloak_realm(&auth_headers, &object).await?;
     insert_election_event_db(&auth_headers, &object).await?;
