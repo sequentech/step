@@ -1,10 +1,10 @@
-use borsh::{BorshDeserialize, BorshSerialize};
 use anyhow::Result;
+use borsh::{BorshDeserialize, BorshSerialize};
 
-use strand::context::Ctx;
-use strand::serialization::StrandSerialize;
 use crate::artifact::Configuration;
+use strand::context::Ctx;
 use strand::hash::Hash;
+use strand::serialization::StrandSerialize;
 
 pub const MAX_TRUSTEES: usize = 12;
 pub const PROTOCOL_MANAGER_INDEX: usize = 1000;
@@ -142,9 +142,9 @@ fn dbg_hashes<const N: usize>(hs: &[Hash; N]) -> String {
     hs.map(|h| {
         if h == [0u8; 64] {
             "-".to_string()
-        }
-        else {
+        } else {
             hex::encode(h)[0..10].to_string()
         }
-    }).join(" ")
+    })
+    .join(" ")
 }

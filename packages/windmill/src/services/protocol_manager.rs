@@ -6,8 +6,7 @@ use braid_messages::artifact::DkgPublicKey;
 use braid_messages::artifact::{Ballots, Configuration, Plaintexts};
 use braid_messages::message::Message;
 use braid_messages::newtypes::PublicKeyHash;
-use braid_messages::newtypes::MAX_TRUSTEES;
-use braid_messages::newtypes::NULL_TRUSTEE;
+use braid_messages::newtypes::{MAX_TRUSTEES, NULL_TRUSTEE, TrusteeSet};
 use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use braid_messages::statement::StatementType;
 
@@ -109,12 +108,13 @@ pub async fn get_board_public_key<C: Ctx>(
 }
 
 #[instrument(skip_all)]
-pub async fn add_ballots_to_board(
+pub async fn add_ballots_to_board<C: Ctx>(
     server_url: &str,
     user: &str,
     password: &str,
     board_name: &str,
-    ballots: Vec<Ciphertext<RistrettoCtx>>,
+    ballots: Vec<Ciphertext<C>>,
+    pm: &ProtocolManager<C>
 ) -> Result<()> {
     let mut board = BoardClient::new(&server_url, &user, &password).await?;
     let board_messages = board.get_messages(board_name, -1).await?;
@@ -129,19 +129,25 @@ pub async fn add_ballots_to_board(
                 && message.artifact.is_some()
         })
         .unwrap();
-    let configuration = Configuration::<RistrettoCtx>::strand_deserialize(
+    let configuration = Configuration::<C>::strand_deserialize(
         &configuration_msg.artifact.clone().unwrap(),
     )
     .unwrap();
-    /*let message = Message::ballots_msg(
-        cfg: &Configuration<C>,
-        batch: BatchNumber,
-        ballots: &Ballots<C>,
-        selected_trustees: TrusteeSet,
+    let mut selected_trustees: TrusteeSet = [NULL_TRUSTEE; MAX_TRUSTEES];
+    for i in 0..configuration.trustees.len() {
+        selected_trustees[i] = i + 1;
+    }
+
+    let batch: BatchNumber = 0;
+
+    let message = Message::ballots_msg::<C>(
+        &configuration,
+        batch,
+        &Ballots::<C>::new(ballots),
+        selected_trustees,
         pk_h: PublicKeyHash,
-        pm: &S,
+        pm,
     )?;
-    */
     info!("Adding configuration to the board..");
     //board.insert_messages(board_name, &vec![message]).await
     Ok(())
