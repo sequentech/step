@@ -109,21 +109,7 @@ pub async fn get_board_public_key<C: Ctx>(
     Ok(dkgpk.pk)
 }
 
-#[instrument(skip_all)]
-pub async fn add_ballots_to_board<C: Ctx>(
-    server_url: &str,
-    user: &str,
-    password: &str,
-    board_name: &str,
-    ballots: Vec<Ciphertext<C>>,
-    pm: &ProtocolManager<C>,
-) -> Result<()> {
-    let mut board = BoardClient::new(&server_url, &user, &password).await?;
-    let board_messages = board.get_messages(board_name, -1).await?;
-    let messages: Vec<Message> = board_messages
-        .iter()
-        .map(|board_message| Message::strand_deserialize(&board_message.message))
-        .collect::<Result<Vec<_>, StrandError>>()?;
+pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuration<C>> {
     let configuration_msg = messages
         .iter()
         .find(|message| {
@@ -131,10 +117,12 @@ pub async fn add_ballots_to_board<C: Ctx>(
                 && message.artifact.is_some()
         })
         .unwrap();
-    let configuration =
-        Configuration::<C>::strand_deserialize(&configuration_msg.artifact.clone().unwrap())
-            .unwrap();
+    Ok(Configuration::<C>::strand_deserialize(
+        &configuration_msg.artifact.clone().unwrap(),
+    )?)
+}
 
+pub fn get_public_key_hash<C: Ctx>(messages: &Vec<Message>) -> Result<PublicKeyHash> {
     let public_key_message = messages
         .iter()
         .find(|message| {
@@ -145,12 +133,41 @@ pub async fn add_ballots_to_board<C: Ctx>(
     let dkgpk = DkgPublicKey::<C>::strand_deserialize(&public_key_bytes).unwrap();
     let pk_bytes = dkgpk.strand_serialize()?;
     let pk_h = strand::hash::hash_to_array(&pk_bytes)?;
-    let public_key_hash = PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap());
+    Ok(PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()))
+}
 
+pub fn generate_full_trustee_set<C: Ctx>(configuration: &Configuration<C>) -> TrusteeSet {
     let mut selected_trustees: TrusteeSet = [NULL_TRUSTEE; MAX_TRUSTEES];
     for i in 0..configuration.trustees.len() {
         selected_trustees[i] = i + 1;
     }
+    selected_trustees
+}
+
+pub async fn get_board_messages(board: &mut BoardClient, board_name: &str) -> Result<Vec<Message>> {
+    let board_messages = board.get_messages(board_name, -1).await?;
+
+    let messages: Vec<Message> = board_messages
+        .iter()
+        .map(|board_message| Message::strand_deserialize(&board_message.message))
+        .collect::<Result<Vec<_>, StrandError>>()?;
+    Ok(messages)
+}
+
+#[instrument(skip_all)]
+pub async fn add_ballots_to_board<C: Ctx>(
+    server_url: &str,
+    user: &str,
+    password: &str,
+    board_name: &str,
+    ballots: Vec<Ciphertext<C>>,
+    pm: &ProtocolManager<C>,
+) -> Result<()> {
+    let mut board = BoardClient::new(&server_url, &user, &password).await?;
+    let messages: Vec<Message> = get_board_messages(&mut board, board_name).await?;
+    let configuration = get_configuration::<C>(&messages)?;
+    let public_key_hash = get_public_key_hash::<C>(&messages)?;
+    let selected_trustees: TrusteeSet = generate_full_trustee_set::<C>(&configuration);
 
     let batch: BatchNumber = 0;
 
@@ -163,6 +180,6 @@ pub async fn add_ballots_to_board<C: Ctx>(
         pm,
     )?;
     info!("Adding configuration to the board..");
-    //board.insert_messages(board_name, &vec![message]).await
-    Ok(())
+    let board_message: BoardMessage = message.try_into()?;
+    board.insert_messages(board_name, &vec![board_message]).await
 }
