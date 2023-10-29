@@ -105,7 +105,7 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<()> {
                 .send_task(insert_ballots::insert_ballots::new(
                     payload,
                     event.tenant_id,
-                    event.election_event_id,
+                    event.election_event_id.clone(),
                 ))
                 .await?;
             event!(Level::INFO, "Sent INSERT_BALLOTS task {}", task.task_id);

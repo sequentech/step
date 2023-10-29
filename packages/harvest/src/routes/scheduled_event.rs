@@ -23,11 +23,11 @@ pub struct CreateEventBody {
     pub created_by: String,
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(_auth_headers))]
 #[post("/scheduled-event", format = "json", data = "<body>")]
 pub async fn create_scheduled_event(
     body: Json<CreateEventBody>,
-    auth_headers: connection::AuthHeaders,
+    _auth_headers: connection::AuthHeaders,
 ) -> Result<(), Debug<anyhow::Error>> {
     let input = body.into_inner();
 

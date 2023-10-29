@@ -22,7 +22,7 @@ pub fn internal_error() -> Json<ErrorResponse> {
 
 #[instrument(skip_all)]
 #[catch(404)]
-pub fn not_found(req: &Request) -> Json<ErrorResponse> {
+pub fn not_found(_req: &Request) -> Json<ErrorResponse> {
     Json(ErrorResponse {
         message: "Not found".into(),
     })
@@ -30,7 +30,7 @@ pub fn not_found(req: &Request) -> Json<ErrorResponse> {
 
 #[instrument(skip_all)]
 #[catch(default)]
-pub fn default(status: Status, req: &Request) -> Json<ErrorResponse> {
+pub fn default(_status: Status, _req: &Request) -> Json<ErrorResponse> {
     Json(ErrorResponse {
         message: "Unknown Error".into(),
     })
