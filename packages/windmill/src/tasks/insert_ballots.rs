@@ -5,8 +5,11 @@ use anyhow::Context;
 use celery::error::TaskError;
 use celery::prelude::*;
 use sequent_core::ballot::ElectionEventStatus;
+use sequent_core::ballot::HashableBallot;
+use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::services::openid;
 use serde::{Deserialize, Serialize};
+use strand::backend::ristretto::RistrettoCtx;
 use tracing::instrument;
 
 use crate::hasura;
@@ -24,6 +27,7 @@ pub async fn insert_ballots(
     body: InsertBallotsPayload,
     tenant_id: String,
     election_event_id: String,
+    contest_id: String,
 ) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
@@ -77,6 +81,30 @@ pub async fn insert_ballots(
         .data
         .expect("expected data".into())
         .sequent_backend_cast_vote;
+
+    let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = ballots_list
+        .iter()
+        .map(|ballot| {
+            ballot
+                .content
+                .clone()
+                .map(|ballot_str| {
+                    let hashable_ballot: Option<HashableBallot<RistrettoCtx>> =
+                        Base64Deserialize::deserialize(ballot_str).ok();
+                    hashable_ballot.map(|value| {
+                        value
+                            .contests
+                            .iter()
+                            .find(|contest| contest.id == contest_id)
+                            .map(|contest| contest.map(|val| val.ciphertext))
+                            .collect()
+                    })
+                })
+                .flatten()
+        })
+        .filter(|ballot| ballot.is_some())
+        .map(|ballot| ballot.unwrap())
+        .collect();
 
     Ok(())
 }

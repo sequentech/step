@@ -194,7 +194,7 @@ services:
       - immudb_logs:/var/log/immudb
   
   harvest:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     stdin_open: true
     build:
       context: ../packages/
@@ -211,7 +211,7 @@ services:
     #  - graphql-engine
   
   trustee1:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     stdin_open: true
     container_name: trustee1
     volumes:
@@ -228,7 +228,7 @@ services:
       - immudb
   
   trustee2:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     stdin_open: true
     container_name: trustee2
     volumes:
@@ -305,6 +305,7 @@ services:
       - immudb-log-audit-init
   # hashicorp vault to store secrets
   vault:
+    profiles: ["dev"]
     build:
       context: ./vault
       dockerfile: Dockerfile
