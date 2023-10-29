@@ -9,12 +9,14 @@ use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::services::openid;
 use serde::{Deserialize, Serialize};
+use std::env;
 use strand::backend::ristretto::RistrettoCtx;
-use tracing::instrument;
 use strand::elgamal::Ciphertext;
+use tracing::instrument;
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::protocol_manager::*;
 use crate::types::task_error::into_task_error;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
@@ -66,7 +68,7 @@ pub async fn insert_ballots(
         ));
     }
 
-    let _board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")
         .map_err(into_task_error)?;
 
@@ -92,20 +94,38 @@ pub async fn insert_ballots(
                 .map(|ballot_str| {
                     let hashable_ballot: Option<HashableBallot<RistrettoCtx>> =
                         Base64Deserialize::deserialize(ballot_str).ok();
-                    hashable_ballot.map(|value| {
-                        value
-                            .contests
-                            .iter()
-                            .find(|contest| contest.contest_id == contest_id)
-                            .map(|contest| contest.ciphertext.clone())
-                    })
-                    .flatten()
+                    hashable_ballot
+                        .map(|value| {
+                            value
+                                .contests
+                                .iter()
+                                .find(|contest| contest.contest_id == contest_id)
+                                .map(|contest| contest.ciphertext.clone())
+                        })
+                        .flatten()
                 })
                 .flatten()
         })
         .filter(|ballot| ballot.is_some())
         .map(|ballot| ballot.clone().unwrap())
         .collect();
+    // 1. get env vars
+    let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
+    let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
+    let server_url =
+        env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
+
+    let pm = gen_protocol_manager::<RistrettoCtx>();
+
+    add_ballots_to_board(
+        server_url.as_str(),
+        user.as_str(),
+        password.as_str(),
+        board_name.as_str(),
+        insertable_ballots,
+    )
+    .await
+    .map_err(into_task_error)?;
 
     Ok(())
 }

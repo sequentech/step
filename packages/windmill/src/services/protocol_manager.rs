@@ -3,14 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use braid_messages::artifact::DkgPublicKey;
+use braid_messages::artifact::{Ballots, Configuration, Plaintexts};
+use braid_messages::message::Message;
+use braid_messages::newtypes::PublicKeyHash;
+use braid_messages::newtypes::MAX_TRUSTEES;
+use braid_messages::newtypes::NULL_TRUSTEE;
 use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use braid_messages::statement::StatementType;
 
-use braid_messages::artifact::Configuration;
-use braid_messages::message::Message;
-
+use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
+use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
+use strand::util::StrandError;
 
 use anyhow::{Context, Result};
 use std::marker::PhantomData;
@@ -101,4 +106,43 @@ pub async fn get_board_public_key<C: Ctx>(
     })?;
     let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
     Ok(dkgpk.pk)
+}
+
+#[instrument(skip_all)]
+pub async fn add_ballots_to_board(
+    server_url: &str,
+    user: &str,
+    password: &str,
+    board_name: &str,
+    ballots: Vec<Ciphertext<RistrettoCtx>>,
+) -> Result<()> {
+    let mut board = BoardClient::new(&server_url, &user, &password).await?;
+    let board_messages = board.get_messages(board_name, -1).await?;
+    let messages: Vec<Message> = board_messages
+        .iter()
+        .map(|board_message| Message::strand_deserialize(&board_message.message))
+        .collect::<Result<Vec<_>, StrandError>>()?;
+    let configuration_msg = messages
+        .iter()
+        .find(|message| {
+            StatementType::Configuration == message.statement.get_kind()
+                && message.artifact.is_some()
+        })
+        .unwrap();
+    let configuration = Configuration::<RistrettoCtx>::strand_deserialize(
+        &configuration_msg.artifact.clone().unwrap(),
+    )
+    .unwrap();
+    /*let message = Message::ballots_msg(
+        cfg: &Configuration<C>,
+        batch: BatchNumber,
+        ballots: &Ballots<C>,
+        selected_trustees: TrusteeSet,
+        pk_h: PublicKeyHash,
+        pm: &S,
+    )?;
+    */
+    info!("Adding configuration to the board..");
+    //board.insert_messages(board_name, &vec![message]).await
+    Ok(())
 }
