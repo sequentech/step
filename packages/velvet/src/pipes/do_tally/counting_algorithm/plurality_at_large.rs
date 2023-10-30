@@ -70,7 +70,7 @@ impl CountingAlgorithm for PluralityAtLarge {
             .map(|c| {
                 result
                     .iter()
-                    .find(|rc| c.id == c.id)
+                    .find(|rc| rc.candidate.id == c.id)
                     .cloned()
                     .unwrap_or(CandidateResult {
                         candidate: self

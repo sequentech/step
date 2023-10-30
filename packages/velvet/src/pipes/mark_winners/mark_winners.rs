@@ -4,7 +4,7 @@
 
 use std::fs;
 
-use sequent_core::ballot::Contest;
+use sequent_core::ballot::{Candidate, Contest};
 
 use super::error::{Error, Result};
 use crate::pipes::{
@@ -21,6 +21,30 @@ pub struct MarkWinners {
 impl MarkWinners {
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
+    }
+
+    fn get_winner(&self, contest_result: &ContestResult) -> Candidate {
+        let mut max_votes = 0;
+        let mut winners = Vec::new();
+
+        for candidate_result in &contest_result.candidate_result {
+            if candidate_result.total_count > max_votes {
+                max_votes = candidate_result.total_count;
+                winners.clear();
+                winners.push(candidate_result);
+            } else if candidate_result.total_count == max_votes {
+                winners.push(candidate_result);
+            }
+        }
+
+        if winners.len() > 1 {
+            // ties resolution
+            winners.sort_by(|a, b| a.candidate.name.cmp(&b.candidate.name));
+        }
+
+        let winner = winners[0].clone();
+
+        winner.candidate
     }
 }
 
@@ -61,7 +85,7 @@ impl Pipe for MarkWinners {
                         .map_err(|e| Error::IO(contest_result_file.clone(), e))?;
                     let contest_result: ContestResult = serde_json::from_reader(f)?;
 
-                    dbg!(contest_result);
+                    let winner = self.get_winner(&contest_result);
 
                     let mut file = self.pipe_inputs.get_path_for_data(
                         &output_dir,
@@ -74,7 +98,7 @@ impl Pipe for MarkWinners {
                     file.push(OUTPUT_CONTEST_RESULT_FILE);
                     let file = fs::File::create(file)?;
 
-                    // serde_json::to_writer(file, &res)?;
+                    serde_json::to_writer(file, &winner)?;
                 }
             }
         }
