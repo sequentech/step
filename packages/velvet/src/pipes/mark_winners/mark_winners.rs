@@ -4,7 +4,7 @@
 
 use std::fs;
 
-use sequent_core::ballot::{Candidate, Contest};
+use sequent_core::ballot::Candidate;
 
 use super::error::{Error, Result};
 use crate::pipes::{
@@ -65,9 +65,6 @@ impl Pipe for MarkWinners {
 
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
-                let contest_config_file = fs::File::open(&contest_input.config)
-                    .map_err(|e| Error::IO(contest_input.config.clone(), e))?;
-
                 for region_input in &contest_input.region_list {
                     let contest_result_file = self
                         .pipe_inputs
