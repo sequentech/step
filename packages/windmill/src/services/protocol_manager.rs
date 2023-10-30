@@ -18,9 +18,9 @@ use strand::serialization::StrandSerialize;
 use strand::util::StrandError;
 
 use anyhow::{Context, Result};
+use std::env;
 use std::marker::PhantomData;
 use tracing::{info, instrument};
-use std::env;
 
 use immu_board::{BoardClient, BoardMessage};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
