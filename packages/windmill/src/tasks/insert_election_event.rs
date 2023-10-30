@@ -7,7 +7,7 @@ use celery::error::TaskError;
 use celery::prelude::*;
 use immu_board::{BoardClient, util::get_board_name};
 use sequent_core;
-use sequent_core::services::{openid, connection};
+use sequent_core::services::{keycloak, connection};
 use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::instrument;
@@ -76,7 +76,7 @@ pub async fn insert_election_event_db(
 pub async fn insert_election_event_t(
     object: InsertElectionEventInput,
 ) -> Result<()> {
-    let auth_headers = openid::get_client_credentials()
+    let auth_headers = keycloak::get_client_credentials()
         .await?;
 
     create_immu_board(

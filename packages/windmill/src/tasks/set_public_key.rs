@@ -5,7 +5,7 @@
 use anyhow::Context;
 use celery::error::TaskError;
 use celery::prelude::*;
-use sequent_core::services::openid;
+use sequent_core::services::keycloak;
 use tracing::instrument;
 
 use crate::hasura;
@@ -15,7 +15,7 @@ use crate::services::public_keys;
 #[instrument]
 #[celery::task(max_retries = 10)]
 pub async fn set_public_key(tenant_id: String, election_event_id: String) -> TaskResult<()> {
-    let auth_headers = openid::get_client_credentials()
+    let auth_headers = keycloak::get_client_credentials()
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let election_event_response = hasura::election_event::get_election_event(

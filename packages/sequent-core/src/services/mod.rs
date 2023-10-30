@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-#[cfg(feature = "openid")]
+#[cfg(feature = "keycloak")]
 pub mod connection;
-#[cfg(feature = "openid")]
-pub mod openid;
+#[cfg(feature = "keycloak")]
+pub mod keycloak;
 #[cfg(feature = "reports")]
 pub mod pdf;
 #[cfg(feature = "reports")]
