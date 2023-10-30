@@ -7,6 +7,7 @@ import {
     DatagridConfigurable,
     List,
     TextField,
+    FunctionField,
     TextInput,
     NumberField,
     ExportButton,
@@ -16,11 +17,7 @@ import {
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
 
-const Filters: Array<ReactElement> = [
-    <TextInput label="Command" source="comand" key={0} />,
-    <TextInput label="Statement" source="statement" key={1} />,
-    <TextInput label="ID" source="id" key={2} />,
-]
+const OMIT_FIELDS = ["audit_type", "class", "dbname", "session", "user"]
 
 export interface PgAuditListProps {
     aside?: ReactElement
@@ -38,14 +35,21 @@ export const PgAuditList: React.FC<PgAuditListProps> = ({aside}) => {
                     <ExportButton />
                 </TopToolbar>}
                 filter={{tenant_id: tenantId || undefined}}
-                filters={Filters}
                 aside={aside}
             >
-                <DatagridConfigurable>
+                <DatagridConfigurable  omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                     <NumberField source="id" />
+                    <TextField source="audit_type" />
+                    <TextField source="class" />
+                    <TextField source="command" />
+                    <TextField source="dbname" />
+                    <FunctionField 
+                        source="server_timestamp" 
+                        render={(record: any) => new Date(record.server_timestamp/1000).toUTCString()}
+                    />
                     <TextField source="session_id" />
                     <TextField source="statement" />
-                    <TextField source="command" />
+                    <TextField source="user" />
                 </DatagridConfigurable>
             </List>
         </>

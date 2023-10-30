@@ -4,13 +4,13 @@
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
-use rocket::serde::json::Value;
+use serde_json::Value;
 use std::env;
 use tracing::instrument;
 
-use crate::connection;
 use crate::services::to_result::ToResult;
 pub use crate::types::hasura_types::*;
+use sequent_core::services::connection;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -43,6 +43,15 @@ pub struct UpdateElectionEventPublicKey;
     response_derives = "Debug"
 )]
 pub struct GetElectionEvent;
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/insert_election_event.graphql",
+    response_derives = "Debug, Clone, Deserialize",
+    variables_derives = "Debug, Clone, Deserialize"
+)]
+pub struct InsertElectionEvent;
 
 #[instrument(skip_all)]
 pub async fn update_election_event_board(
@@ -148,5 +157,27 @@ pub async fn update_election_event_public_key(
         .await?;
     let response_body: Response<update_election_event_public_key::ResponseData> =
         res.json().await?;
+    response_body.ok()
+}
+
+#[instrument(skip_all)]
+pub async fn insert_election_event_f(
+    auth_headers: connection::AuthHeaders,
+    object: insert_election_event::sequent_backend_election_event_insert_input,
+) -> Result<Response<insert_election_event::ResponseData>> {
+    use insert_election_event::*;
+    let variables = Variables { object };
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = InsertElectionEvent::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<insert_election_event::ResponseData> = res.json().await?;
     response_body.ok()
 }

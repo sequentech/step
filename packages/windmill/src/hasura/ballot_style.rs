@@ -1,17 +1,15 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
-use rocket::serde::json::Value;
-use rocket::serde::{Deserialize, Serialize};
 use std::env;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
-use crate::connection;
 use crate::services::to_result::ToResult;
 pub use crate::types::hasura_types::*;
+use sequent_core::services::connection;
 
 #[derive(GraphQLQuery)]
 #[graphql(

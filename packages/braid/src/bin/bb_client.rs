@@ -6,15 +6,14 @@ use std::fs;
 use std::marker::PhantomData;
 use tracing::{info, instrument};
 
-use braid::util::init_log;
+use sequent_core::util::init_log::init_log;
 use immu_board::{Board, BoardClient, BoardMessage};
 
-use braid::protocol2::trustee::ProtocolManager;
-use braid::run::config::ProtocolManagerConfig;
 use braid_messages::artifact::Configuration;
 use braid_messages::artifact::DkgPublicKey;
 use braid_messages::message::Message;
 use braid_messages::newtypes::PublicKeyHash;
+use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use braid_messages::statement::StatementType;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;

@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use immu_board::Board;
-use rocket::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
 pub struct BoardSerializable {
     pub id: i64,
     pub database_name: String,

@@ -191,12 +191,12 @@ However that won't export users. You can export them by running this:
 ```bash
 docker compose exec keycloak sh -c '/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm electoral-process'
 docker compose exec keycloak sh -c 'cat /tmp/export.json' > file.json
+```
 
 Then you'll find the export -including users- in the `file.json`. You
 can then for example update the file `.devcontainer/keycloak/import/electoral-process-realm.json`
 if you want to automatically import that data when the container is
 created.
-```
 
 ### Add Hasura migrations/changes
 
@@ -220,15 +220,31 @@ commit the changes.
 Note that you can insert rows as a migration by clicking on the 
 `This is a migration` option at the bottom of the `Insert Row` form.
 
-## harvest
-### Update graphql JSON schema
+## admin-portal
 
-The file `packages/harvest/src/graphql/schema.json` contains the GraphQL/Hasura schema. If the schema changes you might need to update this file. In order to do so, [follow this guide](https://hasura.io/docs/latest/schema/common-patterns/export-graphql-schema/
-) to export the json schema from Hasura, specifically you'll need to run something like:
+## Update graphql JSON schema
+
+The file `packages/admin-portal/graphql.schema.json` contains the GraphQL/Hasura
+schema. If the schema changes you might need to update this file. In order to do
+so,
+[follow this guide](https://hasura.io/docs/latest/schema/common-patterns/export-graphql-schema/) 
+to export the json schema from Hasura, specifically you'll need to run something
+like:
 
 ```bash
-npm install -g graphqurl
-gq http://127.0.0.1:8080/v1/graphql -H "X-Hasura-Admin-Secret: admin" --introspect  --format json > schema.json
+cd packages/admin-portal/
+gq http://graphql-engine:8080/v1/graphql \
+    -H "X-Hasura-Admin-Secret: admin" \
+    --introspect  \
+    --format json \
+    > graphql.schema.json
+```
+
+Afterwards, you need to regenerate the typescript auto-generated types using
+`graphql-codegen` with:
+
+```bash
+yarn generate
 ```
 
 ## Trustees

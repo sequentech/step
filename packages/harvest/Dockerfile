@@ -8,7 +8,6 @@ COPY ./harvest ./harvest
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
-COPY ./braid ./braid
 COPY ./braid-messages ./braid-messages
 COPY ./sequent-core ./sequent-core
 COPY ./windmill ./windmill

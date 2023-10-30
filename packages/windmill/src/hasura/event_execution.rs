@@ -4,22 +4,21 @@
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
-use rocket::serde::json::Value;
-use rocket::serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::env;
 use strum_macros::Display;
 use strum_macros::EnumString;
 use tracing::instrument;
 
-use crate::connection;
 use crate::hasura::event_execution;
 use crate::services::to_result::ToResult;
 pub use crate::types::hasura_types::*;
 use crate::types::scheduled_event::ScheduledEvent;
+use sequent_core::services::connection;
 use std::str::FromStr;
 
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
-#[serde(crate = "rocket::serde")]
 pub enum EventExecutionState {
     Started,
     Success,
@@ -27,7 +26,6 @@ pub enum EventExecutionState {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-#[serde(crate = "rocket::serde")]
 pub struct EventExecution {
     pub id: String,
     pub tenant_id: Option<String>,

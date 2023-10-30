@@ -12,7 +12,8 @@ license = "AGPL-3.0-only"
 
 [dependencies]
 rocket = { version = "=0.5.0-rc.3", features = ["json"] }
-serde = "1.0.174"
+serde = { version = "1.0.190", features = ["derive"] }
+serde_json = "1.0.105"
 reqwest = { version="0.11.18", features = ["blocking", "json"] }
 handlebars = "4.3.7"
 headless_chrome = {version = "1.0.5", default-features = false}
@@ -23,7 +24,6 @@ rust-s3 = "0.33.0"
 strum = "0.25"
 strum_macros = "0.25"
 base64 = "0.21.0"
-serde_json = "1.0.105"
 celery = "0.5.5"
 tokio = { version = "1.32.0", features = ["full"] }
 async-trait = "0.1.74"
@@ -33,11 +33,12 @@ chrono = "0.4.31"
 lazy_static = "1.4.0"
 async_once = "0.2.6"
 uuid = "1.5.0"
+toml = "0.6.0"
 
 # logging
 tracing = "0.1.37"
 
 immu-board = { path="../immu-board" }
-braid = { path="../braid" }
+braid-messages = { path="../braid-messages" }
 strand = { path="../strand" }
-sequent-core = { path="../sequent-core" }
+sequent-core = { path="../sequent-core", features = ["reports", "openid", "log"] }

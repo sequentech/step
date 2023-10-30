@@ -70,7 +70,7 @@ fn create_contest(
         candidates: candidates
             .iter()
             .enumerate()
-            .map(|(i, candidate)| ballot::Candidate {
+            .map(|(_i, candidate)| ballot::Candidate {
                 id: candidate.id.clone(),
                 tenant_id: candidate.tenant_id.clone(),
                 election_event_id: candidate.election_event_id.clone(),

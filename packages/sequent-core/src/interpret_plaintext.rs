@@ -5,7 +5,6 @@ use crate::ballot::*;
 use crate::plaintext::*;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::cmp;
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub enum ContestState {

@@ -18,8 +18,41 @@ insert_permissions:
         - scheduled_event_id
         - tenant_id
     comment: ""
+  - role: service-account
+    permission:
+      check: {}
+      columns:
+        - execution_state
+        - annotations
+        - execution_payload
+        - labels
+        - result_payload
+        - ended_at
+        - started_at
+        - election_event_id
+        - id
+        - scheduled_event_id
+        - tenant_id
+    comment: ""
 select_permissions:
   - role: admin-user
+    permission:
+      columns:
+        - execution_state
+        - annotations
+        - execution_payload
+        - labels
+        - result_payload
+        - ended_at
+        - started_at
+        - election_event_id
+        - id
+        - scheduled_event_id
+        - tenant_id
+      filter: {}
+      allow_aggregations: true
+    comment: ""
+  - role: service-account
     permission:
       columns:
         - execution_state
@@ -54,8 +87,29 @@ update_permissions:
       filter: {}
       check: {}
     comment: ""
+  - role: service-account
+    permission:
+      columns:
+        - execution_state
+        - annotations
+        - execution_payload
+        - labels
+        - result_payload
+        - ended_at
+        - started_at
+        - election_event_id
+        - id
+        - scheduled_event_id
+        - tenant_id
+      filter: {}
+      check: {}
+    comment: ""
 delete_permissions:
   - role: admin-user
+    permission:
+      filter: {}
+    comment: ""
+  - role: service-account
     permission:
       filter: {}
     comment: ""

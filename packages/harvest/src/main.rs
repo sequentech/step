@@ -5,7 +5,7 @@
 #[macro_use]
 extern crate rocket;
 
-use braid::util::init_log;
+use sequent_core::util::init_log::init_log;
 use dotenv::dotenv;
 
 mod pdf;

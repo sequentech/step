@@ -5,21 +5,17 @@
 use anyhow::{Context, Result};
 use celery::error::TaskError;
 use celery::prelude::*;
-use immu_board::BoardClient;
-use rocket::serde::{Deserialize, Serialize};
 use sequent_core;
+use sequent_core::services::openid;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::From;
-use std::env;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use crate::connection;
 use crate::hasura;
 use crate::hasura::ballot_style::get_ballot_style_area;
-use crate::hasura::event_execution::insert_event_execution_with_result;
 use crate::services::date::ISO8601;
-use crate::types::scheduled_event::ScheduledEvent;
 
 impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
     for sequent_core::hasura_types::ElectionEvent
@@ -181,28 +177,19 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendArea>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(crate = "rocket::serde")]
 pub struct CreateBallotStylePayload {
     pub area_id: String,
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument]
 #[celery::task]
 pub async fn create_ballot_style(
-    auth_headers: connection::AuthHeaders,
-    event: ScheduledEvent,
     body: CreateBallotStylePayload,
+    tenant_id: String,
+    election_event_id: String,
 ) -> TaskResult<()> {
-    // read tenant_id and election_event_id
-    let tenant_id = event
-        .tenant_id
-        .clone()
-        .with_context(|| "scheduled event is missing tenant_id")
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
-    let election_event_id = event
-        .election_event_id
-        .clone()
-        .with_context(|| "scheduled event is missing election_event_id")
+    let auth_headers = openid::get_client_credentials()
+        .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let hasura_response = hasura::ballot_style::get_ballot_style_area(
         auth_headers.clone(),
@@ -327,10 +314,6 @@ pub async fn create_ballot_style(
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     }
-
-    insert_event_execution_with_result(auth_headers, event, None)
-        .await
-        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
 
     Ok(())
 }

@@ -14,8 +14,33 @@ insert_permissions:
         - updated_at
         - id
     comment: ""
+  - role: service-account
+    permission:
+      check: {}
+      columns:
+        - is_active
+        - annotations
+        - labels
+        - username
+        - created_at
+        - updated_at
+        - id
+    comment: ""
 select_permissions:
   - role: admin-user
+    permission:
+      columns:
+        - is_active
+        - annotations
+        - labels
+        - username
+        - created_at
+        - updated_at
+        - id
+      filter: {}
+      allow_aggregations: true
+    comment: ""
+  - role: service-account
     permission:
       columns:
         - is_active
@@ -56,8 +81,25 @@ update_permissions:
       filter: {}
       check: {}
     comment: ""
+  - role: service-account
+    permission:
+      columns:
+        - is_active
+        - annotations
+        - labels
+        - username
+        - created_at
+        - updated_at
+        - id
+      filter: {}
+      check: {}
+    comment: ""
 delete_permissions:
   - role: admin-user
+    permission:
+      filter: {}
+    comment: ""
+  - role: service-account
     permission:
       filter: {}
     comment: ""

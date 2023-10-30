@@ -7,7 +7,6 @@ use crate::hasura_types::Uuid;
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
@@ -385,7 +384,6 @@ pub enum VotingStatus {
     Debug,
     Clone,
 )]
-//#[serde(crate = "rocket::serde")]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,
 }
