@@ -44,7 +44,7 @@ pub async fn update_election_event_ballot_styles(
             ))
             .await
             .map_err(into_task_error)?;
-        event!(Level::INFO, "Sent CREATE_REPORT task {}", task.task_id);
+        event!(Level::INFO, "Sent CREATE_BALLOT_STYLE task {}", task.task_id);
     }
     Ok(())
 }
