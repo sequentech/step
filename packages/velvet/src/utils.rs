@@ -1,4 +1,4 @@
-use serde::{Serialize, Serializer};
+use serde::{Serializer};
 
 pub trait HasId {
     fn id(&self) -> &str;

@@ -5,14 +5,14 @@
 use super::tally;
 use super::{error::Result, invalid_vote::InvalidVote};
 use crate::pipes::{
-    decode_ballots::OUTPUT_DECODED_BALLOTS_FILE, pipe_inputs::PipeInputs, pipe_name::PipeName,
+    decode_ballots::OUTPUT_DECODED_BALLOTS_FILE, pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir, Pipe,
 };
-use crate::utils::{to_id, HasId};
+use crate::utils::{HasId};
 use sequent_core::ballot::Candidate;
-use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
-use serde::{Deserialize, Serialize, Serializer};
-use std::{collections::HashMap, error::Error as StdError, fs, path::Path};
+use sequent_core::{ballot::Contest};
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, fs};
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
 

@@ -5,14 +5,14 @@
 use super::error::{Error, Result};
 use crate::pipes::pipe_inputs::{PipeInputs, BALLOTS_FILE};
 use crate::pipes::Pipe;
-use num_bigint::{BigUint, ToBigUint};
+use num_bigint::{BigUint};
 use sequent_core::ballot::Contest;
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::DecodedVoteContest;
-use serde::{Deserialize, Serialize};
+
 use std::fs::{self, File};
 use std::io::BufRead;
-use std::path::PathBuf;
+
 use std::str::FromStr;
 
 use crate::pipes::pipe_name::PipeNameOutputDir;
