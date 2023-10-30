@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Context;
+use braid_messages::newtypes::BatchNumber;
 use celery::error::TaskError;
 use celery::prelude::*;
 use sequent_core::ballot::ElectionEventStatus;
@@ -12,7 +13,6 @@ use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use tracing::instrument;
-use braid_messages::newtypes::BatchNumber;
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;

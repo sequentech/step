@@ -169,7 +169,7 @@ pub async fn update_election_event_public_key(
 }
 
 #[instrument(skip_all)]
-pub async fn insert_election_event_f(
+pub async fn insert_election_event(
     auth_headers: connection::AuthHeaders,
     object: insert_election_event::sequent_backend_election_event_insert_input,
 ) -> Result<Response<insert_election_event::ResponseData>> {
