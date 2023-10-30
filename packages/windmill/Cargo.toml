@@ -39,6 +39,7 @@ quick-error = "2.0.1"
 # logging
 tracing = "0.1.37"
 
+wrap-map-err = { path = "../wrap-map-err" }
 immu-board = { path="../immu-board" }
 braid-messages = { path="../braid-messages" }
 strand = { path="../strand" }

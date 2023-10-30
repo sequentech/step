@@ -71,24 +71,22 @@ pub async fn insert_election_event_db(
 }
 
 #[instrument(skip_all)]
+#[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn insert_election_event_t(
     object: InsertElectionEventInput,
-) -> TaskResult<()> {
+) -> Result<()> {
     let auth_headers = openid::get_client_credentials()
-        .await
-        .map_err(Error::from)?;
+        .await?;
 
     create_immu_board(
         &auth_headers,
         &object.tenant_id
             .as_ref()
-            .ok_or("empty-tenant-id")
-            .map_err(Error::from)?,
+            .ok_or("empty-tenant-id")?,
         &object.id
             .as_ref()
-            .ok_or("empty-election-event-id")
-            .map_err(Error::from)?,
+            .ok_or("empty-election-event-id")?,
     ).await?;
     create_keycloak_realm(&auth_headers, &object).await?;
     insert_election_event_db(&auth_headers, &object).await?;
