@@ -158,6 +158,7 @@ pub async fn get_board_messages(board: &mut BoardClient, board_name: &str) -> Re
 pub async fn add_ballots_to_board<C: Ctx>(
     board_name: &str,
     ballots: Vec<Ciphertext<C>>,
+    batch: BatchNumber,
 ) -> Result<()> {
     // 1. get env vars
     let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
@@ -172,8 +173,6 @@ pub async fn add_ballots_to_board<C: Ctx>(
     let configuration = get_configuration::<C>(&messages)?;
     let public_key_hash = get_public_key_hash::<C>(&messages)?;
     let selected_trustees: TrusteeSet = generate_full_trustee_set::<C>(&configuration);
-
-    let batch: BatchNumber = 0;
 
     let message = Message::ballots_msg::<C, ProtocolManager<C>>(
         &configuration,

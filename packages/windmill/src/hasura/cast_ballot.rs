@@ -24,10 +24,12 @@ pub async fn find_ballots(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
+    area_id: String,
 ) -> Result<Response<get_cast_ballots::ResponseData>> {
     let variables = get_cast_ballots::Variables {
         tenant_id: tenant_id,
         election_event_id: election_event_id,
+        area_id: area_id,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

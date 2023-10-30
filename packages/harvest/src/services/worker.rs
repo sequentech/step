@@ -10,6 +10,7 @@ use windmill::tasks::create_board;
 use windmill::tasks::create_keys;
 use windmill::tasks::insert_ballots;
 use windmill::tasks::render_report;
+use windmill::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use windmill::tasks::set_public_key::*;
 use windmill::tasks::update_voting_status;
 use windmill::types::scheduled_event::*;
@@ -109,6 +110,15 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<()> {
                 ))
                 .await?;
             event!(Level::INFO, "Sent INSERT_BALLOTS task {}", task.task_id);
+        }
+        EventProcessors::CREATE_ELECTION_EVENT_BALLOT_STYLES => {
+            let task = celery_app
+                .send_task(update_election_event_ballot_styles::new(
+                    event.tenant_id,
+                    event.election_event_id.clone(),
+                ))
+                .await?;
+            event!(Level::INFO, "Sent CREATE_ELECTION_EVENT_BALLOT_STYLES task {}", task.task_id);
         }
     }
     Ok(())

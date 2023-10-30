@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use tracing::instrument;
+use braid_messages::newtypes::BatchNumber;
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
@@ -29,7 +30,9 @@ pub async fn insert_ballots(
     body: InsertBallotsPayload,
     tenant_id: String,
     election_event_id: String,
+    area_id: String,
     contest_id: String,
+    batch: BatchNumber,
 ) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
@@ -75,6 +78,7 @@ pub async fn insert_ballots(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
+        area_id.clone(),
     )
     .await
     .map_err(into_task_error)?;
@@ -109,7 +113,7 @@ pub async fn insert_ballots(
         .map(|ballot| ballot.clone().unwrap())
         .collect();
 
-    add_ballots_to_board(board_name.as_str(), insertable_ballots)
+    add_ballots_to_board(board_name.as_str(), insertable_ballots, batch)
         .await
         .map_err(into_task_error)?;
 
