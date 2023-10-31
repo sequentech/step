@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use serde::Serialize;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -11,13 +13,16 @@ mod tests {
     use crate::fixtures::TestFixture;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
     use crate::pipes::do_tally::OUTPUT_CONTEST_RESULT_FILE;
+    use crate::pipes::mark_winners::{WinnerCandidate, OUTPUT_WINNERS};
     use crate::pipes::pipe_name::PipeNameOutputDir;
     use anyhow::{Error, Result};
     use rand::Rng;
-    use sequent_core::ballot::Contest;
+    use sequent_core::ballot::{Candidate, CandidatePresentation, Contest, ContestPresentation};
     use sequent_core::ballot_codec::BigUIntCodec;
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
-    use std::fs;
+    use sequent_core::services::{pdf, reports};
+    use serde_json::{Map, Value};
+    use std::fs::{self, OpenOptions};
     use std::io::Write;
     use std::path::PathBuf;
     use uuid::Uuid;
@@ -270,14 +275,186 @@ mod tests {
             WalkDir::new(cli.output_dir.as_path())
                 .into_iter()
                 .filter_map(Result::ok)
-                .filter(|e| {
-                    e.path()
-                        .file_name()
-                        .map_or(false, |f| f == OUTPUT_CONTEST_RESULT_FILE)
-                })
+                .filter(|e| { e.path().file_name().map_or(false, |f| f == OUTPUT_WINNERS) })
                 .count() as u32,
-            election_num * contest_num * region_num * 2 + election_num * contest_num * 2
+            election_num * contest_num * region_num + election_num * contest_num
         );
+
+        // Report
+        state.exec_next()?;
+
         Ok(())
     }
+
+    #[test]
+    fn test_generate_reports() -> Result<()> {
+        let winner = WinnerCandidate {
+            candidate: Candidate {
+                id: "1".to_string(),
+                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
+                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
+                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
+                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
+                name: Some("Miguel Pimentel Inventado".to_string()),
+                description: None,
+                candidate_type: None,
+                presentation: Some(CandidatePresentation {
+                    is_explicit_invalid: false,
+                    is_category_list: false,
+                    invalid_vote_position: None,
+                    is_write_in: false,
+                    sort_order: Some(1),
+                    urls: None,
+                }),
+            },
+            total_points: 19,
+        };
+
+        let contest = Contest {
+            id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+            tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+            election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+            election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+            name: Some("Secretario General".into()),
+            description: Some(
+                "Elige quien quieres que sea tu Secretario General en tu municipio".into(),
+            ),
+            max_votes: 1,
+            min_votes: 0,
+            voting_type: Some("first-past-the-post".into()),
+            counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
+            is_encrypted: true,
+            candidates: vec![
+                Candidate {
+                    id: "0".into(),
+                    tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    name: Some("José Rabano Pimiento".into()),
+                    description: None,
+                    candidate_type: None,
+                    presentation: Some(CandidatePresentation {
+                        is_explicit_invalid: false,
+                        is_write_in: false,
+                        sort_order: Some(0),
+                        urls: None,
+                        invalid_vote_position: None,
+                        is_category_list: false,
+                    }),
+                },
+                Candidate {
+                    id: "1".into(),
+                    tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    name: Some("Miguel Pimentel Inventado".into()),
+                    description: None,
+                    candidate_type: None,
+                    presentation: Some(CandidatePresentation {
+                        is_explicit_invalid: false,
+                        is_write_in: false,
+                        sort_order: Some(1),
+                        urls: None,
+                        invalid_vote_position: None,
+                        is_category_list: false,
+                    }),
+                },
+                Candidate {
+                    id: "2".into(),
+                    tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    name: Some("Juan Iglesias Torquemada".into()),
+                    description: None,
+                    candidate_type: None,
+                    presentation: Some(CandidatePresentation {
+                        is_explicit_invalid: false,
+                        is_write_in: false,
+                        sort_order: Some(2),
+                        urls: None,
+                        invalid_vote_position: None,
+                        is_category_list: false,
+                    }),
+                },
+                Candidate {
+                    id: "3".into(),
+                    tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    name: Some("Mari Pili Hernández Ordoñez".into()),
+                    description: None,
+                    candidate_type: None,
+                    presentation: Some(CandidatePresentation {
+                        is_explicit_invalid: false,
+                        is_write_in: false,
+                        sort_order: Some(3),
+                        urls: None,
+                        invalid_vote_position: None,
+                        is_category_list: false,
+                    }),
+                },
+                Candidate {
+                    id: "4".into(),
+                    tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
+                    name: Some("Juan Y Medio".into()),
+                    description: None,
+                    candidate_type: None,
+                    presentation: Some(CandidatePresentation {
+                        is_explicit_invalid: false,
+                        is_write_in: false,
+                        sort_order: Some(4),
+                        urls: None,
+                        invalid_vote_position: None,
+                        is_category_list: false,
+                    }),
+                },
+            ],
+            presentation: Some(ContestPresentation {
+                allow_writeins: false,
+                base32_writeins: true,
+                invalid_vote_policy: "allowed".into(),
+                cumulative_number_of_checkboxes: None,
+                shuffle_categories: true,
+                shuffle_all_options: true,
+                shuffle_category_list: None,
+                show_points: false,
+                enable_checkable_lists: None,
+            }),
+        };
+
+        let mut map = Map::new();
+        map.insert("contest".to_owned(), serde_json::to_value(&contest)?);
+        map.insert("winner".to_owned(), serde_json::to_value(&winner)?);
+
+        let html = include_str!("../resources/report.html");
+        let render = reports::render_template_text(html, map)?;
+
+        let bytes = pdf::html_to_pdf(render)?;
+
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open("test-report.pdf")?;
+
+        file.write_all(&bytes)?;
+
+        assert!(PathBuf::from("test-report.pdf").exists());
+
+        Ok(())
+    }
+}
+
+// define some data
+#[derive(Serialize)]
+pub struct Team {
+    name: String,
+    pts: u16,
 }
