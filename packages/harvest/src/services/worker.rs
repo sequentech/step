@@ -60,7 +60,7 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<()> {
                     event.election_event_id,
                 ))
                 .await?;
-            event!(Level::INFO, "Sent SET_PUBLIC_KEY task {}", task.task_id);
+            event!(Level::INFO, "Sent CREATE_BOARD task {}", task.task_id);
         }
         EventProcessors::CREATE_KEYS => {
             let payload: create_keys::CreateKeysBody =
