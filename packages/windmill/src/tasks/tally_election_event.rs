@@ -6,6 +6,7 @@ use anyhow::Result;
 use celery::prelude::*;
 use sequent_core::services::openid;
 use tracing::{event, instrument, Level};
+use braid_messages::newtypes::BatchNumber;
 
 use crate::hasura::area::get_election_event_areas;
 use crate::services::celery_app::get_celery_app;
@@ -50,18 +51,27 @@ pub async fn tally_election_event(
         .data
         .with_context(|| "can't find trustees")
         .map_err(into_task_error)?;
+
+
+    let mut batch: BatchNumber = get_tally_session_highest_batch(auth_headers, tenant_id.clone(), election_event_id.clone()).await?;
     let celery_app = get_celery_app().await;
 
-    for area in areas.sequent_backend_area.iter() {
+    for area_contest in contest_areas.iter() {
         let task = celery_app
-            .send_task(tally_election_event_area::new(
+            .send_task(insert_ballots::new(
+                InsertBallotsPayload {
+                    trustee_pks: vec![],
+                },
                 tenant_id.clone(),
                 election_event_id.clone(),
-                area.id.clone(),
+                area_id.clone(),
+                area_contest.contest_id.clone().unwrap(),
+                batch.clone(),
             ))
             .await
             .map_err(into_task_error)?;
-        event!(Level::INFO, "Sent TALLY_ELECTION_EVENT_AREA task {}", task.task_id);
+        event!(Level::INFO, "Sent INSERT_BALLOTS task {}", task.task_id);
+        batch = batch + 1;
     }
     Ok(())
 }
