@@ -38,6 +38,7 @@ impl GenerateReports {
         map.insert("contest".to_owned(), serde_json::to_value(&contest)?);
         map.insert("winner".to_owned(), serde_json::to_value(&winner)?);
 
+        // TODO: feature to use another template file from cli if needed
         let html = include_str!("../../resources/report.html");
         let render = reports::render_template_text(html, map)?;
 
@@ -64,28 +65,22 @@ impl Pipe for GenerateReports {
 
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
-                let f = fs::File::open(&contest_input.config)
-                    .map_err(|e| Error::IO(contest_input.config.clone(), e))?;
-                let contest: Contest = serde_json::from_reader(f)?;
-
                 for region_input in &contest_input.region_list {
-                    let contest_result_file = self
-                        .pipe_inputs
-                        .get_path_for_data(
-                            &input_dir,
-                            &contest_input.election_id,
-                            &contest_input.id,
-                            Some(&region_input.id),
-                        )
-                        .join(OUTPUT_WINNERS);
+                    let contest_result_file = PipeInputs::build_path(
+                        &input_dir,
+                        &contest_input.election_id,
+                        &contest_input.id,
+                        Some(&region_input.id),
+                    )
+                    .join(OUTPUT_WINNERS);
 
                     let f = fs::File::open(&contest_result_file)
                         .map_err(|e| Error::IO(contest_result_file.clone(), e))?;
                     let winner: WinnerCandidate = serde_json::from_reader(f)?;
 
-                    let bytes = self.generate_report(&contest, &winner)?;
+                    let bytes = self.generate_report(&contest_input.contest, &winner)?;
 
-                    let mut file = self.pipe_inputs.get_path_for_data(
+                    let mut file = PipeInputs::build_path(
                         &output_dir,
                         &contest_input.election_id,
                         &contest_input.id,
@@ -104,23 +99,21 @@ impl Pipe for GenerateReports {
                     file.write_all(&bytes)?;
                 }
 
-                let contest_result_file = self
-                    .pipe_inputs
-                    .get_path_for_data(
-                        &input_dir,
-                        &contest_input.election_id,
-                        &contest_input.id,
-                        None,
-                    )
-                    .join(OUTPUT_WINNERS);
+                let contest_result_file = PipeInputs::build_path(
+                    &input_dir,
+                    &contest_input.election_id,
+                    &contest_input.id,
+                    None,
+                )
+                .join(OUTPUT_WINNERS);
 
                 let f = fs::File::open(&contest_result_file)
                     .map_err(|e| Error::IO(contest_result_file.clone(), e))?;
                 let winner: WinnerCandidate = serde_json::from_reader(f)?;
 
-                let bytes = self.generate_report(&contest, &winner)?;
+                let bytes = self.generate_report(&contest_input.contest, &winner)?;
 
-                let mut file = self.pipe_inputs.get_path_for_data(
+                let mut file = PipeInputs::build_path(
                     &output_dir,
                     &contest_input.election_id,
                     &contest_input.id,

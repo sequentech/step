@@ -22,8 +22,8 @@ pub struct Tally {
 }
 
 impl Tally {
-    pub fn new(contest_config: &Path, ballots_files: Vec<PathBuf>) -> Result<Self> {
-        let contest = Self::get_contest(contest_config)?;
+    pub fn new(contest: &Contest, ballots_files: Vec<PathBuf>) -> Result<Self> {
+        let contest = contest.clone();
         let ballots = Self::get_ballots(ballots_files)?;
         let id = Self::get_tally_type(&contest)?;
 
@@ -70,10 +70,10 @@ impl Tally {
 }
 
 pub fn create_tally(
-    contest_config: &Path,
+    contest: &Contest,
     ballots_files: Vec<PathBuf>,
 ) -> Result<Box<dyn CountingAlgorithm>> {
-    let tally = Tally::new(contest_config, ballots_files)?;
+    let tally = Tally::new(contest, ballots_files)?;
 
     let ca = match tally.id {
         TallyType::PluralityAtLarge => PluralityAtLarge::new(tally),

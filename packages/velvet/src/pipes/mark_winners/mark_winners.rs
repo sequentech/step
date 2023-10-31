@@ -78,15 +78,13 @@ impl Pipe for MarkWinners {
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
                 for region_input in &contest_input.region_list {
-                    let contest_result_file = self
-                        .pipe_inputs
-                        .get_path_for_data(
-                            &input_dir,
-                            &contest_input.election_id,
-                            &contest_input.id,
-                            Some(&region_input.id),
-                        )
-                        .join(OUTPUT_CONTEST_RESULT_FILE);
+                    let contest_result_file = PipeInputs::build_path(
+                        &input_dir,
+                        &contest_input.election_id,
+                        &contest_input.id,
+                        Some(&region_input.id),
+                    )
+                    .join(OUTPUT_CONTEST_RESULT_FILE);
 
                     let f = fs::File::open(&contest_result_file)
                         .map_err(|e| Error::IO(contest_result_file.clone(), e))?;
@@ -94,7 +92,7 @@ impl Pipe for MarkWinners {
 
                     let winner = self.get_winner(&contest_result);
 
-                    let mut file = self.pipe_inputs.get_path_for_data(
+                    let mut file = PipeInputs::build_path(
                         &output_dir,
                         &contest_input.election_id,
                         &contest_input.id,
@@ -108,15 +106,13 @@ impl Pipe for MarkWinners {
                     serde_json::to_writer(file, &winner)?;
                 }
 
-                let contest_result_file = self
-                    .pipe_inputs
-                    .get_path_for_data(
-                        &input_dir,
-                        &contest_input.election_id,
-                        &contest_input.id,
-                        None,
-                    )
-                    .join(OUTPUT_CONTEST_RESULT_FILE);
+                let contest_result_file = PipeInputs::build_path(
+                    &input_dir,
+                    &contest_input.election_id,
+                    &contest_input.id,
+                    None,
+                )
+                .join(OUTPUT_CONTEST_RESULT_FILE);
 
                 let f = fs::File::open(&contest_result_file)
                     .map_err(|e| Error::IO(contest_result_file.clone(), e))?;
@@ -124,7 +120,7 @@ impl Pipe for MarkWinners {
 
                 let winner = self.get_winner(&contest_result);
 
-                let mut file = self.pipe_inputs.get_path_for_data(
+                let mut file = PipeInputs::build_path(
                     &output_dir,
                     &contest_input.election_id,
                     &contest_input.id,

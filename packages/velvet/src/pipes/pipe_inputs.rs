@@ -23,13 +23,14 @@ pub const CONTEST_CONFIG_FILE: &str = "contest-config.json";
 pub const BALLOTS_FILE: &str = "ballots.csv";
 
 pub trait PipeInputsRead {
-    // read input_dir into PipeInput
-    fn read_input_dir_config(&self) -> Result<()>;
+    fn read_input_data(&self) -> Vec<PathBuf>;
 }
 
 #[derive(Debug)]
 pub struct PipeInputs {
     pub cli: CliRun,
+    pub root_path_config: PathBuf,
+    pub root_path_ballots: PathBuf,
     pub stage: Stage,
     // TODO: Election Event Config
     pub election_list: Vec<ElectionConfig>,
@@ -37,17 +38,20 @@ pub struct PipeInputs {
 
 impl PipeInputs {
     pub fn new(cli: CliRun, stage: Stage) -> Result<Self> {
-        let election_list = Self::read_input_dir_config(&cli.input_dir)?;
+        let root_path_config = &cli.input_dir.join(DEFAULT_DIR_CONFIGS);
+        let root_path_ballots = &cli.input_dir.join(DEFAULT_DIR_BALLOTS);
+        let election_list = Self::read_input_dir_config(root_path_config.as_path())?;
 
         Ok(Self {
             cli,
+            root_path_config: root_path_config.to_path_buf(),
+            root_path_ballots: root_path_ballots.to_path_buf(),
             stage,
             election_list,
         })
     }
 
-    pub fn get_path_for_data(
-        &self,
+    pub fn build_path(
         root: &Path,
         election_id: &Uuid,
         contest_id: &Uuid,
@@ -56,7 +60,7 @@ impl PipeInputs {
         let mut path = PathBuf::new();
 
         path.push(root);
-        path.push(DEFAULT_DIR_BALLOTS);
+        // path.push(DEFAULT_DIR_BALLOTS);
         path.push(format!("{}{}", PREFIX_ELECTION, election_id));
         path.push(format!("{}{}", PREFIX_CONTEST, contest_id));
 
@@ -68,7 +72,7 @@ impl PipeInputs {
     }
 
     fn read_input_dir_config(input_dir: &Path) -> Result<Vec<ElectionConfig>> {
-        let entries = fs::read_dir(input_dir.join(DEFAULT_DIR_CONFIGS))?;
+        let entries = fs::read_dir(input_dir)?;
 
         let mut configs = vec![];
         for entry in entries {
@@ -105,6 +109,7 @@ impl PipeInputs {
             id: election_id,
             ballot_style,
             contest_list: configs,
+            path: path.to_path_buf(),
         })
     }
 
@@ -125,13 +130,14 @@ impl PipeInputs {
         let entries = fs::read_dir(path)?;
         let mut configs = vec![];
         for entry in entries {
-            let path = entry?.path();
-            if path.is_dir() {
-                let region_id =
-                    Self::parse_path_components(&path, PREFIX_REGION).ok_or(Error::IDNotFound)?;
+            let path_region = entry?.path();
+            if path_region.is_dir() {
+                let region_id = Self::parse_path_components(&path_region, PREFIX_REGION)
+                    .ok_or(Error::IDNotFound)?;
                 configs.push(Region {
                     id: region_id,
                     contest_id,
+                    path: path_region,
                 });
             }
         }
@@ -141,6 +147,7 @@ impl PipeInputs {
             election_id,
             contest,
             region_list: configs,
+            path: path.to_path_buf(),
         })
     }
 
@@ -157,11 +164,28 @@ impl PipeInputs {
     }
 }
 
+impl PipeInputs {
+    pub fn swap_path(src: PathBuf, old_root: PathBuf, new_root: PathBuf) -> PathBuf {
+        let new_path: PathBuf = src
+            .iter()
+            .map(|component| {
+                if component == old_root.as_os_str() {
+                    return new_root.clone();
+                }
+                component.into()
+            })
+            .collect();
+
+        new_path
+    }
+}
+
 #[derive(Debug)]
 pub struct ElectionConfig {
     pub id: Uuid,
     pub ballot_style: BallotStyle,
     pub contest_list: Vec<ContestForElectionConfig>,
+    pub path: PathBuf,
 }
 
 #[derive(Debug)]
@@ -170,10 +194,55 @@ pub struct ContestForElectionConfig {
     pub election_id: Uuid,
     pub contest: Contest,
     pub region_list: Vec<Region>,
+    pub path: PathBuf,
 }
 
 #[derive(Debug)]
 pub struct Region {
     pub id: Uuid,
     pub contest_id: Uuid,
+    pub path: PathBuf,
 }
+
+// pub trait PathSwap {
+//     fn path_config(&self) -> PathBuf;
+//     fn path_ballots(&self) -> PathBuf;
+//
+//     fn swap_path(&self, old_root: PathBuf, new_root: PathBuf) -> Path {
+//         let new_path: PathBuf = old_root
+//             .iter()
+//             .map(|component| {
+//                 if component == old_root.as_os_str() {
+//                     return new_root;
+//                 }
+//                 component.into()
+//             })
+//             .collect();
+//
+//         new_path.as_path()
+//     }
+// }
+// impl PathSwap for ElectionConfig {
+//     fn path_config(&self) -> PathBuf {
+//         self.path_config.clone()
+//     }
+//     fn path_ballots(&self) -> PathBuf {
+//         self.path_ballots.clone()
+//     }
+// }
+// impl PathSwap for ContestForElectionConfig {
+//     fn path_config(&self) -> PathBuf {
+//         self.path_config.clone()
+//     }
+//     fn path_ballots(&self) -> PathBuf {
+//         self.path_ballots.clone()
+//     }
+// }
+// impl PathSwap for Region {
+//     fn path_config(&self) -> PathBuf {
+//         self.path_config.clone()
+//     }
+//     fn path_ballots(&self) -> PathBuf {
+//         self.path_ballots.clone()
+//     }
+// }

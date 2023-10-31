@@ -8,9 +8,9 @@ use crate::pipes::{
     decode_ballots::OUTPUT_DECODED_BALLOTS_FILE, pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir, Pipe,
 };
-use crate::utils::{HasId};
+use crate::utils::HasId;
 use sequent_core::ballot::Candidate;
-use sequent_core::{ballot::Contest};
+use sequent_core::ballot::Contest;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs};
 
@@ -45,24 +45,22 @@ impl Pipe for DoTally {
             for contest_input in &election_input.contest_list {
                 let mut contest_ballot_files = vec![];
                 for region_input in &contest_input.region_list {
-                    let decoded_ballots_file = self
-                        .pipe_inputs
-                        .get_path_for_data(
-                            &input_dir,
-                            &contest_input.election_id,
-                            &contest_input.id,
-                            Some(&region_input.id),
-                        )
-                        .join(OUTPUT_DECODED_BALLOTS_FILE);
+                    let decoded_ballots_file = PipeInputs::build_path(
+                        &input_dir,
+                        &contest_input.election_id,
+                        &contest_input.id,
+                        Some(&region_input.id),
+                    )
+                    .join(OUTPUT_DECODED_BALLOTS_FILE);
 
                     let ca = tally::create_tally(
-                        contest_input.config.as_path(),
+                        &contest_input.contest,
                         vec![decoded_ballots_file.clone()],
                     )?;
 
                     let res = ca.tally()?;
 
-                    let mut file = self.pipe_inputs.get_path_for_data(
+                    let mut file = PipeInputs::build_path(
                         &output_dir,
                         &contest_input.election_id,
                         &contest_input.id,
@@ -78,11 +76,11 @@ impl Pipe for DoTally {
                     contest_ballot_files.push(decoded_ballots_file);
                 }
 
-                let ca = tally::create_tally(contest_input.config.as_path(), contest_ballot_files)?;
+                let ca = tally::create_tally(&contest_input.contest, contest_ballot_files)?;
 
                 let res = ca.tally()?;
 
-                let mut file = self.pipe_inputs.get_path_for_data(
+                let mut file = PipeInputs::build_path(
                     &output_dir,
                     &contest_input.election_id,
                     &contest_input.id,

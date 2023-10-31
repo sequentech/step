@@ -12,6 +12,8 @@ pub enum Error {
     ElectionConfigNotFound(Uuid),
     ContestConfigNotFound(Uuid),
     IO(std::path::PathBuf, std::io::Error),
+    FS(std::io::Error),
+    JsonParse(serde_json::Error),
     FromPipe(String),
 }
 
@@ -24,6 +26,12 @@ impl core::fmt::Display for Error {
 impl From<std::io::Error> for Error {
     fn from(val: std::io::Error) -> Self {
         Self::FS(val)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(val: serde_json::Error) -> Self {
+        Self::JsonParse(val)
     }
 }
 

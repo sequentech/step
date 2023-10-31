@@ -2,16 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::{collections::HashMap};
-
-
+use std::collections::HashMap;
 
 use super::CountingAlgorithm;
 use crate::pipes::do_tally::{
     invalid_vote::InvalidVote, tally::Tally, CandidateResult, ContestResult,
 };
 
-use super::{Result};
+use super::Result;
 
 pub struct PluralityAtLarge {
     pub tally: Tally,
