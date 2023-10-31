@@ -136,7 +136,7 @@ pub fn get_config() -> Config {
                     },
                     config::PipeConfig {
                         id: "gen-report".to_string(),
-                        pipe: PipeName::GenerateReport,
+                        pipe: PipeName::GenerateReports,
                         config: Some(serde_json::Value::Null),
                     },
                 ],

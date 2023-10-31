@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Report</title>
+    <style>
+      .toto {
+        color: blue;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 class="title">Results of the election "{{election_name}}"</h1>
+
+    <h2>Contest: {{ contest.name }}</h2>
+    <p class="contest-desc">{{ contest.description }}</p>
+
+    <h3>Candidate list</h3>
+    {{#each contest.candidates as |candidate|}}
+    <li class="">{{candidate.name}}</li>
+    {{/each}}
+
+    <h3>Winner</h3>
+    <p>Name: {{winner.candidate.name}}</p>
+    <p>Total point: {{winner.total_points}}</p>
+  </body>
+</html>

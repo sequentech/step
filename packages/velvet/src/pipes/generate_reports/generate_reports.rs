@@ -2,81 +2,72 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::fs;
+use std::{
+    fs::{self, OpenOptions},
+    io::Write,
+};
 
-use sequent_core::ballot::Candidate;
-use serde::{Deserialize, Serialize};
+use sequent_core::{
+    ballot::{Candidate, Contest},
+    services::{pdf, reports},
+};
+use serde_json::Map;
 
 use super::error::{Error, Result};
 use crate::pipes::{
     do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
-    pipe_inputs::PipeInputs,
+    mark_winners::{WinnerCandidate, OUTPUT_WINNERS},
+    pipe_inputs::{PipeInputs, CONTEST_CONFIG_FILE},
     pipe_name::PipeNameOutputDir,
     Pipe,
 };
 
-pub const OUTPUT_WINNERS: &str = "winners.json";
+const OUTPUT_PDF: &str = "report.pdf";
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct WinnerCandidate {
-    pub candidate: Candidate,
-    pub total_points: u64,
-}
-
-pub struct MarkWinners {
+pub struct GenerateReports {
     pub pipe_inputs: PipeInputs,
 }
 
-impl MarkWinners {
+impl GenerateReports {
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
 
-    fn get_winner(&self, contest_result: &ContestResult) -> WinnerCandidate {
-        let mut max_votes = 0;
-        let mut winners = Vec::new();
+    pub fn generate_report(&self, contest: &Contest, winner: &WinnerCandidate) -> Result<Vec<u8>> {
+        let mut map = Map::new();
+        map.insert("contest".to_owned(), serde_json::to_value(&contest)?);
+        map.insert("winner".to_owned(), serde_json::to_value(&winner)?);
 
-        for candidate_result in &contest_result.candidate_result {
-            if candidate_result.total_count > max_votes {
-                max_votes = candidate_result.total_count;
-                winners.clear();
-                winners.push(candidate_result);
-            } else if candidate_result.total_count == max_votes {
-                winners.push(candidate_result);
-            }
-        }
+        let html = include_str!("../../resources/report.html");
+        let render = reports::render_template_text(html, map)?;
 
-        if winners.len() > 1 {
-            // ties resolution
-            winners.sort_by(|a, b| a.candidate.name.cmp(&b.candidate.name));
-        }
+        let bytes = pdf::html_to_pdf(render)?;
 
-        let winner = winners[0].clone();
-
-        WinnerCandidate {
-            candidate: winner.candidate,
-            total_points: winner.total_count,
-        }
+        Ok(bytes)
     }
 }
 
-impl Pipe for MarkWinners {
+impl Pipe for GenerateReports {
     fn exec(&self) -> Result<()> {
         let input_dir = self
             .pipe_inputs
             .cli
             .output_dir
             .as_path()
-            .join(PipeNameOutputDir::DoTally.as_ref());
+            .join(PipeNameOutputDir::MarkWinners.as_ref());
         let output_dir = self
             .pipe_inputs
             .cli
             .output_dir
             .as_path()
-            .join(PipeNameOutputDir::MarkWinners.as_ref());
+            .join(PipeNameOutputDir::GenerateReports.as_ref());
 
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
+                let f = fs::File::open(&contest_input.config)
+                    .map_err(|e| Error::IO(contest_input.config.clone(), e))?;
+                let contest: Contest = serde_json::from_reader(f)?;
+
                 for region_input in &contest_input.region_list {
                     let contest_result_file = self
                         .pipe_inputs
@@ -86,13 +77,13 @@ impl Pipe for MarkWinners {
                             &contest_input.id,
                             Some(&region_input.id),
                         )
-                        .join(OUTPUT_CONTEST_RESULT_FILE);
+                        .join(OUTPUT_WINNERS);
 
                     let f = fs::File::open(&contest_result_file)
                         .map_err(|e| Error::IO(contest_result_file.clone(), e))?;
-                    let contest_result: ContestResult = serde_json::from_reader(f)?;
+                    let winner: WinnerCandidate = serde_json::from_reader(f)?;
 
-                    let winner = self.get_winner(&contest_result);
+                    let bytes = self.generate_report(&contest, &winner)?;
 
                     let mut file = self.pipe_inputs.get_path_for_data(
                         &output_dir,
@@ -102,10 +93,16 @@ impl Pipe for MarkWinners {
                     );
 
                     fs::create_dir_all(&file)?;
-                    file.push(OUTPUT_WINNERS);
-                    let file = fs::File::create(file)?;
+                    file.push(OUTPUT_PDF);
 
-                    serde_json::to_writer(file, &winner)?;
+                    let mut file = OpenOptions::new()
+                        .write(true)
+                        .truncate(true)
+                        .create(true)
+                        // .open(&file)?;
+                        .open("/home/knth/test.pdf")?;
+
+                    file.write_all(&bytes)?;
                 }
 
                 let contest_result_file = self
@@ -116,13 +113,13 @@ impl Pipe for MarkWinners {
                         &contest_input.id,
                         None,
                     )
-                    .join(OUTPUT_CONTEST_RESULT_FILE);
+                    .join(OUTPUT_WINNERS);
 
                 let f = fs::File::open(&contest_result_file)
                     .map_err(|e| Error::IO(contest_result_file.clone(), e))?;
-                let contest_result: ContestResult = serde_json::from_reader(f)?;
+                let winner: WinnerCandidate = serde_json::from_reader(f)?;
 
-                let winner = self.get_winner(&contest_result);
+                let bytes = self.generate_report(&contest, &winner)?;
 
                 let mut file = self.pipe_inputs.get_path_for_data(
                     &output_dir,
@@ -132,10 +129,17 @@ impl Pipe for MarkWinners {
                 );
 
                 fs::create_dir_all(&file)?;
-                file.push(OUTPUT_WINNERS);
-                let file = fs::File::create(file)?;
+                file.push(OUTPUT_PDF);
 
-                serde_json::to_writer(file, &winner)?;
+                let mut file = OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .create(true)
+                    // .open(&file)?;
+                    .open("/home/knth/test-contest-lvl.pdf")?;
+
+                file.write_all(&bytes)?;
+                serde_json::to_writer(file, &bytes)?;
             }
         }
 

@@ -4,6 +4,7 @@
 
 use super::decode_ballots::DecodeBallots;
 use super::error::Error;
+use super::generate_reports::GenerateReports;
 use super::mark_winners::MarkWinners;
 use super::pipe_inputs::PipeInputs;
 use super::pipe_name::PipeName;
@@ -26,6 +27,7 @@ impl PipeManager {
             PipeName::DecodeBallots => Some(Box::new(DecodeBallots::new(pipe_inputs))),
             PipeName::DoTally => Some(Box::new(DoTally::new(pipe_inputs))),
             PipeName::MarkWinners => Some(Box::new(MarkWinners::new(pipe_inputs))),
+            PipeName::GenerateReports => Some(Box::new(GenerateReports::new(pipe_inputs))),
             _ => None,
         })
     }

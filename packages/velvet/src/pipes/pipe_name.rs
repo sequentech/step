@@ -13,7 +13,7 @@ pub enum PipeName {
     DecodeBallots,
     DoTally,
     MarkWinners,
-    GenerateReport,
+    GenerateReports,
 }
 
 struct PipeNameVisitor;
@@ -42,6 +42,6 @@ pub enum PipeNameOutputDir {
     DoTally,
     #[strum(serialize = "velvet-mark-winners")]
     MarkWinners,
-    #[strum(serialize = "velvet-generate-report")]
-    GenerateReport,
+    #[strum(serialize = "velvet-generate-reports")]
+    GenerateReports,
 }
