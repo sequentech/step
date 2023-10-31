@@ -11,7 +11,7 @@ pub enum Error {
     IDNotFound,
     ElectionConfigNotFound(Uuid),
     ContestConfigNotFound(Uuid),
-    FS(std::io::Error),
+    IO(std::path::PathBuf, std::io::Error),
     FromPipe(String),
 }
 

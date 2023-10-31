@@ -4,6 +4,7 @@
 
 use super::error::{Error, Result};
 use crate::cli::{state::Stage, CliRun};
+use sequent_core::ballot::{BallotStyle, Contest};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -83,10 +84,13 @@ impl PipeInputs {
 
         let election_id =
             Self::parse_path_components(path, PREFIX_ELECTION).ok_or(Error::IDNotFound)?;
-        let config = path.join(ELECTION_CONFIG_FILE);
-        if !config.exists() {
+        let config_path = path.join(ELECTION_CONFIG_FILE);
+        if !config_path.exists() {
             return Err(Error::ElectionConfigNotFound(election_id));
         }
+        let config_file =
+            fs::File::open(&config_path).map_err(|e| Error::IO(config_path.clone(), e))?;
+        let ballot_style: BallotStyle = serde_json::from_reader(config_file)?;
 
         let mut configs = vec![];
         for entry in entries {
@@ -99,7 +103,7 @@ impl PipeInputs {
 
         Ok(ElectionConfig {
             id: election_id,
-            config: config.to_owned(),
+            ballot_style,
             contest_list: configs,
         })
     }
@@ -110,10 +114,13 @@ impl PipeInputs {
     ) -> Result<ContestForElectionConfig> {
         let contest_id =
             Self::parse_path_components(path, PREFIX_CONTEST).ok_or(Error::IDNotFound)?;
-        let config = path.join(CONTEST_CONFIG_FILE);
-        if !config.exists() {
+        let config_path = path.join(CONTEST_CONFIG_FILE);
+        if !config_path.exists() {
             return Err(Error::ContestConfigNotFound(contest_id));
         }
+        let config_file =
+            fs::File::open(&config_path).map_err(|e| Error::IO(config_path.clone(), e))?;
+        let contest: Contest = serde_json::from_reader(config_file)?;
 
         let entries = fs::read_dir(path)?;
         let mut configs = vec![];
@@ -132,7 +139,7 @@ impl PipeInputs {
         Ok(ContestForElectionConfig {
             id: contest_id,
             election_id,
-            config: config.to_owned(),
+            contest,
             region_list: configs,
         })
     }
@@ -153,7 +160,7 @@ impl PipeInputs {
 #[derive(Debug)]
 pub struct ElectionConfig {
     pub id: Uuid,
-    pub config: PathBuf,
+    pub ballot_style: BallotStyle,
     pub contest_list: Vec<ContestForElectionConfig>,
 }
 
@@ -161,7 +168,7 @@ pub struct ElectionConfig {
 pub struct ContestForElectionConfig {
     pub id: Uuid,
     pub election_id: Uuid,
-    pub config: PathBuf,
+    pub contest: Contest,
     pub region_list: Vec<Region>,
 }
 
