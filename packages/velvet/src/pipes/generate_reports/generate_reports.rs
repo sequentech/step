@@ -99,8 +99,7 @@ impl Pipe for GenerateReports {
                         .write(true)
                         .truncate(true)
                         .create(true)
-                        // .open(&file)?;
-                        .open("/home/knth/test.pdf")?;
+                        .open(&file)?;
 
                     file.write_all(&bytes)?;
                 }
@@ -135,8 +134,7 @@ impl Pipe for GenerateReports {
                     .write(true)
                     .truncate(true)
                     .create(true)
-                    // .open(&file)?;
-                    .open("/home/knth/test-contest-lvl.pdf")?;
+                    .open(&file)?;
 
                 file.write_all(&bytes)?;
                 serde_json::to_writer(file, &bytes)?;
