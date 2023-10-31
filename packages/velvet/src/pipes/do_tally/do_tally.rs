@@ -44,6 +44,7 @@ impl Pipe for DoTally {
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
                 let mut contest_ballot_files = vec![];
+
                 for region_input in &contest_input.region_list {
                     let decoded_ballots_file = PipeInputs::build_path(
                         &input_dir,
@@ -57,7 +58,6 @@ impl Pipe for DoTally {
                         &contest_input.contest,
                         vec![decoded_ballots_file.clone()],
                     )?;
-
                     let res = ca.tally()?;
 
                     let mut file = PipeInputs::build_path(
@@ -69,6 +69,7 @@ impl Pipe for DoTally {
 
                     fs::create_dir_all(&file)?;
                     file.push(OUTPUT_CONTEST_RESULT_FILE);
+
                     let file = fs::File::create(file)?;
 
                     serde_json::to_writer(file, &res)?;
@@ -77,7 +78,6 @@ impl Pipe for DoTally {
                 }
 
                 let ca = tally::create_tally(&contest_input.contest, contest_ballot_files)?;
-
                 let res = ca.tally()?;
 
                 let mut file = PipeInputs::build_path(
@@ -86,8 +86,8 @@ impl Pipe for DoTally {
                     &contest_input.id,
                     None,
                 );
-
                 file.push(OUTPUT_CONTEST_RESULT_FILE);
+
                 let file = fs::File::create(file)?;
 
                 serde_json::to_writer(file, &res)?;

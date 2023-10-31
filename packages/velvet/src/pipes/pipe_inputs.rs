@@ -22,10 +22,6 @@ pub const ELECTION_CONFIG_FILE: &str = "election-config.json";
 pub const CONTEST_CONFIG_FILE: &str = "contest-config.json";
 pub const BALLOTS_FILE: &str = "ballots.csv";
 
-pub trait PipeInputsRead {
-    fn read_input_data(&self) -> Vec<PathBuf>;
-}
-
 #[derive(Debug)]
 pub struct PipeInputs {
     pub cli: CliRun,
@@ -60,7 +56,6 @@ impl PipeInputs {
         let mut path = PathBuf::new();
 
         path.push(root);
-        // path.push(DEFAULT_DIR_BALLOTS);
         path.push(format!("{}{}", PREFIX_ELECTION, election_id));
         path.push(format!("{}{}", PREFIX_CONTEST, contest_id));
 
@@ -164,22 +159,6 @@ impl PipeInputs {
     }
 }
 
-impl PipeInputs {
-    pub fn swap_path(src: PathBuf, old_root: PathBuf, new_root: PathBuf) -> PathBuf {
-        let new_path: PathBuf = src
-            .iter()
-            .map(|component| {
-                if component == old_root.as_os_str() {
-                    return new_root.clone();
-                }
-                component.into()
-            })
-            .collect();
-
-        new_path
-    }
-}
-
 #[derive(Debug)]
 pub struct ElectionConfig {
     pub id: Uuid,
@@ -203,46 +182,3 @@ pub struct Region {
     pub contest_id: Uuid,
     pub path: PathBuf,
 }
-
-// pub trait PathSwap {
-//     fn path_config(&self) -> PathBuf;
-//     fn path_ballots(&self) -> PathBuf;
-//
-//     fn swap_path(&self, old_root: PathBuf, new_root: PathBuf) -> Path {
-//         let new_path: PathBuf = old_root
-//             .iter()
-//             .map(|component| {
-//                 if component == old_root.as_os_str() {
-//                     return new_root;
-//                 }
-//                 component.into()
-//             })
-//             .collect();
-//
-//         new_path.as_path()
-//     }
-// }
-// impl PathSwap for ElectionConfig {
-//     fn path_config(&self) -> PathBuf {
-//         self.path_config.clone()
-//     }
-//     fn path_ballots(&self) -> PathBuf {
-//         self.path_ballots.clone()
-//     }
-// }
-// impl PathSwap for ContestForElectionConfig {
-//     fn path_config(&self) -> PathBuf {
-//         self.path_config.clone()
-//     }
-//     fn path_ballots(&self) -> PathBuf {
-//         self.path_ballots.clone()
-//     }
-// }
-// impl PathSwap for Region {
-//     fn path_config(&self) -> PathBuf {
-//         self.path_config.clone()
-//     }
-//     fn path_ballots(&self) -> PathBuf {
-//         self.path_ballots.clone()
-//     }
-// }

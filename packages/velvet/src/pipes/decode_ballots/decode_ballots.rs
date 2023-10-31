@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::error::{Error, Result};
-use crate::pipes::pipe_inputs::{PipeInputs, PipeInputsRead, BALLOTS_FILE};
+use crate::pipes::pipe_inputs::{PipeInputs, BALLOTS_FILE};
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
 use sequent_core::ballot::Contest;

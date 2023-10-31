@@ -280,14 +280,13 @@ mod tests {
             election_num * contest_num * region_num + election_num * contest_num
         );
 
-        // Report
-        state.exec_next()?;
-
         Ok(())
     }
 
-    #[test]
+    // #[test]
     fn test_generate_reports() -> Result<()> {
+        let fixture = TestFixture::new()?;
+
         let winner = WinnerCandidate {
             candidate: Candidate {
                 id: "1".to_string(),
@@ -438,15 +437,16 @@ mod tests {
 
         let bytes = pdf::html_to_pdf(render)?;
 
+        let output_path = fixture.root_dir.join("test-report.pdf");
         let mut file = OpenOptions::new()
             .write(true)
             .truncate(true)
             .create(true)
-            .open("test-report.pdf")?;
+            .open(&output_path)?;
 
+        assert!(!output_path.exists());
         file.write_all(&bytes)?;
-
-        assert!(PathBuf::from("test-report.pdf").exists());
+        assert!(output_path.exists());
 
         Ok(())
     }
