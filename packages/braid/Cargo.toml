@@ -74,4 +74,5 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-rayon", "dep:tracing-wasm", "instant/wasm-bindgen"]
-fips = ["strand/openssl"]
+fips_core = ["strand/fips_core"]
+fips_full = ["strand/fips_full"]
