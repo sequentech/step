@@ -4,25 +4,70 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Report</title>
-    <style>
-      .toto {
-        color: blue;
-      }
-    </style>
+    <style></style>
   </head>
   <body>
-    <h1 class="title">Results of the election "{{election_name}}"</h1>
+    <h1 class="title">Results of the election</h1>
 
-    <h2>Contest: {{ contest.name }}</h2>
-    <p class="contest-desc">{{ contest.description }}</p>
+    {{#each report_list as |report_contest|}}
+    <h2>Contest: {{report_contest.contest.name}}</h2>
+    <p class="contest-desc">{{ report_contest.contest.description }}</p>
 
-    <h3>Candidate list</h3>
-    {{#each contest.candidates as |candidate|}}
-    <li class="">{{candidate.name}}</li>
+    <table>
+      <tr>
+        <th>Configuration Data</th>
+      </tr>
+      <tr>
+        <td>Tally System</td>
+        <td>
+          {{report_contest.contest.voting_type}},
+          {{report_contest.contest.counting_algorithm}}
+        </td>
+      </tr>
+      <tr>
+        <td>Minimum number of option a voter can select</td>
+        <td>{{report_contest.contest.min_votes}}</td>
+      </tr>
+      <tr>
+        <td>Maximum number of option a voter can select</td>
+        <td>{{report_contest.contest.max_votes}}</td>
+      </tr>
+    </table>
+
+    <table>
+      <tr>
+        <th>Participation</th>
+      </tr>
+      <tr>
+        <td>Total number of votes cast</td>
+        <td>{{report_contest.contest_result.total_valid_votes}}</td>
+      </tr>
+      <tr>
+        <td>Blank votes</td>
+        <td>todo</td>
+      </tr>
+      <tr>
+        <td>Null votes</td>
+        <td>todo</td>
+      </tr>
+      <tr>
+        <td>Total number of votes for options</td>
+        <td>todo</td>
+      </tr>
+    </table>
+
+    <table>
+      <tr>
+        <th>Candidate result</th>
+      </tr>
+      {{#each report_contest.contest_result.candidate_result as |candidate|}}
+      <tr class="">
+        <td>{{candidate.candidate.name}}</td>
+        <td>{{candidate.total_count}}</td>
+      </tr>
+      {{/each}}
+    </table>
+
     {{/each}}
-
-    <h3>Winner</h3>
-    <p>Name: {{winner.candidate.name}}</p>
-    <p>Total point: {{winner.total_points}}</p>
   </body>
 </html>
