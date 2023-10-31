@@ -30,13 +30,24 @@ pub async fn insert_ballots(
     body: InsertBallotsPayload,
     tenant_id: String,
     election_event_id: String,
-    area_id: String,
-    contest_id: String,
-    batch: BatchNumber,
+    tally_session_id: String,
+    tally_session_contest_id: String,
 ) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
         .map_err(into_task_error)?;
+    let tally_session_contest = get_tally_session_contest(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session_id.clone(),
+        tally_session_contest_id.clone(),
+    )
+    .await
+    .map_err(into_task_error)?;
+    .data
+    .expect("expected data".into())
+    .sequent_backend_tally_session_contest[0];
     // fetch election_event
     let hasura_response = hasura::election_event::get_election_event(
         auth_headers.clone(),

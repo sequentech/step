@@ -58,7 +58,7 @@ pub async fn tally_election_event(
         .with_context(|| "can't find trustees")
         .map_err(into_task_error)?;
     
-    insert_tally_session(
+    let tally_session = insert_tally_session(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -73,6 +73,22 @@ pub async fn tally_election_event(
     let celery_app = get_celery_app().await;
 
     for area_contest in contest_areas.iter() {
+        let tally_session_contest = insert_tally_session_contest(
+            auth_headers: connection::AuthHeaders,
+            tenant_id: String,
+            election_event_id: String,
+            area_id: String,
+            contest_id: String,
+            session_id: BatchNumber,
+            tally_session_id: tally_session.id.clone(),
+        )
+            .await
+            .map_err(into_task_error)?
+            .data
+            .with_context(|| "can't insert tally session contest")
+            .insert_sequent_backend_tally_session_contest
+            .map_err(into_task_error)
+            .returning[0];
         let task = celery_app
             .send_task(insert_ballots::new(
                 InsertBallotsPayload {
@@ -80,9 +96,8 @@ pub async fn tally_election_event(
                 },
                 tenant_id.clone(),
                 election_event_id.clone(),
-                area_id.clone(),
-                area_contest.contest_id.clone().unwrap(),
-                batch.clone(),
+                tally_session.id.clone(),
+                tally_session_contest.id.clone()
             ))
             .await
             .map_err(into_task_error)?;
