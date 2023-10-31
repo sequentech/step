@@ -1,0 +1,3 @@
+table:
+  name: tally_session
+  schema: sequent_backend
