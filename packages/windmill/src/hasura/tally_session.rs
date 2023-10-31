@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
+use braid_messages::newtypes::BatchNumber;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
+use sequent_core::services::connection;
 use std::env;
 use tracing::instrument;
-use braid_messages::newtypes::BatchNumber;
-use sequent_core::services::connection;
 
 use crate::services::to_result::ToResult;
 pub use crate::types::hasura_types::*;

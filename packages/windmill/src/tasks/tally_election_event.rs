@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Context;
 use anyhow::Result;
+use braid_messages::newtypes::BatchNumber;
 use celery::prelude::*;
 use sequent_core::services::openid;
 use tracing::{event, instrument, Level};
-use braid_messages::newtypes::BatchNumber;
 
 use crate::hasura::area::get_election_event_areas;
 use crate::services::celery_app::get_celery_app;
@@ -25,16 +25,21 @@ pub async fn tally_election_event(
         .await
         .map_err(into_task_error)?;
 
-    let areas_data =
-        get_election_event_areas(auth_headers, tenant_id.clone(), election_ids.clone(), election_event_id.clone())
-            .await
-            .map_err(into_task_error)?
-            .data
-            .with_context(|| "can't find election event areas")
-            .map_err(into_task_error)?;
-    
+    let areas_data = get_election_event_areas(
+        auth_headers,
+        tenant_id.clone(),
+        election_ids.clone(),
+        election_event_id.clone(),
+    )
+    .await
+    .map_err(into_task_error)?
+    .data
+    .with_context(|| "can't find election event areas")
+    .map_err(into_task_error)?;
+
     let contest_ids = areas_data.sequent_backend_contest.map(|contest| contest.id);
-    let contest_areas = areas_data.sequent_backend_area_contest
+    let contest_areas = areas_data
+        .sequent_backend_area_contest
         .into_iter()
         .filter(|contest_area| contest_ids.contains(contest_area.contest_id))
         .collect();
@@ -44,16 +49,16 @@ pub async fn tally_election_event(
         .collect::<HashSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
-    let trustees =
-        get_trustees_by_id(auth_headers, tenant_id.clone(), trustee_ids.clone())
+    let trustees = get_trustees_by_id(auth_headers, tenant_id.clone(), trustee_ids.clone())
         .await
         .map_err(into_task_error)?
         .data
         .with_context(|| "can't find trustees")
         .map_err(into_task_error)?;
 
-
-    let mut batch: BatchNumber = get_tally_session_highest_batch(auth_headers, tenant_id.clone(), election_event_id.clone()).await?;
+    let mut batch: BatchNumber =
+        get_tally_session_highest_batch(auth_headers, tenant_id.clone(), election_event_id.clone())
+            .await?;
     let celery_app = get_celery_app().await;
 
     for area_contest in contest_areas.iter() {

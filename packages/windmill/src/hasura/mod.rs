@@ -11,6 +11,6 @@ pub mod election;
 pub mod election_event;
 pub mod event_execution;
 pub mod scheduled_event;
+pub mod tally_session;
 pub mod tenant;
 pub mod trustee;
-pub mod tally_session;
