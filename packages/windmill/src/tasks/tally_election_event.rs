@@ -9,6 +9,8 @@ use sequent_core::services::openid;
 use tracing::{event, instrument, Level};
 
 use crate::hasura::area::get_election_event_areas;
+use crate::hasura::trustee::get_trustees_by_id;
+use crate::hasura::tally_session::{get_tally_session_highest_batch, insert_tally_session};
 use crate::services::celery_app::get_celery_app;
 use crate::tasks::tally_election_event_area::tally_election_event_area;
 use crate::types::task_error::into_task_error;
@@ -49,12 +51,21 @@ pub async fn tally_election_event(
         .collect::<HashSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
-    let trustees = get_trustees_by_id(auth_headers, tenant_id.clone(), trustee_ids.clone())
+    let trustees = get_trustees_by_id(auth_headers.clone(), tenant_id.clone(), trustee_ids.clone())
         .await
         .map_err(into_task_error)?
         .data
         .with_context(|| "can't find trustees")
         .map_err(into_task_error)?;
+    
+    insert_tally_session(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        election_ids.clone(),
+        trustee_ids.clone(),
+        area_ids.clone()
+    ).await.map_err(into_task_error)?;
 
     let mut batch: BatchNumber =
         get_tally_session_highest_batch(auth_headers, tenant_id.clone(), election_event_id.clone())
