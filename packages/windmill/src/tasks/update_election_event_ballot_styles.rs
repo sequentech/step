@@ -23,13 +23,17 @@ pub async fn update_election_event_ballot_styles(
         .await
         .map_err(into_task_error)?;
 
-    let areas =
-        get_election_event_areas(auth_headers, tenant_id.clone(), election_event_id.clone())
-            .await
-            .map_err(into_task_error)?
-            .data
-            .with_context(|| "can't find election event areas")
-            .map_err(into_task_error)?;
+    let areas = get_election_event_areas(
+        auth_headers,
+        tenant_id.clone(),
+        election_event_id.clone(),
+        vec![],
+    )
+    .await
+    .map_err(into_task_error)?
+    .data
+    .with_context(|| "can't find election event areas")
+    .map_err(into_task_error)?;
     let celery_app = get_celery_app().await;
 
     for area in areas.sequent_backend_area.iter() {

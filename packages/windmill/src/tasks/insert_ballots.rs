@@ -15,10 +15,10 @@ use strand::elgamal::Ciphertext;
 use tracing::instrument;
 
 use crate::hasura;
+use crate::hasura::tally_session_contest::get_tally_session_contest;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager::*;
 use crate::types::task_error::into_task_error;
-use crate::hasura::tally_session_contest::get_tally_session_contest;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct InsertBallotsPayload {
@@ -37,7 +37,7 @@ pub async fn insert_ballots(
     let auth_headers = openid::get_client_credentials()
         .await
         .map_err(into_task_error)?;
-    let tally_session_contest = get_tally_session_contest(
+    let tally_session_contest = &get_tally_session_contest(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -114,7 +114,9 @@ pub async fn insert_ballots(
                             value
                                 .contests
                                 .iter()
-                                .find(|contest| contest.contest_id == tally_session_contest.contest_id)
+                                .find(|contest| {
+                                    contest.contest_id == tally_session_contest.contest_id
+                                })
                                 .map(|contest| contest.ciphertext.clone())
                         })
                         .flatten()

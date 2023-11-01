@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use braid_messages::newtypes::BatchNumber;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
@@ -15,10 +15,10 @@ pub use crate::types::hasura_types::*;
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/get_election_event_areas.graphql",
+    query_path = "src/graphql/get_tally_session_highest_batch.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-pub struct GetElectionEventAreas;
+pub struct GetTallySessionHighestBatch;
 
 #[instrument(skip_all)]
 pub async fn get_tally_session_highest_batch(
@@ -32,7 +32,7 @@ pub async fn get_tally_session_highest_batch(
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
-    let request_body = GetElectionEventAreas::build_query(variables);
+    let request_body = GetTallySessionHighestBatch::build_query(variables);
 
     let client = reqwest::Client::new();
     let res = client
@@ -43,7 +43,12 @@ pub async fn get_tally_session_highest_batch(
         .await?;
     let response_body: Response<get_tally_session_highest_batch::ResponseData> = res.json().await?;
     let data: Response<get_tally_session_highest_batch::ResponseData> = response_body.ok()?;
-    Ok(data.data.sequent_backend_tally_session_contest[0].session_id as BatchNumber)
+    let session_id = data
+        .data
+        .ok_or(anyhow!("Can't find tally session"))?
+        .sequent_backend_tally_session_contest[0]
+        .session_id;
+    Ok(session_id as BatchNumber)
 }
 
 #[derive(GraphQLQuery)]

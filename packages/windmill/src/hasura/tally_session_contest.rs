@@ -36,7 +36,7 @@ pub async fn insert_tally_session_contest(
         area_id: area_id,
         contest_id: contest_id,
         session_id: session_id,
-        tally_session_id: tally_session_id
+        tally_session_id: tally_session_id,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
