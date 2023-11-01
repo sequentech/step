@@ -16,6 +16,7 @@ mod tests {
     use crate::fixtures::TestFixture;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
     use crate::pipes::do_tally::{CandidateResult, ContestResult, OUTPUT_CONTEST_RESULT_FILE};
+    use crate::pipes::generate_reports::ReportForContest;
     use crate::pipes::mark_winners::{WinnerCandidate, OUTPUT_WINNERS};
     use crate::pipes::pipe_name::PipeNameOutputDir;
     use anyhow::{Error, Result};
@@ -461,11 +462,4 @@ mod tests {
 
         Ok(())
     }
-}
-
-// define some data
-#[derive(Serialize)]
-pub struct ReportForContest {
-    contest: Contest,
-    contest_result: ContestResult,
 }
