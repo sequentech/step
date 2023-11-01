@@ -29,13 +29,13 @@ pub async fn insert_tally_session_contest(
     contest_id: String,
     session_id: BatchNumber,
     tally_session_id: String,
-) -> Result<Response<insert_tally_session::ResponseData>> {
-    let variables = insert_tally_session::Variables {
+) -> Result<Response<insert_tally_session_contest::ResponseData>> {
+    let variables = insert_tally_session_contest::Variables {
         tenant_id: tenant_id,
         election_event_id: election_event_id,
         area_id: area_id,
         contest_id: contest_id,
-        session_id: session_id,
+        session_id: session_id as i64,
         tally_session_id: tally_session_id,
     };
     let hasura_endpoint =
@@ -49,7 +49,7 @@ pub async fn insert_tally_session_contest(
         .json(&request_body)
         .send()
         .await?;
-    let response_body: Response<insert_tally_session::ResponseData> = res.json().await?;
+    let response_body: Response<insert_tally_session_contest::ResponseData> = res.json().await?;
     response_body.ok()
 }
 

@@ -107,8 +107,10 @@ pub async fn tally_election_event(
         .map_err(into_task_error)?
         .data
         .with_context(|| "can't insert tally session contest")
+        .map_err(into_task_error)?
         .insert_sequent_backend_tally_session_contest
-        .map_err(into_task_error)
+        .ok_or(anyhow!("can't find tally session contest"))
+        .map_err(into_task_error)?
         .returning[0];
         let task = celery_app
             .send_task(insert_ballots::new(
