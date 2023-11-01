@@ -52,5 +52,38 @@ There are three different manners in which we use Immudb:
    Each Election Event has its own Election Protocol Board. And Each Election
    Protocol Board Log is implemented as an Immudb Database.
 
+## Backend Database Log
+
+```mermaid
+graph TB
+
+PostgreSQL --> PgAudit
+PgAudit --> Immudb
+```
+
+[PgAudit] is a well stablished and mature PostgreSQL extension. The PostgreSQL
+Audit Extension (or pgaudit) provides detailed session and/or object audit
+logging via the standard logging facility provided by PostgreSQL. The goal of
+PostgreSQL Audit to provide the tools needed to produce audit logs required to
+pass certain government, financial, or ISO certification audits.
+
+The way this works is as follows: PgAudit is configured to record its logs in
+Json format in some `/logs` directory. This directory could perhaps be a mounted
+volume, so that the `immudb-log-audit` service can also have access to it. The
+`immudb-log-audit` service detects any new file or line change, process it, and
+records this new output from PgAudit into the corresponding table in the 
+corresponding Immudb database.
+
+### Backend Database Logs UI
+
+Harvest is our business logic backend API service. It's accessible via GraphQL 
+through Hasura. Harvest provides an endpoint that allows an authenticated user
+to list the PgAudit logs. This in turn allows us to present them in the Admin
+Portal to authenticated users with the right permissions.
+
+## Election Protocol Log
+
+
+
 [Immudb]: https://immudb.io/
 [PgAudit]: https://www.pgaudit.org/
