@@ -29,7 +29,7 @@ pub async fn tally_election_event(
         .map_err(into_task_error)?;
 
     let areas_data = get_election_event_areas(
-        auth_headers,
+        auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
         election_ids.clone(),
@@ -51,11 +51,13 @@ pub async fn tally_election_event(
         .filter(|contest_area| {
             contest_area
                 .contest_id
+                .clone()
                 .map(|contest_id| contest_ids.contains(&contest_id))
                 .unwrap_or(false)
         })
         .collect::<Vec<_>>();
     let area_ids = contest_areas
+        .clone()
         .into_iter()
         .filter(|contest_area| contest_area.area_id.is_some())
         .map(|contest_area| contest_area.area_id.unwrap())
@@ -85,15 +87,19 @@ pub async fn tally_election_event(
     .insert_sequent_backend_tally_session
     .ok_or(anyhow!("can't find tally session"))
     .map_err(into_task_error)?
-    .returning[0];
+    .returning[0]
+        .clone();
 
-    let mut batch: BatchNumber =
-        get_tally_session_highest_batch(auth_headers, tenant_id.clone(), election_event_id.clone())
-            .await
-            .map_err(into_task_error)?;
+    let mut batch: BatchNumber = get_tally_session_highest_batch(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+    )
+    .await
+    .map_err(into_task_error)?;
     let celery_app = get_celery_app().await;
 
-    for area_contest in contest_areas.iter() {
+    for area_contest in contest_areas.into_iter() {
         let tally_session_contest = insert_tally_session_contest(
             auth_headers.clone(),
             tenant_id.clone(),
@@ -111,7 +117,8 @@ pub async fn tally_election_event(
         .insert_sequent_backend_tally_session_contest
         .ok_or(anyhow!("can't find tally session contest"))
         .map_err(into_task_error)?
-        .returning[0];
+        .returning[0]
+            .clone();
         let task = celery_app
             .send_task(insert_ballots::new(
                 InsertBallotsPayload {
