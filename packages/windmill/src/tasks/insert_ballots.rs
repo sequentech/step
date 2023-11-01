@@ -18,6 +18,7 @@ use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager::*;
 use crate::types::task_error::into_task_error;
+use crate::hasura::tally_session_contest::get_tally_session_contest;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct InsertBallotsPayload {
@@ -44,7 +45,7 @@ pub async fn insert_ballots(
         tally_session_contest_id.clone(),
     )
     .await
-    .map_err(into_task_error)?;
+    .map_err(into_task_error)?
     .data
     .expect("expected data".into())
     .sequent_backend_tally_session_contest[0];
@@ -89,7 +90,7 @@ pub async fn insert_ballots(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
-        area_id.clone(),
+        tally_session_contest.area_id.clone(),
     )
     .await
     .map_err(into_task_error)?;
@@ -113,7 +114,7 @@ pub async fn insert_ballots(
                             value
                                 .contests
                                 .iter()
-                                .find(|contest| contest.contest_id == contest_id)
+                                .find(|contest| contest.contest_id == tally_session_contest.contest_id)
                                 .map(|contest| contest.ciphertext.clone())
                         })
                         .flatten()
@@ -124,6 +125,7 @@ pub async fn insert_ballots(
         .map(|ballot| ballot.clone().unwrap())
         .collect();
 
+    let batch = tally_session_contest.session_id.clone() as BatchNumber;
     add_ballots_to_board(board_name.as_str(), insertable_ballots, batch)
         .await
         .map_err(into_task_error)?;

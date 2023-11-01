@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Context;
-use anyhow::Result;
 use celery::prelude::*;
 use sequent_core::services::openid;
 use tracing::{event, instrument, Level};

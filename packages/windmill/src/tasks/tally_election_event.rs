@@ -2,18 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Context;
-use anyhow::Result;
 use braid_messages::newtypes::BatchNumber;
 use celery::prelude::*;
 use sequent_core::services::openid;
 use tracing::{event, instrument, Level};
+use std::collections::HashSet;
 
 use crate::hasura::area::get_election_event_areas;
 use crate::hasura::trustee::get_trustees_by_id;
 use crate::hasura::tally_session::{get_tally_session_highest_batch, insert_tally_session};
 use crate::services::celery_app::get_celery_app;
-use crate::tasks::tally_election_event_area::tally_election_event_area;
 use crate::types::task_error::into_task_error;
+use crate::hasura::tally_session_contest::insert_tally_session_contest;
+use crate::tasks::insert_ballots::{InsertBallotsPayload, insert_ballots};
 
 #[instrument]
 #[celery::task]
@@ -74,13 +75,13 @@ pub async fn tally_election_event(
 
     for area_contest in contest_areas.iter() {
         let tally_session_contest = insert_tally_session_contest(
-            auth_headers: connection::AuthHeaders,
-            tenant_id: String,
-            election_event_id: String,
-            area_id: String,
-            contest_id: String,
-            session_id: BatchNumber,
-            tally_session_id: tally_session.id.clone(),
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            tally_session.area_id.clone(),
+            area_contest.contest_id.clone(),
+            batch.clone(),
+            tally_session.id.clone(),
         )
             .await
             .map_err(into_task_error)?

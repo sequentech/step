@@ -32,7 +32,7 @@ pub async fn get_tally_session_highest_batch(
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
-    let request_body = GetTallySessionHighestBatch::build_query(variables);
+    let request_body = GetElectionEventAreas::build_query(variables);
 
     let client = reqwest::Client::new();
     let res = client

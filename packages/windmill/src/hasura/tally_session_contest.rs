@@ -40,7 +40,7 @@ pub async fn insert_tally_session_contest(
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
-    let request_body = InsertTallySession::build_query(variables);
+    let request_body = InsertTallySessionContest::build_query(variables);
 
     let client = reqwest::Client::new();
     let res = client
@@ -52,8 +52,6 @@ pub async fn insert_tally_session_contest(
     let response_body: Response<insert_tally_session::ResponseData> = res.json().await?;
     response_body.ok()
 }
-
-
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -74,7 +72,8 @@ pub async fn get_tally_session_contest(
     let variables = get_tally_session_contest::Variables {
         tenant_id: tenant_id,
         election_event_id: election_event_id,
-        document_id: document_id,
+        tally_session_id: tally_session_id,
+        tally_session_contest_id: tally_session_contest_id,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

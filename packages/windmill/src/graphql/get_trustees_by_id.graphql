@@ -1,6 +1,6 @@
 query GetTrusteesById(
     $tenantId: uuid!,
-    $trusteeIds: [uuid!],
+    $trusteeIds: [uuid!]!,
 ) {
   sequent_backend_trustee(
       where: {
