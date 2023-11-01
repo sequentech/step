@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use celery::error::TaskError;
 use celery::prelude::*;
 use sequent_core;
-use sequent_core::services::openid;
+use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::From;
@@ -188,7 +188,7 @@ pub async fn create_ballot_style(
     tenant_id: String,
     election_event_id: String,
 ) -> TaskResult<()> {
-    let auth_headers = openid::get_client_credentials()
+    let auth_headers = keycloak::get_client_credentials()
         .await
         .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
     let hasura_response = hasura::ballot_style::get_ballot_style_area(
