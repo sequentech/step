@@ -10,8 +10,11 @@ use windmill::tasks::create_board;
 use windmill::tasks::create_keys;
 use windmill::tasks::insert_ballots;
 use windmill::tasks::render_report;
-use windmill::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use windmill::tasks::set_public_key::*;
+use windmill::tasks::tally_election_event::{
+    tally_election_event, TallyElectionBody,
+};
+use windmill::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use windmill::tasks::update_voting_status;
 use windmill::types::scheduled_event::*;
 
@@ -99,17 +102,21 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<()> {
                 task.task_id
             );
         }
-        EventProcessors::INSERT_BALLOTS => {
-            let payload: insert_ballots::InsertBallotsPayload =
+        EventProcessors::TALLY_ELECTION_EVENT => {
+            let payload: TallyElectionBody =
                 serde_json::from_value(event.event_payload.clone())?;
             let task = celery_app
-                .send_task(insert_ballots::insert_ballots::new(
+                .send_task(tally_election_event::new(
                     payload,
                     event.tenant_id,
                     event.election_event_id.clone(),
                 ))
                 .await?;
-            event!(Level::INFO, "Sent INSERT_BALLOTS task {}", task.task_id);
+            event!(
+                Level::INFO,
+                "Sent TALLY_ELECTION_EVENT task {}",
+                task.task_id
+            );
         }
         EventProcessors::CREATE_ELECTION_EVENT_BALLOT_STYLES => {
             let task = celery_app
@@ -118,7 +125,11 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<()> {
                     event.election_event_id.clone(),
                 ))
                 .await?;
-            event!(Level::INFO, "Sent CREATE_ELECTION_EVENT_BALLOT_STYLES task {}", task.task_id);
+            event!(
+                Level::INFO,
+                "Sent CREATE_ELECTION_EVENT_BALLOT_STYLES task {}",
+                task.task_id
+            );
         }
     }
     Ok(())

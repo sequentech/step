@@ -5,6 +5,7 @@ use anyhow::{anyhow, Context};
 use braid_messages::newtypes::BatchNumber;
 use celery::prelude::*;
 use sequent_core::services::openid;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use tracing::{event, instrument, Level};
 
@@ -16,13 +17,18 @@ use crate::services::celery_app::get_celery_app;
 use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
 use crate::types::task_error::into_task_error;
 
+#[derive(Deserialize, Debug, Serialize, Clone)]
+pub struct TallyElectionBody {
+    election_ids: Vec<String>,
+    trustee_ids: Vec<String>,
+}
+
 #[instrument]
 #[celery::task]
 pub async fn tally_election_event(
+    body: TallyElectionBody,
     tenant_id: String,
     election_event_id: String,
-    election_ids: Vec<String>,
-    trustee_ids: Vec<String>,
 ) -> TaskResult<()> {
     let auth_headers = openid::get_client_credentials()
         .await
@@ -32,7 +38,7 @@ pub async fn tally_election_event(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
-        election_ids.clone(),
+        body.election_ids.clone(),
     )
     .await
     .map_err(into_task_error)?
@@ -64,19 +70,23 @@ pub async fn tally_election_event(
         .collect::<HashSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
-    let trustees = get_trustees_by_id(auth_headers.clone(), tenant_id.clone(), trustee_ids.clone())
-        .await
-        .map_err(into_task_error)?
-        .data
-        .with_context(|| "can't find trustees")
-        .map_err(into_task_error)?;
+    let trustees = get_trustees_by_id(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        body.trustee_ids.clone(),
+    )
+    .await
+    .map_err(into_task_error)?
+    .data
+    .with_context(|| "can't find trustees")
+    .map_err(into_task_error)?;
 
     let tally_session = insert_tally_session(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
-        election_ids.clone(),
-        trustee_ids.clone(),
+        body.election_ids.clone(),
+        body.trustee_ids.clone(),
         area_ids.clone(),
     )
     .await

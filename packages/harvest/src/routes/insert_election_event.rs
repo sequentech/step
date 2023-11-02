@@ -21,7 +21,7 @@ pub async fn insert_election_event_f(
     let task = celery_app
         .send_task(insert_election_event::insert_election_event_t::new(
             auth_headers.clone(),
-            body.into_inner().clone(),
+            //body.into_inner().clone(),
         ))
         .await
         .map_err(|e| anyhow::Error::from(e))?;
