@@ -1,4 +1,3 @@
-<!doctype html>
 <html lang="en-US">
   <head>
     <meta charset="utf-8" />
@@ -9,64 +8,70 @@
   <body>
     <h1 class="title">Results of the election</h1>
 
-    {{#each report_list as |report_contest|}}
-    <h2>Contest: {{report_contest.contest.name}}</h2>
-    <p class="contest-desc">{{ report_contest.contest.description }}</p>
+    {{#each reports as |report|}}
+      <h2>Contest: {{report.contest.name}}</h2>
+      <p class="contest-desc">{{report.contest.description}}</p>
 
-    <table>
-      <tr>
-        <th>Configuration Data</th>
-      </tr>
-      <tr>
-        <td>Tally System</td>
-        <td>
-          {{report_contest.contest.voting_type}},
-          {{report_contest.contest.counting_algorithm}}
-        </td>
-      </tr>
-      <tr>
-        <td>Minimum number of option a voter can select</td>
-        <td>{{report_contest.contest.min_votes}}</td>
-      </tr>
-      <tr>
-        <td>Maximum number of option a voter can select</td>
-        <td>{{report_contest.contest.max_votes}}</td>
-      </tr>
-    </table>
+      <table>
+        <tr>
+          <th>Configuration Data</th>
+        </tr>
+        <tr>
+          <td>Tally System</td>
+          <td>
+            {{report.contest.voting_type}},
+            {{report.contest.counting_algorithm}}
+          </td>
+        </tr>
+        <tr>
+          <td>Minimum number of option a voter can select</td>
+          <td>{{report.contest.min_votes}}</td>
+        </tr>
+        <tr>
+          <td>Maximum number of option a voter can select</td>
+          <td>{{report.contest.max_votes}}</td>
+        </tr>
+      </table>
 
-    <table>
-      <tr>
-        <th>Participation</th>
-      </tr>
-      <tr>
-        <td>Total number of votes cast</td>
-        <td>{{report_contest.contest_result.total_valid_votes}}</td>
-      </tr>
-      <tr>
-        <td>Blank votes</td>
-        <td>todo</td>
-      </tr>
-      <tr>
-        <td>Null votes</td>
-        <td>todo</td>
-      </tr>
-      <tr>
-        <td>Total number of votes for options</td>
-        <td>todo</td>
-      </tr>
-    </table>
+      <table>
+        <tr>
+          <th>Participation</th>
+        </tr>
+        <tr>
+          <td>Total number of votes cast</td>
+          <td>{{report.contest_result.total_valid_votes}}</td>
+        </tr>
+        <tr>
+          <td>Blank votes</td>
+          <td>todo</td>
+        </tr>
+        <tr>
+          <td>Null votes</td>
+          <td>todo</td>
+        </tr>
+        <tr>
+          <td>Total number of votes for options</td>
+          <td>todo</td>
+        </tr>
+      </table>
 
-    <table>
-      <tr>
-        <th>Candidate result</th>
-      </tr>
-      {{#each report_contest.contest_result.candidate_result as |candidate|}}
-      <tr class="">
-        <td>{{candidate.candidate.name}}</td>
-        <td>{{candidate.total_count}}</td>
-      </tr>
-      {{/each}}
-    </table>
+      <table>
+        <tr>
+          <th>Candidate result</th>
+        </tr>
+        {{#each report.candidate_result as |candidate|}}
+          <tr class="">
+            <td>Name</td>
+            <td>Points</td>
+            <td>Winning Position</td>
+          </tr>
+          <tr class="">
+            <td>{{candidate.candidate.name}}</td>
+            <td>{{candidate.total_count}}</td>
+            <td>{{candidate.winning_position}}</td>
+          </tr>
+        {{/each}}
+      </table>
 
     {{/each}}
   </body>

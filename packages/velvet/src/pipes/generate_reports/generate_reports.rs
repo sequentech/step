@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::cmp::Ordering;
+
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
@@ -65,10 +67,10 @@ impl GenerateReports {
                 let map_winners: HashMap<_, _> = r
                     .winners
                     .iter()
-                    .map(|cr| (cr.candidate.id.clone(), cr.winning_position.clone()))
+                    .map(|cr| (cr.candidate.id.clone(), cr.winning_position))
                     .collect();
 
-                let candidate_result: Vec<CandidateResultForReport> = r
+                let mut candidate_result: Vec<CandidateResultForReport> = r
                     .contest_result
                     .candidate_result
                     .iter()
@@ -78,6 +80,14 @@ impl GenerateReports {
                         winning_position: map_winners.get(&cr.candidate.id).cloned(),
                     })
                     .collect();
+
+                candidate_result.sort_by(|a, b| {
+                    a.winning_position
+                        .unwrap_or(usize::MAX)
+                        .cmp(&b.winning_position.unwrap_or(usize::MAX))
+                        .then_with(|| a.total_count.cmp(&b.total_count))
+                        .then_with(|| a.candidate.name.cmp(&b.candidate.name))
+                });
 
                 ReportDataComputed {
                     contest: r.contest.clone(),
