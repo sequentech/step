@@ -4,7 +4,7 @@ query GetTrusteesById(
 ) {
   sequent_backend_trustee(
       where: {
-          trusteeIds: {_in: $trusteeIds},
+          id: {_in: $trusteeIds},
           tenant_id: {_eq: $tenantId},
       }
   ) {

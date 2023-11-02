@@ -14,6 +14,7 @@ import {
 } from "@mui/material"
 import {
     CreateScheduledEventMutation,
+    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Trustee,
 } from "../gql/graphql"
@@ -46,6 +47,7 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
 }) => {
     const [tenantId] = useTenantStore()
     const [selectedTrustees, setSelectedTrustees] = useState<Array<Sequent_Backend_Trustee>>([])
+    const [selectedElections, setSelectedElections] = useState<Array<Sequent_Backend_Election>>([])
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const [showProgress, setShowProgress] = useState(false)
     const [trustee, setTrustee] = useState<Sequent_Backend_Trustee | null>(null)

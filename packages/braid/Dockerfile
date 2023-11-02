@@ -5,11 +5,13 @@ WORKDIR /app
 COPY ./braid/scripts/Cargo.toml ./Cargo.toml
 COPY ./braid ./braid
 COPY ./braid-messages ./braid-messages
+COPY ./sequent-core ./sequent-core
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
 
 RUN apt-get update && apt-get install -y protobuf-compiler libprotobuf-dev
+RUN rustup default nightly
 
 # build projects
 WORKDIR /app/immu-board
