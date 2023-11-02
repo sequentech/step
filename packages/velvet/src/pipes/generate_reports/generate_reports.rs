@@ -19,8 +19,8 @@ use uuid::Uuid;
 
 use super::error::{Error, Result};
 use crate::pipes::{
-    do_tally::{CandidateResult, ContestResult, OUTPUT_CONTEST_RESULT_FILE},
-    mark_winners::OUTPUT_WINNERS,
+    do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
+    mark_winners::{WinnerResult, OUTPUT_WINNERS},
     pipe_inputs::{PipeInputs, PREFIX_ELECTION},
     pipe_name::PipeNameOutputDir,
     Pipe,
@@ -59,41 +59,39 @@ impl GenerateReports {
         ballot_style: &BallotStyle,
         reports: Vec<ReportData>,
     ) -> Result<Vec<u8>> {
-        let mut map = Map::new();
-
-        map.insert(
-            "ballot_style".to_owned(),
-            serde_json::to_value(ballot_style)?,
-        );
-
         let reports = reports
             .iter()
             .map(|r| {
-                let toto = 1;
-
                 let map_winners: HashMap<_, _> = r
                     .winners
-                    .into_iter()
-                    .map(|cr| (cr.candidate.id, cr.winning_position))
+                    .iter()
+                    .map(|cr| (cr.candidate.id.clone(), cr.winning_position.clone()))
                     .collect();
 
                 let candidate_result: Vec<CandidateResultForReport> = r
                     .contest_result
                     .candidate_result
-                    .into_iter()
+                    .iter()
                     .map(|cr| CandidateResultForReport {
-                        candidate: cr.candidate,
+                        candidate: cr.candidate.clone(),
                         total_count: cr.total_count,
                         winning_position: map_winners.get(&cr.candidate.id).cloned(),
                     })
                     .collect();
 
                 ReportDataComputed {
-                    contest: r.contest,
+                    contest: r.contest.clone(),
                     candidate_result,
                 }
             })
-            .collect();
+            .collect::<Vec<ReportDataComputed>>();
+
+        let mut map = Map::new();
+        map.insert(
+            "ballot_style".to_owned(),
+            serde_json::to_value(ballot_style)?,
+        );
+        map.insert("reports".to_owned(), serde_json::to_value(reports)?);
 
         let html = include_str!("../../resources/report.html");
         let render = reports::render_template_text(html, map)?;
@@ -134,7 +132,7 @@ impl GenerateReports {
         election_id: &Uuid,
         contest_id: &Uuid,
         region_id: Option<&Uuid>,
-    ) -> Result<CandidateResult> {
+    ) -> Result<Vec<WinnerResult>> {
         let path = PipeInputs::build_path(
             &self
                 .pipe_inputs
@@ -150,7 +148,7 @@ impl GenerateReports {
 
         let f = fs::File::open(&path).map_err(|e| Error::IO(path.clone(), e))?;
 
-        let res: CandidateResult = serde_json::from_reader(f)?;
+        let res: Vec<WinnerResult> = serde_json::from_reader(f)?;
 
         Ok(res)
     }
@@ -164,13 +162,12 @@ impl Pipe for GenerateReports {
                 let contest_result =
                     self.read_contest_result(&election_input.id, &contest_input.id, None)?;
 
-                // TODO: this should be an array
-                let winner = self.read_winners(&election_input.id, &contest_input.id, None)?;
+                let winners = self.read_winners(&election_input.id, &contest_input.id, None)?;
 
                 reports.push(ReportData {
                     contest: contest_input.contest.clone(),
                     contest_result,
-                    winners: vec![winner],
+                    winners,
                 })
             }
 
@@ -199,7 +196,7 @@ impl Pipe for GenerateReports {
 pub struct ReportData {
     pub contest: Contest,
     pub contest_result: ContestResult,
-    pub winners: Vec<CandidateResult>,
+    pub winners: Vec<WinnerResult>,
 }
 
 #[derive(Serialize)]
@@ -209,7 +206,7 @@ pub struct ReportDataComputed {
 }
 
 #[derive(Serialize)]
-struct CandidateResultForReport {
+pub struct CandidateResultForReport {
     pub candidate: Candidate,
     pub total_count: u64,
     pub winning_position: Option<usize>,

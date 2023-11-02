@@ -4,6 +4,9 @@
 
 use std::fs;
 
+use sequent_core::ballot::Candidate;
+use serde::Serialize;
+
 use super::error::{Error, Result};
 use crate::pipes::{
     do_tally::{CandidateResult, ContestResult, OUTPUT_CONTEST_RESULT_FILE},
@@ -23,8 +26,7 @@ impl MarkWinners {
         Self { pipe_inputs }
     }
 
-    // TODO: turn this into an array!
-    fn get_winner(&self, contest_result: &ContestResult) -> CandidateResult {
+    fn get_winner(&self, contest_result: &ContestResult) -> Vec<WinnerResult> {
         let mut max_votes = 0;
         let mut winners = Vec::new();
 
@@ -43,12 +45,15 @@ impl MarkWinners {
             winners.sort_by(|a, b| a.candidate.name.cmp(&b.candidate.name));
         }
 
-        let winner = winners[0].clone();
-
-        CandidateResult {
-            candidate: winner.candidate,
-            total_count: winner.total_count,
-        }
+        winners
+            .into_iter()
+            .enumerate()
+            .map(|(index, w)| WinnerResult {
+                candidate: w.candidate.clone(),
+                total_count: w.total_count,
+                winning_position: index + 1,
+            })
+            .collect()
     }
 }
 
@@ -129,4 +134,12 @@ impl Pipe for MarkWinners {
 
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+pub struct WinnerResult {
+    // #[serde(serialize_with = "to_id")]
+    pub candidate: Candidate,
+    pub total_count: u64,
+    pub winning_position: usize,
 }
