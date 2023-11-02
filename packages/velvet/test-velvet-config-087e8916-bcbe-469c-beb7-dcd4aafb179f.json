@@ -1,1 +1,0 @@
-{"version":"0.0.0","stages":{"order":["main"],"main":{"pipeline":[{"id":"decode-ballots","pipe":"DecodeBallots","config":null},{"id":"do-tally","pipe":"DoTally","config":null},{"id":"mark-winners","pipe":"MarkWinners","config":null},{"id":"gen-report","pipe":"GenerateReports","config":null}]}}}
