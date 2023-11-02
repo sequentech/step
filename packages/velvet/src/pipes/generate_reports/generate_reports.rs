@@ -93,7 +93,7 @@ impl GenerateReports {
         );
         map.insert("reports".to_owned(), serde_json::to_value(reports)?);
 
-        let html = include_str!("../../resources/report.html");
+        let html = include_str!("../../resources/report.hbs");
         let render = reports::render_template_text(html, map)?;
 
         let bytes = pdf::html_to_pdf(render)?;
