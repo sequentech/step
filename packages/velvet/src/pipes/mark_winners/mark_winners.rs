@@ -4,24 +4,15 @@
 
 use std::fs;
 
-use sequent_core::ballot::Candidate;
-use serde::{Deserialize, Serialize};
-
 use super::error::{Error, Result};
 use crate::pipes::{
-    do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
+    do_tally::{CandidateResult, ContestResult, OUTPUT_CONTEST_RESULT_FILE},
     pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir,
     Pipe,
 };
 
 pub const OUTPUT_WINNERS: &str = "winners.json";
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct WinnerCandidate {
-    pub candidate: Candidate,
-    pub total_points: u64,
-}
 
 pub struct MarkWinners {
     pub pipe_inputs: PipeInputs,
@@ -32,7 +23,7 @@ impl MarkWinners {
         Self { pipe_inputs }
     }
 
-    fn get_winner(&self, contest_result: &ContestResult) -> WinnerCandidate {
+    fn get_winner(&self, contest_result: &ContestResult) -> CandidateResult {
         let mut max_votes = 0;
         let mut winners = Vec::new();
 
@@ -53,9 +44,9 @@ impl MarkWinners {
 
         let winner = winners[0].clone();
 
-        WinnerCandidate {
+        CandidateResult {
             candidate: winner.candidate,
-            total_points: winner.total_count,
+            total_count: winner.total_count,
         }
     }
 }

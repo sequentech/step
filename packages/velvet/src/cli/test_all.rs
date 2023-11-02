@@ -2,35 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use sequent_core::ballot::Contest;
-use serde::Serialize;
-
-use crate::pipes::do_tally::ContestResult;
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::cli::state::State;
     use crate::cli::CliRun;
     use crate::fixtures;
     use crate::fixtures::TestFixture;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
-    use crate::pipes::do_tally::{CandidateResult, ContestResult, OUTPUT_CONTEST_RESULT_FILE};
-    use crate::pipes::generate_reports::ReportForContest;
-    use crate::pipes::mark_winners::{WinnerCandidate, OUTPUT_WINNERS};
+    use crate::pipes::do_tally::OUTPUT_CONTEST_RESULT_FILE;
+    use crate::pipes::mark_winners::OUTPUT_WINNERS;
     use crate::pipes::pipe_name::PipeNameOutputDir;
     use anyhow::{Error, Result};
-    use rand::Rng;
-    use sequent_core::ballot::{Candidate, CandidatePresentation, Contest, ContestPresentation};
     use sequent_core::ballot_codec::BigUIntCodec;
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
-    use sequent_core::services::{pdf, reports};
-    use serde_json::{Map, Value};
-    use std::collections::HashMap;
-    use std::fs::{self, OpenOptions};
+    use std::fs;
     use std::io::Write;
-    use std::path::PathBuf;
-    use uuid::Uuid;
     use walkdir::WalkDir;
 
     fn generate_ballots(
@@ -163,7 +149,7 @@ mod tests {
         assert_eq!(count, 1);
 
         let entries = fs::read_dir(
-            &fixture
+            fixture
                 .input_dir_configs
                 .join(format!("election__{uuid_election}")),
         )?;
@@ -171,7 +157,7 @@ mod tests {
         assert_eq!(count, 2);
 
         let entries = fs::read_dir(
-            &fixture
+            fixture
                 .input_dir_configs
                 .join(format!("election__{uuid_election}"))
                 .join(format!("contest__{uuid_contest}")),
@@ -290,175 +276,32 @@ mod tests {
 
     #[test]
     fn test_generate_reports() -> Result<()> {
-        let winner = WinnerCandidate {
-            candidate: Candidate {
-                id: "1".to_string(),
-                tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                name: Some("Miguel Pimentel Inventado".to_string()),
-                description: None,
-                candidate_type: None,
-                presentation: Some(CandidatePresentation {
-                    is_explicit_invalid: false,
-                    is_category_list: false,
-                    invalid_vote_position: None,
-                    is_write_in: false,
-                    sort_order: Some(1),
-                    urls: None,
-                }),
-            },
-            total_points: 19,
+        let fixture = TestFixture::new()?;
+
+        generate_ballots(&fixture, 1, 2, 1, 50)?;
+
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "decode-ballots".to_string(),
+            config: fixture.config_path.clone(),
+            input_dir: fixture.root_dir.join("tests").join("input-dir"),
+            output_dir: fixture.root_dir.join("tests").join("output-dir"),
         };
 
-        let ballot_style = fixtures::get_election_config();
-        let contest = fixtures::get_contest_config();
+        let config = cli.validate()?;
+        let mut state = State::new(&cli, &config)?;
 
-        let contest_result = ContestResult {
-            contest: contest.clone(),
-            total_valid_votes: 57,
-            total_invalid_votes: HashMap::new(),
-            candidate_result: vec![
-                CandidateResult {
-                    candidate: Candidate {
-                        id: "0".to_string(),
-                        tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        name: Some("José Rabano Pimiento".to_string()),
-                        description: None,
-                        candidate_type: None,
-                        presentation: Some(CandidatePresentation {
-                            is_explicit_invalid: false,
-                            is_category_list: false,
-                            invalid_vote_position: None,
-                            is_write_in: false,
-                            sort_order: Some(0),
-                            urls: None,
-                        }),
-                    },
-                    total_count: 0,
-                },
-                CandidateResult {
-                    candidate: Candidate {
-                        id: "1".to_string(),
-                        tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        name: Some("Miguel Pimentel Inventado".to_string()),
-                        description: None,
-                        candidate_type: None,
-                        presentation: Some(CandidatePresentation {
-                            is_explicit_invalid: false,
-                            is_category_list: false,
-                            invalid_vote_position: None,
-                            is_write_in: false,
-                            sort_order: Some(1),
-                            urls: None,
-                        }),
-                    },
-                    total_count: 57,
-                },
-                CandidateResult {
-                    candidate: Candidate {
-                        id: "2".to_string(),
-                        tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        name: Some("Juan Iglesias Torquemada".to_string()),
-                        description: None,
-                        candidate_type: None,
-                        presentation: Some(CandidatePresentation {
-                            is_explicit_invalid: false,
-                            is_category_list: false,
-                            invalid_vote_position: None,
-                            is_write_in: false,
-                            sort_order: Some(2),
-                            urls: None,
-                        }),
-                    },
-                    total_count: 0,
-                },
-                CandidateResult {
-                    candidate: Candidate {
-                        id: "3".to_string(),
-                        tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        name: Some("Mari Pili Hernández Ordoñez".to_string()),
-                        description: None,
-                        candidate_type: None,
-                        presentation: Some(CandidatePresentation {
-                            is_explicit_invalid: false,
-                            is_category_list: false,
-                            invalid_vote_position: None,
-                            is_write_in: false,
-                            sort_order: Some(3),
-                            urls: None,
-                        }),
-                    },
-                    total_count: 0,
-                },
-                CandidateResult {
-                    candidate: Candidate {
-                        id: "4".to_string(),
-                        tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        election_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
-                        name: Some("Juan Y Medio".to_string()),
-                        description: None,
-                        candidate_type: None,
-                        presentation: Some(CandidatePresentation {
-                            is_explicit_invalid: false,
-                            is_category_list: false,
-                            invalid_vote_position: None,
-                            is_write_in: false,
-                            sort_order: Some(4),
-                            urls: None,
-                        }),
-                    },
-                    total_count: 0,
-                },
-            ],
-        };
+        // DecodeBallots
+        state.exec_next()?;
 
-        let mut map = Map::new();
+        // DoTally
+        state.exec_next()?;
 
-        map.insert(
-            "ballot_style".to_owned(),
-            serde_json::to_value(&ballot_style)?,
-        );
-        map.insert(
-            "report_list".to_owned(),
-            serde_json::to_value(vec![ReportForContest {
-                contest,
-                contest_result,
-            }])?,
-        );
-        map.insert("winner".to_owned(), serde_json::to_value(&winner)?);
+        // MarkWinners
+        state.exec_next()?;
 
-        let html = include_str!("../resources/report.html");
-        let render = reports::render_template_text(html, map)?;
-
-        let bytes = pdf::html_to_pdf(render)?;
-
-        // let output_path = fixture.root_dir.join("test-report.pdf");
-        let output_path = PathBuf::from("/home/knth/test.pdf");
-        let mut file = OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .create(true)
-            .open(&output_path)?;
-
-        // assert!(!output_path.exists());
-        file.write_all(&bytes)?;
-        assert!(output_path.exists());
+        // Generate reports
+        state.exec_next()?;
 
         Ok(())
     }
