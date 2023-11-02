@@ -224,6 +224,7 @@ services:
         IMMUDB_PASSWORD: immudb
         IMMUDB_URL: http://immudb:3322
         IMMUDB_INDEX_DB: indexdb
+        TRUSTEE_CONFIG: /opt/braid/trustee1.toml
     depends_on:
       - immudb
   
@@ -241,6 +242,7 @@ services:
         IMMUDB_PASSWORD: immudb
         IMMUDB_URL: http://immudb:3322
         IMMUDB_INDEX_DB: indexdb
+        TRUSTEE_CONFIG: /opt/braid/trustee1.toml
     depends_on:
       - immudb
 
