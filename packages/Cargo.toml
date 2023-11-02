@@ -11,4 +11,5 @@ members = [
     "braid-messages",
     "velvet",
     "windmill",
+    "wrap-map-err",
 ]
