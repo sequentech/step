@@ -3,27 +3,26 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
 
-
 export const getList = (fields: any) => gql`
-query listPgaudit($limit: Int, $offset: Int, $order_by: PgAuditOrderBy) {
-  listPgaudit(limit: $limit, offset: $offset, order_by: $order_by) {
-    items {
-      id
-      audit_type
-      class
-      command
-      dbname
-      id
-      server_timestamp
-      session_id
-      statement
-      user
+    query listPgaudit($limit: Int, $offset: Int, $order_by: PgAuditOrderBy) {
+        listPgaudit(limit: $limit, offset: $offset, order_by: $order_by) {
+            items {
+                id
+                audit_type
+                class
+                command
+                dbname
+                id
+                server_timestamp
+                session_id
+                statement
+                user
+            }
+            total {
+                aggregate {
+                    count
+                }
+            }
+        }
     }
-    total {
-      aggregate {
-        count
-      }
-    }
-  }
-}
 `

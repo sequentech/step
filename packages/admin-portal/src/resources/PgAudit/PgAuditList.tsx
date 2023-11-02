@@ -30,22 +30,26 @@ export const PgAuditList: React.FC<PgAuditListProps> = ({aside}) => {
         <>
             <Typography variant="h5">PG Audit</Typography>
             <List
-                actions={<TopToolbar>
-                    <SelectColumnsButton />
-                    <ExportButton />
-                </TopToolbar>}
+                actions={
+                    <TopToolbar>
+                        <SelectColumnsButton />
+                        <ExportButton />
+                    </TopToolbar>
+                }
                 filter={{tenant_id: tenantId || undefined}}
                 aside={aside}
             >
-                <DatagridConfigurable  omit={OMIT_FIELDS} bulkActionButtons={<></>}>
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                     <NumberField source="id" />
                     <TextField source="audit_type" />
                     <TextField source="class" />
                     <TextField source="command" />
                     <TextField source="dbname" />
-                    <FunctionField 
-                        source="server_timestamp" 
-                        render={(record: any) => new Date(record.server_timestamp/1000).toUTCString()}
+                    <FunctionField
+                        source="server_timestamp"
+                        render={(record: any) =>
+                            new Date(record.server_timestamp / 1000).toUTCString()
+                        }
                     />
                     <TextField source="session_id" />
                     <TextField source="statement" />
