@@ -21,9 +21,10 @@ query GetElectionEventAreas(
     type
   }
   sequent_backend_area_contest (
+      where: {
           election_event_id: {_eq: $electionEventId},
           tenant_id: {_eq: $tenantId},
-          election_id: {_in: $electionIds},
+      }
   ) {
     id
     tenant_id

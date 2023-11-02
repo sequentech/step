@@ -1,8 +1,8 @@
 mutation SoftDeleteBallotStyle(
-  $tenantId: uuid! = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
-  $electionEventId: uuid! = "33f18502-a67c-4853-8333-a58630663559",
-  $electionId: uuid! = "f2f1065e-b784-46d1-b81a-c71bfeb9ad55",
-  $areaId: uuid! = "2f312a36-f39c-46e4-9670-1d1ce4625745"
+  $tenantId: uuid!,
+  $electionEventId: uuid!,
+  $electionId: uuid!,
+  $areaId: uuid!
 ) {
   update_sequent_backend_ballot_style(
     where:
@@ -18,6 +18,7 @@ mutation SoftDeleteBallotStyle(
   ) {
     returning {
       id
+      deleted_at
     }
   }
 }
