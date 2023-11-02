@@ -3,13 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use std::{
+    collections::HashMap,
     fs::{self, OpenOptions},
     io::Write,
     path::PathBuf,
 };
 
 use sequent_core::{
-    ballot::{BallotStyle, Contest},
+    ballot::{BallotStyle, Candidate, Contest},
     services::{pdf, reports},
 };
 use serde::Serialize;
@@ -56,7 +57,7 @@ impl GenerateReports {
     pub fn generate_report(
         &self,
         ballot_style: &BallotStyle,
-        reports: Vec<ReportForContest>,
+        reports: Vec<ReportData>,
     ) -> Result<Vec<u8>> {
         let mut map = Map::new();
 
@@ -64,6 +65,35 @@ impl GenerateReports {
             "ballot_style".to_owned(),
             serde_json::to_value(ballot_style)?,
         );
+
+        let reports = reports
+            .iter()
+            .map(|r| {
+                let toto = 1;
+
+                let map_winners: HashMap<_, _> = r
+                    .winners
+                    .into_iter()
+                    .map(|cr| (cr.candidate.id, cr.winning_position))
+                    .collect();
+
+                let candidate_result: Vec<CandidateResultForReport> = r
+                    .contest_result
+                    .candidate_result
+                    .into_iter()
+                    .map(|cr| CandidateResultForReport {
+                        candidate: cr.candidate,
+                        total_count: cr.total_count,
+                        winning_position: map_winners.get(&cr.candidate.id).cloned(),
+                    })
+                    .collect();
+
+                ReportDataComputed {
+                    contest: r.contest,
+                    candidate_result,
+                }
+            })
+            .collect();
 
         let html = include_str!("../../resources/report.html");
         let render = reports::render_template_text(html, map)?;
@@ -134,12 +164,13 @@ impl Pipe for GenerateReports {
                 let contest_result =
                     self.read_contest_result(&election_input.id, &contest_input.id, None)?;
 
-                let winners = self.read_winners(&election_input.id, &contest_input.id, None)?;
+                // TODO: this should be an array
+                let winner = self.read_winners(&election_input.id, &contest_input.id, None)?;
 
-                reports.push(ReportForContest {
+                reports.push(ReportData {
                     contest: contest_input.contest.clone(),
                     contest_result,
-                    winners,
+                    winners: vec![winner],
                 })
             }
 
@@ -165,9 +196,21 @@ impl Pipe for GenerateReports {
     }
 }
 
-#[derive(Serialize)]
-pub struct ReportForContest {
+pub struct ReportData {
     pub contest: Contest,
     pub contest_result: ContestResult,
-    pub winners: CandidateResult,
+    pub winners: Vec<CandidateResult>,
+}
+
+#[derive(Serialize)]
+pub struct ReportDataComputed {
+    pub contest: Contest,
+    pub candidate_result: Vec<CandidateResultForReport>,
+}
+
+#[derive(Serialize)]
+struct CandidateResultForReport {
+    pub candidate: Candidate,
+    pub total_count: u64,
+    pub winning_position: Option<usize>,
 }

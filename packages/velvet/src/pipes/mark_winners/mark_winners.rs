@@ -23,6 +23,7 @@ impl MarkWinners {
         Self { pipe_inputs }
     }
 
+    // TODO: turn this into an array!
     fn get_winner(&self, contest_result: &ContestResult) -> CandidateResult {
         let mut max_votes = 0;
         let mut winners = Vec::new();
