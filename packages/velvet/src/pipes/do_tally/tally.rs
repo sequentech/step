@@ -47,7 +47,7 @@ impl Tally {
         let mut res = vec![];
 
         for f in files {
-            let f = fs::File::open(&f).map_err(|e| PipesError::IO(f, e))?;
+            let f = fs::File::open(&f).map_err(|e| PipesError::FileAccess(f, e))?;
             let votes: Vec<DecodedVoteContest> = serde_json::from_reader(f)?;
             res.push(votes);
         }

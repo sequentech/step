@@ -86,7 +86,7 @@ impl Pipe for MarkWinners {
                     .join(OUTPUT_CONTEST_RESULT_FILE);
 
                     let f = fs::File::open(&contest_result_file)
-                        .map_err(|e| Error::IO(contest_result_file.clone(), e))?;
+                        .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
                     let contest_result: ContestResult = serde_json::from_reader(f)?;
 
                     let winner = self.get_winners(&contest_result);
@@ -114,7 +114,7 @@ impl Pipe for MarkWinners {
                 .join(OUTPUT_CONTEST_RESULT_FILE);
 
                 let f = fs::File::open(&contest_result_file)
-                    .map_err(|e| Error::IO(contest_result_file.clone(), e))?;
+                    .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
                 let contest_result: ContestResult = serde_json::from_reader(f)?;
 
                 let winner = self.get_winners(&contest_result);

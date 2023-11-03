@@ -11,10 +11,8 @@ pub enum Error {
     IDNotFound,
     ElectionConfigNotFound(Uuid),
     ContestConfigNotFound(Uuid),
-    // TODO rename IO => FileAccess
-    IO(std::path::PathBuf, std::io::Error),
-    // TODO: rename FS => IO
-    FS(std::io::Error),
+    FileAccess(std::path::PathBuf, std::io::Error),
+    IO(std::io::Error),
     JsonParse(serde_json::Error),
     FromPipe(String),
 }
@@ -27,7 +25,7 @@ impl core::fmt::Display for Error {
 
 impl From<std::io::Error> for Error {
     fn from(val: std::io::Error) -> Self {
-        Self::FS(val)
+        Self::IO(val)
     }
 }
 

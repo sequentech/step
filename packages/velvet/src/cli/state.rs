@@ -68,7 +68,7 @@ impl State {
         let res = pm.exec();
 
         if let Err(e) = res {
-            if let PipesError::IO(file, e) = e {
+            if let PipesError::FileAccess(file, e) = e {
                 println!("File not found: {} -- Not processed", file.display())
             } else {
                 return Err(Error::FromPipe(e));

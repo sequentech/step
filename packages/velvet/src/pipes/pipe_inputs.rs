@@ -87,7 +87,7 @@ impl PipeInputs {
             return Err(Error::ElectionConfigNotFound(election_id));
         }
         let config_file =
-            fs::File::open(&config_path).map_err(|e| Error::IO(config_path.clone(), e))?;
+            fs::File::open(&config_path).map_err(|e| Error::FileAccess(config_path.clone(), e))?;
         let ballot_style: BallotStyle = serde_json::from_reader(config_file)?;
 
         let mut configs = vec![];
@@ -118,7 +118,7 @@ impl PipeInputs {
             return Err(Error::ContestConfigNotFound(contest_id));
         }
         let config_file =
-            fs::File::open(&config_path).map_err(|e| Error::IO(config_path.clone(), e))?;
+            fs::File::open(&config_path).map_err(|e| Error::FileAccess(config_path.clone(), e))?;
         let contest: Contest = serde_json::from_reader(config_file)?;
 
         let entries = fs::read_dir(path)?;

@@ -130,7 +130,7 @@ impl GenerateReports {
         )
         .join(OUTPUT_CONTEST_RESULT_FILE);
 
-        let f = fs::File::open(&path).map_err(|e| Error::IO(path.clone(), e))?;
+        let f = fs::File::open(&path).map_err(|e| Error::FileAccess(path.clone(), e))?;
 
         let res: ContestResult = serde_json::from_reader(f)?;
 
@@ -156,7 +156,7 @@ impl GenerateReports {
         )
         .join(OUTPUT_WINNERS);
 
-        let f = fs::File::open(&path).map_err(|e| Error::IO(path.clone(), e))?;
+        let f = fs::File::open(&path).map_err(|e| Error::FileAccess(path.clone(), e))?;
 
         let res: Vec<WinnerResult> = serde_json::from_reader(f)?;
 
