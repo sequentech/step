@@ -2,14 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::fs;
+use std::{cmp::Ordering, fs};
 
 use sequent_core::ballot::Candidate;
 use serde::Serialize;
 
 use super::error::{Error, Result};
 use crate::pipes::{
-    do_tally::{CandidateResult, ContestResult, OUTPUT_CONTEST_RESULT_FILE},
+    do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
     pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir,
     Pipe,
@@ -26,17 +26,19 @@ impl MarkWinners {
         Self { pipe_inputs }
     }
 
-    fn get_winner(&self, contest_result: &ContestResult) -> Vec<WinnerResult> {
+    fn get_winners(&self, contest_result: &ContestResult) -> Vec<WinnerResult> {
         let mut max_votes = 0;
         let mut winners = Vec::new();
 
         for candidate_result in &contest_result.candidate_result {
-            if candidate_result.total_count > max_votes {
-                max_votes = candidate_result.total_count;
-                winners.clear();
-                winners.push(candidate_result);
-            } else if candidate_result.total_count == max_votes {
-                winners.push(candidate_result);
+            match candidate_result.total_count.cmp(&max_votes) {
+                Ordering::Greater => {
+                    max_votes = candidate_result.total_count;
+                    winners.clear();
+                    winners.push(candidate_result);
+                }
+                Ordering::Equal => winners.push(candidate_result),
+                _ => (),
             }
         }
 
@@ -87,7 +89,7 @@ impl Pipe for MarkWinners {
                         .map_err(|e| Error::IO(contest_result_file.clone(), e))?;
                     let contest_result: ContestResult = serde_json::from_reader(f)?;
 
-                    let winner = self.get_winner(&contest_result);
+                    let winner = self.get_winners(&contest_result);
 
                     let mut file = PipeInputs::build_path(
                         &output_dir,
@@ -115,7 +117,7 @@ impl Pipe for MarkWinners {
                     .map_err(|e| Error::IO(contest_result_file.clone(), e))?;
                 let contest_result: ContestResult = serde_json::from_reader(f)?;
 
-                let winner = self.get_winner(&contest_result);
+                let winner = self.get_winners(&contest_result);
 
                 let mut file = PipeInputs::build_path(
                     &output_dir,
@@ -138,7 +140,6 @@ impl Pipe for MarkWinners {
 
 #[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct WinnerResult {
-    // #[serde(serialize_with = "to_id")]
     pub candidate: Candidate,
     pub total_count: u64,
     pub winning_position: usize,
