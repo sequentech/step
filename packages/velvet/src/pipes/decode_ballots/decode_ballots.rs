@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::error::{Error, Result};
+use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{PipeInputs, BALLOTS_FILE};
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
@@ -38,10 +38,11 @@ impl DecodeBallots {
 
         for line in reader.lines() {
             let line = line?;
-            let plaintext = BigUint::from_str(&line).map_err(|_| Error::WrongBallotsFormat)?;
+            let plaintext = BigUint::from_str(&line)
+                .map_err(|_| Error::FromPipe("Wrong ballot format".into()))?;
             let decoded_vote = contest
                 .decode_plaintext_contest_bigint(&plaintext)
-                .map_err(|_| Error::WrongBallotsFormat)?;
+                .map_err(|_| Error::FromPipe("Wrong ballot format".into()))?;
 
             decoded_ballots.push(decoded_vote);
         }

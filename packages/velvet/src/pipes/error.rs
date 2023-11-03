@@ -5,14 +5,18 @@
 use uuid::Uuid;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
+
 #[derive(Debug)]
 pub enum Error {
     IDNotFound,
     ElectionConfigNotFound(Uuid),
     ContestConfigNotFound(Uuid),
+    // TODO rename IO => FileAccess
     IO(std::path::PathBuf, std::io::Error),
+    // TODO: rename FS => IO
     FS(std::io::Error),
     JsonParse(serde_json::Error),
+    FromPipe(String),
 }
 
 impl core::fmt::Display for Error {

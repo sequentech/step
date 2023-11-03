@@ -2,11 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::invalid_vote::InvalidVote;
 use super::tally;
-use super::{error::Result, invalid_vote::InvalidVote};
 use crate::pipes::{
-    decode_ballots::OUTPUT_DECODED_BALLOTS_FILE, pipe_inputs::PipeInputs,
-    pipe_name::PipeNameOutputDir, Pipe,
+    decode_ballots::OUTPUT_DECODED_BALLOTS_FILE,
+    error::{Error, Result},
+    pipe_inputs::PipeInputs,
+    pipe_name::PipeNameOutputDir,
+    Pipe,
 };
 use crate::utils::HasId;
 use sequent_core::ballot::Candidate;
@@ -57,8 +60,9 @@ impl Pipe for DoTally {
                     let ca = tally::create_tally(
                         &contest_input.contest,
                         vec![decoded_ballots_file.clone()],
-                    )?;
-                    let res = ca.tally()?;
+                    )
+                    .map_err(|e| Error::FromPipe(e.to_string()))?;
+                    let res = ca.tally().map_err(|e| Error::FromPipe(e.to_string()))?;
 
                     let mut file = PipeInputs::build_path(
                         &output_dir,
@@ -77,8 +81,9 @@ impl Pipe for DoTally {
                     contest_ballot_files.push(decoded_ballots_file);
                 }
 
-                let ca = tally::create_tally(&contest_input.contest, contest_ballot_files)?;
-                let res = ca.tally()?;
+                let ca = tally::create_tally(&contest_input.contest, contest_ballot_files)
+                    .map_err(|e| Error::FromPipe(e.to_string()))?;
+                let res = ca.tally().map_err(|e| Error::FromPipe(e.to_string()))?;
 
                 let mut file = PipeInputs::build_path(
                     &output_dir,

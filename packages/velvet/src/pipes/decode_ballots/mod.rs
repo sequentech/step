@@ -2,8 +2,5 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod error;
-
 mod decode_ballots;
 pub use decode_ballots::*;
-

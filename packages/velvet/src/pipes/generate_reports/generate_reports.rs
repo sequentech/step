@@ -17,7 +17,7 @@ use serde::Serialize;
 use serde_json::Map;
 use uuid::Uuid;
 
-use super::error::{Error, Result};
+use crate::pipes::error::{Error, Result};
 use crate::pipes::{
     do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
     mark_winners::{WinnerResult, OUTPUT_WINNERS},
@@ -103,9 +103,10 @@ impl GenerateReports {
         map.insert("reports".to_owned(), serde_json::to_value(reports)?);
 
         let html = include_str!("../../resources/report.hbs");
-        let render = reports::render_template_text(html, map)?;
+        let render =
+            reports::render_template_text(html, map).map_err(|e| Error::FromPipe(e.to_string()))?;
 
-        let bytes = pdf::html_to_pdf(render)?;
+        let bytes = pdf::html_to_pdf(render).map_err(|e| Error::FromPipe(e.to_string()))?;
 
         Ok(bytes)
     }

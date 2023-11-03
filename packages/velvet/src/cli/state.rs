@@ -4,6 +4,7 @@
 
 use super::error::{Error, Result};
 use super::CliRun;
+use crate::pipes::error::Error as PipesError;
 use crate::pipes::PipeManager;
 use crate::{config::Config, pipes::pipe_name::PipeName};
 
@@ -63,7 +64,16 @@ impl State {
 
         let cli = self.cli.clone();
         let pm = PipeManager::get_pipe(cli, stage.clone())?.ok_or(Error::PipeNotFound)?;
-        pm.exec().map_err(|e| Error::PipeExec(e.to_string()))?;
+
+        let res = pm.exec();
+
+        if let Err(e) = res {
+            if let PipesError::IO(file, e) = e {
+                println!("File not found: {} -- Not processed", file.display())
+            } else {
+                return Err(Error::FromPipe(e));
+            }
+        }
 
         if let Some(pipe) = stage.next_pipe() {
             self.set_current_pipe(&stage_name, pipe)?;

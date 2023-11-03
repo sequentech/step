@@ -7,7 +7,7 @@ use std::{cmp::Ordering, fs};
 use sequent_core::ballot::Candidate;
 use serde::Serialize;
 
-use super::error::{Error, Result};
+use crate::pipes::error::{Error, Result};
 use crate::pipes::{
     do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
     pipe_inputs::PipeInputs,

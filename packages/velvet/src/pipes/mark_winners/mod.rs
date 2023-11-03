@@ -2,7 +2,5 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-mod error;
-
 mod mark_winners;
 pub use mark_winners::*;
