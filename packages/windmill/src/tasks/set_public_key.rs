@@ -11,14 +11,13 @@ use tracing::instrument;
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::public_keys;
-use crate::types::task_error::into_task_error;
 use crate::types::error::{Error, Result};
 
 #[instrument]
+#[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 10)]
 pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials()
-        .await?;
+    let auth_headers = keycloak::get_client_credentials().await?;
     let election_event_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -38,8 +37,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
         return Ok(());
     }
 
-    let public_key = public_keys::get_public_key(board_name)
-        .await?;
+    let public_key = public_keys::get_public_key(board_name).await?;
     hasura::election_event::update_election_event_public_key(
         auth_headers.clone(),
         tenant_id.clone(),

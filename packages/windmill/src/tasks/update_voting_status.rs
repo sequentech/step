@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use celery::prelude::*;
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::hasura;
-use crate::types::task_error::into_task_error;
 use crate::types::error::{Error, Result};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -21,14 +20,14 @@ pub struct UpdateVotingStatusPayload {
 }
 
 #[instrument]
+#[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn update_voting_status(
     payload: UpdateVotingStatusPayload,
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials()
-        .await?;
+    let auth_headers = keycloak::get_client_credentials().await?;
     let new_status = ElectionStatus {
         voting_status: payload.status.clone(),
     };
@@ -43,7 +42,7 @@ pub async fn update_voting_status(
 
     let election_event = &election_event_response.sequent_backend_election_event[0];
     if payload.status == VotingStatus::OPEN && election_event.public_key.is_none() {
-        return Err(TaskError::UnexpectedError("Missing public key".into()));
+        return Err(Error::String("Missing public key".into()));
     }
     let new_status_value = serde_json::to_value(new_status)?;
     let hasura_response = hasura::election::update_election_status(

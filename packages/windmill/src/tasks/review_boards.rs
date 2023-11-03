@@ -4,10 +4,10 @@
 use crate::hasura;
 use crate::services::celery_app::get_celery_app;
 use crate::tasks::process_board::process_board;
-use crate::types::task_error::into_task_error;
 use crate::types::error::{Error, Result};
+use celery::error::TaskError;
 use celery::task::TaskResult;
-use sequent_core::services::openid;
+use sequent_core::services::keycloak;
 use tracing::instrument;
 use tracing::{event, Level};
 
@@ -18,8 +18,7 @@ pub async fn review_boards() -> Result<()> {
     let limit: i64 = 100;
     let mut offset: i64 = 0;
     let mut last_length = limit;
-    let auth_headers = openid::get_client_credentials()
-        .await?;
+    let auth_headers = keycloak::get_client_credentials().await?;
     let celery_app = get_celery_app().await;
 
     while last_length == limit {

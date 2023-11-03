@@ -8,7 +8,6 @@ use celery::prelude::*;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::base64::Base64Deserialize;
-use sequent_core::services::openid;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
@@ -22,7 +21,6 @@ use crate::hasura::trustee::get_trustees_by_id;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_pk;
-use crate::types::task_error::into_task_error;
 use crate::types::error::{Error, Result};
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
@@ -40,9 +38,7 @@ pub async fn insert_ballots(
     tally_session_id: String,
     tally_session_contest_id: String,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials()
-        .await
-        .map_err(into_task_error)?;
+    let auth_headers = keycloak::get_client_credentials().await?;
     let tally_session_contest = &get_tally_session_contest(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -93,14 +89,10 @@ pub async fn insert_ballots(
         .map(|val| val.is_config_created())
         .unwrap_or(false)
     {
-        return Err(TaskError::UnexpectedError(
-            "bulletin board config missing".into(),
-        ));
+        return Err(Error::String("bulletin board config missing".into()));
     }
     if !status.map(|val| val.is_stopped()).unwrap_or(false) {
-        return Err(TaskError::UnexpectedError(
-            "election event is not stopped".into(),
-        ));
+        return Err(Error::String("election event is not stopped".into()));
     }
 
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())

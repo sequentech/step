@@ -2,9 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::types::task_error::into_task_error;
 use crate::types::error::{Error, Result};
-use anyhow::Result;
+use celery::error::TaskError;
 use celery::prelude::*;
 use immu_board::BoardClient;
 use sequent_core;
@@ -39,9 +38,8 @@ pub async fn create_board(
     payload: CreateBoardPayload,
     tenant_id: String,
     election_event_id: String,
-) -> Result<BoardSerializable> {
-    let auth_headers = keycloak::get_client_credentials()
-        .await?;
+) -> Result<()> {
+    let auth_headers = keycloak::get_client_credentials().await?;
     let board_db: String = payload.board_name;
 
     let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
@@ -62,5 +60,5 @@ pub async fn create_board(
 
     let _board_json = serde_json::to_value(board_serializable.clone())?;
 
-    Ok(board_serializable)
+    Ok(())
 }

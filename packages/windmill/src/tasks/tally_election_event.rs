@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context};
 use braid_messages::newtypes::BatchNumber;
+use celery::error::TaskError;
 use celery::prelude::*;
-use sequent_core::services::openid;
+use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use tracing::{event, instrument, Level};
@@ -15,7 +16,6 @@ use crate::hasura::tally_session_contest::insert_tally_session_contest;
 use crate::hasura::trustee::get_trustees_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
-use crate::types::task_error::into_task_error;
 use crate::types::error::{Error, Result};
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
@@ -32,8 +32,7 @@ pub async fn tally_election_event(
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
-    let auth_headers = openid::get_client_credentials()
-        .await?;
+    let auth_headers = keycloak::get_client_credentials().await?;
 
     let areas_data = get_election_event_areas(
         auth_headers.clone(),

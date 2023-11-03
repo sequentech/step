@@ -16,7 +16,6 @@ use crate::services::celery_app::*;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::public_keys;
 use crate::tasks::set_public_key::set_public_key;
-use crate::types::task_error::into_task_error;
 use crate::types::error::{Error, Result};
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
@@ -33,8 +32,7 @@ pub async fn create_keys(
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials()
-        .await?;
+    let auth_headers = keycloak::get_client_credentials().await?;
     let celery_app = get_celery_app().await;
     // fetch election_event
     let hasura_response = hasura::election_event::get_election_event(
@@ -54,7 +52,7 @@ pub async fn create_keys(
         None => None,
     };
     if status.map(|val| val.is_config_created()).unwrap_or(false) {
-        return Err(TaskError::UnexpectedError(
+        return Err(Error::String(
             "bulletin board config already created".into(),
         ));
     }

@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use celery::error::TaskError;
 use celery::task::TaskResult;
-use sequent_core::services::openid;
+use sequent_core::services::keycloak;
 use strand::backend::ristretto::RistrettoCtx;
 use tracing::instrument;
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
-use crate::types::task_error::into_task_error;
 use crate::types::error::{Error, Result};
 
 #[instrument]
@@ -17,8 +17,7 @@ use crate::types::error::{Error, Result};
 #[celery::task]
 pub async fn process_board(election_event_id: String, tenant_id: String) -> Result<()> {
     // get credentials
-    let auth_headers = openid::get_client_credentials()
-        .await?;
+    let auth_headers = keycloak::get_client_credentials().await?;
     // fetch election_event
     let hasura_response = hasura::election_event::get_election_event(
         auth_headers.clone(),

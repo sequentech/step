@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::types::task_error::into_task_error;
 use crate::types::error::{Error, Result};
-use anyhow::{Context, Result};
+use anyhow::Context;
+use celery::error::TaskError;
 use celery::prelude::*;
 use sequent_core;
 use sequent_core::services::keycloak;
@@ -190,8 +190,7 @@ pub async fn create_ballot_style(
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials()
-        .await?;
+    let auth_headers = keycloak::get_client_credentials().await?;
     let hasura_response = hasura::ballot_style::get_ballot_style_area(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -290,8 +289,7 @@ pub async fn create_ballot_style(
             contests,
             candidates,
         );
-        let election_dto_json_string =
-            serde_json::to_string(&election_dto)?;
+        let election_dto_json_string = serde_json::to_string(&election_dto)?;
         let _delete_current_response = hasura::ballot_style::soft_delete_ballot_style(
             auth_headers.clone(),
             tenant_id.clone(),

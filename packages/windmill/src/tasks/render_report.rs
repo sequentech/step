@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
+use celery::error::TaskError;
 use celery::prelude::*;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
-use sequent_core::services::openid;
+use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -14,8 +14,6 @@ use tracing::instrument;
 
 use crate::hasura;
 use crate::services::s3;
-use crate::types::task_error::into_task_error;
-use sequent_core::services::keycloak;
 use crate::types::error::{Error, Result};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -93,11 +91,10 @@ pub async fn render_report(
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials()
-        .await?;
+    let auth_headers = keycloak::get_client_credentials().await?;
     println!("auth headers: {:#?}", auth_headers);
-    let hasura_response = hasura::tenant::get_tenant(auth_headers.clone(), tenant_id.clone())
-        .await?;
+    let hasura_response =
+        hasura::tenant::get_tenant(auth_headers.clone(), tenant_id.clone()).await?;
     let username = hasura_response
         .data
         .expect("expected data".into())
