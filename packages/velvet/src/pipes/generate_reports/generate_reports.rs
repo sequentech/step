@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::cmp::Ordering;
-
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},

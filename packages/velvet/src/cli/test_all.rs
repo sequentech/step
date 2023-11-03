@@ -26,7 +26,7 @@ mod tests {
         region_num: u32,
         ballots_num: u32,
     ) -> Result<()> {
-        let rng = rand::thread_rng();
+        let _rng = rand::thread_rng();
 
         (0..election_num).try_for_each(|_| {
             let uuid_election = fixture.create_election_config()?;
@@ -189,7 +189,7 @@ mod tests {
         assert_eq!(count, 10);
 
         // count count regions
-        let mut entries = fs::read_dir(&fixture.input_dir_ballots.join(&election_uuid))?;
+        let mut entries = fs::read_dir(fixture.input_dir_ballots.join(election_uuid))?;
         let entry = entries.next().unwrap()?;
         let contest_path = entry.path();
         let entries = fs::read_dir(contest_path)?;

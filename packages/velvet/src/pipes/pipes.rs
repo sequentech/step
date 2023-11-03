@@ -20,7 +20,7 @@ pub trait Pipe {
 pub struct PipeManager;
 
 impl PipeManager {
-    pub fn new(cli: CliRun, stage: Stage) -> Result<Option<Box<dyn Pipe>>, Error> {
+    pub fn get_pipe(cli: CliRun, stage: Stage) -> Result<Option<Box<dyn Pipe>>, Error> {
         let pipe_inputs = PipeInputs::new(cli, stage)?;
 
         Ok(match pipe_inputs.stage.current_pipe {
@@ -28,7 +28,6 @@ impl PipeManager {
             PipeName::DoTally => Some(Box::new(DoTally::new(pipe_inputs))),
             PipeName::MarkWinners => Some(Box::new(MarkWinners::new(pipe_inputs))),
             PipeName::GenerateReports => Some(Box::new(GenerateReports::new(pipe_inputs))),
-            _ => None,
         })
     }
 }

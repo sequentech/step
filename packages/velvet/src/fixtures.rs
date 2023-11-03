@@ -4,15 +4,13 @@
 
 use anyhow::Result;
 use sequent_core::ballot::{
-    BallotStyle, Candidate, CandidatePresentation, CandidateUrl, Contest, ContestPresentation,
-    ElectionStatus, PublicKeyConfig, VotingStatus,
+    BallotStyle, Candidate, CandidatePresentation, Contest, ContestPresentation, ElectionStatus,
+    PublicKeyConfig, VotingStatus,
 };
-use sequent_core::ballot_codec::BigUIntCodec;
-use sequent_core::plaintext::DecodedVoteContest;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use uuid::Uuid;
 
 use crate::config::{self, Config};
@@ -150,16 +148,14 @@ pub fn get_config() -> Config {
         stages_def,
     };
 
-    let config = Config {
+    Config {
         version: "0.0.0".to_string(),
         stages,
-    };
-
-    config
+    }
 }
 
 pub fn get_election_config() -> BallotStyle {
-    let ballot_style = BallotStyle {
+    BallotStyle {
         id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
         tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
         election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
@@ -174,13 +170,11 @@ pub fn get_election_config() -> BallotStyle {
             voting_status: VotingStatus::OPEN,
         }),
         contests: vec![get_contest_config()],
-    };
-
-    ballot_style
+    }
 }
 
 pub fn get_contest_config() -> Contest {
-    let contest = Contest {
+    Contest {
         id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         election_event_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
@@ -297,7 +291,5 @@ pub fn get_contest_config() -> Contest {
             show_points: false,
             enable_checkable_lists: None,
         }),
-    };
-
-    contest
+    }
 }

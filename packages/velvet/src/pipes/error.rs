@@ -7,14 +7,12 @@ use uuid::Uuid;
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 #[derive(Debug)]
 pub enum Error {
-    IncorrectPath,
     IDNotFound,
     ElectionConfigNotFound(Uuid),
     ContestConfigNotFound(Uuid),
     IO(std::path::PathBuf, std::io::Error),
     FS(std::io::Error),
     JsonParse(serde_json::Error),
-    FromPipe(String),
 }
 
 impl core::fmt::Display for Error {

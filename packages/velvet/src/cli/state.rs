@@ -62,7 +62,7 @@ impl State {
         let stage = self.get_stage(&stage_name).ok_or(Error::PipeNotFound)?;
 
         let cli = self.cli.clone();
-        let pm = PipeManager::new(cli, stage.clone())?.ok_or(Error::PipeNotFound)?;
+        let pm = PipeManager::get_pipe(cli, stage.clone())?.ok_or(Error::PipeNotFound)?;
         pm.exec().map_err(|e| Error::PipeExec(e.to_string()))?;
 
         if let Some(pipe) = stage.next_pipe() {

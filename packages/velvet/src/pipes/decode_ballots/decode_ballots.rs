@@ -10,12 +10,9 @@ use sequent_core::ballot::Contest;
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::DecodedVoteContest;
 
+use std::fs::{self, File};
 use std::io::BufRead;
 use std::path::Path;
-use std::{
-    fs::{self, File},
-    path::PathBuf,
-};
 
 use std::str::FromStr;
 
@@ -35,7 +32,7 @@ impl DecodeBallots {
 
 impl DecodeBallots {
     fn decode_ballots(path: &Path, contest: &Contest) -> Result<Vec<DecodedVoteContest>> {
-        let file = fs::File::open(&path).map_err(|e| Error::IO(path.to_path_buf(), e))?;
+        let file = fs::File::open(path).map_err(|e| Error::IO(path.to_path_buf(), e))?;
         let reader = std::io::BufReader::new(file);
         let mut decoded_ballots: Vec<DecodedVoteContest> = vec![];
 

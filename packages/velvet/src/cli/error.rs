@@ -13,7 +13,6 @@ pub enum Error {
     CannotOpenConfig,
     Json(serde_json::Error),
     StageDefinition(String),
-    StageNotFound,
     PipeNotFound,
     FromPipe(PipesError),
     PipeExec(String),

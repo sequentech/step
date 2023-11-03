@@ -2,10 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{fs, path::PathBuf};
 
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 
@@ -46,18 +43,11 @@ impl Tally {
         Err(Error::TallyTypeNotFound)
     }
 
-    fn get_contest(file: &Path) -> Result<Contest> {
-        let file = fs::File::open(&file).map_err(|e| Error::IO(PathBuf::from(file), e))?;
-        let res: Contest = serde_json::from_reader(file)?;
-
-        Ok(res)
-    }
-
     fn get_ballots(files: Vec<PathBuf>) -> Result<Vec<DecodedVoteContest>> {
         let mut res = vec![];
 
         for f in files {
-            let f = fs::File::open(&f).map_err(|e| Error::IO(PathBuf::from(f), e))?;
+            let f = fs::File::open(&f).map_err(|e| Error::IO(f, e))?;
             let votes: Vec<DecodedVoteContest> = serde_json::from_reader(f)?;
             res.push(votes);
         }
