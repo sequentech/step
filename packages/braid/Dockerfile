@@ -9,6 +9,7 @@ COPY ./sequent-core ./sequent-core
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
+COPY ./wrap-map-err ./wrap-map-err
 
 RUN apt-get update && apt-get install -y protobuf-compiler libprotobuf-dev
 RUN rustup default nightly
