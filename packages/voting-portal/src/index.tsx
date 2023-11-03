@@ -21,7 +21,7 @@ const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
 SequentCoreLibInit().then(set_hooks)
 
-export const DISABLE_AUTH = true
+export const DISABLE_AUTH = false
 
 export interface KeycloakProviderProps extends React.PropsWithChildren {
     disable: boolean
