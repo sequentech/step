@@ -42,7 +42,7 @@ impl ImmudbBoard {
             .close()
             .map_err(|e| anyhow!("Could not close sqlite connection: {:?}", e))?;
         // Allows for Channel deletion
-        messages.append(&mut channels);
+        // messages.append(&mut channels);
 
         Ok(messages)
     }
@@ -90,7 +90,7 @@ impl ImmudbBoard {
             }
 
             // Allows for Channel deletion
-            let m = Message::strand_deserialize(&message.message)?;
+            /* let m = Message::strand_deserialize(&message.message)?;
             if m.statement.get_kind() == StatementType::Channel {
                 channel_messages.push(m);
             } else {
@@ -98,7 +98,11 @@ impl ImmudbBoard {
                     "INSERT INTO MESSAGES VALUES(?1, ?2)",
                     params![message.id, message.message],
                 )?;
-            }
+            }*/
+            connection.execute(
+                "INSERT INTO MESSAGES VALUES(?1, ?2)",
+                params![message.id, message.message],
+            )?;
         }
 
         Ok(channel_messages)
