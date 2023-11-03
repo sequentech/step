@@ -15,7 +15,6 @@ pub enum Error {
     StageDefinition(String),
     PipeNotFound,
     FromPipe(PipesError),
-    PipeExec(String),
 }
 
 impl core::fmt::Display for Error {

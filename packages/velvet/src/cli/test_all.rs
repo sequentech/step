@@ -26,7 +26,7 @@ mod tests {
         region_num: u32,
         ballots_num: u32,
     ) -> Result<()> {
-        if ballots_num < 20 {
+        if ballots_num > 0 && ballots_num < 20 {
             panic!("ballots_num should be at least 20");
         }
 
@@ -243,7 +243,7 @@ mod tests {
                         .map_or(false, |f| f == OUTPUT_DECODED_BALLOTS_FILE)
                 })
                 .count() as u32,
-            election_num * contest_num * region_num
+            election_num * contest_num * (region_num - 1)
         );
 
         // DoTally
@@ -282,6 +282,38 @@ mod tests {
         let fixture = TestFixture::new()?;
 
         generate_ballots(&fixture, 1, 2, 1, 50)?;
+
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "decode-ballots".to_string(),
+            config: fixture.config_path.clone(),
+            input_dir: fixture.root_dir.join("tests").join("input-dir"),
+            output_dir: fixture.root_dir.join("tests").join("output-dir"),
+        };
+
+        let config = cli.validate()?;
+        let mut state = State::new(&cli, &config)?;
+
+        // DecodeBallots
+        state.exec_next()?;
+
+        // DoTally
+        state.exec_next()?;
+
+        // MarkWinners
+        state.exec_next()?;
+
+        // Generate reports
+        state.exec_next()?;
+
+        Ok(())
+    }
+    
+    #[test]
+    fn test_generate_reports_without_ballots() -> Result<()> {
+        let fixture = TestFixture::new()?;
+
+        generate_ballots(&fixture, 1, 2, 1, 0)?;
 
         let cli = CliRun {
             stage: "main".to_string(),

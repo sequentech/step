@@ -5,6 +5,7 @@
 use super::counting_algorithm::{plurality_at_large::PluralityAtLarge, CountingAlgorithm};
 use super::error::{Error, Result};
 use crate::pipes::error::Error as PipesError;
+use crate::pipes::pipe_name::PipeName;
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 use std::{fs, path::PathBuf};
 
@@ -63,6 +64,23 @@ pub fn create_tally(
     contest: &Contest,
     ballots_files: Vec<PathBuf>,
 ) -> Result<Box<dyn CountingAlgorithm>> {
+    let ballots_files = ballots_files
+        .iter()
+        .filter(|f| {
+            let exist = f.exists();
+            if !exist {
+                println!(
+                    "[{}] File not found: {} -- Not processed",
+                    PipeName::DoTally.as_ref(),
+                    f.display()
+                )
+            }
+            exist
+        })
+        .map(|p| PathBuf::from(p.as_path()))
+        .collect();
+
+
     let tally = Tally::new(contest, ballots_files)?;
 
     let ca = match tally.id {

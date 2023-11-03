@@ -16,7 +16,7 @@ use std::path::Path;
 
 use std::str::FromStr;
 
-use crate::pipes::pipe_name::PipeNameOutputDir;
+use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 
 pub const OUTPUT_DECODED_BALLOTS_FILE: &str = "decoded_ballots.json";
 
@@ -64,27 +64,49 @@ impl Pipe for DecodeBallots {
                     )
                     .join(BALLOTS_FILE);
 
-                    let decoded_ballots = DecodeBallots::decode_ballots(
+                    let res = DecodeBallots::decode_ballots(
                         path_ballots.as_path(),
                         &contest_input.contest,
-                    )?;
-
-                    let mut output_path = PipeInputs::build_path(
-                        self.pipe_inputs
-                            .cli
-                            .output_dir
-                            .join(PipeNameOutputDir::DecodeBallots.as_ref())
-                            .as_path(),
-                        &election_input.id,
-                        &contest_input.id,
-                        Some(&region_input.id),
                     );
 
-                    fs::create_dir_all(&output_path)?;
-                    output_path.push(OUTPUT_DECODED_BALLOTS_FILE);
-                    let file = File::create(output_path)?;
+                    if let Err(Error::FileAccess(file, _)) = &res {
+                        println!(
+                            "[{}] File not found: {} -- Not processed",
+                            PipeName::DecodeBallots.as_ref(),
+                            file.display()
+                        );
+                    }
+                    match res {
+                        Ok(decoded_ballots) => {
+                            let mut output_path = PipeInputs::build_path(
+                                self.pipe_inputs
+                                    .cli
+                                    .output_dir
+                                    .join(PipeNameOutputDir::DecodeBallots.as_ref())
+                                    .as_path(),
+                                &election_input.id,
+                                &contest_input.id,
+                                Some(&region_input.id),
+                            );
 
-                    serde_json::to_writer(file, &decoded_ballots)?;
+                            fs::create_dir_all(&output_path)?;
+                            output_path.push(OUTPUT_DECODED_BALLOTS_FILE);
+                            let file = File::create(output_path)?;
+
+                            serde_json::to_writer(file, &decoded_ballots)?;
+                        }
+                        Err(e) => {
+                            if let Error::FileAccess(file, _) = &e {
+                                println!(
+                                    "[{}] File not found: {} -- Not processed",
+                                    PipeName::DecodeBallots.as_ref(),
+                                    file.display()
+                                )
+                            } else {
+                                return Err(e);
+                            }
+                        }
+                    }
                 }
             }
         }
