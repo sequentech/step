@@ -12,45 +12,40 @@ use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::public_keys;
 use crate::types::task_error::into_task_error;
+use crate::types::error::{Error, Result};
 
 #[instrument]
 #[celery::task(max_retries = 10)]
-pub async fn set_public_key(tenant_id: String, election_event_id: String) -> TaskResult<()> {
+pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials()
-        .await
-        .map_err(into_task_error)?;
+        .await?;
     let election_event_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
     )
-    .await
-    .map_err(into_task_error)?
+    .await?
     .data
-    .with_context(|| "can't find election event")
-    .map_err(into_task_error)?;
+    .with_context(|| "can't find election event")?;
 
     let election_event = &election_event_response.sequent_backend_election_event[0];
 
     let bulletin_board_reference = election_event.bulletin_board_reference.clone();
     let board_name = get_election_event_board(bulletin_board_reference)
-        .with_context(|| "election event is missing bulletin board")
-        .map_err(into_task_error)?;
+        .with_context(|| "election event is missing bulletin board")?;
 
     if election_event.public_key.is_some() {
         return Ok(());
     }
 
     let public_key = public_keys::get_public_key(board_name)
-        .await
-        .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
+        .await?;
     hasura::election_event::update_election_event_public_key(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
         public_key,
     )
-    .await
-    .map_err(|err| TaskError::ExpectedError(format!("{:?}", err)))?;
+    .await?;
     Ok(())
 }

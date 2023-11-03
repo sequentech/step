@@ -12,16 +12,17 @@ use crate::services::celery_app::get_celery_app;
 use crate::tasks::create_ballot_style::create_ballot_style;
 use crate::tasks::create_ballot_style::CreateBallotStylePayload;
 use crate::types::task_error::into_task_error;
+use crate::types::error::{Error, Result};
 
 #[instrument]
+#[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn update_election_event_ballot_styles(
     tenant_id: String,
     election_event_id: String,
-) -> TaskResult<()> {
+) -> Result<()> {
     let auth_headers = openid::get_client_credentials()
-        .await
-        .map_err(into_task_error)?;
+        .await?;
 
     let areas = get_election_event_areas(
         auth_headers,
@@ -29,11 +30,9 @@ pub async fn update_election_event_ballot_styles(
         election_event_id.clone(),
         vec![],
     )
-    .await
-    .map_err(into_task_error)?
+    .await?
     .data
-    .with_context(|| "can't find election event areas")
-    .map_err(into_task_error)?;
+    .with_context(|| "can't find election event areas")?;
     let celery_app = get_celery_app().await;
 
     for area in areas.sequent_backend_area.iter() {
@@ -45,8 +44,7 @@ pub async fn update_election_event_ballot_styles(
                 tenant_id.clone(),
                 election_event_id.clone(),
             ))
-            .await
-            .map_err(into_task_error)?;
+            .await?;
         event!(
             Level::INFO,
             "Sent CREATE_BALLOT_STYLE task {}",

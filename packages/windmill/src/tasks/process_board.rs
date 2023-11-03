@@ -10,22 +10,22 @@ use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::types::task_error::into_task_error;
+use crate::types::error::{Error, Result};
 
 #[instrument]
+#[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
-pub async fn process_board(election_event_id: String, tenant_id: String) -> TaskResult<()> {
+pub async fn process_board(election_event_id: String, tenant_id: String) -> Result<()> {
     // get credentials
     let auth_headers = openid::get_client_credentials()
-        .await
-        .map_err(into_task_error)?;
+        .await?;
     // fetch election_event
     let hasura_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
     )
-    .await
-    .map_err(into_task_error)?;
+    .await?;
     let election_event = &hasura_response
         .data
         .expect("expected data".into())

@@ -16,6 +16,7 @@ use crate::hasura::trustee::get_trustees_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
 use crate::types::task_error::into_task_error;
+use crate::types::error::{Error, Result};
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct TallyElectionBody {
@@ -24,15 +25,15 @@ pub struct TallyElectionBody {
 }
 
 #[instrument]
+#[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn tally_election_event(
     body: TallyElectionBody,
     tenant_id: String,
     election_event_id: String,
-) -> TaskResult<()> {
+) -> Result<()> {
     let auth_headers = openid::get_client_credentials()
-        .await
-        .map_err(into_task_error)?;
+        .await?;
 
     let areas_data = get_election_event_areas(
         auth_headers.clone(),
@@ -40,11 +41,9 @@ pub async fn tally_election_event(
         election_event_id.clone(),
         body.election_ids.clone(),
     )
-    .await
-    .map_err(into_task_error)?
+    .await?
     .data
-    .with_context(|| "can't find election event areas")
-    .map_err(into_task_error)?;
+    .with_context(|| "can't find election event areas")?;
 
     let contest_ids = areas_data
         .sequent_backend_contest
@@ -75,11 +74,9 @@ pub async fn tally_election_event(
         tenant_id.clone(),
         body.trustee_ids.clone(),
     )
-    .await
-    .map_err(into_task_error)?
+    .await?
     .data
-    .with_context(|| "can't find trustees")
-    .map_err(into_task_error)?;
+    .with_context(|| "can't find trustees")?;
 
     let tally_session = insert_tally_session(
         auth_headers.clone(),
@@ -89,14 +86,11 @@ pub async fn tally_election_event(
         body.trustee_ids.clone(),
         area_ids.clone(),
     )
-    .await
-    .map_err(into_task_error)?
+    .await?
     .data
-    .with_context(|| "can't find tally session")
-    .map_err(into_task_error)?
+    .with_context(|| "can't find tally session")?
     .insert_sequent_backend_tally_session
-    .ok_or(anyhow!("can't find tally session"))
-    .map_err(into_task_error)?
+    .ok_or(anyhow!("can't find tally session"))?
     .returning[0]
         .clone();
 
@@ -105,8 +99,7 @@ pub async fn tally_election_event(
         tenant_id.clone(),
         election_event_id.clone(),
     )
-    .await
-    .map_err(into_task_error)?;
+    .await?;
     let celery_app = get_celery_app().await;
 
     for area_contest in contest_areas.into_iter() {
@@ -119,14 +112,11 @@ pub async fn tally_election_event(
             batch.clone(),
             tally_session.id.clone(),
         )
-        .await
-        .map_err(into_task_error)?
+        .await?
         .data
-        .with_context(|| "can't insert tally session contest")
-        .map_err(into_task_error)?
+        .with_context(|| "can't insert tally session contest")?
         .insert_sequent_backend_tally_session_contest
-        .ok_or(anyhow!("can't find tally session contest"))
-        .map_err(into_task_error)?
+        .ok_or(anyhow!("can't find tally session contest"))?
         .returning[0]
             .clone();
         let task = celery_app
@@ -139,8 +129,7 @@ pub async fn tally_election_event(
                 tally_session.id.clone(),
                 tally_session_contest.id.clone(),
             ))
-            .await
-            .map_err(into_task_error)?;
+            .await?;
         event!(Level::INFO, "Sent INSERT_BALLOTS task {}", task.task_id);
         batch = batch + 1;
     }

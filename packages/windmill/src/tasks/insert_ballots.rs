@@ -23,6 +23,7 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_pk;
 use crate::types::task_error::into_task_error;
+use crate::types::error::{Error, Result};
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct InsertBallotsPayload {
@@ -30,6 +31,7 @@ pub struct InsertBallotsPayload {
 }
 
 #[instrument]
+#[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn insert_ballots(
     body: InsertBallotsPayload,
@@ -37,7 +39,7 @@ pub async fn insert_ballots(
     election_event_id: String,
     tally_session_id: String,
     tally_session_contest_id: String,
-) -> TaskResult<()> {
+) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials()
         .await
         .map_err(into_task_error)?;
@@ -48,8 +50,7 @@ pub async fn insert_ballots(
         tally_session_id.clone(),
         tally_session_contest_id.clone(),
     )
-    .await
-    .map_err(into_task_error)?
+    .await?
     .data
     .expect("expected data".into())
     .sequent_backend_tally_session_contest[0];
@@ -59,8 +60,7 @@ pub async fn insert_ballots(
         tenant_id.clone(),
         election_event_id.clone(),
     )
-    .await
-    .map_err(into_task_error)?;
+    .await?;
     let election_event = &hasura_response
         .data
         .expect("expected data".into())
@@ -71,11 +71,9 @@ pub async fn insert_ballots(
         tenant_id.clone(),
         body.trustee_pks.clone(),
     )
-    .await
-    .map_err(into_task_error)?
+    .await?
     .data
-    .with_context(|| "can't find trustees")
-    .map_err(into_task_error)?
+    .with_context(|| "can't find trustees")?
     .sequent_backend_trustee;
 
     // 4. create trustees keys from input strings
@@ -87,7 +85,7 @@ pub async fn insert_ballots(
 
     // check config is already created
     let status: Option<ElectionEventStatus> = match election_event.status.clone() {
-        Some(value) => serde_json::from_value(value).map_err(into_task_error)?,
+        Some(value) => serde_json::from_value(value)?,
         None => None,
     };
     if !status
@@ -106,8 +104,7 @@ pub async fn insert_ballots(
     }
 
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-        .with_context(|| "missing bulletin board")
-        .map_err(into_task_error)?;
+        .with_context(|| "missing bulletin board")?;
 
     let cast_ballots_response = hasura::cast_ballot::find_ballots(
         auth_headers.clone(),
@@ -115,8 +112,7 @@ pub async fn insert_ballots(
         election_event_id.clone(),
         tally_session_contest.area_id.clone(),
     )
-    .await
-    .map_err(into_task_error)?;
+    .await?;
 
     let ballots_list = &cast_ballots_response
         .data
@@ -157,8 +153,7 @@ pub async fn insert_ballots(
         batch,
         deserialized_trustee_pks,
     )
-    .await
-    .map_err(into_task_error)?;
+    .await?;
 
     Ok(())
 }

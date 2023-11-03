@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::types::task_error::into_task_error;
+use crate::types::error::{Error, Result};
 use anyhow::{Context, Result};
 use celery::prelude::*;
 use sequent_core;
@@ -182,26 +183,24 @@ pub struct CreateBallotStylePayload {
 }
 
 #[instrument]
+#[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn create_ballot_style(
     body: CreateBallotStylePayload,
     tenant_id: String,
     election_event_id: String,
-) -> TaskResult<()> {
+) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials()
-        .await
-        .map_err(into_task_error)?;
+        .await?;
     let hasura_response = hasura::ballot_style::get_ballot_style_area(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
         body.area_id.clone(),
     )
-    .await
-    .map_err(into_task_error)?
+    .await?
     .data
-    .with_context(|| "can't find election event")
-    .map_err(into_task_error)?;
+    .with_context(|| "can't find election event")?;
 
     let area = &hasura_response.sequent_backend_area[0];
     let election_event: &get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent =
@@ -224,8 +223,7 @@ pub async fn create_ballot_style(
         let contest = area_contest
             .contest
             .clone()
-            .with_context(|| format!("contest not found for area contest {}", area_contest.id))
-            .map_err(into_task_error)?;
+            .with_context(|| format!("contest not found for area contest {}", area_contest.id))?;
         let _election_id = contest.election_id.clone();
         election_contest_map
             .entry(contest.election_id.clone())
@@ -237,8 +235,7 @@ pub async fn create_ballot_style(
         let election = elections
             .iter()
             .find(|election| election.id == election_id)
-            .with_context(|| format!("election id not found {}", election_id))
-            .map_err(into_task_error)?;
+            .with_context(|| format!("election id not found {}", election_id))?;
         let contests = contest_ids
             .clone()
             .into_iter()
@@ -247,15 +244,13 @@ pub async fn create_ballot_style(
                     let area_contest = area_contests
                         .iter()
                         .find(|area_contest| area_contest.contest_id == Some(contest_id.clone()))
-                        .with_context(|| format!("contest id not found {}", contest_id))
-                        .map_err(into_task_error)?;
+                        .with_context(|| format!("contest id not found {}", contest_id))?;
                     Ok(sequent_core::types::hasura_types::Contest::from(
                         area_contest.contest.clone().unwrap(),
                     ))
                 },
             )
-            .collect::<Result<Vec<sequent_core::types::hasura_types::Contest>>>()
-            .map_err(into_task_error)?;
+            .collect::<Result<Vec<sequent_core::types::hasura_types::Contest>>>()?;
         let candidates: Vec<sequent_core::types::hasura_types::Candidate> = contest_ids
             .into_iter()
             .map(
@@ -263,15 +258,13 @@ pub async fn create_ballot_style(
                     let area_contest = area_contests
                         .iter()
                         .find(|area_contest| area_contest.contest_id == Some(contest_id.clone()))
-                        .with_context(|| format!("contest id not found {}", contest_id))
-                        .map_err(into_task_error)?;
+                        .with_context(|| format!("contest id not found {}", contest_id))?;
                     area_contest
                         .contest
                         .clone()
                         .with_context(|| {
                             format!("contest missing on area contest id {}", area_contest.id)
-                        })
-                        .map_err(into_task_error)?
+                        })?
                         .candidates
                         .into_iter()
                         .map(|candidate| {
@@ -283,8 +276,7 @@ pub async fn create_ballot_style(
                 },
             )
             .into_iter()
-            .collect::<Result<Vec<Vec<sequent_core::types::hasura_types::Candidate>>>>()
-            .map_err(into_task_error)?
+            .collect::<Result<Vec<Vec<sequent_core::types::hasura_types::Candidate>>>>()?
             .into_iter()
             .flatten()
             .collect();
@@ -299,7 +291,7 @@ pub async fn create_ballot_style(
             candidates,
         );
         let election_dto_json_string =
-            serde_json::to_string(&election_dto).map_err(into_task_error)?;
+            serde_json::to_string(&election_dto)?;
         let _delete_current_response = hasura::ballot_style::soft_delete_ballot_style(
             auth_headers.clone(),
             tenant_id.clone(),
@@ -307,8 +299,7 @@ pub async fn create_ballot_style(
             election.id.clone(),
             body.area_id.clone(),
         )
-        .await
-        .map_err(into_task_error)?;
+        .await?;
         let _hasura_response = hasura::ballot_style::insert_ballot_style(
             auth_headers.clone(),
             ballot_style_id.to_string(),
@@ -320,8 +311,7 @@ pub async fn create_ballot_style(
             None,
             None,
         )
-        .await
-        .map_err(into_task_error)?;
+        .await?;
     }
 
     Ok(())
