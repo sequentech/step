@@ -34,6 +34,73 @@ const Horizontal = styled(Box)`
     gap: 8px;
 `
 
+interface SelectElectionsProps {
+    electionEvent: Sequent_Backend_Election_Event
+    selectedElections: Array<Sequent_Backend_Election>
+    onAddSelectedElection: (value: Sequent_Backend_Election) => void
+}
+
+export const SelectElections: React.FC<SelectElectionsProps> = ({
+    electionEvent,
+    selectedElections,
+    onAddSelectedElection,
+}) => {
+    const [election, setElection] = useState<Sequent_Backend_Election | null>(null)
+    const {data, total, isLoading, error} = useGetList("sequent_backend_election", {
+        pagination: {page: 1, perPage: 10},
+        sort: {field: "last_updated_at", order: "DESC"},
+        filter: {
+            tenant_id: electionEvent.tenant_id,
+        },
+    })
+
+    const handleElectionChange = (event: SelectChangeEvent<Sequent_Backend_Election | null>) => {
+        let id = event.target.value
+        let election: Sequent_Backend_Election | undefined = (
+            data as Array<Sequent_Backend_Election> | undefined
+        )?.find((t) => t.id === id)
+        if (election) {
+            setElection(election)
+        }
+    }
+
+    const onAddElection = () => {
+        if (!election) {
+            return
+        }
+        onAddSelectedElection(election)
+        setElection(null)
+    }
+
+    return (
+        <>
+            <Box>
+                {selectedElections.map((election) => (
+                    <StyledChip label={election.name} key={election.id} />
+                ))}
+            </Box>
+            <Horizontal>
+                <Select
+                    labelId="election-select-label"
+                    id="election-select"
+                    value={election}
+                    renderValue={(value) => value?.name}
+                    onChange={handleElectionChange}
+                >
+                    {data
+                        ?.filter((election) => !selectedElections.find((t) => t.id === election.id))
+                        .map((election) => (
+                            <MenuItem key={election.id} value={election.id}>
+                                {election.name}
+                            </MenuItem>
+                        ))}
+                </Select>
+                <IconButton icon={faPlusCircle} onClick={onAddElection} fontSize="24px" />
+            </Horizontal>
+        </>
+    )
+}
+
 export interface StartTallyDialogProps {
     show: boolean
     handleClose: (val: boolean) => void
@@ -75,7 +142,7 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
                 cronConfig: undefined,
                 eventPayload: {
                     trustee_ids: selectedTrustees.map((t) => t.id),
-                    election_ids: [],
+                    election_ids: selectedElections.map((e) => e.id),
                 },
                 createdBy: "admin",
             },
@@ -124,6 +191,10 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
         setTrustee(null)
     }
 
+    const onAddSelectedElection = (election: Sequent_Backend_Election) => {
+        setSelectedElections([...selectedElections, election])
+    }
+
     return (
         <Dialog
             handleClose={clickHandler}
@@ -157,6 +228,11 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
                 </Select>
                 <IconButton icon={faPlusCircle} onClick={onAddTrustee} fontSize="24px" />
             </Horizontal>
+            <SelectElections
+                electionEvent={electionEvent}
+                selectedElections={selectedElections}
+                onAddSelectedElection={onAddSelectedElection}
+            />
             {showProgress ? <CircularProgress /> : null}
         </Dialog>
     )
