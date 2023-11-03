@@ -7,7 +7,7 @@ use anyhow::Result;
 use celery::prelude::*;
 use immu_board::BoardClient;
 use sequent_core;
-use sequent_core::services::openid;
+use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::instrument;
@@ -38,7 +38,7 @@ pub async fn create_board(
     tenant_id: String,
     election_event_id: String,
 ) -> TaskResult<BoardSerializable> {
-    let auth_headers = openid::get_client_credentials()
+    let auth_headers = keycloak::get_client_credentials()
         .await
         .map_err(into_task_error)?;
     let board_db: String = payload.board_name;

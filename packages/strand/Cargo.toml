@@ -24,8 +24,10 @@ wasmtest = ["wasm", "dep:web-sys"]
 wasm = ["wasm-bindgen", "serde-wasm-bindgen", "num_bigint", "malachite"]
 num_bigint = ["dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:num-modular"]
 malachite = ["dep:malachite"]
-openssl = ["dep:openssl", "dep:rand_core"]
-fips = ["openssl"]
+openssl_core = ["dep:openssl", "dep:rand_core"]
+openssl_full = ["dep:openssl", "dep:rand_core"]
+fips_core = ["openssl_core"]
+fips_full = ["openssl_full"]
 
 [dependencies]
 

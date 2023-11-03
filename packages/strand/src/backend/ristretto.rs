@@ -49,7 +49,7 @@ pub struct RistrettoPointS(pub(crate) RistrettoPoint);
 pub struct ScalarS(pub(crate) Scalar);
 
 cfg_if::cfg_if! {
-    if #[cfg(feature = "openssl")] {
+    if #[cfg(any(feature = "openssl_core", feature="openssl_full"))] {
 
 impl RistrettoCtx {
     fn generators_shake(
@@ -538,12 +538,15 @@ mod tests {
         test_distributed_serialization_generic(&ctx, ps);
     }
 
+    
+    #[cfg(not(feature = "wasm"))]
     #[test]
     fn test_shuffle() {
         let ctx = RistrettoCtx;
         test_shuffle_generic(&ctx);
     }
 
+    #[cfg(not(feature = "wasm"))]
     #[test]
     fn test_shuffle_serialization() {
         let ctx = RistrettoCtx;

@@ -9,6 +9,7 @@ use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::services::openid;
+use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
@@ -37,7 +38,7 @@ pub async fn insert_ballots(
     tally_session_id: String,
     tally_session_contest_id: String,
 ) -> TaskResult<()> {
-    let auth_headers = openid::get_client_credentials()
+    let auth_headers = keycloak::get_client_credentials()
         .await
         .map_err(into_task_error)?;
     let tally_session_contest = &get_tally_session_contest(

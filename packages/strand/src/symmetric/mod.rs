@@ -1,4 +1,4 @@
-#[cfg(feature = "openssl")]
+#[cfg(any(feature = "openssl_core", feature="openssl_full"))]
 pub mod openssl;
-#[cfg(not(feature = "openssl"))]
+#[cfg(not(any(feature = "openssl_core", feature="openssl_full")))]
 pub mod rustcrypto;

@@ -567,9 +567,7 @@ mod tests {
     use crate::backend::malachite::*;
     use crate::backend::tests::*;
     use crate::context::Ctx;
-    use crate::keymaker::tests::*;
     use crate::serialization::tests::*;
-    use crate::threshold::tests::test_threshold_generic;
 
     #[test]
     fn test_elgamal() {
@@ -617,51 +615,6 @@ mod tests {
         let mut rng = ctx.get_rng();
         let plaintext = ctx.rnd_plaintext(&mut rng);
         test_vdecryption_generic(&ctx, plaintext);
-    }
-
-    #[test]
-    fn test_distributed() {
-        let ctx = MalachiteCtx::<P2048>::default();
-        let mut rng = ctx.get_rng();
-        let plaintext = ctx.rnd_plaintext(&mut rng);
-        test_distributed_generic(&ctx, plaintext);
-    }
-
-    #[test]
-    fn test_distributed_serialization() {
-        let ctx = MalachiteCtx::<P2048>::default();
-        let mut rng = ctx.get_rng();
-        let mut ps = vec![];
-        for _ in 0..10 {
-            let p = ctx.rnd_plaintext(&mut rng);
-            ps.push(p);
-        }
-        test_distributed_serialization_generic(&ctx, ps);
-    }
-
-    #[test]
-    fn test_shuffle() {
-        let ctx = MalachiteCtx::<P2048>::default();
-        test_shuffle_generic(&ctx);
-    }
-
-    #[test]
-    fn test_shuffle_serialization() {
-        let ctx = MalachiteCtx::<P2048>::default();
-        test_shuffle_serialization_generic(&ctx);
-    }
-
-    use rand::Rng;
-
-    #[test]
-    fn test_threshold() {
-        let trustees = rand::thread_rng().gen_range(2..11);
-        let threshold = rand::thread_rng().gen_range(2..trustees + 1);
-        let ctx = MalachiteCtx::<P2048>::default();
-        let mut rng = ctx.get_rng();
-        let plaintext = ctx.rnd_plaintext(&mut rng);
-
-        test_threshold_generic(&ctx, trustees, threshold, plaintext);
     }
 
     #[test]

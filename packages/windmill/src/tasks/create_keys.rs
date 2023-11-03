@@ -6,7 +6,7 @@ use anyhow::Context;
 use celery::error::TaskError;
 use celery::prelude::*;
 use sequent_core::ballot::ElectionEventStatus;
-use sequent_core::services::openid;
+use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 
@@ -31,7 +31,7 @@ pub async fn create_keys(
     tenant_id: String,
     election_event_id: String,
 ) -> TaskResult<()> {
-    let auth_headers = openid::get_client_credentials()
+    let auth_headers = keycloak::get_client_credentials()
         .await
         .map_err(into_task_error)?;
     let celery_app = get_celery_app().await;

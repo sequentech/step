@@ -15,6 +15,7 @@ use tracing::instrument;
 use crate::hasura;
 use crate::services::s3;
 use crate::types::task_error::into_task_error;
+use sequent_core::services::keycloak;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum FormatType {
@@ -90,7 +91,7 @@ pub async fn render_report(
     tenant_id: String,
     election_event_id: String,
 ) -> TaskResult<()> {
-    let auth_headers = openid::get_client_credentials()
+    let auth_headers = keycloak::get_client_credentials()
         .await
         .map_err(into_task_error)?;
     println!("auth headers: {:#?}", auth_headers);

@@ -5,3 +5,4 @@
 pub mod hasura_types;
 pub mod scheduled_event;
 pub mod task_error;
+pub mod error;
