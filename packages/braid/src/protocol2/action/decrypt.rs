@@ -31,7 +31,7 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
 
     let my_channel = trustee
         .get_channel(&ChannelHash(channels_hs.0[*self_p]), *self_p)
-        .ok_or(anyhow!("Could not retrieve commitments",))?;
+        .ok_or(anyhow!("Could not retrieve channel",))?;
 
     let mut secret = C::X::add_identity();
     for sender in 0..*num_t {

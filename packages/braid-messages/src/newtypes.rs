@@ -32,8 +32,14 @@ impl std::fmt::Debug for ConfigurationHash {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ChannelHash(pub Hash);
+impl std::fmt::Debug for ChannelHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ChannelHash({})", dbg_hash(&self.0))
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ChannelsHashes(pub THashes);
 impl std::fmt::Debug for ChannelsHashes {
