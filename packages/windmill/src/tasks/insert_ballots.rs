@@ -91,9 +91,9 @@ pub async fn insert_ballots(
     {
         return Err(Error::String("bulletin board config missing".into()));
     }
-    if !status.map(|val| val.is_stopped()).unwrap_or(false) {
+    /*if !status.map(|val| val.is_stopped()).unwrap_or(false) {
         return Err(Error::String("election event is not stopped".into()));
-    }
+    }*/
 
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
