@@ -39,18 +39,22 @@
         </tr>
         <tr>
           <td>Total number of votes cast</td>
-          <td>{{report.contest_result.total_valid_votes}}</td>
+          <td>{{report.contest_result.total_votes}}</td>
         </tr>
         <tr>
           <td>Blank votes</td>
-          <td>todo</td>
+          <td>{{ report.contest_result.invalid_votes.blank }}</td>
         </tr>
         <tr>
-          <td>Null votes</td>
-          <td>todo</td>
+          <td>Explicit invalid votes</td>
+          <td>{{ report.contest_result.invalid_votes.explicit }}</td>
         </tr>
         <tr>
-          <td>Total number of votes for options</td>
+          <td>Implicit invalid votes</td>
+          <td>{{ report.contest_result.invalid_votes.implicit}}</td>
+        </tr>
+        <tr>
+          <td>Total number of votes for candidates</td>
           <td>todo</td>
         </tr>
       </table>

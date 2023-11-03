@@ -89,6 +89,7 @@ impl GenerateReports {
 
                 ReportDataComputed {
                     contest: r.contest.clone(),
+                    contest_result: r.contest_result.clone(),
                     candidate_result,
                 }
             })
@@ -210,6 +211,7 @@ pub struct ReportData {
 #[derive(Serialize)]
 pub struct ReportDataComputed {
     pub contest: Contest,
+    pub contest_result: ContestResult,
     pub candidate_result: Vec<CandidateResultForReport>,
 }
 

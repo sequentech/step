@@ -99,16 +99,16 @@ impl Pipe for DoTally {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContestResult {
-    // #[serde(serialize_with = "to_id")]
     pub contest: Contest,
+    pub total_votes: u64,
     pub total_valid_votes: u64,
-    pub total_invalid_votes: HashMap<InvalidVote, u64>,
+    pub total_invalid_votes: u64,
+    pub invalid_votes: HashMap<InvalidVote, u64>,
     pub candidate_result: Vec<CandidateResult>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CandidateResult {
-    // #[serde(serialize_with = "to_id")]
     pub candidate: Candidate,
     pub total_count: u64,
 }

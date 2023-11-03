@@ -28,7 +28,6 @@ pub struct PipeInputs {
     pub root_path_config: PathBuf,
     pub root_path_ballots: PathBuf,
     pub stage: Stage,
-    // TODO: Election Event Config
     pub election_list: Vec<ElectionConfig>,
 }
 

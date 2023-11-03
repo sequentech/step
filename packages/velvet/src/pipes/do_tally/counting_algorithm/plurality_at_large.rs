@@ -29,14 +29,16 @@ impl CountingAlgorithm for PluralityAtLarge {
         let mut vote_count: HashMap<String, u64> = HashMap::new();
         let mut vote_count_invalid: HashMap<InvalidVote, u64> = HashMap::new();
         let mut count_valid: u64 = 0;
+        let mut count_invalid: u64 = 0;
 
         for vote in votes {
-            if vote.invalid_errors.len() > 0 {
+            if !vote.invalid_errors.is_empty() {
                 if vote.is_explicit_invalid {
                     *vote_count_invalid.entry(InvalidVote::Explicit).or_insert(0) += 1;
                 } else {
                     *vote_count_invalid.entry(InvalidVote::Implicit).or_insert(0) += 1;
                 }
+                count_invalid += 1;
             } else {
                 for choice in &vote.choices {
                     if choice.selected >= 0 {
@@ -86,8 +88,10 @@ impl CountingAlgorithm for PluralityAtLarge {
 
         let contest_result = ContestResult {
             contest: self.tally.contest.clone(),
+            total_votes: count_valid + count_invalid,
             total_valid_votes: count_valid,
-            total_invalid_votes: vote_count_invalid,
+            total_invalid_votes: count_invalid,
+            invalid_votes: vote_count_invalid,
             candidate_result: result,
         };
 
