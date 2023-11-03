@@ -53,6 +53,14 @@ pub struct GetElectionEvent;
 )]
 pub struct InsertElectionEvent;
 
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/get_batch_election_events.graphql",
+    response_derives = "Debug"
+)]
+pub struct GetBatchElectionEvents;
+
 #[instrument(skip_all)]
 pub async fn update_election_event_board(
     auth_headers: connection::AuthHeaders,
@@ -161,7 +169,7 @@ pub async fn update_election_event_public_key(
 }
 
 #[instrument(skip_all)]
-pub async fn insert_election_event_f(
+pub async fn insert_election_event(
     auth_headers: connection::AuthHeaders,
     object: insert_election_event::sequent_backend_election_event_insert_input,
 ) -> Result<Response<insert_election_event::ResponseData>> {
@@ -179,5 +187,30 @@ pub async fn insert_election_event_f(
         .send()
         .await?;
     let response_body: Response<insert_election_event::ResponseData> = res.json().await?;
+    response_body.ok()
+}
+
+#[instrument(skip_all)]
+pub async fn get_batch_election_events(
+    auth_headers: connection::AuthHeaders,
+    limit: i64,
+    offset: i64,
+) -> Result<Response<get_batch_election_events::ResponseData>> {
+    let variables = get_batch_election_events::Variables {
+        limit: limit,
+        offset: offset,
+    };
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = GetBatchElectionEvents::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<get_batch_election_events::ResponseData> = res.json().await?;
     response_body.ok()
 }

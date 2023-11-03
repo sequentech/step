@@ -8,14 +8,17 @@ use celery::Celery;
 use std;
 use tracing::{event, instrument, Level};
 
-use crate::tasks::add::add;
 use crate::tasks::create_ballot_style::create_ballot_style;
 use crate::tasks::create_board::create_board;
-use crate::tasks::insert_ballots::insert_ballots;
-use crate::tasks::render_report::render_report;
-use crate::tasks::set_public_key::set_public_key;
-use crate::tasks::update_voting_status::update_voting_status;
 use crate::tasks::create_keys::create_keys;
+use crate::tasks::insert_ballots::insert_ballots;
+use crate::tasks::process_board::process_board;
+use crate::tasks::render_report::render_report;
+use crate::tasks::review_boards::review_boards;
+use crate::tasks::set_public_key::set_public_key;
+use crate::tasks::tally_election_event::tally_election_event;
+use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
+use crate::tasks::update_voting_status::update_voting_status;
 
 static mut PREFETCH_COUNT_S: u16 = 100;
 static mut ACKS_LATE_S: bool = true;
@@ -49,24 +52,30 @@ pub async fn generate_celery_app() -> Arc<Celery> {
     celery::app!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
-            add,
             create_ballot_style,
             create_board,
             create_keys,
             insert_ballots,
+            process_board,
             render_report,
+            review_boards,
             set_public_key,
+            tally_election_event,
+            update_election_event_ballot_styles,
             update_voting_status,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
-            "add" => "beat",
             "create_ballot_style" => "short_queue",
             "create_board" => "short_queue",
             "create_keys" => "short_queue",
             "insert_ballots" => "tally_queue",
+            "process_board" => "reports_queue",
             "render_report" => "reports_queue",
+            "review_boards" => "beat",
             "set_public_key" => "short_queue",
+            "tally_election_event" => "short_queue",
+            "update_election_event_ballot_styles" => "short_queue",
             "update_voting_status" => "short_queue",
         ],
         prefetch_count = prefetch_count,

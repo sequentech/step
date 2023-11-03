@@ -14,6 +14,14 @@ use tracing::instrument;
 use super::protocol_manager;
 use crate::services::vault;
 
+pub fn deserialize_pk(public_key_string: String) -> StrandSignaturePk {
+    let bytes = general_purpose::STANDARD_NO_PAD
+        .decode(&public_key_string)
+        .unwrap();
+    let public_key: StrandSignaturePk = StrandSignaturePk::strand_deserialize(&bytes).unwrap();
+    public_key
+}
+
 #[instrument(skip(trustee_pks, threshold))]
 pub async fn create_keys(
     board_name: &str,
@@ -37,14 +45,7 @@ pub async fn create_keys(
     let trustee_pks: Vec<StrandSignaturePk> = trustee_pks
         .clone()
         .into_iter()
-        .map(|public_key_string| {
-            let bytes = general_purpose::STANDARD_NO_PAD
-                .decode(&public_key_string)
-                .unwrap();
-            let public_key: StrandSignaturePk =
-                StrandSignaturePk::strand_deserialize(&bytes).unwrap();
-            public_key
-        })
+        .map(deserialize_pk)
         .collect();
 
     // 5. add config to board on immudb

@@ -5,8 +5,8 @@
 #[macro_use]
 extern crate rocket;
 
-use sequent_core::util::init_log::init_log;
 use dotenv::dotenv;
+use sequent_core::util::init_log::init_log;
 
 mod pdf;
 mod routes;

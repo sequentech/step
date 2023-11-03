@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Context, Result};
-use immudb_rs::{
-    sql_value::Value as SqlValue, Client, Row,
-};
+use immudb_rs::{sql_value::Value as SqlValue, Client, Row};
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;

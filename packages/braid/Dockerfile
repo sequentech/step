@@ -5,11 +5,14 @@ WORKDIR /app
 COPY ./braid/scripts/Cargo.toml ./Cargo.toml
 COPY ./braid ./braid
 COPY ./braid-messages ./braid-messages
+COPY ./sequent-core ./sequent-core
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
+COPY ./wrap-map-err ./wrap-map-err
 
 RUN apt-get update && apt-get install -y protobuf-compiler libprotobuf-dev
+RUN rustup default nightly
 
 # build projects
 WORKDIR /app/immu-board
@@ -21,6 +24,8 @@ RUN cp /app/target/release/main /usr/bin/trustee
 RUN cp /app/target/release/gen_trustee_config /usr/bin/
 RUN cp /app/target/release/main /usr/bin/trustee
 RUN cp /app/braid/scripts/*.sh /usr/bin/
+RUN mkdir -p /opt/braid/
+RUN cp /app/braid/scripts/*.toml /opt/braid/
 
 # init index db
 RUN mkdir /tmp/cache

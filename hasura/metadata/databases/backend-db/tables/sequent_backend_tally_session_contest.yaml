@@ -1,0 +1,112 @@
+table:
+  name: tally_session_contest
+  schema: sequent_backend
+insert_permissions:
+  - role: admin-user
+    permission:
+      check: {}
+      columns:
+        - session_id
+        - annotations
+        - labels
+        - created_at
+        - last_updated_at
+        - area_id
+        - contest_id
+        - document_id
+        - election_event_id
+        - id
+        - tally_session_id
+        - tenant_id
+    comment: ""
+  - role: service-account
+    permission:
+      check: {}
+      columns:
+        - session_id
+        - annotations
+        - labels
+        - created_at
+        - last_updated_at
+        - area_id
+        - contest_id
+        - document_id
+        - election_event_id
+        - id
+        - tally_session_id
+        - tenant_id
+    comment: ""
+select_permissions:
+  - role: admin-user
+    permission:
+      columns:
+        - session_id
+        - annotations
+        - labels
+        - created_at
+        - last_updated_at
+        - area_id
+        - contest_id
+        - document_id
+        - election_event_id
+        - id
+        - tally_session_id
+        - tenant_id
+      filter: {}
+      allow_aggregations: true
+    comment: ""
+  - role: service-account
+    permission:
+      columns:
+        - session_id
+        - annotations
+        - labels
+        - created_at
+        - last_updated_at
+        - area_id
+        - contest_id
+        - document_id
+        - election_event_id
+        - id
+        - tally_session_id
+        - tenant_id
+      filter: {}
+      allow_aggregations: true
+    comment: ""
+update_permissions:
+  - role: admin-user
+    permission:
+      columns:
+        - session_id
+        - annotations
+        - labels
+        - created_at
+        - last_updated_at
+        - area_id
+        - contest_id
+        - document_id
+        - election_event_id
+        - id
+        - tally_session_id
+        - tenant_id
+      filter: {}
+      check: {}
+    comment: ""
+  - role: service-account
+    permission:
+      columns:
+        - session_id
+        - annotations
+        - labels
+        - created_at
+        - last_updated_at
+        - area_id
+        - contest_id
+        - document_id
+        - election_event_id
+        - id
+        - tally_session_id
+        - tenant_id
+      filter: {}
+      check: {}
+    comment: ""

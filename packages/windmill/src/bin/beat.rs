@@ -7,8 +7,20 @@ use anyhow::Result;
 use celery::beat::DeltaSchedule;
 use dotenv::dotenv;
 use std;
+use structopt::StructOpt;
 use tokio::time::Duration;
-use windmill::tasks::add::add;
+use windmill::tasks::review_boards::review_boards;
+
+#[derive(Debug, StructOpt)]
+#[structopt(
+    name = "windmill",
+    about = "Run a Rust Celery producer or consumer.",
+    setting = structopt::clap::AppSettings::ColoredHelp,
+)]
+struct CeleryOpt {
+    #[structopt(short, long, default_value = "60")]
+    interval: u64,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -18,14 +30,14 @@ async fn main() -> Result<()> {
     let mut beat = celery::beat!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
-            "add" => {
-                add,
-                schedule = DeltaSchedule::new(Duration::from_secs(60)),
-                args = (1, 2),
+            "review_boards" => {
+                review_boards,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::from_args().interval)),
+                args = (),
             },
         ],
         task_routes = [
-            "add" => "beat",
+            "review_boards" => "beat",
         ],
     ).await?;
 

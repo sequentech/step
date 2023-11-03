@@ -28,6 +28,7 @@ import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {useMutation} from "@apollo/client"
 import {KeysGenerationDialog} from "../../components/KeysGenerationDialog"
 import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
+import {StartTallyDialog} from "../../components/StartTallyDialog"
 
 const ElectionEventListForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -35,6 +36,7 @@ const ElectionEventListForm: React.FC = () => {
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const [showProgress, setShowProgress] = useState(false)
     const [showCreateKeysDialog, setShowCreateKeysDialog] = useState(false)
+    const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)
     const [tenantId] = useTenantStore()
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const refresh = useRefresh()
@@ -80,8 +82,7 @@ const ElectionEventListForm: React.FC = () => {
                 electionEventId: record.id,
                 eventProcessor: ScheduledEventType.SET_PUBLIC_KEY,
                 cronConfig: undefined,
-                eventPayload: {
-                },
+                eventPayload: {},
                 createdBy: "admin",
             },
         })
@@ -98,6 +99,35 @@ const ElectionEventListForm: React.FC = () => {
     const openKeysDialog = () => {
         console.log("opening...")
         setShowCreateKeysDialog(true)
+    }
+
+    const openStartTallyDialog = () => {
+        console.log("opening...")
+        setShowStartTallyDialog(true)
+    }
+
+    const createBallotStylesAction = async () => {
+        setShowMenu(false)
+        setShowProgress(true)
+
+        const {data, errors} = await createScheduledEvent({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: record.id,
+                eventProcessor: ScheduledEventType.CREATE_ELECTION_EVENT_BALLOT_STYLES,
+                cronConfig: undefined,
+                eventPayload: {},
+                createdBy: "admin",
+            },
+        })
+        if (errors) {
+            console.log(errors)
+        }
+        if (data) {
+            console.log(data)
+        }
+        setShowProgress(false)
+        refresh()
     }
 
     let configCreatedStatus = getConfigCreatedStatus(record.status)
@@ -139,10 +169,17 @@ const ElectionEventListForm: React.FC = () => {
                 >
                     Set Public Keys
                 </MenuItem>
+                <MenuItem onClick={createBallotStylesAction}>Create Ballot Styles</MenuItem>
+                <MenuItem onClick={openStartTallyDialog}>Start Tally</MenuItem>
             </Menu>
             <KeysGenerationDialog
                 show={showCreateKeysDialog}
                 handleClose={() => setShowCreateKeysDialog(false)}
+                electionEvent={record}
+            />
+            <StartTallyDialog
+                show={showStartTallyDialog}
+                handleClose={() => setShowStartTallyDialog(false)}
                 electionEvent={record}
             />
             <Typography variant="h5">ID</Typography>
