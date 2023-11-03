@@ -26,13 +26,17 @@ mod tests {
         region_num: u32,
         ballots_num: u32,
     ) -> Result<()> {
+        if ballots_num < 20 {
+            panic!("ballots_num should be at least 20");
+        }
+
         let _rng = rand::thread_rng();
 
         (0..election_num).try_for_each(|_| {
             let uuid_election = fixture.create_election_config()?;
             (0..contest_num).try_for_each(|_| {
                 let uuid_contest = fixture.create_contest_config(&uuid_election)?;
-                (0..region_num).try_for_each(|_| {
+                (0..region_num).try_for_each(|index| {
                     let uuid_region = fixture.create_region_dir(&uuid_election, &uuid_contest)?;
 
                     let file = fixture
@@ -40,6 +44,11 @@ mod tests {
                         .join(format!("election__{uuid_election}"))
                         .join(format!("contest__{uuid_contest}"))
                         .join(format!("region__{uuid_region}"));
+
+                    if index == 1 {
+                        // skip 1 ballot file
+                        return Ok(());
+                    }
 
                     let mut file = fs::OpenOptions::new()
                         .write(true)
@@ -50,70 +59,64 @@ mod tests {
                     (0..ballots_num).try_for_each(|i| {
                         let contest = fixtures::get_contest_config();
 
-                        let mut choices = vec![];
+                        let mut choices = vec![
+                            DecodedVoteChoice {
+                                id: "0".to_owned(),
+                                selected: -1,
+                                write_in_text: None,
+                            },
+                            DecodedVoteChoice {
+                                id: "1".to_owned(),
+                                selected: -1,
+                                write_in_text: None,
+                            },
+                            DecodedVoteChoice {
+                                id: "2".to_owned(),
+                                selected: -1,
+                                write_in_text: None,
+                            },
+                            DecodedVoteChoice {
+                                id: "3".to_owned(),
+                                selected: -1,
+                                write_in_text: None,
+                            },
+                            DecodedVoteChoice {
+                                id: "4".to_owned(),
+                                selected: -1,
+                                write_in_text: None,
+                            },
+                        ];
+
                         let mut plaintext_prepare = DecodedVoteContest {
                             contest_id: contest.id.clone(),
                             is_explicit_invalid: false,
                             invalid_errors: vec![],
                             choices: vec![],
                         };
-                        if i == 4 {
-                            choices = vec![
-                                DecodedVoteChoice {
-                                    id: "0".to_owned(),
-                                    selected: -1,
-                                    write_in_text: None,
-                                },
-                                DecodedVoteChoice {
-                                    id: "1".to_owned(),
-                                    selected: 0,
-                                    write_in_text: None,
-                                },
-                                DecodedVoteChoice {
-                                    id: "2".to_owned(),
-                                    selected: -1,
-                                    write_in_text: None,
-                                },
-                                DecodedVoteChoice {
-                                    id: "3".to_owned(),
-                                    selected: 110,
-                                    write_in_text: None,
-                                },
-                                DecodedVoteChoice {
-                                    id: "4".to_owned(),
-                                    selected: -1,
-                                    write_in_text: None,
-                                },
-                            ]
-                        } else {
-                            choices = vec![
-                                DecodedVoteChoice {
-                                    id: "0".to_owned(),
-                                    selected: -1,
-                                    write_in_text: None,
-                                },
-                                DecodedVoteChoice {
-                                    id: "1".to_owned(),
-                                    selected: 0,
-                                    write_in_text: None,
-                                },
-                                DecodedVoteChoice {
-                                    id: "2".to_owned(),
-                                    selected: -1,
-                                    write_in_text: None,
-                                },
-                                DecodedVoteChoice {
-                                    id: "3".to_owned(),
-                                    selected: -1,
-                                    write_in_text: None,
-                                },
-                                DecodedVoteChoice {
-                                    id: "4".to_owned(),
-                                    selected: -1,
-                                    write_in_text: None,
-                                },
-                            ]
+
+                        match i {
+                            1 => choices[0].selected = 0,
+                            2 => choices[1].selected = 0,
+                            3 => choices[2].selected = 0,
+                            4 => choices[3].selected = 0,
+                            5 => choices[4].selected = 0,
+                            6 => choices[0].selected = 0,
+                            7 => choices[0].selected = 0,
+                            8 => choices[3].selected = 0,
+                            9 => choices[3].selected = 0,
+                            10 => (),
+                            11 => (),
+                            12 => (),
+                            14 => {
+                                choices[2].selected = 0;
+                                choices[3].selected = 42;
+                            }
+                            15 => {
+                                choices[3].selected = 42;
+                            }
+                            _ => choices[1].selected = 0,
                         }
+
                         plaintext_prepare.choices = choices;
 
                         let plaintext = contest
@@ -172,7 +175,7 @@ mod tests {
     fn test_create_ballots() -> Result<()> {
         let fixture = TestFixture::new()?;
 
-        generate_ballots(&fixture, 5, 10, 3, 5)?;
+        generate_ballots(&fixture, 5, 10, 3, 20)?;
 
         // count elections
         let entries = fs::read_dir(&fixture.input_dir_ballots)?;
