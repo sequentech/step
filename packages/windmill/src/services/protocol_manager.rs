@@ -136,10 +136,27 @@ pub fn get_public_key_hash<C: Ctx>(messages: &Vec<Message>) -> Result<PublicKeyH
     Ok(PublicKeyHash(strand::util::to_u8_array(&pk_h).unwrap()))
 }
 
-pub fn generate_full_trustee_set<C: Ctx>(configuration: &Configuration<C>) -> TrusteeSet {
+pub fn generate_trustee_set<C: Ctx>(
+    configuration: &Configuration<C>,
+    trustee_pks: Vec<StrandSignaturePk>,
+) -> TrusteeSet {
     let mut selected_trustees: TrusteeSet = [NULL_TRUSTEE; MAX_TRUSTEES];
-    for i in 0..configuration.trustees.len() {
-        selected_trustees[i] = i + 1;
+    let trustee_ids: Vec<usize> = trustee_pks
+        .into_iter()
+        .map(|trustee_pk| {
+            let position = configuration
+                .trustees
+                .clone()
+                .into_iter()
+                .position(|trustee| trustee == trustee_pk);
+            match position {
+                Some(value) => value + 1,
+                None => NULL_TRUSTEE,
+            }
+        })
+        .collect();
+    for i in 0..trustee_ids.len() {
+        selected_trustees[i] = trustee_ids[i];
     }
     selected_trustees
 }
@@ -159,6 +176,7 @@ pub async fn add_ballots_to_board<C: Ctx>(
     board_name: &str,
     ballots: Vec<Ciphertext<C>>,
     batch: BatchNumber,
+    trustee_pks: Vec<StrandSignaturePk>,
 ) -> Result<()> {
     // 1. get env vars
     let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
@@ -172,7 +190,7 @@ pub async fn add_ballots_to_board<C: Ctx>(
     let messages: Vec<Message> = get_board_messages(&mut board, board_name).await?;
     let configuration = get_configuration::<C>(&messages)?;
     let public_key_hash = get_public_key_hash::<C>(&messages)?;
-    let selected_trustees: TrusteeSet = generate_full_trustee_set::<C>(&configuration);
+    let selected_trustees: TrusteeSet = generate_trustee_set::<C>(&configuration, trustee_pks);
 
     let message = Message::ballots_msg::<C, ProtocolManager<C>>(
         &configuration,

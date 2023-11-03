@@ -12,12 +12,15 @@ use sequent_core::services::openid;
 use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
+use strand::signature::StrandSignaturePk;
 use tracing::instrument;
 
 use crate::hasura;
 use crate::hasura::tally_session_contest::get_tally_session_contest;
+use crate::hasura::trustee::get_trustees_by_id;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager::*;
+use crate::services::public_keys::deserialize_pk;
 use crate::types::task_error::into_task_error;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
@@ -61,6 +64,25 @@ pub async fn insert_ballots(
         .data
         .expect("expected data".into())
         .sequent_backend_election_event[0];
+
+    let trustees = get_trustees_by_id(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        body.trustee_pks.clone(),
+    )
+    .await
+    .map_err(into_task_error)?
+    .data
+    .with_context(|| "can't find trustees")
+    .map_err(into_task_error)?
+    .sequent_backend_trustee;
+
+    // 4. create trustees keys from input strings
+    let deserialized_trustee_pks: Vec<StrandSignaturePk> = trustees
+        .clone()
+        .into_iter()
+        .map(|trustee| deserialize_pk(trustee.public_key.unwrap()))
+        .collect();
 
     // check config is already created
     let status: Option<ElectionEventStatus> = match election_event.status.clone() {
@@ -128,9 +150,14 @@ pub async fn insert_ballots(
         .collect();
 
     let batch = tally_session_contest.session_id.clone() as BatchNumber;
-    add_ballots_to_board(board_name.as_str(), insertable_ballots, batch)
-        .await
-        .map_err(into_task_error)?;
+    add_ballots_to_board(
+        board_name.as_str(),
+        insertable_ballots,
+        batch,
+        deserialized_trustee_pks,
+    )
+    .await
+    .map_err(into_task_error)?;
 
     Ok(())
 }
