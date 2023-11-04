@@ -45,7 +45,7 @@ pub async fn read_secret(key: String) -> Result<String> {
     let server_url = env::var("VAULT_SERVER_URL").expect(&format!("VAULT_SERVER_URL must be set"));
     let token = env::var("VAULT_TOKEN").expect(&format!("VAULT_TOKEN must be set"));
     let client = reqwest::Client::new();
-    let pm_endpoint = format!("{}/v1/secret/{}", &server_url, &key);
+    let pm_endpoint = format!("{}/v1/secrets/{}", &server_url, &key);
     let response = client
         .get(pm_endpoint)
         .bearer_auth(token)
