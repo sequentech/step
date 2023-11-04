@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 use crate::hasura;
 use crate::hasura::tally_session_contest::get_tally_session_contest;
@@ -72,12 +72,20 @@ pub async fn insert_ballots(
     .with_context(|| "can't find trustees")?
     .sequent_backend_trustee;
 
+    event!(Level::INFO, "trustees len: {:?}", trustees.len());
+
     // 4. create trustees keys from input strings
     let deserialized_trustee_pks: Vec<StrandSignaturePk> = trustees
         .clone()
         .into_iter()
         .map(|trustee| deserialize_pk(trustee.public_key.unwrap()))
         .collect();
+
+    event!(
+        Level::INFO,
+        "deserialized_trustee_pks len: {:?}",
+        deserialized_trustee_pks.len()
+    );
 
     // check config is already created
     let status: Option<ElectionEventStatus> = match election_event.status.clone() {
@@ -110,6 +118,8 @@ pub async fn insert_ballots(
         .data
         .expect("expected data".into())
         .sequent_backend_cast_vote;
+
+    event!(Level::INFO, "ballots_list len: {:?}", ballots_list.len());
 
     let insertable_ballots: Vec<Ciphertext<RistrettoCtx>> = ballots_list
         .iter()

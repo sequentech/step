@@ -115,7 +115,7 @@ pub async fn update_election_event_status(
     response_body.ok()
 }
 
-#[instrument(skip_all)]
+#[instrument(skip(auth_headers))]
 pub async fn get_election_event(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

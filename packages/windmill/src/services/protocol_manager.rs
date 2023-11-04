@@ -20,7 +20,7 @@ use strand::util::StrandError;
 use anyhow::{Context, Result};
 use std::env;
 use std::marker::PhantomData;
-use tracing::{info, instrument};
+use tracing::{event, info, instrument, Level};
 
 use immu_board::{BoardClient, BoardMessage};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -158,6 +158,7 @@ pub fn generate_trustee_set<C: Ctx>(
     for i in 0..trustee_ids.len() {
         selected_trustees[i] = trustee_ids[i];
     }
+    event!(Level::INFO, "TrusteeSet: {:?}", selected_trustees);
     selected_trustees
 }
 
@@ -171,7 +172,7 @@ pub async fn get_board_messages(board: &mut BoardClient, board_name: &str) -> Re
     Ok(messages)
 }
 
-#[instrument(skip_all)]
+#[instrument]
 pub async fn add_ballots_to_board<C: Ctx>(
     board_name: &str,
     ballots: Vec<Ciphertext<C>>,
