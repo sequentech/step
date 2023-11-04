@@ -18,6 +18,15 @@ pub struct ProtocolManager<C: Ctx> {
     pub phantom: PhantomData<C>,
 }
 
+impl<C: Ctx> ProtocolManager<C> {
+    pub fn new(pmkey: StrandSignatureSk) -> Self {
+        ProtocolManager {
+            signing_key: pmkey,
+            phantom: PhantomData,
+        }
+    }
+}
+
 impl<C: Ctx> message::Signer for ProtocolManager<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
