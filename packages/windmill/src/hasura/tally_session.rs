@@ -43,12 +43,15 @@ pub async fn get_tally_session_highest_batch(
         .await?;
     let response_body: Response<get_tally_session_highest_batch::ResponseData> = res.json().await?;
     let data: Response<get_tally_session_highest_batch::ResponseData> = response_body.ok()?;
-    let session_id = data
+    let tally_session_contest = data
         .data
         .ok_or(anyhow!("Can't find tally session"))?
-        .sequent_backend_tally_session_contest[0]
-        .session_id;
-    Ok(session_id as BatchNumber)
+        .sequent_backend_tally_session_contest;
+    if tally_session_contest.len() > 0 {
+        Ok((tally_session_contest[0].session_id + 1) as BatchNumber)
+    } else {
+        Ok(0)
+    }
 }
 
 #[derive(GraphQLQuery)]

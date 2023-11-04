@@ -74,7 +74,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "render_report" => "reports_queue",
             "review_boards" => "beat",
             "set_public_key" => "short_queue",
-            "tally_election_event" => "short_queue",
+            "tally_election_event" => "tally_queue",
             "update_election_event_ballot_styles" => "short_queue",
             "update_voting_status" => "short_queue",
         ],

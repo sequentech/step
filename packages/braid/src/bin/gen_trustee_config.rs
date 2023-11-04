@@ -11,10 +11,10 @@ use braid::run::config::TrusteeConfig;
 use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use clap::Parser;
 use std::marker::PhantomData;
+use sequent_core::serialization::base64::Base64Serialize;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
-use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 
@@ -41,15 +41,13 @@ fn main() {
 
 fn gen_trustee_config<C: Ctx>() {
     let sk = StrandSignatureSk::gen().unwrap();
-    let pk = StrandSignaturePk::from(&sk);
+    let pk = StrandSignaturePk::from(&sk).unwrap();
     let encryption_key: symm::SymmetricKey = symm::gen_key();
 
-    let sk_bytes = sk.strand_serialize().unwrap();
-    let pk_bytes = pk.unwrap().strand_serialize().unwrap();
     let ek_bytes = encryption_key.as_slice();
 
-    let sk_string: String = general_purpose::STANDARD_NO_PAD.encode(sk_bytes);
-    let pk_string: String = general_purpose::STANDARD_NO_PAD.encode(pk_bytes);
+    let sk_string: String = sk.serialize().unwrap();
+    let pk_string: String = pk.serialize().unwrap();
     let ek_string: String = general_purpose::STANDARD_NO_PAD.encode(ek_bytes);
 
     let tc = TrusteeConfig {
