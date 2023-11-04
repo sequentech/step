@@ -2,6 +2,7 @@ use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::protocol2::trustee::Trustee;
 use anyhow::Result;
 use strand::context::Ctx;
+use tracing::info;
 
 pub struct Session<C: Ctx> {
     trustee: Trustee<C>,
@@ -30,6 +31,13 @@ impl<C: Ctx> Session<C> {
 
     pub async fn step(&mut self) -> Result<()> {
         let messages = self.board.get_messages(self.last_message_id).await?;
+
+        if 0 == messages.len() {
+            info!("No messages in board, no action taken");
+
+            return Ok(())
+        }
+
         let (send_messages, _actions) = self.trustee.step(messages)?;
         if !self.dry_run {
             self.board.insert_messages(send_messages).await?;
