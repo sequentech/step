@@ -65,11 +65,11 @@ const App = () => {
 
     return (
         <Admin dataProvider={dataProvider || undefined} layout={CustomLayout} theme={theme}>
-            {/*<CustomRoutes>
+            <CustomRoutes>
                 <Route path="/user-roles" element={<UserAndRoles />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/messages" element={<Messages />} />
-    </CustomRoutes>*/}
+            </CustomRoutes>
             <Resource name="pgaudit" list={PgAuditList} options={{label: "PGAudit"}} />
             <Resource
                 name="sequent_backend_election_event"
