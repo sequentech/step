@@ -78,6 +78,14 @@ export const Question: React.FC<IQuestionProps> = ({
         )
     }
 
+    if(null === candidatesOrder) {
+        if (shuffleAllOptions) {
+            setCandidatesOrder(shuffle(noCategoryCandidates.map((c) => c.id)))
+        } else {
+            setCandidatesOrder(noCategoryCandidates.map((c) => c.id).sort())
+        }
+    }
+
     if (shuffleAllOptions && null === candidatesOrder) {
         setCandidatesOrder(shuffle(noCategoryCandidates.map((c) => c.id)))
     }

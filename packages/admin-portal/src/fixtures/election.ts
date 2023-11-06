@@ -9,8 +9,7 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
     election_event_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
     election_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
     area_id: "67baa473-e29d-49f0-91b5-da4ea6fa3b3f",
-    description:
-        'With categories',
+    description: "With categories",
     public_key: {
         public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
         is_demo: true,
@@ -275,8 +274,7 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
     election_event_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
     election_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
     area_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8",
-    description:
-        'Write-ins simple',
+    description: "Write-ins simple",
     public_key: {
         public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
         is_demo: false,

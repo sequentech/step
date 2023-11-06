@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+#![allow(non_camel_case_types)]
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -14,8 +15,8 @@ pub enum EventProcessors {
     CREATE_BOARD,
     CREATE_KEYS,
     SET_PUBLIC_KEY,
-    CREATE_BALLOT_STYLE,
-    INSERT_BALLOTS,
+    CREATE_ELECTION_EVENT_BALLOT_STYLES,
+    TALLY_ELECTION_EVENT,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

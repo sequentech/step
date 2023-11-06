@@ -65,7 +65,8 @@ impl Message {
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
         let commitments_bytes = channel.strand_serialize()?;
         let commitments_hash = strand::hash::hash_to_array(&commitments_bytes)?;
-        let statement = Statement::channel_stmt(ConfigurationHash(cfg_h), ChannelHash(commitments_hash));
+        let statement =
+            Statement::channel_stmt(ConfigurationHash(cfg_h), ChannelHash(commitments_hash));
 
         if artifact {
             trustee.sign(statement, Some(commitments_bytes))
@@ -83,8 +84,10 @@ impl Message {
         let cfg_bytes = cfg.strand_serialize()?;
         let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
 
-        let statement =
-            Statement::channels_all_stmt(ConfigurationHash(cfg_h), ChannelsHashes(commitments_hs.0));
+        let statement = Statement::channels_all_stmt(
+            ConfigurationHash(cfg_h),
+            ChannelsHashes(commitments_hs.0),
+        );
 
         trustee.sign(statement, None)
     }
@@ -290,17 +293,14 @@ impl Message {
     ///////////////////////////////////////////////////////////////////////////
 
     // FIXME add check for timestamp not older than some threshold
-    pub fn verify<C: Ctx>(
-        &self,
-        configuration: &Configuration<C>,
-    ) -> Result<VerifiedMessage> {
+    pub fn verify<C: Ctx>(&self, configuration: &Configuration<C>) -> Result<VerifiedMessage> {
         let (kind, st_cfg_h, _, mix_no, artifact_type, _) = self.statement.get_data();
 
         if mix_no > configuration.trustees.len() {
             return Err(anyhow!(
                 "Received a message whose statement signature number is out of range"
             ));
-        } 
+        }
 
         // We don't care about doing a sequential search here as the size is small
         let index: usize = configuration
@@ -485,10 +485,7 @@ pub struct Sender {
 }
 impl Sender {
     pub fn new(name: String, pk: StrandSignaturePk) -> Sender {
-        Sender {
-            name,
-            pk,
-        }
+        Sender { name, pk }
     }
 }
 

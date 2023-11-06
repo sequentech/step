@@ -5,6 +5,7 @@
 use anyhow::Result;
 use base64::engine::general_purpose;
 use base64::Engine;
+use sequent_core::serialization::base64::Base64Deserialize;
 use std::env;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
@@ -13,6 +14,10 @@ use tracing::instrument;
 
 use super::protocol_manager;
 use crate::services::vault;
+
+pub fn deserialize_pk(public_key_string: String) -> StrandSignaturePk {
+    Base64Deserialize::deserialize(public_key_string).unwrap()
+}
 
 #[instrument(skip(trustee_pks, threshold))]
 pub async fn create_keys(
@@ -37,14 +42,7 @@ pub async fn create_keys(
     let trustee_pks: Vec<StrandSignaturePk> = trustee_pks
         .clone()
         .into_iter()
-        .map(|public_key_string| {
-            let bytes = general_purpose::STANDARD_NO_PAD
-                .decode(&public_key_string)
-                .unwrap();
-            let public_key: StrandSignaturePk =
-                StrandSignaturePk::strand_deserialize(&bytes).unwrap();
-            public_key
-        })
+        .map(deserialize_pk)
         .collect();
 
     // 5. add config to board on immudb

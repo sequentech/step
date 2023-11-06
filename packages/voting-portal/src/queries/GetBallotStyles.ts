@@ -5,7 +5,11 @@ import {gql} from "@apollo/client"
 
 export const GET_BALLOT_STYLES = gql`
     query GetBallotStyles {
-        sequent_backend_ballot_style {
+        sequent_backend_ballot_style(
+            where: {
+                deleted_at: {_is_null: true},
+            }
+        ) {
             id
             election_id
             election_event_id
@@ -18,6 +22,7 @@ export const GET_BALLOT_STYLES = gql`
             annotations
             labels
             last_updated_at
+            deleted_at
         }
     }
 `

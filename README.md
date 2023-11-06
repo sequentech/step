@@ -249,8 +249,16 @@ yarn generate
 
 ## Trustees
 
-In order to create the election keys you need to add the trustees to the hasura db.
-First get the keys from the trustee:
+By default the trustees in this repo are configured to use a predefined configuration/
+set of keys. This is useful for development because these trustees are also added to
+the hasura/postgres database. This configuration is set using the `TRUSTEE_CONFIG`
+environment paramenter in the docker-compose.yml file.
+
+However if you want the trustees to generate their own unique public/private keys and
+configuration this is is what you need to do:
+
+First unset the `TRUSTEE_CONFIG` environment variable or set it to a file path that
+doesn't exist. Then, when the trustee docker container is up, get the keys from the trustee:
 
 ```bash
 docker exec -it trustee1 cat /opt/braid/trustee.toml | grep pk

@@ -42,8 +42,7 @@ import {CreateDocument} from "./resources/Document/CreateDocument"
 import {EditTrustee} from "./resources/Trustee/EditTrustee"
 import {ListTrustee} from "./resources/Trustee/ListTrustee"
 import {CreateTrustee} from "./resources/Trustee/CreateTrustee"
-import { PgAuditList } from "./resources/PgAudit/PgAuditList"
-
+import {PgAuditList} from "./resources/PgAudit/PgAuditList"
 
 const App = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
@@ -52,13 +51,11 @@ const App = () => {
         const buildDataProvider = async () => {
             const options = {
                 client: apolloClient as any,
-                buildQuery : customBuildQuery as any
+                buildQuery: customBuildQuery as any,
             }
             const buildGqlQueryOverrides = {}
-            const dataProviderHasura = await buildHasuraProvider(
-                options, buildGqlQueryOverrides
-            )
-            setDataProvider(() => dataProviderHasura);
+            const dataProviderHasura = await buildHasuraProvider(options, buildGqlQueryOverrides)
+            setDataProvider(() => dataProviderHasura)
         }
         buildDataProvider()
     }, [])
@@ -72,11 +69,7 @@ const App = () => {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/messages" element={<Messages />} />
             </CustomRoutes>
-            <Resource
-                name="pgaudit"
-                list={PgAuditList}
-                options={{label: "PGAudit"}}
-            />
+            <Resource name="pgaudit" list={PgAuditList} options={{label: "PGAudit"}} />
             <Resource
                 name="sequent_backend_election_event"
                 list={ElectionEventList}

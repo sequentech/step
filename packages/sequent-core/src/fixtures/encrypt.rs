@@ -146,3 +146,80 @@ pub fn get_encrypt_decoded_test_fixture(
 
     (decoded_contests, election)
 }
+
+
+
+pub fn default_voting_portal_fixture() -> (Vec<DecodedVoteContest>, BallotStyle) {
+   let ballot_selection_str = r#"[{"contest_id":"69f2f987-460c-48ac-ac7a-4d44d99b37e6","is_explicit_invalid":false,"invalid_errors":[],"choices":[{"id":"a24303de-5798-47cd-9b3e-4f391d1bae7b","selected":0},{"id":"d9249345-11be-4652-ad04-298d70931610","selected":-1},{"id":"1822089d-ae17-4a03-8935-25164b3f2142","selected":-1}]}]"#;
+
+   let election_str = r#"{
+      "id":"a12b9343-466e-429f-8ab4-99f6e32bf265",
+      "tenant_id":"90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+      "election_event_id":"33f18502-a67c-4853-8333-a58630663559",
+      "election_id":"f2f1065e-b784-46d1-b81a-c71bfeb9ad55",
+      "description":"This is the description of the election. You can add simple html like You need to use two br element for new paragraphs.",
+      "public_key":{
+         "public_key":"/jXUkdSIgz8mXLZ4BIDPQzDx7ZFFIG3MWuacDLyhyhoCAAAAGORKDU/t+8fKNkZMFfXl1IMM+/0VmINTZCcbalZ/NSUi5SbzUTlyzh25lMuVALwvC/lk3j6SHn6BotYphk0QMA",
+         "is_demo":true
+      },
+      "area_id":"2f312a36-f39c-46e4-9670-1d1ce4625745",
+      "status":null,
+      "contests":[
+         {
+            "id":"69f2f987-460c-48ac-ac7a-4d44d99b37e6",
+            "tenant_id":"90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+            "election_event_id":"33f18502-a67c-4853-8333-a58630663559",
+            "election_id":"f2f1065e-b784-46d1-b81a-c71bfeb9ad55",
+            "name":"Who's the best president of the USA?",
+            "description":"Choose a president",
+            "max_votes":1,
+            "min_votes":1,
+            "voting_type":"first-past-the-post",
+            "counting_algorithm":"plurality-at-large",
+            "is_encrypted":true,
+            "candidates":[
+               {
+                  "id":"a24303de-5798-47cd-9b3e-4f391d1bae7b",
+                  "tenant_id":"90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                  "election_event_id":"33f18502-a67c-4853-8333-a58630663559",
+                  "election_id":"f2f1065e-b784-46d1-b81a-c71bfeb9ad55",
+                  "contest_id":"69f2f987-460c-48ac-ac7a-4d44d99b37e6",
+                  "name":"Joe Biden",
+                  "description":"The current president",
+                  "candidate_type":null,
+                  "presentation":null
+               },
+               {
+                  "id":"d9249345-11be-4652-ad04-298d70931610",
+                  "tenant_id":"90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                  "election_event_id":"33f18502-a67c-4853-8333-a58630663559",
+                  "election_id":"f2f1065e-b784-46d1-b81a-c71bfeb9ad55",
+                  "contest_id":"69f2f987-460c-48ac-ac7a-4d44d99b37e6",
+                  "name":"Donald Trump",
+                  "description":"A right-wing populist",
+                  "candidate_type":null,
+                  "presentation":null
+               },
+               {
+                  "id":"1822089d-ae17-4a03-8935-25164b3f2142",
+                  "tenant_id":"90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+                  "election_event_id":"33f18502-a67c-4853-8333-a58630663559",
+                  "election_id":"f2f1065e-b784-46d1-b81a-c71bfeb9ad55",
+                  "contest_id":"69f2f987-460c-48ac-ac7a-4d44d99b37e6",
+                  "name":"Barrak Obama",
+                  "description":"First Black president and very charismatic",
+                  "candidate_type":null,
+                  "presentation":null
+               }
+            ],
+            "presentation":null
+         }
+      ]
+   }"#;
+
+   let decoded_contests: Vec<DecodedVoteContest> =
+       serde_json::from_str(ballot_selection_str).unwrap();
+   let election: BallotStyle = serde_json::from_str(election_str).unwrap();
+
+   (decoded_contests, election)
+}

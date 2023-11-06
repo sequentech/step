@@ -212,7 +212,7 @@ mod tests {
     use crate::ballot_codec::vec;
     use crate::encrypt;
     use crate::fixtures::ballot_codec::*;
-    use crate::util::normalize_vote_contest;
+    use crate::util::normalize_vote::normalize_vote_contest;
 
     use strand::backend::ristretto::RistrettoCtx;
     use strand::context::Ctx;
@@ -315,5 +315,24 @@ mod tests {
                 &invalid_candidate_ids,
             )
         );
+    }
+
+    #[test]
+    fn test_encrypt_default_voting_portal_fixture() {
+        use crate::encrypt::encrypt_decoded_contest;
+        use crate::fixtures::encrypt::*;
+
+        let (decoded_contests, election) = default_voting_portal_fixture();
+        //get_encrypt_decoded_test_fixture(); //default_voting_portal_fixture();
+        let ctx = RistrettoCtx;
+    
+        // encrypt ballot
+        let auditable_ballot = encrypt_decoded_contest::<RistrettoCtx>(
+            &ctx,
+            &decoded_contests,
+            &election,
+        );
+        assert_eq!(format!("{:?}", auditable_ballot.unwrap_err()), "".to_string());
+        //assert!(auditable_ballot.is_ok());
     }
 }
