@@ -18711,6 +18711,11 @@ sentence-case@^3.0.4:
   version "0.1.0"
   resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#6c7a1333dd6decc534e75a903098dcccd6bb8449"
 
+"sequent-core@file:./admin-portal2/rust/sequent-core-0.1.0.tgz":
+  version "0.1.0"
+  uid "6c7a1333dd6decc534e75a903098dcccd6bb8449"
+  resolved "file:./admin-portal2/rust/sequent-core-0.1.0.tgz#6c7a1333dd6decc534e75a903098dcccd6bb8449"
+
 "sequent-core@file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz":
   version "0.1.0"
   resolved "file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz#6c7a1333dd6decc534e75a903098dcccd6bb8449"
