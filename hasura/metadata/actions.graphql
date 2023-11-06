@@ -36,15 +36,15 @@ input TemplateInput {
 }
 
 input PgAuditOrderBy {
-  id : OrderDirection
-  audit_type : OrderDirection
-  class : OrderDirection
-  command : OrderDirection
-  dbname : OrderDirection
-  server_timestamp : OrderDirection
-  session_id : OrderDirection
-  statement : OrderDirection
-  user : OrderDirection
+  id: OrderDirection
+  audit_type: OrderDirection
+  class: OrderDirection
+  command: OrderDirection
+  dbname: OrderDirection
+  server_timestamp: OrderDirection
+  session_id: OrderDirection
+  statement: OrderDirection
+  user: OrderDirection
 }
 
 type TemplateOutput {
