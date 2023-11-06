@@ -49,6 +49,7 @@ impl MarkWinners {
 
         winners
             .into_iter()
+            .take(contest_result.contest.winning_candidates_num as usize)
             .enumerate()
             .map(|(index, w)| WinnerResult {
                 candidate: w.candidate.clone(),

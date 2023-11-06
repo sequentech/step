@@ -27,9 +27,9 @@ pub async fn get_ballot_style_area(
     area_id: String,
 ) -> Result<Response<get_ballot_style_area::ResponseData>> {
     let variables = get_ballot_style_area::Variables {
-        tenant_id: tenant_id,
-        election_event_id: election_event_id,
-        area_id: area_id,
+        tenant_id,
+        election_event_id,
+        area_id,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

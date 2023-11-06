@@ -185,6 +185,7 @@ pub fn get_contest_config() -> Contest {
         ),
         max_votes: 1,
         min_votes: 0,
+        winning_candidates_num: 1,
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
         is_encrypted: true,
