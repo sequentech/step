@@ -102,6 +102,7 @@ query GetBallotStyleArea(
         presentation
         min_votes
         max_votes
+        winning_candidates_num
         voting_type
         counting_algorithm
         is_encrypted
