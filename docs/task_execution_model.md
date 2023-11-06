@@ -35,7 +35,8 @@ intensive enough that it requires the execution in a background task worker
 ```mermaid
 graph TB
 
-hasura --> harvest --> windmill
+hasura --> harvest
+harvest --> windmill
 ```
 
 Note: Please read [Acks early vs acks late](https://rusty-celery.github.io/best-practices/index.html#acks-early-vs-acks-late) quoted below:
@@ -77,7 +78,8 @@ More information in
 ```mermaid
 graph TB
 
-hasura --> harvest --(scheduled)--> windmill-beat
+hasura --> harvest
+harvest --(scheduled)--> windmill-beat
 ```
 
 ## 4. Windmill Beat - asychronous recurrent task
