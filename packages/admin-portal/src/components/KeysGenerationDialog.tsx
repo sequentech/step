@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-import {Dialog, isNumber} from "@sequentech/ui-essentials"
+import {Dialog} from "@sequentech/ui-essentials"
 import {
     Box,
     CircularProgress,

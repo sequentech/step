@@ -81,13 +81,13 @@ pub(super) fn compute_shares<C: Ctx>(
         let target_channel_h = channels_hs
             .0
             .get(i)
-            .ok_or(anyhow!("Could not retrieve commitments hash",))?;
+            .ok_or(anyhow!("Could not retrieve channel hash",))?;
 
         let target_hash = *target_channel_h;
 
         let target_channel = trustee
             .get_channel(&ChannelHash(target_hash), i)
-            .ok_or(anyhow!("Could not retrieve commitments"))?;
+            .ok_or(anyhow!("Could not retrieve channel"))?;
 
         // Encrypt share for target trustee
         let encryption_pk = PublicKey::<C>::from_element(&target_channel.channel_pk, &ctx);
@@ -216,11 +216,11 @@ fn compute_pk_<C: Ctx>(
                 let my_channel_h = channels_hs
                     .0
                     .get(*self_p)
-                    .ok_or(anyhow!("Could not retrieve commitments hash for self"))?;
+                    .ok_or(anyhow!("Could not retrieve channel hash for self"))?;
 
                 let my_channel = trustee
                     .get_channel(&ChannelHash(*my_channel_h), *self_p)
-                    .ok_or(anyhow!("Could not retrieve commitments for self",))?;
+                    .ok_or(anyhow!("Could not retrieve channel for self",))?;
 
                 let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
 

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use celery::prelude::*;
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::hasura;
+use crate::types::error::{Error, Result};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UpdateVotingStatusPayload {
@@ -19,15 +20,14 @@ pub struct UpdateVotingStatusPayload {
 }
 
 #[instrument]
+#[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn update_voting_status(
     payload: UpdateVotingStatusPayload,
     tenant_id: String,
     election_event_id: String,
-) -> TaskResult<()> {
-    let auth_headers = keycloak::get_client_credentials()
-        .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+) -> Result<()> {
+    let auth_headers = keycloak::get_client_credentials().await?;
     let new_status = ElectionStatus {
         voting_status: payload.status.clone(),
     };
@@ -36,18 +36,15 @@ pub async fn update_voting_status(
         tenant_id.clone(),
         election_event_id.clone(),
     )
-    .await
-    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?
+    .await?
     .data
-    .with_context(|| "can't find election event")
-    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    .with_context(|| "can't find election event")?;
 
     let election_event = &election_event_response.sequent_backend_election_event[0];
     if payload.status == VotingStatus::OPEN && election_event.public_key.is_none() {
-        return Err(TaskError::UnexpectedError("Missing public key".into()));
+        return Err(Error::String("Missing public key".into()));
     }
-    let new_status_value = serde_json::to_value(new_status)
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    let new_status_value = serde_json::to_value(new_status)?;
     let hasura_response = hasura::election::update_election_status(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -55,13 +52,11 @@ pub async fn update_voting_status(
         payload.election_id.clone(),
         new_status_value,
     )
-    .await
-    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    .await?;
 
     let _election_response_id = &hasura_response
         .data
-        .with_context(|| "can't find election")
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?
+        .with_context(|| "can't find election")?
         .update_sequent_backend_election
         .unwrap()
         .returning[0];

@@ -11,7 +11,7 @@ result
 Cargo.lock
 *.pdf
 *.ps1
-trustee*.toml
+trustee.toml
 pm.toml
 config.bin
 message_store

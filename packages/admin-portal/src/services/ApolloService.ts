@@ -10,16 +10,16 @@ const authLink = setContext((_, {headers}) => {
     const token = localStorage.getItem("token")
 
     // get the tenant and election-event from the local store
-    const tenantId = localStorage.getItem('tenantId')
-    const electionEventId = localStorage.getItem('electionEventId')
+    const tenantId = localStorage.getItem("tenantId")
+    const electionEventId = localStorage.getItem("electionEventId")
 
     // return the headers to the context so httpLink can read them
     return {
         headers: {
             ...headers,
-            authorization: token ? `Bearer ${token}` : "",
-            'x-hasura-tenant-id': tenantId || 'whatever',
-            'x-hasura-election-event-id': electionEventId || 'defaultdb',
+            "authorization": token ? `Bearer ${token}` : "",
+            "x-hasura-tenant-id": tenantId || "whatever",
+            "x-hasura-election-event-id": electionEventId || "defaultdb",
         },
     }
 })

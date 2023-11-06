@@ -1,0 +1,31 @@
+mutation InsertTallySession(
+  $tenantId: uuid!,
+  $electionEventId: uuid!,
+  $electionIds: [uuid!]!,
+  $trusteeIds: [uuid!]!,
+  $areaIds: [uuid!]!,
+) {
+  insert_sequent_backend_tally_session(
+    objects:
+    {
+      tenant_id: $tenantId,
+      election_event_id: $electionEventId,
+      election_ids: $electionIds,
+      trustee_ids: $trusteeIds,
+      area_ids: $areaIds
+    }
+  ) {
+    returning {
+      id
+      tenant_id
+      election_event_id
+      created_at
+      last_updated_at
+      labels
+      annotations
+      election_ids
+      trustee_ids
+      area_ids
+    }
+  }
+}

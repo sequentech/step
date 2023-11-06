@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
 use celery::error::TaskError;
 use celery::prelude::*;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
+use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -14,7 +14,7 @@ use tracing::instrument;
 
 use crate::hasura;
 use crate::services::s3;
-use sequent_core::services::keycloak;
+use crate::types::error::{Error, Result};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum FormatType {
@@ -84,19 +84,17 @@ async fn upload_and_return_document(
 }
 
 #[instrument]
+#[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 60000)]
 pub async fn render_report(
     input: RenderTemplateBody,
     tenant_id: String,
     election_event_id: String,
-) -> TaskResult<()> {
-    let auth_headers = keycloak::get_client_credentials()
-        .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+) -> Result<()> {
+    let auth_headers = keycloak::get_client_credentials().await?;
     println!("auth headers: {:#?}", auth_headers);
-    let hasura_response = hasura::tenant::get_tenant(auth_headers.clone(), tenant_id.clone())
-        .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    let hasura_response =
+        hasura::tenant::get_tenant(auth_headers.clone(), tenant_id.clone()).await?;
     let username = hasura_response
         .data
         .expect("expected data".into())
@@ -109,8 +107,7 @@ pub async fn render_report(
     }
 
     // render handlebars template
-    let render = reports::render_template_text(input.template.as_str(), variables_map)
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    let render = reports::render_template_text(input.template.as_str(), variables_map)?;
 
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {
@@ -122,13 +119,11 @@ pub async fn render_report(
             election_event_id,
             input.name,
         )
-        .await
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+        .await?;
         return Ok(());
     }
 
-    let bytes =
-        pdf::html_to_pdf(render).map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    let bytes = pdf::html_to_pdf(render)?;
 
     let document_json = upload_and_return_document(
         bytes,
@@ -138,12 +133,10 @@ pub async fn render_report(
         election_event_id,
         input.name,
     )
-    .await
-    .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    .await?;
 
     let document = document_json.clone().into_inner();
-    let document_value = serde_json::to_value(document)
-        .map_err(|err| TaskError::UnexpectedError(format!("{:?}", err)))?;
+    let _document_value = serde_json::to_value(document)?;
 
     Ok(())
 }

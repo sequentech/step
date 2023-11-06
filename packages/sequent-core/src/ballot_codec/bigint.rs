@@ -144,7 +144,7 @@ impl BigUIntCodec for Contest {
 mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
-    use crate::util::normalize_vote_contest;
+    use crate::util::normalize_vote::normalize_vote_contest;
     use std::cmp;
 
     #[test]

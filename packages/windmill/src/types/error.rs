@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use celery;
 use celery::prelude::{TaskError, TaskResult};
+use handlebars;
+use serde_json;
 
 quick_error! {
     #[derive(Debug)]
@@ -20,11 +23,27 @@ quick_error! {
 impl From<Error> for TaskError {
     fn from(err: Error) -> Self {
         match err {
-            Error::Anyhow(err) =>
-                TaskError::UnexpectedError(format!("{:?}", err)),
-            Error::String(err) =>
-                TaskError::UnexpectedError(err),
+            Error::Anyhow(err) => TaskError::UnexpectedError(format!("{:?}", err)),
+            Error::String(err) => TaskError::UnexpectedError(err),
         }
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Self {
+        Error::String(format!("{:?}", err))
+    }
+}
+
+impl From<celery::error::CeleryError> for Error {
+    fn from(err: celery::error::CeleryError) -> Self {
+        Error::String(format!("{:?}", err))
+    }
+}
+
+impl From<handlebars::RenderError> for Error {
+    fn from(err: handlebars::RenderError) -> Self {
+        Error::String(format!("{:?}", err))
     }
 }
 

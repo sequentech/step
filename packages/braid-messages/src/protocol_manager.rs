@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::message;
+use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
+use std::marker::PhantomData;
 use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::StrandSignatureSk;
-use base64::{engine::general_purpose, Engine as _};
-use std::marker::PhantomData;
-use crate::message;
 
 ///////////////////////////////////////////////////////////////////////////
 // ProtocolManager
@@ -16,6 +16,15 @@ use crate::message;
 pub struct ProtocolManager<C: Ctx> {
     pub signing_key: StrandSignatureSk,
     pub phantom: PhantomData<C>,
+}
+
+impl<C: Ctx> ProtocolManager<C> {
+    pub fn new(pmkey: StrandSignatureSk) -> Self {
+        ProtocolManager {
+            signing_key: pmkey,
+            phantom: PhantomData,
+        }
+    }
 }
 
 impl<C: Ctx> message::Signer for ProtocolManager<C> {

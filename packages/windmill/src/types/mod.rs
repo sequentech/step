@@ -2,6 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod error;
 pub mod hasura_types;
 pub mod scheduled_event;
-pub mod error;

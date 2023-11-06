@@ -194,7 +194,7 @@ services:
       - immudb_logs:/var/log/immudb
   
   harvest:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     stdin_open: true
     build:
       context: ../packages/
@@ -211,7 +211,7 @@ services:
     #  - graphql-engine
   
   trustee1:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     stdin_open: true
     container_name: trustee1
     volumes:
@@ -224,11 +224,12 @@ services:
         IMMUDB_PASSWORD: immudb
         IMMUDB_URL: http://immudb:3322
         IMMUDB_INDEX_DB: indexdb
+        TRUSTEE_CONFIG: /opt/braid/trustee1.toml
     depends_on:
       - immudb
   
   trustee2:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     stdin_open: true
     container_name: trustee2
     volumes:
@@ -241,6 +242,7 @@ services:
         IMMUDB_PASSWORD: immudb
         IMMUDB_URL: http://immudb:3322
         IMMUDB_INDEX_DB: indexdb
+        TRUSTEE_CONFIG: /opt/braid/trustee2.toml
     depends_on:
       - immudb
 
@@ -305,6 +307,7 @@ services:
       - immudb-log-audit-init
   # hashicorp vault to store secrets
   vault:
+    profiles: ["dev"]
     build:
       context: ./vault
       dockerfile: Dockerfile

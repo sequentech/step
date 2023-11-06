@@ -5,8 +5,8 @@ use std::marker::PhantomData;
 use borsh::{BorshDeserialize, BorshSerialize};
 use strand::zkp::Schnorr;
 
-use crate::newtypes::{BatchNumber, MixNumber};
 use crate::newtypes::PROTOCOL_MANAGER_INDEX;
+use crate::newtypes::{BatchNumber, MixNumber};
 
 use strand::serialization::StrandSerialize;
 use strand::shuffler::ShuffleProof;
@@ -77,7 +77,11 @@ pub struct Channel<C: Ctx> {
     pub encrypted_channel_sk: symm::EncryptionData,
 }
 impl<C: Ctx> Channel<C> {
-    pub fn new(channel_pk: C::E, pk_proof: Schnorr<C>, encrypted_channel_sk: symm::EncryptionData) -> Channel<C> {
+    pub fn new(
+        channel_pk: C::E,
+        pk_proof: Schnorr<C>,
+        encrypted_channel_sk: symm::EncryptionData,
+    ) -> Channel<C> {
         Channel {
             channel_pk,
             pk_proof,

@@ -39,32 +39,6 @@ const AreaForm: React.FC = () => {
         setShowMenu(true)
     }
 
-    const createBallotStylesAction = async () => {
-        setShowMenu(false)
-        setShowProgress(true)
-
-        const {data, errors} = await createScheduledEvent({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: record.election_event_id,
-                eventProcessor: ScheduledEventType.CREATE_BALLOT_STYLE,
-                cronConfig: undefined,
-                eventPayload: {
-                    area_id: record.id,
-                },
-                createdBy: "admin",
-            },
-        })
-        if (errors) {
-            console.log(errors)
-        }
-        if (data) {
-            console.log(data)
-        }
-        setShowProgress(false)
-        refresh()
-    }
-
     return (
         <SimpleForm>
             <Typography variant="h4">Area</Typography>
@@ -77,9 +51,7 @@ const AreaForm: React.FC = () => {
                 anchorEl={anchorEl}
                 open={showMenu}
                 onClose={() => setShowMenu(false)}
-            >
-                <MenuItem onClick={createBallotStylesAction}>Create Ballot Styles</MenuItem>
-            </Menu>
+            ></Menu>
             <Typography variant="h5">ID</Typography>
             <TextField source="id" />
             <TextInput source="name" />

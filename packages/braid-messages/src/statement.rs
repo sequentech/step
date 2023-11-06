@@ -1,7 +1,7 @@
-use strand::hash::Hash;
-use borsh::{BorshDeserialize, BorshSerialize};
-use strum::Display;
 use crate::newtypes::*;
+use borsh::{BorshDeserialize, BorshSerialize};
+use strand::hash::Hash;
+use strum::Display;
 
 ///////////////////////////////////////////////////////////////////////////
 // Statement
@@ -14,8 +14,20 @@ pub enum Statement {
     Channel(Timestamp, ConfigurationHash, ChannelHash),
     ChannelsAllSigned(Timestamp, ConfigurationHash, ChannelsHashes),
     Shares(Timestamp, ConfigurationHash, SharesHash),
-    PublicKey(Timestamp, ConfigurationHash, PublicKeyHash, SharesHashes, ChannelsHashes),
-    PublicKeySigned(Timestamp, ConfigurationHash, PublicKeyHash, SharesHashes, ChannelsHashes),
+    PublicKey(
+        Timestamp,
+        ConfigurationHash,
+        PublicKeyHash,
+        SharesHashes,
+        ChannelsHashes,
+    ),
+    PublicKeySigned(
+        Timestamp,
+        ConfigurationHash,
+        PublicKeyHash,
+        SharesHashes,
+        ChannelsHashes,
+    ),
 
     Ballots(
         Timestamp,
@@ -358,7 +370,9 @@ impl Statement {
 // Enums necessary to store statements and artifacts in LocalBoard
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Display, Debug, core::hash::Hash)]
+#[derive(
+    BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Display, Debug, core::hash::Hash,
+)]
 #[repr(u8)]
 pub enum StatementType {
     Configuration = 0,
@@ -510,7 +524,8 @@ pub(crate) mod tests {
         let cs = DecryptionFactorsHashes(hashes);
         let bytes = cs.strand_serialize().unwrap();
 
-        let d_cs: DecryptionFactorsHashes = DecryptionFactorsHashes::strand_deserialize(&bytes).unwrap();
+        let d_cs: DecryptionFactorsHashes =
+            DecryptionFactorsHashes::strand_deserialize(&bytes).unwrap();
 
         assert_eq!(cs.0, d_cs.0);
     }

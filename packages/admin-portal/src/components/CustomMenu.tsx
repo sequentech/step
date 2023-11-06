@@ -17,10 +17,10 @@ import {Box, MenuItem, Select, SelectChangeEvent} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Link} from "react-router-dom"
 
-export const useTenantStore: () => [string|null, (tenantId: string|null)=>void] = () => {
+export const useTenantStore: () => [string | null, (tenantId: string | null) => void] = () => {
     return [
-        localStorage.getItem('tenantId'),
-        (tenantId: string|null) => localStorage.setItem('tenantId', tenantId || '')
+        localStorage.getItem("tenantId"),
+        (tenantId: string | null) => localStorage.setItem("tenantId", tenantId || ""),
     ]
 }
 
