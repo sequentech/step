@@ -10,6 +10,23 @@ import {
     TopToolbar,
 } from "react-admin"
 import {ImportButton, ImportConfig} from "react-admin-import-csv"
+import {styled} from "@mui/material/styles"
+
+const StyledSelectColumnsButton = styled(SelectColumnsButton)`
+    min-width: unset;
+`
+
+const StyledFilterButton = styled(FilterButton)`
+    .MuiButton-root {
+        min-width: unset;
+    }
+`
+
+const StyledImportButton = styled(ImportButton)`
+    .MuiButton-root {
+        min-width: unset;
+    }
+`
 
 interface ListActionsProps {
     withFilter?: boolean
@@ -28,11 +45,11 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
 
     return (
         <TopToolbar>
-            <SelectColumnsButton />
-            {withFilter ? <FilterButton /> : null}
-            <CreateButton />
-            <ImportButton {...props} {...config} />
-            <ExportButton />
+            <StyledSelectColumnsButton />
+            {withFilter ? <StyledFilterButton /> : null}
+            <CreateButton sx={{ minWidth: "unset"}}/>
+            <StyledImportButton  {...props} {...config} />
+            <ExportButton sx={{ minWidth: "unset"}}/>
         </TopToolbar>
     )
 }
