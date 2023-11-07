@@ -12,9 +12,18 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
         sx={{
             "& .RaLayout-appFrame": {
                 marginTop: 0,
+                position: "absolute",
+                top: 0,
+                right: 0,
+                left: 0,
+                bottom: 0,
+                overflow: "auto"
             },
             "& .MuiPaper-root": {
                 //boxShadow: "unset",
+                top: "0px",
+                position: "sticky",
+                zIndex: 100,
             },
             "& .MuiToolbar-root": {
                 minHeight: "unset",
