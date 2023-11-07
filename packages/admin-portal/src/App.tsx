@@ -43,7 +43,7 @@ import {EditTrustee} from "./resources/Trustee/EditTrustee"
 import {ListTrustee} from "./resources/Trustee/ListTrustee"
 import {CreateTrustee} from "./resources/Trustee/CreateTrustee"
 import {PgAuditList} from "./resources/PgAudit/PgAuditList"
-import {theme} from "@sequentech/ui-essentials"
+import {adminTheme} from "@sequentech/ui-essentials"
 
 const App = () => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
@@ -64,7 +64,7 @@ const App = () => {
     if (!dataProvider) return <p>Loading data provider...</p>
 
     return (
-        <Admin dataProvider={dataProvider || undefined} layout={CustomLayout} theme={theme}>
+        <Admin dataProvider={dataProvider || undefined} layout={CustomLayout} theme={adminTheme}>
             <CustomRoutes>
                 <Route path="/user-roles" element={<UserAndRoles />} />
                 <Route path="/settings" element={<Settings />} />
