@@ -5,6 +5,13 @@ import React from "react"
 import {Meta, StoryObj} from "@storybook/react"
 import Tree from "../Tree"
 import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
+import {faBank} from "@fortawesome/free-solid-svg-icons"
+import Icon from "../../Icon/Icon"
+import {styled} from "@mui/material/styles"
+
+const StyledIcon = styled(Icon)`
+    margin-right: 8px;
+`
 
 const meta: Meta<typeof Tree> = {
     title: "components/Tree",
@@ -28,6 +35,43 @@ export const SimpleTree: Story = {
     args: {
         parent: {
             label: "Parent",
+            leaves: [
+                {
+                    label: "Child 1",
+                    leaves: [
+                        {
+                            label: "SubChild A",
+                        },
+                        {
+                            label: "SubChild B",
+                        },
+                    ],
+                },
+                {
+                    label: "Child 2",
+                },
+            ],
+        },
+    },
+    parameters: {
+        backgrounds: {
+            default: "white",
+        },
+        viewport: {
+            disable: true,
+        },
+    },
+}
+
+export const TreeComponents: Story = {
+    args: {
+        parent: {
+            label: (
+                <>
+                    <StyledIcon icon={faBank} />
+                    <i>Parent</i>
+                </>
+            ),
             leaves: [
                 {
                     label: "Child 1",

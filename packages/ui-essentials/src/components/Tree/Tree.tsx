@@ -10,7 +10,6 @@ import {styled} from "@mui/material/styles"
 const Horizontal = styled(Box)`
     display: flex;
     flex-direction: row;
-    gap: 8px;
     align-items: center;
     cursor: pointer;
 `
@@ -19,6 +18,10 @@ const LeavesWrapper = styled(Box)`
     display: flex;
     flex-direction: column;
     margin-left: 24px;
+`
+
+const StyledIcon = styled(Icon)`
+    width: 24px;
 `
 
 export interface TreeLeaveProps {
@@ -35,7 +38,7 @@ const TreeLeave: React.FC<TreeLeaveProps> = ({props, label, leaves, defaultOpen}
     return (
         <Box {...props}>
             <Horizontal onClick={onClick}>
-                {leaves ? <Icon icon={open ? faAngleDown : faAngleRight} /> : null}
+                {leaves ? <StyledIcon icon={open ? faAngleDown : faAngleRight} /> : null}
                 <Typography>{label}</Typography>
             </Horizontal>
             {open ? (
