@@ -31,3 +31,4 @@ export {default as CandidatesList} from "./components/CandidatesList/CandidatesL
 export {shuffle, splitList, keyBy} from "./utils/array"
 export {default as SelectElection} from "./components/SelectElection/SelectElection"
 export {normalizeWriteInText} from "./services/normalizeWriteInText"
+export {default as Tree} from "./components/Tree/Tree"
