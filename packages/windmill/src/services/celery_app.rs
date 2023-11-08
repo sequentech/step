@@ -70,7 +70,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "create_board" => "short_queue",
             "create_keys" => "short_queue",
             "insert_ballots" => "tally_queue",
-            "process_board" => "reports_queue",
+            "process_board" => "beat",
             "render_report" => "reports_queue",
             "review_boards" => "beat",
             "set_public_key" => "short_queue",
