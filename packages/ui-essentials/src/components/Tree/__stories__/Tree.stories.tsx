@@ -33,25 +33,30 @@ type Story = StoryObj<typeof Tree>
 
 export const SimpleTree: Story = {
     args: {
-        parent: {
-            label: "Parent",
-            leaves: [
-                {
-                    label: "Child 1",
-                    leaves: [
-                        {
-                            label: "SubChild A",
-                        },
-                        {
-                            label: "SubChild B",
-                        },
-                    ],
-                },
-                {
-                    label: "Child 2",
-                },
-            ],
-        },
+        leaves: [
+            {
+                label: "Parent",
+                leaves: [
+                    {
+                        label: "Child 1",
+                        leaves: [
+                            {
+                                label: "SubChild A",
+                            },
+                            {
+                                label: "SubChild B",
+                            },
+                        ],
+                    },
+                    {
+                        label: "Child 2",
+                    },
+                ],
+            },
+            {
+                label: "Parent 2",
+            },
+        ],
     },
     parameters: {
         backgrounds: {
@@ -65,30 +70,32 @@ export const SimpleTree: Story = {
 
 export const TreeComponents: Story = {
     args: {
-        parent: {
-            label: (
-                <>
-                    <StyledIcon icon={faBank} />
-                    <i>Parent</i>
-                </>
-            ),
-            leaves: [
-                {
-                    label: "Child 1",
-                    leaves: [
-                        {
-                            label: "SubChild A",
-                        },
-                        {
-                            label: "SubChild B",
-                        },
-                    ],
-                },
-                {
-                    label: "Child 2",
-                },
-            ],
-        },
+        leaves: [
+            {
+                label: (
+                    <>
+                        <StyledIcon icon={faBank} />
+                        <i>Parent</i>
+                    </>
+                ),
+                leaves: [
+                    {
+                        label: "Child 1",
+                        leaves: [
+                            {
+                                label: "SubChild A",
+                            },
+                            {
+                                label: "SubChild B",
+                            },
+                        ],
+                    },
+                    {
+                        label: "Child 2",
+                    },
+                ],
+            },
+        ],
     },
     parameters: {
         backgrounds: {

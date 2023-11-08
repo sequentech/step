@@ -41,7 +41,9 @@ const TreeLeave: React.FC<TreeLeaveProps> = ({props, label, leaves, defaultOpen}
                 {leaves ? (
                     <StyledIcon icon={open ? faAngleDown : faAngleRight} onClick={onClick} />
                 ) : null}
-                <Typography>{label}</Typography>
+                <Typography fontSize="16px" margin={0}>
+                    {label}
+                </Typography>
             </Horizontal>
             {open ? (
                 <LeavesWrapper>
@@ -55,14 +57,16 @@ const TreeLeave: React.FC<TreeLeaveProps> = ({props, label, leaves, defaultOpen}
 }
 
 export interface TreeProps {
-    parent: TreeLeaveProps
+    leaves: Array<TreeLeaveProps>
     props?: BoxProps
 }
 
-const Tree: React.FC<TreeProps> = ({parent, props}) => {
+const Tree: React.FC<TreeProps> = ({leaves, props}) => {
     return (
         <Box {...props}>
-            <TreeLeave {...parent} />
+            {leaves.map((leave, index) => (
+                <TreeLeave {...leave} key={index} />
+            ))}
         </Box>
     )
 }
