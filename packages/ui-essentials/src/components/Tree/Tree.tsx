@@ -37,8 +37,10 @@ const TreeLeave: React.FC<TreeLeaveProps> = ({props, label, leaves, defaultOpen}
     const onClick = () => setOpen(!open)
     return (
         <Box {...props}>
-            <Horizontal onClick={onClick}>
-                {leaves ? <StyledIcon icon={open ? faAngleDown : faAngleRight} /> : null}
+            <Horizontal>
+                {leaves ? (
+                    <StyledIcon icon={open ? faAngleDown : faAngleRight} onClick={onClick} />
+                ) : null}
                 <Typography>{label}</Typography>
             </Horizontal>
             {open ? (
