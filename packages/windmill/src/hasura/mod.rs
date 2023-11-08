@@ -15,3 +15,5 @@ pub mod tally_session;
 pub mod tally_session_contest;
 pub mod tenant;
 pub mod trustee;
+pub mod tally_session_execution;
+
