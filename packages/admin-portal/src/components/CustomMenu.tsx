@@ -92,6 +92,7 @@ export const CustomMenu = () => {
             }}
         >
             <CustomerSelector />
+            <TreeMenu />
             <StyledItem
                 to="/pgaudit"
                 primaryText="PG Audit"
