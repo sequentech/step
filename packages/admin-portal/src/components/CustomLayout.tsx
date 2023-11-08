@@ -17,7 +17,7 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
                 right: 0,
                 left: 0,
                 bottom: 0,
-                overflow: "auto"
+                overflow: "auto",
             },
             "& .MuiPaper-root": {
                 //boxShadow: "unset",

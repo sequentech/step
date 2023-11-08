@@ -77,28 +77,40 @@ const App = () => {
                 create={CreateElectionList}
                 edit={EditElectionList}
                 show={ShowElectionEvent}
-                options={{label: "Election Events"}}
+                options={{label: "Election Events", isMenuParent: true}}
             />
             <Resource
                 name="sequent_backend_election"
                 edit={EditElection}
                 list={ListElection}
                 create={CreateElection}
-                options={{label: "Elections"}}
+                options={{
+                    label: "Elections",
+                    menuParent: "sequent_backend_election_event",
+                    foreignKeyFrom: "election_event_id",
+                }}
             />
             <Resource
                 name="sequent_backend_contest"
                 edit={EditContest}
                 list={ListContest}
                 create={CreateContest}
-                options={{label: "Contests"}}
+                options={{
+                    label: "Contests",
+                    menuParent: "sequent_backend_election",
+                    foreignKeyFrom: "election_id",
+                }}
             />
             <Resource
                 name="sequent_backend_candidate"
                 edit={EditCandidate}
                 list={ListCandidate}
                 create={CreateCandidate}
-                options={{label: "Candidates"}}
+                options={{
+                    label: "Candidates",
+                    menuParent: "sequent_backend_contest",
+                    foreignKeyFrom: "contest_id",
+                }}
             />
             <Resource
                 name="sequent_backend_ballot_style"

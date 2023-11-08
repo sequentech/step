@@ -31,7 +31,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
             <SelectColumnsButton />
             {withFilter ? <FilterButton /> : null}
             <CreateButton />
-            <ImportButton  {...props} {...config} />
+            <ImportButton {...props} {...config} />
             <ExportButton />
         </TopToolbar>
     )
