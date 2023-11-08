@@ -260,6 +260,7 @@ pub struct Contest {
     pub description: Option<String>,
     pub max_votes: i64,
     pub min_votes: i64,
+    pub winning_candidates_num: i64,
     pub voting_type: Option<String>,
     pub counting_algorithm: Option<String>, /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
     pub is_encrypted: bool,

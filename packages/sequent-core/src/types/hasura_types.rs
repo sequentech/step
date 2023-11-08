@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use chrono::naive::NaiveDateTime;
 use serde_json::value::Value;
 
@@ -80,6 +81,7 @@ pub struct Contest {
     pub presentation: Option<Value>,
     pub min_votes: Option<i64>,
     pub max_votes: Option<i64>,
+    pub winning_candidates_num: Option<i64>,
     pub voting_type: Option<String>,
     pub counting_algorithm: Option<String>,
     pub is_encrypted: Option<bool>,
