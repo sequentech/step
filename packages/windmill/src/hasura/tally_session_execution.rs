@@ -24,8 +24,6 @@ pub async fn get_tally_session_execution(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
-    tally_session_id: String,
-    tally_session_contest_id: String,
 ) -> Result<Response<get_tally_session_execution::ResponseData>> {
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

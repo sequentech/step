@@ -4,9 +4,8 @@
 use crate::hasura;
 use crate::services::celery_app::get_celery_app;
 use crate::tasks::process_board::process_board;
-use crate::types::error::{Error, Result};
+use crate::types::error::Result;
 use celery::error::TaskError;
-use celery::task::TaskResult;
 use sequent_core::services::keycloak;
 use tracing::instrument;
 use tracing::{event, Level};
@@ -22,26 +21,26 @@ pub async fn review_boards() -> Result<()> {
     let celery_app = get_celery_app().await;
 
     while last_length == limit {
-        let hasura_response = hasura::election_event::get_batch_election_events(
-            auth_headers.clone(),
-            limit.clone(),
-            offset.clone(),
-        )
-        .await?;
+        let hasura_response =
+            hasura::election_event::get_batch_election_events(auth_headers.clone(), limit, offset)
+                .await?;
         let election_events = &hasura_response
             .data
-            .expect("expected data".into())
+            .expect("expected data")
             .sequent_backend_election_event;
+
         last_length = election_events.len() as i64;
-        offset = offset + last_length;
+        offset += last_length;
 
         for election_event in election_events {
+            dbg!(&election_event);
             let task2 = celery_app
                 .send_task(process_board::new(
                     election_event.id.clone(),
                     election_event.tenant_id.clone(),
                 ))
                 .await?;
+            dbg!(&task2);
             event!(Level::INFO, "Sent task {}", task2.task_id);
         }
     }

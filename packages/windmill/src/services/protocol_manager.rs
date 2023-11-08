@@ -186,17 +186,10 @@ pub async fn add_ballots_to_board<C: Ctx>(
     batch: BatchNumber,
     trustee_pks: Vec<StrandSignaturePk>,
 ) -> Result<()> {
-    // 1. get env vars
-    let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
-    let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
-    let server_url =
-        env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
-
     let pms = vault::read_secret(format!("boards/{}/protocol-manager", board_name)).await?;
-
     let pm = deserialize_protocol_manager::<C>(pms);
 
-    let mut board = BoardClient::new(&server_url, &user, &password).await?;
+    let mut board = get_board().await?;
     let messages: Vec<Message> = get_board_messages(&mut board, board_name).await?;
     let configuration = get_configuration::<C>(&messages)?;
     let public_key_hash = get_public_key_hash::<C>(&messages)?;
@@ -215,4 +208,16 @@ pub async fn add_ballots_to_board<C: Ctx>(
     board
         .insert_messages(board_name, &vec![board_message])
         .await
+}
+
+#[instrument]
+pub async fn get_board() -> Result<BoardClient> {
+    let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
+    let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
+    let server_url =
+        env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
+
+    let board = BoardClient::new(&server_url, &user, &password).await?;
+
+    Ok(board)
 }
