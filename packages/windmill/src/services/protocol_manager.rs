@@ -32,6 +32,7 @@ pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
         signing_key: pmkey,
         phantom: PhantomData,
     };
+
     pm
 }
 
@@ -58,11 +59,8 @@ async fn init<C: Ctx>(
     board.insert_messages(board_name, &vec![message]).await
 }
 
-#[instrument(skip(user, password, pm))]
+#[instrument(skip(pm))]
 pub async fn add_config_to_board<C: Ctx>(
-    server_url: &str,
-    user: &str,
-    password: &str,
     threshold: usize,
     board_name: &str,
     trustee_pks: Vec<StrandSignaturePk>,
@@ -76,19 +74,14 @@ pub async fn add_config_to_board<C: Ctx>(
         PhantomData,
     );
 
-    let mut board = BoardClient::new(&server_url, &user, &password).await?;
+    let mut board = get_board().await?;
 
     init(&mut board, configuration, pm, board_name).await
 }
 
-#[instrument(skip(user, password))]
-pub async fn get_board_public_key<C: Ctx>(
-    server_url: &str,
-    user: &str,
-    password: &str,
-    board_name: &str,
-) -> Result<C::E> {
-    let mut board = BoardClient::new(&server_url, &user, &password).await?;
+#[instrument]
+pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
+    let mut board = get_board().await?;
 
     let messages = board.get_messages(board_name, -1).await?;
     let pks_message = messages

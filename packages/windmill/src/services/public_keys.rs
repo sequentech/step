@@ -25,12 +25,6 @@ pub async fn create_keys(
     trustee_pks: Vec<String>,
     threshold: usize,
 ) -> Result<()> {
-    // 1. get env vars
-    let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
-    let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
-    let server_url =
-        env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
-
     // 2. create protocol manager keys
     let pm = protocol_manager::gen_protocol_manager::<RistrettoCtx>();
 
@@ -46,34 +40,15 @@ pub async fn create_keys(
         .collect();
 
     // 5. add config to board on immudb
-    protocol_manager::add_config_to_board::<RistrettoCtx>(
-        server_url.as_str(),
-        user.as_str(),
-        password.as_str(),
-        threshold.clone(),
-        board_name,
-        trustee_pks,
-        pm,
-    )
-    .await?;
+    protocol_manager::add_config_to_board::<RistrettoCtx>(threshold, board_name, trustee_pks, pm)
+        .await?;
 
     Ok(())
 }
 
 #[instrument]
 pub async fn get_public_key(board_name: String) -> Result<String> {
-    // 1. get env vars
-    let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
-    let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
-    let server_url =
-        env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
-    let pk = protocol_manager::get_board_public_key::<RistrettoCtx>(
-        server_url.as_str(),
-        user.as_str(),
-        password.as_str(),
-        board_name.as_str(),
-    )
-    .await?;
+    let pk = protocol_manager::get_board_public_key::<RistrettoCtx>(board_name.as_str()).await?;
     let pk_bytes = pk.strand_serialize()?;
     Ok(general_purpose::STANDARD_NO_PAD.encode(pk_bytes))
 }
