@@ -16,7 +16,7 @@ use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::set_public_key::set_public_key;
-use crate::tasks::tally_ballots::process_ballots_from_messages;
+use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::tally_election_event::tally_election_event;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use crate::tasks::update_voting_status::update_voting_status;
@@ -62,7 +62,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             render_report,
             set_public_key,
             tally_election_event,
-            process_ballots_from_messages,
+            execute_tally_session,
             update_election_event_ballot_styles,
             update_voting_status,
         ],
@@ -77,7 +77,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "render_report" => "reports_queue",
             "set_public_key" => "short_queue",
             "tally_election_event" => "tally_queue",
-            "process_ballots_from_messages" => "tally_queue",
+            "execute_tally_session" => "tally_queue",
             "update_election_event_ballot_styles" => "short_queue",
             "update_voting_status" => "short_queue",
         ],

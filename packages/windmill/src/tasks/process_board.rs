@@ -11,7 +11,7 @@ use crate::hasura;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
-use crate::tasks::tally_ballots::process_ballots_from_messages;
+use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::types::error::Result;
 
 #[instrument]
@@ -22,39 +22,53 @@ pub async fn process_board(election_event_id: String, tenant_id: String) -> Resu
     let auth_headers = keycloak::get_client_credentials().await?;
 
     // fetch election_event
-    let hasura_response = hasura::election_event::get_election_event(
+    let election_events = hasura::election_event::get_election_event(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
     )
-    .await?;
-    let election_event = &hasura_response
-        .data
-        .expect("expected data")
-        .sequent_backend_election_event[0];
+    .await?
+    .data
+    .expect("expected data")
+    .sequent_backend_election_event;
 
-    // fetch tally_session_execution
-    let hasura_response = hasura::tally_session_execution::get_tally_session_execution(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-    )
-    .await?;
+    if 0 == election_events.len() {
+        event!(Level::INFO, "Election Event not found {}", election_event_id.clone());
+        return Ok(());
+    }
 
-    // TODO:Read from tally session
-    // Then from tally session execution
-    let res = &hasura_response.data.expect("expected data");
-    dbg!(&res);
+    let election_event = election_events[0];
 
     let bulletin_board_opt =
-        get_election_event_board(election_event.bulletin_board_reference.clone());
+    get_election_event_board(election_event.bulletin_board_reference.clone());
 
-    if let Some(bulletin_board) = bulletin_board_opt {
-        let pm = protocol_manager::gen_protocol_manager::<RistrettoCtx>();
+    if bulletin_board_opt.is_none() {
+        event!(Level::INFO, "Election Event {} has no bulletin board", election_event_id.clone());
+        return Ok(());
+    }
 
-        let celery_app = get_celery_app().await;
+    let bulletin_board = bulletin_board_opt.unwrap();
+
+    // fetch tally_sessions
+    let tally_sessions = hasura::tally_session::get_tally_sessions(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+    )
+    .await?
+    .data
+    .expect("expected data")
+    .sequent_backend_tally_session;
+
+    let celery_app = get_celery_app().await;
+
+    for tally_session in tally_sessions {
         let task = celery_app
-            .send_task(process_ballots_from_messages::new(bulletin_board.clone()))
+            .send_task(execute_tally_session::new(
+                tenant_id.clone(),
+                election_event_id.clone(),
+                tally_session.id.clone(),
+            ))
             .await?;
         event!(Level::INFO, "Sent task {}", task.task_id);
     }

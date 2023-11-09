@@ -17,7 +17,7 @@ use tracing::instrument;
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
-pub async fn process_ballots_from_messages(
+pub async fn execute_tally_session(
     bulletin_board: String,
     // election_event_id: String,
     // tenant_id: String,
