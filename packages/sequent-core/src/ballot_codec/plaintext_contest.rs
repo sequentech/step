@@ -4,6 +4,7 @@
 use crate::ballot::*;
 use crate::ballot_codec::*;
 use crate::plaintext::*;
+use num_bigint::BigUint;
 
 pub trait PlaintextCodec {
     fn encode_plaintext_contest(
@@ -53,7 +54,7 @@ impl PlaintextCodec for Contest {
         code: &[u8; 30],
     ) -> Result<BigUint, String> {
         let plaintext_bytes = decode_array_to_vec(code);
-        decode_bigint_from_bytes(&bytes)
+        decode_bigint_from_bytes(&plaintext_bytes)
     }
 
     fn encode_plaintext_contest_to_bytes(
