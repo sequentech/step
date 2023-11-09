@@ -25,6 +25,7 @@ const LeavesWrapper = styled(Box)`
 
 const StyledIcon = styled(Icon)`
     width: 24px;
+    margin-right: 8px;
 `
 
 interface Options extends ResourceOptions {
@@ -79,15 +80,15 @@ interface TreeMenuItemProps {
 const TreeMenuItem: React.FC<TreeMenuItemProps> = ({resource, treeResources}) => {
     const [open, setOpen] = useState(false)
     const onClick = () => setOpen(!open)
-    const hasLeaves = treeResources.length > 1
+    const hasLeaves = treeResources.length > 0
 
     return (
         <Box>
             <Horizontal>
                 {hasLeaves ? (
-                    <StyledIcon icon={open ? faAngleDown : faAngleRight} onClick={onClick} />
+                    <StyledIcon icon={open ? faAngleDown : faAngleRight} onClick={onClick}/>
                 ) : null}
-                <Typography fontSize="16px" margin={0}>
+                <Typography fontSize="16px" margin={0} paddingLeft={hasLeaves ? 0: "24px"}>
                     {resource.name || resource.id}
                 </Typography>
             </Horizontal>
