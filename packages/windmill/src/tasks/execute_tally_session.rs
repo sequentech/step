@@ -66,6 +66,16 @@ pub async fn execute_tally_session(
 
     let bulletin_board = bulletin_board_opt.unwrap();
 
+    let tally_session_data = hasura::tally_session_execution::get_last_tally_session_execution(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session_id.clone(),
+    )
+    .await?
+    .data
+    .expect("expected data");
+
     // TODO: fetch contest from Hasura
     let contest = Contest {
         id: "63b1-f93b-4151-93d6-bbe0ea5eac46 69f2f987-460c-48ac-ac7a-4d44d99b37e6".into(),
@@ -96,9 +106,9 @@ pub async fn execute_tally_session(
         }),
     };
 
-    let mut board = protocol_manager::get_board().await?;
+    let mut board_client = protocol_manager::get_board_client().await?;
 
-    let messages = board.get_messages(&bulletin_board, -1).await?;
+    let messages = board_client.get_messages(&bulletin_board, -1).await?;
 
     let encoded_ballots = messages
         .into_iter()

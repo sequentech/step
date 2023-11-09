@@ -14,26 +14,28 @@ use tracing::instrument;
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/get_tally_session_execution.graphql",
+    query_path = "src/graphql/get_last_tally_session_execution.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-pub struct GetTallySessionExecution;
+pub struct GetLastTallySessionExecution;
 
 #[instrument(skip(auth_headers))]
-pub async fn get_tally_session_execution(
+pub async fn get_last_tally_session_execution(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
-) -> Result<Response<get_tally_session_execution::ResponseData>> {
+    tally_session_id: String,
+) -> Result<Response<get_last_tally_session_execution::ResponseData>> {
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
 
-    let variables = get_tally_session_execution::Variables {
+    let variables = get_last_tally_session_execution::Variables {
         tenant_id,
         election_event_id,
+        tally_session_id,
     };
 
-    let request_body = GetTallySessionExecution::build_query(variables);
+    let request_body = GetLastTallySessionExecution::build_query(variables);
 
     let client = reqwest::Client::new();
 
@@ -44,7 +46,8 @@ pub async fn get_tally_session_execution(
         .send()
         .await?;
 
-    let response_body: Response<get_tally_session_execution::ResponseData> = res.json().await?;
+    let response_body: Response<get_last_tally_session_execution::ResponseData> =
+        res.json().await?;
 
     response_body.ok()
 }
