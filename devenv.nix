@@ -54,15 +54,6 @@
     hello
     git --version
     export COMPOSE_PROJECT_NAME=backend-services_devcontainer
-
-    # Used by braid:
-    export IMMUDB_USERNAME=immudb
-    export IMMUDB_PASSWORD=immudb
-    export IMMUDB_SERVER_URL=http://immudb:3322
-    export IMMUDB_INDEX_DBNAME=boardsindex
-    export IMMUDB_BOARD_DBNAME=bulletin_board
-    export HASURA_GRAPHQL_ADMIN_SECRET=admin
-    export HASURA_GRAPHQL_ENDPOINT=http://graphql-engine:8080
   '';
 
   # https://devenv.sh/languages/
