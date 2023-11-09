@@ -33,14 +33,12 @@ pub async fn review_boards() -> Result<()> {
         offset += last_length;
 
         for election_event in election_events {
-            dbg!(&election_event);
             let task2 = celery_app
                 .send_task(process_board::new(
                     election_event.id.clone(),
                     election_event.tenant_id.clone(),
                 ))
                 .await?;
-            dbg!(&task2);
             event!(Level::INFO, "Sent task {}", task2.task_id);
         }
     }
