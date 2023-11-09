@@ -1,9 +1,15 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, Typography} from "@mui/material"
+import {Box} from "@mui/material"
 import React, {useState, useEffect} from "react"
-import {ResourceOptions, ResourceDefinition, useResourceDefinitions, useGetList} from "react-admin"
+import {
+    ResourceOptions,
+    ResourceDefinition,
+    useResourceDefinitions,
+    useGetList,
+    MenuItemLink,
+} from "react-admin"
 import {CircularProgress} from "@mui/material"
 import {useTenantStore} from "./CustomMenu"
 import {faAngleRight, faAngleDown} from "@fortawesome/free-solid-svg-icons"
@@ -55,7 +61,11 @@ const TreeLeaves: React.FC<TreeLeavesProps> = ({resourceId, treeResources}) => {
               },
     })
 
-    if (isLoading || error || !data) {
+    if (isLoading) {
+        return <CircularProgress />
+    }
+
+    if (error || !data) {
         return null
     }
 
@@ -63,6 +73,7 @@ const TreeLeaves: React.FC<TreeLeavesProps> = ({resourceId, treeResources}) => {
         <LeavesWrapper>
             {data?.map((resource, idx) => (
                 <TreeMenuItem
+                    resourceType={treeResources[0].name}
                     resource={resource}
                     treeResources={treeResources.slice(1)}
                     key={idx}
@@ -73,11 +84,12 @@ const TreeLeaves: React.FC<TreeLeavesProps> = ({resourceId, treeResources}) => {
 }
 
 interface TreeMenuItemProps {
+    resourceType: string
     resource: any
     treeResources: Array<ResourceDefinition<Options>>
 }
 
-const TreeMenuItem: React.FC<TreeMenuItemProps> = ({resource, treeResources}) => {
+const TreeMenuItem: React.FC<TreeMenuItemProps> = ({resourceType, resource, treeResources}) => {
     const [open, setOpen] = useState(false)
     const onClick = () => setOpen(!open)
     const hasLeaves = treeResources.length > 0
@@ -86,11 +98,14 @@ const TreeMenuItem: React.FC<TreeMenuItemProps> = ({resource, treeResources}) =>
         <Box>
             <Horizontal>
                 {hasLeaves ? (
-                    <StyledIcon icon={open ? faAngleDown : faAngleRight} onClick={onClick}/>
+                    <StyledIcon icon={open ? faAngleDown : faAngleRight} onClick={onClick} />
                 ) : null}
-                <Typography fontSize="16px" margin={0} paddingLeft={hasLeaves ? 0: "24px"}>
-                    {resource.name || resource.id}
-                </Typography>
+
+                <MenuItemLink
+                    key={resource.name}
+                    to={`/${resourceType}/${resource.id}`}
+                    primaryText={resource.name}
+                />
             </Horizontal>
             {open ? <TreeLeaves resourceId={resource.id} treeResources={treeResources} /> : null}
         </Box>
