@@ -93,7 +93,6 @@ pub async fn insert_tally_session(
     response_body.ok()
 }
 
-
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",

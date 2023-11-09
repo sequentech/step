@@ -6,23 +6,66 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use crate::{services::protocol_manager, types::error::Result};
 use braid_messages::{artifact::Plaintexts, message::Message, statement::Statement};
 use celery::prelude::TaskError;
 use sequent_core::ballot::{Contest, ContestPresentation};
 use sequent_core::ballot_codec::{BigUIntCodec, PlaintextCodec};
+use sequent_core::services::keycloak;
 use strand::{backend::ristretto::RistrettoCtx, serialization::StrandDeserialize};
-use tracing::instrument;
+use tracing::{event, instrument, Level};
+
+use crate::hasura;
+use crate::services::celery_app::get_celery_app;
+use crate::services::election_event_board::get_election_event_board;
+use crate::{services::protocol_manager, types::error::Result};
 
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn execute_tally_session(
-    bulletin_board: String,
-    // election_event_id: String,
-    // tenant_id: String,
-    // area_id: String,
+    election_event_id: String,
+    tenant_id: String,
+    tally_session_id: String,
 ) -> Result<()> {
+    // get credentials
+    let auth_headers = keycloak::get_client_credentials().await?;
+
+    // fetch election_event
+    let election_events = hasura::election_event::get_election_event(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+    )
+    .await?
+    .data
+    .expect("expected data")
+    .sequent_backend_election_event;
+
+    if 0 == election_events.len() {
+        event!(
+            Level::INFO,
+            "Election Event not found {}",
+            election_event_id.clone()
+        );
+        return Ok(());
+    }
+
+    let election_event = &election_events[0];
+
+    let bulletin_board_opt =
+        get_election_event_board(election_event.bulletin_board_reference.clone());
+
+    if bulletin_board_opt.is_none() {
+        event!(
+            Level::INFO,
+            "Election Event {} has no bulletin board",
+            election_event_id.clone()
+        );
+        return Ok(());
+    }
+
+    let bulletin_board = bulletin_board_opt.unwrap();
+
     // TODO: fetch contest from Hasura
     let contest = Contest {
         id: "63b1-f93b-4151-93d6-bbe0ea5eac46 69f2f987-460c-48ac-ac7a-4d44d99b37e6".into(),

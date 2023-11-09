@@ -33,17 +33,25 @@ pub async fn process_board(election_event_id: String, tenant_id: String) -> Resu
     .sequent_backend_election_event;
 
     if 0 == election_events.len() {
-        event!(Level::INFO, "Election Event not found {}", election_event_id.clone());
+        event!(
+            Level::INFO,
+            "Election Event not found {}",
+            election_event_id.clone()
+        );
         return Ok(());
     }
 
-    let election_event = election_events[0];
+    let election_event = &election_events[0];
 
     let bulletin_board_opt =
-    get_election_event_board(election_event.bulletin_board_reference.clone());
+        get_election_event_board(election_event.bulletin_board_reference.clone());
 
     if bulletin_board_opt.is_none() {
-        event!(Level::INFO, "Election Event {} has no bulletin board", election_event_id.clone());
+        event!(
+            Level::INFO,
+            "Election Event {} has no bulletin board",
+            election_event_id.clone()
+        );
         return Ok(());
     }
 

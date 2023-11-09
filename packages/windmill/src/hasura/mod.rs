@@ -13,7 +13,6 @@ pub mod event_execution;
 pub mod scheduled_event;
 pub mod tally_session;
 pub mod tally_session_contest;
+pub mod tally_session_execution;
 pub mod tenant;
 pub mod trustee;
-pub mod tally_session_execution;
-

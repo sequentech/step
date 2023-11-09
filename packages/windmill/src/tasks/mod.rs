@@ -5,6 +5,7 @@
 pub mod create_ballot_style;
 pub mod create_board;
 pub mod create_keys;
+pub mod execute_tally_session;
 pub mod insert_ballots;
 pub mod insert_election_event;
 pub mod process_board;
@@ -12,6 +13,5 @@ pub mod render_report;
 pub mod review_boards;
 pub mod set_public_key;
 pub mod tally_election_event;
-pub mod tally_ballots;
 pub mod update_election_event_ballot_styles;
 pub mod update_voting_status;
