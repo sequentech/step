@@ -61,4 +61,24 @@ query GetLastTallySessionExecution(
         annotations
         tally_session_id
     }
+    sequent_backend_ballot_style(
+        where: {
+            election_event_id: {_eq: $electionEventId},
+            tenant_id: {_eq: $tenantId}
+            deleted_at: {_is_null: true}
+        }
+    ) {
+      id
+      tenant_id
+      election_id
+      area_id
+      created_at
+      last_updated_at
+      labels
+      annotations
+      ballot_eml
+      ballot_signature
+      status
+      election_event_id
+    }
 }
