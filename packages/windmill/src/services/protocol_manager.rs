@@ -162,9 +162,7 @@ pub fn generate_trustee_set<C: Ctx>(
     selected_trustees
 }
 
-pub async fn get_board_messages(board: &mut BoardClient, board_name: &str) -> Result<Vec<Message>> {
-    let board_messages = board.get_messages(board_name, -1).await?;
-
+pub fn convert_board_messages(board_messages: &Vec<BoardMessage>) -> Result<Vec<Message>> {
     let messages: Vec<Message> = board_messages
         .iter()
         .map(|board_message| Message::strand_deserialize(&board_message.message))
@@ -183,7 +181,8 @@ pub async fn add_ballots_to_board<C: Ctx>(
     let pm = deserialize_protocol_manager::<C>(pms);
 
     let mut board = get_board_client().await?;
-    let messages: Vec<Message> = get_board_messages(&mut board, board_name).await?;
+    let board_messages = board.get_messages(board_name, -1).await?;
+    let messages: Vec<Message> = convert_board_messages(&board_messages)?;
     let configuration = get_configuration::<C>(&messages)?;
     let public_key_hash = get_public_key_hash::<C>(&messages)?;
     let selected_trustees: TrusteeSet = generate_trustee_set::<C>(&configuration, trustee_pks);

@@ -76,6 +76,37 @@ pub async fn execute_tally_session(
     .data
     .expect("expected data");
 
+    if tally_session_data.sequent_backend_tally_session[0].is_execution_completed {
+        event!(Level::INFO, "Tally session execution is completed",);
+        return Ok(());
+    }
+
+    let last_message_id = if tally_session_data
+        .sequent_backend_tally_session_execution
+        .len()
+        > 0
+    {
+        tally_session_data.sequent_backend_tally_session_execution[0].current_message_id
+    } else {
+        -1
+    };
+
+    let mut board_client = protocol_manager::get_board_client().await?;
+
+    let board_messages = board_client.get_messages(&bulletin_board, -1).await?;
+
+    let has_new_messages = board_messages
+        .iter()
+        .find(|message| message.id > last_message_id)
+        .is_some();
+
+    if !has_new_messages {
+        event!(Level::INFO, "Board has no new messages",);
+        return Ok(());
+    }
+
+    let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
+
     // TODO: fetch contest from Hasura
     let contest = Contest {
         id: "63b1-f93b-4151-93d6-bbe0ea5eac46 69f2f987-460c-48ac-ac7a-4d44d99b37e6".into(),
@@ -106,14 +137,8 @@ pub async fn execute_tally_session(
         }),
     };
 
-    let mut board_client = protocol_manager::get_board_client().await?;
-
-    let messages = board_client.get_messages(&bulletin_board, -1).await?;
-
     let encoded_ballots = messages
         .into_iter()
-        .map(|bm| Message::strand_deserialize(&bm.message))
-        .filter_map(Result::ok)
         .filter(|m| matches!(m.statement, Statement::Plaintexts(..)))
         .map(|m| {
             // TODO: handle unwraps
