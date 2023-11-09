@@ -5,6 +5,7 @@ import {Header} from "@sequentech/ui-essentials"
 import React, {useContext} from "react"
 import {AppBar} from "react-admin"
 import {AuthContext} from "../providers/AuthContextProvider"
+import { adminTheme } from "@sequentech/ui-essentials"
 
 export const CustomAppBar: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -13,12 +14,12 @@ export const CustomAppBar: React.FC = () => {
         <AppBar
             position="static"
             sx={{
-                "backgroundColor": "#F7F9FE",
+                "backgroundColor": adminTheme.palette.lightBackground,
                 "color": "black",
                 "& .MuiContainer-root.MuiContainer-maxWidthLg": {
                     maxWidth: "unset",
                 },
-                "marginBottom": "8px",
+                "boxShadow": "unset"
             }}
         >
             <Header logoutFn={authContext.isAuthenticated ? authContext.logout : undefined} />

@@ -5,6 +5,7 @@ import React from "react"
 import {Layout, LayoutProps} from "react-admin"
 import {CustomAppBar} from "./CustomAppBar"
 import {CustomMenu} from "./CustomMenu"
+import { adminTheme } from "@sequentech/ui-essentials"
 
 export const CustomLayout: React.FC<LayoutProps> = (props) => (
     <Layout
@@ -18,6 +19,7 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
                 left: 0,
                 bottom: 0,
                 overflow: "auto",
+                backgroundColor: adminTheme.palette.lightBackground,
             },
             "& .MuiPaper-root": {
                 //boxShadow: "unset",
