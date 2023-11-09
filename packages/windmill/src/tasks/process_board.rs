@@ -2,18 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use braid_messages::artifact::Plaintexts;
-use braid_messages::message::Message;
-use braid_messages::statement::Statement;
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
 use strand::backend::ristretto::RistrettoCtx;
-use strand::serialization::StrandDeserialize;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 use crate::hasura;
+use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
+use crate::tasks::tally_ballots::process_ballots_from_messages;
 use crate::types::error::Result;
 
 #[instrument]
@@ -43,6 +41,8 @@ pub async fn process_board(election_event_id: String, tenant_id: String) -> Resu
     )
     .await?;
 
+    // TODO:Read from tally session
+    // Then from tally session execution
     let res = &hasura_response.data.expect("expected data");
     dbg!(&res);
 
@@ -52,45 +52,11 @@ pub async fn process_board(election_event_id: String, tenant_id: String) -> Resu
     if let Some(bulletin_board) = bulletin_board_opt {
         let pm = protocol_manager::gen_protocol_manager::<RistrettoCtx>();
 
-        let mut board = protocol_manager::get_board().await?;
-        
-        // let messages: Vec<Message> =
-        //     protocol_manager::get_board_messages(&mut board, &bulletin_board).await?;
-        //
-        // let res = messages
-        //     .iter()
-        //     .filter(|m| matches!(m.statement, Statement::Plaintexts(..)))
-        //     .map(|m| {
-        //         dbg!(&m);
-        //         Message::strand_deserialize(&m.artifact.as_ref().unwrap().clone())
-        //     })
-        //     .collect::<Vec<_>>();
-
-        let messages = board.get_messages(&bulletin_board, -1).await?;
-
-        let messages = messages
-            .into_iter()
-            .map(|bm| Message::strand_deserialize(&bm.message))
-            .filter(|bm| {
-                if let Ok(m) = bm {
-                    matches!(m.statement, Statement::Plaintexts(..))
-                    // match m.statement.get_kind() {
-                    //     StatementType::PublicKey => true,
-                    //     _ => false,
-                    // }
-                } else {
-                    false
-                }
-            })
-            .map(|bm| {
-                let mes = bm.unwrap();
-                let artifact = mes.artifact.unwrap();
-                let plaintexts = Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact);
-                plaintexts
-            })
-            .collect::<Vec<_>>();
-
-        dbg!(&messages);
+        let celery_app = get_celery_app().await;
+        let task = celery_app
+            .send_task(process_ballots_from_messages::new(bulletin_board.clone()))
+            .await?;
+        event!(Level::INFO, "Sent task {}", task.task_id);
     }
 
     Ok(())

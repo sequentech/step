@@ -12,5 +12,6 @@ pub mod render_report;
 pub mod review_boards;
 pub mod set_public_key;
 pub mod tally_election_event;
+pub mod tally_ballots;
 pub mod update_election_event_ballot_styles;
 pub mod update_voting_status;
