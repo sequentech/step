@@ -139,6 +139,14 @@ pub async fn execute_tally_session(
         return Ok(());
     }
 
+    let relevant_plaintexts: Vec<&Message> = messages
+        .iter()
+        .filter(|message| {
+            message.statement.get_kind() == StatementType::Plaintexts
+                && batch_ids.contains(&(message.statement.get_batch_number() as i64))
+        })
+        .collect();
+
     // TODO: fetch contest from Hasura
     let contest = Contest {
         id: "63b1-f93b-4151-93d6-bbe0ea5eac46 69f2f987-460c-48ac-ac7a-4d44d99b37e6".into(),
