@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {PropsWithChildren, ReactElement} from "react"
+import React, {PropsWithChildren, ReactElement, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -36,25 +36,30 @@ export const ListDocument: React.FC<ListDocumentProps & PropsWithChildren> = ({a
     return (
         <>
             <Typography variant="h5">Documents</Typography>
-            <List
-                actions={<ListActions withFilter={true} />}
-                filter={{tenant_id: tenantId || undefined}}
-                aside={aside || <div>hey</div>}
-                filters={Filters}
-            >
-                <DatagridConfigurable rowClick={rowClickHandler} omit={OMIT_FIELDS}>
-                    <TextField source="id" />
-                    <TextField source="name" />
-                    <TextField source="media_type" />
-                    <NumberField source="size" />
-                    <ReferenceField
-                        source="election_event_id"
-                        reference="sequent_backend_election_event"
-                    >
-                        <TextField source="name" />
-                    </ReferenceField>
-                </DatagridConfigurable>
-            </List>
+            <a href="/report.pdf" target="_blank" style={{marginTop: "10px"}}>
+                Report
+            </a>
+            {
+                // <List
+                //     actions={<ListActions withFilter={true} />}
+                //     filter={{tenant_id: tenantId || undefined}}
+                //     aside={aside || <div>hey</div>}
+                //     filters={Filters}
+                // >
+                //     <DatagridConfigurable rowClick={rowClickHandler} omit={OMIT_FIELDS}>
+                //         <TextField source="id" />
+                //         <TextField source="name" />
+                //         <TextField source="media_type" />
+                //         <NumberField source="size" />
+                //         <ReferenceField
+                //             source="election_event_id"
+                //             reference="sequent_backend_election_event"
+                //         >
+                //             <TextField source="name" />
+                //         </ReferenceField>
+                //     </DatagridConfigurable>
+                // </List>
+            }
         </>
     )
 }
