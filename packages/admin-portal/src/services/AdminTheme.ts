@@ -36,6 +36,10 @@ export const fullAdminTheme = {
         RaLayout: {
             styleOverrides: {
                 root: {
+                    "& .RaLayout-content > .list-page > .RaList-main": {
+                        "overflow": "auto",
+                        "marginRight": "4px",
+                    },
                     "& .RaLayout-appFrame": {
                         marginTop: 0,
                         position: "absolute",
