@@ -4,11 +4,9 @@
 
 use std::fs::File;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use braid_messages::{
-    artifact::Plaintexts, message::Message, statement::Statement, statement::StatementType,
-};
+use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use sequent_core::ballot::{BallotStyle, Contest, ContestPresentation};
 use sequent_core::ballot_codec::{BigUIntCodec, PlaintextCodec};
@@ -17,7 +15,6 @@ use strand::{backend::ristretto::RistrettoCtx, serialization::StrandDeserialize}
 use tracing::{event, instrument, Level};
 
 use crate::hasura;
-use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::types::error;
 use crate::{services::protocol_manager, types::error::Result};
@@ -45,12 +42,13 @@ pub async fn execute_tally_session(
     .sequent_backend_election_event;
 
     // check election event is found
-    if 0 == election_events.len() {
+    if election_events.is_empty() {
         event!(
             Level::INFO,
             "Election Event not found {}",
             election_event_id.clone()
         );
+
         return Ok(());
     }
 
@@ -66,6 +64,7 @@ pub async fn execute_tally_session(
             "Election Event {} has no bulletin board",
             election_event_id.clone()
         );
+
         return Ok(());
     }
 
@@ -86,14 +85,14 @@ pub async fn execute_tally_session(
     // if the execution is completed, we don't need to do anything
     if tally_session_data.sequent_backend_tally_session[0].is_execution_completed {
         event!(Level::INFO, "Tally session execution is completed",);
+
         return Ok(());
     }
 
     // get last message id
-    let last_message_id = if tally_session_data
+    let last_message_id = if !tally_session_data
         .sequent_backend_tally_session_execution
-        .len()
-        > 0
+        .is_empty()
     {
         tally_session_data.sequent_backend_tally_session_execution[0].current_message_id
     } else {
@@ -103,7 +102,11 @@ pub async fn execute_tally_session(
     // get board messages
     let mut board_client = protocol_manager::get_board_client().await?;
     let board_messages = board_client.get_messages(&bulletin_board, -1).await?;
-    event!(Level::INFO, "FF 1 num board_messages {}", board_messages.len());
+    event!(
+        Level::INFO,
+        "FF 1 num board_messages {}",
+        board_messages.len()
+    );
 
     // find a new board message
     let next_new_board_message_opt = board_messages
@@ -117,10 +120,9 @@ pub async fn execute_tally_session(
 
     // find the timestamp of the new board message.
     // We do this because once we convert into a Message, we lose the link to the board message id
-    let next_timestamp =
-        Message::strand_deserialize(&next_new_board_message_opt.clone().unwrap().message)?
-            .statement
-            .get_timestamp();
+    let next_timestamp = Message::strand_deserialize(&next_new_board_message_opt.unwrap().message)?
+        .statement
+        .get_timestamp();
 
     // get the batch ids that are linked to this tally session
     let batch_ids = tally_session_data
@@ -134,14 +136,11 @@ pub async fn execute_tally_session(
     let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
 
     // find if there are new plaintexs (= with equal/higher timestamp) that have the batch ids we need
-    let has_next_plaintext = messages
-        .iter()
-        .find(|message| {
-            message.statement.get_timestamp() >= next_timestamp
-                && message.statement.get_kind() == StatementType::Plaintexts
-                && batch_ids.contains(&(message.statement.get_batch_number() as i64))
-        })
-        .is_some();
+    let has_next_plaintext = messages.iter().any(|message| {
+        message.statement.get_timestamp() >= next_timestamp
+            && message.statement.get_kind() == StatementType::Plaintexts
+            && batch_ids.contains(&(message.statement.get_batch_number() as i64))
+    });
 
     if !has_next_plaintext {
         event!(Level::INFO, "Board has no new relevant plaintexs");
@@ -156,7 +155,11 @@ pub async fn execute_tally_session(
                 && batch_ids.contains(&(message.statement.get_batch_number() as i64))
         })
         .collect();
-    event!(Level::INFO, "FF 3 num relevant_plaintexts {}", relevant_plaintexts.len());
+    event!(
+        Level::INFO,
+        "FF 3 num relevant_plaintexts {}",
+        relevant_plaintexts.len()
+    );
 
     // get ballot styles, from where we'll get the Contest(s)
     let ballot_styles: Vec<BallotStyle> = tally_session_data
@@ -174,12 +177,16 @@ pub async fn execute_tally_session(
             ballot_style_res
         })
         .collect::<Result<Vec<BallotStyle>>>()?;
-    event!(Level::INFO, "FF 4 num ballot_styles {}", ballot_styles.len());
+    event!(
+        Level::INFO,
+        "FF 4 num ballot_styles {}",
+        ballot_styles.len()
+    );
 
     // map plaintexts to contests
     let plaintexts_data: Vec<_> = relevant_plaintexts
         .iter()
-        .map(|plaintexts_message| {
+        .filter_map(|plaintexts_message| {
             plaintexts_message.artifact.clone().map(|artifact| {
                 let plaintexts = Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
                     .ok()
@@ -189,26 +196,20 @@ pub async fn execute_tally_session(
                     .sequent_backend_tally_session_contest
                     .iter()
                     .find(|tsc| tsc.session_id == batch_num as i64);
-                let contest = tally_session_contest_opt
-                    .map(|tally_session_contest| {
-                        ballot_styles
-                            .iter()
-                            .find(|ballot_style| {
-                                ballot_style.area_id == tally_session_contest.area_id
-                            })
-                            .map(|ballot_style| {
-                                ballot_style
-                                    .contests
-                                    .iter()
-                                    .find(|contest| contest.id == tally_session_contest.contest_id)
-                            })
-                            .flatten()
-                    })
-                    .flatten();
+                let contest = tally_session_contest_opt.and_then(|tally_session_contest| {
+                    ballot_styles
+                        .iter()
+                        .find(|ballot_style| ballot_style.area_id == tally_session_contest.area_id)
+                        .and_then(|ballot_style| {
+                            ballot_style
+                                .contests
+                                .iter()
+                                .find(|contest| contest.id == tally_session_contest.contest_id)
+                        })
+                });
                 (plaintexts, tally_session_contest_opt, contest)
             })
         })
-        .filter_map(|s| s)
         .filter_map(|s| {
             let (plaintexts_opt, tally_session_contest_opt, contest_opt) = s;
             if plaintexts_opt.is_some()
@@ -225,7 +226,11 @@ pub async fn execute_tally_session(
             }
         })
         .collect();
-    event!(Level::INFO, "FF 5 num plaintexts_data {}", plaintexts_data.len());
+    event!(
+        Level::INFO,
+        "FF 5 num plaintexts_data {}",
+        plaintexts_data.len()
+    );
 
     let paths = plaintexts_data
         .iter()
