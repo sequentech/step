@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@apollo/client": "3.8.0",
+    "@bb-tech/ra-components": "2.0.6",
     "@emotion/react": "11.10.0",
     "@emotion/styled": "11.10.0",
     "@fortawesome/fontawesome-svg-core": "^6.1.1",

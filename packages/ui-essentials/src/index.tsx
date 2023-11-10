@@ -1,6 +1,6 @@
 import React from "react"
 export {default as useTemplate} from "./useTemplate"
-export {default as theme} from "./services/theme"
+export {default as theme, adminTheme} from "./services/theme"
 export {default as i18n, getLanguages, initializeLanguages} from "./services/i18n"
 export {default as Header} from "./components/Header/Header"
 export {default as Dialog} from "./components/Dialog/Dialog"
@@ -31,3 +31,4 @@ export {default as CandidatesList} from "./components/CandidatesList/CandidatesL
 export {shuffle, splitList, keyBy} from "./utils/array"
 export {default as SelectElection} from "./components/SelectElection/SelectElection"
 export {normalizeWriteInText} from "./services/normalizeWriteInText"
+export {default as Tree} from "./components/Tree/Tree"
