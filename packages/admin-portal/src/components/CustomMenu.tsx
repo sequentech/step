@@ -11,11 +11,12 @@ import {
     faPlusCircle,
     faFileText,
 } from "@fortawesome/free-solid-svg-icons"
-import {IconButton, theme} from "@sequentech/ui-essentials"
+import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {HorizontalBox} from "./HorizontalBox"
-import {Box, MenuItem, Select, SelectChangeEvent} from "@mui/material"
+import {Box, MenuItem, Paper, Select, SelectChangeEvent} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Link} from "react-router-dom"
+import {TreeMenu} from "./TreeMenu"
 
 export const useTenantStore: () => [string | null, (tenantId: string | null) => void] = () => {
     return [
@@ -25,12 +26,21 @@ export const useTenantStore: () => [string | null, (tenantId: string | null) => 
 }
 
 const StyledItem = styled(Menu.Item)`
-    color: ${theme.palette.brandColor};
+    color: ${adminTheme.palette.brandColor};
 
     &.RaMenuItemLink-active,
     .MuiIconButton-root {
-        color: ${theme.palette.brandColor};
+        color: ${adminTheme.palette.brandColor};
     }
+`
+
+const StyledMenu = styled(Menu)`
+    background-color: ${adminTheme.palette.white};
+    color: ${adminTheme.palette.brandColor};
+    margin-top: 0;
+    margin-right: 4px;
+    box-shadow: 0px 2px 1px -1px rgba(0, 0, 0, 0.20), 0px 1px 1px 0px rgba(0, 0, 0, 0.14), 0px 1px 3px 0px rgba(0, 0, 0, 0.12); 
+    border-radius: 4px;
 `
 
 const CustomerSelector: React.FC = () => {
@@ -83,38 +93,21 @@ export const CustomMenu = () => {
     }, [resource])
 
     return (
-        <Menu
+        <StyledMenu
             sx={{
                 ".RaMenuItemLink-active": {
-                    backgroundColor: theme.palette.green.light,
+                    backgroundColor: adminTheme.palette.green.light,
                 },
-                "color": theme.palette.brandColor,
+                '&.RaMenu-open': {
+                    width: "296px",
+                }
             }}
         >
             <CustomerSelector />
+            <TreeMenu />
             <StyledItem
                 to="/pgaudit"
                 primaryText="PG Audit"
-                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-            />
-            <StyledItem
-                to="/sequent_backend_election_event"
-                primaryText="Election Events"
-                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-            />
-            <StyledItem
-                to="/sequent_backend_election"
-                primaryText="Elections"
-                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-            />
-            <StyledItem
-                to="/sequent_backend_contest"
-                primaryText="Contests"
-                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-            />
-            <StyledItem
-                to="/sequent_backend_candidate"
-                primaryText="Candidates"
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
             />
             <StyledItem
@@ -162,6 +155,6 @@ export const CustomMenu = () => {
                 primaryText="Messages"
                 leftIcon={<IconButton icon={faStar} fontSize="24px" />}
             />
-        </Menu>
+        </StyledMenu>
     )
 }

@@ -175,12 +175,17 @@ const convertToElection = (input: IElectionDTO): IElection => ({
 })
 
 export const ElectionSelectionScreen: React.FC = () => {
+    const [ballotStyleElectionIds, setBallotStyleElectionIds] = useState<Array<string>>([])
     const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
     const {
         loading: loadingElections,
         error: errorElections,
         data: dataElections,
-    } = useQuery<GetElectionsQuery>(GET_ELECTIONS)
+    } = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
+        variables: {
+            electionIds: ballotStyleElectionIds,
+        },
+    })
     const dispatch = useAppDispatch()
     const {t} = useTranslation()
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
@@ -199,6 +204,12 @@ export const ElectionSelectionScreen: React.FC = () => {
     useEffect(() => {
         if (!loading && !error && data) {
             updateBallotStyleAndSelection(data, dispatch)
+
+            let electionIds = data.sequent_backend_ballot_style
+                .map((ballotStyle) => ballotStyle.election_id as string | null)
+                .filter((ballotStyle) => isString(ballotStyle)) as Array<string>
+
+            setBallotStyleElectionIds(electionIds)
         }
     }, [loading, error, data, dispatch])
 
