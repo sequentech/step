@@ -91,7 +91,8 @@ impl Pipe for DecodeBallots {
 
                             fs::create_dir_all(&output_path)?;
                             output_path.push(OUTPUT_DECODED_BALLOTS_FILE);
-                            let file = File::create(output_path)?;
+                            let file = File::create(&output_path)
+                                .map_err(|e| Error::FileAccess(output_path, e))?;
 
                             serde_json::to_writer(file, &decoded_ballots)?;
                         }
