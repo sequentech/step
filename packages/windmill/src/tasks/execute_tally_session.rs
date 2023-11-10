@@ -142,7 +142,7 @@ pub async fn execute_tally_session(
         .is_some();
 
     if !has_next_plaintext {
-        event!(Level::INFO, "Board has no new relevant plaintexs",);
+        event!(Level::INFO, "Board has no new relevant plaintexs");
         return Ok(());
     }
 
@@ -171,7 +171,7 @@ pub async fn execute_tally_session(
         })
         .collect::<Result<Vec<BallotStyle>>>()?;
 
-    let _data: Vec<_> = relevant_plaintexts
+    let plaintexts_data: Vec<_> = relevant_plaintexts
         .iter()
         .map(|plaintexts_message| {
             plaintexts_message.artifact.clone().map(|artifact| {
@@ -220,60 +220,33 @@ pub async fn execute_tally_session(
         })
         .collect();
 
-    // TODO: fetch contest from Hasura
-    let contest = Contest {
-        id: "63b1-f93b-4151-93d6-bbe0ea5eac46 69f2f987-460c-48ac-ac7a-4d44d99b37e6".into(),
-        tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".into(),
-        election_event_id: "33f18502-a67c-4853-8333-a58630663559".into(),
-        election_id: "f2f1065e-b784-46d1-b81a-c71bfeb9ad55".into(),
-        name: Some("Secretario General".into()),
-        description: Some(
-            "Elige quien quieres que sea tu Secretario General en tu municipio".into(),
-        ),
-        max_votes: 1,
-        min_votes: 0,
-        winning_candidates_num: 1,
-        voting_type: Some("first-past-the-post".into()),
-        counting_algorithm: Some("plurality-at-large".into()),
-        is_encrypted: true,
-        candidates: vec![],
-        presentation: Some(ContestPresentation {
-            allow_writeins: false,
-            base32_writeins: true,
-            invalid_vote_policy: "allowed".into(),
-            cumulative_number_of_checkboxes: None,
-            shuffle_categories: true,
-            shuffle_all_options: true,
-            shuffle_category_list: None,
-            show_points: false,
-            enable_checkable_lists: None,
-        }),
-    };
+    let _paths = plaintexts_data
+        .iter()
+        .map(|area_contest_plaintext| {
+            let (plaintexts, tally_session_contest, contest) = area_contest_plaintext;
 
-    let encoded_ballots = messages
-        .into_iter()
-        .filter(|m| matches!(m.statement, Statement::Plaintexts(..)))
-        .map(|m| {
-            // TODO: handle unwraps
-            let artifact = m.artifact.unwrap();
-            let res = Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact).unwrap();
-            let res = res.0 .0;
-            let biguit_ballots = contest
-                .decode_plaintext_contest_to_biguint(&res[0])
-                .unwrap();
+            let biguit_ballots = plaintexts
+                .iter()
+                .map(|plaintext| {
+                    // TODO: handle unwraps
+                    let biguint = contest
+                        .decode_plaintext_contest_to_biguint(plaintext)
+                        .unwrap();
 
-            // Testing decoded ballots here: to be removed
-            let decoded_ballots = contest.decode_plaintext_contest_bigint(&biguit_ballots);
-            dbg!(&decoded_ballots);
+                    // Testing decoded ballots here: to be removed
+                    let _decoded_ballot =
+                        contest.decode_plaintext_contest_bigint(&biguint).unwrap();
+                    biguint.to_str_radix(10)
+                })
+                .collect::<Vec<_>>();
 
-            biguit_ballots.to_str_radix(10)
+            let path = PathBuf::from("/tmp/ballots.csv");
+            let mut file = File::create(path.clone()).expect("Could not create file");
+            let buffer = biguit_ballots.join("\n").into_bytes();
+            file.write_all(&buffer).expect("Cannot written to file");
+            path
         })
         .collect::<Vec<_>>();
-
-    let path = PathBuf::from("/tmp/ballots.csv");
-    let mut file = File::create(path).expect("Could not create file");
-    let buffer = encoded_ballots.join("\n").into_bytes();
-    file.write_all(&buffer).expect("Cannot written to file");
 
     Ok(())
 }
