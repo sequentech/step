@@ -258,6 +258,10 @@ impl Statement {
         self.get_data().1
     }
 
+    pub fn get_batch_number(&self) -> BatchNumber {
+        self.get_data().2
+    }
+
     pub fn get_timestamp(&self) -> Timestamp {
         self.get_data().5
     }

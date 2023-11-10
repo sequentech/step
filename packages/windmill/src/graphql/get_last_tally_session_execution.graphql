@@ -55,6 +55,7 @@ query GetLastTallySessionExecution(
         election_event_id
         area_id
         contest_id
+        session_id
         created_at
         last_updated_at
         labels

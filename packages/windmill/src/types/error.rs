@@ -6,6 +6,7 @@ use celery;
 use celery::prelude::{TaskError, TaskResult};
 use handlebars;
 use serde_json;
+use strand::util::StrandError;
 
 quick_error! {
     #[derive(Debug)]
@@ -43,6 +44,12 @@ impl From<celery::error::CeleryError> for Error {
 
 impl From<handlebars::RenderError> for Error {
     fn from(err: handlebars::RenderError) -> Self {
+        Error::String(format!("{:?}", err))
+    }
+}
+
+impl From<StrandError> for Error {
+    fn from(err: StrandError) -> Self {
         Error::String(format!("{:?}", err))
     }
 }

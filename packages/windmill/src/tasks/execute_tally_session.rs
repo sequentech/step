@@ -6,7 +6,9 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use braid_messages::{artifact::Plaintexts, message::Message, statement::Statement};
+use braid_messages::{
+    artifact::Plaintexts, message::Message, statement::Statement, statement::StatementType,
+};
 use celery::prelude::TaskError;
 use sequent_core::ballot::{Contest, ContestPresentation};
 use sequent_core::ballot_codec::{BigUIntCodec, PlaintextCodec};
@@ -41,6 +43,7 @@ pub async fn execute_tally_session(
     .expect("expected data")
     .sequent_backend_election_event;
 
+    // check election event is found
     if 0 == election_events.len() {
         event!(
             Level::INFO,
@@ -52,6 +55,7 @@ pub async fn execute_tally_session(
 
     let election_event = &election_events[0];
 
+    // get name of bulletin board
     let bulletin_board_opt =
         get_election_event_board(election_event.bulletin_board_reference.clone());
 
@@ -66,6 +70,8 @@ pub async fn execute_tally_session(
 
     let bulletin_board = bulletin_board_opt.unwrap();
 
+    // get all data for the execution: the last tally session execution,
+    // the list of tally_session_contest, and the ballot styles
     let tally_session_data = hasura::tally_session_execution::get_last_tally_session_execution(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -76,11 +82,13 @@ pub async fn execute_tally_session(
     .data
     .expect("expected data");
 
+    // if the execution is completed, we don't need to do anything
     if tally_session_data.sequent_backend_tally_session[0].is_execution_completed {
         event!(Level::INFO, "Tally session execution is completed",);
         return Ok(());
     }
 
+    // get last message id
     let last_message_id = if tally_session_data
         .sequent_backend_tally_session_execution
         .len()
@@ -95,17 +103,41 @@ pub async fn execute_tally_session(
 
     let board_messages = board_client.get_messages(&bulletin_board, -1).await?;
 
-    let has_new_messages = board_messages
+    let next_new_board_message_opt = board_messages
         .iter()
-        .find(|message| message.id > last_message_id)
-        .is_some();
+        .find(|board_message| board_message.id > last_message_id);
 
-    if !has_new_messages {
+    if next_new_board_message_opt.is_none() {
         event!(Level::INFO, "Board has no new messages",);
         return Ok(());
     }
 
+    let next_timestamp =
+        Message::strand_deserialize(&next_new_board_message_opt.clone().unwrap().message)?
+            .statement
+            .get_timestamp();
+
+    let batch_ids = tally_session_data
+        .sequent_backend_tally_session_contest
+        .iter()
+        .map(|tsc| tsc.session_id)
+        .collect::<Vec<_>>();
+
     let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
+
+    let has_next_plaintext = messages
+        .iter()
+        .find(|message| {
+            message.statement.get_timestamp() >= next_timestamp
+                && message.statement.get_kind() == StatementType::Plaintexts
+                && batch_ids.contains(&(message.statement.get_batch_number() as i64))
+        })
+        .is_some();
+
+    if !has_next_plaintext {
+        event!(Level::INFO, "Board has no new relevant plaintexs",);
+        return Ok(());
+    }
 
     // TODO: fetch contest from Hasura
     let contest = Contest {
