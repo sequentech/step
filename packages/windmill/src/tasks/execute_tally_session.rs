@@ -171,6 +171,55 @@ pub async fn execute_tally_session(
         })
         .collect::<Result<Vec<BallotStyle>>>()?;
 
+    let _data: Vec<_> = relevant_plaintexts
+        .iter()
+        .map(|plaintexts_message| {
+            plaintexts_message.artifact.clone().map(|artifact| {
+                let plaintexts = Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
+                    .ok()
+                    .map(|plaintexts| plaintexts.0 .0);
+                let batch_num = plaintexts_message.statement.get_batch_number();
+                let tally_session_contest_opt = tally_session_data
+                    .sequent_backend_tally_session_contest
+                    .iter()
+                    .find(|tsc| tsc.session_id == batch_num as i64);
+                let contest = tally_session_contest_opt
+                    .map(|tally_session_contest| {
+                        ballot_styles
+                            .iter()
+                            .find(|ballot_style| {
+                                ballot_style.area_id == tally_session_contest.area_id
+                            })
+                            .map(|ballot_style| {
+                                ballot_style
+                                    .contests
+                                    .iter()
+                                    .find(|contest| contest.id == tally_session_contest.contest_id)
+                            })
+                            .flatten()
+                    })
+                    .flatten();
+                (plaintexts, tally_session_contest_opt, contest)
+            })
+        })
+        .filter_map(|s| s)
+        .filter_map(|s| {
+            let (plaintexts_opt, tally_session_contest_opt, contest_opt) = s;
+            if plaintexts_opt.is_some()
+                && tally_session_contest_opt.is_some()
+                && contest_opt.is_some()
+            {
+                Some((
+                    plaintexts_opt.unwrap(),
+                    tally_session_contest_opt.unwrap(),
+                    contest_opt.unwrap(),
+                ))
+            } else {
+                None
+            }
+        })
+        .collect();
+
     // TODO: fetch contest from Hasura
     let contest = Contest {
         id: "63b1-f93b-4151-93d6-bbe0ea5eac46 69f2f987-460c-48ac-ac7a-4d44d99b37e6".into(),
