@@ -10,7 +10,7 @@ use braid_messages::{
     artifact::Plaintexts, message::Message, statement::Statement, statement::StatementType,
 };
 use celery::prelude::TaskError;
-use sequent_core::ballot::{Contest, ContestPresentation};
+use sequent_core::ballot::{BallotStyle, Contest, ContestPresentation};
 use sequent_core::ballot_codec::{BigUIntCodec, PlaintextCodec};
 use sequent_core::services::keycloak;
 use strand::{backend::ristretto::RistrettoCtx, serialization::StrandDeserialize};
@@ -19,6 +19,7 @@ use tracing::{event, instrument, Level};
 use crate::hasura;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
+use crate::types::error;
 use crate::{services::protocol_manager, types::error::Result};
 
 #[instrument]
@@ -153,6 +154,22 @@ pub async fn execute_tally_session(
                 && batch_ids.contains(&(message.statement.get_batch_number() as i64))
         })
         .collect();
+
+    let ballot_styles: Vec<BallotStyle> = tally_session_data
+        .sequent_backend_ballot_style
+        .iter()
+        .map(|ballot_style_row| {
+            let ballot_style_res: Result<BallotStyle, error::Error> = serde_json::from_str(
+                ballot_style_row
+                    .ballot_eml
+                    .clone()
+                    .unwrap_or("".into())
+                    .as_str(),
+            )
+            .map_err(|error| error.into());
+            ballot_style_res
+        })
+        .collect::<Result<Vec<BallotStyle>>>()?;
 
     // TODO: fetch contest from Hasura
     let contest = Contest {
