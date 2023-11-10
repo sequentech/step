@@ -130,7 +130,7 @@ pub async fn execute_tally_session(
     // convert board messages into messages
     let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
 
-    // find if there are new plaintexs (= with higher timestamp) that have the batch ids we need
+    // find if there are new plaintexs (= with equal/higher timestamp) that have the batch ids we need
     let has_next_plaintext = messages
         .iter()
         .find(|message| {
