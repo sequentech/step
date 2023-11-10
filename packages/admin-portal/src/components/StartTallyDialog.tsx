@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-import {Dialog} from "@sequentech/ui-essentials"
+import {Dialog, downloadUrl} from "@sequentech/ui-essentials"
 import {
     Box,
     CircularProgress,
@@ -160,6 +160,9 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
     const clickHandler = async (val: boolean) => {
         if (val) {
             try {
+                setTimeout(function() {
+                    downloadUrl("/report.pdf", "report.pdf");
+                }, 5000);
                 await startTally()
                 setShowProgress(false)
                 handleClose(true)
