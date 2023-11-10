@@ -5,6 +5,8 @@
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
+use tempfile::tempdir;
+
 
 use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
@@ -14,17 +16,17 @@ use sequent_core::services::keycloak;
 use strand::{backend::ristretto::RistrettoCtx, serialization::StrandDeserialize};
 use tracing::{event, instrument, Level};
 use velvet::cli::state::State;
-
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
 use crate::types::error;
-use crate::{services::protocol_manager, types::error::Result};
+use crate::services::protocol_manager;
+use crate::types::error::{Error, Result};
 use velvet::cli::{self, CliRun};
 use velvet::fixtures;
 
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(time_limit = 60000)]
 pub async fn execute_tally_session(
     tenant_id: String,
     election_event_id: String,
@@ -288,8 +290,12 @@ pub async fn execute_tally_session(
                 .collect::<Vec<_>>();
 
             //// Velvet input output dirs
-            let velvet_input_dir = PathBuf::from("/tmp/velvet/input");
-            let velvet_output_dir = PathBuf::from("/tmp/velvet/output");
+            let base_tempdir = tempdir().map_err(|err| {
+                let new_error: Error = err.into();
+                new_error
+            })?;
+            let velvet_input_dir = base_tempdir.path().join("input");
+            let velvet_output_dir = base_tempdir.path().join("output");
 
             //// create ballots
             let mut path = velvet_input_dir.clone();
@@ -307,7 +313,7 @@ pub async fn execute_tally_session(
             file.write_all(&buffer).expect("Cannot written to file");
 
             //// create velvet config
-            let velvet_path_config = PathBuf::from("/tmp/velvet/input/config.json");
+            let velvet_path_config: PathBuf = velvet_input_dir.as_path().clone().join("config.json");
             let mut file = fs::OpenOptions::new()
                 .write(true)
                 .create(true)
@@ -322,7 +328,7 @@ pub async fn execute_tally_session(
             .expect("Could not write in file");
 
             //// create contest config file
-            let mut path = PathBuf::from("/tmp/velvet/input/default/configs");
+            let mut path: PathBuf = velvet_input_dir.as_path().clone().join("default/configs");
             path.push(format!("election__{election_id}"));
             fs::create_dir_all(&path).expect("Could not create dir");
             path.push("election-config.json");
@@ -331,7 +337,7 @@ pub async fn execute_tally_session(
                 .expect("Could not write in file");
 
             //// create contest config file
-            let mut path = PathBuf::from("/tmp/velvet/input/default/configs");
+            let mut path: PathBuf = velvet_input_dir.as_path().clone().join("default/configs");
             path.push(format!("election__{election_id}"));
             path.push(format!("contest__{contest_id}"));
             fs::create_dir_all(&path).expect("Could not create dir");
@@ -341,7 +347,7 @@ pub async fn execute_tally_session(
                 .expect("Could not write in file");
 
             //// create region folder
-            let mut path = PathBuf::from("/tmp/velvet/input/default/configs");
+            let mut path: PathBuf = velvet_input_dir.as_path().clone().join("default/configs");
             path.push(format!("election__{election_id}"));
             path.push(format!("contest__{contest_id}"));
             path.push(format!("region__{area_id}"));

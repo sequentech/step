@@ -54,4 +54,10 @@ impl From<StrandError> for Error {
     }
 }
 
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Error::String(format!("{:?}", err))
+    }
+}
+
 pub type Result<T, E = Error> = std::result::Result<T, E>;
