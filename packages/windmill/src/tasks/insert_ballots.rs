@@ -128,19 +128,15 @@ pub async fn insert_ballots(
                 .content
                 .clone()
                 .map(|ballot_str| {
-                    let hashable_ballot: Option<HashableBallot<RistrettoCtx>> =
-                        Base64Deserialize::deserialize(ballot_str).ok();
+                    let hashable_ballot: HashableBallot<RistrettoCtx> =
+                        Base64Deserialize::deserialize(ballot_str).unwrap();
                     hashable_ballot
-                        .map(|value| {
-                            value
                                 .contests
                                 .iter()
                                 .find(|contest| {
                                     contest.contest_id == tally_session_contest.contest_id
                                 })
                                 .map(|contest| contest.ciphertext.clone())
-                        })
-                        .flatten()
                 })
                 .flatten()
         })

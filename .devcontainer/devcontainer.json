@@ -62,7 +62,10 @@
         		"zxh404.vscode-proto3",
 
                 // Allows to use Alt+Q (or Option+Q in mac) to rewrap lines
-                "stkb.rewrap"
+                "stkb.rewrap",
+
+				// Mermaid support in markdown
+				"bierner.markdown-mermaid"
     		]
 		}
 	}

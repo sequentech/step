@@ -113,6 +113,7 @@ impl From<get_ballot_style_area::GetBallotStyleAreaSequentBackendAreaContestCont
             presentation: contest.presentation.clone(),
             min_votes: contest.min_votes.clone(),
             max_votes: contest.max_votes.clone(),
+            winning_candidates_num: contest.winning_candidates_num,
             voting_type: contest.voting_type.clone(),
             counting_algorithm: contest.counting_algorithm.clone(),
             is_encrypted: contest.is_encrypted.clone(),

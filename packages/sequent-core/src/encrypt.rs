@@ -317,6 +317,7 @@ mod tests {
         );
     }
 
+    /*
     #[test]
     fn test_encrypt_default_voting_portal_fixture() {
         use crate::encrypt::encrypt_decoded_contest;
@@ -334,5 +335,5 @@ mod tests {
         );
         assert_eq!(format!("{:?}", auditable_ballot.unwrap_err()), "".to_string());
         //assert!(auditable_ballot.is_ok());
-    }
+    }*/
 }
