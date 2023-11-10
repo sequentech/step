@@ -153,7 +153,7 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
         if (data) {
             console.log(data)
         }
-        setShowProgress(false)
+        //setShowProgress(false)
         refresh()
     }
 
@@ -161,11 +161,11 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
         if (val) {
             try {
                 setTimeout(function() {
+                    setShowProgress(false)
+                    handleClose(true)
                     downloadUrl("/report.pdf", "report.pdf");
                 }, 5000);
                 await startTally()
-                setShowProgress(false)
-                handleClose(true)
             } catch (error) {
                 console.log(`Error trying to start tally: ${error}`)
                 setShowProgress(false)
