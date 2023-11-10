@@ -104,6 +104,6 @@ type ScheduledEventOutput2 {
 }
 
 type ScheduledEventOutput3 {
-  tenant_id: String
+  id: String
 }
 
