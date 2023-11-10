@@ -12,14 +12,14 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
         {...props}
         sx={{
             "& .RaLayout-appFrame": {
-                marginTop: 0,
+                /*marginTop: 0,
                 position: "absolute",
                 top: 0,
                 right: 0,
                 left: 0,
                 bottom: 0,
                 overflow: "auto",
-                backgroundColor: adminTheme.palette.lightBackground,
+                backgroundColor: adminTheme.palette.lightBackground,*/
             },
             "& .MuiPaper-root": {
                 //boxShadow: "unset",

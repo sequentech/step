@@ -86,6 +86,7 @@ const CustomerSelector: React.FC = () => {
 }
 
 export const CustomMenu = () => {
+    const [open] = useSidebarState()
     const resource = useResourceContext()
 
     useEffect(() => {
@@ -104,55 +105,55 @@ export const CustomMenu = () => {
             }}
         >
             <CustomerSelector />
-            <TreeMenu />
+            <TreeMenu isOpen={open}/>
             <StyledItem
                 to="/pgaudit"
-                primaryText="PG Audit"
+                primaryText={open? "PG Audit" : null}
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
             />
             <StyledItem
                 to="/sequent_backend_area"
-                primaryText="Areas"
+                primaryText={open? "Areas" : null}
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
             />
             <StyledItem
                 to="/sequent_backend_area_contest"
-                primaryText="Area Contests"
+                primaryText={open? "Area Contests" : null}
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
             />
             <StyledItem
                 to="/sequent_backend_ballot_style"
-                primaryText="Ballot Styles"
+                primaryText={open? "Ballot Styles" : null}
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
             />
             <StyledItem
                 to="/sequent_backend_tenant"
-                primaryText="Customers"
+                primaryText={open? "Customers" : null}
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
             />
             <StyledItem
                 to="/sequent_backend_document"
-                primaryText="Documents"
+                primaryText={open? "Documents" : null}
                 leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
             />
             <StyledItem
                 to="/sequent_backend_trustee"
-                primaryText="Trustees"
+                primaryText={open? "Trustees" : null}
                 leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
             />
             <StyledItem
                 to="/user-roles"
-                primaryText="User and Roles"
+                primaryText={open? "User and Roles" : null}
                 leftIcon={<IconButton icon={faUsers} fontSize="24px" />}
             />
             <StyledItem
                 to="/settings"
-                primaryText="Settings"
+                primaryText={open? "Settings" : null}
                 leftIcon={<IconButton icon={faCog} fontSize="24px" />}
             />
             <StyledItem
                 to="/messages"
-                primaryText="Messages"
+                primaryText={open? "Messages" : null}
                 leftIcon={<IconButton icon={faStar} fontSize="24px" />}
             />
         </StyledMenu>
