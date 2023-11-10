@@ -155,6 +155,7 @@ pub async fn execute_tally_session(
         })
         .collect();
 
+    // get ballot styles, from where we'll get the Contest(s)
     let ballot_styles: Vec<BallotStyle> = tally_session_data
         .sequent_backend_ballot_style
         .iter()
@@ -171,6 +172,7 @@ pub async fn execute_tally_session(
         })
         .collect::<Result<Vec<BallotStyle>>>()?;
 
+    // map plaintexts to contests
     let plaintexts_data: Vec<_> = relevant_plaintexts
         .iter()
         .map(|plaintexts_message| {
@@ -224,6 +226,12 @@ pub async fn execute_tally_session(
         .iter()
         .map(|area_contest_plaintext| {
             let (plaintexts, tally_session_contest, contest) = area_contest_plaintext;
+
+            // here if you need it
+            let _area_id = tally_session_contest.area_id.clone();
+            let _contest_id = contest.id.clone();
+            let _election_id = contest.election_id.clone();
+            let _election_event_id = contest.election_event_id.clone();
 
             let biguit_ballots = plaintexts
                 .iter()
