@@ -256,5 +256,6 @@ pub async fn execute_tally_session(
         })
         .collect::<Vec<_>>();
 
+    // Missing: insert tally_session_execution in hasura
     Ok(())
 }
