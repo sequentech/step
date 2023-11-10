@@ -111,6 +111,11 @@ export const CustomMenu = () => {
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
             />
             <StyledItem
+                to="/sequent_backend_election_event"
+                primaryText="Election Events"
+                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+            />
+            <StyledItem
                 to="/sequent_backend_area"
                 primaryText="Areas"
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
