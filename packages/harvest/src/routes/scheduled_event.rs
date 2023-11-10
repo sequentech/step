@@ -25,7 +25,7 @@ pub struct CreateEventBody {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CreateEventOutput {
-    pub tenant_id: String
+    pub id: String
 }
 
 #[instrument(skip(_auth_headers))]
@@ -39,6 +39,6 @@ pub async fn create_scheduled_event(
     services::worker::process_scheduled_event(input.clone()).await?;
 
     Ok(Json(CreateEventOutput {
-        tenant_id: input.tenant_id,
+        id: input.tenant_id,
     }))
 }
