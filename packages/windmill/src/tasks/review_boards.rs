@@ -35,8 +35,8 @@ pub async fn review_boards() -> Result<()> {
         for election_event in election_events {
             let task2 = celery_app
                 .send_task(process_board::new(
-                    election_event.id.clone(),
                     election_event.tenant_id.clone(),
+                    election_event.id.clone(),
                 ))
                 .await?;
             event!(Level::INFO, "Sent task {}", task2.task_id);

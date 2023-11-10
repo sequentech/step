@@ -128,6 +128,8 @@ pub async fn insert_ballots(
                 .content
                 .clone()
                 .map(|ballot_str| {
+                    event!(Level::INFO, "deserializing ballot: '{:?}'", ballot_str);
+
                     let hashable_ballot: HashableBallot<RistrettoCtx> =
                         Base64Deserialize::deserialize(ballot_str).unwrap();
                     hashable_ballot

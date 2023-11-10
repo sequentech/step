@@ -26,8 +26,8 @@ use crate::{services::protocol_manager, types::error::Result};
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn execute_tally_session(
-    election_event_id: String,
     tenant_id: String,
+    election_event_id: String,
     tally_session_id: String,
 ) -> Result<()> {
     // get credentials
@@ -103,6 +103,7 @@ pub async fn execute_tally_session(
     // get board messages
     let mut board_client = protocol_manager::get_board_client().await?;
     let board_messages = board_client.get_messages(&bulletin_board, -1).await?;
+    event!(Level::INFO, "FF 1 num board_messages {}", board_messages.len());
 
     // find a new board message
     let next_new_board_message_opt = board_messages
@@ -127,6 +128,7 @@ pub async fn execute_tally_session(
         .iter()
         .map(|tsc| tsc.session_id)
         .collect::<Vec<_>>();
+    event!(Level::INFO, "FF 2 num batch_ids {}", batch_ids.len());
 
     // convert board messages into messages
     let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
@@ -154,6 +156,7 @@ pub async fn execute_tally_session(
                 && batch_ids.contains(&(message.statement.get_batch_number() as i64))
         })
         .collect();
+    event!(Level::INFO, "FF 3 num relevant_plaintexts {}", relevant_plaintexts.len());
 
     // get ballot styles, from where we'll get the Contest(s)
     let ballot_styles: Vec<BallotStyle> = tally_session_data
@@ -171,6 +174,7 @@ pub async fn execute_tally_session(
             ballot_style_res
         })
         .collect::<Result<Vec<BallotStyle>>>()?;
+    event!(Level::INFO, "FF 4 num ballot_styles {}", ballot_styles.len());
 
     // map plaintexts to contests
     let plaintexts_data: Vec<_> = relevant_plaintexts
@@ -221,8 +225,9 @@ pub async fn execute_tally_session(
             }
         })
         .collect();
+    event!(Level::INFO, "FF 5 num plaintexts_data {}", plaintexts_data.len());
 
-    let _paths = plaintexts_data
+    let paths = plaintexts_data
         .iter()
         .map(|area_contest_plaintext| {
             let (plaintexts, tally_session_contest, contest) = area_contest_plaintext;
@@ -244,6 +249,7 @@ pub async fn execute_tally_session(
                     // Testing decoded ballots here: to be removed
                     let _decoded_ballot =
                         contest.decode_plaintext_contest_bigint(&biguint).unwrap();
+                    event!(Level::INFO, "FF 6 biguint {}", biguint.to_str_radix(10));
                     biguint.to_str_radix(10)
                 })
                 .collect::<Vec<_>>();
@@ -255,6 +261,7 @@ pub async fn execute_tally_session(
             path
         })
         .collect::<Vec<_>>();
+    event!(Level::INFO, "FF 7 num paths {}", plaintexts_data.len());
 
     // Missing: insert tally_session_execution in hasura
     Ok(())

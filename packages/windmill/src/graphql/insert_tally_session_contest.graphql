@@ -24,7 +24,6 @@ mutation InsertTallySessionContest(
       area_id
       contest_id
       session_id
-      document_id
       created_at
       last_updated_at
       labels
