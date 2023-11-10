@@ -39,7 +39,8 @@ const StyledMenu = styled(Menu)`
     color: ${adminTheme.palette.brandColor};
     margin-top: 0;
     margin-right: 4px;
-    box-shadow: 0px 2px 1px -1px rgba(0, 0, 0, 0.20), 0px 1px 1px 0px rgba(0, 0, 0, 0.14), 0px 1px 3px 0px rgba(0, 0, 0, 0.12); 
+    box-shadow: 0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px 0px rgba(0, 0, 0, 0.14),
+        0px 1px 3px 0px rgba(0, 0, 0, 0.12);
     border-radius: 4px;
 `
 
@@ -99,61 +100,61 @@ export const CustomMenu = () => {
                 ".RaMenuItemLink-active": {
                     backgroundColor: adminTheme.palette.green.light,
                 },
-                '&.RaMenu-open': {
+                "&.RaMenu-open": {
                     width: "296px",
-                }
+                },
             }}
         >
             <CustomerSelector />
-            <TreeMenu isOpen={open}/>
+            <TreeMenu isOpen={open} />
             <StyledItem
                 to="/pgaudit"
-                primaryText={open? "PG Audit" : null}
+                primaryText={open ? "PG Audit" : null}
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
             />
             <StyledItem
                 to="/sequent_backend_area"
-                primaryText={open? "Areas" : null}
+                primaryText={open ? "Areas" : null}
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
             />
             <StyledItem
                 to="/sequent_backend_area_contest"
-                primaryText={open? "Area Contests" : null}
+                primaryText={open ? "Area Contests" : null}
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
             />
             <StyledItem
                 to="/sequent_backend_ballot_style"
-                primaryText={open? "Ballot Styles" : null}
+                primaryText={open ? "Ballot Styles" : null}
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
             />
             <StyledItem
                 to="/sequent_backend_tenant"
-                primaryText={open? "Customers" : null}
+                primaryText={open ? "Customers" : null}
                 leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
             />
             <StyledItem
                 to="/sequent_backend_document"
-                primaryText={open? "Documents" : null}
+                primaryText={open ? "Documents" : null}
                 leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
             />
             <StyledItem
                 to="/sequent_backend_trustee"
-                primaryText={open? "Trustees" : null}
+                primaryText={open ? "Trustees" : null}
                 leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
             />
             <StyledItem
                 to="/user-roles"
-                primaryText={open? "User and Roles" : null}
+                primaryText={open ? "User and Roles" : null}
                 leftIcon={<IconButton icon={faUsers} fontSize="24px" />}
             />
             <StyledItem
                 to="/settings"
-                primaryText={open? "Settings" : null}
+                primaryText={open ? "Settings" : null}
                 leftIcon={<IconButton icon={faCog} fontSize="24px" />}
             />
             <StyledItem
                 to="/messages"
-                primaryText={open? "Messages" : null}
+                primaryText={open ? "Messages" : null}
                 leftIcon={<IconButton icon={faStar} fontSize="24px" />}
             />
         </StyledMenu>

@@ -16,13 +16,22 @@ export const fullAdminTheme = {
         closedWidth: 50,
     },
     components: {
-        ...(mixedAdminTheme.components),
+        ...mixedAdminTheme.components,
         RaSidebar: {
             styleOverrides: {
                 root: {
-                    paddingRight: "4px",
-                }
-            }
+                    "boxShadow":
+                        "0px 2px 1px -1px rgba(0, 0, 0, 0.20), 0px 1px 1px 0px rgba(0, 0, 0, 0.14), 0px 1px 3px 0px rgba(0, 0, 0, 0.12)",
+                    "paddingRight": "4px",
+                    "paddingLeft": "4px",
+                    "& .RaMenu-open": {
+                        overflow: "clip",
+                    },
+                    "& .RaMenu-closed": {
+                        overflow: "clip",
+                    },
+                },
+            },
         },
         RaLayout: {
             styleOverrides: {
@@ -37,9 +46,8 @@ export const fullAdminTheme = {
                         overflow: "auto",
                         backgroundColor: adminTheme.palette.lightBackground,
                     },
-                }
-            }
-        }
-    }
+                },
+            },
+        },
+    },
 }
-

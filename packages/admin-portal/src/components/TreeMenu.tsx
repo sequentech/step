@@ -92,7 +92,12 @@ interface TreeMenuItemProps {
     treeResources: Array<ResourceDefinition<Options>>
 }
 
-const TreeMenuItem: React.FC<TreeMenuItemProps> = ({isOpen, resourceType, resource, treeResources}) => {
+const TreeMenuItem: React.FC<TreeMenuItemProps> = ({
+    isOpen,
+    resourceType,
+    resource,
+    treeResources,
+}) => {
     const [open, setOpen] = useState(false)
     const onClick = () => setOpen(!open)
     const hasLeaves = treeResources.length > 0
@@ -104,17 +109,21 @@ const TreeMenuItem: React.FC<TreeMenuItemProps> = ({isOpen, resourceType, resour
                     <StyledIcon icon={open ? faAngleDown : faAngleRight} onClick={onClick} />
                 ) : null}
 
-                {
-                    isOpen
-                    ? <MenuItemLink
+                {isOpen ? (
+                    <MenuItemLink
                         key={resource.name}
                         to={`/${resourceType}/${resource.id}`}
                         primaryText={resource.name}
                     />
-                    : null
-                }
+                ) : null}
             </Horizontal>
-            {open ? <TreeLeaves isOpen={isOpen} resourceId={resource.id} treeResources={treeResources} /> : null}
+            {open ? (
+                <TreeLeaves
+                    isOpen={isOpen}
+                    resourceId={resource.id}
+                    treeResources={treeResources}
+                />
+            ) : null}
         </Box>
     )
 }
@@ -158,7 +167,7 @@ export const TreeMenu: React.FC<TreeMenuProps> = ({isOpen}) => {
 
     return (
         <Box>
-            <TreeLeaves treeResources={treeResources} isOpen={isOpen}/>
+            <TreeLeaves treeResources={treeResources} isOpen={isOpen} />
         </Box>
     )
 }

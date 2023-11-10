@@ -64,7 +64,11 @@ const App = () => {
     if (!dataProvider) return <p>Loading data provider...</p>
 
     return (
-        <Admin dataProvider={dataProvider || undefined} layout={CustomLayout} theme={fullAdminTheme}>
+        <Admin
+            dataProvider={dataProvider || undefined}
+            layout={CustomLayout}
+            theme={fullAdminTheme}
+        >
             <CustomRoutes>
                 <Route path="/user-roles" element={<UserAndRoles />} />
                 <Route path="/settings" element={<Settings />} />
