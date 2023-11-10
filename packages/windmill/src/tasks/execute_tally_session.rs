@@ -99,10 +99,11 @@ pub async fn execute_tally_session(
         -1
     };
 
+    // get board messages
     let mut board_client = protocol_manager::get_board_client().await?;
-
     let board_messages = board_client.get_messages(&bulletin_board, -1).await?;
 
+    // find a new board message
     let next_new_board_message_opt = board_messages
         .iter()
         .find(|board_message| board_message.id > last_message_id);
@@ -112,19 +113,24 @@ pub async fn execute_tally_session(
         return Ok(());
     }
 
+    // find the timestamp of the new board message.
+    // We do this because once we convert into a Message, we lose the link to the board message id
     let next_timestamp =
         Message::strand_deserialize(&next_new_board_message_opt.clone().unwrap().message)?
             .statement
             .get_timestamp();
 
+    // get the batch ids that are linked to this tally session
     let batch_ids = tally_session_data
         .sequent_backend_tally_session_contest
         .iter()
         .map(|tsc| tsc.session_id)
         .collect::<Vec<_>>();
 
+    // convert board messages into messages
     let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
 
+    // find if there are new plaintexs (= with higher timestamp) that have the batch ids we need
     let has_next_plaintext = messages
         .iter()
         .find(|message| {
@@ -139,6 +145,7 @@ pub async fn execute_tally_session(
         return Ok(());
     }
 
+    // find all plaintexs (even with lower ids/timestamps) for this tally session/batch ids
     let relevant_plaintexts: Vec<&Message> = messages
         .iter()
         .filter(|message| {
