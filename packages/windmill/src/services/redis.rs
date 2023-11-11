@@ -5,8 +5,7 @@ use rslock::LockManager;
 use std;
 
 pub fn get_lock_manager() -> LockManager {
-    LockManager::new(vec![
-        std::env::var("REDIS_URI")
-            .unwrap_or_else(|_| "redis://default:yuYae4AiN3aiKoow8AhX@redis:6379/".into()),
-    ])
+    LockManager::new(vec![std::env::var("REDIS_URI").unwrap_or_else(|_| {
+        "redis://default:yuYae4AiN3aiKoow8AhX@redis:6379/".into()
+    })])
 }
