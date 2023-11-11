@@ -1,14 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use celery::error::TaskError;
 use sequent_core::services::connection;
-use sequent_core::services::keycloak;
-use sequent_core::services::{pdf, reports};
 use sequent_core::types::hasura_types::Document;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
-use serde_json::{Map, Value};
 use tracing::instrument;
 
 use crate::hasura;

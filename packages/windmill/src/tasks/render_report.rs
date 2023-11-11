@@ -2,10 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use celery::error::TaskError;
-use sequent_core::services::connection;
 use sequent_core::services::keycloak;
 use sequent_core::services::{pdf, reports};
-use sequent_core::types::hasura_types::Document;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::{Map, Value};
@@ -13,8 +11,8 @@ use tracing::instrument;
 
 use crate::services::documents::upload_and_return_document;
 use crate::hasura;
-use crate::services::date::ISO8601;
-use crate::services::s3;
+
+
 use crate::types::error::Result;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
