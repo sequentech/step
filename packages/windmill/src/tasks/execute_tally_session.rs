@@ -33,6 +33,7 @@ type AreaContestDataType = (
     BallotStyle,
 );
 
+#[instrument(skip_all)]
 fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyle>> {
     // get ballot styles, from where we'll get the Contest(s)
     tally_session_data
@@ -52,6 +53,7 @@ fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyl
         .collect::<Result<Vec<BallotStyle>>>()
 }
 
+#[instrument(skip_all)]
 fn process_plaintexts(
     relevant_plaintexts: Vec<&Message>,
     ballot_styles: Vec<BallotStyle>,
@@ -126,6 +128,7 @@ fn process_plaintexts(
         .collect()
 }
 
+#[instrument(skip_all)]
 async fn map_plaintext_data(
     tenant_id: String,
     election_event_id: String,
@@ -206,11 +209,7 @@ async fn map_plaintext_data(
     // get board messages
     let mut board_client = protocol_manager::get_board_client().await?;
     let board_messages = board_client.get_messages(&bulletin_board, -1).await?;
-    event!(
-        Level::INFO,
-        "FF 1 num board_messages {}",
-        board_messages.len()
-    );
+    event!(Level::INFO, "Num board_messages {}", board_messages.len());
 
     // find a new board message
     let next_new_board_message_opt = board_messages
@@ -234,7 +233,7 @@ async fn map_plaintext_data(
         .iter()
         .map(|tsc| tsc.session_id)
         .collect::<Vec<_>>();
-    event!(Level::INFO, "FF 2 num batch_ids {}", batch_ids.len());
+    event!(Level::INFO, "Num batch_ids {}", batch_ids.len());
 
     // convert board messages into messages
     let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
@@ -253,11 +252,7 @@ async fn map_plaintext_data(
 
     // get ballot styles, from where we'll get the Contest(s)
     let ballot_styles: Vec<BallotStyle> = get_ballot_styles(&tally_session_data)?;
-    event!(
-        Level::INFO,
-        "FF 4 num ballot_styles {}",
-        ballot_styles.len()
-    );
+    event!(Level::INFO, "Num ballot_styles {}", ballot_styles.len());
 
     // find all plaintexs (even with lower ids/timestamps) for this tally session/batch ids
     let relevant_plaintexts: Vec<&Message> = messages
@@ -269,7 +264,7 @@ async fn map_plaintext_data(
         .collect();
     event!(
         Level::INFO,
-        "FF 3 num relevant_plaintexts {}",
+        "Num relevant_plaintexts {}",
         relevant_plaintexts.len()
     );
 
@@ -278,6 +273,7 @@ async fn map_plaintext_data(
     Ok(Some(plaintexts_data))
 }
 
+#[instrument(skip_all)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 fn tally_area_contest(area_contest_plaintext: AreaContestDataType) -> Result<()> {
     let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext;
@@ -297,7 +293,7 @@ fn tally_area_contest(area_contest_plaintext: AreaContestDataType) -> Result<()>
 
             // Testing decoded ballots here: to be removed
             let _decoded_ballot = contest.decode_plaintext_contest_bigint(&biguint).unwrap();
-            event!(Level::INFO, "FF 6 biguint {}", biguint.to_str_radix(10));
+            event!(Level::INFO, "Decoded biguint {}", biguint.to_str_radix(10));
             biguint.to_str_radix(10)
         })
         .collect::<Vec<_>>();
@@ -420,17 +416,11 @@ pub async fn execute_tally_session(
 
     let plaintexts_data = plaintexts_data_opt.unwrap();
 
-    event!(
-        Level::INFO,
-        "FF 5 num plaintexts_data {}",
-        plaintexts_data.len()
-    );
+    event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
 
     let _ = plaintexts_data
         .iter()
         .try_for_each(|area_contest_plaintext| tally_area_contest(area_contest_plaintext.clone()));
-
-    event!(Level::INFO, "FF 7 num paths {}", plaintexts_data.len());
 
     // Missing: insert tally_session_execution in hasura
     Ok(())
