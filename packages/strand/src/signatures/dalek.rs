@@ -80,6 +80,14 @@ impl StrandSignaturePk {
 
         Ok(StrandSignaturePk(sk))
     }
+
+    
+    pub fn from_bytes(bytes: [u8; 32]) -> Result<StrandSignaturePk, StrandError> {
+        let sk = VerifyingKey::from_bytes(&bytes)
+            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        
+        Ok(StrandSignaturePk(sk))
+    }
 }
 
 /// An ed25519-dalek backed signing key.
@@ -164,9 +172,8 @@ impl BorshSerialize for StrandSignaturePk {
 impl BorshDeserialize for StrandSignaturePk {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <[u8; 32]>::deserialize(buf)?;
-        let sk = VerifyingKey::from_bytes(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
-        Ok(StrandSignaturePk(sk))
+
+        StrandSignaturePk::from_bytes(bytes).map_err(|e| Error::new(ErrorKind::Other, e))
     }
 }
 
@@ -183,10 +190,7 @@ impl BorshSerialize for StrandSignature {
 impl BorshDeserialize for StrandSignature {
     fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
         let bytes = <[u8; 64]>::deserialize(buf)?;
-        let signature = Signature::try_from(bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
-
-        Ok(StrandSignature(signature))
+        StrandSignature::from_bytes(bytes).map_err(|e| Error::new(ErrorKind::Other, e))
     }
 }
 
@@ -249,6 +253,7 @@ impl TryFrom<StrandSignature> for String {
 pub(crate) mod tests {
     use super::*;
     use crate::serialization::{StrandDeserialize, StrandSerialize};
+    use x509_parser::prelude::*;
 
     #[test]
     pub fn test_signature() {
@@ -318,7 +323,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_openssl_compat() {
+    fn test_openssl_key_compat() {
         let message = b"ok\n";
         /*
         openssl genpkey -algorithm ed25519 -outform DER -out test25519.der
@@ -357,6 +362,27 @@ pub(crate) mod tests {
         let signature: StrandSignature = signature_string.try_into().unwrap();
 
         let ok = public_key.verify(&signature, message);
+
+        assert!(ok.is_ok());
+    }
+
+    #[test]
+    fn test_x509_parse() {
+        // generates a self-signed certificate
+        // openssl req -key test25519.der -new -x509 -days 365 -outform der -out cert.der
+        
+        let cert_der = include_bytes!("../../cert.der");
+        // parse
+        let (_, res) = X509Certificate::from_der(cert_der).unwrap();
+        // verify signature
+        let pk_bytes: &[u8] = res.tbs_certificate.subject_pki.subject_public_key.as_ref();
+        let pk_bytes: [u8; 32] = util::to_u8_array(pk_bytes).unwrap();
+        let pk = StrandSignaturePk::from_bytes(pk_bytes).unwrap();
+
+        let sig_bytes: [u8; 64] = util::to_u8_array(res.signature_value.as_ref()).unwrap();
+        let sig = StrandSignature::from_bytes(sig_bytes).unwrap();
+
+        let ok = pk.verify(&sig, &res.tbs_certificate.as_ref());
 
         assert!(ok.is_ok());
     }
