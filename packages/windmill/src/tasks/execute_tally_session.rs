@@ -8,7 +8,9 @@ use std::path::PathBuf;
 use tempfile::tempdir;
 
 use crate::hasura;
-use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
+use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
+    GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
+};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::types::error;
@@ -30,6 +32,99 @@ type AreaContestDataType = (
     Contest,
     BallotStyle,
 );
+
+fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyle>> {
+    // get ballot styles, from where we'll get the Contest(s)
+    tally_session_data
+        .sequent_backend_ballot_style
+        .iter()
+        .map(|ballot_style_row| {
+            let ballot_style_res: Result<BallotStyle, error::Error> = serde_json::from_str(
+                ballot_style_row
+                    .ballot_eml
+                    .clone()
+                    .unwrap_or("".into())
+                    .as_str(),
+            )
+            .map_err(|error| error.into());
+            ballot_style_res
+        })
+        .collect::<Result<Vec<BallotStyle>>>()
+}
+
+fn process_plaintexts(
+    relevant_plaintexts: Vec<&Message>,
+    ballot_styles: Vec<BallotStyle>,
+    tally_session_data: ResponseData,
+) -> Vec<AreaContestDataType> {
+    relevant_plaintexts
+        .iter()
+        .filter_map(|plaintexts_message| {
+            plaintexts_message.artifact.clone().map(|artifact| {
+                let plaintexts = Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
+                    .ok()
+                    .map(|plaintexts| plaintexts.0 .0);
+
+                let batch_num = plaintexts_message.statement.get_batch_number();
+
+                let tally_session_contest_opt = tally_session_data
+                    .sequent_backend_tally_session_contest
+                    .iter()
+                    .find(|tsc| tsc.session_id == batch_num as i64);
+
+                let contest = tally_session_contest_opt.and_then(|tally_session_contest| {
+                    ballot_styles
+                        .iter()
+                        .find(|ballot_style| ballot_style.area_id == tally_session_contest.area_id)
+                        .and_then(|ballot_style| {
+                            ballot_style
+                                .contests
+                                .iter()
+                                .find(|contest| contest.id == tally_session_contest.contest_id)
+                        })
+                });
+
+                let ballot_style_opt = ballot_styles.iter().find(|b| {
+                    if let Some(tally_session_contest) = tally_session_contest_opt {
+                        if b.contests
+                            .iter()
+                            .any(|c| c.id == tally_session_contest.contest_id)
+                        {
+                            return true;
+                        }
+                        return false;
+                    }
+
+                    false
+                });
+
+                (
+                    plaintexts,
+                    tally_session_contest_opt,
+                    contest,
+                    ballot_style_opt,
+                )
+            })
+        })
+        .filter_map(|s| {
+            let (plaintexts_opt, tally_session_contest_opt, contest_opt, ballot_style_opt) = s;
+            if plaintexts_opt.is_some()
+                && tally_session_contest_opt.is_some()
+                && contest_opt.is_some()
+                && ballot_style_opt.is_some()
+            {
+                Some((
+                    plaintexts_opt.unwrap(),
+                    tally_session_contest_opt.unwrap().clone(),
+                    contest_opt.unwrap().clone(),
+                    ballot_style_opt.unwrap().clone(),
+                ))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
 
 async fn map_plaintext_data(
     tenant_id: String,
@@ -157,21 +252,7 @@ async fn map_plaintext_data(
     }
 
     // get ballot styles, from where we'll get the Contest(s)
-    let ballot_styles: Vec<BallotStyle> = tally_session_data
-        .sequent_backend_ballot_style
-        .iter()
-        .map(|ballot_style_row| {
-            let ballot_style_res: Result<BallotStyle, error::Error> = serde_json::from_str(
-                ballot_style_row
-                    .ballot_eml
-                    .clone()
-                    .unwrap_or("".into())
-                    .as_str(),
-            )
-            .map_err(|error| error.into());
-            ballot_style_res
-        })
-        .collect::<Result<Vec<BallotStyle>>>()?;
+    let ballot_styles: Vec<BallotStyle> = get_ballot_styles(&tally_session_data)?;
     event!(
         Level::INFO,
         "FF 4 num ballot_styles {}",
@@ -192,73 +273,8 @@ async fn map_plaintext_data(
         relevant_plaintexts.len()
     );
 
-    let plaintexts_data: Vec<AreaContestDataType> = relevant_plaintexts
-        .iter()
-        .filter_map(|plaintexts_message| {
-            plaintexts_message.artifact.clone().map(|artifact| {
-                let plaintexts = Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
-                    .ok()
-                    .map(|plaintexts| plaintexts.0 .0);
-
-                let batch_num = plaintexts_message.statement.get_batch_number();
-
-                let tally_session_contest_opt = tally_session_data
-                    .sequent_backend_tally_session_contest
-                    .iter()
-                    .find(|tsc| tsc.session_id == batch_num as i64);
-
-                let contest = tally_session_contest_opt.and_then(|tally_session_contest| {
-                    ballot_styles
-                        .iter()
-                        .find(|ballot_style| ballot_style.area_id == tally_session_contest.area_id)
-                        .and_then(|ballot_style| {
-                            ballot_style
-                                .contests
-                                .iter()
-                                .find(|contest| contest.id == tally_session_contest.contest_id)
-                        })
-                });
-
-                let ballot_style_opt = ballot_styles.iter().find(|b| {
-                    if let Some(tally_session_contest) = tally_session_contest_opt {
-                        if b.contests
-                            .iter()
-                            .any(|c| c.id == tally_session_contest.contest_id)
-                        {
-                            return true;
-                        }
-                        return false;
-                    }
-
-                    false
-                });
-
-                (
-                    plaintexts,
-                    tally_session_contest_opt,
-                    contest,
-                    ballot_style_opt,
-                )
-            })
-        })
-        .filter_map(|s| {
-            let (plaintexts_opt, tally_session_contest_opt, contest_opt, ballot_style_opt) = s;
-            if plaintexts_opt.is_some()
-                && tally_session_contest_opt.is_some()
-                && contest_opt.is_some()
-                && ballot_style_opt.is_some()
-            {
-                Some((
-                    plaintexts_opt.unwrap(),
-                    tally_session_contest_opt.unwrap().clone(),
-                    contest_opt.unwrap().clone(),
-                    ballot_style_opt.unwrap().clone(),
-                ))
-            } else {
-                None
-            }
-        })
-        .collect();
+    let plaintexts_data: Vec<AreaContestDataType> =
+        process_plaintexts(relevant_plaintexts, ballot_styles, tally_session_data);
     Ok(Some(plaintexts_data))
 }
 
@@ -300,11 +316,13 @@ fn tally_area_contest(area_contest_plaintext: AreaContestDataType) -> Result<()>
     ));
     fs::create_dir_all(&ballots_path).expect("Could not create dir");
 
-    let file = ballots_path.join("ballots.csv");
-    let mut file = File::create(file).expect("Could not create file");
+    let csv_ballots_path = ballots_path.join("ballots.csv");
+    let mut csv_ballots_file = File::create(csv_ballots_path).expect("Could not create file");
     let buffer = biguit_ballots.join("\n").into_bytes();
 
-    file.write_all(&buffer).expect("Cannot written to file");
+    csv_ballots_file
+        .write_all(&buffer)
+        .expect("Cannot written to file");
 
     //// create velvet config
     let velvet_path_config: PathBuf = velvet_input_dir.clone().join("config.json");
