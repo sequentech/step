@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use celery;
-use celery::prelude::{TaskError, TaskResult};
+use celery::prelude::{TaskError};
 use handlebars;
 use serde_json;
 use strand::util::StrandError;

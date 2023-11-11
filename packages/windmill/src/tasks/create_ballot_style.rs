@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::types::error::{Error, Result};
+use crate::types::error::{Result};
 use anyhow::Context;
 use celery::error::TaskError;
-use celery::prelude::*;
 use sequent_core;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};

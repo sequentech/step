@@ -4,13 +4,13 @@
 
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
-use strand::backend::ristretto::RistrettoCtx;
+
 use tracing::{event, instrument, Level};
 
 use crate::hasura;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::protocol_manager;
+
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::types::error::Result;
 
@@ -55,7 +55,7 @@ pub async fn process_board(tenant_id: String, election_event_id: String) -> Resu
         return Ok(());
     }
 
-    let bulletin_board = bulletin_board_opt.unwrap();
+    let _bulletin_board = bulletin_board_opt.unwrap();
 
     // fetch tally_sessions
     let tally_sessions = hasura::tally_session::get_tally_sessions(

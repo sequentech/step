@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use celery::error::TaskError;
-use celery::prelude::*;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
@@ -14,7 +13,7 @@ use tracing::instrument;
 
 use crate::hasura;
 use crate::services::s3;
-use crate::types::error::{Error, Result};
+use crate::types::error::{Result};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum FormatType {

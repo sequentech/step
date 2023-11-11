@@ -4,14 +4,13 @@
 
 use anyhow::Context;
 use celery::error::TaskError;
-use celery::prelude::*;
 use sequent_core::services::keycloak;
 use tracing::instrument;
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::public_keys;
-use crate::types::error::{Error, Result};
+use crate::types::error::{Result};
 
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]

@@ -4,7 +4,6 @@
 
 use anyhow::Context;
 use celery::error::TaskError;
-use celery::prelude::*;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};

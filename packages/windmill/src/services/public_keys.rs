@@ -6,9 +6,9 @@ use anyhow::Result;
 use base64::engine::general_purpose;
 use base64::Engine;
 use sequent_core::serialization::base64::Base64Deserialize;
-use std::env;
+
 use strand::backend::ristretto::RistrettoCtx;
-use strand::serialization::{StrandDeserialize, StrandSerialize};
+use strand::serialization::{StrandSerialize};
 use strand::signature::StrandSignaturePk;
 use tracing::instrument;
 

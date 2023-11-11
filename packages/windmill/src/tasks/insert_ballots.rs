@@ -4,7 +4,6 @@
 use anyhow::Context;
 use braid_messages::newtypes::BatchNumber;
 use celery::error::TaskError;
-use celery::prelude::*;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::base64::Base64Deserialize;

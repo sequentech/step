@@ -10,13 +10,13 @@ use tempfile::tempdir;
 
 use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
-use sequent_core::ballot::{BallotStyle, Contest, ContestPresentation};
+use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::{BigUIntCodec, PlaintextCodec};
 use sequent_core::services::keycloak;
 use strand::{backend::ristretto::RistrettoCtx, serialization::StrandDeserialize, context::Ctx};
 use tracing::{event, instrument, Level};
 use velvet::cli::state::State;
-use velvet::cli::{self, CliRun};
+use velvet::cli::{CliRun};
 use velvet::fixtures;
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
@@ -294,7 +294,7 @@ pub async fn execute_tally_session(
             let area_id = tally_session_contest.area_id.clone();
             let contest_id = contest.id.clone();
             let election_id = contest.election_id.clone();
-            let election_event_id = contest.election_event_id.clone();
+            let _election_event_id = contest.election_event_id.clone();
 
             let biguit_ballots = plaintexts
                 .iter()
