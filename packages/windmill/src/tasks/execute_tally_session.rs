@@ -424,6 +424,7 @@ pub async fn execute_tally_session(
     // base temp folder
     let base_tempdir = tempdir()?;
 
+    // perform tallies with velvet
     let _ = plaintexts_data
         .iter()
         .try_for_each(|area_contest_plaintext| {
@@ -439,12 +440,14 @@ pub async fn execute_tally_session(
     compressed_file.read_to_end(&mut data)?;
 
     // get credentials
+    // map_plaintext_data also calls this but at this point the credentials
+    // could be expired
     let auth_headers = keycloak::get_client_credentials().await?;
 
     // upload binary data into a document (s3 and hasura)
     let document = upload_and_return_document(
         data,
-        "application/pdf".to_string(),
+        "application/gzip".to_string(),
         auth_headers.clone(),
         tenant_id,
         election_event_id,
