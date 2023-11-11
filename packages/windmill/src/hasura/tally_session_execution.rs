@@ -91,8 +91,7 @@ pub async fn insert_tally_session_execution(
         .send()
         .await?;
 
-    let response_body: Response<insert_tally_session_execution::ResponseData> =
-        res.json().await?;
+    let response_body: Response<insert_tally_session_execution::ResponseData> = res.json().await?;
 
     response_body.ok()
 }

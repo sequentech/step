@@ -22,7 +22,9 @@ use crate::hasura;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
 };
-use crate::hasura::tally_session_execution::{get_last_tally_session_execution, insert_tally_session_execution};
+use crate::hasura::tally_session_execution::{
+    get_last_tally_session_execution, insert_tally_session_execution,
+};
 use crate::services::compress::compress_folder;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
@@ -220,7 +222,10 @@ async fn map_plaintext_data(
         .iter()
         .find(|board_message| board_message.id > last_message_id);
 
-    let newest_message_id = board_messages.last().map(|board_message| board_message.id).unwrap_or(-1);
+    let newest_message_id = board_messages
+        .last()
+        .map(|board_message| board_message.id)
+        .unwrap_or(-1);
 
     if next_new_board_message_opt.is_none() {
         event!(Level::INFO, "Board has no new messages",);
@@ -409,7 +414,7 @@ pub async fn execute_tally_session(
     tally_session_id: String,
 ) -> Result<()> {
     // map plaintexts to contests
-    let plaintexts_data_opt: Option<Vec<AreaContestDataType>> = map_plaintext_data(
+    let plaintexts_data_opt = map_plaintext_data(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
@@ -466,7 +471,8 @@ pub async fn execute_tally_session(
         newest_message_id,
         tally_session_id.clone(),
         document.id.clone(),
-    ).await?;
+    )
+    .await?;
 
     Ok(())
 }
