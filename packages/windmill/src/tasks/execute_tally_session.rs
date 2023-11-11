@@ -137,7 +137,7 @@ async fn map_plaintext_data(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-) -> Result<Option<Vec<AreaContestDataType>>> {
+) -> Result<Option<(Vec<AreaContestDataType>, i64)>> {
     // get credentials
     let auth_headers = keycloak::get_client_credentials().await?;
 
@@ -220,6 +220,8 @@ async fn map_plaintext_data(
         .iter()
         .find(|board_message| board_message.id > last_message_id);
 
+    let newest_message_id = board_messages.last().map(|board_message| board_message.id).unwrap_or(-1);
+
     if next_new_board_message_opt.is_none() {
         event!(Level::INFO, "Board has no new messages",);
         return Ok(None);
@@ -274,7 +276,7 @@ async fn map_plaintext_data(
 
     let plaintexts_data: Vec<AreaContestDataType> =
         process_plaintexts(relevant_plaintexts, ballot_styles, tally_session_data);
-    Ok(Some(plaintexts_data))
+    Ok(Some((plaintexts_data, newest_message_id)))
 }
 
 #[instrument(skip_all)]
@@ -418,7 +420,7 @@ pub async fn execute_tally_session(
         return Ok(());
     }
 
-    let plaintexts_data = plaintexts_data_opt.unwrap();
+    let (plaintexts_data, newest_message_id) = plaintexts_data_opt.unwrap();
 
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
 
@@ -461,7 +463,7 @@ pub async fn execute_tally_session(
         auth_headers,
         tenant_id.clone(),
         election_event_id.clone(),
-        1,
+        newest_message_id,
         tally_session_id.clone(),
         document.id.clone(),
     ).await?;
