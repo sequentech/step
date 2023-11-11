@@ -1,20 +1,14 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>, Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
-use tempfile::tempdir;
+use tempfile::{tempdir, tempfile};
+use flate2::Compression;
+use flate2::write::GzEncoder;
 
-use crate::hasura;
-use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
-    GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
-};
-use crate::services::election_event_board::get_election_event_board;
-use crate::services::protocol_manager;
-use crate::types::error;
-use crate::types::error::{Error, Result};
 use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use sequent_core::ballot::{BallotStyle, Contest};
@@ -25,6 +19,16 @@ use tracing::{event, instrument, Level};
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
 use velvet::fixtures;
+
+use crate::hasura;
+use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
+    GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
+};
+use crate::services::election_event_board::get_election_event_board;
+use crate::services::protocol_manager;
+use crate::types::error;
+use crate::types::error::{Error, Result};
+use crate::services::compress::compress_folder;
 
 type AreaContestDataType = (
     Vec<<RistrettoCtx as Ctx>::P>,
@@ -426,6 +430,7 @@ pub async fn execute_tally_session(
                 base_tempdir.path().to_path_buf().clone(),
             )
         });
+    let _compressed_file = compress_folder(base_tempdir.path());
 
     // Missing: insert tally_session_execution in hasura
     Ok(())

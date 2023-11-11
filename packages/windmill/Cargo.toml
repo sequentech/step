@@ -19,6 +19,8 @@ handlebars = "4.3.7"
 headless_chrome = {version = "1.0.5", default-features = false}
 anyhow = "1.0.75"
 tempfile = "3.8.0"
+flate2 = "1.0.28"
+tar = "0.4.40"
 graphql_client = "0.13.0"
 rust-s3 = "0.33.0"
 strum = "0.25"
