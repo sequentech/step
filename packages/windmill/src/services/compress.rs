@@ -12,9 +12,12 @@ use crate::types::error::{Error, Result};
 
 // .tar.gz file
 pub fn compress_folder(folder_path: &Path) -> Result<File> {
-    let mut tar_gz_file = tempfile()?;
+    let tar_gz_file = tempfile()?;
     let enc = GzEncoder::new(tar_gz_file, Compression::default());
     let mut tar_builder = tar::Builder::new(enc);
     tar_builder.append_dir_all(".", folder_path)?;
-    Ok(tar_gz_file)
+    
+    // Finish writing the .tar.gz file and get the file (temporary file in this case)
+    let finished_file = tar_builder.into_inner()?.finish()?;
+    Ok(finished_file)
 }
