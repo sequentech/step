@@ -1,17 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use std::fs::File;
-
 use crate::types::error::Result;
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use std::env;
-use std::io::Read;
-use std::path::{Path, PathBuf};
-use tar;
+use std::path::PathBuf;
 use tempfile::Builder;
-use tracing::{event, instrument, Level};
 
 pub fn generate_random_path(prefix: &str, suffix: &str) -> Result<PathBuf> {
     // Get the system's temporary directory.

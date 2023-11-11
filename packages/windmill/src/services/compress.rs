@@ -1,18 +1,15 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use std::fs::File;
-
+use crate::services::temp_path::generate_random_path;
 use crate::types::error::Result;
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use std::env;
+use std::fs::File;
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tar;
-use tempfile::Builder;
 use tracing::{event, instrument, Level};
-use crate::services::temp_path::generate_random_path;
 
 // .tar.gz file
 #[instrument]

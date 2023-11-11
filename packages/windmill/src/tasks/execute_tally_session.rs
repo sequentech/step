@@ -32,6 +32,7 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::types::error;
 use crate::types::error::Result;
+use crate::services::redis::get_lock_manager;
 
 type AreaContestDataType = (
     Vec<<RistrettoCtx as Ctx>::P>,
@@ -420,6 +421,16 @@ pub async fn execute_tally_session(
     election_event_id: String,
     tally_session_id: String,
 ) -> Result<()> {
+    let rl = get_lock_manager();
+    // Create the lock
+    let lock_opt = rl.lock(format!("execute_tally_session-{}-{}-{}",tenant_id,election_event_id, tally_session_id).as_bytes(), 1000).await;
+    let lock = match lock_opt {
+        Ok(lock) => lock,
+        Err(_) => {
+            event!(Level::INFO, "Ending early as task is locked");
+            return Ok(())
+        }
+    };
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
         tenant_id.clone(),
@@ -429,6 +440,8 @@ pub async fn execute_tally_session(
     .await?;
 
     if plaintexts_data_opt.is_none() {
+        // Remove the lock
+        rl.unlock(&lock).await;
         return Ok(());
     }
 
@@ -488,6 +501,8 @@ pub async fn execute_tally_session(
         )
         .await?;
     }
+    // Remove the lock
+    rl.unlock(&lock).await;
 
     Ok(())
 }
