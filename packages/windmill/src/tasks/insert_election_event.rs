@@ -14,7 +14,7 @@ use tracing::instrument;
 use crate::hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 
-use crate::types::error::{Result};
+use crate::types::error::Result;
 
 async fn get_board_client() -> Result<BoardClient> {
     let username = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));

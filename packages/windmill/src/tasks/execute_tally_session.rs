@@ -7,31 +7,35 @@ use std::io::Write;
 use std::path::PathBuf;
 use tempfile::tempdir;
 
-
+use crate::hasura;
+use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
+use crate::services::election_event_board::get_election_event_board;
+use crate::services::protocol_manager;
+use crate::types::error;
+use crate::types::error::{Error, Result};
 use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::{BigUIntCodec, PlaintextCodec};
 use sequent_core::services::keycloak;
-use strand::{backend::ristretto::RistrettoCtx, serialization::StrandDeserialize, context::Ctx};
+use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tracing::{event, instrument, Level};
 use velvet::cli::state::State;
-use velvet::cli::{CliRun};
+use velvet::cli::CliRun;
 use velvet::fixtures;
-use crate::hasura;
-use crate::services::election_event_board::get_election_event_board;
-use crate::types::error;
-use crate::services::protocol_manager;
-use crate::types::error::{Error, Result};
-use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
 
-type PlaintextDataType = Vec<(Vec<<RistrettoCtx as Ctx>::P>, GetLastTallySessionExecutionSequentBackendTallySessionContest, Contest, BallotStyle)>;
+type AreaContestDataType = (
+    Vec<<RistrettoCtx as Ctx>::P>,
+    GetLastTallySessionExecutionSequentBackendTallySessionContest,
+    Contest,
+    BallotStyle,
+);
 
 async fn map_plaintext_data(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-) -> Result<Option<PlaintextDataType>> {
+) -> Result<Option<Vec<AreaContestDataType>>> {
     // get credentials
     let auth_headers = keycloak::get_client_credentials().await?;
 
@@ -188,7 +192,7 @@ async fn map_plaintext_data(
         relevant_plaintexts.len()
     );
 
-    let plaintexts_data: PlaintextDataType = relevant_plaintexts
+    let plaintexts_data: Vec<AreaContestDataType> = relevant_plaintexts
         .iter()
         .filter_map(|plaintexts_message| {
             plaintexts_message.artifact.clone().map(|artifact| {
@@ -258,6 +262,128 @@ async fn map_plaintext_data(
     Ok(Some(plaintexts_data))
 }
 
+#[wrap_map_err::wrap_map_err(TaskError)]
+fn tally_area_contest(area_contest_plaintext: AreaContestDataType) -> Result<()> {
+    let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext;
+
+    // here if you need it
+    let area_id = tally_session_contest.area_id.clone();
+    let contest_id = contest.id.clone();
+    let election_id = contest.election_id.clone();
+
+    let biguit_ballots = plaintexts
+        .iter()
+        .map(|plaintext| {
+            // TODO: handle unwraps
+            let biguint = contest
+                .decode_plaintext_contest_to_biguint(plaintext)
+                .unwrap();
+
+            // Testing decoded ballots here: to be removed
+            let _decoded_ballot = contest.decode_plaintext_contest_bigint(&biguint).unwrap();
+            event!(Level::INFO, "FF 6 biguint {}", biguint.to_str_radix(10));
+            biguint.to_str_radix(10)
+        })
+        .collect::<Vec<_>>();
+
+    //// Velvet input output dirs
+    let base_tempdir = tempdir().map_err(|err| {
+        let new_error: Error = err.into();
+        new_error
+    })?;
+    let velvet_input_dir = base_tempdir.path().join("input");
+    let velvet_output_dir = base_tempdir.path().join("output");
+
+    //// create ballots
+    let ballots_path = velvet_input_dir.clone().join(format!(
+        "default/ballots/election__{election_id}/contest__{contest_id}/region__{area_id}"
+    ));
+    fs::create_dir_all(&ballots_path).expect("Could not create dir");
+
+    let file = ballots_path.join("ballots.csv");
+    let mut file = File::create(file).expect("Could not create file");
+    let buffer = biguit_ballots.join("\n").into_bytes();
+
+    file.write_all(&buffer).expect("Cannot written to file");
+
+    //// create velvet config
+    let velvet_path_config: PathBuf = velvet_input_dir.clone().join("config.json");
+    let mut config_file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(&velvet_path_config)
+        .expect("Could not open file");
+
+    writeln!(
+        config_file,
+        "{}",
+        serde_json::to_string(&fixtures::get_config()).unwrap()
+    )
+    .expect("Could not write in file");
+
+    //// create region folder
+    let region_path: PathBuf = velvet_input_dir.clone().join(format!(
+        "default/configs/election__{election_id}/contest__{contest_id}/region__{area_id}"
+    ));
+    fs::create_dir_all(&region_path).expect("Could not create dir");
+
+    //// create contest config file
+    let ballot_style_path: PathBuf = velvet_input_dir.clone().join(format!(
+        "default/configs/election__{election_id}/election-config.json"
+    ));
+    let mut ballot_style_file = fs::File::create(ballot_style_path).expect("Couldnt create file");
+    writeln!(
+        ballot_style_file,
+        "{}",
+        serde_json::to_string(&ballot_style).unwrap()
+    )
+    .expect("Could not write in file");
+
+    //// create contest config file
+    let contest_config_path: PathBuf = velvet_input_dir.clone().join(format!(
+        "default/configs/election__{election_id}/contest__{contest_id}/contest-config.json"
+    ));
+    let mut contest_config_file =
+        fs::File::create(&contest_config_path).expect("Couldnt create file");
+    writeln!(
+        contest_config_file,
+        "{}",
+        serde_json::to_string(&contest).unwrap()
+    )
+    .expect("Could not write in file");
+
+    //// Run Velvet
+    let cli = CliRun {
+        stage: "main".to_string(),
+        pipe_id: "decode-ballots".to_string(),
+        config: velvet_path_config,
+        input_dir: velvet_input_dir,
+        output_dir: velvet_output_dir,
+    };
+
+    let config = cli.validate().unwrap();
+
+    let mut state = State::new(&cli, &config).unwrap();
+
+    // DecodeBallots
+    event!(Level::INFO, "Exec Decode Ballots");
+    state.exec_next().unwrap();
+
+    // Do Tally
+    event!(Level::INFO, "Exec Do Tally");
+    state.exec_next().unwrap();
+
+    // mark winners
+    event!(Level::INFO, "Exec Mark Winners");
+    state.exec_next().unwrap();
+
+    // report
+    event!(Level::INFO, "Exec Reports");
+    state.exec_next().unwrap();
+
+    Ok(())
+}
+
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 60000)]
@@ -267,18 +393,15 @@ pub async fn execute_tally_session(
     tally_session_id: String,
 ) -> Result<()> {
     // map plaintexts to contests
-    let plaintexts_data_opt: Option<PlaintextDataType> = map_plaintext_data(
-        tenant_id,
-        election_event_id,
-        tally_session_id,
-    ).await?;
+    let plaintexts_data_opt: Option<Vec<AreaContestDataType>> =
+        map_plaintext_data(tenant_id, election_event_id, tally_session_id).await?;
 
     if plaintexts_data_opt.is_none() {
-        return Ok(())
+        return Ok(());
     }
 
     let plaintexts_data = plaintexts_data_opt.unwrap();
-    
+
     event!(
         Level::INFO,
         "FF 5 num plaintexts_data {}",
@@ -287,126 +410,7 @@ pub async fn execute_tally_session(
 
     let _ = plaintexts_data
         .iter()
-        .try_for_each(|area_contest_plaintext| {
-            let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext;
-
-            // here if you need it
-            let area_id = tally_session_contest.area_id.clone();
-            let contest_id = contest.id.clone();
-            let election_id = contest.election_id.clone();
-            let _election_event_id = contest.election_event_id.clone();
-
-            let biguit_ballots = plaintexts
-                .iter()
-                .map(|plaintext| {
-                    // TODO: handle unwraps
-                    let biguint = contest
-                        .decode_plaintext_contest_to_biguint(plaintext)
-                        .unwrap();
-
-                    // Testing decoded ballots here: to be removed
-                    let _decoded_ballot =
-                        contest.decode_plaintext_contest_bigint(&biguint).unwrap();
-                    event!(Level::INFO, "FF 6 biguint {}", biguint.to_str_radix(10));
-                    biguint.to_str_radix(10)
-                })
-                .collect::<Vec<_>>();
-
-            //// Velvet input output dirs
-            let base_tempdir = tempdir().map_err(|err| {
-                let new_error: Error = err.into();
-                new_error
-            })?;
-            let velvet_input_dir = base_tempdir.path().join("input");
-            let velvet_output_dir = base_tempdir.path().join("output");
-
-            //// create ballots
-            let mut path = velvet_input_dir.clone();
-            path.push("default");
-            path.push("ballots");
-            path.push(format!("election__{election_id}"));
-            path.push(format!("contest__{contest_id}"));
-            path.push(format!("region__{area_id}"));
-            fs::create_dir_all(&path).expect("Could not create dir");
-
-            let file = path.join("ballots.csv");
-            let mut file = File::create(file).expect("Could not create file");
-            let buffer = biguit_ballots.join("\n").into_bytes();
-
-            file.write_all(&buffer).expect("Cannot written to file");
-
-            //// create velvet config
-            let velvet_path_config: PathBuf = velvet_input_dir.as_path().clone().join("config.json");
-            let mut file = fs::OpenOptions::new()
-                .write(true)
-                .create(true)
-                .open(&velvet_path_config)
-                .expect("Could not open file");
-
-            writeln!(
-                file,
-                "{}",
-                serde_json::to_string(&fixtures::get_config()).unwrap()
-            )
-            .expect("Could not write in file");
-
-            //// create contest config file
-            let mut path: PathBuf = velvet_input_dir.as_path().clone().join("default/configs");
-            path.push(format!("election__{election_id}"));
-            fs::create_dir_all(&path).expect("Could not create dir");
-            path.push("election-config.json");
-            let mut file = fs::File::create(path).expect("Couldnt create file");
-            writeln!(file, "{}", serde_json::to_string(&ballot_style).unwrap())
-                .expect("Could not write in file");
-
-            //// create contest config file
-            let mut path: PathBuf = velvet_input_dir.as_path().clone().join("default/configs");
-            path.push(format!("election__{election_id}"));
-            path.push(format!("contest__{contest_id}"));
-            fs::create_dir_all(&path).expect("Could not create dir");
-            path.push("contest-config.json");
-            let mut file = fs::File::create(&path).expect("Couldnt create file");
-            writeln!(file, "{}", serde_json::to_string(&contest).unwrap())
-                .expect("Could not write in file");
-
-            //// create region folder
-            let mut path: PathBuf = velvet_input_dir.as_path().clone().join("default/configs");
-            path.push(format!("election__{election_id}"));
-            path.push(format!("contest__{contest_id}"));
-            path.push(format!("region__{area_id}"));
-            fs::create_dir_all(&path).expect("Could not create dir");
-
-            //// Run Velvet
-            let cli = CliRun {
-                stage: "main".to_string(),
-                pipe_id: "decode-ballots".to_string(),
-                config: velvet_path_config,
-                input_dir: velvet_input_dir,
-                output_dir: velvet_output_dir,
-            };
-
-            let config = cli.validate().unwrap();
-
-            let mut state = State::new(&cli, &config).unwrap();
-
-            // DecodeBallots
-            event!(Level::INFO, "Exec Decode Ballots");
-            state.exec_next().unwrap();
-
-            // Do Tally
-            event!(Level::INFO, "Exec Do Tally");
-            state.exec_next().unwrap();
-
-            // mark winners
-            event!(Level::INFO, "Exec Mark Winners");
-            state.exec_next().unwrap();
-
-            // report
-            event!(Level::INFO, "Exec Reports");
-            state.exec_next().unwrap();
-
-            Ok::<(), TaskError>(())
-        });
+        .try_for_each(|area_contest_plaintext| tally_area_contest(area_contest_plaintext.clone()));
 
     event!(Level::INFO, "FF 7 num paths {}", plaintexts_data.len());
 

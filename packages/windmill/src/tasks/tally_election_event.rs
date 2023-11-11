@@ -15,7 +15,7 @@ use crate::hasura::tally_session_contest::insert_tally_session_contest;
 use crate::hasura::trustee::get_trustees_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
-use crate::types::error::{Result};
+use crate::types::error::Result;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct TallyElectionBody {

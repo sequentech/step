@@ -11,7 +11,7 @@ use crate::hasura::area::get_election_event_areas;
 use crate::services::celery_app::get_celery_app;
 use crate::tasks::create_ballot_style::create_ballot_style;
 use crate::tasks::create_ballot_style::CreateBallotStylePayload;
-use crate::types::error::{Result};
+use crate::types::error::Result;
 
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]

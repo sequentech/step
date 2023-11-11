@@ -13,7 +13,7 @@ use tracing::instrument;
 
 use crate::hasura;
 use crate::services::s3;
-use crate::types::error::{Result};
+use crate::types::error::Result;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum FormatType {

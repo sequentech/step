@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::types::error::{Result};
+use crate::types::error::Result;
 use celery::error::TaskError;
 use immu_board::BoardClient;
 use sequent_core;

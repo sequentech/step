@@ -8,7 +8,7 @@ use base64::Engine;
 use sequent_core::serialization::base64::Base64Deserialize;
 
 use strand::backend::ristretto::RistrettoCtx;
-use strand::serialization::{StrandSerialize};
+use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignaturePk;
 use tracing::instrument;
 
