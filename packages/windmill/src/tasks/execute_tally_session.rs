@@ -5,9 +5,7 @@
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
-use tempfile::{tempdir, tempfile};
-use flate2::Compression;
-use flate2::write::GzEncoder;
+use tempfile::tempdir;
 
 use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
@@ -24,11 +22,11 @@ use crate::hasura;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
 };
+use crate::services::compress::compress_folder;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::types::error;
-use crate::types::error::{Error, Result};
-use crate::services::compress::compress_folder;
+use crate::types::error::Result;
 
 type AreaContestDataType = (
     Vec<<RistrettoCtx as Ctx>::P>,
