@@ -13,25 +13,25 @@ use celery::prelude::TaskError;
 use sequent_core::ballot::{BallotStyle, Contest, ContestPresentation};
 use sequent_core::ballot_codec::{BigUIntCodec, PlaintextCodec};
 use sequent_core::services::keycloak;
-use strand::{backend::ristretto::RistrettoCtx, serialization::StrandDeserialize};
+use strand::{backend::ristretto::RistrettoCtx, serialization::StrandDeserialize, context::Ctx};
 use tracing::{event, instrument, Level};
 use velvet::cli::state::State;
+use velvet::cli::{self, CliRun};
+use velvet::fixtures;
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
 use crate::types::error;
 use crate::services::protocol_manager;
 use crate::types::error::{Error, Result};
-use velvet::cli::{self, CliRun};
-use velvet::fixtures;
+use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionContest;
 
-#[instrument]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 60000)]
-pub async fn execute_tally_session(
+type PlaintextDataType = Vec<(Vec<<RistrettoCtx as Ctx>::P>, GetLastTallySessionExecutionSequentBackendTallySessionContest, Contest, BallotStyle)>;
+
+async fn map_plaintext_data(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-) -> Result<()> {
+) -> Result<Option<PlaintextDataType>> {
     // get credentials
     let auth_headers = keycloak::get_client_credentials().await?;
 
@@ -54,7 +54,7 @@ pub async fn execute_tally_session(
             election_event_id.clone()
         );
 
-        return Ok(());
+        return Ok(None);
     }
 
     let election_event = &election_events[0];
@@ -70,7 +70,7 @@ pub async fn execute_tally_session(
             election_event_id.clone()
         );
 
-        return Ok(());
+        return Ok(None);
     }
 
     let bulletin_board = bulletin_board_opt.unwrap();
@@ -91,7 +91,7 @@ pub async fn execute_tally_session(
     if tally_session_data.sequent_backend_tally_session[0].is_execution_completed {
         event!(Level::INFO, "Tally session execution is completed",);
 
-        return Ok(());
+        return Ok(None);
     }
 
     // get last message id
@@ -120,7 +120,7 @@ pub async fn execute_tally_session(
 
     if next_new_board_message_opt.is_none() {
         event!(Level::INFO, "Board has no new messages",);
-        return Ok(());
+        return Ok(None);
     }
 
     // find the timestamp of the new board message.
@@ -149,22 +149,8 @@ pub async fn execute_tally_session(
 
     if !has_next_plaintext {
         event!(Level::INFO, "Board has no new relevant plaintexs");
-        return Ok(());
+        return Ok(None);
     }
-
-    // find all plaintexs (even with lower ids/timestamps) for this tally session/batch ids
-    let relevant_plaintexts: Vec<&Message> = messages
-        .iter()
-        .filter(|message| {
-            message.statement.get_kind() == StatementType::Plaintexts
-                && batch_ids.contains(&(message.statement.get_batch_number() as i64))
-        })
-        .collect();
-    event!(
-        Level::INFO,
-        "FF 3 num relevant_plaintexts {}",
-        relevant_plaintexts.len()
-    );
 
     // get ballot styles, from where we'll get the Contest(s)
     let ballot_styles: Vec<BallotStyle> = tally_session_data
@@ -188,8 +174,21 @@ pub async fn execute_tally_session(
         ballot_styles.len()
     );
 
-    // map plaintexts to contests
-    let plaintexts_data: Vec<_> = relevant_plaintexts
+    // find all plaintexs (even with lower ids/timestamps) for this tally session/batch ids
+    let relevant_plaintexts: Vec<&Message> = messages
+        .iter()
+        .filter(|message| {
+            message.statement.get_kind() == StatementType::Plaintexts
+                && batch_ids.contains(&(message.statement.get_batch_number() as i64))
+        })
+        .collect();
+    event!(
+        Level::INFO,
+        "FF 3 num relevant_plaintexts {}",
+        relevant_plaintexts.len()
+    );
+
+    let plaintexts_data: PlaintextDataType = relevant_plaintexts
         .iter()
         .filter_map(|plaintexts_message| {
             plaintexts_message.artifact.clone().map(|artifact| {
@@ -247,15 +246,39 @@ pub async fn execute_tally_session(
             {
                 Some((
                     plaintexts_opt.unwrap(),
-                    tally_session_contest_opt.unwrap(),
-                    contest_opt.unwrap(),
-                    ballot_style_opt.unwrap(),
+                    tally_session_contest_opt.unwrap().clone(),
+                    contest_opt.unwrap().clone(),
+                    ballot_style_opt.unwrap().clone(),
                 ))
             } else {
                 None
             }
         })
         .collect();
+    Ok(Some(plaintexts_data))
+}
+
+#[instrument]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task(time_limit = 60000)]
+pub async fn execute_tally_session(
+    tenant_id: String,
+    election_event_id: String,
+    tally_session_id: String,
+) -> Result<()> {
+    // map plaintexts to contests
+    let plaintexts_data_opt: Option<PlaintextDataType> = map_plaintext_data(
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    ).await?;
+
+    if plaintexts_data_opt.is_none() {
+        return Ok(())
+    }
+
+    let plaintexts_data = plaintexts_data_opt.unwrap();
+    
     event!(
         Level::INFO,
         "FF 5 num plaintexts_data {}",
