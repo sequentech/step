@@ -274,7 +274,10 @@ async fn map_plaintext_data(
 }
 
 #[instrument(skip_all)]
-fn tally_area_contest(area_contest_plaintext: AreaContestDataType) -> Result<()> {
+fn tally_area_contest(
+    area_contest_plaintext: AreaContestDataType,
+    base_tempdir: PathBuf,
+) -> Result<()> {
     let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext;
 
     // here if you need it
@@ -296,14 +299,8 @@ fn tally_area_contest(area_contest_plaintext: AreaContestDataType) -> Result<()>
             biguint.to_str_radix(10)
         })
         .collect::<Vec<_>>();
-
-    //// Velvet input output dirs
-    let base_tempdir = tempdir().map_err(|err| {
-        let new_error: Error = err.into();
-        new_error
-    })?;
-    let velvet_input_dir = base_tempdir.path().join("input");
-    let velvet_output_dir = base_tempdir.path().join("output");
+    let velvet_input_dir = base_tempdir.clone().join("input");
+    let velvet_output_dir = base_tempdir.clone().join("output");
 
     //// create ballots
     let ballots_path = velvet_input_dir.clone().join(format!(
@@ -417,9 +414,18 @@ pub async fn execute_tally_session(
 
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
 
+    //// Velvet input output dirs
+    // Note this temp folder will be automatically deleted when this goes out of scope
+    let base_tempdir = tempdir()?;
+
     let _ = plaintexts_data
         .iter()
-        .try_for_each(|area_contest_plaintext| tally_area_contest(area_contest_plaintext.clone()));
+        .try_for_each(|area_contest_plaintext| {
+            tally_area_contest(
+                area_contest_plaintext.clone(),
+                base_tempdir.path().to_path_buf().clone(),
+            )
+        });
 
     // Missing: insert tally_session_execution in hasura
     Ok(())
