@@ -11,3 +11,4 @@ pub mod public_keys;
 pub mod s3;
 pub mod to_result;
 pub mod vault;
+pub mod documents;
