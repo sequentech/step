@@ -125,3 +125,38 @@ pub async fn get_tally_sessions(
     let response_body: Response<get_tally_sessions::ResponseData> = res.json().await?;
     response_body.ok()
 }
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/set_tally_session_completed.graphql",
+    response_derives = "Debug,Clone,Deserialize,Serialize"
+)]
+pub struct SetTallySessionCompleted;
+
+#[instrument(skip(auth_headers))]
+pub async fn set_tally_session_completed(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    tally_session_id: String,
+) -> Result<Response<set_tally_session_completed::ResponseData>> {
+    let variables = set_tally_session_completed::Variables {
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    };
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = SetTallySessionCompleted::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<set_tally_session_completed::ResponseData> = res.json().await?;
+    response_body.ok()
+}

@@ -19,6 +19,7 @@ use velvet::cli::CliRun;
 use velvet::fixtures;
 
 use crate::hasura;
+use crate::hasura::tally_session::set_tally_session_completed;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
 };
@@ -139,7 +140,7 @@ async fn map_plaintext_data(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-) -> Result<Option<(Vec<AreaContestDataType>, i64)>> {
+) -> Result<Option<(Vec<AreaContestDataType>, i64, bool)>> {
     // get credentials
     let auth_headers = keycloak::get_client_credentials().await?;
 
@@ -278,10 +279,16 @@ async fn map_plaintext_data(
         "Num relevant_plaintexts {}",
         relevant_plaintexts.len()
     );
+    // we have all plaintexts
+    let is_execution_completed = relevant_plaintexts.len() == batch_ids.len();
 
     let plaintexts_data: Vec<AreaContestDataType> =
         process_plaintexts(relevant_plaintexts, ballot_styles, tally_session_data);
-    Ok(Some((plaintexts_data, newest_message_id)))
+    Ok(Some((
+        plaintexts_data,
+        newest_message_id,
+        is_execution_completed,
+    )))
 }
 
 #[instrument(skip_all)]
@@ -425,7 +432,7 @@ pub async fn execute_tally_session(
         return Ok(());
     }
 
-    let (plaintexts_data, newest_message_id) = plaintexts_data_opt.unwrap();
+    let (plaintexts_data, newest_message_id, is_execution_completed) = plaintexts_data_opt.unwrap();
 
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
 
@@ -465,7 +472,7 @@ pub async fn execute_tally_session(
 
     // insert tally_session_execution
     insert_tally_session_execution(
-        auth_headers,
+        auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
         newest_message_id,
@@ -473,6 +480,17 @@ pub async fn execute_tally_session(
         document.id.clone(),
     )
     .await?;
+
+    if is_execution_completed {
+        // update tally session to flag it as completed
+        set_tally_session_completed(
+            auth_headers,
+            tenant_id.clone(),
+            election_event_id.clone(),
+            tally_session_id.clone(),
+        )
+        .await?;
+    }
 
     Ok(())
 }
