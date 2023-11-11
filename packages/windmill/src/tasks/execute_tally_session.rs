@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::PathBuf;
 use tempfile::tempdir;
 
@@ -449,10 +449,7 @@ pub async fn execute_tally_session(
             )
         });
     // compressed file with the tally
-    let mut compressed_file = compress_folder(base_tempdir.path())?;
-    // read file into binary
-    let mut data: Vec<u8> = Vec::new();
-    compressed_file.read_to_end(&mut data)?;
+    let data = compress_folder(base_tempdir.path())?;
 
     // get credentials
     // map_plaintext_data also calls this but at this point the credentials
