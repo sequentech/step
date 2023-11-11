@@ -22,6 +22,7 @@ use crate::hasura;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
 };
+use crate::hasura::tally_session_execution::{get_last_tally_session_execution, insert_tally_session_execution};
 use crate::services::compress::compress_folder;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
@@ -182,7 +183,7 @@ async fn map_plaintext_data(
 
     // get all data for the execution: the last tally session execution,
     // the list of tally_session_contest, and the ballot styles
-    let tally_session_data = hasura::tally_session_execution::get_last_tally_session_execution(
+    let tally_session_data = get_last_tally_session_execution(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -449,12 +450,21 @@ pub async fn execute_tally_session(
         data,
         "application/gzip".to_string(),
         auth_headers.clone(),
-        tenant_id,
-        election_event_id,
+        tenant_id.clone(),
+        election_event_id.clone(),
         "tally.tar.gz".into(),
     )
     .await?;
 
-    // Missing: insert tally_session_execution in hasura
+    // insert tally_session_execution
+    insert_tally_session_execution(
+        auth_headers,
+        tenant_id.clone(),
+        election_event_id.clone(),
+        1,
+        tally_session_id.clone(),
+        document.id.clone(),
+    ).await?;
+
     Ok(())
 }
