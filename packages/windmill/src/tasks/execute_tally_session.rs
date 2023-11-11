@@ -274,7 +274,6 @@ async fn map_plaintext_data(
 }
 
 #[instrument(skip_all)]
-#[wrap_map_err::wrap_map_err(TaskError)]
 fn tally_area_contest(area_contest_plaintext: AreaContestDataType) -> Result<()> {
     let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext;
 
