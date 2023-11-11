@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use tempfile::tempdir;
 
@@ -23,6 +23,7 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
 };
 use crate::services::compress::compress_folder;
+use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::types::error;
@@ -405,8 +406,12 @@ pub async fn execute_tally_session(
     tally_session_id: String,
 ) -> Result<()> {
     // map plaintexts to contests
-    let plaintexts_data_opt: Option<Vec<AreaContestDataType>> =
-        map_plaintext_data(tenant_id, election_event_id, tally_session_id).await?;
+    let plaintexts_data_opt: Option<Vec<AreaContestDataType>> = map_plaintext_data(
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session_id.clone(),
+    )
+    .await?;
 
     if plaintexts_data_opt.is_none() {
         return Ok(());
@@ -416,8 +421,7 @@ pub async fn execute_tally_session(
 
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
 
-    //// Velvet input output dirs
-    // Note this temp folder will be automatically deleted when this goes out of scope
+    // base temp folder
     let base_tempdir = tempdir()?;
 
     let _ = plaintexts_data
@@ -428,7 +432,25 @@ pub async fn execute_tally_session(
                 base_tempdir.path().to_path_buf().clone(),
             )
         });
-    let _compressed_file = compress_folder(base_tempdir.path());
+    // compressed file with the tally
+    let mut compressed_file = compress_folder(base_tempdir.path())?;
+    // read file into binary
+    let mut data: Vec<u8> = Vec::new();
+    compressed_file.read_to_end(&mut data)?;
+
+    // get credentials
+    let auth_headers = keycloak::get_client_credentials().await?;
+
+    // upload binary data into a document (s3 and hasura)
+    let document = upload_and_return_document(
+        data,
+        "application/pdf".to_string(),
+        auth_headers.clone(),
+        tenant_id,
+        election_event_id,
+        "tally.tar.gz".into(),
+    )
+    .await?;
 
     // Missing: insert tally_session_execution in hasura
     Ok(())

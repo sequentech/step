@@ -9,9 +9,8 @@ use serde_json::json;
 use serde_json::{Map, Value};
 use tracing::instrument;
 
-use crate::services::documents::upload_and_return_document;
 use crate::hasura;
-
+use crate::services::documents::upload_and_return_document;
 
 use crate::types::error::Result;
 
@@ -71,7 +70,7 @@ pub async fn render_report(
 
     let bytes = pdf::html_to_pdf(render)?;
 
-    let _document_json = upload_and_return_document(
+    let _document = upload_and_return_document(
         bytes,
         "application/pdf".to_string(),
         auth_headers.clone(),
