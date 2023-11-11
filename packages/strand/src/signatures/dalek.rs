@@ -323,7 +323,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_openssl_key_compat() {
+    fn test_parse_openssl_der() {
         let message = b"ok\n";
         /*
         openssl genpkey -algorithm ed25519 -outform DER -out test25519.der
@@ -367,14 +367,15 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_x509_parse() {
+    fn test_parse_openssl_x509() {
         // generates a self-signed certificate
         // openssl req -key test25519.der -new -x509 -days 365 -outform der -out cert.der
+        let cert_b64 = "MIIBnzCCAVGgAwIBAgIUCh7appwg9HoaP4N4EQoL+s3M/2AwBQYDK2VwMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwHhcNMjMxMTEwMTcyNzA5WhcNMjQxMTA5MTcyNzA5WjBFMQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMCowBQYDK2VwAyEADntlxtaHoKmOPGnBb5nxPVrjTnj4BvQP6xBiW6r5EIqjUzBRMB0GA1UdDgQWBBTb8bPCHkrsXroe/AMIzoFT1F3SQjAfBgNVHSMEGDAWgBTb8bPCHkrsXroe/AMIzoFT1F3SQjAPBgNVHRMBAf8EBTADAQH/MAUGAytlcANBAEGyHlwmhiu8KC/Lo3pDUnkmOab3rbNUFV70U0Ae1NQEclLTuqNRO6OiIQALk06ri032wQCkVc2zSkK7EMJ+5g0=";
+        let cert_der: Vec<u8> = general_purpose::STANDARD.decode(cert_b64).unwrap();
         
-        let cert_der = include_bytes!("../../cert.der");
         // parse
-        let (_, res) = X509Certificate::from_der(cert_der).unwrap();
-        // verify signature
+        let (_, res) = X509Certificate::from_der(&cert_der).unwrap();
+        // verify self-signed signature
         let pk_bytes: &[u8] = res.tbs_certificate.subject_pki.subject_public_key.as_ref();
         let pk_bytes: [u8; 32] = util::to_u8_array(pk_bytes).unwrap();
         let pk = StrandSignaturePk::from_bytes(pk_bytes).unwrap();
