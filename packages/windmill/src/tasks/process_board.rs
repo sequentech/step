@@ -10,7 +10,6 @@ use tracing::{event, instrument, Level};
 use crate::hasura;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::redis::get_lock_manager;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::types::error::Result;
 
@@ -18,21 +17,6 @@ use crate::types::error::Result;
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn process_board(tenant_id: String, election_event_id: String) -> Result<()> {
-    let rl = get_lock_manager();
-    // Create the lock
-    let lock_opt = rl
-        .lock(
-            format!("process_board-{}-{}", tenant_id, election_event_id).as_bytes(),
-            1000,
-        )
-        .await;
-    let lock = match lock_opt {
-        Ok(lock) => lock,
-        Err(_) => {
-            event!(Level::INFO, "Ending early as task is locked");
-            return Ok(());
-        }
-    };
     // get credentials
     let auth_headers = keycloak::get_client_credentials().await?;
 
@@ -53,8 +37,6 @@ pub async fn process_board(tenant_id: String, election_event_id: String) -> Resu
             "Election Event not found {}",
             election_event_id.clone()
         );
-        // Remove the lock
-        rl.unlock(&lock).await;
         return Ok(());
     }
 
@@ -69,8 +51,6 @@ pub async fn process_board(tenant_id: String, election_event_id: String) -> Resu
             "Election Event {} has no bulletin board",
             election_event_id.clone()
         );
-        // Remove the lock
-        rl.unlock(&lock).await;
         return Ok(());
     }
 
@@ -99,8 +79,6 @@ pub async fn process_board(tenant_id: String, election_event_id: String) -> Resu
             .await?;
         event!(Level::INFO, "Sent task {}", task.task_id);
     }
-    // Remove the lock
-    rl.unlock(&lock).await;
 
     Ok(())
 }

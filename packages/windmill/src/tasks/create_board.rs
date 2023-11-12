@@ -13,7 +13,6 @@ use tracing::{event, instrument, Level};
 
 use crate::hasura;
 use crate::services::election_event_board::BoardSerializable;
-use crate::services::redis::get_lock_manager;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CreateBoardPayload {
@@ -39,21 +38,6 @@ pub async fn create_board(
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
-    let rl = get_lock_manager();
-    // Create the lock
-    let lock_opt = rl
-        .lock(
-            format!("create_board-{}-{}", tenant_id, election_event_id).as_bytes(),
-            1000,
-        )
-        .await;
-    let lock = match lock_opt {
-        Ok(lock) => lock,
-        Err(_) => {
-            event!(Level::INFO, "Ending early as task is locked");
-            return Ok(());
-        }
-    };
     let auth_headers = keycloak::get_client_credentials().await?;
     let board_db: String = payload.board_name;
 
@@ -74,8 +58,6 @@ pub async fn create_board(
     .await?;
 
     let _board_json = serde_json::to_value(board_serializable.clone())?;
-    // Remove the lock
-    rl.unlock(&lock).await;
 
     Ok(())
 }

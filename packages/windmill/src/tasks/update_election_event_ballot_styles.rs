@@ -9,7 +9,6 @@ use tracing::{event, instrument, Level};
 
 use crate::hasura::area::get_election_event_areas;
 use crate::services::celery_app::get_celery_app;
-use crate::services::redis::get_lock_manager;
 use crate::tasks::create_ballot_style::create_ballot_style;
 use crate::tasks::create_ballot_style::CreateBallotStylePayload;
 use crate::types::error::Result;
@@ -21,25 +20,6 @@ pub async fn update_election_event_ballot_styles(
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
-    let rl = get_lock_manager();
-    // Create the lock
-    let lock_opt = rl
-        .lock(
-            format!(
-                "update_election_event_ballot_styles-{}-{}",
-                tenant_id, election_event_id
-            )
-            .as_bytes(),
-            1000,
-        )
-        .await;
-    let lock = match lock_opt {
-        Ok(lock) => lock,
-        Err(_) => {
-            event!(Level::INFO, "Ending early as task is locked");
-            return Ok(());
-        }
-    };
     let auth_headers = keycloak::get_client_credentials().await?;
 
     let areas = get_election_event_areas(
@@ -69,7 +49,5 @@ pub async fn update_election_event_ballot_styles(
             task.task_id
         );
     }
-    // Remove the lock
-    rl.unlock(&lock).await;
     Ok(())
 }

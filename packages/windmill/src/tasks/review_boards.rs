@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura;
 use crate::services::celery_app::get_celery_app;
-use crate::services::redis::get_lock_manager;
 use crate::tasks::process_board::process_board;
 use crate::types::error::Result;
 use celery::error::TaskError;
@@ -15,16 +14,6 @@ use tracing::{event, Level};
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn review_boards() -> Result<()> {
-    let rl = get_lock_manager();
-    // Create the lock
-    let lock_opt = rl.lock("review_boards".as_bytes(), 1000).await;
-    let lock = match lock_opt {
-        Ok(lock) => lock,
-        Err(_) => {
-            event!(Level::INFO, "Ending early as task is locked");
-            return Ok(());
-        }
-    };
     let limit: i64 = 100;
     let mut offset: i64 = 0;
     let mut last_length = limit;
@@ -53,8 +42,6 @@ pub async fn review_boards() -> Result<()> {
             event!(Level::INFO, "Sent task {}", task2.task_id);
         }
     }
-    // Remove the lock
-    rl.unlock(&lock).await;
 
     Ok(())
 }

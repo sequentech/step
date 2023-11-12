@@ -350,20 +350,6 @@ services:
       - IMMUDB_USERNAME=immudb
       - IMMUDB_PASSWORD=immudb
 
-  # can use redis-commander as well
-  redis:
-    image: redis:latest
-    command:
-      ["redis-server", "/usr/local/etc/redis/redis.conf"]
-    volumes:
-      - redis:/var/lib/redis
-      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
-    ports:
-      - 6379:6379
-    environment:
-      - REDIS_PASSWORD=yuYae4AiN3aiKoow8AhX
-      - REDIS_PORT=6379
-
 volumes:
   db_data:
   db_logs:
@@ -376,4 +362,3 @@ volumes:
   trustee2_data:
   protocol_manager_data:
   vault-volume:
-  redis:

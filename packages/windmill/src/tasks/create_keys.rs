@@ -14,7 +14,6 @@ use crate::hasura::election_event::update_election_event_status;
 use crate::services::celery_app::*;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::public_keys;
-use crate::services::redis::get_lock_manager;
 use crate::tasks::set_public_key::set_public_key;
 use crate::types::error::{Error, Result};
 
@@ -32,21 +31,6 @@ pub async fn create_keys(
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
-    let rl = get_lock_manager();
-    // Create the lock
-    let lock_opt = rl
-        .lock(
-            format!("create_keys-{}-{}", tenant_id, election_event_id).as_bytes(),
-            1000,
-        )
-        .await;
-    let lock = match lock_opt {
-        Ok(lock) => lock,
-        Err(_) => {
-            event!(Level::INFO, "Ending early as task is locked");
-            return Ok(());
-        }
-    };
     let auth_headers = keycloak::get_client_credentials().await?;
     let celery_app = get_celery_app().await;
     // fetch election_event
@@ -67,8 +51,6 @@ pub async fn create_keys(
         None => None,
     };
     if status.map(|val| val.is_config_created()).unwrap_or(false) {
-        // Remove the lock
-        rl.unlock(&lock).await;
         return Err(Error::String(
             "bulletin board config already created".into(),
         ));
@@ -103,8 +85,6 @@ pub async fn create_keys(
         .send_task(set_public_key::new(tenant_id, election_event_id))
         .await?;
     event!(Level::INFO, "Sent SET_PUBLIC_KEY task {}", task.task_id);
-    // Remove the lock
-    rl.unlock(&lock).await;
 
     Ok(())
 }

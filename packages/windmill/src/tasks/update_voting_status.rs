@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 
 use crate::hasura;
-use crate::services::redis::get_lock_manager;
 use crate::types::error::{Error, Result};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -27,25 +26,6 @@ pub async fn update_voting_status(
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
-    let rl = get_lock_manager();
-    // Create the lock
-    let lock_opt = rl
-        .lock(
-            format!(
-                "update_voting_status-{}-{}-{}",
-                tenant_id, election_event_id, payload.election_id
-            )
-            .as_bytes(),
-            1000,
-        )
-        .await;
-    let lock = match lock_opt {
-        Ok(lock) => lock,
-        Err(_) => {
-            event!(Level::INFO, "Ending early as task is locked");
-            return Ok(());
-        }
-    };
     let auth_headers = keycloak::get_client_credentials().await?;
     let new_status = ElectionStatus {
         voting_status: payload.status.clone(),
@@ -80,7 +60,5 @@ pub async fn update_voting_status(
         .unwrap()
         .returning[0];
 
-    // Remove the lock
-    rl.unlock(&lock).await;
     Ok(())
 }

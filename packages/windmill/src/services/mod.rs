@@ -9,7 +9,6 @@ pub mod documents;
 pub mod election_event_board;
 pub mod protocol_manager;
 pub mod public_keys;
-pub mod redis;
 pub mod s3;
 pub mod temp_path;
 pub mod to_result;
