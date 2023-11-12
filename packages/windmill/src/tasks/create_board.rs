@@ -9,7 +9,7 @@ use sequent_core;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use std::env;
-use tracing::{event, instrument, Level};
+use tracing::{instrument};
 
 use crate::hasura;
 use crate::services::election_event_board::BoardSerializable;
