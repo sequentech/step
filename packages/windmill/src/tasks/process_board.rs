@@ -10,7 +10,10 @@ use tracing::{event, instrument, Level};
 use crate::hasura;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::election_event_status::has_config_created;
+use crate::tasks::create_board::create_board;
 use crate::tasks::execute_tally_session::execute_tally_session;
+use crate::tasks::set_public_key::set_public_key;
 use crate::types::error::Result;
 
 #[instrument]
@@ -45,17 +48,35 @@ pub async fn process_board(tenant_id: String, election_event_id: String) -> Resu
     let bulletin_board_opt =
         get_election_event_board(election_event.bulletin_board_reference.clone());
 
+    let celery_app = get_celery_app().await;
+    // if there's no bulletin board, create it
     if bulletin_board_opt.is_none() {
-        event!(
-            Level::INFO,
-            "Election Event {} has no bulletin board",
-            election_event_id.clone()
-        );
+        let task = celery_app
+            .send_task(create_board::new(
+                tenant_id.clone(),
+                election_event_id.clone(),
+            ))
+            .await
+            .map_err(|e| anyhow::Error::from(e))?;
+        event!(Level::INFO, "Sent create_board task {}", task.task_id);
         return Ok(());
     }
 
-    let _bulletin_board = bulletin_board_opt.unwrap();
+    // if there's bulletin board and the config is created but there's no
+    // public key, try to create it (by reading it from the bulletin board)
+    if has_config_created(election_event.status.clone()) {
+        let task = celery_app
+            .send_task(set_public_key::new(
+                tenant_id.clone(),
+                election_event_id.clone(),
+            ))
+            .await
+            .map_err(|e| anyhow::Error::from(e))?;
+        event!(Level::INFO, "Sent create_board task {}", task.task_id);
+        return Ok(());
+    }
 
+    // Run tally
     // fetch tally_sessions
     let tally_sessions = hasura::tally_session::get_tally_sessions(
         auth_headers.clone(),
@@ -66,8 +87,6 @@ pub async fn process_board(tenant_id: String, election_event_id: String) -> Resu
     .data
     .expect("expected data")
     .sequent_backend_tally_session;
-
-    let celery_app = get_celery_app().await;
 
     for tally_session in tally_sessions {
         let task = celery_app

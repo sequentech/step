@@ -7,7 +7,7 @@ use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::{Map, Value};
-use tracing::{instrument};
+use tracing::instrument;
 
 use crate::hasura;
 use crate::services::documents::upload_and_return_document;

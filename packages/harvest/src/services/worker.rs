@@ -56,11 +56,8 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<()> {
             );
         }
         EventProcessors::CREATE_BOARD => {
-            let payload: create_board::CreateBoardPayload =
-                serde_json::from_value(event.event_payload.clone())?;
             let task = celery_app
                 .send_task(create_board::create_board::new(
-                    payload,
                     event.tenant_id,
                     event.election_event_id,
                 ))

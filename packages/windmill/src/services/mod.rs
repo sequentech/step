@@ -7,6 +7,7 @@ pub mod compress;
 pub mod date;
 pub mod documents;
 pub mod election_event_board;
+pub mod election_event_status;
 pub mod protocol_manager;
 pub mod public_keys;
 pub mod s3;

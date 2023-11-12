@@ -7,7 +7,7 @@ use celery::error::TaskError;
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
-use tracing::{instrument};
+use tracing::instrument;
 
 use crate::hasura;
 use crate::types::error::{Error, Result};
