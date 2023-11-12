@@ -16,6 +16,7 @@ use uuid::Uuid;
 use crate::hasura;
 use crate::hasura::ballot_style::get_ballot_style_area;
 use crate::services::date::ISO8601;
+use crate::services::redis::get_lock_manager;
 
 impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
     for sequent_core::types::hasura_types::ElectionEvent
@@ -190,6 +191,25 @@ pub async fn create_ballot_style(
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
+    let rl = get_lock_manager();
+    // Create the lock
+    let lock_opt = rl
+        .lock(
+            format!(
+                "create_ballot_style-{}-{}-{}",
+                tenant_id, election_event_id, body.area_id
+            )
+            .as_bytes(),
+            1000,
+        )
+        .await;
+    let lock = match lock_opt {
+        Ok(lock) => lock,
+        Err(_) => {
+            event!(Level::INFO, "Ending early as task is locked");
+            return Ok(());
+        }
+    };
     let auth_headers = keycloak::get_client_credentials().await?;
     let hasura_response = hasura::ballot_style::get_ballot_style_area(
         auth_headers.clone(),
@@ -311,6 +331,8 @@ pub async fn create_ballot_style(
         )
         .await?;
     }
+    // Remove the lock
+    rl.unlock(&lock).await;
 
     Ok(())
 }

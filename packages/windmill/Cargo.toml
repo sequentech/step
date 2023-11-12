@@ -37,8 +37,6 @@ async_once = "0.2.6"
 uuid = "1.5.0"
 toml = "0.6.0"
 quick-error = "2.0.1"
-#futures = "0.3.29"
-#redis = { version = "0.23.3", features = ["aio", "tokio-comp"] }
 rslock = "0.2.2"
 
 # logging

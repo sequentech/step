@@ -5,17 +5,33 @@
 use anyhow::Context;
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::public_keys;
+use crate::services::redis::get_lock_manager;
 use crate::types::error::Result;
 
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 10)]
 pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Result<()> {
+    let rl = get_lock_manager();
+    // Create the lock
+    let lock_opt = rl
+        .lock(
+            format!("set_public_key-{}-{}", tenant_id, election_event_id).as_bytes(),
+            1000,
+        )
+        .await;
+    let lock = match lock_opt {
+        Ok(lock) => lock,
+        Err(_) => {
+            event!(Level::INFO, "Ending early as task is locked");
+            return Ok(());
+        }
+    };
     let auth_headers = keycloak::get_client_credentials().await?;
     let election_event_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
@@ -33,6 +49,8 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
         .with_context(|| "election event is missing bulletin board")?;
 
     if election_event.public_key.is_some() {
+        // Remove the lock
+        rl.unlock(&lock).await;
         return Ok(());
     }
 
@@ -44,5 +62,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
         public_key,
     )
     .await?;
+    // Remove the lock
+    rl.unlock(&lock).await;
     Ok(())
 }

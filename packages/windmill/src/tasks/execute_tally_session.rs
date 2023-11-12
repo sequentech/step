@@ -430,7 +430,7 @@ pub async fn execute_tally_session(
                 tenant_id, election_event_id, tally_session_id
             )
             .as_bytes(),
-            1000,
+            60000,
         )
         .await;
     let lock = match lock_opt {

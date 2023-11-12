@@ -14,6 +14,7 @@ use crate::hasura::tally_session::{get_tally_session_highest_batch, insert_tally
 use crate::hasura::tally_session_contest::insert_tally_session_contest;
 use crate::hasura::trustee::get_trustees_by_id;
 use crate::services::celery_app::get_celery_app;
+use crate::services::redis::get_lock_manager;
 use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
 use crate::types::error::Result;
 
@@ -31,6 +32,21 @@ pub async fn tally_election_event(
     tenant_id: String,
     election_event_id: String,
 ) -> Result<()> {
+    let rl = get_lock_manager();
+    // Create the lock
+    let lock_opt = rl
+        .lock(
+            format!("tally_election_event-{}-{}", tenant_id, election_event_id).as_bytes(),
+            1000,
+        )
+        .await;
+    let lock = match lock_opt {
+        Ok(lock) => lock,
+        Err(_) => {
+            event!(Level::INFO, "Ending early as task is locked");
+            return Ok(());
+        }
+    };
     let auth_headers = keycloak::get_client_credentials().await?;
 
     let areas_data = get_election_event_areas(
@@ -131,5 +147,7 @@ pub async fn tally_election_event(
         event!(Level::INFO, "Sent INSERT_BALLOTS task {}", task.task_id);
         batch = batch + 1;
     }
+    // Remove the lock
+    rl.unlock(&lock).await;
     Ok(())
 }

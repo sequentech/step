@@ -20,6 +20,7 @@ use crate::hasura::trustee::get_trustees_by_id;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_pk;
+use crate::services::redis::get_lock_manager;
 use crate::types::error::{Error, Result};
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
@@ -37,6 +38,25 @@ pub async fn insert_ballots(
     tally_session_id: String,
     tally_session_contest_id: String,
 ) -> Result<()> {
+    let rl = get_lock_manager();
+    // Create the lock
+    let lock_opt = rl
+        .lock(
+            format!(
+                "insert_ballots-{}-{}-{}-{}",
+                tenant_id, election_event_id, tally_session_id, tally_session_contest_id
+            )
+            .as_bytes(),
+            1000,
+        )
+        .await;
+    let lock = match lock_opt {
+        Ok(lock) => lock,
+        Err(_) => {
+            event!(Level::INFO, "Ending early as task is locked");
+            return Ok(());
+        }
+    };
     let auth_headers = keycloak::get_client_credentials().await?;
     let tally_session_contest = &get_tally_session_contest(
         auth_headers.clone(),
@@ -96,6 +116,8 @@ pub async fn insert_ballots(
         .map(|val| val.is_config_created())
         .unwrap_or(false)
     {
+        // Remove the lock
+        rl.unlock(&lock).await;
         return Err(Error::String("bulletin board config missing".into()));
     }
     /*if !status.map(|val| val.is_stopped()).unwrap_or(false) {
@@ -151,6 +173,8 @@ pub async fn insert_ballots(
         deserialized_trustee_pks,
     )
     .await?;
+    // Remove the lock
+    rl.unlock(&lock).await;
 
     Ok(())
 }

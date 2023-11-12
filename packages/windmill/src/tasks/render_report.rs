@@ -7,11 +7,11 @@ use sequent_core::services::{pdf, reports};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::{Map, Value};
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 use crate::hasura;
 use crate::services::documents::upload_and_return_document;
-
+use crate::services::redis::get_lock_manager;
 use crate::types::error::Result;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -35,7 +35,27 @@ pub async fn render_report(
     input: RenderTemplateBody,
     tenant_id: String,
     election_event_id: String,
+    report_id: String,
 ) -> Result<()> {
+    let rl = get_lock_manager();
+    // Create the lock
+    let lock_opt = rl
+        .lock(
+            format!(
+                "render_report-{}-{}-{}",
+                tenant_id, election_event_id, report_id
+            )
+            .as_bytes(),
+            60000,
+        )
+        .await;
+    let lock = match lock_opt {
+        Ok(lock) => lock,
+        Err(_) => {
+            event!(Level::INFO, "Ending early as task is locked");
+            return Ok(());
+        }
+    };
     let auth_headers = keycloak::get_client_credentials().await?;
     println!("auth headers: {:#?}", auth_headers);
     let hasura_response =
@@ -65,20 +85,21 @@ pub async fn render_report(
             input.name,
         )
         .await?;
-        return Ok(());
+    } else {
+        let bytes = pdf::html_to_pdf(render)?;
+
+        let _document = upload_and_return_document(
+            bytes,
+            "application/pdf".to_string(),
+            auth_headers.clone(),
+            tenant_id,
+            election_event_id,
+            input.name,
+        )
+        .await?;
     }
-
-    let bytes = pdf::html_to_pdf(render)?;
-
-    let _document = upload_and_return_document(
-        bytes,
-        "application/pdf".to_string(),
-        auth_headers.clone(),
-        tenant_id,
-        election_event_id,
-        input.name,
-    )
-    .await?;
+    // Remove the lock
+    rl.unlock(&lock).await;
 
     Ok(())
 }
