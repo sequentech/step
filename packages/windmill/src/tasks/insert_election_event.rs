@@ -13,18 +13,8 @@ use tracing::instrument;
 
 use crate::hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
-
+use crate::services::protocol_manager::get_board_client;
 use crate::types::error::Result;
-
-async fn get_board_client() -> Result<BoardClient> {
-    let username = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
-    let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
-    let server_url =
-        env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
-    let mut client = BoardClient::new(&server_url, &username, &password).await?;
-    client.login(&username, &password).await?;
-    Ok(client)
-}
 
 #[instrument]
 pub async fn create_immu_board(
