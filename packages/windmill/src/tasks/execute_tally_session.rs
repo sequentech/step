@@ -328,15 +328,16 @@ fn tally_area_contest(
     let ballots_path = velvet_input_dir.join(format!(
         "default/ballots/election__{election_id}/contest__{contest_id}/region__{area_id}"
     ));
-    fs::create_dir_all(&ballots_path).expect("Could not create dir");
+    fs::create_dir_all(&ballots_path).map_err(|e| Error::FileAccess(ballots_path.clone(), e))?;
 
     let csv_ballots_path = ballots_path.join("ballots.csv");
-    let mut csv_ballots_file = File::create(csv_ballots_path).expect("Could not create file");
+    let mut csv_ballots_file = File::create(&csv_ballots_path)
+        .map_err(|e| Error::FileAccess(csv_ballots_path.clone(), e))?;
     let buffer = biguit_ballots.join("\n").into_bytes();
 
     csv_ballots_file
         .write_all(&buffer)
-        .expect("Cannot written to file");
+        .map_err(|e| Error::FileAccess(csv_ballots_path.clone(), e))?;
 
     //// create velvet config
     let velvet_path_config: PathBuf = velvet_input_dir.join("config.json");
@@ -344,45 +345,44 @@ fn tally_area_contest(
         .write(true)
         .create(true)
         .open(&velvet_path_config)
-        .expect("Could not open file");
+        .map_err(|e| Error::FileAccess(velvet_path_config.clone(), e))?;
 
     writeln!(
         config_file,
         "{}",
-        serde_json::to_string(&fixtures::get_config()).unwrap()
+        serde_json::to_string(&fixtures::get_config())?
     )
-    .expect("Could not write in file");
+    .map_err(|e| Error::FileAccess(velvet_path_config.clone(), e))?;
 
     //// create region folder
     let region_path: PathBuf = velvet_input_dir.join(format!(
         "default/configs/election__{election_id}/contest__{contest_id}/region__{area_id}"
     ));
-    fs::create_dir_all(region_path).expect("Could not create dir");
+    fs::create_dir_all(&region_path).map_err(|e| Error::FileAccess(region_path.clone(), e))?;
 
     //// create contest config file
     let ballot_style_path: PathBuf = velvet_input_dir.join(format!(
         "default/configs/election__{election_id}/election-config.json"
     ));
-    let mut ballot_style_file = fs::File::create(ballot_style_path).expect("Couldnt create file");
+    let mut ballot_style_file = fs::File::create(&ballot_style_path)
+        .map_err(|e| Error::FileAccess(ballot_style_path.clone(), e))?;
+
     writeln!(
         ballot_style_file,
         "{}",
-        serde_json::to_string(&ballot_style).unwrap()
+        serde_json::to_string(&ballot_style)?
     )
-    .expect("Could not write in file");
+    .map_err(|e| Error::FileAccess(ballot_style_path.clone(), e))?;
 
     //// create contest config file
     let contest_config_path: PathBuf = velvet_input_dir.join(format!(
         "default/configs/election__{election_id}/contest__{contest_id}/contest-config.json"
     ));
-    let mut contest_config_file =
-        fs::File::create(contest_config_path).expect("Couldnt create file");
-    writeln!(
-        contest_config_file,
-        "{}",
-        serde_json::to_string(&contest).unwrap()
-    )
-    .expect("Could not write in file");
+    let mut contest_config_file = fs::File::create(contest_config_path)
+        .map_err(|e| Error::FileAccess(ballot_style_path.clone(), e))?;
+
+    writeln!(contest_config_file, "{}", serde_json::to_string(&contest)?)
+        .map_err(|e| Error::FileAccess(ballot_style_path.clone(), e))?;
 
     //// Run Velvet
     let cli = CliRun {
@@ -393,25 +393,33 @@ fn tally_area_contest(
         output_dir: velvet_output_dir,
     };
 
-    let config = cli.validate().unwrap();
+    let config = cli.validate().map_err(|e| Error::String(e.to_string()))?;
 
-    let mut state = State::new(&cli, &config).unwrap();
+    let mut state = State::new(&cli, &config).map_err(|e| Error::String(e.to_string()))?;
 
     // DecodeBallots
     event!(Level::INFO, "Exec Decode Ballots");
-    state.exec_next().unwrap();
+    state
+        .exec_next()
+        .map_err(|e| Error::String(e.to_string()))?;
 
     // Do Tally
     event!(Level::INFO, "Exec Do Tally");
-    state.exec_next().unwrap();
+    state
+        .exec_next()
+        .map_err(|e| Error::String(e.to_string()))?;
 
     // mark winners
     event!(Level::INFO, "Exec Mark Winners");
-    state.exec_next().unwrap();
+    state
+        .exec_next()
+        .map_err(|e| Error::String(e.to_string()))?;
 
     // report
     event!(Level::INFO, "Exec Reports");
-    state.exec_next().unwrap();
+    state
+        .exec_next()
+        .map_err(|e| Error::String(e.to_string()))?;
 
     Ok(())
 }
@@ -444,14 +452,15 @@ pub async fn execute_tally_session(
     let base_tempdir = tempdir()?;
 
     // perform tallies with velvet
-    let _ = plaintexts_data
-        .iter()
-        .try_for_each(|area_contest_plaintext| {
-            tally_area_contest(
-                area_contest_plaintext.clone(),
-                base_tempdir.path().to_path_buf().clone(),
-            )
-        });
+    plaintexts_data.iter().for_each(|area_contest_plaintext| {
+        if let Err(e) = tally_area_contest(
+            area_contest_plaintext.clone(),
+            base_tempdir.path().to_path_buf(),
+        ) {
+            event!(Level::ERROR, "Tally area contest: {e}");
+        }
+    });
+
     // compressed file with the tally
     let data = compress_folder(base_tempdir.path())?;
 

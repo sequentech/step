@@ -18,6 +18,9 @@ quick_error! {
             from()
             from(err: &str) -> (err.into())
         }
+        FileAccess(path: std::path::PathBuf, err: std::io::Error) {
+            display("An error occurred while accessing the file at '{}': {}", path.display(), err)
+        }
     }
 }
 
@@ -26,6 +29,11 @@ impl From<Error> for TaskError {
         match err {
             Error::Anyhow(err) => TaskError::UnexpectedError(format!("{:?}", err)),
             Error::String(err) => TaskError::UnexpectedError(err),
+            Error::FileAccess(path, err) => TaskError::UnexpectedError(format!(
+                "An error occurred while accessing the file at '{}': {}",
+                path.display(),
+                err
+            )),
         }
     }
 }
