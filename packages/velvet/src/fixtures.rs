@@ -83,19 +83,19 @@ impl TestFixture {
         Ok(uuid)
     }
 
-    pub fn create_region_dir(&self, election_uuid: &Uuid, contest_uuid: &Uuid) -> Result<Uuid> {
+    pub fn create_area_dir(&self, election_uuid: &Uuid, contest_uuid: &Uuid) -> Result<Uuid> {
         let uuid = Uuid::new_v4();
 
         let dir_configs = self
             .input_dir_configs
             .join(format!("election__{election_uuid}"))
             .join(format!("contest__{contest_uuid}"))
-            .join(format!("region__{uuid}"));
+            .join(format!("area__{uuid}"));
         let dir_ballots = self
             .input_dir_ballots
             .join(format!("election__{election_uuid}"))
             .join(format!("contest__{contest_uuid}"))
-            .join(format!("region__{uuid}"));
+            .join(format!("area__{uuid}"));
         fs::create_dir_all(dir_configs)?;
         fs::create_dir_all(dir_ballots)?;
 

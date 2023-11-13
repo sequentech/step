@@ -48,12 +48,12 @@ impl Pipe for DoTally {
             for contest_input in &election_input.contest_list {
                 let mut contest_ballot_files = vec![];
 
-                for region_input in &contest_input.region_list {
+                for area_input in &contest_input.area_list {
                     let decoded_ballots_file = PipeInputs::build_path(
                         &input_dir,
                         &contest_input.election_id,
                         &contest_input.id,
-                        Some(&region_input.id),
+                        Some(&area_input.id),
                     )
                     .join(OUTPUT_DECODED_BALLOTS_FILE);
 
@@ -68,7 +68,7 @@ impl Pipe for DoTally {
                         &output_dir,
                         &contest_input.election_id,
                         &contest_input.id,
-                        Some(&region_input.id),
+                        Some(&area_input.id),
                     );
 
                     fs::create_dir_all(&file)?;

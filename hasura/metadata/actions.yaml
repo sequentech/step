@@ -84,4 +84,6 @@ custom_types:
     - name: Aggregate
     - name: DataListPgAudit
     - name: TotalAggregate
+    - name: ScheduledEventOutput2
+    - name: ScheduledEventOutput3
   scalars: []

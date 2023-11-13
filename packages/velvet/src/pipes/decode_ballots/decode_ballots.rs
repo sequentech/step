@@ -55,12 +55,12 @@ impl Pipe for DecodeBallots {
     fn exec(&self) -> Result<()> {
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
-                for region_input in &contest_input.region_list {
+                for area_input in &contest_input.area_list {
                     let path_ballots = PipeInputs::build_path(
                         self.pipe_inputs.root_path_ballots.as_path(),
                         &election_input.id,
                         &contest_input.id,
-                        Some(&region_input.id),
+                        Some(&area_input.id),
                     )
                     .join(BALLOTS_FILE);
 
@@ -86,12 +86,13 @@ impl Pipe for DecodeBallots {
                                     .as_path(),
                                 &election_input.id,
                                 &contest_input.id,
-                                Some(&region_input.id),
+                                Some(&area_input.id),
                             );
 
                             fs::create_dir_all(&output_path)?;
                             output_path.push(OUTPUT_DECODED_BALLOTS_FILE);
-                            let file = File::create(output_path)?;
+                            let file = File::create(&output_path)
+                                .map_err(|e| Error::FileAccess(output_path, e))?;
 
                             serde_json::to_writer(file, &decoded_ballots)?;
                         }

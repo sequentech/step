@@ -21,16 +21,6 @@ export const CREATE_SCHEDULED_EVENT = gql`
             created_by: $createdBy
         ) {
             id
-            tenant_id
-            election_event_id
-            created_at
-            stopped_at
-            labels
-            annotations
-            event_processor
-            cron_config
-            event_payload
-            created_by
         }
     }
 `

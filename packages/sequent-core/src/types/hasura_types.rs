@@ -105,3 +105,18 @@ pub struct Candidate {
     pub presentation: Option<Value>,
     pub is_public: Option<bool>,
 }
+
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct Document {
+    pub id: Uuid,
+    pub tenant_id: Option<Uuid>,
+    pub election_event_id: Option<Uuid>,
+    pub name: Option<String>,
+    pub media_type: Option<String>,
+    pub size: Option<i64>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+    pub created_at: Option<NaiveDateTime>,
+    pub last_updated_at: Option<NaiveDateTime>,
+}

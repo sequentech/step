@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-import {Dialog} from "@sequentech/ui-essentials"
+import {Dialog, downloadUrl} from "@sequentech/ui-essentials"
 import {
     Box,
     CircularProgress,
@@ -153,16 +153,19 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
         if (data) {
             console.log(data)
         }
-        setShowProgress(false)
+        //setShowProgress(false)
         refresh()
     }
 
     const clickHandler = async (val: boolean) => {
         if (val) {
             try {
+                setTimeout(function() {
+                    setShowProgress(false)
+                    handleClose(true)
+                    downloadUrl("/report.pdf", "report.pdf");
+                }, 5000);
                 await startTally()
-                setShowProgress(false)
-                handleClose(true)
             } catch (error) {
                 console.log(`Error trying to start tally: ${error}`)
                 setShowProgress(false)

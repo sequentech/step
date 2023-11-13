@@ -6,16 +6,15 @@ insert_permissions:
     permission:
       check: {}
       columns:
-        - session_id
         - annotations
-        - labels
-        - created_at
-        - last_updated_at
         - area_id
         - contest_id
-        - document_id
+        - created_at
         - election_event_id
         - id
+        - labels
+        - last_updated_at
+        - session_id
         - tally_session_id
         - tenant_id
     comment: ""
@@ -23,16 +22,15 @@ insert_permissions:
     permission:
       check: {}
       columns:
-        - session_id
         - annotations
-        - labels
-        - created_at
-        - last_updated_at
         - area_id
         - contest_id
-        - document_id
+        - created_at
         - election_event_id
         - id
+        - labels
+        - last_updated_at
+        - session_id
         - tally_session_id
         - tenant_id
     comment: ""
@@ -40,16 +38,15 @@ select_permissions:
   - role: admin-user
     permission:
       columns:
-        - session_id
         - annotations
-        - labels
-        - created_at
-        - last_updated_at
         - area_id
         - contest_id
-        - document_id
+        - created_at
         - election_event_id
         - id
+        - labels
+        - last_updated_at
+        - session_id
         - tally_session_id
         - tenant_id
       filter: {}
@@ -58,16 +55,15 @@ select_permissions:
   - role: service-account
     permission:
       columns:
-        - session_id
         - annotations
-        - labels
-        - created_at
-        - last_updated_at
         - area_id
         - contest_id
-        - document_id
+        - created_at
         - election_event_id
         - id
+        - labels
+        - last_updated_at
+        - session_id
         - tally_session_id
         - tenant_id
       filter: {}
@@ -77,16 +73,15 @@ update_permissions:
   - role: admin-user
     permission:
       columns:
-        - session_id
         - annotations
-        - labels
-        - created_at
-        - last_updated_at
         - area_id
         - contest_id
-        - document_id
+        - created_at
         - election_event_id
         - id
+        - labels
+        - last_updated_at
+        - session_id
         - tally_session_id
         - tenant_id
       filter: {}
@@ -95,16 +90,15 @@ update_permissions:
   - role: service-account
     permission:
       columns:
-        - session_id
         - annotations
-        - labels
-        - created_at
-        - last_updated_at
         - area_id
         - contest_id
-        - document_id
+        - created_at
         - election_event_id
         - id
+        - labels
+        - last_updated_at
+        - session_id
         - tally_session_id
         - tenant_id
       filter: {}
