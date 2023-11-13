@@ -59,7 +59,7 @@ export const AppWrapper = () => {
     ])
 
     useEffect(() => {
-        if (accessToken) {
+        if (authContext.isAuthenticated && accessToken) {
             let newClient = createApolloClient()
             setApolloClient(newClient)
         }
