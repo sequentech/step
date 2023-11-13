@@ -10,7 +10,7 @@ use tempfile::tempdir;
 use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use sequent_core::ballot::{BallotStyle, Contest};
-use sequent_core::ballot_codec::{BigUIntCodec, PlaintextCodec};
+use sequent_core::ballot_codec::{PlaintextCodec};
 use sequent_core::services::keycloak;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tracing::{event, instrument, Level};

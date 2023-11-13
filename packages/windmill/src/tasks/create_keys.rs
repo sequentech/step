@@ -7,7 +7,7 @@ use celery::error::TaskError;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use tracing::{instrument};
 
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
@@ -31,7 +31,7 @@ pub async fn create_keys(
     election_event_id: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
-    let celery_app = get_celery_app().await;
+    let _celery_app = get_celery_app().await;
     // fetch election_event
     let hasura_response = hasura::election_event::get_election_event(
         auth_headers.clone(),

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use celery::error::TaskError;
-use immu_board::BoardClient;
+
 use sequent_core;
 use sequent_core::services::keycloak;
 use std::env;
