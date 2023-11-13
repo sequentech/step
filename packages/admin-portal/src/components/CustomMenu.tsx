@@ -99,11 +99,11 @@ export const CustomMenu = () => {
             sx={{
                 ".RaMenuItemLink-active": {
                     backgroundColor: adminTheme.palette.green.light,
-                }
+                },
             }}
         >
             <CustomerSelector />
-            <TreeMenu isOpen={open}/>
+            <TreeMenu isOpen={open} />
             <StyledItem
                 to="/pgaudit"
                 primaryText="PG Audit"

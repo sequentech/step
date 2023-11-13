@@ -4,14 +4,11 @@
 import React from "react"
 import ReactDOM from "react-dom/client"
 import "./index.css"
-import App from "./App"
+import {AppWrapper} from "./App"
 import "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
-//import AuthContextProvider from "./providers/AuthContextProvider"
-import {ApolloProvider} from "@apollo/client"
-import {apolloClient} from "./services/ApolloService"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {fullAdminTheme} from "./services/AdminTheme"
 
@@ -23,9 +20,7 @@ root.render(
     <React.StrictMode>
         <AuthContextProvider>
             <ThemeProvider theme={fullAdminTheme}>
-                <ApolloProvider client={apolloClient}>
-                    <App />
-                </ApolloProvider>
+                <AppWrapper />
             </ThemeProvider>
         </AuthContextProvider>
     </React.StrictMode>
