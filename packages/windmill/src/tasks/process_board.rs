@@ -64,7 +64,7 @@ pub async fn process_board(tenant_id: String, election_event_id: String) -> Resu
 
     // if there's bulletin board and the config is created but there's no
     // public key, try to create it (by reading it from the bulletin board)
-    if has_config_created(election_event.status.clone()) {
+    if !has_config_created(election_event.status.clone()) {
         let task = celery_app
             .send_task(set_public_key::new(
                 tenant_id.clone(),
