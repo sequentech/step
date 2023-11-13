@@ -114,22 +114,16 @@ fn process_plaintexts(
                 )
             })
         })
-        .filter_map(|s| {
-            let (plaintexts_opt, tally_session_contest_opt, contest_opt, ballot_style_opt) = s;
-            if plaintexts_opt.is_some()
-                && tally_session_contest_opt.is_some()
-                && contest_opt.is_some()
-                && ballot_style_opt.is_some()
-            {
+        .filter_map(|s| match s {
+            (Some(plaintexts), Some(tally_session_contest), Some(contest), Some(ballots_style)) => {
                 Some((
-                    plaintexts_opt.unwrap(),
-                    tally_session_contest_opt.unwrap().clone(),
-                    contest_opt.unwrap().clone(),
-                    ballot_style_opt.unwrap().clone(),
+                    plaintexts,
+                    tally_session_contest.clone(),
+                    contest.clone(),
+                    ballots_style.clone(),
                 ))
-            } else {
-                None
             }
+            _ => None,
         })
         .collect()
 }
