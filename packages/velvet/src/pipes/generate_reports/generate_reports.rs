@@ -115,7 +115,7 @@ impl GenerateReports {
         &self,
         election_id: &Uuid,
         contest_id: &Uuid,
-        region_id: Option<&Uuid>,
+        area_id: Option<&Uuid>,
     ) -> Result<ContestResult> {
         let path = PipeInputs::build_path(
             &self
@@ -126,7 +126,7 @@ impl GenerateReports {
                 .join(PipeNameOutputDir::DoTally.as_ref()),
             election_id,
             contest_id,
-            region_id,
+            area_id,
         )
         .join(OUTPUT_CONTEST_RESULT_FILE);
 
@@ -141,7 +141,7 @@ impl GenerateReports {
         &self,
         election_id: &Uuid,
         contest_id: &Uuid,
-        region_id: Option<&Uuid>,
+        area_id: Option<&Uuid>,
     ) -> Result<Vec<WinnerResult>> {
         let path = PipeInputs::build_path(
             &self
@@ -152,7 +152,7 @@ impl GenerateReports {
                 .join(PipeNameOutputDir::MarkWinners.as_ref()),
             election_id,
             contest_id,
-            region_id,
+            area_id,
         )
         .join(OUTPUT_WINNERS);
 

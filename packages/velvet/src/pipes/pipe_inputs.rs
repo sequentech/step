@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 pub const PREFIX_ELECTION: &str = "election__";
 pub const PREFIX_CONTEST: &str = "contest__";
-pub const PREFIX_REGION: &str = "region__";
+pub const PREFIX_AREA: &str = "area__";
 
 pub const DEFAULT_DIR_CONFIGS: &str = "default/configs";
 pub const DEFAULT_DIR_BALLOTS: &str = "default/ballots";
@@ -50,7 +50,7 @@ impl PipeInputs {
         root: &Path,
         election_id: &Uuid,
         contest_id: &Uuid,
-        region_id: Option<&Uuid>,
+        area_id: Option<&Uuid>,
     ) -> PathBuf {
         let mut path = PathBuf::new();
 
@@ -58,8 +58,8 @@ impl PipeInputs {
         path.push(format!("{}{}", PREFIX_ELECTION, election_id));
         path.push(format!("{}{}", PREFIX_CONTEST, contest_id));
 
-        if let Some(region_id) = region_id {
-            path.push(format!("{}{}", PREFIX_REGION, region_id));
+        if let Some(area_id) = area_id {
+            path.push(format!("{}{}", PREFIX_AREA, area_id));
         }
 
         path
@@ -124,14 +124,14 @@ impl PipeInputs {
         let entries = fs::read_dir(path)?;
         let mut configs = vec![];
         for entry in entries {
-            let path_region = entry?.path();
-            if path_region.is_dir() {
-                let region_id = Self::parse_path_components(&path_region, PREFIX_REGION)
+            let path_area = entry?.path();
+            if path_area.is_dir() {
+                let area_id = Self::parse_path_components(&path_area, PREFIX_AREA)
                     .ok_or(Error::IDNotFound)?;
-                configs.push(Region {
-                    id: region_id,
+                configs.push(Area {
+                    id: area_id,
                     contest_id,
-                    path: path_region,
+                    path: path_area,
                 });
             }
         }
@@ -140,7 +140,7 @@ impl PipeInputs {
             id: contest_id,
             election_id,
             contest,
-            region_list: configs,
+            area_list: configs,
             path: path.to_path_buf(),
         })
     }
@@ -171,12 +171,12 @@ pub struct ContestForElectionConfig {
     pub id: Uuid,
     pub election_id: Uuid,
     pub contest: Contest,
-    pub region_list: Vec<Region>,
+    pub area_list: Vec<Area>,
     pub path: PathBuf,
 }
 
 #[derive(Debug)]
-pub struct Region {
+pub struct Area {
     pub id: Uuid,
     pub contest_id: Uuid,
     pub path: PathBuf,

@@ -23,7 +23,7 @@ mod tests {
         fixture: &TestFixture,
         election_num: u32,
         contest_num: u32,
-        region_num: u32,
+        area_num: u32,
         ballots_num: u32,
     ) -> Result<()> {
         if ballots_num > 0 && ballots_num < 20 {
@@ -36,14 +36,14 @@ mod tests {
             let uuid_election = fixture.create_election_config()?;
             (0..contest_num).try_for_each(|_| {
                 let uuid_contest = fixture.create_contest_config(&uuid_election)?;
-                (0..region_num).try_for_each(|index| {
-                    let uuid_region = fixture.create_region_dir(&uuid_election, &uuid_contest)?;
+                (0..area_num).try_for_each(|index| {
+                    let uuid_area = fixture.create_area_dir(&uuid_election, &uuid_contest)?;
 
                     let file = fixture
                         .input_dir_ballots
                         .join(format!("election__{uuid_election}"))
                         .join(format!("contest__{uuid_contest}"))
-                        .join(format!("region__{uuid_region}"));
+                        .join(format!("area__{uuid_area}"));
 
                     if index == 1 {
                         // skip 1 ballot file
@@ -191,7 +191,7 @@ mod tests {
         let count = entries.count();
         assert_eq!(count, 10);
 
-        // count count regions
+        // count count areas
         let mut entries = fs::read_dir(fixture.input_dir_ballots.join(election_uuid))?;
         let entry = entries.next().unwrap()?;
         let contest_path = entry.path();
@@ -207,12 +207,12 @@ mod tests {
     fn test_pipes_exec() -> Result<()> {
         let election_num = 5;
         let contest_num = 10;
-        let region_num = 3;
+        let area_num = 3;
         let ballot_num = 20;
 
         let fixture = TestFixture::new()?;
 
-        generate_ballots(&fixture, election_num, contest_num, region_num, ballot_num)?;
+        generate_ballots(&fixture, election_num, contest_num, area_num, ballot_num)?;
 
         let cli = CliRun {
             stage: "main".to_string(),
@@ -243,7 +243,7 @@ mod tests {
                         .map_or(false, |f| f == OUTPUT_DECODED_BALLOTS_FILE)
                 })
                 .count() as u32,
-            election_num * contest_num * (region_num - 1)
+            election_num * contest_num * (area_num - 1)
         );
 
         // DoTally
@@ -259,7 +259,7 @@ mod tests {
                         .map_or(false, |f| f == OUTPUT_CONTEST_RESULT_FILE)
                 })
                 .count() as u32,
-            election_num * contest_num * region_num + election_num * contest_num
+            election_num * contest_num * area_num + election_num * contest_num
         );
 
         // MarkWinners
@@ -271,7 +271,7 @@ mod tests {
                 .filter_map(Result::ok)
                 .filter(|e| { e.path().file_name().map_or(false, |f| f == OUTPUT_WINNERS) })
                 .count() as u32,
-            election_num * contest_num * region_num + election_num * contest_num
+            election_num * contest_num * area_num + election_num * contest_num
         );
 
         Ok(())
@@ -308,7 +308,7 @@ mod tests {
 
         Ok(())
     }
-    
+
     #[test]
     fn test_generate_reports_without_ballots() -> Result<()> {
         let fixture = TestFixture::new()?;

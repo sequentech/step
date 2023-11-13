@@ -326,7 +326,7 @@ fn tally_area_contest(
 
     //// create ballots
     let ballots_path = velvet_input_dir.join(format!(
-        "default/ballots/election__{election_id}/contest__{contest_id}/region__{area_id}"
+        "default/ballots/election__{election_id}/contest__{contest_id}/area__{area_id}"
     ));
     fs::create_dir_all(&ballots_path).map_err(|e| Error::FileAccess(ballots_path.clone(), e))?;
 
@@ -354,11 +354,11 @@ fn tally_area_contest(
     )
     .map_err(|e| Error::FileAccess(velvet_path_config.clone(), e))?;
 
-    //// create region folder
-    let region_path: PathBuf = velvet_input_dir.join(format!(
-        "default/configs/election__{election_id}/contest__{contest_id}/region__{area_id}"
+    //// create area folder
+    let area_path: PathBuf = velvet_input_dir.join(format!(
+        "default/configs/election__{election_id}/contest__{contest_id}/area__{area_id}"
     ));
-    fs::create_dir_all(&region_path).map_err(|e| Error::FileAccess(region_path.clone(), e))?;
+    fs::create_dir_all(&area_path).map_err(|e| Error::FileAccess(area_path.clone(), e))?;
 
     //// create contest config file
     let ballot_style_path: PathBuf = velvet_input_dir.join(format!(

@@ -55,12 +55,12 @@ impl Pipe for DecodeBallots {
     fn exec(&self) -> Result<()> {
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
-                for region_input in &contest_input.region_list {
+                for area_input in &contest_input.area_list {
                     let path_ballots = PipeInputs::build_path(
                         self.pipe_inputs.root_path_ballots.as_path(),
                         &election_input.id,
                         &contest_input.id,
-                        Some(&region_input.id),
+                        Some(&area_input.id),
                     )
                     .join(BALLOTS_FILE);
 
@@ -86,7 +86,7 @@ impl Pipe for DecodeBallots {
                                     .as_path(),
                                 &election_input.id,
                                 &contest_input.id,
-                                Some(&region_input.id),
+                                Some(&area_input.id),
                             );
 
                             fs::create_dir_all(&output_path)?;

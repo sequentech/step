@@ -77,12 +77,12 @@ impl Pipe for MarkWinners {
 
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
-                for region_input in &contest_input.region_list {
+                for area_input in &contest_input.area_list {
                     let contest_result_file = PipeInputs::build_path(
                         &input_dir,
                         &contest_input.election_id,
                         &contest_input.id,
-                        Some(&region_input.id),
+                        Some(&area_input.id),
                     )
                     .join(OUTPUT_CONTEST_RESULT_FILE);
 
@@ -96,7 +96,7 @@ impl Pipe for MarkWinners {
                         &output_dir,
                         &contest_input.election_id,
                         &contest_input.id,
-                        Some(&region_input.id),
+                        Some(&area_input.id),
                     );
 
                     fs::create_dir_all(&file)?;
