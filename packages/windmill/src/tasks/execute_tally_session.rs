@@ -30,8 +30,7 @@ use crate::services::compress::compress_folder;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
-use crate::types::error;
-use crate::types::error::Result;
+use crate::types::error::{Error, Result};
 
 type AreaContestDataType = (
     Vec<<RistrettoCtx as Ctx>::P>,
@@ -47,7 +46,7 @@ fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyl
         .sequent_backend_ballot_style
         .iter()
         .map(|ballot_style_row| {
-            let ballot_style_res: Result<BallotStyle, error::Error> = serde_json::from_str(
+            let ballot_style_res: Result<BallotStyle, Error> = serde_json::from_str(
                 ballot_style_row
                     .ballot_eml
                     .clone()
@@ -298,30 +297,35 @@ fn tally_area_contest(
 ) -> Result<()> {
     let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext;
 
-    // here if you need it
     let area_id = tally_session_contest.area_id.clone();
     let contest_id = contest.id.clone();
     let election_id = contest.election_id.clone();
 
     let biguit_ballots = plaintexts
         .iter()
-        .map(|plaintext| {
-            // TODO: handle unwraps
-            let biguint = contest
-                .decode_plaintext_contest_to_biguint(plaintext)
-                .unwrap();
+        .filter_map(|plaintext| {
+            let biguint = contest.decode_plaintext_contest_to_biguint(plaintext);
 
-            // Testing decoded ballots here: to be removed
-            let _decoded_ballot = contest.decode_plaintext_contest_bigint(&biguint).unwrap();
-            event!(Level::INFO, "Decoded biguint {}", biguint.to_str_radix(10));
-            biguint.to_str_radix(10)
+            match biguint {
+                Ok(v) => {
+                    let biguit_str = v.to_str_radix(10);
+                    event!(Level::INFO, "Decoded biguint {biguit_str}");
+
+                    Some(biguit_str)
+                }
+                Err(e) => {
+                    event!(Level::WARN, "Decoding plaintext has failed: {e}");
+                    None
+                }
+            }
         })
         .collect::<Vec<_>>();
-    let velvet_input_dir = base_tempdir.clone().join("input");
-    let velvet_output_dir = base_tempdir.clone().join("output");
+
+    let velvet_input_dir = base_tempdir.join("input");
+    let velvet_output_dir = base_tempdir.join("output");
 
     //// create ballots
-    let ballots_path = velvet_input_dir.clone().join(format!(
+    let ballots_path = velvet_input_dir.join(format!(
         "default/ballots/election__{election_id}/contest__{contest_id}/region__{area_id}"
     ));
     fs::create_dir_all(&ballots_path).expect("Could not create dir");
@@ -335,7 +339,7 @@ fn tally_area_contest(
         .expect("Cannot written to file");
 
     //// create velvet config
-    let velvet_path_config: PathBuf = velvet_input_dir.clone().join("config.json");
+    let velvet_path_config: PathBuf = velvet_input_dir.join("config.json");
     let mut config_file = fs::OpenOptions::new()
         .write(true)
         .create(true)
@@ -350,13 +354,13 @@ fn tally_area_contest(
     .expect("Could not write in file");
 
     //// create region folder
-    let region_path: PathBuf = velvet_input_dir.clone().join(format!(
+    let region_path: PathBuf = velvet_input_dir.join(format!(
         "default/configs/election__{election_id}/contest__{contest_id}/region__{area_id}"
     ));
-    fs::create_dir_all(&region_path).expect("Could not create dir");
+    fs::create_dir_all(region_path).expect("Could not create dir");
 
     //// create contest config file
-    let ballot_style_path: PathBuf = velvet_input_dir.clone().join(format!(
+    let ballot_style_path: PathBuf = velvet_input_dir.join(format!(
         "default/configs/election__{election_id}/election-config.json"
     ));
     let mut ballot_style_file = fs::File::create(ballot_style_path).expect("Couldnt create file");
@@ -368,11 +372,11 @@ fn tally_area_contest(
     .expect("Could not write in file");
 
     //// create contest config file
-    let contest_config_path: PathBuf = velvet_input_dir.clone().join(format!(
+    let contest_config_path: PathBuf = velvet_input_dir.join(format!(
         "default/configs/election__{election_id}/contest__{contest_id}/contest-config.json"
     ));
     let mut contest_config_file =
-        fs::File::create(&contest_config_path).expect("Couldnt create file");
+        fs::File::create(contest_config_path).expect("Couldnt create file");
     writeln!(
         contest_config_file,
         "{}",
