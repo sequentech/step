@@ -133,7 +133,7 @@ impl Statement {
     // The trustees field indicates which trustees will participate in the mix and decryption.
     // There must be threshold # of them. Each trustee is a number starting at 1 up to the the number of eligible
     // trustees as per the configuration. 0 is not a valid trustee. Remaining
-    // slots of this fixed size array must be padded with Datalog::NULL_TRUSTEE
+    // slots of this fixed size array must be padded with newtypes::NULL_TRUSTEE
     pub(crate) fn ballots_stmt(
         cfg_hash: ConfigurationHash,
         ballots_h: CiphertextsHash,

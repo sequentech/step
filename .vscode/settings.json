@@ -1,3 +1,11 @@
 {
-    "terminal.integrated.scrollback": 50000
+    "rust-analyzer.linkedProjects": [ "/workspaces/backend-services/packages/Cargo.toml" ],
+    "rust-analyzer.server.extraEnv": {
+        // which cargo
+        "PATH": "/nix/store/kpf8rygjg59wscsrzgd7sjm63300kbpj-devenv-profile/bin",
+        //  echo $PKG_CONFIG_PATH
+        "PKG_CONFIG_PATH": "/nix/store/kpf8rygjg59wscsrzgd7sjm63300kbpj-devenv-profile/lib/pkgconfig:",
+        // echo $RUST_SRC_PATH
+        "RUST_SRC_PATH": "/nix/store/rn2ry1xyg2mg7axdi6xbwnidlha24i7h-rust-lib-src",
+    },
 }

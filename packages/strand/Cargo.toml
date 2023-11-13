@@ -45,6 +45,10 @@ ed25519-dalek = { version = "2.0.0", features = ["rand_core", "pkcs8"] }
 ecdsa = {version = "0.16.8", features = ["signing"] }
 p384 = "0.13.0"
 
+# certificates
+x509-parser = "0.15.1"
+rcgen = {version = "0.11.3", features = ["x509-parser"] }
+
 # symmetric 
 chacha20poly1305 = "0.10.1"
 generic-array = "0.14.6"
