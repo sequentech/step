@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Paper, Typography} from "@mui/material"
 import React from "react"
-import {Show, TabbedForm, TextField, useRecordContext} from "react-admin"
+import {Show, TabbedShowLayout, TextField, useRecordContext} from "react-admin"
 import Chart, {Props} from "react-apexcharts"
 import {styled} from "@mui/material/styles"
 import {IconButton, theme} from "@sequentech/ui-essentials"
@@ -243,8 +243,8 @@ const ElectionStats: React.FC = () => {
 export const ShowElectionEvent: React.FC = () => {
     return (
         <Show>
-            <TabbedForm>
-                <TabbedForm.Tab label="Dashboard">
+            <TabbedShowLayout >
+                <TabbedShowLayout.Tab label="Dashboard">
                     <Box sx={{padding: "16px"}}>
                         <TextField source="name" fontSize="24px" fontWeight="bold" />
                         <ElectionStats />
@@ -254,14 +254,14 @@ export const ShowElectionEvent: React.FC = () => {
                         </ChartsContainer>
                         <ReportDialog />
                     </Box>
-                </TabbedForm.Tab>
-                <TabbedForm.Tab label="Data"></TabbedForm.Tab>
-                <TabbedForm.Tab label="Voters"></TabbedForm.Tab>
-                <TabbedForm.Tab label="Areas"></TabbedForm.Tab>
-                <TabbedForm.Tab label="Keys"></TabbedForm.Tab>
-                <TabbedForm.Tab label="Tally"></TabbedForm.Tab>
-                <TabbedForm.Tab label="Logs"></TabbedForm.Tab>
-            </TabbedForm>
+                </TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Data">a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Voters">a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Areas">a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Keys">a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Tally">a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Logs">a</TabbedShowLayout.Tab>
+            </TabbedShowLayout>
         </Show>
     )
 }

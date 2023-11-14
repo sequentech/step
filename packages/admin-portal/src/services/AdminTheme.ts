@@ -26,6 +26,15 @@ export const fullAdminTheme = {
     components: {
         ...mixedAdminTheme.components,
         MuiButton: AdminMuiButton,
+        MuiTab: {
+            styleOverrides: {
+                root: {
+                    "& .MuiTab-textColorPrimary": {
+                        color: adminTheme.palette.brandColor,
+                    }
+                }
+            }
+        },
         MuiTextField: {
             styleOverrides: {
                 root: {
