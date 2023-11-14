@@ -431,7 +431,7 @@ impl<C: Ctx> Trustee<C> {
     }
 
     cfg_if::cfg_if! {
-        if #[cfg(feature = "fips")] {
+        if #[cfg(any(feature = "fips", feature = "fips_core"))] {
             pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, cfg: &Configuration<C>) -> Result<EncryptionData> {
 
 
