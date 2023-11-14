@@ -9,6 +9,14 @@ export const mixedAdminTheme = {
     ...adminTheme,
 }
 
+
+let AdminMuiButton = {
+    styleOverrides: adminTheme.components?.MuiButton?.styleOverrides,
+    variants: [
+        ...(adminTheme.components?.MuiButton?.variants ||[]),
+    ]
+}
+
 export const fullAdminTheme = {
     ...mixedAdminTheme,
     sidebar: {
@@ -17,6 +25,7 @@ export const fullAdminTheme = {
     },
     components: {
         ...mixedAdminTheme.components,
+        MuiButton: AdminMuiButton,
         MuiTextField: {
             styleOverrides: {
                 root: {
