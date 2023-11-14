@@ -4,7 +4,6 @@
 use anyhow::Context;
 use braid_messages::newtypes::BatchNumber;
 use celery::error::TaskError;
-use celery::prelude::*;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::HashableBallot;
 use sequent_core::serialization::base64::Base64Deserialize;
@@ -128,15 +127,15 @@ pub async fn insert_ballots(
                 .content
                 .clone()
                 .map(|ballot_str| {
+                    event!(Level::INFO, "deserializing ballot: '{:?}'", ballot_str);
+
                     let hashable_ballot: HashableBallot<RistrettoCtx> =
                         Base64Deserialize::deserialize(ballot_str).unwrap();
                     hashable_ballot
-                                .contests
-                                .iter()
-                                .find(|contest| {
-                                    contest.contest_id == tally_session_contest.contest_id
-                                })
-                                .map(|contest| contest.ciphertext.clone())
+                        .contests
+                        .iter()
+                        .find(|contest| contest.contest_id == tally_session_contest.contest_id)
+                        .map(|contest| contest.ciphertext.clone())
                 })
                 .flatten()
         })

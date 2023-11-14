@@ -2,9 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use celery::error::TaskError;
-use celery::prelude::*;
 use sequent_core::ballot::{ElectionStatus, VotingStatus};
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};

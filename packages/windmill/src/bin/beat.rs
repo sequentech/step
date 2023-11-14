@@ -18,7 +18,7 @@ use windmill::tasks::review_boards::review_boards;
     setting = structopt::clap::AppSettings::ColoredHelp,
 )]
 struct CeleryOpt {
-    #[structopt(short, long, default_value = "60")]
+    #[structopt(short, long, default_value = "15")]
     interval: u64,
 }
 

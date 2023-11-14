@@ -19,6 +19,9 @@ export const CustomLayout: React.FC<LayoutProps> = (props) => (
             "& .MuiToolbar-root": {
                 minHeight: "unset",
             },
+            "& .RaList-main": { 
+                width: "50%",
+            },
         }}
         appBar={CustomAppBar}
         menu={CustomMenu}

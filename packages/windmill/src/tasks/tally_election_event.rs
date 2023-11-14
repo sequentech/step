@@ -4,7 +4,6 @@
 use anyhow::{anyhow, Context};
 use braid_messages::newtypes::BatchNumber;
 use celery::error::TaskError;
-use celery::prelude::*;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -16,7 +15,7 @@ use crate::hasura::tally_session_contest::insert_tally_session_contest;
 use crate::hasura::trustee::get_trustees_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
-use crate::types::error::{Error, Result};
+use crate::types::error::Result;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct TallyElectionBody {
@@ -68,7 +67,7 @@ pub async fn tally_election_event(
         .collect::<HashSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
-    let trustees = get_trustees_by_id(
+    let _trustees = get_trustees_by_id(
         auth_headers.clone(),
         tenant_id.clone(),
         body.trustee_ids.clone(),

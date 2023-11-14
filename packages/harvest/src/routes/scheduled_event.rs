@@ -6,7 +6,7 @@ use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use tracing::instrument;
 use windmill::types::scheduled_event::*;
@@ -23,15 +23,22 @@ pub struct CreateEventBody {
     pub created_by: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CreateEventOutput {
+    pub id: String
+}
+
 #[instrument(skip(_auth_headers))]
 #[post("/scheduled-event", format = "json", data = "<body>")]
 pub async fn create_scheduled_event(
     body: Json<CreateEventBody>,
     _auth_headers: connection::AuthHeaders,
-) -> Result<(), Debug<anyhow::Error>> {
+) -> Result<Json<CreateEventOutput>, Debug<anyhow::Error>> {
     let input = body.into_inner();
 
-    services::worker::process_scheduled_event(input).await?;
+    services::worker::process_scheduled_event(input.clone()).await?;
 
-    Ok(())
+    Ok(Json(CreateEventOutput {
+        id: input.tenant_id,
+    }))
 }

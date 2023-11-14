@@ -1,24 +1,16 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-use crate::types::error::{Error, Result};
+use crate::types::error::Result;
 use celery::error::TaskError;
-use celery::prelude::*;
 use immu_board::BoardClient;
 use sequent_core;
 use sequent_core::services::keycloak;
-use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::instrument;
 
 use crate::hasura;
 use crate::services::election_event_board::BoardSerializable;
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct CreateBoardPayload {
-    pub board_name: String,
-}
 
 async fn get_client() -> Result<BoardClient> {
     let username = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
@@ -34,13 +26,9 @@ async fn get_client() -> Result<BoardClient> {
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
-pub async fn create_board(
-    payload: CreateBoardPayload,
-    tenant_id: String,
-    election_event_id: String,
-) -> Result<()> {
+pub async fn create_board(tenant_id: String, election_event_id: String) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
-    let board_db: String = payload.board_name;
+    let board_db: String = election_event_id.chars().filter(|&c| c != '-').collect();
 
     let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
     let mut board_client = get_client().await?;

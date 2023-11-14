@@ -4,18 +4,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use celery::error::TaskError;
-use celery::prelude::*;
 use immu_board::{util::get_board_name, BoardClient};
 use sequent_core;
 use sequent_core::services::{connection, keycloak};
-use serde::{Deserialize, Serialize};
+
 use std::env;
 use tracing::instrument;
 
 use crate::hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
-use crate::services::election_event_board::BoardSerializable;
-use crate::types::error::{Error, Result};
+
+use crate::types::error::Result;
 
 async fn get_board_client() -> Result<BoardClient> {
     let username = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
@@ -36,7 +35,7 @@ pub async fn create_immu_board(
     let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
     let board_name = get_board_name(tenant_id, election_event_id);
     let mut board_client = get_board_client().await?;
-    let board = board_client.create_board(&index_db, &board_name).await?;
+    let _board = board_client.create_board(&index_db, &board_name).await?;
     Ok(())
 }
 
@@ -53,7 +52,7 @@ pub async fn insert_election_event_db(
     auth_headers: &connection::AuthHeaders,
     object: &InsertElectionEventInput,
 ) -> Result<()> {
-    let hasura_response =
+    let _hasura_response =
         hasura::election_event::insert_election_event(auth_headers.clone(), object.clone()).await?;
 
     Ok(())

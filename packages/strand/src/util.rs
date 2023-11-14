@@ -55,6 +55,10 @@ pub enum StrandError {
     EcdsaError(#[from] ecdsa::Error),
     #[error("chacha20poly1305 error: {0}")]
     Chacha20Error(chacha20poly1305::Error),
+    #[error("rcgen error: {0}")]
+    RCGenError(#[from] rcgen::RcgenError),
+    #[error("x509_parser error: {0}")]
+    X509ParserError(#[from] x509_parser::nom::Err<x509_parser::error::X509Error>),
     #[cfg(any(feature = "openssl_core", feature="openssl_full"))]
     #[error("openssl error: {0}")]
     OpenSSLError(#[from] openssl::error::ErrorStack),

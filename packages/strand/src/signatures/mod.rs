@@ -11,8 +11,6 @@ pub mod openssl;
 #[cfg(not(feature="openssl_full"))]
 pub mod dalek;
 
-// pub mod zcash;
-
 #[cfg(all(feature = "openssl_full", feature = "rustcrypto"))]
 #[cfg(test)]
 pub(crate) mod tests {

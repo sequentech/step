@@ -11,6 +11,7 @@ use tracing::{event, instrument, Level};
 use crate::tasks::create_ballot_style::create_ballot_style;
 use crate::tasks::create_board::create_board;
 use crate::tasks::create_keys::create_keys;
+use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
@@ -56,11 +57,12 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             create_board,
             create_keys,
             insert_ballots,
+            review_boards,
             process_board,
             render_report,
-            review_boards,
             set_public_key,
             tally_election_event,
+            execute_tally_session,
             update_election_event_ballot_styles,
             update_voting_status,
         ],
@@ -70,11 +72,12 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "create_board" => "short_queue",
             "create_keys" => "short_queue",
             "insert_ballots" => "tally_queue",
-            "process_board" => "reports_queue",
-            "render_report" => "reports_queue",
             "review_boards" => "beat",
+            "process_board" => "beat",
+            "render_report" => "reports_queue",
             "set_public_key" => "short_queue",
             "tally_election_event" => "tally_queue",
+            "execute_tally_session" => "tally_queue",
             "update_election_event_ballot_styles" => "short_queue",
             "update_voting_status" => "short_queue",
         ],

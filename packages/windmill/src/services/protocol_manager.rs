@@ -32,6 +32,7 @@ pub fn gen_protocol_manager<C: Ctx>() -> ProtocolManager<C> {
         signing_key: pmkey,
         phantom: PhantomData,
     };
+
     pm
 }
 
@@ -58,11 +59,8 @@ async fn init<C: Ctx>(
     board.insert_messages(board_name, &vec![message]).await
 }
 
-#[instrument(skip(user, password, pm))]
+#[instrument(skip(pm))]
 pub async fn add_config_to_board<C: Ctx>(
-    server_url: &str,
-    user: &str,
-    password: &str,
     threshold: usize,
     board_name: &str,
     trustee_pks: Vec<StrandSignaturePk>,
@@ -76,19 +74,14 @@ pub async fn add_config_to_board<C: Ctx>(
         PhantomData,
     );
 
-    let mut board = BoardClient::new(&server_url, &user, &password).await?;
+    let mut board_client = get_board_client().await?;
 
-    init(&mut board, configuration, pm, board_name).await
+    init(&mut board_client, configuration, pm, board_name).await
 }
 
-#[instrument(skip(user, password))]
-pub async fn get_board_public_key<C: Ctx>(
-    server_url: &str,
-    user: &str,
-    password: &str,
-    board_name: &str,
-) -> Result<C::E> {
-    let mut board = BoardClient::new(&server_url, &user, &password).await?;
+#[instrument]
+pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
+    let mut board = get_board_client().await?;
 
     let messages = board.get_messages(board_name, -1).await?;
     let pks_message = messages
@@ -169,9 +162,7 @@ pub fn generate_trustee_set<C: Ctx>(
     selected_trustees
 }
 
-pub async fn get_board_messages(board: &mut BoardClient, board_name: &str) -> Result<Vec<Message>> {
-    let board_messages = board.get_messages(board_name, -1).await?;
-
+pub fn convert_board_messages(board_messages: &Vec<BoardMessage>) -> Result<Vec<Message>> {
     let messages: Vec<Message> = board_messages
         .iter()
         .map(|board_message| Message::strand_deserialize(&board_message.message))
@@ -186,18 +177,12 @@ pub async fn add_ballots_to_board<C: Ctx>(
     batch: BatchNumber,
     trustee_pks: Vec<StrandSignaturePk>,
 ) -> Result<()> {
-    // 1. get env vars
-    let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
-    let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
-    let server_url =
-        env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
-
     let pms = vault::read_secret(format!("boards/{}/protocol-manager", board_name)).await?;
-
     let pm = deserialize_protocol_manager::<C>(pms);
 
-    let mut board = BoardClient::new(&server_url, &user, &password).await?;
-    let messages: Vec<Message> = get_board_messages(&mut board, board_name).await?;
+    let mut board = get_board_client().await?;
+    let board_messages = board.get_messages(board_name, -1).await?;
+    let messages: Vec<Message> = convert_board_messages(&board_messages)?;
     let configuration = get_configuration::<C>(&messages)?;
     let public_key_hash = get_public_key_hash::<C>(&messages)?;
     let selected_trustees: TrusteeSet = generate_trustee_set::<C>(&configuration, trustee_pks);
@@ -215,4 +200,16 @@ pub async fn add_ballots_to_board<C: Ctx>(
     board
         .insert_messages(board_name, &vec![board_message])
         .await
+}
+
+#[instrument]
+pub async fn get_board_client() -> Result<BoardClient> {
+    let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
+    let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
+    let server_url =
+        env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
+
+    let board_client = BoardClient::new(&server_url, &user, &password).await?;
+
+    Ok(board_client)
 }
