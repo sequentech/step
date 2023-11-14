@@ -15,6 +15,8 @@ import {useTenantStore} from "./CustomMenu"
 import {faAngleRight, faAngleDown} from "@fortawesome/free-solid-svg-icons"
 import {Icon} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
+import Tabs from '@mui/material/Tabs'
+import Tab from '@mui/material/Tab'
 
 const Horizontal = styled(Box)`
     display: flex;
@@ -44,9 +46,10 @@ interface TreeLeavesProps {
     isOpen: boolean
     resourceId?: string
     treeResources: Array<ResourceDefinition<Options>>
+    filter?: object
 }
 
-const TreeLeaves: React.FC<TreeLeavesProps> = ({isOpen, resourceId, treeResources}) => {
+const TreeLeaves: React.FC<TreeLeavesProps> = ({isOpen, resourceId, treeResources, filter}) => {
     const [tenantId] = useTenantStore()
 
     const {data, total, isLoading, error} = useGetList(treeResources[0]?.name || "", {
@@ -56,9 +59,11 @@ const TreeLeaves: React.FC<TreeLeavesProps> = ({isOpen, resourceId, treeResource
             ? {
                   tenant_id: tenantId,
                   [treeResources[0]?.options?.foreignKeyFrom || ""]: resourceId,
+                  ...filter
               }
             : {
                   tenant_id: tenantId,
+                  ...filter
               },
     })
 
@@ -135,6 +140,7 @@ interface TreeMenuProps {
 export const TreeMenu: React.FC<TreeMenuProps> = ({isOpen}) => {
     let allResources = useResourceDefinitions()
     let [treeResources, setTreeResources] = useState<Array<ResourceDefinition<Options>>>([])
+    const [archivedMenu, setArchivedMenu] = React.useState(0)
 
     useEffect(() => {
         const resources: Array<ResourceDefinition<Options>> = Object.keys(allResources).map(
@@ -162,13 +168,26 @@ export const TreeMenu: React.FC<TreeMenuProps> = ({isOpen}) => {
         setTreeResources(tree)
     }, [allResources])
 
+    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+        console.log(`new value ${newValue}`)
+        setArchivedMenu(newValue);
+      }
+
     if (0 === treeResources.length) {
         return null
     }
 
-    return (
+    return (<>
+        <Tabs value={archivedMenu} onChange={handleChange} sx={{marginBottom: "4px"}}>
+            <Tab label="Active" />
+            <Tab label="Archived" />
+        </Tabs>
         <Box sx={{marginLeft: "20px"}}>
-            <TreeLeaves treeResources={treeResources} isOpen={isOpen} />
+            <TreeLeaves
+                treeResources={treeResources}
+                isOpen={isOpen}
+                filter={{is_archived: 1 === archivedMenu}}
+            />
         </Box>
-    )
+    </>)
 }

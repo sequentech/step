@@ -132,8 +132,15 @@ export const CustomMenu = () => {
         >
             <MenuWrapper>
                 <CustomerSelector />
+                <StyledItem
+                    to="/sequent_backend_election_event"
+                    primaryText={open ? "Election Events" : null}
+                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                />
                 <HorizontalBox sx={{margin: "2px 16px"}}>
-                    <TextField label="Search" size="small" />
+                    <Box sx={{margin: "-16px 0"}}>
+                        <TextField label="Search" size="small" />
+                    </Box>
                     <IconButton icon={faSearch} fontSize="18px" sx={{margin: "0 12px"}} />
                 </HorizontalBox>
                 <TreeMenu isOpen={open} />
