@@ -103,10 +103,19 @@ impl GenerateReports {
         map.insert("reports".to_owned(), serde_json::to_value(reports)?);
 
         let html = include_str!("../../resources/report.hbs");
-        let render =
-            reports::render_template_text(html, map).map_err(|e| Error::FromPipe(e.to_string()))?;
+        let render = reports::render_template_text(html, map).map_err(|e| {
+            Error::UnexpectedError(format!(
+                "Error during render_template_text from report.hbs template file: {}",
+                e.to_string()
+            ))
+        })?;
 
-        let bytes = pdf::html_to_pdf(render).map_err(|e| Error::FromPipe(e.to_string()))?;
+        let bytes = pdf::html_to_pdf(render).map_err(|e| {
+            Error::UnexpectedError(format!(
+                "Error during html_to_pdf conversion: {}",
+                e.to_string()
+            ))
+        })?;
 
         Ok(bytes)
     }

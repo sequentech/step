@@ -14,7 +14,7 @@ pub enum Error {
     FileAccess(std::path::PathBuf, std::io::Error),
     IO(std::io::Error),
     JsonParse(serde_json::Error),
-    FromPipe(String),
+    UnexpectedError(String),
 }
 
 impl core::fmt::Display for Error {

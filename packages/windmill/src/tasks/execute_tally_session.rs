@@ -395,25 +395,25 @@ fn tally_area_contest(
     event!(Level::INFO, "Exec Decode Ballots");
     state
         .exec_next()
-        .map_err(|e| Error::String(e.to_string()))?;
+        .map_err(|e| Error::String(format!("Error during Decode Ballots: {}", e.to_string())))?;
 
     // Do Tally
     event!(Level::INFO, "Exec Do Tally");
     state
         .exec_next()
-        .map_err(|e| Error::String(e.to_string()))?;
+        .map_err(|e| Error::String(format!("Error during Do Tally: {}", e.to_string())))?;
 
     // mark winners
     event!(Level::INFO, "Exec Mark Winners");
     state
         .exec_next()
-        .map_err(|e| Error::String(e.to_string()))?;
+        .map_err(|e| Error::String(format!("Error during Mark Winners: {}", e.to_string())))?;
 
     // report
     event!(Level::INFO, "Exec Reports");
     state
         .exec_next()
-        .map_err(|e| Error::String(e.to_string()))?;
+        .map_err(|e| Error::String(format!("Error during Reports: {}", e.to_string())))?;
 
     Ok(())
 }
