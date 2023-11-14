@@ -10,6 +10,8 @@ import {
     faStar,
     faPlusCircle,
     faFileText,
+    faAngleDoubleLeft,
+    faAngleDoubleRight,
 } from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {HorizontalBox} from "./HorizontalBox"
@@ -34,6 +36,12 @@ const StyledItem = styled(Menu.Item)`
     }
 `
 
+const StyledIconButton = styled(IconButton)`
+    color: ${adminTheme.palette.brandColor};
+    font-size: 24px;
+    margin-left: 19px;
+`
+
 const StyledMenu = styled(Menu)`
     background-color: ${adminTheme.palette.white};
     color: ${adminTheme.palette.brandColor};
@@ -42,6 +50,18 @@ const StyledMenu = styled(Menu)`
     box-shadow: 0px 2px 1px -1px rgba(0, 0, 0, 0.2), 0px 1px 1px 0px rgba(0, 0, 0, 0.14),
         0px 1px 3px 0px rgba(0, 0, 0, 0.12);
     border-radius: 4px;
+`
+
+const DrawerContainer = styled(Box)`
+    padding: 8px 16px;
+    justify-content: right;
+    border-top: 2px solid ${adminTheme.palette.customGrey.light};
+    display: flex;
+    margin-top: auto;
+`
+
+const MenuWrapper = styled(Box)`
+    border-bottom: 2px solid ${adminTheme.palette.customGrey.light};
 `
 
 const CustomerSelector: React.FC = () => {
@@ -56,20 +76,25 @@ const CustomerSelector: React.FC = () => {
 
     const showCustomers = open && !isLoading && !error
 
-    const handleChange = (event: SelectChangeEvent<string | null>) => {
-        setTenant(event.target.value)
+    const handleChange = (event: SelectChangeEvent<unknown>) => {
+        setTenant(event.target.value as any)
     }
 
     return (
-        <HorizontalBox>
+        <HorizontalBox sx={{alignItems: "center", padding: "0 16px"}}>
             <IconButton icon={faThLarge} fontSize="24px" />
             {showCustomers ? (
-                <Box>
+                <>
                     <Select
                         labelId="tenant-select-label"
                         id="tenant-select"
                         value={tenant}
                         onChange={handleChange}
+                        sx={{
+                            flexGrow: 2,
+                            paddingRight: "16px",
+                            margin: "4px 10px 4px 10px",
+                        }}
                     >
                         {data?.map((tenant) => (
                             <MenuItem key={tenant.id} value={tenant.id}>
@@ -78,16 +103,16 @@ const CustomerSelector: React.FC = () => {
                         ))}
                     </Select>
                     <Link to="/sequent_backend_tenant/create">
-                        <IconButton icon={faPlusCircle} fontSize="24px" />
+                        <StyledIconButton icon={faPlusCircle} />
                     </Link>
-                </Box>
+                </>
             ) : null}
         </HorizontalBox>
     )
 }
 
 export const CustomMenu = () => {
-    const [open] = useSidebarState()
+    const [open, setOpen] = useSidebarState()
     const resource = useResourceContext()
 
     useEffect(() => {
@@ -97,63 +122,74 @@ export const CustomMenu = () => {
     return (
         <StyledMenu
             sx={{
+                "flex": "display",
+                "flexDirection": "column",
                 ".RaMenuItemLink-active": {
                     backgroundColor: adminTheme.palette.green.light,
                 },
             }}
         >
-            <CustomerSelector />
-            <TreeMenu isOpen={open} />
-            <StyledItem
-                to="/pgaudit"
-                primaryText="PG Audit"
-                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-            />
-            <StyledItem
-                to="/sequent_backend_area"
-                primaryText={open ? "Areas" : null}
-                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-            />
-            <StyledItem
-                to="/sequent_backend_area_contest"
-                primaryText={open ? "Area Contests" : null}
-                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-            />
-            <StyledItem
-                to="/sequent_backend_ballot_style"
-                primaryText={open ? "Ballot Styles" : null}
-                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-            />
-            <StyledItem
-                to="/sequent_backend_tenant"
-                primaryText={open ? "Customers" : null}
-                leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-            />
-            <StyledItem
-                to="/sequent_backend_document"
-                primaryText={open ? "Documents" : null}
-                leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
-            />
-            <StyledItem
-                to="/sequent_backend_trustee"
-                primaryText={open ? "Trustees" : null}
-                leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
-            />
-            <StyledItem
-                to="/user-roles"
-                primaryText={open ? "User and Roles" : null}
-                leftIcon={<IconButton icon={faUsers} fontSize="24px" />}
-            />
-            <StyledItem
-                to="/settings"
-                primaryText={open ? "Settings" : null}
-                leftIcon={<IconButton icon={faCog} fontSize="24px" />}
-            />
-            <StyledItem
-                to="/messages"
-                primaryText={open ? "Messages" : null}
-                leftIcon={<IconButton icon={faStar} fontSize="24px" />}
-            />
+            <MenuWrapper>
+                <CustomerSelector />
+                <TreeMenu isOpen={open} />
+                <StyledItem
+                    to="/pgaudit"
+                    primaryText="PG Audit"
+                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                />
+                <StyledItem
+                    to="/sequent_backend_area"
+                    primaryText={open ? "Areas" : null}
+                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                />
+                <StyledItem
+                    to="/sequent_backend_area_contest"
+                    primaryText={open ? "Area Contests" : null}
+                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                />
+                <StyledItem
+                    to="/sequent_backend_ballot_style"
+                    primaryText={open ? "Ballot Styles" : null}
+                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                />
+                <StyledItem
+                    to="/sequent_backend_tenant"
+                    primaryText={open ? "Customers" : null}
+                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                />
+                <StyledItem
+                    to="/sequent_backend_document"
+                    primaryText={open ? "Documents" : null}
+                    leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
+                />
+                <StyledItem
+                    to="/sequent_backend_trustee"
+                    primaryText={open ? "Trustees" : null}
+                    leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
+                />
+                <StyledItem
+                    to="/user-roles"
+                    primaryText={open ? "User and Roles" : null}
+                    leftIcon={<IconButton icon={faUsers} fontSize="24px" />}
+                />
+                <StyledItem
+                    to="/settings"
+                    primaryText={open ? "Settings" : null}
+                    leftIcon={<IconButton icon={faCog} fontSize="24px" />}
+                />
+                <StyledItem
+                    to="/messages"
+                    primaryText={open ? "Messages" : null}
+                    leftIcon={<IconButton icon={faStar} fontSize="24px" />}
+                />
+            </MenuWrapper>
+            <DrawerContainer>
+                <IconButton
+                    icon={open ? faAngleDoubleLeft : faAngleDoubleRight}
+                    fontSize="24px"
+                    onClick={() => setOpen(!open)}
+                />
+            </DrawerContainer>
         </StyledMenu>
     )
 }

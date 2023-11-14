@@ -17,18 +17,54 @@ export const fullAdminTheme = {
     },
     components: {
         ...mixedAdminTheme.components,
+        MuiTextField: {
+            styleOverrides: {
+                root: {
+                    "margin": 0,
+                    "width": "100%",
+                    "& .MuiInputBase-input": {
+                        fontSize: "16px",
+                        padding: "4px 12px",
+                    },
+                },
+            },
+        },
+        MuiInputBase: {
+            styleOverrides: {
+                root: {
+                    //marginTop: "4px",
+                    //marginBottom: 0,
+                    "& #tenant-select": {
+                        fontSize: "16px",
+                        padding: "4px 12px",
+                    },
+                },
+            },
+        },
         RaSidebar: {
             styleOverrides: {
                 root: {
-                    "boxShadow":
-                        "0px 2px 1px -1px rgba(0, 0, 0, 0.20), 0px 1px 1px 0px rgba(0, 0, 0, 0.14), 0px 1px 3px 0px rgba(0, 0, 0, 0.12)",
+                    //"boxShadow":
+                    //    "0px 2px 1px -1px rgba(0, 0, 0, 0.20), 0px 1px 1px 0px rgba(0, 0, 0, 0.14), 0px 1px 3px 0px rgba(0, 0, 0, 0.12)",
                     "paddingRight": "4px",
                     "paddingLeft": "4px",
+                    "height": "calc(100vh - 79px)",
                     "& .RaMenu-open": {
                         overflow: "clip",
+                        flexGrow: 2,
+                        paddingBotton: 0,
+                        marginBottom: "4px",
                     },
                     "& .RaMenu-closed": {
                         overflow: "clip",
+                        flexGrow: 2,
+                        paddingBotton: 0,
+                        marginBottom: "4px",
+                    },
+                    "& .RaSidebar-fixed": {
+                        display: "flex",
+                        flexDirection: "column",
+                        height: "calc(100vh - 79px)",
                     },
                 },
             },
