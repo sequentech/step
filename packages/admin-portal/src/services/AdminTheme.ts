@@ -20,11 +20,11 @@ export const fullAdminTheme = {
         MuiTextField: {
             styleOverrides: {
                 root: {
-                    "margin": 0,
+                    //"margin": 0,
                     "width": "100%",
                     "& .MuiInputBase-input": {
-                        fontSize: "16px",
-                        padding: "4px 12px",
+                        //fontSize: "16px",
+                        //padding: "4px 12px",
                     },
                 },
             },
@@ -65,6 +65,15 @@ export const fullAdminTheme = {
                         display: "flex",
                         flexDirection: "column",
                         height: "calc(100vh - 79px)",
+                    },
+                },
+            },
+        },
+        RaAppBar: {
+            styleOverrides: {
+                root: {
+                    "& .RaAppBar-menuButton": {
+                        display: "none",
                     },
                 },
             },

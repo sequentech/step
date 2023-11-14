@@ -26,7 +26,7 @@ const Horizontal = styled(Box)`
 const LeavesWrapper = styled(Box)`
     display: flex;
     flex-direction: column;
-    margin-left: 24px;
+    margin-left: 12px;
 `
 
 const StyledIcon = styled(Icon)`
@@ -114,6 +114,7 @@ const TreeMenuItem: React.FC<TreeMenuItemProps> = ({
                         key={resource.name}
                         to={`/${resourceType}/${resource.id}`}
                         primaryText={resource.name}
+                        sx={{paddingLeft: 0}}
                     />
                 ) : null}
             </Horizontal>
@@ -166,7 +167,7 @@ export const TreeMenu: React.FC<TreeMenuProps> = ({isOpen}) => {
     }
 
     return (
-        <Box>
+        <Box sx={{marginLeft: "20px"}}>
             <TreeLeaves treeResources={treeResources} isOpen={isOpen} />
         </Box>
     )

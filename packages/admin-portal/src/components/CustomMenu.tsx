@@ -12,10 +12,11 @@ import {
     faFileText,
     faAngleDoubleLeft,
     faAngleDoubleRight,
+    faSearch,
 } from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {HorizontalBox} from "./HorizontalBox"
-import {Box, MenuItem, Paper, Select, SelectChangeEvent} from "@mui/material"
+import {Box, MenuItem, Select, SelectChangeEvent, TextField} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Link} from "react-router-dom"
 import {TreeMenu} from "./TreeMenu"
@@ -131,6 +132,10 @@ export const CustomMenu = () => {
         >
             <MenuWrapper>
                 <CustomerSelector />
+                <HorizontalBox sx={{margin: "2px 16px"}}>
+                    <TextField label="Search" size="small" />
+                    <IconButton icon={faSearch} fontSize="18px" sx={{margin: "0 12px"}} />
+                </HorizontalBox>
                 <TreeMenu isOpen={open} />
                 <StyledItem
                     to="/pgaudit"
