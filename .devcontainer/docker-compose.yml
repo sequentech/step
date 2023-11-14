@@ -123,6 +123,7 @@ services:
       start_period: 5s
 
   keycloak:
+    profiles: ["dev"]
     build:
       context: ./keycloak
       dockerfile: Dockerfile

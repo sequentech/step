@@ -10,6 +10,7 @@ RUN dnf install --installroot /mnt/rootfs curl --releasever 9 --setopt install_w
 RUN echo $(ls -lah /mnt/rootfs/bin/curl)
 RUN echo $(ls /mnt/rootfs/usr/bin/curl)
 
+# docker.io/bitnami/keycloak:22 as builder
 FROM quay.io/keycloak/keycloak:22.0 as builder
 COPY --from=ubi-micro-build /mnt/rootfs /
 COPY --from=ubi-micro-build /mnt/rootfs/usr/bin/curl /usr/bin/curl
@@ -39,6 +40,7 @@ RUN keytool \
    -keystore conf/server.keystore
 RUN /opt/keycloak/bin/kc.sh build
 
+# docker.io/bitnami/keycloak:22
 FROM quay.io/keycloak/keycloak:22.0
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY --from=builder /bin/curl /bin/curl
