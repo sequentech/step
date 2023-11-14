@@ -28,7 +28,10 @@
 	"updateContentCommand": "direnv allow && devenv shell bash -c 'cd packages/ && cargo build && cd /workspace/frontend && yarn install' || true",
 
 	"features": {
-		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+		"ghcr.io/devcontainers/features/sshd:1": {
+            "version": "latest"
+        }
 	},
     "customizations": {
         "vscode": {
