@@ -140,7 +140,7 @@ interface TreeMenuProps {
 export const TreeMenu: React.FC<TreeMenuProps> = ({isOpen}) => {
     let allResources = useResourceDefinitions()
     let [treeResources, setTreeResources] = useState<Array<ResourceDefinition<Options>>>([])
-    const [archivedMenu, setArchivedMenu] = React.useState(0)
+    const [archivedMenu, setArchivedMenu] = useState(0)
 
     useEffect(() => {
         const resources: Array<ResourceDefinition<Options>> = Object.keys(allResources).map(

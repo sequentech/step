@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect} from "react"
+import React, {useEffect, useState} from "react"
 import {Menu, useSidebarState, useGetList, useResourceContext} from "react-admin"
 import {
     faThLarge,
@@ -115,10 +115,16 @@ const CustomerSelector: React.FC = () => {
 export const CustomMenu = () => {
     const [open, setOpen] = useSidebarState()
     const resource = useResourceContext()
+    const [search, setSearch] = useState<string | null>(null)
 
     useEffect(() => {
         console.log(resource)
     }, [resource])
+
+    const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        // Update the state with the input field's current value
+        setSearch(event.target.value);
+      };
 
     return (
         <StyledMenu
@@ -139,7 +145,12 @@ export const CustomMenu = () => {
                 />
                 <HorizontalBox sx={{margin: "2px 16px"}}>
                     <Box sx={{margin: "-16px 0"}}>
-                        <TextField label="Search" size="small" />
+                        <TextField
+                            label="Search"
+                            size="small"
+                            value={search}
+                            onChange={handleSearchChange}
+                        />
                     </Box>
                     <IconButton icon={faSearch} fontSize="18px" sx={{margin: "0 12px"}} />
                 </HorizontalBox>
