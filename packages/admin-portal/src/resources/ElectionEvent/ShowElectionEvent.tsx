@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Paper, Typography} from "@mui/material"
 import React from "react"
-import {Show, TextField, useRecordContext} from "react-admin"
+import {Show, TabbedShowLayout, TextField, useRecordContext} from "react-admin"
 import Chart, {Props} from "react-apexcharts"
 import {styled} from "@mui/material/styles"
 import {IconButton, theme} from "@sequentech/ui-essentials"
@@ -243,15 +243,25 @@ const ElectionStats: React.FC = () => {
 export const ShowElectionEvent: React.FC = () => {
     return (
         <Show>
-            <Box sx={{padding: "16px"}}>
-                <TextField source="name" fontSize="24px" fontWeight="bold" />
-                <ElectionStats />
-                <ChartsContainer>
-                    <BarChart />
-                    <PieChart />
-                </ChartsContainer>
-                <ReportDialog />
-            </Box>
+            <TabbedShowLayout >
+                <TabbedShowLayout.Tab label="Dashboard">
+                    <Box sx={{padding: "16px"}}>
+                        <TextField source="name" fontSize="24px" fontWeight="bold" />
+                        <ElectionStats />
+                        <ChartsContainer>
+                            <BarChart />
+                            <PieChart />
+                        </ChartsContainer>
+                        <ReportDialog />
+                    </Box>
+                </TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Data">a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Voters">a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Areas">a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Keys">a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Tally">a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Logs">a</TabbedShowLayout.Tab>
+            </TabbedShowLayout>
         </Show>
     )
 }
