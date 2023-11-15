@@ -10,14 +10,6 @@ pub struct PgLock {
     pub expiry_date: Option<NaiveDateTime>,
 }
 
-pub async fn acquire_lock(key: String, value: String, expiry_date: Option<NaiveDateTime>) -> Result<PgLock> {
-    Ok(PgLock {
-        key,
-        value,
-        expiry_date
-    })
-}
-
 impl PgLock {
     pub async fn acquire(key: String, value: String, expiry_date: Option<NaiveDateTime>) -> Result<PgLock> {
         Ok(PgLock {
