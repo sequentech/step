@@ -49,3 +49,41 @@ pub async fn upsert_lock(
 
     response_body.ok()
 }
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/delete_lock.graphql",
+    response_derives = "Debug,Clone,Deserialize,Serialize"
+)]
+pub struct DeleteLock;
+
+#[instrument(skip(auth_headers))]
+pub async fn delete_lock(
+    auth_headers: connection::AuthHeaders,
+    key: String,
+    value: String,
+) -> Result<Response<delete_lock::ResponseData>> {
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+
+    let variables = delete_lock::Variables {
+        key,
+        value,
+    };
+
+    let request_body = DeleteLock::build_query(variables);
+
+    let client = reqwest::Client::new();
+
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+
+    let response_body: Response<delete_lock::ResponseData> = res.json().await?;
+
+    response_body.ok()
+}

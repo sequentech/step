@@ -4,7 +4,7 @@
 use crate::hasura::lock::*;
 use crate::services::date::ISO8601;
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::NaiveDateTime;
 use sequent_core::services::connection;
 
 pub struct PgLock {
@@ -28,7 +28,7 @@ impl PgLock {
             .insert_sequent_backend_lock_one;
 
         match lock_data {
-            None => Err(anyhow!("Unable to unlock '{}'", key)),
+            None => Err(anyhow!("Unable to acquire lock '{}'", key)),
             Some(lock) => Ok(PgLock {
                 key: lock.key,
                 value: lock.value,
@@ -40,6 +40,18 @@ impl PgLock {
     }
 
     pub async fn release(self, auth_headers: connection::AuthHeaders) -> Result<()> {
-        Ok(())
+        let affected_rows = delete_lock(auth_headers, self.key.clone(), self.value.clone())
+            .await?
+            .data
+            .expect("expected data")
+            .delete_sequent_backend_lock
+            .expect("expected delete_sequent_backend_lock")
+            .affected_rows;
+
+        if 0 == affected_rows {
+            Err(anyhow!("Unable to unlock '{}'", self.key.clone()))
+        } else {
+            Ok(())
+        }
     }
 }
