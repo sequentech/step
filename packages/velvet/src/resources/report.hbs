@@ -26,14 +26,18 @@
         text-align: center;
       }
 
-      .header .logo {
-        /* padding-right: 0.5cm; */
-      }
-
       .footer {
         position: fixed;
         bottom: 0;
+        width: 100%;
+        text-align: right;
       }
+      
+      /* .footer:after { */
+      /*   padding-right: 0.5cm; */
+      /*   counter-increment: page; */
+      /*   content: "Page " counter(page) " of " counter(pages); */
+      /* } */
 
       @page {
         size: A4;
@@ -67,11 +71,6 @@
 
       .content th {
         text-align: center;
-      }
-
-      .content th {
-        background-color: #4caf50;
-        color: white;
       }
     </style>
   </head>
@@ -142,11 +141,11 @@
                   </tr>
                   <tr>
                     <td>Implicit invalid votes</td>
-                    <td>{{ report.contest_result.invalid_votes.implicit}}</td>
+                    <td>{{ report.contest_result.invalid_votes.implicit }}</td>
                   </tr>
                   <tr>
                     <td>Total number of votes for candidates</td>
-                    <td>todo</td>
+                    <td>{{ report.contest_result.total_valid_votes }}</td>
                   </tr>
                 </table>
 
