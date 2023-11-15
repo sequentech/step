@@ -12,6 +12,7 @@ use dotenv::dotenv;
 use structopt::StructOpt;
 use tracing::{event, Level};
 use windmill::services::celery_app::*;
+use std::fs;
 extern crate chrono;
 
 
@@ -31,7 +32,8 @@ async fn main() -> Result<()> {
         </html> 
     "#;
     loop {
-        let _ = html_to_pdf(html_template.to_string())?;
+        let local_pdf = html_to_pdf(html_template.to_string())?;
+        fs::write("rust.pdf", local_pdf)?;
     }
 
     Ok(())
