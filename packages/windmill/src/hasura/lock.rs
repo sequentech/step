@@ -19,22 +19,22 @@ use tracing::instrument;
 pub struct UpsertLock;
 
 #[instrument(skip(auth_headers))]
-pub async fn get_last_tally_session_execution(
+pub async fn upsert_lock(
     auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    election_event_id: String,
-    tally_session_id: String,
-) -> Result<Response<get_last_tally_session_execution::ResponseData>> {
+    key: String,
+    value: String,
+    expiry_date: Option<String>,
+) -> Result<Response<upsert_lock::ResponseData>> {
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
 
-    let variables = get_last_tally_session_execution::Variables {
-        tenant_id,
-        election_event_id,
-        tally_session_id,
+    let variables = upsert_lock::Variables {
+        key,
+        value,
+        expiry_date,
     };
 
-    let request_body = GetLastTallySessionExecution::build_query(variables);
+    let request_body = UpsertLock::build_query(variables);
 
     let client = reqwest::Client::new();
 
@@ -45,8 +45,7 @@ pub async fn get_last_tally_session_execution(
         .send()
         .await?;
 
-    let response_body: Response<get_last_tally_session_execution::ResponseData> =
-        res.json().await?;
+    let response_body: Response<upsert_lock::ResponseData> = res.json().await?;
 
     response_body.ok()
 }

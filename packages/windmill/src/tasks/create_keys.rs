@@ -7,7 +7,7 @@ use celery::error::TaskError;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
-use tracing::{instrument};
+use tracing::instrument;
 
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;

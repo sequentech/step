@@ -8,11 +8,11 @@ use sequent_core::services::keycloak;
 use std::env;
 use tracing::{event, instrument, Level};
 
-use crate::types::error::Result;
 use crate::hasura;
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::protocol_manager::get_board_client;
-use crate::services::election_event_board::get_election_event_board;
+use crate::types::error::Result;
 
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -30,7 +30,8 @@ pub async fn create_board(tenant_id: String, election_event_id: String) -> Resul
     .expect("expected data".into())
     .sequent_backend_election_event[0];
 
-    let bulletin_board_reference = get_election_event_board(election_event.bulletin_board_reference.clone());
+    let bulletin_board_reference =
+        get_election_event_board(election_event.bulletin_board_reference.clone());
 
     if bulletin_board_reference.is_some() {
         event!(Level::INFO, "Board already created");
