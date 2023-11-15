@@ -67,10 +67,7 @@ pub async fn delete_lock(
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
 
-    let variables = delete_lock::Variables {
-        key,
-        value,
-    };
+    let variables = delete_lock::Variables { key, value };
 
     let request_body = DeleteLock::build_query(variables);
 
