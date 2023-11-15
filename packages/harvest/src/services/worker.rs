@@ -17,7 +17,6 @@ use windmill::tasks::tally_election_event::{
 use windmill::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use windmill::tasks::update_voting_status;
 use windmill::types::scheduled_event::*;
-use uuid::Uuid;
 
 use crate::routes::scheduled_event;
 use crate::services::worker::scheduled_event::CreateEventBody;
@@ -34,7 +33,6 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<()> {
                     body,
                     event.tenant_id,
                     event.election_event_id,
-                    Uuid::new_v4(),
                 ))
                 .await?;
             event!(Level::INFO, "Sent CREATE_REPORT task {}", task.task_id);
