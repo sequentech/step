@@ -6,6 +6,8 @@ import {
     SelectInput,
     SimpleForm,
     TabbedForm,
+    TabbedShowLayout,
+    Tab,
     TextField,
     TextInput,
     useRecordContext,
@@ -19,6 +21,7 @@ import {
     AccordionDetails,
     AccordionSummary,
     Button,
+    Tabs,
     CircularProgress,
     Menu,
     MenuItem,
@@ -157,8 +160,8 @@ const ElectionEventListForm: React.FC = () => {
                     <Typography variant="h5">{t("electionEventScreen.edit.general")}</Typography>
                 </AccordionSummary>
                 <AccordionDetails>
-                    <TabbedForm>
-                        <TabbedForm.Tab label="English">
+                    <TabbedShowLayout>
+                        <Tab label="English">
                             <TextInput source="name" label={t("electionEventScreen.field.name")} />
                             <TextInput
                                 source="alias"
@@ -168,8 +171,8 @@ const ElectionEventListForm: React.FC = () => {
                                 source="description"
                                 label={t("electionEventScreen.field.description")}
                             />
-                        </TabbedForm.Tab>
-                        <TabbedForm.Tab label="Spanish">
+                        </Tab>
+                        <Tab label="Spanish">
                             <TextInput source="name" label={t("electionEventScreen.field.name")} />
                             <TextInput
                                 source="alias"
@@ -179,8 +182,8 @@ const ElectionEventListForm: React.FC = () => {
                                 source="description"
                                 label={t("electionEventScreen.field.description")}
                             />
-                        </TabbedForm.Tab>
-                    </TabbedForm>
+                        </Tab>
+                    </TabbedShowLayout>
                 </AccordionDetails>
             </Accordion>
 
