@@ -1,0 +1,67 @@
+// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+import React, {useState} from "react"
+import {useLocation} from "react-router-dom"
+import {styled} from "@mui/material/styles"
+import {IconButton, adminTheme} from "@sequentech/ui-essentials"
+import {TextField} from "@mui/material"
+import {Menu, useSidebarState} from "react-admin"
+import {TreeMenu} from "../../TreeMenu"
+import {faThLarge, faSearch} from "@fortawesome/free-solid-svg-icons"
+
+const StyledItem = styled(Menu.Item)`
+    color: ${adminTheme.palette.brandColor};
+
+    &.RaMenuItemLink-active,
+    .MuiIconButton-root {
+        color: ${adminTheme.palette.brandColor};
+    }
+`
+
+const activeRouteList = [
+    "sequent_backend_election_event",
+    "sequent_backend_election",
+    "sequent_backend_contest",
+    "sequent_backend_candidate",
+]
+
+export default function ElectionEvents() {
+    const [open, setOpen] = useSidebarState()
+    const [search, setSearch] = useState<string | null>(null)
+
+    const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        // Update the state with the input field's current value
+        setSearch(event.target.value)
+    }
+
+    const location = useLocation()
+    const isElectionEventActive = activeRouteList.some(
+        (route) => location.pathname.search(route) > -1
+    )
+
+    return (
+        <>
+            <div className={isElectionEventActive ? "bg-[#ECFDF5]" : ""}>
+                <StyledItem
+                    to="/sequent_backend_election_event"
+                    primaryText={open && "Election Events"}
+                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                />
+                <div className="flex flex-row my-4 mx-1 bg-white">
+                    <div className="">
+                        <TextField
+                            label="Search"
+                            size="small"
+                            value={search}
+                            onChange={handleSearchChange}
+                        />
+                    </div>
+                    <IconButton icon={faSearch} fontSize="18px" sx={{margin: "0 12px"}} />
+                </div>
+                <TreeMenu isOpen={open} />
+            </div>
+        </>
+    )
+}

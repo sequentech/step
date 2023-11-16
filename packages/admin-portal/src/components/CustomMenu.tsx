@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {useLocation} from "react-router-dom"
-import React, {useEffect, useState} from "react"
+
+import React, {useEffect} from "react"
 import {Menu, useSidebarState, useGetList, useResourceContext} from "react-admin"
+import {useLocation} from "react-router-dom"
 import {
     faThLarge,
     faUsers,
@@ -13,15 +14,14 @@ import {
     faFileText,
     faAngleDoubleLeft,
     faAngleDoubleRight,
-    faSearch,
 } from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {HorizontalBox} from "./HorizontalBox"
-import {Box, MenuItem, Select, SelectChangeEvent, TextField} from "@mui/material"
+import {Box, MenuItem, Select, SelectChangeEvent} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Link} from "react-router-dom"
-import {TreeMenu} from "./TreeMenu"
 import {useLocalStorage} from "react-use"
+import ElectionEvents from "./menu/items/ElectionEvents"
 
 export function useTenantStore() {
     return useLocalStorage("tenantId")
@@ -121,16 +121,10 @@ const SelectTenants: React.FC = () => {
 export const CustomMenu = () => {
     const [open, setOpen] = useSidebarState()
     const resource = useResourceContext()
-    const [search, setSearch] = useState<string | null>(null)
 
     useEffect(() => {
         console.log("LS -> src/components/CustomMenu.tsx:128 -> resource: ", resource)
     }, [resource])
-
-    const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        // Update the state with the input field's current value
-        setSearch(event.target.value)
-    }
 
     return (
         <StyledMenu
@@ -144,23 +138,9 @@ export const CustomMenu = () => {
         >
             <MenuWrapper>
                 <SelectTenants />
-                <StyledItem
-                    to="/sequent_backend_election_event"
-                    primaryText={open && "Election Events"}
-                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                />
-                <HorizontalBox sx={{margin: "2px 16px"}}>
-                    <Box sx={{margin: "-16px 0"}}>
-                        <TextField
-                            label="Search"
-                            size="small"
-                            value={search}
-                            onChange={handleSearchChange}
-                        />
-                    </Box>
-                    <IconButton icon={faSearch} fontSize="18px" sx={{margin: "0 12px"}} />
-                </HorizontalBox>
-                <TreeMenu isOpen={open} />
+
+                <ElectionEvents />
+
                 <StyledItem
                     to="/pgaudit"
                     primaryText="PG Audit"
