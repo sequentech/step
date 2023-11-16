@@ -15,7 +15,7 @@ import {JsonInput} from "react-admin-json-view"
 
 export const CreateArea: React.FC = () => {
     return (
-        <Create>
+        <Create resource="sequent_backend_area">
             <SimpleForm>
                 <Typography variant="h4">Area</Typography>
                 <Typography variant="body2">Area creation</Typography>

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement} from "react"
+import React, {ReactElement, useEffect} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -9,12 +9,16 @@ import {
     ReferenceField,
     ReferenceManyField,
     TextInput,
+    Identifier,
+    RaRecord,
+    RecordContext,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
-import {Typography} from "@mui/material"
+import {Drawer, Typography} from "@mui/material"
 import {ChipList} from "../../components/ChipList"
-import {generateRowClickHandler} from "../../services/RowClickService"
+import {EditAreaForm} from "./EditArea"
+import { CreateArea } from './CreateArea'
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -33,15 +37,28 @@ export interface ListAreaProps {
 export const ListArea: React.FC<ListAreaProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
 
-    const rowClickHandler = generateRowClickHandler(["election_event_id"])
+    const [open, setOpen] = React.useState(false)
+    const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+
+    // const rowClickHandler = generateRowClickHandler(["election_event_id"])
+    const rowClickHandler = (id: Identifier, resource: string, record: RaRecord) => {
+        setRecordId(id)
+        return ""
+    }
+
+    useEffect(() => {
+        if (recordId) {
+            setOpen(true)
+        }
+    }, [recordId])
 
     return (
         <>
             <Typography variant="h5">Areas</Typography>
             <List
-                actions={<ListActions withFilter={true} />}
+                resource="sequent_backend_area"
+                actions={<ListActions withImport={false} Component={<CreateArea />} />}
                 sx={{flexGrow: 2}}
-                aside={aside}
                 filter={{
                     tenant_id: tenantId || undefined,
                 }}
@@ -71,6 +88,20 @@ export const ListArea: React.FC<ListAreaProps> = ({aside}) => {
                     </ReferenceManyField>
                 </DatagridConfigurable>
             </List>
+
+            <Drawer
+                anchor="right"
+                open={open}
+                onClose={() => {
+                    setRecordId(undefined)
+                    setOpen(false)
+                }}
+                PaperProps={{
+                    sx: {width: "40%"},
+                }}
+            >
+                <EditAreaForm id={recordId} />
+            </Drawer>
         </>
     )
 }

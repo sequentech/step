@@ -14,14 +14,18 @@ import React, { useState } from "react"
 
 import {Add} from "@mui/icons-material"
 import { Drawer } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 
 interface ListActionsProps {
+    withImport?: boolean
+    withExport?: boolean
     withFilter?: boolean
     Component?: React.ReactNode
 }
 
 export const ListActions: React.FC<ListActionsProps> = (props) => {
-    const {withFilter, Component} = props
+    const {withImport = true, withExport = true, withFilter = true, Component} = props
+    const {t} = useTranslation()
 
     const [open, setOpen] = useState<boolean>(false)
 
@@ -39,7 +43,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
             {withFilter ? <FilterButton /> : null}
             {Component && (
                 <>
-                    <Button label="Create" onClick={() => setOpen(true)}><Add /></Button>
+                    <Button label={t("common.label.add")} onClick={() => setOpen(true)}><Add /></Button>
                     <Drawer
                         anchor="right"
                         open={open}
@@ -52,8 +56,8 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     </Drawer>
                 </>
             )}
-            <ImportButton {...props} {...config} />
-            <ExportButton />
+            {withImport ? <ImportButton {...props} {...config} /> : null}
+            {withExport ? <ExportButton /> : null}
         </TopToolbar>
     )
 }

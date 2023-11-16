@@ -144,6 +144,12 @@ const englishTranslation = {
                 endDateTime: "End Date and Time"
             },
         },
+        common: {
+            label: {
+                add: "Add",
+                create: "Create",
+            },
+        },
     },
 }
 

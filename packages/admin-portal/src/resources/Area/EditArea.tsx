@@ -5,6 +5,7 @@ import {Button, CircularProgress, Menu, MenuItem, Typography} from "@mui/materia
 import React, {useState} from "react"
 import {
     Edit,
+    Identifier,
     ReferenceField,
     ReferenceManyField,
     SimpleForm,
@@ -25,7 +26,7 @@ import {useMutation} from "@apollo/client"
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
 
-const AreaForm: React.FC = () => {
+export const AreaForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Area>()
     const [showMenu, setShowMenu] = useState(false)
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
@@ -113,6 +114,19 @@ const AreaForm: React.FC = () => {
                 }}
             />
         </SimpleForm>
+    )
+}
+
+interface EditAreaFormProps {
+    id?: Identifier | undefined
+}
+
+export const EditAreaForm: React.FC<EditAreaFormProps> = (props) => {
+    const {id} = props;
+    return (
+        <Edit id={id} resource="sequent_backend_area">
+            <AreaForm />
+        </Edit>
     )
 }
 
