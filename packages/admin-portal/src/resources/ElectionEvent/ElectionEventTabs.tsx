@@ -6,6 +6,7 @@ import {Box} from "@mui/material"
 import {EditElectionEventData} from "./EditElectionEventData"
 import { BarChart, ChartsContainer, ElectionStats, PieChart } from './EditElectionEventDashboard'
 import { ReportDialog } from '../../components/ReportDialog'
+import { EditElectionEventAreas } from './EditElectionEventAreas'
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -29,9 +30,12 @@ export const ElectionEventTabs: React.FC = () => {
                     <EditElectionEventData />
                 </TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label="Voters">a</TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Areas">a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Areas">
+                    <EditElectionEventAreas />
+                </TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label="Keys">a</TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label="Tally">a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Publish">a</TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label="Logs">a</TabbedShowLayout.Tab>
             </TabbedShowLayout>
         </>
