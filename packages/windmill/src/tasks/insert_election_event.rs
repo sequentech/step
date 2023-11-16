@@ -27,13 +27,10 @@ pub async fn create_immu_board(
     let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
     let board_name = get_board_name(tenant_id, election_event_id);
     let mut board_client = get_board_client().await?;
-    event!(Level::INFO, "FF Before");
     let board = board_client.create_board(&index_db, &board_name).await?;
-    event!(Level::INFO, "FF After");
 
     let board_serializable: BoardSerializable = board.into();
     let board_value = serde_json::to_value(board_serializable.clone())?;
-    event!(Level::INFO, "FF End");
     Ok(board_value)
 }
 
@@ -63,16 +60,17 @@ pub async fn insert_election_event_t(object: InsertElectionEventInput) -> Result
     let auth_headers = keycloak::get_client_credentials().await?;
 
     let id = object.id.clone().unwrap_or(Uuid::new_v4().to_string());
+    let tenant_id = object.tenant_id.clone().unwrap();
 
     let board = create_immu_board(
         &auth_headers,
-        &object.tenant_id.as_ref().ok_or("empty-tenant-id")?,
+        tenant_id.as_str(),
         &id.as_ref(),
     )
     .await?;
     let mut final_object = object.clone();
     final_object.bulletin_board_reference = Some(board);
-    final_object.id = Some(id);
+    final_object.id = Some(id.clone());
     create_keycloak_realm(&auth_headers, &final_object).await?;
     insert_election_event_db(&auth_headers, &final_object).await?;
 

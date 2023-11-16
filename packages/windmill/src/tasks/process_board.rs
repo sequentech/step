@@ -64,7 +64,7 @@ pub async fn process_board(tenant_id: String, election_event_id: String) -> Resu
             ))
             .await
             .map_err(|e| anyhow::Error::from(e))?;
-        event!(Level::INFO, "Sent create_board task {}", task.task_id);
+        event!(Level::INFO, "Sent set_public_key task {}", task.task_id);
         return Ok(());
     }
 
