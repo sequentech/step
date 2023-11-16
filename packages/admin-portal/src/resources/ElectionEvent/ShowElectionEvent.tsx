@@ -270,11 +270,3 @@ export const ShowElectionEventTabs: React.FC = () => {
         </>
     )
 }
-
-export const ShowElectionEventList: React.FC = () => {
-    return (
-        <ShowBase>
-            <ShowElectionEvent />
-        </ShowBase>
-    )
-}
