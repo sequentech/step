@@ -6,7 +6,9 @@ use crate::services::date::ISO8601;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDateTime;
 use sequent_core::services::connection;
+use tracing::{event, instrument, Level};
 
+#[derive(Debug)]
 pub struct PgLock {
     pub key: String,
     pub value: String,
@@ -14,6 +16,7 @@ pub struct PgLock {
 }
 
 impl PgLock {
+    #[instrument(skip(auth_headers))]
     pub async fn acquire(
         auth_headers: connection::AuthHeaders,
         key: String,
@@ -39,6 +42,7 @@ impl PgLock {
         }
     }
 
+    #[instrument(skip(auth_headers))]
     pub async fn release(self, auth_headers: connection::AuthHeaders) -> Result<()> {
         let affected_rows = delete_lock(auth_headers, self.key.clone(), self.value.clone())
             .await?
