@@ -38,6 +38,22 @@ actions:
     permissions:
       - role: admin-user
     comment: fetch document
+  - name: insertElectionEvent
+    definition:
+      kind: synchronous
+      handler: http://harvest:8400/insert-election-event
+      forward_client_headers: true
+      headers:
+        - name: X-Hasura-Admin-Secret
+          value_from_env: ACTIONS_ADMIN_SECRET
+      request_transform:
+        body:
+          action: transform
+          template: '{{$body.input}}'
+        template_engine: Kriti
+        version: 2
+    permissions:
+      - role: admin-user
   - name: listPgaudit
     definition:
       kind: ""
@@ -76,6 +92,8 @@ custom_types:
   input_objects:
     - name: TemplateInput
     - name: PgAuditOrderBy
+    - name: SampleInput
+    - name: CreateElectionEventInput
   objects:
     - name: TemplateOutput
     - name: FetchDocumentOutput
@@ -86,4 +104,6 @@ custom_types:
     - name: TotalAggregate
     - name: ScheduledEventOutput2
     - name: ScheduledEventOutput3
+    - name: SampleOutput
+    - name: CreateElectionEventOutput
   scalars: []
