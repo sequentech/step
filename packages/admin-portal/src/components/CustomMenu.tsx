@@ -20,12 +20,10 @@ import {Box, MenuItem, Select, SelectChangeEvent, TextField} from "@mui/material
 import {styled} from "@mui/material/styles"
 import {Link} from "react-router-dom"
 import {TreeMenu} from "./TreeMenu"
+import {useLocalStorage} from "react-use"
 
-export const useTenantStore: () => [string | null, (tenantId: string | null) => void] = () => {
-    return [
-        localStorage.getItem("tenantId"),
-        (tenantId: string | null) => localStorage.setItem("tenantId", tenantId || ""),
-    ]
+export function useTenantStore() {
+    return useLocalStorage("tenantId")
 }
 
 const StyledItem = styled(Menu.Item)`
@@ -67,7 +65,7 @@ const MenuWrapper = styled(Box)`
 
 const CustomerSelector: React.FC = () => {
     const [open] = useSidebarState()
-    const [tenant, setTenant] = useTenantStore()
+    const [tenantId, setTenantId] = useTenantStore()
 
     const {data, total, isLoading, error} = useGetList("sequent_backend_tenant", {
         pagination: {page: 1, perPage: 10},
@@ -80,7 +78,8 @@ const CustomerSelector: React.FC = () => {
     const hasSingle = total === 1
 
     const handleChange = (event: SelectChangeEvent<unknown>) => {
-        setTenant(event.target.value as any)
+        const tenantId: string = event.target.value as string
+        setTenantId(tenantId)
     }
 
     return (
@@ -94,7 +93,7 @@ const CustomerSelector: React.FC = () => {
                         <Select
                             labelId="tenant-select-label"
                             id="tenant-select"
-                            value={tenant}
+                            value={tenantId}
                             onChange={handleChange}
                             sx={{
                                 flexGrow: 2,
