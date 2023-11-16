@@ -6,7 +6,7 @@ use crate::services::date::ISO8601;
 use anyhow::{anyhow, Result};
 use chrono::NaiveDateTime;
 use sequent_core::services::connection;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 #[derive(Debug)]
 pub struct PgLock {

@@ -20,6 +20,7 @@ const authLink = setContext((_, {headers}) => {
             "authorization": token ? `Bearer ${token}` : "",
             "x-hasura-tenant-id": tenantId || "whatever",
             "x-hasura-election-event-id": electionEventId || "defaultdb",
+            "x-hasura-role": "test-all",
         },
     }
 })
