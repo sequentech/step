@@ -49,7 +49,7 @@ actions:
       request_transform:
         body:
           action: transform
-          template: '{{$body.input}}'
+          template: '{{$body.input.object}}'
         template_engine: Kriti
         version: 2
     permissions:
