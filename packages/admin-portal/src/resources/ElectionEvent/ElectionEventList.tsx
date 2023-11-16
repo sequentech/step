@@ -1,7 +1,3 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement} from "react"
 import {
     BooleanField,
     BooleanInput,
@@ -11,10 +7,17 @@ import {
     TextField,
     TextInput,
 } from "react-admin"
-import {ListActions} from "../../components/ListActions"
-import {useTenantStore} from "../../components/CustomMenu"
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React, {ReactElement} from "react"
+
 import {ChipList} from "../../components/ChipList"
+import { CreateElectionList } from './CreateElectionEvent'
+import ElectionHeader from '../../components/ElectionHeader'
+import {ListActions} from "../../components/ListActions"
 import {Typography} from "@mui/material"
+import {useTenantStore} from "../../components/CustomMenu"
 
 const OMIT_FIELDS = ["id", "sequent_backend_area", "is_archived", "is_audit", "public_key"]
 
@@ -36,9 +39,14 @@ export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => 
 
     return (
         <>
-            <Typography variant="h5">Election Events</Typography>
+            <ElectionHeader title="Election Events" subtitle="Election Events Subtitle" />
             <List
-                actions={<ListActions withFilter={true} />}
+                actions={
+                    <ListActions
+                        withFilter={true}
+                        Component={<CreateElectionList />}
+                    />
+                }
                 filter={{tenant_id: tenantId || undefined}}
                 filters={Filters}
                 aside={aside}

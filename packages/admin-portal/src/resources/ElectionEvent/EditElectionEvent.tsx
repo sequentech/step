@@ -1,11 +1,7 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-import {Button, CircularProgress, Menu, MenuItem, Typography} from "@mui/material"
-import React, {useState} from "react"
 import {
     BooleanInput,
     Edit,
+    EditBase,
     ReferenceManyField,
     SelectInput,
     SimpleForm,
@@ -14,21 +10,37 @@ import {
     useRecordContext,
     useRefresh,
 } from "react-admin"
-import {JsonInput} from "react-admin-json-view"
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Button,
+    CircularProgress,
+    Menu,
+    MenuItem,
+    Typography,
+} from "@mui/material"
+import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
+import React, {useState} from "react"
+import {faPieChart, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+
+import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
+import {ChipList} from "../../components/ChipList"
 import {ElectionEventList} from "./ElectionEventList"
 import {HorizontalBox} from "../../components/HorizontalBox"
-import {ChipList} from "../../components/ChipList"
-import {Link} from "react-router-dom"
-import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {IconButton} from "@sequentech/ui-essentials"
-import {faPieChart, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
-import {ScheduledEventType} from "../../services/ScheduledEvent"
-import {useTenantStore} from "../../components/CustomMenu"
-import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
-import {useMutation} from "@apollo/client"
+import {JsonInput} from "react-admin-json-view"
 import {KeysGenerationDialog} from "../../components/KeysGenerationDialog"
-import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
+import {Link} from "react-router-dom"
+import {ScheduledEventType} from "../../services/ScheduledEvent"
 import {StartTallyDialog} from "../../components/StartTallyDialog"
+import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
+import {useMutation} from "@apollo/client"
+import {useTenantStore} from "../../components/CustomMenu"
 
 const ElectionEventListForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -56,8 +68,7 @@ const ElectionEventListForm: React.FC = () => {
                 electionEventId: record.id,
                 eventProcessor: ScheduledEventType.CREATE_BOARD,
                 cronConfig: undefined,
-                eventPayload: {
-                },
+                eventPayload: {},
                 createdBy: "admin",
             },
         })
@@ -133,13 +144,43 @@ const ElectionEventListForm: React.FC = () => {
 
     return (
         <SimpleForm>
-            <Link to={`/sequent_backend_election_event/${record.id}/show`}>
-                <Button>
-                    <IconButton icon={faPieChart} fontSize="24px" />
-                    Show Dashboard
-                </Button>
-            </Link>
-            <Typography variant="h4">Election Event</Typography>
+            <Accordion sx={{width: '100%'}}>
+                <AccordionSummary
+                expandIcon={<ExpandMoreIcon 
+                id="election-event-data-general"
+                />}
+                >
+                    <Typography variant="h5">General</Typography>
+                </AccordionSummary>
+                <AccordionDetails>a</AccordionDetails>
+            </Accordion>
+
+            <Accordion sx={{width: '100%'}}>
+                <AccordionSummary
+                expandIcon={<ExpandMoreIcon 
+                id="election-event-data-general"
+                />}
+                >
+                    <Typography variant="h5">Dates</Typography>
+                </AccordionSummary>
+                <AccordionDetails>a</AccordionDetails>
+            </Accordion>
+
+
+            <Accordion sx={{width: '100%'}}>
+                <AccordionSummary
+                expandIcon={<ExpandMoreIcon 
+                id="election-event-data-general"
+                />}
+                >
+                    <Typography variant="h5">Language</Typography>
+                </AccordionSummary>
+                <AccordionDetails>a</AccordionDetails>
+            </Accordion>
+
+
+
+            {/* <Typography variant="h4">Election Event</Typography>
             <Typography variant="body2">Election event configuration</Typography>
             <Button onClick={handleActionsButtonClick}>
                 Actions {showProgress ? <CircularProgress /> : null}
@@ -316,19 +357,15 @@ const ElectionEventListForm: React.FC = () => {
                         filterFields={["election_event_id"]}
                     />
                 </HorizontalBox>
-            </ReferenceManyField>
+            </ReferenceManyField> */}
         </SimpleForm>
     )
 }
 
 export const EditElectionList: React.FC = () => {
     return (
-        <ElectionEventList
-            aside={
-                <Edit sx={{flexGrow: 2, width: "50%", flexShrink: 0}}>
-                    <ElectionEventListForm />
-                </Edit>
-            }
-        />
+        <EditBase>
+            <ElectionEventListForm />
+        </EditBase>
     )
 }

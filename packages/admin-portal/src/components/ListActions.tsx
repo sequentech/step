@@ -1,8 +1,5 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
 import {
+    Button,
     CreateButton,
     ExportButton,
     FilterButton,
@@ -10,13 +7,23 @@ import {
     TopToolbar,
 } from "react-admin"
 import {ImportButton, ImportConfig} from "react-admin-import-csv"
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React, { useState } from "react"
+
+import {Add} from "@mui/icons-material"
+import { Drawer } from '@mui/material'
 
 interface ListActionsProps {
     withFilter?: boolean
+    Component?: React.ReactNode
 }
 
 export const ListActions: React.FC<ListActionsProps> = (props) => {
-    const {withFilter} = props
+    const {withFilter, Component} = props
+
+    const [open, setOpen] = useState<boolean>(false)
 
     const config: ImportConfig = {
         logging: true,
@@ -30,7 +37,21 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
         <TopToolbar>
             <SelectColumnsButton />
             {withFilter ? <FilterButton /> : null}
-            <CreateButton />
+            {Component && (
+                <>
+                    <Button label="Create" onClick={() => setOpen(true)}><Add /></Button>
+                    <Drawer
+                        anchor="right"
+                        open={open}
+                        onClose={() => setOpen(false)}
+                        PaperProps={{
+                            sx: {width: "40%"},
+                        }}
+                    >
+                        {Component}
+                    </Drawer>
+                </>
+            )}
             <ImportButton {...props} {...config} />
             <ExportButton />
         </TopToolbar>
