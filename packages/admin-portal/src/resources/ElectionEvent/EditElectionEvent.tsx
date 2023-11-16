@@ -5,6 +5,7 @@ import {
     ReferenceManyField,
     SelectInput,
     SimpleForm,
+    TabbedForm,
     TextField,
     TextInput,
     useRecordContext,
@@ -41,9 +42,11 @@ import {StartTallyDialog} from "../../components/StartTallyDialog"
 import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
 import {useMutation} from "@apollo/client"
 import {useTenantStore} from "../../components/CustomMenu"
+import {useTranslation} from "react-i18next"
 
 const ElectionEventListForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const [expanded, setExpanded] = useState("election-event-data-general")
     const [showMenu, setShowMenu] = useState(false)
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const [showProgress, setShowProgress] = useState(false)
@@ -52,6 +55,7 @@ const ElectionEventListForm: React.FC = () => {
     const [tenantId] = useTenantStore()
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const refresh = useRefresh()
+    const {t} = useTranslation()
 
     const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
         setAnchorEl(event.currentTarget)
@@ -144,41 +148,74 @@ const ElectionEventListForm: React.FC = () => {
 
     return (
         <SimpleForm>
-            <Accordion sx={{width: '100%'}}>
-                <AccordionSummary
-                expandIcon={<ExpandMoreIcon 
-                id="election-event-data-general"
-                />}
-                >
-                    <Typography variant="h5">General</Typography>
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "election-event-data-general"}
+                onChange={() => setExpanded("election-event-data-general")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-general" />}>
+                    <Typography variant="h5">{t("electionEventScreen.edit.general")}</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <TabbedForm>
+                        <TabbedForm.Tab label="English">
+                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                            <TextInput
+                                source="alias"
+                                label={t("electionEventScreen.field.alias")}
+                            />
+                            <TextInput
+                                source="description"
+                                label={t("electionEventScreen.field.description")}
+                            />
+                        </TabbedForm.Tab>
+                        <TabbedForm.Tab label="Spanish">
+                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                            <TextInput
+                                source="alias"
+                                label={t("electionEventScreen.field.alias")}
+                            />
+                            <TextInput
+                                source="description"
+                                label={t("electionEventScreen.field.description")}
+                            />
+                        </TabbedForm.Tab>
+                    </TabbedForm>
+                </AccordionDetails>
+            </Accordion>
+
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "election-event-data-dates"}
+                onChange={() => setExpanded("election-event-data-dates")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-dates" />}>
+                    <Typography variant="h5">{t("electionEventScreen.edit.dates")}</Typography>
                 </AccordionSummary>
                 <AccordionDetails>a</AccordionDetails>
             </Accordion>
 
-            <Accordion sx={{width: '100%'}}>
-                <AccordionSummary
-                expandIcon={<ExpandMoreIcon 
-                id="election-event-data-general"
-                />}
-                >
-                    <Typography variant="h5">Dates</Typography>
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "election-event-data-language"}
+                onChange={() => setExpanded("election-event-data-language")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-language" />}>
+                    <Typography variant="h5">{t("electionEventScreen.edit.language")}</Typography>
                 </AccordionSummary>
                 <AccordionDetails>a</AccordionDetails>
             </Accordion>
 
-
-            <Accordion sx={{width: '100%'}}>
-                <AccordionSummary
-                expandIcon={<ExpandMoreIcon 
-                id="election-event-data-general"
-                />}
-                >
-                    <Typography variant="h5">Language</Typography>
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "election-event-data-allowed"}
+                onChange={() => setExpanded("election-event-data-allowed")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-allowed" />}>
+                    <Typography variant="h5">{t("electionEventScreen.edit.allowed")}</Typography>
                 </AccordionSummary>
                 <AccordionDetails>a</AccordionDetails>
             </Accordion>
-
-
 
             {/* <Typography variant="h4">Election Event</Typography>
             <Typography variant="body2">Election event configuration</Typography>

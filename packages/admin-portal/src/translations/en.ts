@@ -1,3 +1,4 @@
+import { LanguageDetector } from 'i18next-browser-languagedetector';
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -120,6 +121,25 @@ const englishTranslation = {
                 content:
                     'Welcome to the Voting Booth, this screen shows the list of elections you can cast a ballot. Elections displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open. In the case an election is closed and your election administrator has published the result you will see an "Election Result" button that will take you to the public result page.',
                 ok: "OK",
+            },
+        },
+        electionEventScreen: {
+            common: {
+                subtitle: "Election event configuration.",
+            },
+            edit: {
+                general: "General",
+                dates: "Dates",
+                language: "Language",
+                allowed: "Voting Channels Allowed",
+            },
+            field:{
+                name: "Name",
+                description: "Description",
+                startDate: "Start Date",
+                endDate: "End Date",
+                language: "Language",
+                votingChannels: "Voting Channels",
             },
         },
     },

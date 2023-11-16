@@ -245,7 +245,7 @@ export const ShowElectionEvent: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader title={record?.name} subtitle="Election event configuration" />
+            <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
             <TabbedShowLayout>
                 <TabbedShowLayout.Tab label="Dashboard">
                     <Box sx={{padding: "16px"}}>
