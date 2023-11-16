@@ -1,5 +1,8 @@
 import {
     BooleanInput,
+    DateField,
+    DateInput,
+    DateTimeInput,
     Edit,
     EditBase,
     ReferenceManyField,
@@ -26,6 +29,7 @@ import {
     Menu,
     MenuItem,
     Typography,
+    Grid,
 } from "@mui/material"
 import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import React, {useState} from "react"
@@ -232,7 +236,22 @@ const ElectionEventListForm: React.FC = () => {
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-dates" />}>
                     <Typography variant="h5">{t("electionEventScreen.edit.dates")}</Typography>
                 </AccordionSummary>
-                <AccordionDetails>a</AccordionDetails>
+                <AccordionDetails>
+                    <Grid container spacing={4}>
+                        <Grid item xs={12} md={6}>
+                            <DateTimeInput
+                                source="start_date"
+                                label={t("electionEventScreen.field.startDateTime")}
+                            />
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                            <DateTimeInput
+                                source="end_date"
+                                label={t("electionEventScreen.field.endDateTime")}
+                            />
+                        </Grid>
+                    </Grid>
+                </AccordionDetails>
             </Accordion>
 
             <Accordion
@@ -243,7 +262,14 @@ const ElectionEventListForm: React.FC = () => {
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-language" />}>
                     <Typography variant="h5">{t("electionEventScreen.edit.language")}</Typography>
                 </AccordionSummary>
-                <AccordionDetails>a</AccordionDetails>
+                <AccordionDetails>
+                    <Grid container spacing={4}>
+                        <Grid item xs={12} md={6}>
+                            <BooleanInput source="language.english" label={"English"} defaultValue={true}/>
+                            <BooleanInput source="language.spanish" label={"Spanish"} defaultValue={false}/>
+                        </Grid>
+                    </Grid>
+                </AccordionDetails>
             </Accordion>
 
             <Accordion
@@ -254,7 +280,15 @@ const ElectionEventListForm: React.FC = () => {
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-allowed" />}>
                     <Typography variant="h5">{t("electionEventScreen.edit.allowed")}</Typography>
                 </AccordionSummary>
-                <AccordionDetails>a</AccordionDetails>
+                <AccordionDetails>
+                    {" "}
+                    <Grid container spacing={4}>
+                        <Grid item xs={12} md={6}>
+                            <BooleanInput source="allowed.one" label={"One"} defaultValue={true}/>
+                            <BooleanInput source="allowed.two" label={"Two"} defaultValue={true}/>
+                        </Grid>
+                    </Grid>
+                </AccordionDetails>
             </Accordion>
 
             {/* <Typography variant="h4">Election Event</Typography>
@@ -441,7 +475,7 @@ const ElectionEventListForm: React.FC = () => {
 
 export const EditElectionList: React.FC = () => {
     return (
-        <EditBase>
+        <EditBase redirect={"."}>
             <ElectionEventListForm />
         </EditBase>
     )

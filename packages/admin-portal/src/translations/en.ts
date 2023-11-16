@@ -140,6 +140,8 @@ const englishTranslation = {
                 endDate: "End Date",
                 language: "Language",
                 votingChannels: "Voting Channels",
+                startDateTime: "Start Date and Time",
+                endDateTime: "End Date and Time"
             },
         },
     },
