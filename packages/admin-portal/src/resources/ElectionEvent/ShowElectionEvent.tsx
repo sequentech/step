@@ -240,7 +240,7 @@ const ElectionStats: React.FC = () => {
     )
 }
 
-export const ShowElectionEvent: React.FC = () => {
+export const ShowElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     return (

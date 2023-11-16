@@ -4,7 +4,8 @@ import {ApolloClient, ApolloProvider, NormalizedCacheObject} from "@apollo/clien
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {ShowElectionEvent, ShowElectionEventList} from "./resources/ElectionEvent/ShowElectionEvent"
+import {ShowElectionEventTabs} from "./resources/ElectionEvent/ShowElectionEvent"
+import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
 
 import {AuthContext} from "./providers/AuthContextProvider"
 import {CreateArea} from "./resources/Area/CreateArea"
@@ -114,8 +115,8 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
                 name="sequent_backend_election_event"
                 list={ElectionEventList}
                 create={CreateElectionList}
-                edit={ShowElectionEventList}
-                show={ShowElectionEvent}
+                edit={ElectionEventBaseTabs}
+                show={ElectionEventBaseTabs}
                 options={{label: "Election Events", isMenuParent: true}}
             />
             <Resource
