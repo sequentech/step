@@ -64,7 +64,7 @@ const MenuWrapper = styled(Box)`
     border-bottom: 2px solid ${adminTheme.palette.customGrey.light};
 `
 
-const CustomerSelector: React.FC = () => {
+const SelectTenants: React.FC = () => {
     const [open] = useSidebarState()
     const [tenantId, setTenantId] = useTenantStore()
 
@@ -143,7 +143,7 @@ export const CustomMenu = () => {
             }}
         >
             <MenuWrapper>
-                <CustomerSelector />
+                <SelectTenants />
                 <StyledItem
                     to="/sequent_backend_election_event"
                     primaryText={open && "Election Events"}
