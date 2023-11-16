@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import {
     BooleanInput,
     DateField,
@@ -15,9 +18,6 @@ import {
     useRecordContext,
     useRefresh,
 } from "react-admin"
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
 import {
     Accordion,
     AccordionDetails,
@@ -38,7 +38,6 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ChipList} from "../../components/ChipList"
-import {ElectionEventList} from "./ElectionEventList"
 import {HorizontalBox} from "../../components/HorizontalBox"
 import {IconButton} from "@sequentech/ui-essentials"
 import {JsonInput} from "react-admin-json-view"

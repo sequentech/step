@@ -1,8 +1,8 @@
-import {Admin, CustomRoutes, DataProvider, Resource} from "react-admin"
-import {ApolloClient, ApolloProvider, NormalizedCacheObject} from "@apollo/client"
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {Admin, CustomRoutes, DataProvider, Resource} from "react-admin"
+import {ApolloClient, ApolloProvider, NormalizedCacheObject} from "@apollo/client"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
 
