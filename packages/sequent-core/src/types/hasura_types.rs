@@ -106,7 +106,6 @@ pub struct Candidate {
     pub is_public: Option<bool>,
 }
 
-
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Document {
     pub id: Uuid,

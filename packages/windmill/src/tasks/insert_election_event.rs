@@ -9,12 +9,12 @@ use sequent_core;
 use sequent_core::services::{connection, keycloak};
 use serde_json::Value;
 use std::env;
-use tracing::{event, Level, instrument};
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use crate::services::election_event_board::BoardSerializable;
 use crate::hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
+use crate::services::election_event_board::BoardSerializable;
 use crate::services::protocol_manager::get_board_client;
 use crate::types::error::Result;
 
@@ -62,12 +62,7 @@ pub async fn insert_election_event_t(object: InsertElectionEventInput) -> Result
     let id = object.id.clone().unwrap_or(Uuid::new_v4().to_string());
     let tenant_id = object.tenant_id.clone().unwrap();
 
-    let board = create_immu_board(
-        &auth_headers,
-        tenant_id.as_str(),
-        &id.as_ref(),
-    )
-    .await?;
+    let board = create_immu_board(&auth_headers, tenant_id.as_str(), &id.as_ref()).await?;
     let mut final_object = object.clone();
     final_object.bulletin_board_reference = Some(board);
     final_object.id = Some(id.clone());

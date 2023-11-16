@@ -50,7 +50,11 @@ pub async fn process_board(tenant_id: String, election_event_id: String) -> Resu
     let celery_app = get_celery_app().await;
     // if there's no bulletin board, create it
     if bulletin_board_opt.is_none() {
-        event!(Level::INFO, "election event {} with no board, skipping", election_event_id);
+        event!(
+            Level::INFO,
+            "election event {} with no board, skipping",
+            election_event_id
+        );
         return Ok(());
     }
 
