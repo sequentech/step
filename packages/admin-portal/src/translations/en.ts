@@ -134,11 +134,14 @@ const englishTranslation = {
             },
             field:{
                 name: "Name",
+                alias: "Alias",
                 description: "Description",
                 startDate: "Start Date",
                 endDate: "End Date",
                 language: "Language",
                 votingChannels: "Voting Channels",
+                startDateTime: "Start Date and Time",
+                endDateTime: "End Date and Time"
             },
         },
     },

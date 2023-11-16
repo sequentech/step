@@ -20,14 +20,14 @@ import {
     faUsers,
 } from "@fortawesome/free-solid-svg-icons"
 
-import {EditElectionList} from "./EditElectionEvent"
-import ElectionHeader from '../../components/ElectionHeader'
+    import ElectionHeader from '../../components/ElectionHeader'
 import {GET_CAST_VOTES} from "../../queries/GetCastVotes"
 import {GET_ELECTION_EVENT_STATS} from "../../queries/GetElectionEventStats"
 import React from "react"
 import {ReportDialog} from "../../components/ReportDialog"
 import {styled} from "@mui/material/styles"
 import {useQuery} from "@apollo/client"
+import { EditElectionEventData } from './EditElectionEventData'
 
 const CardList = styled(Box)`
     display: flex;
@@ -51,7 +51,7 @@ const CardContainer = styled(Box)<{selected?: boolean}>`
         selected ? "background: linear-gradient(180deg, #0FADCF 0%, #0F054B 100%); " : ""}
 `
 
-const ChartsContainer = styled(Box)`
+export const ChartsContainer = styled(Box)`
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
@@ -67,7 +67,7 @@ const Separator = styled(Box)`
     margin: 16px 0;
 `
 
-const PieChart: React.FC = () => {
+export const PieChart: React.FC = () => {
     const state: Props = {
         options: {
             labels: ["Online", "Paper", "IVR", "Postal"],
@@ -125,7 +125,7 @@ const getWeekLegend = (): Array<string> => {
     return [...legend.slice(dayOfWeek, 7), ...legend.slice(0, dayOfWeek)]
 }
 
-const BarChart: React.FC = () => {
+export const BarChart: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const {loading, error, data} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
@@ -179,7 +179,7 @@ const BarChart: React.FC = () => {
     )
 }
 
-const ElectionStats: React.FC = () => {
+export const ElectionStats: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const {loading, error, data} = useQuery<GetElectionEventStatsQuery>(GET_ELECTION_EVENT_STATS, {
@@ -237,44 +237,5 @@ const ElectionStats: React.FC = () => {
                 <Typography fontSize="12px">CALENDAR</Typography>
             </CardContainer>
         </CardList>
-    )
-}
-
-export const ShowElectionEvent: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
-
-    return (
-        <>
-            <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
-            <TabbedShowLayout>
-                <TabbedShowLayout.Tab label="Dashboard">
-                    <Box sx={{padding: "16px"}}>
-                        <TextField source="name" fontSize="24px" fontWeight="bold" />
-                        <ElectionStats />
-                        <ChartsContainer>
-                            <BarChart />
-                            <PieChart />
-                        </ChartsContainer>
-                        <ReportDialog />
-                    </Box>
-                </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Data">
-                    <EditElectionList />
-                </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Voters">a</TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Areas">a</TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Keys">a</TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Tally">a</TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Logs">a</TabbedShowLayout.Tab>
-            </TabbedShowLayout>
-        </>
-    )
-}
-
-export const ShowElectionEventList: React.FC = () => {
-    return (
-        <ShowBase>
-            <ShowElectionEvent />
-        </ShowBase>
     )
 }

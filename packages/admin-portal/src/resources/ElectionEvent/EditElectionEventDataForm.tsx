@@ -1,5 +1,8 @@
 import {
     BooleanInput,
+    DateField,
+    DateInput,
+    DateTimeInput,
     Edit,
     EditBase,
     ReferenceManyField,
@@ -7,7 +10,6 @@ import {
     SimpleForm,
     TabbedForm,
     TabbedShowLayout,
-    Tab,
     TextField,
     TextInput,
     useRecordContext,
@@ -22,10 +24,12 @@ import {
     AccordionSummary,
     Button,
     Tabs,
+    Tab,
     CircularProgress,
     Menu,
     MenuItem,
     Typography,
+    Grid,
 } from "@mui/material"
 import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import React, {useState} from "react"
@@ -46,11 +50,13 @@ import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
 import {useMutation} from "@apollo/client"
 import {useTenantStore} from "../../components/CustomMenu"
 import {useTranslation} from "react-i18next"
+import {CustomTabPanel} from "../../components/CustomTabPanel"
 
-const ElectionEventListForm: React.FC = () => {
+export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [showMenu, setShowMenu] = useState(false)
+    const [value, setValue] = useState(0)
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const [showProgress, setShowProgress] = useState(false)
     const [showCreateKeysDialog, setShowCreateKeysDialog] = useState(false)
@@ -147,6 +153,10 @@ const ElectionEventListForm: React.FC = () => {
         refresh()
     }
 
+    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+        setValue(newValue)
+    }
+
     let configCreatedStatus = getConfigCreatedStatus(record.status)
 
     return (
@@ -160,8 +170,12 @@ const ElectionEventListForm: React.FC = () => {
                     <Typography variant="h5">{t("electionEventScreen.edit.general")}</Typography>
                 </AccordionSummary>
                 <AccordionDetails>
-                    <TabbedShowLayout>
-                        <Tab label="English">
+                    <Tabs value={value} onChange={handleChange}>
+                        <Tab label="English" id="tab-1"></Tab>
+                        <Tab label="Spanish" id="tab-2"></Tab>
+                    </Tabs>
+                    <CustomTabPanel value={value} index={0}>
+                        <div style={{marginTop: "16px"}}>
                             <TextInput source="name" label={t("electionEventScreen.field.name")} />
                             <TextInput
                                 source="alias"
@@ -171,8 +185,10 @@ const ElectionEventListForm: React.FC = () => {
                                 source="description"
                                 label={t("electionEventScreen.field.description")}
                             />
-                        </Tab>
-                        <Tab label="Spanish">
+                        </div>
+                    </CustomTabPanel>
+                    <CustomTabPanel value={value} index={1}>
+                        <div style={{marginTop: "16px"}}>
                             <TextInput source="name" label={t("electionEventScreen.field.name")} />
                             <TextInput
                                 source="alias"
@@ -182,8 +198,33 @@ const ElectionEventListForm: React.FC = () => {
                                 source="description"
                                 label={t("electionEventScreen.field.description")}
                             />
-                        </Tab>
-                    </TabbedShowLayout>
+                        </div>
+                    </CustomTabPanel>
+
+                    {/* <TabbedShowLayout>
+                        <TabbedShowLayout.Tab label="English" >
+                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                            <TextInput
+                                source="alias"
+                                label={t("electionEventScreen.field.alias")}
+                            />
+                            <TextInput
+                                source="description"
+                                label={t("electionEventScreen.field.description")}
+                            />
+                        </TabbedShowLayout.Tab>
+                        <TabbedShowLayout.Tab label="Spanish" >
+                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                            <TextInput
+                                source="alias"
+                                label={t("electionEventScreen.field.alias")}
+                            />
+                            <TextInput
+                                source="description"
+                                label={t("electionEventScreen.field.description")}
+                            />
+                        </TabbedShowLayout.Tab>
+                    </TabbedShowLayout> */}
                 </AccordionDetails>
             </Accordion>
 
@@ -195,7 +236,22 @@ const ElectionEventListForm: React.FC = () => {
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-dates" />}>
                     <Typography variant="h5">{t("electionEventScreen.edit.dates")}</Typography>
                 </AccordionSummary>
-                <AccordionDetails>a</AccordionDetails>
+                <AccordionDetails>
+                    <Grid container spacing={4}>
+                        <Grid item xs={12} md={6}>
+                            <DateTimeInput
+                                source="start_date"
+                                label={t("electionEventScreen.field.startDateTime")}
+                            />
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                            <DateTimeInput
+                                source="end_date"
+                                label={t("electionEventScreen.field.endDateTime")}
+                            />
+                        </Grid>
+                    </Grid>
+                </AccordionDetails>
             </Accordion>
 
             <Accordion
@@ -206,7 +262,14 @@ const ElectionEventListForm: React.FC = () => {
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-language" />}>
                     <Typography variant="h5">{t("electionEventScreen.edit.language")}</Typography>
                 </AccordionSummary>
-                <AccordionDetails>a</AccordionDetails>
+                <AccordionDetails>
+                    <Grid container spacing={4}>
+                        <Grid item xs={12} md={6}>
+                            <BooleanInput source="language.english" label={"English"} defaultValue={true}/>
+                            <BooleanInput source="language.spanish" label={"Spanish"} defaultValue={false}/>
+                        </Grid>
+                    </Grid>
+                </AccordionDetails>
             </Accordion>
 
             <Accordion
@@ -217,7 +280,15 @@ const ElectionEventListForm: React.FC = () => {
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-allowed" />}>
                     <Typography variant="h5">{t("electionEventScreen.edit.allowed")}</Typography>
                 </AccordionSummary>
-                <AccordionDetails>a</AccordionDetails>
+                <AccordionDetails>
+                    {" "}
+                    <Grid container spacing={4}>
+                        <Grid item xs={12} md={6}>
+                            <BooleanInput source="allowed.one" label={"One"} defaultValue={true}/>
+                            <BooleanInput source="allowed.two" label={"Two"} defaultValue={true}/>
+                        </Grid>
+                    </Grid>
+                </AccordionDetails>
             </Accordion>
 
             {/* <Typography variant="h4">Election Event</Typography>
@@ -402,10 +473,3 @@ const ElectionEventListForm: React.FC = () => {
     )
 }
 
-export const EditElectionList: React.FC = () => {
-    return (
-        <EditBase>
-            <ElectionEventListForm />
-        </EditBase>
-    )
-}
