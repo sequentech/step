@@ -52,7 +52,7 @@ import {useTenantStore} from "../../components/CustomMenu"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 
-const ElectionEventListForm: React.FC = () => {
+export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [showMenu, setShowMenu] = useState(false)
@@ -473,10 +473,3 @@ const ElectionEventListForm: React.FC = () => {
     )
 }
 
-export const EditElectionList: React.FC = () => {
-    return (
-        <EditBase redirect={"."}>
-            <ElectionEventListForm />
-        </EditBase>
-    )
-}
