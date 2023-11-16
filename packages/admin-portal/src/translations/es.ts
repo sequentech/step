@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+// import {TranslationType} from "./en"
 
-const spanishTranslation: TranslationType = {
+const spanishTranslation = {
     translations: {
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
@@ -122,6 +122,26 @@ const spanishTranslation: TranslationType = {
                 content:
                     'Bienvenido a la cabina de votación, esta pantalla muestra la lista de elecciones en las que puede emitir su voto. Las elecciones que aparecen en esta lista pueden estar abiertas a votación, programadas o cerradas. Sólo podrá acceder a la votación si el periodo de votación está abierto. En el caso de que una elección esté cerrada y su administrador electoral haya publicado el resultado, verá un botón "Resultado electoral" que le llevará a la página pública de resultados.',
                 ok: "OK",
+            },
+        },
+        electionEventScreen: {
+            common: {
+                subtitle: "Configuración del Evento de Elección.",
+            },
+            edit: {
+                general: "General",
+                dates: "Fechas",
+                language: "Idiomas",
+                allowed: "Canales de Voto Permitidos",
+            },
+            field: {
+                name: "Nombre",
+                alias: "Alias",
+                description: "Descripción",
+                startDate: "Fecha de inicio",
+                endDate: "Fecha de finalización",
+                language: "Idioma",
+                votingChannels: "Canales de Voto",
             },
         },
     },

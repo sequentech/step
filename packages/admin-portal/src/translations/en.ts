@@ -1,4 +1,3 @@
-import { LanguageDetector } from 'i18next-browser-languagedetector';
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -135,6 +134,7 @@ const englishTranslation = {
             },
             field:{
                 name: "Name",
+                alias: "Alias",
                 description: "Description",
                 startDate: "Start Date",
                 endDate: "End Date",

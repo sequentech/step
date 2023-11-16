@@ -7,7 +7,6 @@ import {
     SimpleForm,
     TabbedForm,
     TabbedShowLayout,
-    Tab,
     TextField,
     TextInput,
     useRecordContext,
@@ -22,6 +21,7 @@ import {
     AccordionSummary,
     Button,
     Tabs,
+    Tab,
     CircularProgress,
     Menu,
     MenuItem,
@@ -46,11 +46,13 @@ import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
 import {useMutation} from "@apollo/client"
 import {useTenantStore} from "../../components/CustomMenu"
 import {useTranslation} from "react-i18next"
+import {CustomTabPanel} from "../../components/CustomTabPanel"
 
 const ElectionEventListForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [showMenu, setShowMenu] = useState(false)
+    const [value, setValue] = useState(0)
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const [showProgress, setShowProgress] = useState(false)
     const [showCreateKeysDialog, setShowCreateKeysDialog] = useState(false)
@@ -147,6 +149,10 @@ const ElectionEventListForm: React.FC = () => {
         refresh()
     }
 
+    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+        setValue(newValue)
+    }
+
     let configCreatedStatus = getConfigCreatedStatus(record.status)
 
     return (
@@ -160,8 +166,12 @@ const ElectionEventListForm: React.FC = () => {
                     <Typography variant="h5">{t("electionEventScreen.edit.general")}</Typography>
                 </AccordionSummary>
                 <AccordionDetails>
-                    <TabbedShowLayout>
-                        <Tab label="English">
+                    <Tabs value={value} onChange={handleChange}>
+                        <Tab label="English" id="tab-1"></Tab>
+                        <Tab label="Spanish" id="tab-2"></Tab>
+                    </Tabs>
+                    <CustomTabPanel value={value} index={0}>
+                        <div style={{marginTop: "16px"}}>
                             <TextInput source="name" label={t("electionEventScreen.field.name")} />
                             <TextInput
                                 source="alias"
@@ -171,8 +181,10 @@ const ElectionEventListForm: React.FC = () => {
                                 source="description"
                                 label={t("electionEventScreen.field.description")}
                             />
-                        </Tab>
-                        <Tab label="Spanish">
+                        </div>
+                    </CustomTabPanel>
+                    <CustomTabPanel value={value} index={1}>
+                        <div style={{marginTop: "16px"}}>
                             <TextInput source="name" label={t("electionEventScreen.field.name")} />
                             <TextInput
                                 source="alias"
@@ -182,8 +194,33 @@ const ElectionEventListForm: React.FC = () => {
                                 source="description"
                                 label={t("electionEventScreen.field.description")}
                             />
-                        </Tab>
-                    </TabbedShowLayout>
+                        </div>
+                    </CustomTabPanel>
+
+                    {/* <TabbedShowLayout>
+                        <TabbedShowLayout.Tab label="English" >
+                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                            <TextInput
+                                source="alias"
+                                label={t("electionEventScreen.field.alias")}
+                            />
+                            <TextInput
+                                source="description"
+                                label={t("electionEventScreen.field.description")}
+                            />
+                        </TabbedShowLayout.Tab>
+                        <TabbedShowLayout.Tab label="Spanish" >
+                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                            <TextInput
+                                source="alias"
+                                label={t("electionEventScreen.field.alias")}
+                            />
+                            <TextInput
+                                source="description"
+                                label={t("electionEventScreen.field.description")}
+                            />
+                        </TabbedShowLayout.Tab>
+                    </TabbedShowLayout> */}
                 </AccordionDetails>
             </Accordion>
 
