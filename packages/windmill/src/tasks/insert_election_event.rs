@@ -9,7 +9,8 @@ use sequent_core;
 use sequent_core::services::{connection, keycloak};
 use serde_json::Value;
 use std::env;
-use tracing::instrument;
+use tracing::{event, Level, instrument};
+use uuid::Uuid;
 
 use crate::services::election_event_board::BoardSerializable;
 use crate::hasura;
@@ -17,7 +18,7 @@ use crate::hasura::election_event::insert_election_event::sequent_backend_electi
 use crate::services::protocol_manager::get_board_client;
 use crate::types::error::Result;
 
-#[instrument]
+#[instrument(skip(auth_headers))]
 pub async fn create_immu_board(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,
@@ -26,14 +27,17 @@ pub async fn create_immu_board(
     let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
     let board_name = get_board_name(tenant_id, election_event_id);
     let mut board_client = get_board_client().await?;
+    event!(Level::INFO, "FF Before");
     let board = board_client.create_board(&index_db, &board_name).await?;
+    event!(Level::INFO, "FF After");
 
     let board_serializable: BoardSerializable = board.into();
     let board_value = serde_json::to_value(board_serializable.clone())?;
+    event!(Level::INFO, "FF End");
     Ok(board_value)
 }
 
-#[instrument]
+#[instrument(skip(auth_headers))]
 pub async fn create_keycloak_realm(
     auth_headers: &connection::AuthHeaders,
     object: &InsertElectionEventInput,
@@ -41,7 +45,7 @@ pub async fn create_keycloak_realm(
     todo!()
 }
 
-#[instrument]
+#[instrument(skip(auth_headers))]
 pub async fn insert_election_event_db(
     auth_headers: &connection::AuthHeaders,
     object: &InsertElectionEventInput,
@@ -52,20 +56,23 @@ pub async fn insert_election_event_db(
     Ok(())
 }
 
-#[instrument(skip_all)]
+#[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn insert_election_event_t(object: InsertElectionEventInput) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
 
+    let id = object.id.clone().unwrap_or(Uuid::new_v4().to_string());
+
     let board = create_immu_board(
         &auth_headers,
         &object.tenant_id.as_ref().ok_or("empty-tenant-id")?,
-        &object.id.as_ref().ok_or("empty-election-event-id")?,
+        &id.as_ref(),
     )
     .await?;
     let mut final_object = object.clone();
     final_object.bulletin_board_reference = Some(board);
+    final_object.id = Some(id);
     create_keycloak_realm(&auth_headers, &final_object).await?;
     insert_election_event_db(&auth_headers, &final_object).await?;
 
