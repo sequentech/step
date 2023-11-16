@@ -51,7 +51,7 @@ const CardContainer = styled(Box)<{selected?: boolean}>`
         selected ? "background: linear-gradient(180deg, #0FADCF 0%, #0F054B 100%); " : ""}
 `
 
-const ChartsContainer = styled(Box)`
+export const ChartsContainer = styled(Box)`
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
@@ -67,7 +67,7 @@ const Separator = styled(Box)`
     margin: 16px 0;
 `
 
-const PieChart: React.FC = () => {
+export const PieChart: React.FC = () => {
     const state: Props = {
         options: {
             labels: ["Online", "Paper", "IVR", "Postal"],
@@ -125,7 +125,7 @@ const getWeekLegend = (): Array<string> => {
     return [...legend.slice(dayOfWeek, 7), ...legend.slice(0, dayOfWeek)]
 }
 
-const BarChart: React.FC = () => {
+export const BarChart: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const {loading, error, data} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
@@ -179,7 +179,7 @@ const BarChart: React.FC = () => {
     )
 }
 
-const ElectionStats: React.FC = () => {
+export const ElectionStats: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const {loading, error, data} = useQuery<GetElectionEventStatsQuery>(GET_ELECTION_EVENT_STATS, {

@@ -4,7 +4,6 @@ import {ApolloClient, ApolloProvider, NormalizedCacheObject} from "@apollo/clien
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {ShowElectionEventTabs} from "./resources/ElectionEvent/ShowElectionEvent"
 import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
 
 import {AuthContext} from "./providers/AuthContextProvider"
