@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {useLocation} from "react-router-dom"
 import React, {useEffect, useState} from "react"
 import {Menu, useSidebarState, useGetList, useResourceContext} from "react-admin"
 import {
@@ -88,7 +89,7 @@ const CustomerSelector: React.FC = () => {
             {showCustomers && (
                 <>
                     {hasSingle ? (
-                        <p style={{marginLeft: "10px"}}>{data[0].username}</p>
+                        <p className="ml-2.5">{data[0].username}</p>
                     ) : (
                         <Select
                             labelId="tenant-select-label"
@@ -145,7 +146,7 @@ export const CustomMenu = () => {
                 <CustomerSelector />
                 <StyledItem
                     to="/sequent_backend_election_event"
-                    primaryText={open ? "Election Events" : null}
+                    primaryText={open && "Election Events"}
                     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
                 />
                 <HorizontalBox sx={{margin: "2px 16px"}}>
