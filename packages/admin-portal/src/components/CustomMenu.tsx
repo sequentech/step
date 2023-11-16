@@ -75,7 +75,9 @@ const CustomerSelector: React.FC = () => {
         filter: {is_active: true},
     })
 
-    const showCustomers = open && !isLoading && !error
+    const showCustomers = open && !isLoading && !error && !!data
+
+    const hasSingle = total === 1
 
     const handleChange = (event: SelectChangeEvent<unknown>) => {
         setTenant(event.target.value as any)
@@ -84,30 +86,34 @@ const CustomerSelector: React.FC = () => {
     return (
         <HorizontalBox sx={{alignItems: "center", padding: "0 16px"}}>
             <IconButton icon={faThLarge} fontSize="24px" />
-            {showCustomers ? (
+            {showCustomers && (
                 <>
-                    <Select
-                        labelId="tenant-select-label"
-                        id="tenant-select"
-                        value={tenant}
-                        onChange={handleChange}
-                        sx={{
-                            flexGrow: 2,
-                            paddingRight: "16px",
-                            margin: "4px 10px 4px 10px",
-                        }}
-                    >
-                        {data?.map((tenant) => (
-                            <MenuItem key={tenant.id} value={tenant.id}>
-                                {tenant.username}
-                            </MenuItem>
-                        ))}
-                    </Select>
+                    {hasSingle ? (
+                        <p style={{marginLeft: "10px"}}>{data[0].username}</p>
+                    ) : (
+                        <Select
+                            labelId="tenant-select-label"
+                            id="tenant-select"
+                            value={tenant}
+                            onChange={handleChange}
+                            sx={{
+                                flexGrow: 2,
+                                paddingRight: "16px",
+                                margin: "4px 10px 4px 10px",
+                            }}
+                        >
+                            {data?.map((tenant) => (
+                                <MenuItem key={tenant.id} value={tenant.id}>
+                                    {tenant.username}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    )}
                     <Link to="/sequent_backend_tenant/create">
                         <StyledIconButton icon={faPlusCircle} />
                     </Link>
                 </>
-            ) : null}
+            )}
         </HorizontalBox>
     )
 }
@@ -118,13 +124,13 @@ export const CustomMenu = () => {
     const [search, setSearch] = useState<string | null>(null)
 
     useEffect(() => {
-        console.log(resource)
+        console.log("LS -> src/components/CustomMenu.tsx:128 -> resource: ", resource)
     }, [resource])
 
     const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         // Update the state with the input field's current value
-        setSearch(event.target.value);
-      };
+        setSearch(event.target.value)
+    }
 
     return (
         <StyledMenu
