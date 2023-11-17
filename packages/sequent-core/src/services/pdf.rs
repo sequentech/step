@@ -69,6 +69,6 @@ pub fn html_to_pdf(html: String) -> Result<Vec<u8>> {
             prefer_css_page_size: None,
             transfer_mode: None,
         },
-        Some(Duration::new(1, 0)),
+        Some(Duration::new(10, 0)),
     )
 }

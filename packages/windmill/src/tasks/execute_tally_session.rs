@@ -1,16 +1,16 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>, Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
-use celery::prelude::TaskError;
 use chrono::{Duration, Utc};
-use sequent_core::ballot::{BallotStyle, Contest};
-use sequent_core::ballot_codec::PlaintextCodec;
-use sequent_core::services::keycloak;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
+
+use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
+use celery::prelude::TaskError;
+use sequent_core::ballot::{BallotStyle, Contest};
+use sequent_core::ballot_codec::PlaintextCodec;
+use sequent_core::services::keycloak;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tempfile::tempdir;
 use tracing::{event, instrument, Level};
@@ -397,25 +397,25 @@ fn tally_area_contest(
     event!(Level::INFO, "Exec Decode Ballots");
     state
         .exec_next()
-        .map_err(|e| Error::String(e.to_string()))?;
+        .map_err(|e| Error::String(format!("Error during Decode Ballots: {}", e.to_string())))?;
 
     // Do Tally
     event!(Level::INFO, "Exec Do Tally");
     state
         .exec_next()
-        .map_err(|e| Error::String(e.to_string()))?;
+        .map_err(|e| Error::String(format!("Error during Do Tally: {}", e.to_string())))?;
 
     // mark winners
     event!(Level::INFO, "Exec Mark Winners");
     state
         .exec_next()
-        .map_err(|e| Error::String(e.to_string()))?;
+        .map_err(|e| Error::String(format!("Error during Mark Winners: {}", e.to_string())))?;
 
     // report
     event!(Level::INFO, "Exec Reports");
     state
         .exec_next()
-        .map_err(|e| Error::String(e.to_string()))?;
+        .map_err(|e| Error::String(format!("Error during Reports: {}", e.to_string())))?;
 
     Ok(())
 }

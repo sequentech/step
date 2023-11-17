@@ -39,10 +39,10 @@ impl DecodeBallots {
         for line in reader.lines() {
             let line = line?;
             let plaintext = BigUint::from_str(&line)
-                .map_err(|_| Error::FromPipe("Wrong ballot format".into()))?;
+                .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
             let decoded_vote = contest
                 .decode_plaintext_contest_bigint(&plaintext)
-                .map_err(|_| Error::FromPipe("Wrong ballot format".into()))?;
+                .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
 
             decoded_ballots.push(decoded_vote);
         }

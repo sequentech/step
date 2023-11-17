@@ -17,7 +17,10 @@ use serde::Serialize;
 use serde_json::Map;
 use uuid::Uuid;
 
-use crate::pipes::error::{Error, Result};
+use crate::pipes::{
+    do_tally::invalid_vote::InvalidVote,
+    error::{Error, Result},
+};
 use crate::pipes::{
     do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
     mark_winners::{WinnerResult, OUTPUT_WINNERS},
@@ -103,10 +106,19 @@ impl GenerateReports {
         map.insert("reports".to_owned(), serde_json::to_value(reports)?);
 
         let html = include_str!("../../resources/report.hbs");
-        let render =
-            reports::render_template_text(html, map).map_err(|e| Error::FromPipe(e.to_string()))?;
+        let render = reports::render_template_text(html, map).map_err(|e| {
+            Error::UnexpectedError(format!(
+                "Error during render_template_text from report.hbs template file: {}",
+                e.to_string()
+            ))
+        })?;
 
-        let bytes = pdf::html_to_pdf(render).map_err(|e| Error::FromPipe(e.to_string()))?;
+        let bytes = pdf::html_to_pdf(render).map_err(|e| {
+            Error::UnexpectedError(format!(
+                "Error during html_to_pdf conversion: {}",
+                e.to_string()
+            ))
+        })?;
 
         Ok(bytes)
     }
@@ -169,9 +181,14 @@ impl Pipe for GenerateReports {
         for election_input in &self.pipe_inputs.election_list {
             let mut reports = vec![];
             for contest_input in &election_input.contest_list {
-                let contest_result =
+                let mut contest_result =
                     self.read_contest_result(&election_input.id, &contest_input.id, None)?;
 
+                let defaults = default_invalid_votes();
+                for (key, value) in defaults {
+                    contest_result.invalid_votes.entry(key).or_insert(value);
+                }
+                
                 let winners = self.read_winners(&election_input.id, &contest_input.id, None)?;
 
                 reports.push(ReportData {
@@ -203,20 +220,29 @@ impl Pipe for GenerateReports {
     }
 }
 
+fn default_invalid_votes() -> HashMap<InvalidVote, u64> {
+    let mut map = HashMap::new();
+    map.insert(InvalidVote::Implicit, 0);
+    map.insert(InvalidVote::Explicit, 0);
+    map.insert(InvalidVote::Blank, 0);
+    map
+}
+
+#[derive(Debug)]
 pub struct ReportData {
     pub contest: Contest,
     pub contest_result: ContestResult,
     pub winners: Vec<WinnerResult>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct ReportDataComputed {
     pub contest: Contest,
     pub contest_result: ContestResult,
     pub candidate_result: Vec<CandidateResultForReport>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct CandidateResultForReport {
     pub candidate: Candidate,
     pub total_count: u64,

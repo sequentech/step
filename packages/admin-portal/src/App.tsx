@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState, useMemo} from "react"
 import {Admin, DataProvider, Resource, CustomRoutes} from "react-admin"
 import buildHasuraProvider from "ra-data-hasura"
 import {customBuildQuery} from "./queries/customBuildQuery"
-import {apolloClient} from "./services/ApolloService"
+import {createApolloClient} from "./services/ApolloService"
 import {Route} from "react-router-dom"
 import {UserAndRoles} from "./screens/UserAndRoles"
 import {Settings} from "./screens/Settings"
@@ -43,9 +43,44 @@ import {EditTrustee} from "./resources/Trustee/EditTrustee"
 import {ListTrustee} from "./resources/Trustee/ListTrustee"
 import {CreateTrustee} from "./resources/Trustee/CreateTrustee"
 import {PgAuditList} from "./resources/PgAudit/PgAuditList"
-import {adminTheme} from "@sequentech/ui-essentials"
+import {fullAdminTheme} from "./services/AdminTheme"
+import {ApolloClient, ApolloProvider, NormalizedCacheObject} from "@apollo/client"
+import {isNull} from "@sequentech/ui-essentials"
+import {AuthContext} from "./providers/AuthContextProvider"
 
-const App = () => {
+export const AppWrapper = () => {
+    const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
+        null
+    )
+    const authContext = useContext(AuthContext)
+    const accessToken = useMemo(authContext.getAccessToken, [
+        authContext.isAuthenticated,
+        authContext.getAccessToken,
+    ])
+
+    useEffect(() => {
+        if (authContext.isAuthenticated && accessToken) {
+            let newClient = createApolloClient()
+            setApolloClient(newClient)
+        }
+    }, [authContext.isAuthenticated, accessToken])
+
+    if (isNull(apolloClient)) {
+        return null
+    }
+
+    return (
+        <ApolloProvider client={apolloClient}>
+            <App apolloClient={apolloClient} />
+        </ApolloProvider>
+    )
+}
+
+interface AppProps {
+    apolloClient: ApolloClient<NormalizedCacheObject>
+}
+
+const App: React.FC<AppProps> = ({apolloClient}) => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
 
     useEffect(() => {
@@ -64,7 +99,11 @@ const App = () => {
     if (!dataProvider) return <p>Loading data provider...</p>
 
     return (
-        <Admin dataProvider={dataProvider || undefined} layout={CustomLayout} theme={adminTheme}>
+        <Admin
+            dataProvider={dataProvider || undefined}
+            layout={CustomLayout}
+            theme={fullAdminTheme}
+        >
             <CustomRoutes>
                 <Route path="/user-roles" element={<UserAndRoles />} />
                 <Route path="/settings" element={<Settings />} />

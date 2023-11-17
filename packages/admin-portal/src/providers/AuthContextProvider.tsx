@@ -52,7 +52,7 @@ interface AuthContextValues {
     /**
      * Get Access Token
      */
-    getAccessToken: () => Promise<string | undefined> | string | undefined
+    getAccessToken: () => string | undefined
 }
 
 /**
@@ -93,10 +93,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
     // Local state that will contain the users name once it is loaded
     const [username, setUsername] = useState<string>("")
+    const sleepSecs = 50
+    const bufferSecs = 10
 
     const updateTokenPeriodically = async () => {
-        const sleepSecs = 50
-        const bufferSecs = 10
         const refreshed = await keycloak.updateToken(sleepSecs + bufferSecs)
         if (!keycloak.token) {
             console.log(`error updating token`)
@@ -133,7 +133,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 // If we get here the user is authenticated and we can update the state accordingly
                 localStorage.setItem("token", keycloak.token)
                 setAuthenticated(true)
-                updateTokenPeriodically()
+                setTimeout(updateTokenPeriodically, 4e3)
                 console.log("user is authenticated")
             } catch (error) {
                 console.log("error initializing Keycloak")
@@ -186,9 +186,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         return keycloak.hasRealmRole(role)
     }
 
-    const getAccessToken = async () => {
-        return keycloak.token
-    }
+    const getAccessToken = () => keycloak.token
 
     // Setup the context provider
     return (

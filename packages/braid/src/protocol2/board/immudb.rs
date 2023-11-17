@@ -62,7 +62,7 @@ impl ImmudbBoard {
     fn get_store(&self) -> Result<Connection> {
         let db_path = self.store_root.join(&self.board_dbname);
         let connection = Connection::open(&db_path)?;
-        connection.execute("CREATE TABLE if not exists MESSAGES(id INT PRIMAREY KEY, message BLOB NOT NULL UNIQUE)", [])?;
+        connection.execute("CREATE TABLE if not exists MESSAGES(id INT PRIMARY KEY, message BLOB NOT NULL UNIQUE)", [])?;
 
         Ok(connection)
     }

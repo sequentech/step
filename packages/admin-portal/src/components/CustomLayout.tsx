@@ -5,24 +5,13 @@ import React from "react"
 import {Layout, LayoutProps} from "react-admin"
 import {CustomAppBar} from "./CustomAppBar"
 import {CustomMenu} from "./CustomMenu"
-import { adminTheme } from "@sequentech/ui-essentials"
+import {adminTheme} from "@sequentech/ui-essentials"
 
 export const CustomLayout: React.FC<LayoutProps> = (props) => (
     <Layout
         {...props}
         sx={{
-            "& .RaLayout-appFrame": {
-                marginTop: 0,
-                position: "absolute",
-                top: 0,
-                right: 0,
-                left: 0,
-                bottom: 0,
-                overflow: "auto",
-                backgroundColor: adminTheme.palette.lightBackground,
-            },
             "& .MuiPaper-root": {
-                //boxShadow: "unset",
                 top: "0px",
                 position: "sticky",
                 zIndex: 100,

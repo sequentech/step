@@ -15,6 +15,8 @@ import {useTenantStore} from "./CustomMenu"
 import {faAngleRight, faAngleDown} from "@fortawesome/free-solid-svg-icons"
 import {Icon} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
+import Tabs from '@mui/material/Tabs'
+import Tab from '@mui/material/Tab'
 
 const Horizontal = styled(Box)`
     display: flex;
@@ -26,7 +28,7 @@ const Horizontal = styled(Box)`
 const LeavesWrapper = styled(Box)`
     display: flex;
     flex-direction: column;
-    margin-left: 24px;
+    margin-left: 12px;
 `
 
 const StyledIcon = styled(Icon)`
@@ -41,11 +43,13 @@ interface Options extends ResourceOptions {
 }
 
 interface TreeLeavesProps {
+    isOpen: boolean
     resourceId?: string
     treeResources: Array<ResourceDefinition<Options>>
+    filter?: object
 }
 
-const TreeLeaves: React.FC<TreeLeavesProps> = ({resourceId, treeResources}) => {
+const TreeLeaves: React.FC<TreeLeavesProps> = ({isOpen, resourceId, treeResources, filter}) => {
     const [tenantId] = useTenantStore()
 
     const {data, total, isLoading, error} = useGetList(treeResources[0]?.name || "", {
@@ -55,9 +59,11 @@ const TreeLeaves: React.FC<TreeLeavesProps> = ({resourceId, treeResources}) => {
             ? {
                   tenant_id: tenantId,
                   [treeResources[0]?.options?.foreignKeyFrom || ""]: resourceId,
+                  ...filter
               }
             : {
                   tenant_id: tenantId,
+                  ...filter
               },
     })
 
@@ -73,6 +79,7 @@ const TreeLeaves: React.FC<TreeLeavesProps> = ({resourceId, treeResources}) => {
         <LeavesWrapper>
             {data?.map((resource, idx) => (
                 <TreeMenuItem
+                    isOpen={isOpen}
                     resourceType={treeResources[0].name}
                     resource={resource}
                     treeResources={treeResources.slice(1)}
@@ -84,12 +91,18 @@ const TreeLeaves: React.FC<TreeLeavesProps> = ({resourceId, treeResources}) => {
 }
 
 interface TreeMenuItemProps {
+    isOpen: boolean
     resourceType: string
     resource: any
     treeResources: Array<ResourceDefinition<Options>>
 }
 
-const TreeMenuItem: React.FC<TreeMenuItemProps> = ({resourceType, resource, treeResources}) => {
+const TreeMenuItem: React.FC<TreeMenuItemProps> = ({
+    isOpen,
+    resourceType,
+    resource,
+    treeResources,
+}) => {
     const [open, setOpen] = useState(false)
     const onClick = () => setOpen(!open)
     const hasLeaves = treeResources.length > 0
@@ -101,20 +114,33 @@ const TreeMenuItem: React.FC<TreeMenuItemProps> = ({resourceType, resource, tree
                     <StyledIcon icon={open ? faAngleDown : faAngleRight} onClick={onClick} />
                 ) : null}
 
-                <MenuItemLink
-                    key={resource.name}
-                    to={`/${resourceType}/${resource.id}`}
-                    primaryText={resource.name}
-                />
+                {isOpen ? (
+                    <MenuItemLink
+                        key={resource.name}
+                        to={`/${resourceType}/${resource.id}`}
+                        primaryText={resource.name}
+                        sx={{paddingLeft: 0}}
+                    />
+                ) : null}
             </Horizontal>
-            {open ? <TreeLeaves resourceId={resource.id} treeResources={treeResources} /> : null}
+            {open ? (
+                <TreeLeaves
+                    isOpen={isOpen}
+                    resourceId={resource.id}
+                    treeResources={treeResources}
+                />
+            ) : null}
         </Box>
     )
 }
 
-export const TreeMenu: React.FC = () => {
+interface TreeMenuProps {
+    isOpen: boolean
+}
+export const TreeMenu: React.FC<TreeMenuProps> = ({isOpen}) => {
     let allResources = useResourceDefinitions()
     let [treeResources, setTreeResources] = useState<Array<ResourceDefinition<Options>>>([])
+    const [archivedMenu, setArchivedMenu] = useState(0)
 
     useEffect(() => {
         const resources: Array<ResourceDefinition<Options>> = Object.keys(allResources).map(
@@ -142,13 +168,26 @@ export const TreeMenu: React.FC = () => {
         setTreeResources(tree)
     }, [allResources])
 
+    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+        console.log(`new value ${newValue}`)
+        setArchivedMenu(newValue);
+      }
+
     if (0 === treeResources.length) {
         return null
     }
 
-    return (
-        <Box>
-            <TreeLeaves treeResources={treeResources} />
+    return (<>
+        <Tabs value={archivedMenu} onChange={handleChange} sx={{marginBottom: "4px"}}>
+            <Tab label="Active" />
+            <Tab label="Archived" />
+        </Tabs>
+        <Box sx={{marginLeft: "20px"}}>
+            <TreeLeaves
+                treeResources={treeResources}
+                isOpen={isOpen}
+                filter={{is_archived: 1 === archivedMenu}}
+            />
         </Box>
-    )
+    </>)
 }
