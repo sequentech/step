@@ -3,24 +3,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useEffect} from "react"
-import {Menu, useSidebarState, useGetList, useResourceContext} from "react-admin"
-import {useLocation} from "react-router-dom"
+import {Menu, useSidebarState, useResourceContext} from "react-admin"
 import {
     faThLarge,
     faUsers,
     faCog,
     faStar,
-    faPlusCircle,
     faFileText,
     faAngleDoubleLeft,
     faAngleDoubleRight,
 } from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
-import {HorizontalBox} from "./HorizontalBox"
-import {Box, MenuItem, Select, SelectChangeEvent} from "@mui/material"
+import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
-import {Link} from "react-router-dom"
 import {useLocalStorage} from "react-use"
+import SelectTenants from "./menu/items/SelectTenants"
 import ElectionEvents from "./menu/items/ElectionEvents"
 
 export function useTenantStore() {
@@ -34,12 +31,6 @@ const StyledItem = styled(Menu.Item)`
     .MuiIconButton-root {
         color: ${adminTheme.palette.brandColor};
     }
-`
-
-const StyledIconButton = styled(IconButton)`
-    color: ${adminTheme.palette.brandColor};
-    font-size: 24px;
-    margin-left: 19px;
 `
 
 const StyledMenu = styled(Menu)`
@@ -63,60 +54,6 @@ const DrawerContainer = styled(Box)`
 const MenuWrapper = styled(Box)`
     border-bottom: 2px solid ${adminTheme.palette.customGrey.light};
 `
-
-const SelectTenants: React.FC = () => {
-    const [open] = useSidebarState()
-    const [tenantId, setTenantId] = useTenantStore()
-
-    const {data, total, isLoading, error} = useGetList("sequent_backend_tenant", {
-        pagination: {page: 1, perPage: 10},
-        sort: {field: "updated_at", order: "DESC"},
-        filter: {is_active: true},
-    })
-
-    const showCustomers = open && !isLoading && !error && !!data
-
-    const hasSingle = total === 1
-
-    const handleChange = (event: SelectChangeEvent<unknown>) => {
-        const tenantId: string = event.target.value as string
-        setTenantId(tenantId)
-    }
-
-    return (
-        <HorizontalBox sx={{alignItems: "center", padding: "0 16px"}}>
-            <IconButton icon={faThLarge} fontSize="24px" />
-            {showCustomers && (
-                <>
-                    {hasSingle ? (
-                        <p className="ml-2.5">{data[0].username}</p>
-                    ) : (
-                        <Select
-                            labelId="tenant-select-label"
-                            id="tenant-select"
-                            value={tenantId}
-                            onChange={handleChange}
-                            sx={{
-                                flexGrow: 2,
-                                paddingRight: "16px",
-                                margin: "4px 10px 4px 10px",
-                            }}
-                        >
-                            {data?.map((tenant) => (
-                                <MenuItem key={tenant.id} value={tenant.id}>
-                                    {tenant.username}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    )}
-                    <Link to="/sequent_backend_tenant/create">
-                        <StyledIconButton icon={faPlusCircle} />
-                    </Link>
-                </>
-            )}
-        </HorizontalBox>
-    )
-}
 
 export const CustomMenu = () => {
     const [open, setOpen] = useSidebarState()
