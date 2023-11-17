@@ -15,26 +15,9 @@ import {useTenantStore} from "./CustomMenu"
 import {faAngleRight, faAngleDown} from "@fortawesome/free-solid-svg-icons"
 import {Icon} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
-import Tabs from '@mui/material/Tabs'
-import Tab from '@mui/material/Tab'
-
-const Horizontal = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    cursor: pointer;
-`
-
-const LeavesWrapper = styled(Box)`
-    display: flex;
-    flex-direction: column;
-    margin-left: 12px;
-`
-
-const StyledIcon = styled(Icon)`
-    width: 24px;
-    margin-right: 8px;
-`
+import Tabs from "@mui/material/Tabs"
+import Tab from "@mui/material/Tab"
+import {cn} from "../lib/utils"
 
 interface Options extends ResourceOptions {
     isMenuParent?: boolean
@@ -59,11 +42,11 @@ const TreeLeaves: React.FC<TreeLeavesProps> = ({isOpen, resourceId, treeResource
             ? {
                   tenant_id: tenantId,
                   [treeResources[0]?.options?.foreignKeyFrom || ""]: resourceId,
-                  ...filter
+                  ...filter,
               }
             : {
                   tenant_id: tenantId,
-                  ...filter
+                  ...filter,
               },
     })
 
@@ -76,7 +59,7 @@ const TreeLeaves: React.FC<TreeLeavesProps> = ({isOpen, resourceId, treeResource
     }
 
     return (
-        <LeavesWrapper>
+        <div className="flex flex-col ml-3">
             {data?.map((resource, idx) => (
                 <TreeMenuItem
                     isOpen={isOpen}
@@ -86,7 +69,7 @@ const TreeLeaves: React.FC<TreeLeavesProps> = ({isOpen, resourceId, treeResource
                     key={idx}
                 />
             ))}
-        </LeavesWrapper>
+        </div>
     )
 }
 
@@ -108,29 +91,30 @@ const TreeMenuItem: React.FC<TreeMenuItemProps> = ({
     const hasLeaves = treeResources.length > 0
 
     return (
-        <Box>
-            <Horizontal>
-                {hasLeaves ? (
-                    <StyledIcon icon={open ? faAngleDown : faAngleRight} onClick={onClick} />
-                ) : null}
+        <div className="bg-white">
+            <div className="flex text-center cursor-pointer space-x-2 items-center">
+                {hasLeaves && (
+                    <Icon className="" icon={open ? faAngleDown : faAngleRight} onClick={onClick} />
+                )}
 
-                {isOpen ? (
+                {isOpen && (
                     <MenuItemLink
                         key={resource.name}
                         to={`/${resourceType}/${resource.id}`}
                         primaryText={resource.name}
-                        sx={{paddingLeft: 0}}
                     />
-                ) : null}
-            </Horizontal>
-            {open ? (
-                <TreeLeaves
-                    isOpen={isOpen}
-                    resourceId={resource.id}
-                    treeResources={treeResources}
-                />
-            ) : null}
-        </Box>
+                )}
+            </div>
+            {open && (
+                <div className="">
+                    <TreeLeaves
+                        isOpen={isOpen}
+                        resourceId={resource.id}
+                        treeResources={treeResources}
+                    />
+                </div>
+            )}
+        </div>
     )
 }
 
@@ -170,24 +154,35 @@ export const TreeMenu: React.FC<TreeMenuProps> = ({isOpen}) => {
 
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         console.log(`new value ${newValue}`)
-        setArchivedMenu(newValue);
-      }
+        setArchivedMenu(newValue)
+    }
+
+    function tabChange(val: number) {
+        console.log(`new value ${val}`)
+        setArchivedMenu(val)
+    }
 
     if (0 === treeResources.length) {
         return null
     }
 
-    return (<>
-        <Tabs value={archivedMenu} onChange={handleChange} sx={{marginBottom: "4px"}}>
-            <Tab label="Active" />
-            <Tab label="Archived" />
-        </Tabs>
-        <Box sx={{marginLeft: "20px"}}>
-            <TreeLeaves
-                treeResources={treeResources}
-                isOpen={isOpen}
-                filter={{is_archived: 1 === archivedMenu}}
-            />
-        </Box>
-    </>)
+    return (
+        <>
+            <ul className="flex space-x-4 bg-white text-secondary uppercase text-xs leading-6">
+                <li className="px-4 py-1 cursor-pointer" onClick={() => tabChange(0)}>
+                    Active
+                </li>
+                <li className="px-4 py-1 cursor-pointer" onClick={() => tabChange(1)}>
+                    Archived
+                </li>
+            </ul>
+            <div className="mx-5 my-2">
+                <TreeLeaves
+                    treeResources={treeResources}
+                    isOpen={isOpen}
+                    filter={{is_archived: 1 === archivedMenu}}
+                />
+            </div>
+        </>
+    )
 }

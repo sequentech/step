@@ -49,15 +49,13 @@ export default function ElectionEvents() {
                     primaryText={open && "Election Events"}
                     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
                 />
-                <div className="flex flex-row my-4 mx-1 bg-white">
-                    <div className="">
-                        <TextField
-                            label="Search"
-                            size="small"
-                            value={search}
-                            onChange={handleSearchChange}
-                        />
-                    </div>
+                <div className="flex bg-white">
+                    <TextField
+                        label="Search"
+                        size="small"
+                        value={search}
+                        onChange={handleSearchChange}
+                    />
                     <IconButton icon={faSearch} fontSize="18px" sx={{margin: "0 12px"}} />
                 </div>
                 <TreeMenu isOpen={open} />
