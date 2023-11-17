@@ -11,20 +11,22 @@ import {
     TextInput,
     Identifier,
     RaRecord,
-    RecordContext,
     useRecordContext,
+    useDelete,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
-import {Drawer, IconButton, Typography} from "@mui/material"
-import CheckIcon from "@mui/icons-material/Check"
-import CancelIcon from "@mui/icons-material/Cancel"
+import {Drawer, IconButton, Typography, styled} from "@mui/material"
+import EditIcon from "@mui/icons-material/Edit"
+import DeleteIcon from "@mui/icons-material/Delete"
 import {ChipList} from "../../components/ChipList"
 import {EditArea} from "./EditArea"
 import {CreateArea} from "./CreateArea"
-import {useLocation, useParams, useRoutes} from "react-router"
 import {Sequent_Backend_Election_Event} from "../../gql/graphql"
-
+import {Dialog, adminTheme} from "@sequentech/ui-essentials"
+import {faPen, faTrash} from "@fortawesome/free-solid-svg-icons"
+import {Action, ActionsColumn} from "../../components/ActionButons"
+import {useTranslation} from "react-i18next"
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
 const Filters: Array<ReactElement> = [
@@ -40,13 +42,15 @@ export interface ListAreaProps {
 }
 
 export const ListArea: React.FC<ListAreaProps> = (props) => {
+    const {t} = useTranslation()
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const [tenantId] = useTenantStore()
-    const params = useParams()
-    const location = useLocation()
+    const [deleteOne, {isLoading, error}] = useDelete()
 
     const [open, setOpen] = React.useState(false)
+    const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
+    const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [closeDrawer, setCloseDrawer] = React.useState("")
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
 
@@ -74,20 +78,25 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
         }, 400)
     }
 
-    const ActionsColumn = ({source}: {source: Identifier | undefined}) => {
-        const record = useRecordContext()
-
-        return (
-            <>
-                <IconButton onClick={(e) => console.log(record.id)}>
-                    <CheckIcon color="action" />
-                </IconButton>
-                <IconButton onClick={(e) => console.log(record.id)}>
-                    <CancelIcon color="action" />
-                </IconButton>
-            </>
-        )
+    const editAction = (id: Identifier) => {
+        setRecordId(id)
     }
+
+    const deleteAction = (id: Identifier) => {
+        // deleteOne("sequent_backend_area", {id})
+        setOpenDeleteModal(true)
+        setDeleteId(id)
+    }
+
+    const confirmDeleteAction = () => {
+        deleteOne("sequent_backend_area", {id: deleteId})
+        setDeleteId(undefined)
+    }
+
+    const actions: Action[] = [
+        {icon: <EditIcon />, action: editAction},
+        {icon: <DeleteIcon />, action: deleteAction},
+    ]
 
     return (
         <>
@@ -107,7 +116,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                 }}
                 filters={Filters}
             >
-                <DatagridConfigurable  omit={OMIT_FIELDS}>
+                <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="name" />
                     <TextField source="description" />
@@ -129,7 +138,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                             filterFields={["election_event_id", "area_id"]}
                         />
                     </ReferenceManyField>
-                    <ActionsColumn source={"1"}/>
+                    <ActionsColumn actions={actions} />
                 </DatagridConfigurable>
             </List>
 
@@ -143,6 +152,22 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             >
                 <EditArea id={recordId} close={handleCloseEditDrawer} />
             </Drawer>
+
+            <Dialog
+                variant="warning"
+                open={openDeleteModal}
+                ok={t("common.label.delete")}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.warning")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmDeleteAction()
+                    }
+                    setOpenDeleteModal(false)
+                }}
+            >
+                {t("common.message.delete")}
+            </Dialog>
         </>
     )
 }

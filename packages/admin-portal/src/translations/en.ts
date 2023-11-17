@@ -148,7 +148,18 @@ const englishTranslation = {
             label: {
                 add: "Add",
                 create: "Create",
+                delete: "Delete",
+                cancel: "Cancel",
+                edit: "Edit",
+                save: "Save",
+                close: "Close",
+                back: "Back",
+                next: "Next",
+                warning: "Warning",
             },
+            message: {
+                delete: "Are you sure you want to delete this item?",
+            }
         },
     },
 }

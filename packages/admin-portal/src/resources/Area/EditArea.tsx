@@ -12,6 +12,7 @@ import {
     SimpleForm,
     TextField,
     TextInput,
+    useNotify,
     useRecordContext,
     useRedirect,
     useRefresh,
@@ -36,9 +37,19 @@ interface EditAreaProps {
 export const EditArea: React.FC<EditAreaProps> = (props) => {
     const {id, close} = props
     const refresh = useRefresh()
+    const notify = useNotify()
 
     const onSuccess = async (res: any) => {
         refresh()
+        notify("Area updated", {type: "success"})
+        if (close) {
+            close()
+        }
+    }
+
+    const onError = async (res: any) => {
+        refresh()
+        notify("Could not update Area", {type: "error"})
         if (close) {
             close()
         }
@@ -49,7 +60,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
             id={id}
             resource="sequent_backend_area"
             mutationMode="pessimistic"
-            mutationOptions={{onSuccess}}
+            mutationOptions={{onSuccess, onError}}
             redirect={false}
         >
             <SimpleForm>

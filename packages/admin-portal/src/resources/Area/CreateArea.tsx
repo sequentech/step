@@ -13,6 +13,7 @@ import {
     ReferenceField,
     useRecordContext,
     useRefresh,
+    useNotify,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {Sequent_Backend_Area, Sequent_Backend_Election_Event} from "../../gql/graphql"
@@ -25,16 +26,26 @@ interface CreateAreaProps {
 export const CreateArea: React.FC<CreateAreaProps> = (props) => {
     const {record, close} = props
     const refresh = useRefresh()
+    const notify = useNotify()
 
     const onSuccess = () => {
         refresh()
+        notify("Area created", {type: "success"})
+        if (close) {
+            close()
+        }
+    }
+
+    const onError = async (res: any) => {
+        refresh()
+        notify("Could not create Area", {type: "error"})
         if (close) {
             close()
         }
     }
 
     return (
-        <Create resource="sequent_backend_area" mutationOptions={{onSuccess}} redirect={false}>
+        <Create resource="sequent_backend_area" mutationOptions={{onSuccess, onError}} redirect={false}>
             <SimpleForm>
                 <Typography variant="h4">Area</Typography>
                 <Typography variant="body2">Area configuration</Typography>
@@ -44,11 +55,13 @@ export const CreateArea: React.FC<CreateAreaProps> = (props) => {
                     label="Election Event"
                     source="election_event_id"
                     defaultValue={record?.id || ""}
+                    style={{display: "none"}}
                 />
                 <TextInput
                     label="Tenant"
                     source="tenant_id"
                     defaultValue={record?.tenant_id || ""}
+                    style={{display: "none"}}
                 />
             </SimpleForm>
 
