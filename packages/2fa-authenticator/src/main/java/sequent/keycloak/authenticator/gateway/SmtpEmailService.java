@@ -40,7 +40,8 @@ public class SmtpEmailService implements EmailService {
 				new InternetAddress(emailAddress)
 			);
             message.setSubject(title);
-            message.setText(body, "utf-8", "html");
+            message.setContent(body, "text/plain");
+            message.setContent(htmlBody, "text/html");
 
             Transport transport = emailSession.getTransport("smtp");
             transport.connect(
