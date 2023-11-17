@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use chrono::{DateTime, Local, Utc, Duration};
+use chrono::{DateTime, Duration, Local, Utc};
 
 pub fn get_current_date() -> String {
     let local: DateTime<Local> = Local::now();

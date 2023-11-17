@@ -4,74 +4,87 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use celery::error::TaskError;
-use immu_board::{util::get_board_name, BoardClient};
+use immu_board::util::get_board_name;
 use sequent_core;
-use sequent_core::services::{connection, keycloak};
-
+use sequent_core::services::connection;
+use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
+use serde_json::Value;
 use std::env;
-use tracing::instrument;
+use tracing::{event, Level, instrument};
 
-use crate::hasura;
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
-
+use crate::services::election_event_board::BoardSerializable;
+use crate::services::protocol_manager::get_board_client;
 use crate::types::error::Result;
-
-async fn get_board_client() -> Result<BoardClient> {
-    let username = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
-    let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
-    let server_url =
-        env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
-    let mut client = BoardClient::new(&server_url, &username, &password).await?;
-    client.login(&username, &password).await?;
-    Ok(client)
-}
+use crate::hasura::election_event::{insert_election_event, get_election_event};
 
 #[instrument]
-pub async fn create_immu_board(
-    auth_headers: &connection::AuthHeaders,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<()> {
+pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Result<Value> {
     let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
     let board_name = get_board_name(tenant_id, election_event_id);
     let mut board_client = get_board_client().await?;
-    let _board = board_client.create_board(&index_db, &board_name).await?;
+    let has_board = board_client.has_database(board_name.as_str()).await?;
+    let board = if has_board {
+        board_client.get_board(&index_db, &board_name).await?
+    } else {
+        board_client.create_board(&index_db, &board_name).await?
+    };
+
+    let board_serializable: BoardSerializable = board.into();
+    let board_value = serde_json::to_value(board_serializable.clone())?;
+    Ok(board_value)
+}
+
+#[instrument]
+pub async fn upsert_keycloak_realm(tenant_id: &str, election_event_id: &str) -> Result<()> {
+    let client = KeycloakAdminClient::new().await?;
+    let board_name = get_board_name(tenant_id, election_event_id);
+    client.upsert_realm(board_name.as_str()).await?;
     Ok(())
 }
 
-#[instrument]
-pub async fn create_keycloak_realm(
-    auth_headers: &connection::AuthHeaders,
-    object: &InsertElectionEventInput,
-) -> Result<()> {
-    todo!()
-}
-
-#[instrument]
+#[instrument(skip(auth_headers))]
 pub async fn insert_election_event_db(
     auth_headers: &connection::AuthHeaders,
     object: &InsertElectionEventInput,
 ) -> Result<()> {
-    let _hasura_response =
-        hasura::election_event::insert_election_event(auth_headers.clone(), object.clone()).await?;
+    let election_event_id = object.id.clone().unwrap();
+    let tenant_id = object.tenant_id.clone().unwrap();
+    // fetch election_event
+    let found_election_event = get_election_event(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+    )
+        .await?
+        .data
+        .expect("expected data".into())
+        .sequent_backend_election_event;
+
+    if found_election_event.len() > 0 {
+        event!(Level::INFO, "Election event {} for tenant {} already exists", election_event_id, tenant_id);
+        return Ok(())
+    }
+
+    let _hasura_response = insert_election_event(auth_headers.clone(), object.clone()).await?;
 
     Ok(())
 }
 
-#[instrument(skip_all)]
+#[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
-pub async fn insert_election_event_t(object: InsertElectionEventInput) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
+pub async fn insert_election_event_t(object: InsertElectionEventInput, id: String) -> Result<()> {
+    let mut final_object = object.clone();
+    final_object.id = Some(id.clone());
+    let tenant_id = object.tenant_id.clone().unwrap();
 
-    create_immu_board(
-        &auth_headers,
-        &object.tenant_id.as_ref().ok_or("empty-tenant-id")?,
-        &object.id.as_ref().ok_or("empty-election-event-id")?,
-    )
-    .await?;
-    create_keycloak_realm(&auth_headers, &object).await?;
-    insert_election_event_db(&auth_headers, &object).await?;
+    let board = upsert_immu_board(tenant_id.as_str(), &id.as_ref()).await?;
+    final_object.bulletin_board_reference = Some(board);
+    final_object.id = Some(id.clone());
+    upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref()).await?;
+    let auth_headers = get_client_credentials().await?;
+    insert_election_event_db(&auth_headers, &final_object).await?;
 
     Ok(())
 }
