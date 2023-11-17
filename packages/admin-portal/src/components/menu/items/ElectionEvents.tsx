@@ -8,7 +8,7 @@ import {styled} from "@mui/material/styles"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {TextField} from "@mui/material"
 import {Menu, useSidebarState} from "react-admin"
-import {TreeMenu} from "../../TreeMenu"
+import {TreeMenu} from "./election-events/TreeMenu"
 import {faThLarge, faSearch} from "@fortawesome/free-solid-svg-icons"
 import {cn} from "../../../lib/utils"
 

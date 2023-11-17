@@ -1,23 +1,15 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 import {NavLink} from "react-router-dom"
 import React, {useState, useEffect} from "react"
-import {
-    ResourceOptions,
-    ResourceDefinition,
-    useResourceDefinitions,
-    useGetList,
-    MenuItemLink,
-} from "react-admin"
+import {ResourceOptions, ResourceDefinition, useResourceDefinitions, useGetList} from "react-admin"
 import {CircularProgress} from "@mui/material"
-import {useTenantStore} from "./CustomMenu"
+import {useTenantStore} from "../../../CustomMenu"
 import {faAngleRight, faAngleDown} from "@fortawesome/free-solid-svg-icons"
 import {Icon} from "@sequentech/ui-essentials"
-import {styled} from "@mui/material/styles"
-import Tabs from "@mui/material/Tabs"
-import Tab from "@mui/material/Tab"
-import {cn} from "../lib/utils"
+import {cn} from "../../../../lib/utils"
 
 interface Options extends ResourceOptions {
     isMenuParent?: boolean
@@ -163,18 +155,8 @@ export const TreeMenu: React.FC<TreeMenuProps> = ({isOpen}) => {
         setTreeResources(tree)
     }, [allResources])
 
-    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-        console.log(`new value ${newValue}`)
-        setArchivedMenu(newValue)
-    }
-
     function tabChange(val: number) {
-        console.log(`new value ${val}`)
         setArchivedMenu(val)
-    }
-
-    if (0 === treeResources.length) {
-        return null
     }
 
     return (
@@ -207,7 +189,7 @@ export const TreeMenu: React.FC<TreeMenuProps> = ({isOpen}) => {
                 <TreeLeaves
                     treeResources={treeResources}
                     isOpen={isOpen}
-                    filter={{is_archived: 1 === archivedMenu}}
+                    filter={{is_archived: archivedMenu === 1}}
                 />
             </div>
         </>
