@@ -6,7 +6,6 @@ use anyhow::Result;
 use tracing::{event, instrument, Level};
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::create_ballot_style;
-use windmill::tasks::create_board;
 use windmill::tasks::create_keys;
 use windmill::tasks::insert_ballots;
 use windmill::tasks::render_report;
@@ -52,15 +51,6 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<()> {
                 "Sent UPDATE_VOTING_STATUS task {}",
                 task.task_id
             );
-        }
-        EventProcessors::CREATE_BOARD => {
-            let task = celery_app
-                .send_task(create_board::create_board::new(
-                    event.tenant_id,
-                    event.election_event_id,
-                ))
-                .await?;
-            event!(Level::INFO, "Sent CREATE_BOARD task {}", task.task_id);
         }
         EventProcessors::CREATE_KEYS => {
             let payload: create_keys::CreateKeysBody =

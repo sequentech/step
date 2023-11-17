@@ -12,7 +12,6 @@ use strum_macros::EnumString;
 pub enum EventProcessors {
     CREATE_REPORT,
     UPDATE_VOTING_STATUS,
-    CREATE_BOARD,
     CREATE_KEYS,
     SET_PUBLIC_KEY,
     CREATE_ELECTION_EVENT_BALLOT_STYLES,

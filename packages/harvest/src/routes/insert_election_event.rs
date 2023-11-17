@@ -16,7 +16,6 @@ use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug)]
 struct CreateElectionEventOutput {
     id: String
-    tenant_id: String
 }
 
 #[instrument(skip(auth_headers))]
@@ -27,12 +26,12 @@ pub async fn insert_election_event_f(
 ) -> Result<Json<CreateElectionEventOutput>, Debug<anyhow::Error>> {
     let celery_app = get_celery_app().await;
     // always set an id;
-    let mut object = body.into_inner().clone();
+    let object = body.into_inner().clone();
     let id = object.id.clone().unwrap_or(Uuid::new_v4().to_string());
     let task = celery_app
         .send_task(insert_election_event::insert_election_event_t::new(
-            body,
-            id
+            object,
+            id.clone()
         ))
         .await
         .map_err(|e| anyhow::Error::from(e))?;
