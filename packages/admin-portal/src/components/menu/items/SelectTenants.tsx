@@ -9,6 +9,7 @@ import {IconButton} from "@sequentech/ui-essentials"
 import {MenuItem, Select, SelectChangeEvent} from "@mui/material"
 import {Link} from "react-router-dom"
 import {useTenantStore} from "../../CustomMenu"
+import {cn} from "../../../lib/utils"
 
 const SelectTenants: React.FC = () => {
     const [open] = useSidebarState()
@@ -30,7 +31,7 @@ const SelectTenants: React.FC = () => {
     }
 
     return (
-        <div className="flex items-center py-1 px-4 space-x-4">
+        <div className={cn("flex items-center px-4 space-x-4", hasSingle ? "py-1.5" : "py-1")}>
             <IconButton icon={faThLarge} />
             {showCustomers && (
                 <>
