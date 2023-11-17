@@ -86,9 +86,11 @@ const TreeMenuItem: React.FC<TreeMenuItemProps> = ({
 
     return (
         <div className="bg-white">
-            <div className="flex text-center cursor-pointer space-x-2 items-center">
+            <div className="flex text-center  space-x-2 items-center">
                 {hasLeaves && (
-                    <Icon className="" icon={open ? faAngleDown : faAngleRight} onClick={onClick} />
+                    <div className="w-6 h-6 cursor-pointer" onClick={onClick}>
+                        <Icon icon={open ? faAngleDown : faAngleRight} />
+                    </div>
                 )}
 
                 {isOpen && (
@@ -97,7 +99,7 @@ const TreeMenuItem: React.FC<TreeMenuItemProps> = ({
                             title={resource.name}
                             className={({isActive}) =>
                                 cn(
-                                    "px-4 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate",
+                                    "px-4 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
                                     isActive && "border-b-2 border-brand-color"
                                 )
                             }
