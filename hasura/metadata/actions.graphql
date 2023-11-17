@@ -59,6 +59,7 @@ input SampleInput {
 }
 
 input CreateElectionEventInput {
+  id: String
   created_at: String
   updated_at: String
   labels: jsonb
@@ -144,6 +145,6 @@ type SampleOutput {
 }
 
 type CreateElectionEventOutput {
-  tenant_id: String!
+  id: String!
 }
 
