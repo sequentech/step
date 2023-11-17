@@ -4,19 +4,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use celery::error::TaskError;
-use immu_board::util::get_board_name;
+
 use sequent_core;
 use sequent_core::services::connection;
-use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
-use serde_json::Value;
-use std::env;
+use sequent_core::services::keycloak::{get_client_credentials};
+
+
 use tracing::{event, Level, instrument};
 
 use crate::hasura::tenant::*;
-use crate::services::election_event_board::BoardSerializable;
-use crate::services::protocol_manager::get_board_client;
+
+
 use crate::types::error::Result;
-use crate::hasura::election_event::{insert_election_event, get_election_event};
+
 
 #[instrument(skip(auth_headers))]
 pub async fn insert_tenant_db(
