@@ -120,11 +120,14 @@ impl KeycloakAdminClient {
 
     pub async fn upsert_realm(self, board_name: &str) -> Result<(), KeycloakError> {
         let real_get_result = self.client.realm_get(board_name).await;
+        let json_realm_config =
+            env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG").expect(&format!("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG must be set"));
+        let realm: RealmRepresentation = serde_json::from_str(&json_realm_config).unwrap();
         match real_get_result {
             Err(_) => self.client
                 .post(RealmRepresentation {
                     realm: Some(board_name.into()),
-                    ..Default::default()
+                    ..realm
                 })
                 .await,
             Ok(_) => Ok(()),
