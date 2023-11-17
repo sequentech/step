@@ -10,6 +10,7 @@ import {TextField} from "@mui/material"
 import {Menu, useSidebarState} from "react-admin"
 import {TreeMenu} from "../../TreeMenu"
 import {faThLarge, faSearch} from "@fortawesome/free-solid-svg-icons"
+import {cn} from "../../../lib/utils"
 
 const StyledItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -43,13 +44,13 @@ export default function ElectionEvents() {
 
     return (
         <>
-            <div className={isElectionEventActive ? "bg-green-light" : ""}>
+            <div className={cn(isElectionEventActive && "bg-green-light")}>
                 <StyledItem
                     to="/sequent_backend_election_event"
                     primaryText={open && "Election Events"}
                     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
                 />
-                <div className="flex bg-white">
+                <div className="flex bg-white px-4">
                     <TextField
                         label="Search"
                         size="small"
