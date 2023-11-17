@@ -45,6 +45,20 @@ fn get_keycloak_login_config() -> KeycloakLoginConfig {
     }
 }
 
+fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
+    let url =
+        env::var("KEYCLOAK_URL").expect(&format!("KEYCLOAK_URL must be set"));
+    let client_id = env::var("KEYCLOAK_ADMIN_CLIENT_ID")
+        .expect(&format!("KEYCLOAK_ADMIN_CLIENT_ID must be set"));
+    let client_secret = env::var("KEYCLOAK_ADMIN_CLIENT_SECRET")
+        .expect(&format!("KEYCLOAK_ADMIN_CLIENT_SECRET must be set"));
+    KeycloakLoginConfig {
+        url,
+        client_id,
+        client_secret,
+    }
+}
+
 // Client Credentials OpenID Authentication flow.
 // This enables servers to authenticate, without using a browser.
 #[instrument]
@@ -83,15 +97,20 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
 
 #[instrument]
 pub async fn get_keycloak_client() -> Result<KeycloakAdmin> {
-    let login_config = get_keycloak_login_config();
+    event!(Level::INFO, "enter get_keycloak_client");
+    let login_config = get_keycloak_login_admin_config();
+    event!(Level::INFO, "got config");
     let client = reqwest::Client::new();
-    let admin_token = KeycloakAdminToken::acquire(
+    event!(Level::INFO, "url {:?} client_id {:?} secret {:?}", login_config.url, login_config.client_id, login_config.client_secret);
+    let admin_token_res = KeycloakAdminToken::acquire(
         &login_config.url,
         &login_config.client_id,
         &login_config.client_secret,
         &client,
     )
-    .await?;
+    .await;
+    event!(Level::INFO, "got acquire result {:?}", admin_token_res);
     event!(Level::INFO, "Successfully acquired credentials");
+    let admin_token = admin_token_res?;
     Ok(KeycloakAdmin::new(&login_config.url, admin_token, client))
 }
