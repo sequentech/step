@@ -19,10 +19,14 @@ use sequent_core::services::connection;
 )]
 pub struct GetTenant;
 
-pub async fn perform_get_tenant(
+#[instrument(skip_all)]
+pub async fn get_tenant(
     auth_headers: connection::AuthHeaders,
-    variables: get_tenant::Variables,
+    tenant_id: String,
 ) -> Result<Response<get_tenant::ResponseData>> {
+    let variables = get_tenant::Variables {
+        tenant_id: Some(tenant_id),
+    };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
     let request_body = GetTenant::build_query(variables);
@@ -38,13 +42,33 @@ pub async fn perform_get_tenant(
     response_body.ok()
 }
 
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/insert_tenant.graphql",
+    response_derives = "Debug"
+)]
+pub struct InsertTenant;
+
 #[instrument(skip_all)]
-pub async fn get_tenant(
+pub async fn insert_tenant(
     auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-) -> Result<Response<get_tenant::ResponseData>> {
-    let variables = get_tenant::Variables {
-        tenant_id: Some(tenant_id),
+    slug: String,
+) -> Result<Response<insert_tenant::ResponseData>> {
+    let variables = insert_tenant::Variables {
+        username: slug,
     };
-    perform_get_tenant(auth_headers, variables).await
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = InsertTenant::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<insert_tenant::ResponseData> = res.json().await?;
+    response_body.ok()
 }
