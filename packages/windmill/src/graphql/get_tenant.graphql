@@ -4,7 +4,7 @@ query GetTenant($tenantId: uuid) {
           id: {_eq: $tenantId}
       }
   ) {
-    username
+    slug
     id
   }
 }

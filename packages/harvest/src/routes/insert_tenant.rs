@@ -7,31 +7,34 @@ use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
 use tracing::{event, instrument, Level};
-use windmill::hasura::tenant::insert_tenant::sequent_backend_tenant_insert_input as InsertTenantInput;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
-struct CreateTenantOutput {
+pub struct CreateTenantInput {
+    slug: String
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CreateTenantOutput {
     id: String
 }
 
 #[instrument(skip(auth_headers))]
 #[post("/insert-tenant", format = "json", data = "<body>")]
 pub async fn insert_tenant(
-    body: Json<InsertTenantInput>,
+    body: Json<CreateTenantInput>,
     auth_headers: connection::AuthHeaders,
 ) -> Result<Json<CreateTenantOutput>, Debug<anyhow::Error>> {
     let celery_app = get_celery_app().await;
     // always set an id;
-    let object = body.into_inner().clone();
-    let id = object.id.clone().unwrap_or(Uuid::new_v4().to_string());
+    let id = Uuid::new_v4().to_string();
     let task = celery_app
         .send_task(tasks::insert_tenant::insert_tenant::new(
-            object,
-            id.clone()
+            id.clone(),
+            body.slug.clone()
         ))
         .await
         .map_err(|e| anyhow::Error::from(e))?;

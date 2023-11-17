@@ -12,16 +12,43 @@ use serde_json::Value;
 use std::env;
 use tracing::{event, Level, instrument};
 
-use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
+use crate::hasura::tenant::*;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::protocol_manager::get_board_client;
 use crate::types::error::Result;
 use crate::hasura::election_event::{insert_election_event, get_election_event};
 
+#[instrument(skip(auth_headers))]
+pub async fn insert_tenant_db(
+    auth_headers: &connection::AuthHeaders,
+    tenant_id: &str,
+    slug: &str,
+) -> Result<()> {
+    // fetch tenant
+    let found_tenant = get_tenant(
+        auth_headers.clone(),
+        tenant_id.to_string(),
+    )
+        .await?
+        .data
+        .expect("expected data".into())
+        .sequent_backend_tenant;
+
+    if found_tenant.len() > 0 {
+        event!(Level::INFO, "Tenant {} already exists", tenant_id);
+        return Ok(())
+    }
+
+    let _hasura_response = insert_tenant(auth_headers.clone(), tenant_id, slug).await?;
+
+    Ok(())
+}
+
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
-pub async fn insert_tenant(object: InsertElectionEventInput, id: String) -> Result<()> {
+pub async fn insert_tenant(id: String, slug: String) -> Result<()> {
     let auth_headers = get_client_credentials().await?;
-    insert_tenant_db(&auth_headers, &final_object).await?;
+    insert_tenant_db(&auth_headers, &slug, &id).await?;
+    Ok(())
 }

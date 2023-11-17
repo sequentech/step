@@ -53,10 +53,12 @@ pub struct InsertTenant;
 #[instrument(skip_all)]
 pub async fn insert_tenant(
     auth_headers: connection::AuthHeaders,
-    slug: String,
+    id: &str,
+    slug: &str,
 ) -> Result<Response<insert_tenant::ResponseData>> {
     let variables = insert_tenant::Variables {
-        username: slug,
+        id: id.to_string(),
+        slug: slug.to_string(),
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
