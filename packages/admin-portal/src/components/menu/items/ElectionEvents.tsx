@@ -43,7 +43,7 @@ export default function ElectionEvents() {
 
     return (
         <>
-            <div className={isElectionEventActive ? "bg-[#ECFDF5]" : ""}>
+            <div className={isElectionEventActive ? "bg-green-light" : ""}>
                 <StyledItem
                     to="/sequent_backend_election_event"
                     primaryText={open && "Election Events"}
