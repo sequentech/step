@@ -12,9 +12,19 @@ import java.util.Map;
 public class SmsServiceFactory {
 
 	public static SmsService get(Map<String, String> config) {
-		if (Boolean.parseBoolean(config.getOrDefault(SmsConstants.SIMULATION_MODE, "false"))) {
+		if (Boolean
+			.parseBoolean(
+				config.getOrDefault(SmsConstants.SIMULATION_MODE, "false")
+			)
+		) {
 			return (phoneNumber, message) ->
-				log.warn(String.format("***** SIMULATION MODE ***** Would send SMS to %s with text: %s", phoneNumber, message));
+				log.warn(
+					String.format(
+						"***** SIMULATION MODE ***** Would send SMS to %s with text: %s",
+						phoneNumber,
+						message
+					)
+				);
 		} else {
 			return new AwsSmsService(config);
 		}

@@ -85,6 +85,13 @@ public class SmsAuthenticatorFactory
 				"Keycloak"
 			),
 			new ProviderConfigProperty(
+				SmsConstants.TEL_USER_ATTRIBUTE,
+				"Telephone User Attribute",
+				"Name of the user attribute used to retrieve the mobile telephone number of the user. Please make sure this is a read-only attribute for security reasons.", 
+				ProviderConfigProperty.STRING_TYPE,
+				SmsAuthenticator.MOBILE_NUMBER_FIELD
+			),
+			new ProviderConfigProperty(
 				SmsConstants.SIMULATION_MODE,
 				"Simulation mode",
 				"In simulation mode, the SMS won't be sent, but printed to the server logs", ProviderConfigProperty.BOOLEAN_TYPE,

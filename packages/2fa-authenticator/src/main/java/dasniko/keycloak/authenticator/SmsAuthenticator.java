@@ -15,13 +15,14 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
 
 import java.util.Locale;
+import java.util.List;
 
 /**
  * @author Niko Köbler, https://www.n-k.de, @dasniko
  */
 public class SmsAuthenticator implements Authenticator {
 
-	private static final String MOBILE_NUMBER_FIELD = "mobile_number";
+	public static final String MOBILE_NUMBER_FIELD = "read-only.mobile-number";
 	private static final String TPL_CODE = "login-sms.ftl";
 
 	@Override
@@ -30,44 +31,79 @@ public class SmsAuthenticator implements Authenticator {
 		KeycloakSession session = context.getSession();
 		UserModel user = context.getUser();
 
-		String mobileNumber = user.getFirstAttribute(MOBILE_NUMBER_FIELD);
-		// mobileNumber of course has to be further validated on proper format, country code, ...
+		String telUserAttribute = config
+			.getConfig()
+			.get(SmsConstants.TEL_USER_ATTRIBUTE);
+		String mobileNumber = user.getFirstAttribute(telUserAttribute);
+		// TODO: mobileNumber of course should have been previously validated on
+		// proper format, country code, ...
 
-		int length = Integer.parseInt(config.getConfig().get(SmsConstants.CODE_LENGTH));
-		int ttl = Integer.parseInt(config.getConfig().get(SmsConstants.CODE_TTL));
+		int length = Integer.parseInt(
+			config.getConfig().get(SmsConstants.CODE_LENGTH)
+		);
+		int ttl = Integer.parseInt(
+			config.getConfig().get(SmsConstants.CODE_TTL)
+		);
 
-		String code = SecretGenerator.getInstance().randomString(length, SecretGenerator.DIGITS);
-		AuthenticationSessionModel authSession = context.getAuthenticationSession();
+		String code = SecretGenerator
+			.getInstance()
+			.randomString(length, SecretGenerator.DIGITS);
+		AuthenticationSessionModel authSession = context
+			.getAuthenticationSession();
 		authSession.setAuthNote(SmsConstants.CODE, code);
-		authSession.setAuthNote(SmsConstants.CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
+		authSession.setAuthNote(
+			SmsConstants.CODE_TTL,
+			Long.toString(System.currentTimeMillis() + (ttl * 1000L))
+		);
 
 		try {
 			Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
 			Locale locale = session.getContext().resolveLocale(user);
-			String smsAuthText = theme.getMessages(locale).getProperty("smsAuthText");
-			String smsText = String.format(smsAuthText, code, Math.floorDiv(ttl, 60));
+			String smsAuthText = theme
+				.getMessages(locale)
+				.getProperty("smsAuthText");
+			String smsText = String
+				.format(smsAuthText, code, Math.floorDiv(ttl, 60));
 
-			SmsServiceFactory.get(config.getConfig()).send(mobileNumber, smsText);
+			SmsServiceFactory
+				.get(config.getConfig())
+				.send(mobileNumber, smsText);
 
-			context.challenge(context.form().setAttribute("realm", context.getRealm()).createForm(TPL_CODE));
+			context
+				.challenge(
+					context.form().setAttribute("realm", context.getRealm()
+				)
+				.createForm(TPL_CODE));
 		} catch (Exception e) {
-			context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR,
-				context.form().setError("smsAuthSmsNotSent", e.getMessage())
-					.createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+			context.failureChallenge(
+				AuthenticationFlowError.INTERNAL_ERROR,
+				context
+					.form()
+					.setError("smsAuthSmsNotSent", e.getMessage())
+					.createErrorPage(Response.Status.INTERNAL_SERVER_ERROR)
+			);
 		}
 	}
 
 	@Override
 	public void action(AuthenticationFlowContext context) {
-		String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(SmsConstants.CODE);
+		String enteredCode = context
+			.getHttpRequest()
+			.getDecodedFormParameters()
+			.getFirst(SmsConstants.CODE);
 
-		AuthenticationSessionModel authSession = context.getAuthenticationSession();
+		AuthenticationSessionModel authSession = context
+			.getAuthenticationSession();
 		String code = authSession.getAuthNote(SmsConstants.CODE);
 		String ttl = authSession.getAuthNote(SmsConstants.CODE_TTL);
 
 		if (code == null || ttl == null) {
-			context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR,
-				context.form().createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+			context.failureChallenge(
+				AuthenticationFlowError.INTERNAL_ERROR,
+				context
+					.form()
+					.createErrorPage(Response.Status.INTERNAL_SERVER_ERROR)
+			);
 			return;
 		}
 
@@ -75,8 +111,13 @@ public class SmsAuthenticator implements Authenticator {
 		if (isValid) {
 			if (Long.parseLong(ttl) < System.currentTimeMillis()) {
 				// expired
-				context.failureChallenge(AuthenticationFlowError.EXPIRED_CODE,
-					context.form().setError("smsAuthCodeExpired").createErrorPage(Response.Status.BAD_REQUEST));
+				context.failureChallenge(
+					AuthenticationFlowError.EXPIRED_CODE,
+					context
+						.form()
+						.setError("smsAuthCodeExpired")
+						.createErrorPage(Response.Status.BAD_REQUEST)
+				);
 			} else {
 				// valid
 				context.success();
@@ -85,9 +126,14 @@ public class SmsAuthenticator implements Authenticator {
 			// invalid
 			AuthenticationExecutionModel execution = context.getExecution();
 			if (execution.isRequired()) {
-				context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS,
-					context.form().setAttribute("realm", context.getRealm())
-						.setError("smsAuthCodeInvalid").createForm(TPL_CODE));
+				context.failureChallenge(
+					AuthenticationFlowError.INVALID_CREDENTIALS,
+					context
+						.form()
+						.setAttribute("realm", context.getRealm())
+						.setError("smsAuthCodeInvalid")
+						.createForm(TPL_CODE)
+				);
 			} else if (execution.isConditional() || execution.isAlternative()) {
 				context.attempted();
 			}
@@ -100,13 +146,34 @@ public class SmsAuthenticator implements Authenticator {
 	}
 
 	@Override
-	public boolean configuredFor(KeycloakSession session, RealmModel realm, UserModel user) {
-		return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
+	public boolean configuredFor(
+		KeycloakSession session,
+		RealmModel realm,
+		UserModel user
+	) {
+		// TODO: we are assuming there's only one of our authenticators
+		AuthenticatorConfigModel config = realm
+			.getAuthenticatorConfigById(SmsAuthenticatorFactory.PROVIDER_ID);
+
+		// If no configuration is found, fall back to default behavior
+		if (config == null) {
+			return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
+		}
+	
+		String telUserAttribute = config
+			.getConfig()
+			.get(SmsConstants.TEL_USER_ATTRIBUTE);
+		return user.getFirstAttribute(telUserAttribute) != null;
 	}
 
 	@Override
-	public void setRequiredActions(KeycloakSession session, RealmModel realm, UserModel user) {
-		// this will only work if you have the required action from here configured:
+	public void setRequiredActions(
+		KeycloakSession session,
+		RealmModel realm,
+		UserModel user
+	) {
+		// this will only work if you have the required action from here
+		// configured:
 		// https://github.com/dasniko/keycloak-extensions-demo/tree/main/requiredaction
 		user.addRequiredAction("mobile-number-ra");
 	}

@@ -9,4 +9,5 @@ public class SmsConstants {
 	public String CODE_TTL = "ttl";
 	public String SENDER_ID = "senderId";
 	public String SIMULATION_MODE = "simulation";
+	public String TEL_USER_ATTRIBUTE = "telUserAttribute";
 }
