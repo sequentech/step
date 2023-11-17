@@ -5,7 +5,7 @@ use super::connection;
 use anyhow::{anyhow, Result};
 use keycloak::{
     types::*,
-    {KeycloakAdmin, KeycloakAdminToken},
+    {KeycloakAdmin, KeycloakAdminToken, KeycloakError},
 };
 use reqwest;
 use serde::{Deserialize, Serialize};
@@ -95,22 +95,42 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     })
 }
 
-#[instrument]
-pub async fn get_keycloak_client() -> Result<KeycloakAdmin> {
-    event!(Level::INFO, "enter get_keycloak_client");
-    let login_config = get_keycloak_login_admin_config();
-    event!(Level::INFO, "got config");
-    let client = reqwest::Client::new();
-    event!(Level::INFO, "url {:?} client_id {:?} secret {:?}", login_config.url, login_config.client_id, login_config.client_secret);
-    let admin_token_res = KeycloakAdminToken::acquire(
-        &login_config.url,
-        &login_config.client_id,
-        &login_config.client_secret,
-        &client,
-    )
-    .await;
-    event!(Level::INFO, "got acquire result {:?}", admin_token_res);
-    event!(Level::INFO, "Successfully acquired credentials");
-    let admin_token = admin_token_res?;
-    Ok(KeycloakAdmin::new(&login_config.url, admin_token, client))
+pub struct KeycloakAdminClient {
+    client: KeycloakAdmin
+}
+
+impl KeycloakAdminClient {
+    #[instrument]
+    pub async fn new() -> Result<KeycloakAdminClient> {
+        let login_config = get_keycloak_login_admin_config();
+        let client = reqwest::Client::new();
+        let admin_token = KeycloakAdminToken::acquire(
+            &login_config.url,
+            &login_config.client_id,
+            &login_config.client_secret,
+            &client,
+        )
+        .await?;
+        event!(Level::INFO, "Successfully acquired credentials");
+        let client = KeycloakAdmin::new(&login_config.url, admin_token, client);
+        Ok(KeycloakAdminClient {
+            client
+        })
+    }
+
+    pub async fn upsert_realm(self, board_name: &str) -> Result<(), KeycloakError> {
+        let real_get_result = self.client.realm_get(board_name).await;
+        match real_get_result {
+            Err(_) => self.client
+                .post(RealmRepresentation {
+                    realm: Some(board_name.into()),
+                    ..Default::default()
+                })
+                .await,
+            Ok(_) => Ok(()),
+        }
+        
+    }
+
+
 }

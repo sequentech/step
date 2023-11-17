@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use log::info;
-use tracing::{debug, event, Level, instrument};
+use tracing::{event, Level, instrument};
 
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
@@ -264,6 +264,11 @@ impl BoardClient {
             .map(Board::try_from)
             .collect::<Result<Vec<Board>>>()?;
         Ok(boards[0].clone())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn has_database(&mut self, database_name: &str) -> Result<bool> {
+        self.client.has_database(database_name).await
     }
 
     #[instrument(skip(self))]
