@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box} from "@mui/material"
+import {NavLink} from "react-router-dom"
 import React, {useState, useEffect} from "react"
 import {
     ResourceOptions,
@@ -59,16 +59,18 @@ const TreeLeaves: React.FC<TreeLeavesProps> = ({isOpen, resourceId, treeResource
     }
 
     return (
-        <div className="flex flex-col ml-3">
-            {data?.map((resource, idx) => (
-                <TreeMenuItem
-                    isOpen={isOpen}
-                    resourceType={treeResources[0].name}
-                    resource={resource}
-                    treeResources={treeResources.slice(1)}
-                    key={idx}
-                />
-            ))}
+        <div className="bg-white">
+            <div className="flex flex-col ml-3">
+                {data?.map((resource, idx) => (
+                    <TreeMenuItem
+                        isOpen={isOpen}
+                        resourceType={treeResources[0].name}
+                        resource={resource}
+                        treeResources={treeResources.slice(1)}
+                        key={idx}
+                    />
+                ))}
+            </div>
         </div>
     )
 }
@@ -98,11 +100,20 @@ const TreeMenuItem: React.FC<TreeMenuItemProps> = ({
                 )}
 
                 {isOpen && (
-                    <MenuItemLink
-                        key={resource.name}
-                        to={`/${resourceType}/${resource.id}`}
-                        primaryText={resource.name}
-                    />
+                    <>
+                        <NavLink
+                            title={resource.name}
+                            className={({isActive}) =>
+                                cn(
+                                    "px-4 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate",
+                                    isActive && "border-b-2 border-brand-color"
+                                )
+                            }
+                            to={`/${resourceType}/${resource.id}`}
+                        >
+                            {resource.name}
+                        </NavLink>
+                    </>
                 )}
             </div>
             {open && (
