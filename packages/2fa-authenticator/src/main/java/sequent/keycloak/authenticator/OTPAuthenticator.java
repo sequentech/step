@@ -1,13 +1,16 @@
-package dasniko.keycloak.authenticator;
+package sequent.keycloak.authenticator;
 
-import dasniko.keycloak.authenticator.gateway.SmsServiceFactory;
+import sequent.keycloak.authenticator.gateway.SmsServiceFactory;
+import sequent.keycloak.authenticator.gateway.EmailServiceFactory;
 import jakarta.ws.rs.core.Response;
+import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.common.util.SecretGenerator;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
+import org.keycloak.models.AuthenticationFlowModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -16,33 +19,42 @@ import org.keycloak.theme.Theme;
 
 import java.util.Locale;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
- * @author Niko Köbler, https://www.n-k.de, @dasniko
+ * @author Niko Köbler, https://www.n-k.de, @sequent
  */
-public class SmsAuthenticator implements Authenticator {
+public class OTPAuthenticator implements Authenticator {
 
+
+	private static final Logger logger = Logger.getLogger(OTPAuthenticator.class);
 	public static final String MOBILE_NUMBER_FIELD = "read-only.mobile-number";
+	public static final String EMAIL_ADDRESS_FIELD = "read-only.email-address";
 	private static final String TPL_CODE = "login-sms.ftl";
 
 	@Override
 	public void authenticate(AuthenticationFlowContext context) {
+		logger.info("authenticate() called");
 		AuthenticatorConfigModel config = context.getAuthenticatorConfig();
 		KeycloakSession session = context.getSession();
 		UserModel user = context.getUser();
 
 		String telUserAttribute = config
 			.getConfig()
-			.get(SmsConstants.TEL_USER_ATTRIBUTE);
+			.get(OTPConstants.TEL_USER_ATTRIBUTE);
 		String mobileNumber = user.getFirstAttribute(telUserAttribute);
-		// TODO: mobileNumber of course should have been previously validated on
-		// proper format, country code, ...
+
+		String emailUserAttribute = config
+			.getConfig()
+			.get(OTPConstants.EMAIL_USER_ATTRIBUTE);
+		String emailAddress = user.getFirstAttribute(emailUserAttribute);
 
 		int length = Integer.parseInt(
-			config.getConfig().get(SmsConstants.CODE_LENGTH)
+			config.getConfig().get(OTPConstants.CODE_LENGTH)
 		);
 		int ttl = Integer.parseInt(
-			config.getConfig().get(SmsConstants.CODE_TTL)
+			config.getConfig().get(OTPConstants.CODE_TTL)
 		);
 
 		String code = SecretGenerator
@@ -50,9 +62,9 @@ public class SmsAuthenticator implements Authenticator {
 			.randomString(length, SecretGenerator.DIGITS);
 		AuthenticationSessionModel authSession = context
 			.getAuthenticationSession();
-		authSession.setAuthNote(SmsConstants.CODE, code);
+		authSession.setAuthNote(OTPConstants.CODE, code);
 		authSession.setAuthNote(
-			SmsConstants.CODE_TTL,
+			OTPConstants.CODE_TTL,
 			Long.toString(System.currentTimeMillis() + (ttl * 1000L))
 		);
 
@@ -65,9 +77,39 @@ public class SmsAuthenticator implements Authenticator {
 			String smsText = String
 				.format(smsAuthText, code, Math.floorDiv(ttl, 60));
 
-			SmsServiceFactory
-				.get(config.getConfig())
-				.send(mobileNumber, smsText);
+			String emailAuthTitle = theme
+				.getMessages(locale)
+				.getProperty("emailAuthTitle");
+			String emailTitle = String
+				.format(emailAuthTitle, code, Math.floorDiv(ttl, 60));
+
+			String emailAuthBody = theme
+				.getMessages(locale)
+				.getProperty("emailAuthBody");
+			String emailBody = String
+				.format(emailAuthBody, code, Math.floorDiv(ttl, 60));
+
+			String emailAuthHtmlBody = theme
+				.getMessages(locale)
+				.getProperty("emailAuthHtmlBody");
+			String emailHtmlBody = String
+				.format(emailAuthHtmlBody, code, Math.floorDiv(ttl, 60));
+
+			if (mobileNumber != null) {
+				SmsServiceFactory
+					.get(config.getConfig())
+					.send(mobileNumber, smsText);
+			}
+			if (emailAddress != null) {
+				EmailServiceFactory
+					.get(config.getConfig())
+					.send(
+						emailAddress,
+						emailTitle,
+						emailBody,
+						emailHtmlBody
+					);
+			} 
 
 			context
 				.challenge(
@@ -87,15 +129,16 @@ public class SmsAuthenticator implements Authenticator {
 
 	@Override
 	public void action(AuthenticationFlowContext context) {
+		logger.info("action() called");
 		String enteredCode = context
 			.getHttpRequest()
 			.getDecodedFormParameters()
-			.getFirst(SmsConstants.CODE);
+			.getFirst(OTPConstants.CODE);
 
 		AuthenticationSessionModel authSession = context
 			.getAuthenticationSession();
-		String code = authSession.getAuthNote(SmsConstants.CODE);
-		String ttl = authSession.getAuthNote(SmsConstants.CODE_TTL);
+		String code = authSession.getAuthNote(OTPConstants.CODE);
+		String ttl = authSession.getAuthNote(OTPConstants.CODE_TTL);
 
 		if (code == null || ttl == null) {
 			context.failureChallenge(
@@ -142,6 +185,7 @@ public class SmsAuthenticator implements Authenticator {
 
 	@Override
 	public boolean requiresUser() {
+		logger.info("requiresUser() called");
 		return true;
 	}
 
@@ -151,18 +195,37 @@ public class SmsAuthenticator implements Authenticator {
 		RealmModel realm,
 		UserModel user
 	) {
-		// TODO: we are assuming there's only one of our authenticators
-		AuthenticatorConfigModel config = realm
-			.getAuthenticatorConfigById(SmsAuthenticatorFactory.PROVIDER_ID);
+		logger.info("configuredFor() called");
+		// Using streams to find the first matching configuration
+		// TODO: We're assuming there's only one instance in this realm of this 
+		// authenticator
+		Optional<AuthenticatorConfigModel> configOptional = realm
+			.getAuthenticationFlowsStream()
+			.flatMap(flow ->
+				realm.getAuthenticationExecutionsStream(flow.getId())
+			)
+			.filter(model -> {
+				boolean ret = (
+					model.getAuthenticator() != null &&
+					model.getAuthenticator()
+						.equals(OTPAuthenticatorFactory.PROVIDER_ID)
+				);
+				return ret;
+			})
+			.map(model ->
+				realm.getAuthenticatorConfigById(model.getAuthenticatorConfig())
+			)
+			.findFirst();
 
 		// If no configuration is found, fall back to default behavior
-		if (config == null) {
+	 	if (!configOptional.isPresent()) {
 			return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
 		}
 	
-		String telUserAttribute = config
+		String telUserAttribute = configOptional
+			.get()
 			.getConfig()
-			.get(SmsConstants.TEL_USER_ATTRIBUTE);
+			.get(OTPConstants.TEL_USER_ATTRIBUTE);
 		return user.getFirstAttribute(telUserAttribute) != null;
 	}
 
@@ -172,9 +235,10 @@ public class SmsAuthenticator implements Authenticator {
 		RealmModel realm,
 		UserModel user
 	) {
+		logger.info("setRequiredActions() called");
 		// this will only work if you have the required action from here
 		// configured:
-		// https://github.com/dasniko/keycloak-extensions-demo/tree/main/requiredaction
+		// https://github.com/sequent/keycloak-extensions-demo/tree/main/requiredaction
 		user.addRequiredAction("mobile-number-ra");
 	}
 
