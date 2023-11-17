@@ -150,6 +150,8 @@ services:
     entrypoint: >
       /opt/keycloak/bin/kc.sh start-dev
       --features=preview
+      --spi-user-profile-declarative-user-profile-read-only-attributes=sequent.read-only.*
+      --spi-user-profile-declarative-user-profile-admin-read-only-attributes=sequent.read-only.*
       -Dkeycloak.profile.feature.upload_scripts=enabled
       --import-realm
     depends_on:
