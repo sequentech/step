@@ -48,7 +48,7 @@ RUN keytool \
 # before calling `kc.sh build`
 COPY --chown=keycloak:keycloak \
    --from=spis-build \
-   /build/2fa-authenticator/target/*.jar \
+   /build/2fa-authenticator/target/dasniko.keycloak-2fa-sms-authenticator.jar \
    /opt/keycloak/providers/
 
 RUN /opt/keycloak/bin/kc.sh build

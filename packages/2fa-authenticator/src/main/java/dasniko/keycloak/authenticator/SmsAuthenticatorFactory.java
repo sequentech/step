@@ -8,14 +8,19 @@ import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.provider.ServerInfoAwareProviderFactory;
 
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
 /**
  * @author Niko Köbler, https://www.n-k.de, @dasniko
  */
 @AutoService(AuthenticatorFactory.class)
-public class SmsAuthenticatorFactory implements AuthenticatorFactory {
+public class SmsAuthenticatorFactory 
+	implements AuthenticatorFactory, ServerInfoAwareProviderFactory
+{
 
 	public static final String PROVIDER_ID = "sms-authenticator";
 
@@ -59,10 +64,32 @@ public class SmsAuthenticatorFactory implements AuthenticatorFactory {
 	@Override
 	public List<ProviderConfigProperty> getConfigProperties() {
 		return List.of(
-			new ProviderConfigProperty(SmsConstants.CODE_LENGTH, "Code length", "The number of digits of the generated code.", ProviderConfigProperty.STRING_TYPE, 6),
-			new ProviderConfigProperty(SmsConstants.CODE_TTL, "Time-to-live", "The time to live in seconds for the code to be valid.", ProviderConfigProperty.STRING_TYPE, "300"),
-			new ProviderConfigProperty(SmsConstants.SENDER_ID, "SenderId", "The sender ID is displayed as the message sender on the receiving device.", ProviderConfigProperty.STRING_TYPE, "Keycloak"),
-			new ProviderConfigProperty(SmsConstants.SIMULATION_MODE, "Simulation mode", "In simulation mode, the SMS won't be sent, but printed to the server logs", ProviderConfigProperty.BOOLEAN_TYPE, true)
+			new ProviderConfigProperty(
+				SmsConstants.CODE_LENGTH,
+				"Code length",
+				"The number of digits of the generated code.",
+				ProviderConfigProperty.STRING_TYPE,
+				6
+			),
+			new ProviderConfigProperty(
+				SmsConstants.CODE_TTL,
+				"Time-to-live",
+				"The time to live in seconds for the code to be valid.",
+				ProviderConfigProperty.STRING_TYPE,
+				"300"
+			),
+			new ProviderConfigProperty(
+				SmsConstants.SENDER_ID,
+				"SenderId",
+				"The sender ID is displayed as the message sender on the receiving device.", ProviderConfigProperty.STRING_TYPE,
+				"Keycloak"
+			),
+			new ProviderConfigProperty(
+				SmsConstants.SIMULATION_MODE,
+				"Simulation mode",
+				"In simulation mode, the SMS won't be sent, but printed to the server logs", ProviderConfigProperty.BOOLEAN_TYPE,
+				true
+			)
 		);
 	}
 
@@ -83,4 +110,11 @@ public class SmsAuthenticatorFactory implements AuthenticatorFactory {
 	public void close() {
 	}
 
+    @Override
+    public Map<String, String> getOperationalInfo() {
+        Map<String, String> ret = new LinkedHashMap<>();
+        ret.put("provider-id", getId());
+		ret.put("reference-category", getReferenceCategory());
+        return ret;
+    }
 }
