@@ -10,13 +10,49 @@ import {
     ReferenceInput,
     Create,
     FormDataConsumer,
+    ReferenceField,
+    useRecordContext,
+    useRefresh,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
+import {Sequent_Backend_Area, Sequent_Backend_Election_Event} from "../../gql/graphql"
 
-export const CreateArea: React.FC = () => {
+interface CreateAreaProps {
+    record: Sequent_Backend_Election_Event
+    close?: () => void
+}
+
+export const CreateArea: React.FC<CreateAreaProps> = (props) => {
+    const {record, close} = props
+    const refresh = useRefresh()
+
+    const onSuccess = () => {
+        refresh()
+        if (close) {
+            close()
+        }
+    }
+
     return (
-        <Create resource="sequent_backend_area">
+        <Create resource="sequent_backend_area" mutationOptions={{onSuccess}} redirect={false}>
             <SimpleForm>
+                <Typography variant="h4">Area</Typography>
+                <Typography variant="body2">Area configuration</Typography>
+
+                <TextInput source="name" />
+                <TextInput
+                    label="Election Event"
+                    source="election_event_id"
+                    defaultValue={record?.id || ""}
+                />
+                <TextInput
+                    label="Tenant"
+                    source="tenant_id"
+                    defaultValue={record?.tenant_id || ""}
+                />
+            </SimpleForm>
+
+            {/* <SimpleForm>
                 <Typography variant="h4">Area</Typography>
                 <Typography variant="body2">Area creation</Typography>
                 <TextInput source="name" />
@@ -56,7 +92,7 @@ export const CreateArea: React.FC = () => {
                         displayDataTypes: false,
                     }}
                 />
-            </SimpleForm>
+            </SimpleForm> */}
         </Create>
     )
 }

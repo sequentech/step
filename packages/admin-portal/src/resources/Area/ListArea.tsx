@@ -12,13 +12,18 @@ import {
     Identifier,
     RaRecord,
     RecordContext,
+    useRecordContext,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
-import {Drawer, Typography} from "@mui/material"
+import {Drawer, IconButton, Typography} from "@mui/material"
+import CheckIcon from "@mui/icons-material/Check"
+import CancelIcon from "@mui/icons-material/Cancel"
 import {ChipList} from "../../components/ChipList"
-import {EditAreaForm} from "./EditArea"
-import { CreateArea } from './CreateArea'
+import {EditArea} from "./EditArea"
+import {CreateArea} from "./CreateArea"
+import {useLocation, useParams, useRoutes} from "react-router"
+import {Sequent_Backend_Election_Event} from "../../gql/graphql"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -34,10 +39,15 @@ export interface ListAreaProps {
     aside?: ReactElement
 }
 
-export const ListArea: React.FC<ListAreaProps> = ({aside}) => {
+export const ListArea: React.FC<ListAreaProps> = (props) => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+
     const [tenantId] = useTenantStore()
+    const params = useParams()
+    const location = useLocation()
 
     const [open, setOpen] = React.useState(false)
+    const [closeDrawer, setCloseDrawer] = React.useState("")
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
 
     // const rowClickHandler = generateRowClickHandler(["election_event_id"])
@@ -52,19 +62,52 @@ export const ListArea: React.FC<ListAreaProps> = ({aside}) => {
         }
     }, [recordId])
 
+    const handleCloseCreateDrawer = () => {
+        setRecordId(undefined)
+        setCloseDrawer(new Date().toISOString())
+    }
+
+    const handleCloseEditDrawer = () => {
+        setOpen(false)
+        setTimeout(() => {
+            setRecordId(undefined)
+        }, 400)
+    }
+
+    const ActionsColumn = ({source}: {source: Identifier | undefined}) => {
+        const record = useRecordContext()
+
+        return (
+            <>
+                <IconButton onClick={(e) => console.log(record.id)}>
+                    <CheckIcon color="action" />
+                </IconButton>
+                <IconButton onClick={(e) => console.log(record.id)}>
+                    <CancelIcon color="action" />
+                </IconButton>
+            </>
+        )
+    }
+
     return (
         <>
             <Typography variant="h5">Areas</Typography>
             <List
                 resource="sequent_backend_area"
-                actions={<ListActions withImport={false} Component={<CreateArea />} />}
+                actions={
+                    <ListActions
+                        withImport={false}
+                        closeDrawer={closeDrawer}
+                        Component={<CreateArea record={record} close={handleCloseCreateDrawer} />}
+                    />
+                }
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,
                 }}
                 filters={Filters}
             >
-                <DatagridConfigurable rowClick={rowClickHandler} omit={OMIT_FIELDS}>
+                <DatagridConfigurable  omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="name" />
                     <TextField source="description" />
@@ -86,21 +129,19 @@ export const ListArea: React.FC<ListAreaProps> = ({aside}) => {
                             filterFields={["election_event_id", "area_id"]}
                         />
                     </ReferenceManyField>
+                    <ActionsColumn source={"1"}/>
                 </DatagridConfigurable>
             </List>
 
             <Drawer
                 anchor="right"
                 open={open}
-                onClose={() => {
-                    setRecordId(undefined)
-                    setOpen(false)
-                }}
+                onClose={handleCloseEditDrawer}
                 PaperProps={{
                     sx: {width: "40%"},
                 }}
             >
-                <EditAreaForm id={recordId} />
+                <EditArea id={recordId} close={handleCloseEditDrawer} />
             </Drawer>
         </>
     )

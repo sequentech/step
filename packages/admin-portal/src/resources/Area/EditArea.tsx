@@ -5,6 +5,7 @@ import {Button, CircularProgress, Menu, MenuItem, Typography} from "@mui/materia
 import React, {useState} from "react"
 import {
     Edit,
+    EditBase,
     Identifier,
     ReferenceField,
     ReferenceManyField,
@@ -12,6 +13,7 @@ import {
     TextField,
     TextInput,
     useRecordContext,
+    useRedirect,
     useRefresh,
 } from "react-admin"
 import {ListArea} from "./ListArea"
@@ -26,25 +28,37 @@ import {useMutation} from "@apollo/client"
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
 
-export const AreaForm: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Area>()
-    const [showMenu, setShowMenu] = useState(false)
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
-    const [showProgress, setShowProgress] = useState(false)
-    const [tenantId] = useTenantStore()
-    const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
+interface EditAreaProps {
+    id?: Identifier | undefined
+    close?: () => void
+}
+
+export const EditArea: React.FC<EditAreaProps> = (props) => {
+    const {id, close} = props
     const refresh = useRefresh()
 
-    const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
-        setAnchorEl(event.currentTarget)
-        setShowMenu(true)
+    const onSuccess = async (res: any) => {
+        refresh()
+        if (close) {
+            close()
+        }
     }
 
     return (
-        <SimpleForm>
-            <Typography variant="h4">Area</Typography>
-            <Typography variant="body2">Area configuration</Typography>
-            <Button onClick={handleActionsButtonClick}>
+        <Edit
+            id={id}
+            resource="sequent_backend_area"
+            mutationMode="pessimistic"
+            mutationOptions={{onSuccess}}
+            redirect={false}
+        >
+            <SimpleForm>
+                <Typography variant="h4">Area</Typography>
+                <Typography variant="body2">Area configuration</Typography>
+
+                <TextInput source="name" />
+
+                {/* <Button onClick={handleActionsButtonClick}>
                 Actions {showProgress ? <CircularProgress /> : null}
             </Button>
             <Menu
@@ -54,16 +68,12 @@ export const AreaForm: React.FC = () => {
                 onClose={() => setShowMenu(false)}
             ></Menu>
             <Typography variant="h5">ID</Typography>
-            <TextField source="id" />
-            <TextInput source="name" />
-            <TextInput source="description" />
+            <TextField source="id" /> */}
+
+                {/* <TextInput source="description" />
             <TextInput source="type" />
             <Typography variant="h5">Election Event</Typography>
-            <ReferenceField
-                label="Election Event"
-                reference="sequent_backend_election_event"
-                source="election_event_id"
-            >
+
                 <TextField source="name" />
             </ReferenceField>
             <ReferenceManyField
@@ -112,32 +122,11 @@ export const AreaForm: React.FC = () => {
                     enableClipboard: true,
                     displayDataTypes: false,
                 }}
-            />
-        </SimpleForm>
-    )
-}
-
-interface EditAreaFormProps {
-    id?: Identifier | undefined
-}
-
-export const EditAreaForm: React.FC<EditAreaFormProps> = (props) => {
-    const {id} = props;
-    return (
-        <Edit id={id} resource="sequent_backend_area">
-            <AreaForm />
+            /> */}
+            </SimpleForm>
         </Edit>
     )
 }
-
-export const EditArea: React.FC = () => {
-    return (
-        <ListArea
-            aside={
-                <Edit sx={{flexGrow: 2, width: "50%", flexShrink: 0}}>
-                    <AreaForm />
-                </Edit>
-            }
-        />
-    )
+function refresh() {
+    throw new Error("Function not implemented.")
 }
