@@ -12,7 +12,7 @@ import {TreeMenu} from "../../TreeMenu"
 import {faThLarge, faSearch} from "@fortawesome/free-solid-svg-icons"
 import {cn} from "../../../lib/utils"
 
-const StyledItem = styled(Menu.Item)`
+const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
 
     &.RaMenuItemLink-active,
@@ -45,21 +45,25 @@ export default function ElectionEvents() {
     return (
         <>
             <div className={cn(isElectionEventActive && "bg-green-light")}>
-                <StyledItem
+                <MenuItem
                     to="/sequent_backend_election_event"
                     primaryText={open && "Election Events"}
                     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
                 />
-                <div className="flex bg-white px-4">
-                    <TextField
-                        label="Search"
-                        size="small"
-                        value={search}
-                        onChange={handleSearchChange}
-                    />
-                    <IconButton icon={faSearch} fontSize="18px" sx={{margin: "0 12px"}} />
-                </div>
-                <TreeMenu isOpen={open} />
+                {open && isElectionEventActive && (
+                    <>
+                        <div className="flex bg-white px-4">
+                            <TextField
+                                label="Search"
+                                size="small"
+                                value={search}
+                                onChange={handleSearchChange}
+                            />
+                            <IconButton icon={faSearch} fontSize="18px" sx={{margin: "0 12px"}} />
+                        </div>
+                        <TreeMenu isOpen={open} />
+                    </>
+                )}
             </div>
         </>
     )

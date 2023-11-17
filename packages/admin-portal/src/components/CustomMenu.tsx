@@ -143,7 +143,7 @@ export const CustomMenu = () => {
 
                 <StyledItem
                     to="/pgaudit"
-                    primaryText="PG Audit"
+                    primaryText={open ? "PG Audit" : null}
                     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
                 />
                 <StyledItem
