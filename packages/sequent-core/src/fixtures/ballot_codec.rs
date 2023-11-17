@@ -2009,4 +2009,3 @@ pub fn bases_fixture() -> Vec<BasesFixture> {
         },
     ]
 }
-

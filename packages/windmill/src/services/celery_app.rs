@@ -9,10 +9,10 @@ use std;
 use tracing::{event, instrument, Level};
 
 use crate::tasks::create_ballot_style::create_ballot_style;
-use crate::tasks::create_board::create_board;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::insert_ballots::insert_ballots;
+use crate::tasks::insert_election_event::insert_election_event_t;
 use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
@@ -54,7 +54,6 @@ pub async fn generate_celery_app() -> Arc<Celery> {
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
             create_ballot_style,
-            create_board,
             create_keys,
             insert_ballots,
             review_boards,
@@ -65,11 +64,11 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             execute_tally_session,
             update_election_event_ballot_styles,
             update_voting_status,
+            insert_election_event_t,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
             "create_ballot_style" => "short_queue",
-            "create_board" => "short_queue",
             "create_keys" => "short_queue",
             "insert_ballots" => "tally_queue",
             "review_boards" => "beat",
@@ -80,6 +79,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "execute_tally_session" => "tally_queue",
             "update_election_event_ballot_styles" => "short_queue",
             "update_voting_status" => "short_queue",
+            "insert_election_event_t" => "short_queue",
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

@@ -11,7 +11,6 @@ use crate::hasura;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::has_config_created;
-use crate::tasks::create_board::create_board;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::set_public_key::set_public_key;
 use crate::types::error::Result;
@@ -51,14 +50,11 @@ pub async fn process_board(tenant_id: String, election_event_id: String) -> Resu
     let celery_app = get_celery_app().await;
     // if there's no bulletin board, create it
     if bulletin_board_opt.is_none() {
-        let task = celery_app
-            .send_task(create_board::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-            ))
-            .await
-            .map_err(|e| anyhow::Error::from(e))?;
-        event!(Level::INFO, "Sent create_board task {}", task.task_id);
+        event!(
+            Level::INFO,
+            "election event {} with no board, skipping",
+            election_event_id
+        );
         return Ok(());
     }
 
@@ -72,7 +68,7 @@ pub async fn process_board(tenant_id: String, election_event_id: String) -> Resu
             ))
             .await
             .map_err(|e| anyhow::Error::from(e))?;
-        event!(Level::INFO, "Sent create_board task {}", task.task_id);
+        event!(Level::INFO, "Sent set_public_key task {}", task.task_id);
         return Ok(());
     }
 

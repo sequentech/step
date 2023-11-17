@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use log::info;
-use tracing::debug;
+use tracing::{event, Level, instrument};
 
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
@@ -266,9 +266,15 @@ impl BoardClient {
         Ok(boards[0].clone())
     }
 
+    #[instrument(skip(self))]
+    pub async fn has_database(&mut self, database_name: &str) -> Result<bool> {
+        self.client.has_database(database_name).await
+    }
+
+    #[instrument(skip(self))]
     pub async fn create_board(&mut self, index_db: &str, board_db: &str) -> Result<Board> {
         self.client.create_database(board_db).await?;
-        debug!("Database created!");
+        event!(Level::INFO, "Database created!");
         self.client.use_database(board_db).await?;
         let tables = r#"
             CREATE TABLE IF NOT EXISTS messages (
@@ -282,7 +288,7 @@ impl BoardClient {
             );
             "#;
         self.client.sql_exec(&tables, vec![]).await?;
-        debug!("Database tables created!");
+        event!(Level::INFO, "Database tables created!");
         self.client.use_database(index_db).await?;
 
         let message_sql = r#"

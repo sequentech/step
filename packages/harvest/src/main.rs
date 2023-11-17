@@ -32,6 +32,7 @@ fn rocket() -> _ {
                 routes::fetch_document::fetch_document,
                 routes::scheduled_event::create_scheduled_event,
                 routes::immudb_log_audit::list_pgaudit,
+                routes::insert_election_event::insert_election_event_f,
             ],
         )
 }

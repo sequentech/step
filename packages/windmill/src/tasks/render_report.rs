@@ -34,7 +34,6 @@ pub async fn render_report(
     input: RenderTemplateBody,
     tenant_id: String,
     election_event_id: String,
-    report_id: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
     println!("auth headers: {:#?}", auth_headers);

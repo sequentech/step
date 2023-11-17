@@ -5,7 +5,7 @@
 use anyhow::Context;
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
@@ -33,6 +33,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
         .with_context(|| "election event is missing bulletin board")?;
 
     if election_event.public_key.is_some() {
+        event!(Level::INFO, "Public key already set");
         return Ok(());
     }
 
