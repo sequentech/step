@@ -10,7 +10,6 @@ import org.keycloak.authentication.Authenticator;
 import org.keycloak.common.util.SecretGenerator;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
-import org.keycloak.models.AuthenticationFlowModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -18,9 +17,7 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
 
 import java.util.Locale;
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 /**
  * @author Niko Köbler, https://www.n-k.de, @sequent
