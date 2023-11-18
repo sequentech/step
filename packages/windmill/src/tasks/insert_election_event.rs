@@ -38,9 +38,11 @@ pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Resu
 
 #[instrument]
 pub async fn upsert_keycloak_realm(tenant_id: &str, election_event_id: &str) -> Result<()> {
+    let json_realm_config =
+        env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG").expect(&format!("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG must be set"));
     let client = KeycloakAdminClient::new().await?;
     let board_name = get_board_name(tenant_id, election_event_id);
-    client.upsert_realm(board_name.as_str()).await?;
+    client.upsert_realm(board_name.as_str(), &json_realm_config).await?;
     upsert_realm_jwks(board_name.as_str()).await?;
     Ok(())
 }
