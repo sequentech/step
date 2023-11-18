@@ -32,7 +32,13 @@ fn get_jwks_secret_path() -> String {
 #[instrument]
 pub async fn get_jwks() -> Result<Vec<JWKKey>> {
     let secret_path = get_jwks_secret_path();
-    let jwks_json = vault::read_secret(secret_path).await?;
+    let jwks_json_opt = vault::read_secret(secret_path).await?;
+    let jwks_json = match jwks_json_opt {
+        None => {
+            return Ok(vec![]);
+        }
+        Some(data) => data,
+    };
     let keys: Vec<JWKKey> = from_str(&jwks_json)?;
     Ok(keys)
 }

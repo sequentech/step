@@ -13,6 +13,7 @@ use crate::tasks::create_keys::create_keys;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::insert_election_event::insert_election_event_t;
+use crate::tasks::insert_tenant::insert_tenant;
 use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
@@ -20,7 +21,6 @@ use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::tally_election_event::tally_election_event;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use crate::tasks::update_voting_status::update_voting_status;
-use crate::tasks::insert_tenant::insert_tenant;
 
 static mut PREFETCH_COUNT_S: u16 = 100;
 static mut ACKS_LATE_S: bool = true;
