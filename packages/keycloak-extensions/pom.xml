@@ -11,7 +11,7 @@
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>otp-authenticator</module>
+		<module>message-otp-authenticator</module>
     </modules>
 
 	<properties>

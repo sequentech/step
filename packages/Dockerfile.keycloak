@@ -48,7 +48,7 @@ RUN keytool \
 # before calling `kc.sh build`
 COPY --chown=keycloak:keycloak \
    --from=spis-build \
-   /build/keycloak-extensions/otp-authenticator/target/sequent.otp-authenticator.jar \
+   /build/keycloak-extensions/message-otp-authenticator/target/sequent.message-otp-authenticator.jar \
    /opt/keycloak/providers/
 
 RUN /opt/keycloak/bin/kc.sh build

@@ -1,6 +1,6 @@
-# Keycloak 2FA Authenticator
+# Keycloak Message OTP Authenticator
 
-A powerful 2FA Authenticator for Keycloak.
+A powerful Message OTP Authenticator for Keycloak.
 
 ## Design
 

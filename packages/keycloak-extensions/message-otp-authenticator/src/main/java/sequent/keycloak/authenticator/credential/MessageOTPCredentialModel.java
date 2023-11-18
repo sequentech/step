@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2020 Cooper Lee
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 package sequent.keycloak.authenticator.credential;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -14,6 +19,12 @@ import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.Optional;
 
+/**
+ * Credential model for MessageOTP
+ *
+ * This credential model simply stores the fact that it is setup in the
+ * credential data and doesn't store any secret data, because it's not needed.
+ */
 public class MessageOTPCredentialModel extends CredentialModel {
 
     public static final String TYPE = "message-otp";

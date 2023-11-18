@@ -1,0 +1,181 @@
+package sequent.keycloak.authenticator.credential;
+
+import sequent.keycloak.authenticator.MessageOTPAuthenticatorFactory;
+import sequent.keycloak.authenticator.Utils;
+import org.jboss.logging.Logger;
+import org.keycloak.common.util.ObjectUtil;
+import org.keycloak.common.util.Time;
+import org.keycloak.credential.*;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserCredentialModel;
+import org.keycloak.models.UserModel;
+import org.keycloak.models.credential.dto.OTPSecretData;
+import org.keycloak.util.JsonSerialization;
+
+import java.io.IOException;
+import java.util.Optional;
+
+/**
+ *  证书使用 CredentialValidator 来认证，例如 password 证书 使用登录认证，本例中使用 phone OTP 认证
+ *   //not have credential , SmsOtpMfaAuthenticator setRequiredActions will add
+ *   ConfigSmsOtpRequiredAction to add an OPT credential
+ *   -> OTP
+ */
+public class MessageOTPCredentialProvider
+implements 
+    CredentialProvider<MessageOTPCredentialModel>,
+    CredentialInputValidator
+{
+
+    private final static Logger logger = 
+        Logger.getLogger(MessageOTPCredentialProvider.class);
+    private final KeycloakSession session;
+
+    public MessageOTPCredentialProvider(KeycloakSession session) {
+        this.session = session;
+    }
+
+    @Override
+    public boolean supportsCredentialType(String credentialType) {
+        return getType().equals(credentialType);
+    }
+
+    @Override
+    public boolean isConfiguredFor(
+        RealmModel realm,
+        UserModel user,
+        String credentialType
+    ) {
+        if (!supportsCredentialType(credentialType)) {
+            return false;
+        }
+        return user
+            .credentialManager()
+            .getStoredCredentialsByTypeStream(credentialType)
+            .findAny()
+            .isPresent();
+    }
+
+    @Override
+    public boolean isValid(
+        RealmModel realm,
+        UserModel user,
+        CredentialInput input
+    ) {
+        logger.info("isValid");
+
+        if (!(input instanceof UserCredentialModel)) {
+            return false;
+        }
+        if (!input.getType().equals(getType())) {
+            return false;
+        }
+
+        if (ObjectUtil.isBlank(input.getCredentialId())) {
+            logger.debugf(
+                "CredentialId is null when validating credential of user %s",
+                user.getUsername()
+            );
+            return false;
+        }
+
+        CredentialModel credential = user
+            .credentialManager()
+            .getStoredCredentialById(input.getCredentialId());
+        var invalid = Optional
+            .ofNullable(
+                user
+                    .credentialManager()
+                    .getStoredCredentialById(input.getCredentialId())
+            )
+            .map(credentialModel -> {
+                try {
+                    return JsonSerialization
+                        .readValue(
+                            credentialModel.getCredentialData(),
+                            MessageOTPCredentialModel.MessageOTPCredentialData.class
+                        );
+                } catch (IOException error)
+                {
+                    throw new IllegalArgumentException(error);
+                }
+            })
+            .map(MessageOTPCredentialModel.MessageOTPCredentialData::isSecretInvalid)
+            .filter(invalidSecret -> invalidSecret)
+            .orElse(false);
+        
+        return !invalid;
+        
+        /*
+        if (invalid) {
+            try {
+                getTokenCodeService().validateCode(user, phoneNumber, code, TokenCodeType.OTP);
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+        return Optional.ofNullable(credential.getSecretData())
+            .map(secretData -> {
+                try {
+                    return JsonSerialization.readValue(secretData, OTPSecretData.class);
+                } catch (IOException e) {
+                    throw new IllegalArgumentException(e);
+                }
+            })
+            .flatMap(secretData -> Optional.ofNullable(secretData.getValue()))
+            .map(CredentialCode -> CredentialCode.equals(code))
+            .orElse(false);*/
+    }
+
+    @Override
+    public String getType() {
+        return MessageOTPCredentialModel.TYPE;
+    }
+
+    @Override
+    public CredentialModel createCredential(
+        RealmModel realm,
+        UserModel user,
+        MessageOTPCredentialModel credential
+    ) {
+        if (credential.getCreatedDate() == null) {
+            credential.setCreatedDate(Time.currentTimeMillis());
+        }
+        return user.credentialManager().createStoredCredential(credential);
+    }
+
+    @Override
+    public boolean deleteCredential(
+        RealmModel realm,
+        UserModel user,
+        String credentialId
+    ) {
+        return user
+            .credentialManager()
+            .removeStoredCredentialById(credentialId);
+    }
+
+    @Override
+    public MessageOTPCredentialModel getCredentialFromModel(
+        CredentialModel credentialModel
+    ) {
+        return MessageOTPCredentialModel
+            .createFromCredentialModel(credentialModel);
+    }
+
+    @Override
+    public CredentialTypeMetadata getCredentialTypeMetadata(
+        CredentialTypeMetadataContext credentialTypeMetadataContext
+    ) {
+        return CredentialTypeMetadata.builder()
+                .type(getType())
+                .helpText("SMS/Email OTP Credential Type")
+                .category(CredentialTypeMetadata.Category.TWO_FACTOR)
+                .displayName(MessageOTPCredentialProviderFactory.PROVIDER_ID)
+                .createAction(MessageOTPAuthenticatorFactory.PROVIDER_ID)
+                .removeable(true)
+                .build(session);
+    }
+}

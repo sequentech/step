@@ -2,12 +2,16 @@ package sequent.keycloak.authenticator;
 
 import sequent.keycloak.authenticator.gateway.SmsServiceFactory;
 import sequent.keycloak.authenticator.gateway.EmailServiceFactory;
+import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
+import sequent.keycloak.authenticator.credential.MessageOTPCredentialProviderFactory;
 import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
+import org.keycloak.authentication.CredentialValidator;
 import org.keycloak.common.util.SecretGenerator;
+import org.keycloak.credential.CredentialProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
@@ -22,13 +26,24 @@ import java.util.Optional;
 /**
  * @author Niko Köbler, https://www.n-k.de, @sequent
  */
-public class MessageOTPAuthenticator implements Authenticator {
+public class MessageOTPAuthenticator implements Authenticator, CredentialValidator<MessageOTPCredentialProvider> {
 
-
-	private static final Logger logger = Logger.getLogger(MessageOTPAuthenticator.class);
+	private static final Logger logger = Logger
+		.getLogger(MessageOTPAuthenticator.class);
 	public static final String MOBILE_NUMBER_FIELD = "read-only.mobile-number";
 	public static final String EMAIL_ADDRESS_FIELD = "read-only.email-address";
-	private static final String TPL_CODE = "login-sms.ftl";
+	private static final String TPL_CODE = "login-message-otp.ftl";
+
+	@Override
+	public MessageOTPCredentialProvider getCredentialProvider(
+		KeycloakSession session
+	) {
+		return (MessageOTPCredentialProvider) session
+			.getProvider(
+				CredentialProvider.class,
+				MessageOTPCredentialProviderFactory.PROVIDER_ID
+			);
+	}
 
 	@Override
 	public void authenticate(AuthenticationFlowContext context) {
@@ -39,19 +54,19 @@ public class MessageOTPAuthenticator implements Authenticator {
 
 		String telUserAttribute = config
 			.getConfig()
-			.get(MessageOTPConstants.TEL_USER_ATTRIBUTE);
+			.get(Utils.TEL_USER_ATTRIBUTE);
 		String mobileNumber = user.getFirstAttribute(telUserAttribute);
 
 		String emailUserAttribute = config
 			.getConfig()
-			.get(MessageOTPConstants.EMAIL_USER_ATTRIBUTE);
+			.get(Utils.EMAIL_USER_ATTRIBUTE);
 		String emailAddress = user.getFirstAttribute(emailUserAttribute);
 
 		int length = Integer.parseInt(
-			config.getConfig().get(MessageOTPConstants.CODE_LENGTH)
+			config.getConfig().get(Utils.CODE_LENGTH)
 		);
 		int ttl = Integer.parseInt(
-			config.getConfig().get(MessageOTPConstants.CODE_TTL)
+			config.getConfig().get(Utils.CODE_TTL)
 		);
 
 		String code = SecretGenerator
@@ -59,9 +74,9 @@ public class MessageOTPAuthenticator implements Authenticator {
 			.randomString(length, SecretGenerator.DIGITS);
 		AuthenticationSessionModel authSession = context
 			.getAuthenticationSession();
-		authSession.setAuthNote(MessageOTPConstants.CODE, code);
+		authSession.setAuthNote(Utils.CODE, code);
 		authSession.setAuthNote(
-			MessageOTPConstants.CODE_TTL,
+			Utils.CODE_TTL,
 			Long.toString(System.currentTimeMillis() + (ttl * 1000L))
 		);
 
@@ -130,12 +145,12 @@ public class MessageOTPAuthenticator implements Authenticator {
 		String enteredCode = context
 			.getHttpRequest()
 			.getDecodedFormParameters()
-			.getFirst(MessageOTPConstants.CODE);
+			.getFirst(Utils.CODE);
 
 		AuthenticationSessionModel authSession = context
 			.getAuthenticationSession();
-		String code = authSession.getAuthNote(MessageOTPConstants.CODE);
-		String ttl = authSession.getAuthNote(MessageOTPConstants.CODE_TTL);
+		String code = authSession.getAuthNote(Utils.CODE);
+		String ttl = authSession.getAuthNote(Utils.CODE_TTL);
 
 		if (code == null || ttl == null) {
 			context.failureChallenge(
@@ -193,36 +208,25 @@ public class MessageOTPAuthenticator implements Authenticator {
 		UserModel user
 	) {
 		logger.info("configuredFor() called");
-		// Using streams to find the first matching configuration
-		// TODO: We're assuming there's only one instance in this realm of this 
-		// authenticator
-		Optional<AuthenticatorConfigModel> configOptional = realm
-			.getAuthenticationFlowsStream()
-			.flatMap(flow ->
-				realm.getAuthenticationExecutionsStream(flow.getId())
-			)
-			.filter(model -> {
-				boolean ret = (
-					model.getAuthenticator() != null &&
-					model.getAuthenticator()
-						.equals(MessageOTPAuthenticatorFactory.PROVIDER_ID)
-				);
-				return ret;
-			})
-			.map(model ->
-				realm.getAuthenticatorConfigById(model.getAuthenticatorConfig())
-			)
-			.findFirst();
+		if (
+			!getCredentialProvider(session)
+				.isConfiguredFor(realm, user, getType(session))
+		) {
+			return false;
+		}
+
+		Optional<AuthenticatorConfigModel> config = Utils
+			.getConfig(realm);
 
 		// If no configuration is found, fall back to default behavior
-	 	if (!configOptional.isPresent()) {
+	 	if (!config.isPresent()) {
 			return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
 		}
 	
-		String telUserAttribute = configOptional
+		String telUserAttribute = config
 			.get()
 			.getConfig()
-			.get(MessageOTPConstants.TEL_USER_ATTRIBUTE);
+			.get(Utils.TEL_USER_ATTRIBUTE);
 		return user.getFirstAttribute(telUserAttribute) != null;
 	}
 

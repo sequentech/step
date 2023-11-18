@@ -1,5 +1,6 @@
-/*package sequent.keycloak.authenticator;
+package sequent.keycloak.authenticator;
 
+import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedMap;
 import org.keycloak.Config;
@@ -18,12 +19,17 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 
 import java.util.Map;
 
+
+/**
+ * Required Action that requires users to choose at least one 2nd auth factor
+ * method, thus implementing MFA enforment.
+ */
 @AutoService(RequiredActionFactory.class)
-public class OTPMethodSelector 
+public class MFAMethodSelector 
     implements RequiredActionFactory, RequiredActionProvider
 {
 
-	public static final String PROVIDER_ID = "otp-method-selector";
+	public static final String PROVIDER_ID = "mfa-method-selector";
 
 	// map of key-value pairs:
     // - key = credential type
@@ -31,7 +37,10 @@ public class OTPMethodSelector
 	// { "otp": "CONFIGURE_TOTP", "webauthn": "webauthn-register" }
 	private static final Map<String, String> credentialTypes = Map.of(
 		OTPCredentialModel.TYPE, UserModel.RequiredAction.CONFIGURE_TOTP.name(),
-		WebAuthnCredentialModel.TYPE_TWOFACTOR, WebAuthnRegisterFactory.PROVIDER_ID
+
+		 // TODO: MessageOTPRequiredAction.name() instead of
+		 // "configure-message-otp"
+		MessageOTPCredentialModel.TYPE, "configure-message-otp"
 	);
 
 	@Override
@@ -41,9 +50,12 @@ public class OTPMethodSelector
 
 	@Override
 	public void evaluateTriggers(RequiredActionContext context) {
-		// self registering if user doesn't have already one out of the configured credential types
+		// self registering if user doesn't have already one out of the
+		// configured credential types
 		UserModel user = context.getUser();
-		AuthenticationSessionModel authSession = context.getAuthenticationSession();
+		AuthenticationSessionModel authSession = context
+			.getAuthenticationSession();
+		
 		if (
             credentialTypes
                 .keySet()
@@ -70,7 +82,7 @@ public class OTPMethodSelector
 		form.setAttribute("realm", context.getRealm());
 		form.setAttribute("user", context.getUser());
 		form.setAttribute("credentialOptions", credentialTypes);
-		context.challenge(form.createForm("otp-method-selector.ftl"));
+		context.challenge(form.createForm("configure-message-otp.ftl"));
 	}
 
 	@Override
@@ -91,7 +103,7 @@ public class OTPMethodSelector
 
 	@Override
 	public String getDisplayText() {
-		return "Configure OTP method to use";
+		return "Configure MFA method to use";
 	}
 
 	@Override
@@ -116,4 +128,3 @@ public class OTPMethodSelector
 		return PROVIDER_ID;
 	}
 }
-*/

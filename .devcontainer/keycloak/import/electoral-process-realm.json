@@ -1904,7 +1904,7 @@
         "userSetupAllowed" : false
       }, {
         "authenticatorConfig" : "SMS Auth Config",
-        "authenticator" : "otp-authenticator",
+        "authenticator" : "message-otp-authenticator",
         "authenticatorFlow" : false,
         "requirement" : "REQUIRED",
         "priority" : 23,
@@ -2221,7 +2221,7 @@
         "userSetupAllowed" : false
       }, {
         "authenticatorConfig" : "email-sms",
-        "authenticator" : "otp-authenticator",
+        "authenticator" : "message-otp-authenticator",
         "authenticatorFlow" : false,
         "requirement" : "REQUIRED",
         "priority" : 12,
