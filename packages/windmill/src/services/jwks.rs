@@ -1,0 +1,77 @@
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::vault;
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use serde_json::{from_str, to_string};
+use std::env;
+use tracing::{event, instrument, Level};
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct JWKKey {
+    pub alg: String,
+    pub kty: String,
+    pub r#use: String,
+    pub n: String,
+    pub e: String,
+    pub kid: String,
+    pub x5t: String,
+    pub x5c: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct JwksOutput {
+    pub keys: Vec<JWKKey>,
+}
+
+fn get_jwks_secret_path() -> String {
+    "keycloak/jwks.json".to_string()
+}
+
+#[instrument]
+pub async fn get_jwks() -> Result<Vec<JWKKey>> {
+    let secret_path = get_jwks_secret_path();
+    let jwks_json = vault::read_secret(secret_path).await?;
+    let keys: Vec<JWKKey> = from_str(&jwks_json)?;
+    Ok(keys)
+}
+
+#[instrument]
+pub async fn download_realm_jwks_from_keycloak(realm: &str) -> Result<Vec<JWKKey>> {
+    let keycloak_url = env::var("KEYCLOAK_URL").expect(&format!("KEYCLOAK_URL must be set"));
+    let hasura_endpoint = format!(
+        "{}/realms/{}/protocol/openid-connect/certs",
+        keycloak_url, realm
+    );
+
+    let client = reqwest::Client::new();
+    let res = client.get(hasura_endpoint).send().await?;
+    let response_body: JwksOutput = res.json().await?;
+    Ok(response_body.keys)
+}
+
+#[instrument]
+pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
+    let mut realm_jwks = download_realm_jwks_from_keycloak(realm).await?;
+    let existing_jwks = get_jwks().await?;
+    let existing_kids: Vec<String> = existing_jwks
+        .iter()
+        .map(|realm| realm.kid.clone())
+        .collect();
+    let new_jwks: Vec<JWKKey> = realm_jwks
+        .clone()
+        .into_iter()
+        .filter(|key| !existing_kids.contains(&key.kid))
+        .collect();
+    if 0 == new_jwks.len() {
+        event!(Level::INFO, "Jwks for realm {} already present", realm);
+        return Ok(());
+    }
+    realm_jwks.extend(new_jwks);
+    let all_jwks_str = to_string(&realm_jwks)?;
+    let secret_path = get_jwks_secret_path();
+    vault::save_secret(secret_path.to_string(), all_jwks_str).await?;
+
+    Ok(())
+}

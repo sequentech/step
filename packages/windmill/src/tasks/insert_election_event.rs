@@ -10,13 +10,14 @@ use sequent_core::services::connection;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use serde_json::Value;
 use std::env;
-use tracing::{event, Level, instrument};
+use tracing::{event, instrument, Level};
 
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
+use crate::hasura::election_event::{get_election_event, insert_election_event};
 use crate::services::election_event_board::BoardSerializable;
+use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::get_board_client;
 use crate::types::error::Result;
-use crate::hasura::election_event::{insert_election_event, get_election_event};
 
 #[instrument]
 pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Result<Value> {
@@ -40,6 +41,7 @@ pub async fn upsert_keycloak_realm(tenant_id: &str, election_event_id: &str) -> 
     let client = KeycloakAdminClient::new().await?;
     let board_name = get_board_name(tenant_id, election_event_id);
     client.upsert_realm(board_name.as_str()).await?;
+    upsert_realm_jwks(board_name.as_str()).await?;
     Ok(())
 }
 
@@ -56,14 +58,19 @@ pub async fn insert_election_event_db(
         tenant_id.clone(),
         election_event_id.clone(),
     )
-        .await?
-        .data
-        .expect("expected data".into())
-        .sequent_backend_election_event;
+    .await?
+    .data
+    .expect("expected data".into())
+    .sequent_backend_election_event;
 
     if found_election_event.len() > 0 {
-        event!(Level::INFO, "Election event {} for tenant {} already exists", election_event_id, tenant_id);
-        return Ok(())
+        event!(
+            Level::INFO,
+            "Election event {} for tenant {} already exists",
+            election_event_id,
+            tenant_id
+        );
+        return Ok(());
     }
 
     let _hasura_response = insert_election_event(auth_headers.clone(), object.clone()).await?;
