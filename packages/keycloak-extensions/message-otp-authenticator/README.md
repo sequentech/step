@@ -14,7 +14,7 @@ multiple features:
   telephone number.
 - [x] Allow to send the same OTP via both SMS and Email if the user has both
   user attributes configured.
-- [ ] Integrate with "Reset OTP" Required Action, in which case it can be
+- [x] Integrate with "Reset OTP" Required Action, in which case it can be
   configured for a specific user that the OTP authenticators are disabled.
 - [ ] A REST endpoint that generates and returns a magic link for resetting the
   user. This allows the integration with third-party systems (like windmill).

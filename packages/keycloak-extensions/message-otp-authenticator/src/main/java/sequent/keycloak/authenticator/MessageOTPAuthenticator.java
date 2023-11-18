@@ -146,9 +146,10 @@ public class MessageOTPAuthenticator implements Authenticator, CredentialValidat
 		UserModel user
 	) {
 		logger.info("configuredFor() called");
+		MessageOTPCredentialProvider provider = getCredentialProvider(session);
 		if (
-			!getCredentialProvider(session)
-				.isConfiguredFor(realm, user, getType(session))
+			provider == null ||
+			!provider.isConfiguredFor(realm, user, getType(session))
 		) {
 			return false;
 		}
