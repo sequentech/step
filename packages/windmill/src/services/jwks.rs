@@ -35,6 +35,7 @@ pub async fn get_jwks() -> Result<Vec<JWKKey>> {
     let jwks_json_opt = vault::read_secret(secret_path).await?;
     let jwks_json = match jwks_json_opt {
         None => {
+            event!(Level::INFO, "Jwks are empty");
             return Ok(vec![]);
         }
         Some(data) => data,
@@ -59,8 +60,8 @@ pub async fn download_realm_jwks_from_keycloak(realm: &str) -> Result<Vec<JWKKey
 
 #[instrument]
 pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
-    let mut realm_jwks = download_realm_jwks_from_keycloak(realm).await?;
-    let existing_jwks = get_jwks().await?;
+    let realm_jwks = download_realm_jwks_from_keycloak(realm).await?;
+    let mut existing_jwks = get_jwks().await?;
     let existing_kids: Vec<String> = existing_jwks
         .iter()
         .map(|realm| realm.kid.clone())
@@ -74,7 +75,7 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
         event!(Level::INFO, "Jwks for realm {} already present", realm);
         return Ok(());
     }
-    realm_jwks.extend(new_jwks);
+    existing_jwks.extend(new_jwks);
     let all_jwks_str = to_string(&realm_jwks)?;
     let secret_path = get_jwks_secret_path();
     vault::save_secret(secret_path.to_string(), all_jwks_str).await?;

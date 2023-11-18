@@ -9,7 +9,7 @@ use tracing::instrument;
 use windmill::services::jwks::{JWKKey, get_jwks, JwksOutput};
 
 #[instrument]
-#[get("/jwks.json", format = "json")]
+#[get("/jwks.json")]
 pub async fn get_jwks_json() -> Result<Json<JwksOutput>, Debug<anyhow::Error>> {
     let keys: Vec<JWKKey> = get_jwks().await.map_err(|e| anyhow::Error::from(e))?;
     Ok(Json(JwksOutput {
