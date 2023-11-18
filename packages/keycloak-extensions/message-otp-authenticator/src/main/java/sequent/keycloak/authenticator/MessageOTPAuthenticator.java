@@ -51,89 +51,27 @@ public class MessageOTPAuthenticator implements Authenticator, CredentialValidat
 		AuthenticatorConfigModel config = context.getAuthenticatorConfig();
 		KeycloakSession session = context.getSession();
 		UserModel user = context.getUser();
-
-		String telUserAttribute = config
-			.getConfig()
-			.get(Utils.TEL_USER_ATTRIBUTE);
-		String mobileNumber = user.getFirstAttribute(telUserAttribute);
-
-		String emailUserAttribute = config
-			.getConfig()
-			.get(Utils.EMAIL_USER_ATTRIBUTE);
-		String emailAddress = user.getFirstAttribute(emailUserAttribute);
-
-		int length = Integer.parseInt(
-			config.getConfig().get(Utils.CODE_LENGTH)
-		);
-		int ttl = Integer.parseInt(
-			config.getConfig().get(Utils.CODE_TTL)
-		);
-
-		String code = SecretGenerator
-			.getInstance()
-			.randomString(length, SecretGenerator.DIGITS);
 		AuthenticationSessionModel authSession = context
 			.getAuthenticationSession();
-		authSession.setAuthNote(Utils.CODE, code);
-		authSession.setAuthNote(
-			Utils.CODE_TTL,
-			Long.toString(System.currentTimeMillis() + (ttl * 1000L))
-		);
 
 		try {
-			Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
-			Locale locale = session.getContext().resolveLocale(user);
-			String smsAuthText = theme
-				.getMessages(locale)
-				.getProperty("smsAuthText");
-			String smsText = String
-				.format(smsAuthText, code, Math.floorDiv(ttl, 60));
-
-			String emailAuthTitle = theme
-				.getMessages(locale)
-				.getProperty("emailAuthTitle");
-			String emailTitle = String
-				.format(emailAuthTitle, code, Math.floorDiv(ttl, 60));
-
-			String emailAuthBody = theme
-				.getMessages(locale)
-				.getProperty("emailAuthBody");
-			String emailBody = String
-				.format(emailAuthBody, code, Math.floorDiv(ttl, 60));
-
-			String emailAuthHtmlBody = theme
-				.getMessages(locale)
-				.getProperty("emailAuthHtmlBody");
-			String emailHtmlBody = String
-				.format(emailAuthHtmlBody, code, Math.floorDiv(ttl, 60));
-
-			if (mobileNumber != null) {
-				SmsServiceFactory
-					.get(config.getConfig())
-					.send(mobileNumber, smsText);
-			}
-			if (emailAddress != null) {
-				EmailServiceFactory
-					.get(config.getConfig())
-					.send(
-						emailAddress,
-						emailTitle,
-						emailBody,
-						emailHtmlBody
-					);
-			} 
-
+			Utils.sendCode(
+				config,
+				session,
+				user,
+				authSession
+			);
 			context
 				.challenge(
 					context.form().setAttribute("realm", context.getRealm()
 				)
 				.createForm(TPL_CODE));
-		} catch (Exception e) {
+		} catch (Exception error) {
 			context.failureChallenge(
 				AuthenticationFlowError.INTERNAL_ERROR,
 				context
 					.form()
-					.setError("smsAuthSmsNotSent", e.getMessage())
+					.setError("smsAuthSmsNotSent", error.getMessage())
 					.createErrorPage(Response.Status.INTERNAL_SERVER_ERROR)
 			);
 		}
@@ -170,7 +108,7 @@ public class MessageOTPAuthenticator implements Authenticator, CredentialValidat
 					AuthenticationFlowError.EXPIRED_CODE,
 					context
 						.form()
-						.setError("smsAuthCodeExpired")
+						.setError("messageOtpAuthCodeExpired")
 						.createErrorPage(Response.Status.BAD_REQUEST)
 				);
 			} else {
@@ -186,7 +124,7 @@ public class MessageOTPAuthenticator implements Authenticator, CredentialValidat
 					context
 						.form()
 						.setAttribute("realm", context.getRealm())
-						.setError("smsAuthCodeInvalid")
+						.setError("messageOtpAuthCodeInvalid")
 						.createForm(TPL_CODE)
 				);
 			} else if (execution.isConditional() || execution.isAlternative()) {

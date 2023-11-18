@@ -1,6 +1,7 @@
 package sequent.keycloak.authenticator;
 
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
+import sequent.keycloak.authenticator.ResetMessageOTPRequiredAction;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedMap;
 import org.keycloak.Config;
@@ -8,13 +9,11 @@ import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.authentication.RequiredActionFactory;
 import org.keycloak.authentication.RequiredActionProvider;
-import org.keycloak.authentication.requiredactions.WebAuthnRegisterFactory;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.OTPCredentialModel;
-import org.keycloak.models.credential.WebAuthnCredentialModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 import java.util.Map;
@@ -30,17 +29,21 @@ public class MFAMethodSelector
 {
 
 	public static final String PROVIDER_ID = "mfa-method-selector";
+	private static final String TPL_SELECTOR = "selector-2fa.ftl";
 
 	// map of key-value pairs:
     // - key = credential type
     // - value = associated required action id
-	// { "otp": "CONFIGURE_TOTP", "webauthn": "webauthn-register" }
+	// {
+	//  	"otp": "CONFIGURE_TOTP",
+	// 		"message-otp": "message-otp-ra"
+	// }
 	private static final Map<String, String> credentialTypes = Map.of(
-		OTPCredentialModel.TYPE, UserModel.RequiredAction.CONFIGURE_TOTP.name(),
+		OTPCredentialModel.TYPE, 
+		UserModel.RequiredAction.CONFIGURE_TOTP.name(),
 
-		 // TODO: MessageOTPRequiredAction.name() instead of
-		 // "configure-message-otp"
-		MessageOTPCredentialModel.TYPE, "configure-message-otp"
+		MessageOTPCredentialModel.TYPE,
+		ResetMessageOTPRequiredAction.PROVIDER_ID
 	);
 
 	@Override
@@ -82,7 +85,7 @@ public class MFAMethodSelector
 		form.setAttribute("realm", context.getRealm());
 		form.setAttribute("user", context.getUser());
 		form.setAttribute("credentialOptions", credentialTypes);
-		context.challenge(form.createForm("configure-message-otp.ftl"));
+		context.challenge(form.createForm(TPL_SELECTOR));
 	}
 
 	@Override
