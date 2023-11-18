@@ -38,11 +38,14 @@ public class MessageOTPAuthenticator implements Authenticator, CredentialValidat
 	public MessageOTPCredentialProvider getCredentialProvider(
 		KeycloakSession session
 	) {
-		return (MessageOTPCredentialProvider) session
-			.getProvider(
-				CredentialProvider.class,
-				MessageOTPCredentialProviderFactory.PROVIDER_ID
-			);
+		logger.info("getCredentialProvider()");
+		return new MessageOTPCredentialProvider(session);
+		// TODO: doesn't work - why?
+		// return (MessageOTPCredentialProvider) session
+		// 	.getProvider(
+		// 		CredentialProvider.class,
+		// 		MessageOTPCredentialProviderFactory.PROVIDER_ID
+		// 	);
 	}
 
 	@Override

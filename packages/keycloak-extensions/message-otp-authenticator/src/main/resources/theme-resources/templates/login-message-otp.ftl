@@ -3,7 +3,7 @@
 	<#if section = "header">
 		${msg("messageOtpAuthTitle", realm.displayName)}
 	<#elseif section = "show-username">
-		<h1>${msg("messageOtpAuthCodeTitle", realm.displayName)}</h1>
+		<h1>${msg("messageOtpAuthTitle", realm.displayName)}</h1>
 	<#elseif section = "form">
 		<form
 			id="kc-message-code-login-form"

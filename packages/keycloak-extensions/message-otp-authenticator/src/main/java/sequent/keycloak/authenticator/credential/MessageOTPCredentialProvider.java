@@ -140,6 +140,7 @@ implements
         UserModel user,
         MessageOTPCredentialModel credential
     ) {
+        logger.info("createCredential()");
         if (credential.getCreatedDate() == null) {
             credential.setCreatedDate(Time.currentTimeMillis());
         }

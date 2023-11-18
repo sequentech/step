@@ -4,20 +4,15 @@ import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProviderFactory;
 import org.jboss.logging.Logger;
-import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.authentication.RequiredActionProvider;
 import org.keycloak.credential.CredentialProvider;
-import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.forms.login.LoginFormsProvider;
-import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
-import org.keycloak.models.utils.FormMessage;
-import org.keycloak.services.validation.Validation;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 import java.util.function.Consumer;
@@ -31,6 +26,20 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
 
     public static final String IS_SETUP_FIELD = "is-setup";
     private static final String FTL_RESET_MESSAGE_OTP = "reset-message-otp.ftl";
+
+
+	public MessageOTPCredentialProvider getCredentialProvider(
+		KeycloakSession session
+	) {
+		logger.info("getCredentialProvider()");
+		return new MessageOTPCredentialProvider(session);
+		// TODO: doesn't work - why?
+		// return (MessageOTPCredentialProvider) session
+		// 	.getProvider(
+		// 		CredentialProvider.class,
+		// 		MessageOTPCredentialProviderFactory.PROVIDER_ID
+		// 	);
+	}
 
 	@Override
 	public InitiatedActionSupport initiatedActionSupport() {
@@ -95,18 +104,15 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
 
 		// Generate a MessageOTP credential for the user and remove the required
 		// action
-		MessageOTPCredentialProvider credentialrRovider = 
-			(MessageOTPCredentialProvider) context
-				.getSession()
-				.getProvider(
-					CredentialProvider.class,
-					MessageOTPCredentialProviderFactory.PROVIDER_ID
-				);
-        credentialrRovider.createCredential(
-			context.getRealm(),
-			context.getUser(),
-            MessageOTPCredentialModel.create(/* isSetup= */ true)
+		MessageOTPCredentialProvider credentialProvider = getCredentialProvider(
+			context.getSession()
 		);
+        credentialProvider
+			.createCredential(
+				context.getRealm(),
+				context.getUser(),
+				MessageOTPCredentialModel.create(/* isSetup= */ true)
+			);
 		// TODO: do we need to mark the verification of the message-otp
 		// authenticator as done?
 

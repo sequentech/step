@@ -95,7 +95,7 @@ public class MessageOTPCredentialModel extends CredentialModel {
 
     public static MessageOTPCredentialModel create(boolean isSetup) {
         MessageOTPCredentialData credentialData = new MessageOTPCredentialData(isSetup);
-        MessageOTPSecretData secretData = new MessageOTPSecretData();
+        MessageOTPSecretData secretData = new MessageOTPSecretData("nothing");
         MessageOTPCredentialModel credentialModel =
             new MessageOTPCredentialModel(credentialData, secretData);
         credentialModel.fillCredentialModelFields();
