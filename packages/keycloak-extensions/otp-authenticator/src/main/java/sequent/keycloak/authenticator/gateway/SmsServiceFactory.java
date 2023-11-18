@@ -1,6 +1,6 @@
 package sequent.keycloak.authenticator.gateway;
 
-import sequent.keycloak.authenticator.OTPConstants;
+import sequent.keycloak.authenticator.MessageOTPConstants;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
@@ -10,7 +10,7 @@ public class SmsServiceFactory {
 	public static SmsService get(Map<String, String> config) {
 		if (Boolean
 			.parseBoolean(
-				config.getOrDefault(OTPConstants.SIMULATION_MODE, "false")
+				config.getOrDefault(MessageOTPConstants.SIMULATION_MODE, "false")
 			)
 		) {
 			return (phoneNumber, message) ->

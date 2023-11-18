@@ -22,10 +22,10 @@ import java.util.Optional;
 /**
  * @author Niko Köbler, https://www.n-k.de, @sequent
  */
-public class OTPAuthenticator implements Authenticator {
+public class MessageOTPAuthenticator implements Authenticator {
 
 
-	private static final Logger logger = Logger.getLogger(OTPAuthenticator.class);
+	private static final Logger logger = Logger.getLogger(MessageOTPAuthenticator.class);
 	public static final String MOBILE_NUMBER_FIELD = "read-only.mobile-number";
 	public static final String EMAIL_ADDRESS_FIELD = "read-only.email-address";
 	private static final String TPL_CODE = "login-sms.ftl";
@@ -39,19 +39,19 @@ public class OTPAuthenticator implements Authenticator {
 
 		String telUserAttribute = config
 			.getConfig()
-			.get(OTPConstants.TEL_USER_ATTRIBUTE);
+			.get(MessageOTPConstants.TEL_USER_ATTRIBUTE);
 		String mobileNumber = user.getFirstAttribute(telUserAttribute);
 
 		String emailUserAttribute = config
 			.getConfig()
-			.get(OTPConstants.EMAIL_USER_ATTRIBUTE);
+			.get(MessageOTPConstants.EMAIL_USER_ATTRIBUTE);
 		String emailAddress = user.getFirstAttribute(emailUserAttribute);
 
 		int length = Integer.parseInt(
-			config.getConfig().get(OTPConstants.CODE_LENGTH)
+			config.getConfig().get(MessageOTPConstants.CODE_LENGTH)
 		);
 		int ttl = Integer.parseInt(
-			config.getConfig().get(OTPConstants.CODE_TTL)
+			config.getConfig().get(MessageOTPConstants.CODE_TTL)
 		);
 
 		String code = SecretGenerator
@@ -59,9 +59,9 @@ public class OTPAuthenticator implements Authenticator {
 			.randomString(length, SecretGenerator.DIGITS);
 		AuthenticationSessionModel authSession = context
 			.getAuthenticationSession();
-		authSession.setAuthNote(OTPConstants.CODE, code);
+		authSession.setAuthNote(MessageOTPConstants.CODE, code);
 		authSession.setAuthNote(
-			OTPConstants.CODE_TTL,
+			MessageOTPConstants.CODE_TTL,
 			Long.toString(System.currentTimeMillis() + (ttl * 1000L))
 		);
 
@@ -130,12 +130,12 @@ public class OTPAuthenticator implements Authenticator {
 		String enteredCode = context
 			.getHttpRequest()
 			.getDecodedFormParameters()
-			.getFirst(OTPConstants.CODE);
+			.getFirst(MessageOTPConstants.CODE);
 
 		AuthenticationSessionModel authSession = context
 			.getAuthenticationSession();
-		String code = authSession.getAuthNote(OTPConstants.CODE);
-		String ttl = authSession.getAuthNote(OTPConstants.CODE_TTL);
+		String code = authSession.getAuthNote(MessageOTPConstants.CODE);
+		String ttl = authSession.getAuthNote(MessageOTPConstants.CODE_TTL);
 
 		if (code == null || ttl == null) {
 			context.failureChallenge(
@@ -205,7 +205,7 @@ public class OTPAuthenticator implements Authenticator {
 				boolean ret = (
 					model.getAuthenticator() != null &&
 					model.getAuthenticator()
-						.equals(OTPAuthenticatorFactory.PROVIDER_ID)
+						.equals(MessageOTPAuthenticatorFactory.PROVIDER_ID)
 				);
 				return ret;
 			})
@@ -222,7 +222,7 @@ public class OTPAuthenticator implements Authenticator {
 		String telUserAttribute = configOptional
 			.get()
 			.getConfig()
-			.get(OTPConstants.TEL_USER_ATTRIBUTE);
+			.get(MessageOTPConstants.TEL_USER_ATTRIBUTE);
 		return user.getFirstAttribute(telUserAttribute) != null;
 	}
 
@@ -236,7 +236,7 @@ public class OTPAuthenticator implements Authenticator {
 		// this will only work if you have the required action from here
 		// configured:
 		// https://github.com/dasniko/keycloak-extensions-demo/tree/main/requiredaction
-		user.addRequiredAction("mobile-number-ra");
+		//TODO:user.addRequiredAction(OTPMethodSelector.PROVIDER_ID);
 	}
 
 	@Override
