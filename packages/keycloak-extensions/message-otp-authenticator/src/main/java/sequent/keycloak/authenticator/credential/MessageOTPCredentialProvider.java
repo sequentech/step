@@ -47,14 +47,18 @@ implements
         UserModel user,
         String credentialType
     ) {
+        logger.info("isConfiguredFor(): " + credentialType);
         if (!supportsCredentialType(credentialType)) {
+            logger.info("isConfiguredFor(): !supportsCredentialType");
             return false;
         }
-        return user
+        boolean ret = user
             .credentialManager()
             .getStoredCredentialsByTypeStream(credentialType)
             .findAny()
             .isPresent();
+        logger.info("isConfiguredFor(): ret="  + ret);
+        return ret;
     }
 
     @Override
@@ -80,9 +84,6 @@ implements
             return false;
         }
 
-        CredentialModel credential = user
-            .credentialManager()
-            .getStoredCredentialById(input.getCredentialId());
         var invalid = Optional
             .ofNullable(
                 user
@@ -104,29 +105,8 @@ implements
             .map(MessageOTPCredentialModel.MessageOTPCredentialData::isSecretInvalid)
             .filter(invalidSecret -> invalidSecret)
             .orElse(false);
-        
+
         return !invalid;
-        
-        /*
-        if (invalid) {
-            try {
-                getTokenCodeService().validateCode(user, phoneNumber, code, TokenCodeType.OTP);
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
-        }
-        return Optional.ofNullable(credential.getSecretData())
-            .map(secretData -> {
-                try {
-                    return JsonSerialization.readValue(secretData, OTPSecretData.class);
-                } catch (IOException e) {
-                    throw new IllegalArgumentException(e);
-                }
-            })
-            .flatMap(secretData -> Optional.ofNullable(secretData.getValue()))
-            .map(CredentialCode -> CredentialCode.equals(code))
-            .orElse(false);*/
     }
 
     @Override
@@ -153,6 +133,7 @@ implements
         UserModel user,
         String credentialId
     ) {
+        logger.info("deleteCredential()");
         return user
             .credentialManager()
             .removeStoredCredentialById(credentialId);

@@ -4,6 +4,8 @@ import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.ResetMessageOTPRequiredAction;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedMap;
+
+import org.jboss.logging.Logger;
 import org.keycloak.Config;
 import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
@@ -27,6 +29,8 @@ import java.util.Map;
 public class MFAMethodSelector 
     implements RequiredActionFactory, RequiredActionProvider
 {
+	private static final Logger logger = Logger
+		.getLogger(MFAMethodSelector .class);
 
 	public static final String PROVIDER_ID = "mfa-method-selector";
 	private static final String TPL_SELECTOR = "selector-2fa.ftl";
@@ -53,18 +57,36 @@ public class MFAMethodSelector
 
 	@Override
 	public void evaluateTriggers(RequiredActionContext context) {
+		logger.info("evaluateTriggers()");
 		// self registering if user doesn't have already one out of the
 		// configured credential types
 		UserModel user = context.getUser();
 		AuthenticationSessionModel authSession = context
 			.getAuthenticationSession();
-		
+
 		if (
+			authSession
+				.getRequiredActions()
+                .stream()
+				.noneMatch(PROVIDER_ID::equals) &&
             credentialTypes
                 .keySet()
                 .stream()
                 .noneMatch(
-                    type -> user.credentialManager().isConfiguredFor(type)
+                    type -> {
+						boolean ret = user
+							.credentialManager()
+							.getStoredCredentialsByTypeStream(type)
+							.findAny()
+							.isPresent();
+						// TODO: The following doesn't work, for some unknown
+						// reason
+						// boolean ret = user
+						// 	.credentialManager()
+						// 	.isConfiguredFor(type);
+						logger.info("evaluateTriggers(): credentiaTypes: type=" + type + ", userHasAny=" + ret);
+						return ret;
+					}
                 ) &&
             user
                 .getRequiredActionsStream()
@@ -74,6 +96,7 @@ public class MFAMethodSelector
                 .stream()
                 .noneMatch(credentialTypes::containsValue)
         ) {
+			logger.info("evaluateTriggers(): adding required action");
             authSession.addRequiredAction(PROVIDER_ID);
 		}
 	}
