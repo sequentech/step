@@ -21,7 +21,7 @@ pub struct JWKKey {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct JwksOutput {
+pub struct JwksOutput {
     pub keys: Vec<JWKKey>,
 }
 

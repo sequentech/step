@@ -5,17 +5,12 @@
 use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
-use sequent_core::services::connection;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use windmill::services::jwks::{JWKKey, get_jwks, JwksOutput};
-use windmill::tasks::insert_election_event;
-use serde::{Deserialize, Serialize};
-use serde_json::from_str;
-use uuid::Uuid;
 
 #[instrument]
 #[get("/jwks.json", format = "json")]
-pub async fn get_jwks_json() -> Result<Json<GetJwksOutput>, Debug<anyhow::Error>> {
+pub async fn get_jwks_json() -> Result<Json<JwksOutput>, Debug<anyhow::Error>> {
     let keys: Vec<JWKKey> = get_jwks().await.map_err(|e| anyhow::Error::from(e))?;
     Ok(Json(JwksOutput {
         keys,

@@ -5,9 +5,7 @@
 use anyhow::Result;
 use tracing::{event, instrument, Level};
 use windmill::services::celery_app::get_celery_app;
-use windmill::tasks::create_ballot_style;
 use windmill::tasks::create_keys;
-use windmill::tasks::insert_ballots;
 use windmill::tasks::render_report;
 use windmill::tasks::set_public_key::*;
 use windmill::tasks::tally_election_event::{
