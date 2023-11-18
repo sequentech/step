@@ -238,7 +238,7 @@ public class OTPAuthenticator implements Authenticator {
 		logger.info("setRequiredActions() called");
 		// this will only work if you have the required action from here
 		// configured:
-		// https://github.com/sequent/keycloak-extensions-demo/tree/main/requiredaction
+		// https://github.com/dasniko/keycloak-extensions-demo/tree/main/requiredaction
 		user.addRequiredAction("mobile-number-ra");
 	}
 

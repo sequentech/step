@@ -59,10 +59,10 @@ and get some inspiration is
 
 ## Contributions and acknowledgements
 
-This project started as a fork of [Daniko's sms authenticator].
+This project started as a fork of [Dasniko's sms authenticator].
 
 [SPI]: https://www.keycloak.org/docs/latest/server_development/index.html#_providers
-[Daniko's sms authenticator]: https://github.com/sequent/keycloak-2fa-sms-authenticator
+[Dasniko's sms authenticator]: https://github.com/dasniko/keycloak-2fa-sms-authenticator
 [read-only user attributes]: https://www.keycloak.org/docs/22.0.5/server_admin/#_read_only_user_attributes
 [DefaultCredentialsProvider]: https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/auth/credentials/DefaultCredentialsProvider.html
 [`SnsClient.create()`]: https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/sns/SnsClient.html#create()
