@@ -19,7 +19,8 @@ pub struct CreateTenantInput {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTenantOutput {
-    id: String
+    id: String,
+    slug: String,
 }
 
 #[instrument(skip(auth_headers))]
@@ -46,5 +47,6 @@ pub async fn insert_tenant(
 
     Ok(Json(CreateTenantOutput {
         id,
+        slug: body.slug.clone(),
     }))
 }
