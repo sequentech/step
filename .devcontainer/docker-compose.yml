@@ -158,8 +158,6 @@ services:
         condition: service_healthy
       postgres_keycloak:
         condition: service_healthy
-      minio:
-        condition: service_healthy
 
   data-connector-agent:
     image: hasura/graphql-data-connector:v2.31.0
