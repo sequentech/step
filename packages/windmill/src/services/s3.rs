@@ -81,7 +81,7 @@ pub fn get_document_key(
     election_event_id: String,
     document_id: String,
 ) -> String {
-    format!("{}/{}/{}", tenant_id, election_event_id, document_id)
+    format!("tenant-{}/event-{}/document-{}", tenant_id, election_event_id, document_id)
 }
 
 pub async fn get_document_url(key: String) -> Result<String> {
