@@ -4,4 +4,5 @@ mc mb -p myminio/$MINIO_PUBLIC_BUCKET;
 mc mb -p myminio/$MINIO_BUCKET;
 mc anonymous set download myminio/$MINIO_PUBLIC_BUCKET;
 mc admin user svcacct add --access-key $MINIO_ACCESS_KEY --secret-key $MINIO_ACCESS_SECRET myminio $MINIO_ROOT_USER;
+mc cp /scripts/certs.json myminio/public/certs.json
 exit 0;

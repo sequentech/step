@@ -75,11 +75,13 @@ services:
     #  - graphql-engine
   
   configure-minio:
-    image: minio/mc
+    build:
+      context: ./minio
+      dockerfile: Dockerfile
+    #image: minio/mc
+    #profiles: ["dev"]
     depends_on:
       - minio
-    volumes:
-      - ./minio:/scripts:cached
     environment:
       MINIO_ROOT_USER: minio_user
       MINIO_ROOT_PASSWORD: minio_pass
@@ -146,7 +148,7 @@ services:
       # HASURA_GRAPHQL_ADMIN_SECRET: myadminsecretkey
       HASURA_GRAPHQL_METADATA_DEFAULTS: '{"backend_configs":{"dataconnector":{"athena":{"uri":"http://data-connector-agent:8081/api/v1/athena"},"mariadb":{"uri":"http://data-connector-agent:8081/api/v1/mariadb"},"mysql8":{"uri":"http://data-connector-agent:8081/api/v1/mysql"},"oracle":{"uri":"http://data-connector-agent:8081/api/v1/oracle"},"snowflake":{"uri":"http://data-connector-agent:8081/api/v1/snowflake"}}}}'
       # keycloak jwks endpoint
-      HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url": "http://keycloak:8090/realms/electoral-process/protocol/openid-connect/certs"}'
+      HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url": "http://minio:9000/public/certs.json"}'
       HASURA_GRAPHQL_ADMIN_SECRET: 'admin'
       ACTIONS_ADMIN_SECRET: 'admin'
     depends_on:
@@ -155,6 +157,8 @@ services:
       postgres:
         condition: service_healthy
       postgres_keycloak:
+        condition: service_healthy
+      minio:
         condition: service_healthy
 
   data-connector-agent:
