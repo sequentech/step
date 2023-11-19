@@ -4,6 +4,8 @@
 
 mod admin_client;
 mod realm;
+mod user;
 
 pub use self::admin_client::*;
 pub use self::realm::*;
+pub use self::user::*;
