@@ -16,10 +16,8 @@ multiple features:
   user attributes configured.
 - [x] Integrate with "Reset OTP" Required Action, in which case it can be
   configured for a specific user that the OTP authenticators are disabled.
-- [ ] A REST endpoint that generates and returns a magic link for resetting the
+- [ ] A REST endpoint that generates and returns a smart link for resetting the
   user. This allows the integration with third-party systems (like windmill).
-- [ ] A REST endpoint that sends an OTP to the user. This allows the integration
-  with third-party systems (like windmill).
 - [x] Email SMTP provider configurable using environment variables (SMTP API).
 - [x] SMS sender provider configurable using environment variables (AWS SNS API
   only for now).
