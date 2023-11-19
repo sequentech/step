@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::s3;
-use crate::services::vault;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use serde_json::{from_str, to_string};
+use serde_json::to_string;
 use std::env;
 use tracing::{event, instrument, Level};
 
@@ -27,16 +26,16 @@ pub struct JwksOutput {
 }
 
 fn get_jwks_secret_path() -> String {
-    "jwks.json".to_string()
+    "certs.json".to_string()
 }
 
 #[instrument]
 pub async fn get_jwks() -> Result<Vec<JWKKey>> {
-    let minio_public_uri =
-        env::var("MINIO_PUBLIC_URI").expect(&format!("MINIO_PUBLIC_URI must be set"));
+    let minio_private_uri =
+        env::var("MINIO_PRIVATE_URI").expect(&format!("MINIO_PRIVATE_URI must be set"));
     let bucket = s3::get_public_bucket();
 
-    let hasura_endpoint = format!("{}/{}/{}", minio_public_uri, bucket, get_jwks_secret_path());
+    let hasura_endpoint = format!("{}/{}/{}", minio_private_uri, bucket, get_jwks_secret_path());
 
     let client = reqwest::Client::new();
     let response = client.get(hasura_endpoint).send().await?;
