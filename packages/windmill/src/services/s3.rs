@@ -10,17 +10,32 @@ use s3::BucketConfiguration;
 use std::env;
 use tracing::instrument;
 
+pub fn get_private_bucket() -> String {
+    let minio_bucket = env::var("MINIO_BUCKET").expect(&format!("MINIO_BUCKET must be set"));
+    minio_bucket
+}
+
+pub fn get_public_bucket() -> String {
+    let minio_bucket =
+        env::var("MINIO_PUBLIC_BUCKET").expect(&format!("MINIO_PUBLIC_BUCKET must be set"));
+    minio_bucket
+}
+
 #[instrument(skip(data))]
-pub async fn upload_to_s3(data: &Vec<u8>, key: String, media_type: String) -> Result<()> {
-    let key_id = env::var("MINIO_ROOT_USER").expect(&format!("MINIO_ROOT_USER must be set"));
+pub async fn upload_to_s3(
+    data: &Vec<u8>,
+    key: String,
+    media_type: String,
+    minio_bucket: String,
+) -> Result<()> {
+    let key_id = env::var("MINIO_ACCESS_KEY").expect(&format!("MINIO_ACCESS_KEY must be set"));
     let key_secret =
-        env::var("MINIO_ROOT_PASSWORD").expect(&format!("MINIO_ROOT_PASSWORD must be set"));
+        env::var("MINIO_ACCESS_SECRET").expect(&format!("MINIO_ACCESS_SECRET must be set"));
     let minio_private_uri =
         env::var("MINIO_PRIVATE_URI").expect(&format!("MINIO_PRIVATE_URI must be set"));
     //let minio_public_uri = env::var("MINIO_PUBLIC_URI")
     //    .expect(&format!("MINIO_PUBLIC_URI must be set"));
     let minio_region = env::var("MINIO_REGION").expect(&format!("MINIO_REGION must be set"));
-    let minio_bucket = env::var("MINIO_BUCKET").expect(&format!("MINIO_BUCKET must be set"));
 
     // 1) Instantiate the bucket client
     println!("=== Bucket instantiation");
@@ -81,17 +96,19 @@ pub fn get_document_key(
     election_event_id: String,
     document_id: String,
 ) -> String {
-    format!("tenant-{}/event-{}/document-{}", tenant_id, election_event_id, document_id)
+    format!(
+        "tenant-{}/event-{}/document-{}",
+        tenant_id, election_event_id, document_id
+    )
 }
 
-pub async fn get_document_url(key: String) -> Result<String> {
-    let key_id = env::var("MINIO_ROOT_USER").expect(&format!("MINIO_ROOT_USER must be set"));
+pub async fn get_document_url(key: String, minio_bucket: String) -> Result<String> {
+    let key_id = env::var("MINIO_ACCESS_KEY").expect(&format!("MINIO_ACCESS_KEY must be set"));
     let key_secret =
-        env::var("MINIO_ROOT_PASSWORD").expect(&format!("MINIO_ROOT_PASSWORD must be set"));
+        env::var("MINIO_ACCESS_SECRET").expect(&format!("MINIO_ACCESS_SECRET must be set"));
     let minio_public_uri =
         env::var("MINIO_PUBLIC_URI").expect(&format!("MINIO_PUBLIC_URI must be set"));
     let minio_region = env::var("MINIO_REGION").expect(&format!("MINIO_REGION must be set"));
-    let minio_bucket = env::var("MINIO_BUCKET").expect(&format!("MINIO_BUCKET must be set"));
 
     let credentials = Credentials {
         access_key: Some(key_id.to_owned()),

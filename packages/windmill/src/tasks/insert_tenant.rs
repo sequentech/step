@@ -12,16 +12,18 @@ use sequent_core;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::keycloak::KeycloakAdminClient;
-use tracing::{event, instrument, Level};
 use std::env;
+use tracing::{event, instrument, Level};
 
 #[instrument]
 pub async fn upsert_keycloak_realm(tenant_id: &str) -> Result<()> {
-    let json_realm_config =
-        env::var("KEYCLOAK_TENANT_REALM_CONFIG").expect(&format!("KEYCLOAK_TENANT_REALM_CONFIG must be set"));
+    let json_realm_config = env::var("KEYCLOAK_TENANT_REALM_CONFIG")
+        .expect(&format!("KEYCLOAK_TENANT_REALM_CONFIG must be set"));
     let client = KeycloakAdminClient::new().await?;
     let tenant_name = get_tenant_name(tenant_id);
-    client.upsert_realm(tenant_name.as_str(), &json_realm_config).await?;
+    client
+        .upsert_realm(tenant_name.as_str(), &json_realm_config)
+        .await?;
     upsert_realm_jwks(tenant_name.as_str()).await?;
     Ok(())
 }

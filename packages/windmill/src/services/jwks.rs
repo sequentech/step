@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::s3;
 use crate::services::vault;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -26,22 +27,28 @@ pub struct JwksOutput {
 }
 
 fn get_jwks_secret_path() -> String {
-    "keycloak/jwks.json".to_string()
+    "jwks.json".to_string()
 }
 
 #[instrument]
 pub async fn get_jwks() -> Result<Vec<JWKKey>> {
-    let secret_path = get_jwks_secret_path();
-    let jwks_json_opt = vault::read_secret(secret_path).await?;
-    let jwks_json = match jwks_json_opt {
-        None => {
-            event!(Level::INFO, "Jwks are empty");
-            return Ok(vec![]);
-        }
-        Some(data) => data,
+    let minio_public_uri =
+        env::var("MINIO_PUBLIC_URI").expect(&format!("MINIO_PUBLIC_URI must be set"));
+    let bucket = s3::get_public_bucket();
+
+    let hasura_endpoint = format!("{}/{}/{}", minio_public_uri, bucket, get_jwks_secret_path());
+
+    let client = reqwest::Client::new();
+    let response = client.get(hasura_endpoint).send().await?;
+
+    let unwrapped = if response.status() == reqwest::StatusCode::NOT_FOUND {
+        event!(Level::INFO, "Jwks are empty");
+        return Ok(vec![]);
+    } else {
+        response
     };
-    let keys: Vec<JWKKey> = from_str(&jwks_json)?;
-    Ok(keys)
+    let response_body: JwksOutput = unwrapped.json().await?;
+    Ok(response_body.keys)
 }
 
 #[instrument]
@@ -76,9 +83,19 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
         return Ok(());
     }
     existing_jwks.extend(new_jwks);
-    let all_jwks_str = to_string(&realm_jwks)?;
-    let secret_path = get_jwks_secret_path();
-    vault::save_secret(secret_path.to_string(), all_jwks_str).await?;
+
+    let jwks_output = JwksOutput {
+        keys: existing_jwks,
+    };
+    let jwks_output_str = to_string(&jwks_output)?;
+
+    s3::upload_to_s3(
+        &jwks_output_str.into_bytes(),
+        get_jwks_secret_path(),
+        "application/json".to_string(),
+        s3::get_public_bucket(),
+    )
+    .await?;
 
     Ok(())
 }

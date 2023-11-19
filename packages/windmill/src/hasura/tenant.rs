@@ -75,7 +75,6 @@ pub async fn insert_tenant(
     response_body.ok()
 }
 
-
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
@@ -89,9 +88,7 @@ pub async fn get_tenant_by_slug(
     auth_headers: connection::AuthHeaders,
     slug: String,
 ) -> Result<Response<get_tenant_by_slug::ResponseData>> {
-    let variables = get_tenant_by_slug::Variables {
-        slug: slug,
-    };
+    let variables = get_tenant_by_slug::Variables { slug: slug };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
     let request_body = GetTenantBySlug::build_query(variables);
