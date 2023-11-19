@@ -26,10 +26,11 @@ impl From<UserRepresentation> for User {
 
 impl KeycloakAdminClient {
     #[instrument(skip(self))]
-    pub async fn list_users(self, realm: &str) -> Result<Vec<User>> {
+    pub async fn list_users(self, realm: &str, search: Option<String>, email: Option<String>, max: Option<i32>) -> Result<Vec<User>> {
         let users: Vec<UserRepresentation> = self.client.realm_users_get(
             realm,
             None,
+            email,
             None,
             None,
             None,
@@ -38,10 +39,9 @@ impl KeycloakAdminClient {
             None,
             None,
             None,
+            max,
             None,
-            None,
-            None,
-            None,
+            search,
             None
         ).await?;
         Ok(users.into_iter().map(|user| user.into()).collect())
