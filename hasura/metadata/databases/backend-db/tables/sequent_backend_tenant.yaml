@@ -9,7 +9,7 @@ insert_permissions:
         - is_active
         - annotations
         - labels
-        - username
+        - slug
         - created_at
         - updated_at
         - id
@@ -21,7 +21,7 @@ insert_permissions:
         - is_active
         - annotations
         - labels
-        - username
+        - slug
         - created_at
         - updated_at
         - id
@@ -33,7 +33,7 @@ select_permissions:
         - is_active
         - annotations
         - labels
-        - username
+        - slug
         - created_at
         - updated_at
         - id
@@ -46,7 +46,7 @@ select_permissions:
         - is_active
         - annotations
         - labels
-        - username
+        - slug
         - created_at
         - updated_at
         - id
@@ -59,7 +59,7 @@ select_permissions:
         - is_active
         - annotations
         - labels
-        - username
+        - slug
         - created_at
         - updated_at
         - id
@@ -74,7 +74,7 @@ update_permissions:
         - is_active
         - annotations
         - labels
-        - username
+        - slug
         - created_at
         - updated_at
         - id
@@ -87,7 +87,7 @@ update_permissions:
         - is_active
         - annotations
         - labels
-        - username
+        - slug
         - created_at
         - updated_at
         - id

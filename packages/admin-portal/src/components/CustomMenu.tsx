@@ -99,7 +99,7 @@ const CustomerSelector: React.FC = () => {
                     >
                         {data?.map((tenant) => (
                             <MenuItem key={tenant.id} value={tenant.id}>
-                                {tenant.username}
+                                {tenant.slug}
                             </MenuItem>
                         ))}
                     </Select>

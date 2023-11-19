@@ -23,6 +23,12 @@ type Mutation {
   ): CreateElectionEventOutput
 }
 
+type Mutation {
+  insertTenant(
+    slug: String!
+  ): InsertTenantOutput
+}
+
 type Query {
   listPgaudit(
     limit: Int
@@ -146,5 +152,10 @@ type SampleOutput {
 
 type CreateElectionEventOutput {
   id: String!
+}
+
+type InsertTenantOutput {
+  id: uuid!
+  slug: String!
 }
 
