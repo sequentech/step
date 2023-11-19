@@ -7,11 +7,32 @@ use keycloak::{
     types::*,
     {KeycloakAdmin, KeycloakAdminToken, KeycloakError},
 };
+use regex::Regex;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_urlencoded;
+use std::collections::HashMap;
 use std::env;
-use tracing::{event, Level, instrument};
+use tracing::{event, instrument, Level};
+use uuid::Uuid;
+
+fn replace_uuids(input: &str) -> String {
+    let uuid_regex =
+        Regex::new(r"\b[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\b")
+            .unwrap();
+
+    let mut seen_uuids = HashMap::new();
+
+    uuid_regex
+        .replace_all(input, |caps: &regex::Captures| {
+            let old_uuid = caps.get(0).unwrap().as_str();
+            seen_uuids
+                .entry(old_uuid.to_owned())
+                .or_insert_with(|| Uuid::new_v4().to_string())
+                .clone()
+        })
+        .into_owned()
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct TokenResponse {
@@ -96,7 +117,7 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
 }
 
 pub struct KeycloakAdminClient {
-    client: KeycloakAdmin
+    client: KeycloakAdmin,
 }
 
 impl KeycloakAdminClient {
@@ -113,25 +134,35 @@ impl KeycloakAdminClient {
         .await?;
         event!(Level::INFO, "Successfully acquired credentials");
         let client = KeycloakAdmin::new(&login_config.url, admin_token, client);
-        Ok(KeycloakAdminClient {
-            client
-        })
+        Ok(KeycloakAdminClient { client })
     }
 
-    pub async fn upsert_realm(self, board_name: &str, json_realm_config: &str) -> Result<(), KeycloakError> {
+    pub async fn upsert_realm(
+        self,
+        board_name: &str,
+        json_realm_config: &str,
+    ) -> Result<(), KeycloakError> {
         let real_get_result = self.client.realm_get(board_name).await;
-        let realm: RealmRepresentation = serde_json::from_str(json_realm_config).unwrap();
+        let mut realm: RealmRepresentation =
+            serde_json::from_str(json_realm_config).unwrap();
+        let mut client: ClientRepresentation = Default::default();
+
+        client.id = Some("69203a28-1df5-4005-849c-e258da6f9620".into());
+        client.client_id = Some("admin-portal".into());
+        client.root_url = Some("http://127.0.0.1:3002/".into());
+        client.admin_url = Some("http://127.0.0.1:3002/".into());
+        client.base_url = Some("http://127.0.0.1:3002/".into());
+        realm.clients = Some(vec![client]);
         match real_get_result {
-            Err(_) => self.client
-                .post(RealmRepresentation {
-                    realm: Some(board_name.into()),
-                    ..realm
-                })
-                .await,
+            Err(_) => {
+                self.client
+                    .post(RealmRepresentation {
+                        realm: Some(board_name.into()),
+                        ..realm
+                    })
+                    .await
+            }
             Ok(_) => Ok(()),
         }
-        
     }
-
-
 }

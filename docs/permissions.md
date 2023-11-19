@@ -11,4 +11,12 @@ Roles aggregate permissions. For Permissions we use Keycloak Realm Roles, and fo
 - Name: x-hasura-tenant-id. Type: User Attribute. User Attribute: tenant-id. Token Claim Name: https://hasura\.io/jwt/claims.x-hasura-tenant-id .
 - Name: x-hasura-allowed-roles. Type: User Realm Role. Token Claim Name: https://hasura\.io/jwt/claims.x-hasura-allowed-roles . Multivalued: true/On.
 
-Users (both admin and voter users) need to have configured an attribute: tenant-id. This is used by Hasura to check permissions. Also in hasura all tables are permissioned. Permissions in Hasura are called roles, and 
+Users (both admin and voter users) need to have configured an attribute: tenant-id. This is used by Hasura to check permissions. Also in hasura all tables are permissioned. Permissions in Hasura are called roles, and for each relevant permission there's a Hasura role on each table defining the access level (insert, select, update and delete).
+
+# API
+
+CRUD endpoints for:
+- Admin Users.
+- Voter Users.
+- Permissions.
+- Roles.
