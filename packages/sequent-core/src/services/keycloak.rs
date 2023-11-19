@@ -137,29 +137,22 @@ impl KeycloakAdminClient {
         Ok(KeycloakAdminClient { client })
     }
 
+    #[instrument(skip(self))]
     pub async fn upsert_realm(
         self,
         board_name: &str,
         json_realm_config: &str,
     ) -> Result<(), KeycloakError> {
         let real_get_result = self.client.realm_get(board_name).await;
+        let replaced_ids_config = replace_uuids(json_realm_config);
         let mut realm: RealmRepresentation =
-            serde_json::from_str(json_realm_config).unwrap();
-        let mut client: ClientRepresentation = Default::default();
+            serde_json::from_str(&replaced_ids_config).unwrap();
+        realm.realm = Some(board_name.into());
 
-        client.id = Some("69203a28-1df5-4005-849c-e258da6f9620".into());
-        client.client_id = Some("admin-portal".into());
-        client.root_url = Some("http://127.0.0.1:3002/".into());
-        client.admin_url = Some("http://127.0.0.1:3002/".into());
-        client.base_url = Some("http://127.0.0.1:3002/".into());
-        realm.clients = Some(vec![client]);
         match real_get_result {
             Err(_) => {
                 self.client
-                    .post(RealmRepresentation {
-                        realm: Some(board_name.into()),
-                        ..realm
-                    })
+                    .post(realm)
                     .await
             }
             Ok(_) => Ok(()),
