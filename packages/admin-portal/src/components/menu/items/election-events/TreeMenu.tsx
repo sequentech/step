@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {NavLink} from "react-router-dom"
-import React, {useState, useEffect} from "react"
+import React, {useState} from "react"
 import {ResourceOptions, ResourceDefinition, useResourceDefinitions, useGetList} from "react-admin"
 import {CircularProgress} from "@mui/material"
 import {useTenantStore} from "../../../CustomMenu"
@@ -25,26 +25,23 @@ interface TreeLeavesProps {
     filter?: object
 }
 
-function TreeLeaves({isOpen, resourceName, resourceId, treeResources, filter}: TreeLeavesProps) {
-    console.log(
-        "LS -> src/components/menu/items/election-events/TreeMenu.tsx:28 -> treeResources: ",
-        treeResources
-    )
+function TreeLeaves({isOpen, resourceName, treeResources, filter}: TreeLeavesProps) {
     const [tenantId] = useTenantStore()
 
     const {data, isLoading, error} = useGetList(resourceName, {
         // pagination: {page: 1, perPage: 10},
         sort: {field: "created_at", order: "DESC"},
-        filter: resourceId
-            ? {
-                  tenant_id: tenantId,
-                  [treeResources[0]?.options?.foreignKeyFrom || ""]: resourceId,
-                  ...filter,
-              }
-            : {
-                  tenant_id: tenantId,
-                  ...filter,
-              },
+        filter: {
+            tenant_id: tenantId,
+            ...filter,
+        },
+        // resourceId
+        //         ? {
+        //               tenant_id: tenantId,
+        //               [treeResources[0]?.options?.foreignKeyFrom || ""]: resourceId,
+        //               ...filter,
+        //           }
+        //         :
     })
 
     if (isLoading) {
@@ -55,26 +52,18 @@ function TreeLeaves({isOpen, resourceName, resourceId, treeResources, filter}: T
         return null
     }
 
-    const subTreeResources = treeResources.slice(1)
-    const nextResourceName = subTreeResources[0]?.name ?? null
-
     return (
         <div className="bg-white">
             <div className="flex flex-col ml-3">
                 {data?.map((resource, idx) => {
-                    if (nextResourceName) {
-                        return (
-                            <TreeMenuItem
-                                isOpen={isOpen}
-                                resource={resource}
-                                resourceName={nextResourceName}
-                                treeResources={subTreeResources}
-                                key={idx}
-                            />
-                        )
-                    }
-
-                    return <p key={idx}>None</p>
+                    return (
+                        <TreeMenuItem
+                            isOpen={isOpen}
+                            resource={resource}
+                            treeResources={treeResources}
+                            key={idx}
+                        />
+                    )
                 })}
             </div>
         </div>
@@ -83,25 +72,26 @@ function TreeLeaves({isOpen, resourceName, resourceId, treeResources, filter}: T
 
 interface TreeMenuItemProps {
     isOpen: boolean
-    resourceName: string
     resource: any
     treeResources: Array<ResourceDefinition<Options>>
 }
 
-function TreeMenuItem({isOpen, resourceName, resource, treeResources}: TreeMenuItemProps) {
+function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
     const [open, setOpen] = useState(false)
     const onClick = () => setOpen(!open)
-    const hasLeaves = treeResources.length > 0
+
+    const subTreeResources = treeResources.slice(1)
+    const nextResource = subTreeResources[0] ?? null
+    const hasNext = !!nextResource
 
     return (
         <div className="bg-white">
             <div className="flex text-center  space-x-2 items-center">
-                {hasLeaves && (
+                {hasNext ? (
                     <div className="w-6 h-6 cursor-pointer" onClick={onClick}>
                         <Icon icon={open ? faAngleDown : faAngleRight} />
                     </div>
-                )}
-
+                ) : null}
                 {isOpen && (
                     <>
                         <NavLink
@@ -112,7 +102,7 @@ function TreeMenuItem({isOpen, resourceName, resource, treeResources}: TreeMenuI
                                     isActive && "border-b-2 border-brand-color"
                                 )
                             }
-                            to={`/${resourceName}/${resource.id}`}
+                            to={`/${treeResources[0].name}/${resource.id}`}
                         >
                             {resource.name}
                         </NavLink>
@@ -121,12 +111,13 @@ function TreeMenuItem({isOpen, resourceName, resource, treeResources}: TreeMenuI
             </div>
             {open && (
                 <div className="">
-                    <TreeLeaves
-                        isOpen={isOpen}
-                        resourceName={resourceName}
-                        resourceId={resource.id}
-                        treeResources={treeResources}
-                    />
+                    {hasNext && (
+                        <TreeLeaves
+                            isOpen={isOpen}
+                            resourceName={nextResource.name}
+                            treeResources={subTreeResources}
+                        />
+                    )}
                 </div>
             )}
         </div>
