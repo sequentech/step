@@ -38,11 +38,11 @@ export const CreateElectionList: React.FC = () => {
         const {elections, ...electionSubmit} = values as IElectionEventSubmit
         await insertElectionEvent({
             variables: {
-                elections: elections.map((e) => ({
+                /*elections: elections.map((e) => ({
                     election_event_id: electionSubmit.id,
                     tenant_id: electionSubmit.tenant_id,
                     ...e,
-                })),
+                })),*/
                 electionEvent: electionSubmit,
             },
         })
@@ -56,12 +56,14 @@ export const CreateElectionList: React.FC = () => {
             <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                 <SelectInput optionText="username" />
             </ReferenceInput>
+            {/*
             <ArrayInput source="elections">
                 <SimpleFormIterator inline>
                     <TextInput source="name" />
                     <TextInput source="description" />
                 </SimpleFormIterator>
             </ArrayInput>
+            */}
             <JsonInput
                 source="labels"
                 jsonString={false}
