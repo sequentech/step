@@ -6,15 +6,15 @@ use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
+use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
+use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTenantInput {
-    slug: String
+    slug: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -35,15 +35,11 @@ pub async fn insert_tenant(
     let task = celery_app
         .send_task(tasks::insert_tenant::insert_tenant::new(
             id.clone(),
-            body.slug.clone()
+            body.slug.clone(),
         ))
         .await
         .map_err(|e| anyhow::Error::from(e))?;
-    event!(
-        Level::INFO,
-        "Sent INSERT_TENANT task {}",
-        task.task_id
-    );
+    event!(Level::INFO, "Sent INSERT_TENANT task {}", task.task_id);
 
     Ok(Json(CreateTenantOutput {
         id,

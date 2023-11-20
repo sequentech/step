@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
-use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use serde;
@@ -58,8 +57,7 @@ pub struct JwtClaims {
 
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     let parts: Vec<&str> = token.split('.').collect();
-    let b64_part = parts[1];
-    let bytes = general_purpose::STANDARD_NO_PAD.decode( parts[1]).unwrap();
+    let bytes = general_purpose::STANDARD_NO_PAD.decode(parts[1]).unwrap();
     let json = String::from_utf8(bytes).unwrap();
     let claims: JwtClaims = serde_json::from_str(&json).unwrap();
     Ok(claims)
