@@ -50,7 +50,7 @@ import {useMutation} from "@apollo/client"
 import {useTenantStore} from "../../components/CustomMenu"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
-import { ElectionHeaderStyles } from '../../components/styles/ElectionHeaderStyles'
+import {ElectionHeaderStyles} from "../../components/styles/ElectionHeaderStyles"
 
 export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -159,8 +159,16 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     let configCreatedStatus = getConfigCreatedStatus(record.status)
 
+    const formValidator = (values: any): any => {
+        const errors: any = {dates: {}}
+        if (values?.dates?.end_date <= values?.dates?.start_date) {
+            errors.dates.end_date = t("electionEventScreen.error.endDate")
+        }
+        return errors
+    }
+
     return (
-        <SimpleForm>
+        <SimpleForm validate={formValidator}>
             <Accordion
                 sx={{width: "100%"}}
                 expanded={expanded === "election-event-data-general"}
@@ -204,31 +212,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                             />
                         </div>
                     </CustomTabPanel>
-
-                    {/* <TabbedShowLayout>
-                        <TabbedShowLayout.Tab label="English" >
-                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
-                            <TextInput
-                                source="alias"
-                                label={t("electionEventScreen.field.alias")}
-                            />
-                            <TextInput
-                                source="description"
-                                label={t("electionEventScreen.field.description")}
-                            />
-                        </TabbedShowLayout.Tab>
-                        <TabbedShowLayout.Tab label="Spanish" >
-                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
-                            <TextInput
-                                source="alias"
-                                label={t("electionEventScreen.field.alias")}
-                            />
-                            <TextInput
-                                source="description"
-                                label={t("electionEventScreen.field.description")}
-                            />
-                        </TabbedShowLayout.Tab>
-                    </TabbedShowLayout> */}
                 </AccordionDetails>
             </Accordion>
 
@@ -248,14 +231,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                     <Grid container spacing={4}>
                         <Grid item xs={12} md={6}>
                             <DateTimeInput
-                                source="start_date"
-                                label={t("electionEventScreen.field.startDateTime")}
+                                source="dates.start_date"
+                                label={t("electionScreen.field.startDateTime")}
+                                parse={(value) => new Date(value).toISOString()}
                             />
                         </Grid>
                         <Grid item xs={12} md={6}>
                             <DateTimeInput
-                                source="end_date"
-                                label={t("electionEventScreen.field.endDateTime")}
+                                source="dates.end_date"
+                                label={t("electionScreen.field.endDateTime")}
+                                parse={(value) => new Date(value).toISOString()}
                             />
                         </Grid>
                     </Grid>
@@ -496,4 +481,3 @@ export const EditElectionEventDataForm: React.FC = () => {
         </SimpleForm>
     )
 }
-

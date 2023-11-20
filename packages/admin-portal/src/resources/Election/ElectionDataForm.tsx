@@ -3,20 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
     BooleanInput,
-    DateField,
-    DateInput,
     DateTimeInput,
-    Edit,
-    EditBase,
-    ReferenceManyField,
     SelectInput,
-    SimpleForm,
-    TabbedForm,
-    TabbedShowLayout,
-    TextField,
     TextInput,
     useRecordContext,
     useRefresh,
+    SimpleForm,
 } from "react-admin"
 import {
     Accordion,
@@ -45,7 +37,8 @@ import {useTenantStore} from "../../components/CustomMenu"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
-import { DropFile } from '@sequentech/ui-essentials'
+import {DropFile} from "@sequentech/ui-essentials"
+import {useFormState, useForm} from "react-hook-form"
 
 export const EditElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -60,6 +53,8 @@ export const EditElectionDataForm: React.FC = () => {
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const refresh = useRefresh()
     const {t} = useTranslation()
+
+    const form = useForm()
 
     const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
         setAnchorEl(event.currentTarget)
@@ -154,8 +149,16 @@ export const EditElectionDataForm: React.FC = () => {
 
     let configCreatedStatus = getConfigCreatedStatus(record.status)
 
+    const formValidator = (values: any): any => {
+        const errors: any = {dates: {}}
+        if (values?.dates?.end_date <= values?.dates?.start_date) {
+            errors.dates.end_date = t("electionEventScreen.error.endDate")
+        }
+        return errors
+    }
+
     return (
-        <SimpleForm>
+        <SimpleForm validate={formValidator}>
             <Accordion
                 sx={{width: "100%"}}
                 expanded={expanded === "election-data-general"}
@@ -212,14 +215,16 @@ export const EditElectionDataForm: React.FC = () => {
                     <Grid container spacing={4}>
                         <Grid item xs={12} md={6}>
                             <DateTimeInput
-                                source="start_date"
+                                source="dates.start_date"
                                 label={t("electionScreen.field.startDateTime")}
+                                parse={(value) => new Date(value).toISOString()}
                             />
                         </Grid>
                         <Grid item xs={12} md={6}>
                             <DateTimeInput
-                                source="end_date"
+                                source="dates.end_date"
                                 label={t("electionScreen.field.endDateTime")}
+                                parse={(value) => new Date(value).toISOString()}
                             />
                         </Grid>
                     </Grid>

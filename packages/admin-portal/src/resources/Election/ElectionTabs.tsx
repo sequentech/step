@@ -6,7 +6,6 @@ import { EditElectionData } from './ElectionData'
 
 export const ElectionTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
-    console.log('record :: election tabs :: ', record)
 
     return (
         <>

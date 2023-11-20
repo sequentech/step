@@ -1,3 +1,4 @@
+import { NoDescription } from './../../../ui-essentials/src/components/Candidate/__stories__/Candidate.stories';
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -145,6 +146,9 @@ const englishTranslation = {
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
             },
+            error: {
+                endDate: "End date must be after start date",
+            },
         },
         electionScreen: {
             common: {
@@ -167,6 +171,10 @@ const englishTranslation = {
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
                 alias: "Alias",
+                description: "Description",
+            },
+            error: {
+                endDate: "End date must be after start date",
             },
         },
         common: {
