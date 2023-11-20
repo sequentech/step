@@ -126,9 +126,11 @@ const spanishTranslation = {
         },
         areas: {
             common: {
-                title: "Areas",
-                subTitle: "Area configuration.",
+                title: "Áreas",
+                subTitle: "Configuración de Área.",
             },
+            createAreaSuccess: "Área creadas",
+            createAreaError: "Error creando área",
         },
         electionEventScreen: {
             common: {
@@ -149,6 +151,8 @@ const spanishTranslation = {
                 language: "Idioma",
                 votingChannels: "Canales de Voto",
             },
+            createElectionEventSuccess: "Evento de Elección creado",
+            createElectionEventError: "Error creando Evento de Elección",
         },
         common: {
             label: {
