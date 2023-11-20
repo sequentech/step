@@ -6,42 +6,44 @@ insert_permissions:
   permission:
     check: {}
     columns:
+    - alias
+    - annotations
+    - created_at
+    - dates
+    - description
+    - election_event_id
+    - eml
+    - id
     - is_consolidated_ballot_encoding
-    - spoil_ballot_option
+    - labels
+    - last_updated_at
     - name
     - num_allowed_revotes
-    - annotations
-    - dates
-    - labels
     - presentation
+    - spoil_ballot_option
     - status
-    - description
-    - eml
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
     - tenant_id
   role: admin-user
 - comment: ""
   permission:
     check: {}
     columns:
+    - alias
+    - annotations
+    - created_at
+    - dates
+    - description
+    - election_event_id
+    - eml
+    - id
     - is_consolidated_ballot_encoding
-    - spoil_ballot_option
+    - labels
+    - last_updated_at
     - name
     - num_allowed_revotes
-    - annotations
-    - dates
-    - labels
     - presentation
+    - spoil_ballot_option
     - status
-    - description
-    - eml
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
     - tenant_id
   role: service-account
 select_permissions:
@@ -49,21 +51,22 @@ select_permissions:
   permission:
     allow_aggregations: true
     columns:
+    - alias
+    - annotations
+    - created_at
+    - dates
+    - description
+    - election_event_id
+    - eml
+    - id
     - is_consolidated_ballot_encoding
-    - spoil_ballot_option
+    - labels
+    - last_updated_at
     - name
     - num_allowed_revotes
-    - annotations
-    - dates
-    - labels
     - presentation
+    - spoil_ballot_option
     - status
-    - description
-    - eml
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
     - tenant_id
     filter: {}
   role: admin-user
@@ -71,21 +74,22 @@ select_permissions:
   permission:
     allow_aggregations: true
     columns:
+    - alias
+    - annotations
+    - created_at
+    - dates
+    - description
+    - election_event_id
+    - eml
+    - id
     - is_consolidated_ballot_encoding
-    - spoil_ballot_option
+    - labels
+    - last_updated_at
     - name
     - num_allowed_revotes
-    - annotations
-    - dates
-    - labels
     - presentation
+    - spoil_ballot_option
     - status
-    - description
-    - eml
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
     - tenant_id
     filter: {}
   role: service-account
@@ -101,6 +105,7 @@ select_permissions:
     - labels
     - presentation
     - status
+    - alias
     - description
     - eml
     - created_at
@@ -117,21 +122,22 @@ update_permissions:
   permission:
     check: {}
     columns:
+    - alias
+    - annotations
+    - created_at
+    - dates
+    - description
+    - election_event_id
+    - eml
+    - id
     - is_consolidated_ballot_encoding
-    - spoil_ballot_option
+    - labels
+    - last_updated_at
     - name
     - num_allowed_revotes
-    - annotations
-    - dates
-    - labels
     - presentation
+    - spoil_ballot_option
     - status
-    - description
-    - eml
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
     - tenant_id
     filter: {}
   role: admin-user
@@ -139,21 +145,22 @@ update_permissions:
   permission:
     check: {}
     columns:
+    - alias
+    - annotations
+    - created_at
+    - dates
+    - description
+    - election_event_id
+    - eml
+    - id
     - is_consolidated_ballot_encoding
-    - spoil_ballot_option
+    - labels
+    - last_updated_at
     - name
     - num_allowed_revotes
-    - annotations
-    - dates
-    - labels
     - presentation
+    - spoil_ballot_option
     - status
-    - description
-    - eml
-    - created_at
-    - last_updated_at
-    - election_event_id
-    - id
     - tenant_id
     filter: {}
   role: service-account
