@@ -54,7 +54,7 @@ export const CreateElectionList: React.FC = () => {
             <TextInput source="name" />
             <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />
             <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
-                <SelectInput optionText="username" />
+                <SelectInput optionText="slug" />
             </ReferenceInput>
             {/*
             <ArrayInput source="elections">
