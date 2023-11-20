@@ -45,13 +45,22 @@ public class SecurityQuestionRequiredAction implements RequiredActionProvider {
 	}
 
 	@Override
-	public void evaluateTriggers(RequiredActionContext context) {
+	public void evaluateTriggers(RequiredActionContext context)
+    {
 		log.info("evaluateTriggers()");
 		// self registering if user doesn't have already one out of the
 		// configured credential types
 		UserModel user = context.getUser();
 		AuthenticationSessionModel authSession = context
 			.getAuthenticationSession();
+
+		String alreadyExecuted = authSession
+            .getAuthNote(Utils.ALREADY_EXECUTED_SECURITY_QUESTION);
+        if (alreadyExecuted != null)
+        {
+            // finish, already executed!
+            return;
+        }
 
 		if (
 			authSession
@@ -117,6 +126,13 @@ public class SecurityQuestionRequiredAction implements RequiredActionProvider {
             );
         } else {
             // valid
+            AuthenticationSessionModel authSession = context
+    			.getAuthenticationSession();
+
+            authSession.setAuthNote(
+                Utils.ALREADY_EXECUTED_SECURITY_QUESTION,
+                "true"
+            );
             context.success();
         }
 	}

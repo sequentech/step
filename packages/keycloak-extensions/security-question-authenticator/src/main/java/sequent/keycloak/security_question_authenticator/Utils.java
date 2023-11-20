@@ -14,7 +14,7 @@ public class Utils {
 	final public String USER_ATTRIBUTE = "user-attribute";
 	final public String NUM_LAST_CHARS = "num-last-chars";
 	final public String FORM_SECURITY_ANSWER_FIELD = "security-answer";
-
+	final public String ALREADY_EXECUTED_SECURITY_QUESTION = "already-executed-security-question";
     final public String SECURITY_QUESTION_FORM = "security-question.ftl";
 
 
