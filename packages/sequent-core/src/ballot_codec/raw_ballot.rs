@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
 use crate::ballot_codec::*;
-use crate::types::hasura_types::Uuid;
 use crate::plaintext::*;
+use crate::types::hasura_types::Uuid;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
 

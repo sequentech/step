@@ -3,11 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::connection;
 use anyhow::{anyhow, Result};
+use keycloak::{
+    types::*,
+    {KeycloakAdmin, KeycloakAdminToken, KeycloakError},
+};
 use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_urlencoded;
 use std::env;
-use tracing::instrument;
+use tracing::{event, Level, instrument};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct TokenResponse {
@@ -21,23 +25,57 @@ pub struct TokenResponse {
     pub scope: String,
 }
 
-// Client Credentials OpenID Authentication flow.
-// This enables servers to authenticate, without using a browser.
-#[instrument]
-pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
-    let keycloak_endpoint = env::var("KEYCLOAK_ENDPOINT")
-        .expect(&format!("KEYCLOAK_ENDPOINT must be set"));
+struct KeycloakLoginConfig {
+    url: String,
+    client_id: String,
+    client_secret: String,
+}
+
+fn get_keycloak_login_config() -> KeycloakLoginConfig {
+    let url =
+        env::var("KEYCLOAK_URL").expect(&format!("KEYCLOAK_URL must be set"));
     let client_id = env::var("KEYCLOAK_CLIENT_ID")
         .expect(&format!("KEYCLOAK_CLIENT_ID must be set"));
     let client_secret = env::var("KEYCLOAK_CLIENT_SECRET")
         .expect(&format!("KEYCLOAK_CLIENT_SECRET must be set"));
+    KeycloakLoginConfig {
+        url,
+        client_id,
+        client_secret,
+    }
+}
+
+fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
+    let url =
+        env::var("KEYCLOAK_URL").expect(&format!("KEYCLOAK_URL must be set"));
+    let client_id = env::var("KEYCLOAK_ADMIN_CLIENT_ID")
+        .expect(&format!("KEYCLOAK_ADMIN_CLIENT_ID must be set"));
+    let client_secret = env::var("KEYCLOAK_ADMIN_CLIENT_SECRET")
+        .expect(&format!("KEYCLOAK_ADMIN_CLIENT_SECRET must be set"));
+    KeycloakLoginConfig {
+        url,
+        client_id,
+        client_secret,
+    }
+}
+
+// Client Credentials OpenID Authentication flow.
+// This enables servers to authenticate, without using a browser.
+#[instrument]
+pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
+    let login_config = get_keycloak_login_config();
     let body_string = serde_urlencoded::to_string::<[(String, String); 4]>([
-        ("client_id".into(), client_id),
+        ("client_id".into(), login_config.client_id.clone()),
         ("scope".into(), "openid".into()),
-        ("client_secret".into(), client_secret),
+        ("client_secret".into(), login_config.client_secret.clone()),
         ("grant_type".into(), "client_credentials".into()),
     ])
     .unwrap();
+
+    let keycloak_endpoint = format!(
+        "{}/realms/electoral-process/protocol/openid-connect/token",
+        login_config.url
+    );
 
     let client = reqwest::Client::new();
     let res = client
@@ -50,8 +88,50 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
 
     let credentials: TokenResponse = serde_json::from_str(&text)
         .map_err(|err| anyhow!(format!("{:?}, Response: {}", err, text)))?;
+    event!(Level::INFO, "Successfully acquired credentials");
     Ok(connection::AuthHeaders {
         key: "authorization".into(),
         value: format!("Bearer {}", credentials.access_token),
     })
+}
+
+pub struct KeycloakAdminClient {
+    client: KeycloakAdmin
+}
+
+impl KeycloakAdminClient {
+    #[instrument]
+    pub async fn new() -> Result<KeycloakAdminClient> {
+        let login_config = get_keycloak_login_admin_config();
+        let client = reqwest::Client::new();
+        let admin_token = KeycloakAdminToken::acquire(
+            &login_config.url,
+            &login_config.client_id,
+            &login_config.client_secret,
+            &client,
+        )
+        .await?;
+        event!(Level::INFO, "Successfully acquired credentials");
+        let client = KeycloakAdmin::new(&login_config.url, admin_token, client);
+        Ok(KeycloakAdminClient {
+            client
+        })
+    }
+
+    pub async fn upsert_realm(self, board_name: &str, json_realm_config: &str) -> Result<(), KeycloakError> {
+        let real_get_result = self.client.realm_get(board_name).await;
+        let realm: RealmRepresentation = serde_json::from_str(json_realm_config).unwrap();
+        match real_get_result {
+            Err(_) => self.client
+                .post(RealmRepresentation {
+                    realm: Some(board_name.into()),
+                    ..realm
+                })
+                .await,
+            Ok(_) => Ok(()),
+        }
+        
+    }
+
+
 }

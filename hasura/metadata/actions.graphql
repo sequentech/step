@@ -17,6 +17,18 @@ type Query {
   ): FetchDocumentOutput
 }
 
+type Mutation {
+  insertElectionEvent(
+    object: CreateElectionEventInput!
+  ): CreateElectionEventOutput
+}
+
+type Mutation {
+  insertTenant(
+    slug: String!
+  ): InsertTenantOutput
+}
+
 type Query {
   listPgaudit(
     limit: Int
@@ -45,6 +57,33 @@ input PgAuditOrderBy {
   session_id: OrderDirection
   statement: OrderDirection
   user: OrderDirection
+}
+
+input SampleInput {
+  username: String!
+  password: String!
+}
+
+input CreateElectionEventInput {
+  id: String
+  created_at: String
+  updated_at: String
+  labels: jsonb
+  annotations: jsonb
+  tenant_id: String!
+  name: String!
+  description: String
+  presentation: jsonb
+  bulletin_board_reference: jsonb
+  is_archived: Boolean
+  voting_channels: jsonb
+  dates: jsonb
+  status: jsonb
+  user_boards: String
+  encryption_protocol: String
+  is_audit: Boolean
+  audit_election_event_id: String
+  public_key: String
 }
 
 type TemplateOutput {
@@ -105,5 +144,18 @@ type ScheduledEventOutput2 {
 
 type ScheduledEventOutput3 {
   id: String
+}
+
+type SampleOutput {
+  accessToken: String!
+}
+
+type CreateElectionEventOutput {
+  id: String!
+}
+
+type InsertTenantOutput {
+  id: uuid!
+  slug: String!
 }
 

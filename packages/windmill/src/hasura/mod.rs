@@ -10,6 +10,7 @@ pub mod document;
 pub mod election;
 pub mod election_event;
 pub mod event_execution;
+pub mod lock;
 pub mod scheduled_event;
 pub mod tally_session;
 pub mod tally_session_contest;

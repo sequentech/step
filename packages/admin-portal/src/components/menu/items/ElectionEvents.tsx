@@ -28,6 +28,56 @@ const activeRouteList = [
     "sequent_backend_candidate",
 ]
 
+
+// const CustomerSelector: React.FC = () => {
+//     const [open] = useSidebarState()
+//     const [tenant, setTenant] = useTenantStore()
+//
+//     const {data, total, isLoading, error} = useGetList("sequent_backend_tenant", {
+//         pagination: {page: 1, perPage: 10},
+//         sort: {field: "updated_at", order: "DESC"},
+//         filter: {is_active: true},
+//     })
+//
+//     const showCustomers = open && !isLoading && !error
+//
+//     const handleChange = (event: SelectChangeEvent<unknown>) => {
+//         setTenant(event.target.value as any)
+//     }
+//
+//     return (
+//         <HorizontalBox sx={{alignItems: "center", padding: "0 16px"}}>
+//             <IconButton icon={faThLarge} fontSize="24px" />
+//             {showCustomers ? (
+//                 <>
+//                     <Select
+//                         labelId="tenant-select-label"
+//                         id="tenant-select"
+//                         value={tenant}
+//                         onChange={handleChange}
+//                         sx={{
+//                             flexGrow: 2,
+//                             paddingRight: "16px",
+//                             margin: "4px 10px 4px 10px",
+//                         }}
+//                     >
+//                         {data?.map((tenant) => (
+//                             <MenuItem key={tenant.id} value={tenant.id}>
+//                                 {tenant.slug}
+//                             </MenuItem>
+//                         ))}
+//                     </Select>
+//                     <Link to="/sequent_backend_tenant/create">
+//                         <StyledIconButton icon={faPlusCircle} />
+//                     </Link>
+//                 </>
+//             ) : null}
+//         </HorizontalBox>
+//     )
+// }
+//
+
+
 export default function ElectionEvents() {
     const [open] = useSidebarState()
     const [searchInput, setSearchInput] = useState<string>("")

@@ -33,24 +33,16 @@ import {
 } from "@mui/material"
 import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import React, {useState} from "react"
-import {faPieChart, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
-import {ChipList} from "../../components/ChipList"
-import {ElectionEventList} from "./ElectionEventList"
-import {HorizontalBox} from "../../components/HorizontalBox"
-import {IconButton} from "@sequentech/ui-essentials"
-import {JsonInput} from "react-admin-json-view"
-import {KeysGenerationDialog} from "../../components/KeysGenerationDialog"
-import {Link} from "react-router-dom"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
-import {StartTallyDialog} from "../../components/StartTallyDialog"
 import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
 import {useMutation} from "@apollo/client"
 import {useTenantStore} from "../../components/CustomMenu"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
+import {ElectionHeaderStyles} from "../../components/styles/ElectionHeaderStyles"
 
 export const EditElectionEventAreasList: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -167,7 +159,11 @@ export const EditElectionEventAreasList: React.FC = () => {
                 onChange={() => setExpanded("election-event-data-general")}
             >
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-general" />}>
-                    <Typography variant="h5">{t("electionEventScreen.edit.general")}</Typography>
+                    <ElectionHeaderStyles.Wrapper>
+                        <ElectionHeaderStyles.Title>
+                            {t("electionEventScreen.edit.general")}
+                        </ElectionHeaderStyles.Title>
+                    </ElectionHeaderStyles.Wrapper>
                 </AccordionSummary>
                 <AccordionDetails>
                     <Tabs value={value} onChange={handleChange}>
@@ -265,8 +261,16 @@ export const EditElectionEventAreasList: React.FC = () => {
                 <AccordionDetails>
                     <Grid container spacing={4}>
                         <Grid item xs={12} md={6}>
-                            <BooleanInput source="language.english" label={"English"} defaultValue={true}/>
-                            <BooleanInput source="language.spanish" label={"Spanish"} defaultValue={false}/>
+                            <BooleanInput
+                                source="language.english"
+                                label={"English"}
+                                defaultValue={true}
+                            />
+                            <BooleanInput
+                                source="language.spanish"
+                                label={"Spanish"}
+                                defaultValue={false}
+                            />
                         </Grid>
                     </Grid>
                 </AccordionDetails>
@@ -284,8 +288,8 @@ export const EditElectionEventAreasList: React.FC = () => {
                     {" "}
                     <Grid container spacing={4}>
                         <Grid item xs={12} md={6}>
-                            <BooleanInput source="allowed.one" label={"One"} defaultValue={true}/>
-                            <BooleanInput source="allowed.two" label={"Two"} defaultValue={true}/>
+                            <BooleanInput source="allowed.one" label={"One"} defaultValue={true} />
+                            <BooleanInput source="allowed.two" label={"Two"} defaultValue={true} />
                         </Grid>
                     </Grid>
                 </AccordionDetails>
@@ -472,4 +476,3 @@ export const EditElectionEventAreasList: React.FC = () => {
         </SimpleForm>
     )
 }
-

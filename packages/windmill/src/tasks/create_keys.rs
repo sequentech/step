@@ -7,14 +7,13 @@ use celery::error::TaskError;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
 use crate::services::celery_app::*;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::public_keys;
-use crate::tasks::set_public_key::set_public_key;
 use crate::types::error::{Error, Result};
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
@@ -32,7 +31,7 @@ pub async fn create_keys(
     election_event_id: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
-    let celery_app = get_celery_app().await;
+    let _celery_app = get_celery_app().await;
     // fetch election_event
     let hasura_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
@@ -80,11 +79,6 @@ pub async fn create_keys(
         new_status,
     )
     .await?;
-
-    let task = celery_app
-        .send_task(set_public_key::new(tenant_id, election_event_id))
-        .await?;
-    event!(Level::INFO, "Sent SET_PUBLIC_KEY task {}", task.task_id);
 
     Ok(())
 }

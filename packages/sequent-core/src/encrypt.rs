@@ -326,7 +326,7 @@ mod tests {
         let (decoded_contests, election) = default_voting_portal_fixture();
         //get_encrypt_decoded_test_fixture(); //default_voting_portal_fixture();
         let ctx = RistrettoCtx;
-    
+
         // encrypt ballot
         let auditable_ballot = encrypt_decoded_contest::<RistrettoCtx>(
             &ctx,

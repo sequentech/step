@@ -124,6 +124,12 @@ const spanishTranslation = {
                 ok: "OK",
             },
         },
+        areas: {
+            common: {
+                title: "Areas",
+                subTitle: "Area configuration.",
+            },
+        },
         electionEventScreen: {
             common: {
                 subtitle: "Configuración del Evento de Elección.",
@@ -142,6 +148,23 @@ const spanishTranslation = {
                 endDate: "Fecha de finalización",
                 language: "Idioma",
                 votingChannels: "Canales de Voto",
+            },
+        },
+        common: {
+            label: {
+                add: "Añadir",
+                create: "Crear",
+                delete: "Borrar",
+                cancel: "Cancelar",
+                edit: "Editar",
+                save: "Guardar",
+                close: "Cerrar",
+                back: "Atrás",
+                next: "Siguiente",
+                warning: "Aviso",
+            },
+            message: {
+                delete: "¿Estás seguro de que quieres eliminar este elemento?",
             },
         },
     },

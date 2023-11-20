@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import {
     BooleanInput,
     DateField,
@@ -15,9 +18,6 @@ import {
     useRecordContext,
     useRefresh,
 } from "react-admin"
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
 import {
     Accordion,
     AccordionDetails,
@@ -38,7 +38,6 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ChipList} from "../../components/ChipList"
-import {ElectionEventList} from "./ElectionEventList"
 import {HorizontalBox} from "../../components/HorizontalBox"
 import {IconButton} from "@sequentech/ui-essentials"
 import {JsonInput} from "react-admin-json-view"
@@ -51,6 +50,7 @@ import {useMutation} from "@apollo/client"
 import {useTenantStore} from "../../components/CustomMenu"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
+import { ElectionHeaderStyles } from '../../components/styles/ElectionHeaderStyles'
 
 export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -167,7 +167,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                 onChange={() => setExpanded("election-event-data-general")}
             >
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-general" />}>
-                    <Typography variant="h5">{t("electionEventScreen.edit.general")}</Typography>
+                    <ElectionHeaderStyles.Wrapper>
+                        <ElectionHeaderStyles.Title>
+                            {t("electionEventScreen.edit.general")}
+                        </ElectionHeaderStyles.Title>
+                    </ElectionHeaderStyles.Wrapper>
                 </AccordionSummary>
                 <AccordionDetails>
                     <Tabs value={value} onChange={handleChange}>
@@ -234,7 +238,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                 onChange={() => setExpanded("election-event-data-dates")}
             >
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-dates" />}>
-                    <Typography variant="h5">{t("electionEventScreen.edit.dates")}</Typography>
+                    <ElectionHeaderStyles.Wrapper>
+                        <ElectionHeaderStyles.Title>
+                            {t("electionEventScreen.edit.dates")}
+                        </ElectionHeaderStyles.Title>
+                    </ElectionHeaderStyles.Wrapper>
                 </AccordionSummary>
                 <AccordionDetails>
                     <Grid container spacing={4}>
@@ -260,13 +268,25 @@ export const EditElectionEventDataForm: React.FC = () => {
                 onChange={() => setExpanded("election-event-data-language")}
             >
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-language" />}>
-                    <Typography variant="h5">{t("electionEventScreen.edit.language")}</Typography>
+                    <ElectionHeaderStyles.Wrapper>
+                        <ElectionHeaderStyles.Title>
+                            {t("electionEventScreen.edit.language")}
+                        </ElectionHeaderStyles.Title>
+                    </ElectionHeaderStyles.Wrapper>
                 </AccordionSummary>
                 <AccordionDetails>
                     <Grid container spacing={4}>
                         <Grid item xs={12} md={6}>
-                            <BooleanInput source="language.english" label={"English"} defaultValue={true}/>
-                            <BooleanInput source="language.spanish" label={"Spanish"} defaultValue={false}/>
+                            <BooleanInput
+                                source="language.english"
+                                label={"English"}
+                                defaultValue={true}
+                            />
+                            <BooleanInput
+                                source="language.spanish"
+                                label={"Spanish"}
+                                defaultValue={false}
+                            />
                         </Grid>
                     </Grid>
                 </AccordionDetails>
@@ -278,14 +298,18 @@ export const EditElectionEventDataForm: React.FC = () => {
                 onChange={() => setExpanded("election-event-data-allowed")}
             >
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-allowed" />}>
-                    <Typography variant="h5">{t("electionEventScreen.edit.allowed")}</Typography>
+                    <ElectionHeaderStyles.Wrapper>
+                        <ElectionHeaderStyles.Title>
+                            {t("electionEventScreen.edit.allowed")}
+                        </ElectionHeaderStyles.Title>
+                    </ElectionHeaderStyles.Wrapper>
                 </AccordionSummary>
                 <AccordionDetails>
                     {" "}
                     <Grid container spacing={4}>
                         <Grid item xs={12} md={6}>
-                            <BooleanInput source="allowed.one" label={"One"} defaultValue={true}/>
-                            <BooleanInput source="allowed.two" label={"Two"} defaultValue={true}/>
+                            <BooleanInput source="allowed.one" label={"One"} defaultValue={true} />
+                            <BooleanInput source="allowed.two" label={"Two"} defaultValue={true} />
                         </Grid>
                     </Grid>
                 </AccordionDetails>

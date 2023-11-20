@@ -32,5 +32,12 @@ pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
 
 pub fn get_board_name(tenant_id: &str, election_event_id: &str)
 -> String {
-    format!("tenant/{}/event/{}", tenant_id, election_event_id)
+    format!("tenant{}event{}", tenant_id, election_event_id)
+    .chars().filter(|&c| c != '-').collect()
+}
+
+pub fn get_tenant_name(tenant_id: &str)
+-> String {
+    format!("tenant{}", tenant_id)
+    .chars().filter(|&c| c != '-').collect()
 }

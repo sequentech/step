@@ -5,12 +5,17 @@ import {Button, CircularProgress, Menu, MenuItem, Typography} from "@mui/materia
 import React, {useState} from "react"
 import {
     Edit,
+    EditBase,
+    Identifier,
     ReferenceField,
     ReferenceManyField,
+    SaveButton,
     SimpleForm,
     TextField,
     TextInput,
+    useNotify,
     useRecordContext,
+    useRedirect,
     useRefresh,
 } from "react-admin"
 import {ListArea} from "./ListArea"
@@ -24,106 +29,54 @@ import {useTenantStore} from "../../components/CustomMenu"
 import {useMutation} from "@apollo/client"
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
+import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
+import {useTranslation} from "react-i18next"
 
-const AreaForm: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Area>()
-    const [showMenu, setShowMenu] = useState(false)
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
-    const [showProgress, setShowProgress] = useState(false)
-    const [tenantId] = useTenantStore()
-    const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
+interface EditAreaProps {
+    id?: Identifier | undefined
+    close?: () => void
+}
+
+export const EditArea: React.FC<EditAreaProps> = (props) => {
+    const {id, close} = props
     const refresh = useRefresh()
+    const notify = useNotify()
+    const {t} = useTranslation()
 
-    const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
-        setAnchorEl(event.currentTarget)
-        setShowMenu(true)
+    const onSuccess = async (res: any) => {
+        refresh()
+        notify("Area updated", {type: "success"})
+        if (close) {
+            close()
+        }
+    }
+
+    const onError = async (res: any) => {
+        refresh()
+        notify("Could not update Area", {type: "error"})
+        if (close) {
+            close()
+        }
     }
 
     return (
-        <SimpleForm>
-            <Typography variant="h4">Area</Typography>
-            <Typography variant="body2">Area configuration</Typography>
-            <Button onClick={handleActionsButtonClick}>
-                Actions {showProgress ? <CircularProgress /> : null}
-            </Button>
-            <Menu
-                id="election-event-actions-menu"
-                anchorEl={anchorEl}
-                open={showMenu}
-                onClose={() => setShowMenu(false)}
-            ></Menu>
-            <Typography variant="h5">ID</Typography>
-            <TextField source="id" />
-            <TextInput source="name" />
-            <TextInput source="description" />
-            <TextInput source="type" />
-            <Typography variant="h5">Election Event</Typography>
-            <ReferenceField
-                label="Election Event"
-                reference="sequent_backend_election_event"
-                source="election_event_id"
-            >
-                <TextField source="name" />
-            </ReferenceField>
-            <ReferenceManyField
-                label="Area Contests"
-                reference="sequent_backend_area_contest"
-                target="area_id"
-            >
-                <ChipList
-                    source="sequent_backend_area_contest"
-                    filterFields={["election_event_id", "area_id"]}
-                />
-            </ReferenceManyField>
-            <Link
-                to={{
-                    pathname: "/sequent_backend_area_contest/create",
-                }}
-                state={{
-                    record: {
-                        area_id: record.id,
-                        election_event_id: record.election_event_id,
-                        tenant_id: record.tenant_id,
-                    },
-                }}
-            >
-                <Button>
-                    <IconButton icon={faPlusCircle} fontSize="24px" />
-                    Add area contest
-                </Button>
-            </Link>
-            <JsonInput
-                source="labels"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="annotations"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-        </SimpleForm>
-    )
-}
+        <Edit
+            id={id}
+            resource="sequent_backend_area"
+            mutationMode="pessimistic"
+            mutationOptions={{onSuccess, onError}}
+            redirect={false}
+        >
+            <PageHeaderStyles.Wrapper>
+                <SimpleForm toolbar={<SaveButton />}>
+                    <PageHeaderStyles.Title>{t("areas.common.title")}</PageHeaderStyles.Title>
+                    <PageHeaderStyles.SubTitle>
+                        {t("areas.common.subTitle")}
+                    </PageHeaderStyles.SubTitle>
 
-export const EditArea: React.FC = () => {
-    return (
-        <ListArea
-            aside={
-                <Edit sx={{flexGrow: 2, width: "50%", flexShrink: 0}}>
-                    <AreaForm />
-                </Edit>
-            }
-        />
+                    <TextInput source="name" />
+                </SimpleForm>
+            </PageHeaderStyles.Wrapper>
+        </Edit>
     )
 }

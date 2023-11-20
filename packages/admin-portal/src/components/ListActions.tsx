@@ -10,20 +10,35 @@ import {ImportButton, ImportConfig} from "react-admin-import-csv"
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useState } from "react"
+import React, {useEffect, useState} from "react"
 
 import {Add} from "@mui/icons-material"
-import { Drawer } from '@mui/material'
+import {Drawer} from "@mui/material"
+import {useTranslation} from "react-i18next"
 
 interface ListActionsProps {
+    withImport?: boolean
+    withExport?: boolean
     withFilter?: boolean
     Component?: React.ReactNode
+    closeDrawer?: string
 }
 
 export const ListActions: React.FC<ListActionsProps> = (props) => {
-    const {withFilter, Component} = props
+    const {
+        withImport = true,
+        withExport = true,
+        withFilter = true,
+        Component,
+        closeDrawer = false,
+    } = props
+    const {t} = useTranslation()
 
     const [open, setOpen] = useState<boolean>(false)
+
+    useEffect(() => {
+        setOpen(false)
+    }, [closeDrawer])
 
     const config: ImportConfig = {
         logging: true,
@@ -39,11 +54,15 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
             {withFilter ? <FilterButton /> : null}
             {Component && (
                 <>
-                    <Button label="Create" onClick={() => setOpen(true)}><Add /></Button>
+                    <Button label={t("common.label.add")} onClick={() => setOpen(true)}>
+                        <Add />
+                    </Button>
                     <Drawer
                         anchor="right"
                         open={open}
-                        onClose={() => setOpen(false)}
+                        onClose={() => {
+                            setOpen(false)
+                        }}
                         PaperProps={{
                             sx: {width: "40%"},
                         }}
@@ -52,8 +71,8 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     </Drawer>
                 </>
             )}
-            <ImportButton {...props} {...config} />
-            <ExportButton />
+            {withImport ? <ImportButton {...props} {...config} /> : null}
+            {withExport ? <ExportButton /> : null}
         </TopToolbar>
     )
 }
