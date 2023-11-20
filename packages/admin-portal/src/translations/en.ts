@@ -138,16 +138,12 @@ const englishTranslation = {
                 language: "Language",
                 allowed: "Voting Channels Allowed",
             },
-            field:{
+            field: {
                 name: "Name",
-                alias: "Alias",
-                description: "Description",
-                startDate: "Start Date",
-                endDate: "End Date",
                 language: "Language",
                 votingChannels: "Voting Channels",
                 startDateTime: "Start Date and Time",
-                endDateTime: "End Date and Time"
+                endDateTime: "End Date and Time",
             },
         },
         common: {
@@ -165,7 +161,7 @@ const englishTranslation = {
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
-            }
+            },
         },
     },
 }
