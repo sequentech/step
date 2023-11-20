@@ -42,6 +42,7 @@ import {useMutation} from "@apollo/client"
 import {useTenantStore} from "../../components/CustomMenu"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
+import {ElectionHeaderStyles} from "../../components/styles/ElectionHeaderStyles"
 
 export const EditElectionEventAreasList: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -158,7 +159,11 @@ export const EditElectionEventAreasList: React.FC = () => {
                 onChange={() => setExpanded("election-event-data-general")}
             >
                 <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-general" />}>
-                    <Typography variant="h5">{t("electionEventScreen.edit.general")}</Typography>
+                    <ElectionHeaderStyles.Wrapper>
+                        <ElectionHeaderStyles.Title>
+                            {t("electionEventScreen.edit.general")}
+                        </ElectionHeaderStyles.Title>
+                    </ElectionHeaderStyles.Wrapper>
                 </AccordionSummary>
                 <AccordionDetails>
                     <Tabs value={value} onChange={handleChange}>
@@ -256,8 +261,16 @@ export const EditElectionEventAreasList: React.FC = () => {
                 <AccordionDetails>
                     <Grid container spacing={4}>
                         <Grid item xs={12} md={6}>
-                            <BooleanInput source="language.english" label={"English"} defaultValue={true}/>
-                            <BooleanInput source="language.spanish" label={"Spanish"} defaultValue={false}/>
+                            <BooleanInput
+                                source="language.english"
+                                label={"English"}
+                                defaultValue={true}
+                            />
+                            <BooleanInput
+                                source="language.spanish"
+                                label={"Spanish"}
+                                defaultValue={false}
+                            />
                         </Grid>
                     </Grid>
                 </AccordionDetails>
@@ -275,8 +288,8 @@ export const EditElectionEventAreasList: React.FC = () => {
                     {" "}
                     <Grid container spacing={4}>
                         <Grid item xs={12} md={6}>
-                            <BooleanInput source="allowed.one" label={"One"} defaultValue={true}/>
-                            <BooleanInput source="allowed.two" label={"Two"} defaultValue={true}/>
+                            <BooleanInput source="allowed.one" label={"One"} defaultValue={true} />
+                            <BooleanInput source="allowed.two" label={"Two"} defaultValue={true} />
                         </Grid>
                     </Grid>
                 </AccordionDetails>
@@ -463,4 +476,3 @@ export const EditElectionEventAreasList: React.FC = () => {
         </SimpleForm>
     )
 }
-

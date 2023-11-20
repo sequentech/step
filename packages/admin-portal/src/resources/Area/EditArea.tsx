@@ -9,6 +9,7 @@ import {
     Identifier,
     ReferenceField,
     ReferenceManyField,
+    SaveButton,
     SimpleForm,
     TextField,
     TextInput,
@@ -28,6 +29,7 @@ import {useTenantStore} from "../../components/CustomMenu"
 import {useMutation} from "@apollo/client"
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
+import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 
 interface EditAreaProps {
     id?: Identifier | undefined
@@ -63,13 +65,14 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
             mutationOptions={{onSuccess, onError}}
             redirect={false}
         >
-            <SimpleForm>
-                <Typography variant="h4">Area</Typography>
-                <Typography variant="body2">Area configuration</Typography>
+            <PageHeaderStyles.Wrapper>
+                <SimpleForm toolbar={<SaveButton />}>
+                    <PageHeaderStyles.Title>Area</PageHeaderStyles.Title>
+                    <PageHeaderStyles.SubTitle>Area configuration</PageHeaderStyles.SubTitle>
 
-                <TextInput source="name" />
+                    <TextInput source="name" />
 
-                {/* <Button onClick={handleActionsButtonClick}>
+                    {/* <Button onClick={handleActionsButtonClick}>
                 Actions {showProgress ? <CircularProgress /> : null}
             </Button>
             <Menu
@@ -81,26 +84,78 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
             <Typography variant="h5">ID</Typography>
             <TextField source="id" /> */}
 
-                {/* <TextInput source="description" />
+                    {/* <TextInput source="description" />
             <TextInput source="type" />
             <Typography variant="h5">Election Event</Typography>
 
                 <TextField source="name" />
             </ReferenceField>
-            <ReferenceManyField
-                label="Area Contests"
-                reference="sequent_backend_area_contest"
-                target="area_id"
-            >
-                <ChipList
-                    source="sequent_backend_area_contest"
-                    filterFields={["election_event_id", "area_id"]}
+            <ReferenceManyField                </PageHeaderStyles.Wrapper>
+", "area_id"]}
                 />
             </ReferenceManyField>
             <Link
                 to={{
                     pathname: "/sequent_backend_area_contest/create",
+                }}                </PageHeaderStyles.Wrapper>
+
+                state={{
+                    record: {
+                        area_id: record.id,
+                        election_event_id: record.election_event_id,
+                        tenant_id: record.tenant_id,
+                    },
                 }}
+            >
+                <Button>
+                    <IconButton icon={faPlusCircle} fontSize="24px" />
+                    Add area contest
+                </Button>
+            </Link>
+            <JsonInput
+                source="labels"
+                jsonString={false}
+                reactJsonOptions={{
+                    name: null,
+                    collapsed: true,
+                    enableClipboard: true,
+                    displayDataTypes: false,
+                }}       redirect={false}
+        >
+            <PageHeaderStyles.Wrapper>
+                <SimpleForm toolbar={<SaveButton />}>
+                    <PageHeaderStyles.Title>Area</PageHeaderStyles.Title>
+                    <PageHeaderStyles.SubTitle>Area configuration</PageHeaderStyles.SubTitle>
+
+                    <TextInput source="name" />
+
+                    {/* <Button onClick={handleActionsButtonClick}>
+                Actions {showProgress ? <CircularProgress /> : null}
+            </Button>
+            <Menu
+                id="election-event-actions-menu"
+                anchorEl={anchorEl}
+                open={showMenu}
+                onClose={() => setShowMenu(false)}
+            ></Menu>
+            <Typography variant="h5">ID</Typography>
+            <TextField source="id" /> */}
+
+                    {/* <TextInput source="description" />
+            <TextInput source="type" />
+            <Typography variant="h5">Election Event</Typography>
+
+                <TextField source="name" />
+            </ReferenceField>
+            <ReferenceManyField                </PageHeaderStyles.Wrapper>
+", "area_id"]}
+                />
+            </ReferenceManyField>
+            <Link
+                to={{
+                    pathname: "/sequent_backend_area_contest/create",
+                }}                </PageHeaderStyles.Wrapper>
+
                 state={{
                     record: {
                         area_id: record.id,
@@ -134,10 +189,8 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                     displayDataTypes: false,
                 }}
             /> */}
-            </SimpleForm>
+                </SimpleForm>
+            </PageHeaderStyles.Wrapper>
         </Edit>
     )
-}
-function refresh() {
-    throw new Error("Function not implemented.")
 }

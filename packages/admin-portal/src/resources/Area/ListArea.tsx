@@ -27,6 +27,7 @@ import {Dialog, adminTheme} from "@sequentech/ui-essentials"
 import {faPen, faTrash} from "@fortawesome/free-solid-svg-icons"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import {useTranslation} from "react-i18next"
+import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
 const Filters: Array<ReactElement> = [
@@ -100,7 +101,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
 
     return (
         <>
-            <Typography variant="h5">Areas</Typography>
             <List
                 resource="sequent_backend_area"
                 actions={

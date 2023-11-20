@@ -17,6 +17,7 @@ import {
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {Sequent_Backend_Area, Sequent_Backend_Election_Event} from "../../gql/graphql"
+import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 
 interface CreateAreaProps {
     record: Sequent_Backend_Election_Event
@@ -45,24 +46,32 @@ export const CreateArea: React.FC<CreateAreaProps> = (props) => {
     }
 
     return (
-        <Create resource="sequent_backend_area" mutationOptions={{onSuccess, onError}} redirect={false}>
+        <Create
+            resource="sequent_backend_area"
+            mutationOptions={{onSuccess, onError}}
+            redirect={false}
+        >
             <SimpleForm>
-                <Typography variant="h4">Area</Typography>
-                <Typography variant="body2">Area configuration</Typography>
+                <PageHeaderStyles.Wrapper>
+                    <PageHeaderStyles.Title>Area</PageHeaderStyles.Title>
+                    <PageHeaderStyles.SubTitle>Area configuration</PageHeaderStyles.SubTitle>
+                </PageHeaderStyles.Wrapper>
 
-                <TextInput source="name" />
-                <TextInput
-                    label="Election Event"
-                    source="election_event_id"
-                    defaultValue={record?.id || ""}
-                    style={{display: "none"}}
-                />
-                <TextInput
-                    label="Tenant"
-                    source="tenant_id"
-                    defaultValue={record?.tenant_id || ""}
-                    style={{display: "none"}}
-                />
+                <PageHeaderStyles.Wrapper>
+                    <TextInput source="name" />
+                    <TextInput
+                        label="Election Event"
+                        source="election_event_id"
+                        defaultValue={record?.id || ""}
+                        style={{display: "none"}}
+                    />
+                    <TextInput
+                        label="Tenant"
+                        source="tenant_id"
+                        defaultValue={record?.tenant_id || ""}
+                        style={{display: "none"}}
+                    />
+                </PageHeaderStyles.Wrapper>
             </SimpleForm>
 
             {/* <SimpleForm>
