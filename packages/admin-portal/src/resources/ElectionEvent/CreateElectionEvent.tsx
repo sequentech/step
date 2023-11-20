@@ -7,6 +7,7 @@ import {CreateElectionEventMutation} from "../../gql/graphql"
 import {v4} from "uuid"
 import {
     ArrayInput,
+    BooleanInput,
     ReferenceInput,
     SelectInput,
     SimpleForm,
@@ -56,6 +57,7 @@ export const CreateElectionList: React.FC = () => {
             <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                 <SelectInput optionText="slug" />
             </ReferenceInput>
+            <BooleanInput source="is_archived" />
             {/*
             <ArrayInput source="elections">
                 <SimpleFormIterator inline>
