@@ -4,6 +4,12 @@
 # Newer versions may be available at 
 # https://quay.io/repository/keycloak/keycloak?tab=tags
 
+# Start with a Maven base image to compile the 2FA authenticator
+FROM maven:3-amazoncorretto-17 AS spis-build
+COPY ./keycloak-extensions/ /build/keycloak-extensions/
+WORKDIR /build/keycloak-extensions/
+RUN mvn clean package
+
 FROM registry.access.redhat.com/ubi9 AS ubi-micro-build
 RUN mkdir -p /mnt/rootfs
 RUN dnf install --installroot /mnt/rootfs curl --releasever 9 --setopt install_weak_deps=false --nodocs -y; dnf --installroot /mnt/rootfs clean all
@@ -37,12 +43,22 @@ RUN keytool \
    -dname "CN=server" \
    -alias keycloak-server -ext "SAN:c=DNS:localhost,IP:127.0.0.1" \
    -keystore conf/server.keystore
+
+# Copy the compiled 2FA authenticator SPI into the Keycloak providers directory
+# before calling `kc.sh build`
+COPY --chown=keycloak:keycloak \
+   --from=spis-build \
+   /build/keycloak-extensions/message-otp-authenticator/target/sequent.message-otp-authenticator.jar \
+   /build/keycloak-extensions/security-question-authenticator/target/sequent.security-question-authenticator.jar \
+   /opt/keycloak/providers/
+
 RUN /opt/keycloak/bin/kc.sh build
 
 FROM quay.io/keycloak/keycloak:22.0
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY --from=builder /bin/curl /bin/curl
 COPY --from=builder /usr/bin/curl /usr/bin/curl
+
 
 ENV KC_DB=postgres
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
