@@ -13,12 +13,14 @@ import {
     TextInput,
     useGetOne,
     useNotify,
+    useRefresh,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
 import { CircularProgress } from "@mui/material"
 import { useTranslation } from "react-i18next"
 import { isNull } from "@sequentech/ui-essentials"
+import { useNavigate } from "react-router"
 
 interface IElectionSubmit {
     description: string
@@ -40,6 +42,8 @@ export const CreateElectionList: React.FC = () => {
     const [newId, setNewId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const {t} = useTranslation()
+    const navigate = useNavigate()
+    const refresh = useRefresh()
     const postDefaultValues = () => ({id: v4()})
     const { data: newElectionEvent, isLoading: isOneLoading, error } = useGetOne(
         'sequent_backend_election_event',
@@ -55,10 +59,14 @@ export const CreateElectionList: React.FC = () => {
         if (isLoading && error && !isOneLoading) {
             setIsLoading(false)
             notify(t("electionEventScreen.createElectionEventError"), { type: "error"})
+            refresh()
             return
         }
         if (isLoading && !error && !isOneLoading && newElectionEvent) {
+            setIsLoading(false)
             notify(t("electionEventScreen.createElectionEventSuccess"), { type: "success"})
+            refresh()
+            navigate(`/sequent_backend_election_event/${newId}`)
 
         } 
     }, [isLoading, newElectionEvent, isOneLoading, error])
@@ -76,6 +84,7 @@ export const CreateElectionList: React.FC = () => {
             setIsLoading(true)
         } else {
             notify(t("electionEventScreen.createElectionEventError"), { type: "error"})
+            setIsLoading(false)
         }
     }
     return (

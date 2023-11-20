@@ -171,6 +171,10 @@ const spanishTranslation = {
                 delete: "¿Estás seguro de que quieres eliminar este elemento?",
             },
         },
+        tenant: {
+            createSuccess: "Cliente creado",
+            createError: "Error creando cliente",
+        }
     },
 }
 

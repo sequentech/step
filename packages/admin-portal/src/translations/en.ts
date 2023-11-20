@@ -167,6 +167,10 @@ const englishTranslation = {
                 delete: "Are you sure you want to delete this item?",
             },
         },
+        tenant: {
+            createSuccess: "Customer created",
+            createError: "Error creating customer",
+        }
     },
 }
 
