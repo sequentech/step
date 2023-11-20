@@ -122,6 +122,12 @@ const englishTranslation = {
                 ok: "OK",
             },
         },
+        areas: {
+            common: {
+                title: "Areas",
+                subTitle: "Area configuration.",
+            },
+        },
         electionEventScreen: {
             common: {
                 subtitle: "Election event configuration.",

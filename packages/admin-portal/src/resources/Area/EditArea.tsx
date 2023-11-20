@@ -30,6 +30,7 @@ import {useMutation} from "@apollo/client"
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
+import {useTranslation} from "react-i18next"
 
 interface EditAreaProps {
     id?: Identifier | undefined
@@ -40,6 +41,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
     const {id, close} = props
     const refresh = useRefresh()
     const notify = useNotify()
+    const {t} = useTranslation()
 
     const onSuccess = async (res: any) => {
         refresh()
@@ -67,128 +69,12 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
         >
             <PageHeaderStyles.Wrapper>
                 <SimpleForm toolbar={<SaveButton />}>
-                    <PageHeaderStyles.Title>Area</PageHeaderStyles.Title>
-                    <PageHeaderStyles.SubTitle>Area configuration</PageHeaderStyles.SubTitle>
+                    <PageHeaderStyles.Title>{t("areas.common.title")}</PageHeaderStyles.Title>
+                    <PageHeaderStyles.SubTitle>
+                        {t("areas.common.subTitle")}
+                    </PageHeaderStyles.SubTitle>
 
                     <TextInput source="name" />
-
-                    {/* <Button onClick={handleActionsButtonClick}>
-                Actions {showProgress ? <CircularProgress /> : null}
-            </Button>
-            <Menu
-                id="election-event-actions-menu"
-                anchorEl={anchorEl}
-                open={showMenu}
-                onClose={() => setShowMenu(false)}
-            ></Menu>
-            <Typography variant="h5">ID</Typography>
-            <TextField source="id" /> */}
-
-                    {/* <TextInput source="description" />
-            <TextInput source="type" />
-            <Typography variant="h5">Election Event</Typography>
-
-                <TextField source="name" />
-            </ReferenceField>
-            <ReferenceManyField                </PageHeaderStyles.Wrapper>
-", "area_id"]}
-                />
-            </ReferenceManyField>
-            <Link
-                to={{
-                    pathname: "/sequent_backend_area_contest/create",
-                }}                </PageHeaderStyles.Wrapper>
-
-                state={{
-                    record: {
-                        area_id: record.id,
-                        election_event_id: record.election_event_id,
-                        tenant_id: record.tenant_id,
-                    },
-                }}
-            >
-                <Button>
-                    <IconButton icon={faPlusCircle} fontSize="24px" />
-                    Add area contest
-                </Button>
-            </Link>
-            <JsonInput
-                source="labels"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}       redirect={false}
-        >
-            <PageHeaderStyles.Wrapper>
-                <SimpleForm toolbar={<SaveButton />}>
-                    <PageHeaderStyles.Title>Area</PageHeaderStyles.Title>
-                    <PageHeaderStyles.SubTitle>Area configuration</PageHeaderStyles.SubTitle>
-
-                    <TextInput source="name" />
-
-                    {/* <Button onClick={handleActionsButtonClick}>
-                Actions {showProgress ? <CircularProgress /> : null}
-            </Button>
-            <Menu
-                id="election-event-actions-menu"
-                anchorEl={anchorEl}
-                open={showMenu}
-                onClose={() => setShowMenu(false)}
-            ></Menu>
-            <Typography variant="h5">ID</Typography>
-            <TextField source="id" /> */}
-
-                    {/* <TextInput source="description" />
-            <TextInput source="type" />
-            <Typography variant="h5">Election Event</Typography>
-
-                <TextField source="name" />
-            </ReferenceField>
-            <ReferenceManyField                </PageHeaderStyles.Wrapper>
-", "area_id"]}
-                />
-            </ReferenceManyField>
-            <Link
-                to={{
-                    pathname: "/sequent_backend_area_contest/create",
-                }}                </PageHeaderStyles.Wrapper>
-
-                state={{
-                    record: {
-                        area_id: record.id,
-                        election_event_id: record.election_event_id,
-                        tenant_id: record.tenant_id,
-                    },
-                }}
-            >
-                <Button>
-                    <IconButton icon={faPlusCircle} fontSize="24px" />
-                    Add area contest
-                </Button>
-            </Link>
-            <JsonInput
-                source="labels"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="annotations"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            /> */}
                 </SimpleForm>
             </PageHeaderStyles.Wrapper>
         </Edit>
