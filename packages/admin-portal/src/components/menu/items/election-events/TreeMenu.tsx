@@ -91,7 +91,9 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
                     <div className="w-6 h-6 cursor-pointer" onClick={onClick}>
                         <Icon icon={open ? faAngleDown : faAngleRight} />
                     </div>
-                ) : null}
+                ) : (
+                    <div className="w-6 h-6"></div>
+                )}
                 {isOpen && (
                     <>
                         <NavLink
