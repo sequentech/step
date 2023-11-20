@@ -21,7 +21,7 @@ export const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
                 "authorization": token ? `Bearer ${token}` : "",
                 "x-hasura-tenant-id": tenantId || "whatever",
                 "x-hasura-election-event-id": electionEventId || "defaultdb",
-                "x-hasura-role": "my-realm-role",
+                "x-hasura-role": "admin-user",
             },
         }
     })
