@@ -42,7 +42,13 @@ pub async fn upload_and_return_document(
 
     let document_s3_key = s3::get_document_key(tenant_id, election_event_id, document_id);
 
-    s3::upload_to_s3(&bytes, document_s3_key, media_type).await?;
+    s3::upload_to_s3(
+        &bytes,
+        document_s3_key,
+        media_type,
+        s3::get_private_bucket(),
+    )
+    .await?;
 
     Ok(Document {
         id: document.id.clone(),

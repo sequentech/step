@@ -5,10 +5,7 @@
 use anyhow::Result;
 use tracing::{event, instrument, Level};
 use windmill::services::celery_app::get_celery_app;
-use windmill::tasks::create_ballot_style;
-use windmill::tasks::create_board;
 use windmill::tasks::create_keys;
-use windmill::tasks::insert_ballots;
 use windmill::tasks::render_report;
 use windmill::tasks::set_public_key::*;
 use windmill::tasks::tally_election_event::{
@@ -17,7 +14,6 @@ use windmill::tasks::tally_election_event::{
 use windmill::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use windmill::tasks::update_voting_status;
 use windmill::types::scheduled_event::*;
-use uuid::Uuid;
 
 use crate::routes::scheduled_event;
 use crate::services::worker::scheduled_event::CreateEventBody;
@@ -34,7 +30,6 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<()> {
                     body,
                     event.tenant_id,
                     event.election_event_id,
-                    Uuid::new_v4(),
                 ))
                 .await?;
             event!(Level::INFO, "Sent CREATE_REPORT task {}", task.task_id);
@@ -54,15 +49,6 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<()> {
                 "Sent UPDATE_VOTING_STATUS task {}",
                 task.task_id
             );
-        }
-        EventProcessors::CREATE_BOARD => {
-            let task = celery_app
-                .send_task(create_board::create_board::new(
-                    event.tenant_id,
-                    event.election_event_id,
-                ))
-                .await?;
-            event!(Level::INFO, "Sent CREATE_BOARD task {}", task.task_id);
         }
         EventProcessors::CREATE_KEYS => {
             let payload: create_keys::CreateKeysBody =

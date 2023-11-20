@@ -12,10 +12,10 @@ export const CreateTenant: React.FC = () => {
             <SimpleForm>
                 <Typography variant="h4">Customer</Typography>
                 <Typography variant="body2">Customer creation</Typography>
-                <TextInput source="username" />
+                <TextInput source="slug" />
                 <BooleanInput source="is_active" />
                 <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
-                    <SelectInput optionText="username" />
+                    <SelectInput optionText="slug" />
                 </ReferenceInput>
                 <JsonInput
                     source="labels"

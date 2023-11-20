@@ -17,7 +17,7 @@ use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
 use strand::util::StrandError;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use std::env;
 use std::marker::PhantomData;
 use tracing::{event, info, instrument, Level};
@@ -177,7 +177,13 @@ pub async fn add_ballots_to_board<C: Ctx>(
     batch: BatchNumber,
     trustee_pks: Vec<StrandSignaturePk>,
 ) -> Result<()> {
-    let pms = vault::read_secret(format!("boards/{}/protocol-manager", board_name)).await?;
+    let pms_opt = vault::read_secret(format!("boards/{}/protocol-manager", board_name)).await?;
+    let pms = match pms_opt {
+        Some(pms) => pms,
+        None => {
+            return Err(anyhow!("protocol manager secret not found"));
+        }
+    };
     let pm = deserialize_protocol_manager::<C>(pms);
 
     let mut board = get_board_client().await?;
@@ -209,7 +215,8 @@ pub async fn get_board_client() -> Result<BoardClient> {
     let server_url =
         env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
 
-    let board_client = BoardClient::new(&server_url, &user, &password).await?;
+    let mut board_client = BoardClient::new(&server_url, &user, &password).await?;
+    board_client.login(&user, &password).await?;
 
     Ok(board_client)
 }

@@ -5,6 +5,7 @@
 use celery;
 use celery::prelude::TaskError;
 use handlebars;
+use keycloak;
 use serde_json;
 use strand::util::StrandError;
 
@@ -64,6 +65,12 @@ impl From<StrandError> for Error {
 
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
+        Error::String(format!("{:?}", err))
+    }
+}
+
+impl From<keycloak::KeycloakError> for Error {
+    fn from(err: keycloak::KeycloakError) -> Self {
         Error::String(format!("{:?}", err))
     }
 }

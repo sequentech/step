@@ -5,6 +5,7 @@
 use crate::types::error::Result;
 use anyhow::Context;
 use celery::error::TaskError;
+use chrono::{Duration, Utc};
 use sequent_core;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
@@ -16,6 +17,7 @@ use uuid::Uuid;
 use crate::hasura;
 use crate::hasura::ballot_style::get_ballot_style_area;
 use crate::services::date::ISO8601;
+use crate::services::pg_lock::PgLock;
 
 impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElectionEvent>
     for sequent_core::types::hasura_types::ElectionEvent
@@ -191,6 +193,13 @@ pub async fn create_ballot_style(
     election_event_id: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
+    let lock = PgLock::acquire(
+        auth_headers.clone(),
+        format!("create_ballot_style-{}-{}", tenant_id, election_event_id),
+        Uuid::new_v4().to_string(),
+        Some(Utc::now().naive_utc() + Duration::seconds(60)),
+    )
+    .await?;
     let hasura_response = hasura::ballot_style::get_ballot_style_area(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -311,6 +320,7 @@ pub async fn create_ballot_style(
         )
         .await?;
     }
+    lock.release(auth_headers.clone()).await?;
 
     Ok(())
 }

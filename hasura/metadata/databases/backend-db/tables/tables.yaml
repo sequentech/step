@@ -9,6 +9,7 @@
 - "!include sequent_backend_election_event.yaml"
 - "!include sequent_backend_election_result.yaml"
 - "!include sequent_backend_event_execution.yaml"
+- "!include sequent_backend_lock.yaml"
 - "!include sequent_backend_scheduled_event.yaml"
 - "!include sequent_backend_tally_session.yaml"
 - "!include sequent_backend_tally_session_contest.yaml"

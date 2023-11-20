@@ -122,6 +122,47 @@ const englishTranslation = {
                 ok: "OK",
             },
         },
+        areas: {
+            common: {
+                title: "Areas",
+                subTitle: "Area configuration.",
+            },
+        },
+        electionEventScreen: {
+            common: {
+                subtitle: "Election event configuration.",
+            },
+            edit: {
+                general: "General",
+                dates: "Dates",
+                language: "Language",
+                allowed: "Voting Channels Allowed",
+            },
+            field: {
+                name: "Name",
+                language: "Language",
+                votingChannels: "Voting Channels",
+                startDateTime: "Start Date and Time",
+                endDateTime: "End Date and Time",
+            },
+        },
+        common: {
+            label: {
+                add: "Add",
+                create: "Create",
+                delete: "Delete",
+                cancel: "Cancel",
+                edit: "Edit",
+                save: "Save",
+                close: "Close",
+                back: "Back",
+                next: "Next",
+                warning: "Warning",
+            },
+            message: {
+                delete: "Are you sure you want to delete this item?",
+            },
+        },
     },
 }
 

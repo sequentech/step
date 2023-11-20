@@ -3,6 +3,9 @@ SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 
 SPDX-License-Identifier: AGPL-3.0-only
 */
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
+
 body {
   margin: 0;
   font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;

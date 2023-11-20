@@ -1,38 +1,62 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Button, CircularProgress, Menu, MenuItem, Typography} from "@mui/material"
-import React, {useState} from "react"
 import {
     BooleanInput,
+    DateField,
+    DateInput,
+    DateTimeInput,
     Edit,
+    EditBase,
     ReferenceManyField,
     SelectInput,
     SimpleForm,
+    TabbedForm,
+    TabbedShowLayout,
     TextField,
     TextInput,
     useRecordContext,
     useRefresh,
 } from "react-admin"
-import {JsonInput} from "react-admin-json-view"
-import {ElectionEventList} from "./ElectionEventList"
-import {HorizontalBox} from "../../components/HorizontalBox"
-import {ChipList} from "../../components/ChipList"
-import {Link} from "react-router-dom"
+import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Button,
+    Tabs,
+    Tab,
+    CircularProgress,
+    Menu,
+    MenuItem,
+    Typography,
+    Grid,
+} from "@mui/material"
 import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
-import {IconButton} from "@sequentech/ui-essentials"
+import React, {useState} from "react"
 import {faPieChart, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
-import {ScheduledEventType} from "../../services/ScheduledEvent"
-import {useTenantStore} from "../../components/CustomMenu"
-import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
-import {useMutation} from "@apollo/client"
-import {KeysGenerationDialog} from "../../components/KeysGenerationDialog"
-import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
-import {StartTallyDialog} from "../../components/StartTallyDialog"
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-const ElectionEventListForm: React.FC = () => {
+import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
+import {ChipList} from "../../components/ChipList"
+import {HorizontalBox} from "../../components/HorizontalBox"
+import {IconButton} from "@sequentech/ui-essentials"
+import {JsonInput} from "react-admin-json-view"
+import {KeysGenerationDialog} from "../../components/KeysGenerationDialog"
+import {Link} from "react-router-dom"
+import {ScheduledEventType} from "../../services/ScheduledEvent"
+import {StartTallyDialog} from "../../components/StartTallyDialog"
+import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
+import {useMutation} from "@apollo/client"
+import {useTenantStore} from "../../components/CustomMenu"
+import {useTranslation} from "react-i18next"
+import {CustomTabPanel} from "../../components/CustomTabPanel"
+import { ElectionHeaderStyles } from '../../components/styles/ElectionHeaderStyles'
+
+export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const [expanded, setExpanded] = useState("election-event-data-general")
     const [showMenu, setShowMenu] = useState(false)
+    const [value, setValue] = useState(0)
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const [showProgress, setShowProgress] = useState(false)
     const [showCreateKeysDialog, setShowCreateKeysDialog] = useState(false)
@@ -40,6 +64,7 @@ const ElectionEventListForm: React.FC = () => {
     const [tenantId] = useTenantStore()
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const refresh = useRefresh()
+    const {t} = useTranslation()
 
     const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
         setAnchorEl(event.currentTarget)
@@ -56,8 +81,7 @@ const ElectionEventListForm: React.FC = () => {
                 electionEventId: record.id,
                 eventProcessor: ScheduledEventType.CREATE_BOARD,
                 cronConfig: undefined,
-                eventPayload: {
-                },
+                eventPayload: {},
                 createdBy: "admin",
             },
         })
@@ -129,17 +153,169 @@ const ElectionEventListForm: React.FC = () => {
         refresh()
     }
 
+    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+        setValue(newValue)
+    }
+
     let configCreatedStatus = getConfigCreatedStatus(record.status)
 
     return (
         <SimpleForm>
-            <Link to={`/sequent_backend_election_event/${record.id}/show`}>
-                <Button>
-                    <IconButton icon={faPieChart} fontSize="24px" />
-                    Show Dashboard
-                </Button>
-            </Link>
-            <Typography variant="h4">Election Event</Typography>
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "election-event-data-general"}
+                onChange={() => setExpanded("election-event-data-general")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-general" />}>
+                    <ElectionHeaderStyles.Wrapper>
+                        <ElectionHeaderStyles.Title>
+                            {t("electionEventScreen.edit.general")}
+                        </ElectionHeaderStyles.Title>
+                    </ElectionHeaderStyles.Wrapper>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <Tabs value={value} onChange={handleChange}>
+                        <Tab label="English" id="tab-1"></Tab>
+                        <Tab label="Spanish" id="tab-2"></Tab>
+                    </Tabs>
+                    <CustomTabPanel value={value} index={0}>
+                        <div style={{marginTop: "16px"}}>
+                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                            <TextInput
+                                source="alias"
+                                label={t("electionEventScreen.field.alias")}
+                            />
+                            <TextInput
+                                source="description"
+                                label={t("electionEventScreen.field.description")}
+                            />
+                        </div>
+                    </CustomTabPanel>
+                    <CustomTabPanel value={value} index={1}>
+                        <div style={{marginTop: "16px"}}>
+                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                            <TextInput
+                                source="alias"
+                                label={t("electionEventScreen.field.alias")}
+                            />
+                            <TextInput
+                                source="description"
+                                label={t("electionEventScreen.field.description")}
+                            />
+                        </div>
+                    </CustomTabPanel>
+
+                    {/* <TabbedShowLayout>
+                        <TabbedShowLayout.Tab label="English" >
+                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                            <TextInput
+                                source="alias"
+                                label={t("electionEventScreen.field.alias")}
+                            />
+                            <TextInput
+                                source="description"
+                                label={t("electionEventScreen.field.description")}
+                            />
+                        </TabbedShowLayout.Tab>
+                        <TabbedShowLayout.Tab label="Spanish" >
+                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                            <TextInput
+                                source="alias"
+                                label={t("electionEventScreen.field.alias")}
+                            />
+                            <TextInput
+                                source="description"
+                                label={t("electionEventScreen.field.description")}
+                            />
+                        </TabbedShowLayout.Tab>
+                    </TabbedShowLayout> */}
+                </AccordionDetails>
+            </Accordion>
+
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "election-event-data-dates"}
+                onChange={() => setExpanded("election-event-data-dates")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-dates" />}>
+                    <ElectionHeaderStyles.Wrapper>
+                        <ElectionHeaderStyles.Title>
+                            {t("electionEventScreen.edit.dates")}
+                        </ElectionHeaderStyles.Title>
+                    </ElectionHeaderStyles.Wrapper>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <Grid container spacing={4}>
+                        <Grid item xs={12} md={6}>
+                            <DateTimeInput
+                                source="start_date"
+                                label={t("electionEventScreen.field.startDateTime")}
+                            />
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                            <DateTimeInput
+                                source="end_date"
+                                label={t("electionEventScreen.field.endDateTime")}
+                            />
+                        </Grid>
+                    </Grid>
+                </AccordionDetails>
+            </Accordion>
+
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "election-event-data-language"}
+                onChange={() => setExpanded("election-event-data-language")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-language" />}>
+                    <ElectionHeaderStyles.Wrapper>
+                        <ElectionHeaderStyles.Title>
+                            {t("electionEventScreen.edit.language")}
+                        </ElectionHeaderStyles.Title>
+                    </ElectionHeaderStyles.Wrapper>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <Grid container spacing={4}>
+                        <Grid item xs={12} md={6}>
+                            <BooleanInput
+                                source="language.english"
+                                label={"English"}
+                                defaultValue={true}
+                            />
+                            <BooleanInput
+                                source="language.spanish"
+                                label={"Spanish"}
+                                defaultValue={false}
+                            />
+                        </Grid>
+                    </Grid>
+                </AccordionDetails>
+            </Accordion>
+
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "election-event-data-allowed"}
+                onChange={() => setExpanded("election-event-data-allowed")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-allowed" />}>
+                    <ElectionHeaderStyles.Wrapper>
+                        <ElectionHeaderStyles.Title>
+                            {t("electionEventScreen.edit.allowed")}
+                        </ElectionHeaderStyles.Title>
+                    </ElectionHeaderStyles.Wrapper>
+                </AccordionSummary>
+                <AccordionDetails>
+                    {" "}
+                    <Grid container spacing={4}>
+                        <Grid item xs={12} md={6}>
+                            <BooleanInput source="allowed.one" label={"One"} defaultValue={true} />
+                            <BooleanInput source="allowed.two" label={"Two"} defaultValue={true} />
+                        </Grid>
+                    </Grid>
+                </AccordionDetails>
+            </Accordion>
+
+            {/* <Typography variant="h4">Election Event</Typography>
             <Typography variant="body2">Election event configuration</Typography>
             <Button onClick={handleActionsButtonClick}>
                 Actions {showProgress ? <CircularProgress /> : null}
@@ -316,19 +492,8 @@ const ElectionEventListForm: React.FC = () => {
                         filterFields={["election_event_id"]}
                     />
                 </HorizontalBox>
-            </ReferenceManyField>
+            </ReferenceManyField> */}
         </SimpleForm>
     )
 }
 
-export const EditElectionList: React.FC = () => {
-    return (
-        <ElectionEventList
-            aside={
-                <Edit sx={{flexGrow: 2, width: "50%", flexShrink: 0}}>
-                    <ElectionEventListForm />
-                </Edit>
-            }
-        />
-    )
-}

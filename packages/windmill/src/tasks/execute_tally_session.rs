@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>, Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+use chrono::{Duration, Utc};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
-use tempfile::tempdir;
 
 use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
@@ -13,7 +12,9 @@ use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::services::keycloak;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
+use tempfile::tempdir;
 use tracing::{event, instrument, Level};
+use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
 use velvet::fixtures;
@@ -29,6 +30,7 @@ use crate::hasura::tally_session_execution::{
 use crate::services::compress::compress_folder;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::types::error::{Error, Result};
 
@@ -426,6 +428,17 @@ pub async fn execute_tally_session(
     election_event_id: String,
     tally_session_id: String,
 ) -> Result<()> {
+    let auth_headers = keycloak::get_client_credentials().await?;
+    let lock = PgLock::acquire(
+        auth_headers.clone(),
+        format!(
+            "execute_tally_session-{}-{}-{}",
+            tenant_id, election_event_id, tally_session_id
+        ),
+        Uuid::new_v4().to_string(),
+        Some(Utc::now().naive_utc() + Duration::seconds(60)),
+    )
+    .await?;
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
         tenant_id.clone(),
@@ -435,6 +448,7 @@ pub async fn execute_tally_session(
     .await?;
 
     if plaintexts_data_opt.is_none() {
+        lock.release(auth_headers.clone()).await?;
         return Ok(());
     }
 
@@ -488,13 +502,14 @@ pub async fn execute_tally_session(
     if is_execution_completed {
         // update tally session to flag it as completed
         set_tally_session_completed(
-            auth_headers,
+            auth_headers.clone(),
             tenant_id.clone(),
             election_event_id.clone(),
             tally_session_id.clone(),
         )
         .await?;
     }
+    lock.release(auth_headers.clone()).await?;
 
     Ok(())
 }

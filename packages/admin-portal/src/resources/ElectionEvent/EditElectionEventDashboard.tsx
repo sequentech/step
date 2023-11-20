@@ -2,29 +2,32 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Paper, Typography} from "@mui/material"
-import React from "react"
-import {Show, TabbedShowLayout, TextField, useRecordContext} from "react-admin"
 import Chart, {Props} from "react-apexcharts"
-import {styled} from "@mui/material/styles"
-import {IconButton, theme} from "@sequentech/ui-essentials"
-import {
-    faBriefcase,
-    faUsers,
-    faGlobe,
-    faEnvelope,
-    faCommentSms,
-    faCalendar,
-    faClock,
-} from "@fortawesome/free-solid-svg-icons"
-import {useQuery} from "@apollo/client"
 import {
     GetCastVotesQuery,
     GetElectionEventStatsQuery,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
+import {IconButton, theme} from "@sequentech/ui-essentials"
+import {ShowBase, TabbedShowLayout, TextField, useRecordContext} from "react-admin"
+import {
+    faBriefcase,
+    faCalendar,
+    faClock,
+    faCommentSms,
+    faEnvelope,
+    faGlobe,
+    faUsers,
+} from "@fortawesome/free-solid-svg-icons"
+
+    import ElectionHeader from '../../components/ElectionHeader'
 import {GET_CAST_VOTES} from "../../queries/GetCastVotes"
 import {GET_ELECTION_EVENT_STATS} from "../../queries/GetElectionEventStats"
+import React from "react"
 import {ReportDialog} from "../../components/ReportDialog"
+import {styled} from "@mui/material/styles"
+import {useQuery} from "@apollo/client"
+import { EditElectionEventData } from './EditElectionEventData'
 
 const CardList = styled(Box)`
     display: flex;
@@ -33,25 +36,22 @@ const CardList = styled(Box)`
     margin: 20px 0;
 `
 
-const CardContainer = styled(Box)<{selected?: string}>`
+const CardContainer = styled(Box)<{selected?: boolean}>`
     display: flex;
     flex-direction: column;
     padding: 16px;
     border-radius: 4px;
     border: 1px solid ${theme.palette.customGrey.light};
-    color: ${({selected}) =>
-        "true" === selected ? theme.palette.white : theme.palette.customGrey.main};
+    color: ${({selected}) => (selected ? theme.palette.white : theme.palette.customGrey.main)};
     justify-content: center;
     text-align: center;
     width: 160px;
     height: 140px;
     ${({selected}) =>
-        "true" === selected
-            ? "background: linear-gradient(180deg, #0FADCF 0%, #0F054B 100%); "
-            : ""}
+        selected ? "background: linear-gradient(180deg, #0FADCF 0%, #0F054B 100%); " : ""}
 `
 
-const ChartsContainer = styled(Box)`
+export const ChartsContainer = styled(Box)`
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
@@ -67,7 +67,7 @@ const Separator = styled(Box)`
     margin: 16px 0;
 `
 
-const PieChart: React.FC = () => {
+export const PieChart: React.FC = () => {
     const state: Props = {
         options: {
             labels: ["Online", "Paper", "IVR", "Postal"],
@@ -125,7 +125,7 @@ const getWeekLegend = (): Array<string> => {
     return [...legend.slice(dayOfWeek, 7), ...legend.slice(0, dayOfWeek)]
 }
 
-const BarChart: React.FC = () => {
+export const BarChart: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const {loading, error, data} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
@@ -179,7 +179,7 @@ const BarChart: React.FC = () => {
     )
 }
 
-const ElectionStats: React.FC = () => {
+export const ElectionStats: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const {loading, error, data} = useQuery<GetElectionEventStatsQuery>(GET_ELECTION_EVENT_STATS, {
@@ -200,7 +200,7 @@ const ElectionStats: React.FC = () => {
                 <Typography fontSize="24px">5</Typography>
                 <Typography fontSize="12px">TRUSTEES</Typography>
             </CardContainer>
-            <CardContainer selected="true">
+            <CardContainer selected={true}>
                 <IconButton icon={faUsers} fontSize="38px" />
                 <Typography fontSize="24px">
                     {data.sequent_backend_cast_vote_aggregate.aggregate?.count}
@@ -237,31 +237,5 @@ const ElectionStats: React.FC = () => {
                 <Typography fontSize="12px">CALENDAR</Typography>
             </CardContainer>
         </CardList>
-    )
-}
-
-export const ShowElectionEvent: React.FC = () => {
-    return (
-        <Show>
-            <TabbedShowLayout >
-                <TabbedShowLayout.Tab label="Dashboard">
-                    <Box sx={{padding: "16px"}}>
-                        <TextField source="name" fontSize="24px" fontWeight="bold" />
-                        <ElectionStats />
-                        <ChartsContainer>
-                            <BarChart />
-                            <PieChart />
-                        </ChartsContainer>
-                        <ReportDialog />
-                    </Box>
-                </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Data">a</TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Voters">a</TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Areas">a</TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Keys">a</TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Tally">a</TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Logs">a</TabbedShowLayout.Tab>
-            </TabbedShowLayout>
-        </Show>
     )
 }

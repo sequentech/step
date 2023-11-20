@@ -352,6 +352,7 @@ impl Message {
                 return Err(anyhow!("Configuration must be signed by protocol manager"));
             }
 
+            // FIXME remove this potentially expensive clone
             let artifact_field = Some((ArtifactType::Configuration, artifact.clone()));
             Ok(VerifiedMessage::new(
                 trustee,

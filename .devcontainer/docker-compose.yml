@@ -50,6 +50,74 @@ services:
     depends_on:
       - postgres-volume-init
 
+  minio:
+    #profiles: ["dev"]
+    image: minio/minio
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_storage:/data
+    environment:
+      MINIO_ROOT_USER: minio_user
+      MINIO_ROOT_PASSWORD: minio_pass
+      MINIO_ACCESS_KEY: LZAw7hwBziRjwAhfP6Xi
+      MINIO_ACCESS_SECRET: 4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct
+    #entrypoint: sh
+    #command: -c 'mc config host add minio http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD && mc admin user svcacct add --access-key "$MINIO_ACCESS_KEY" --secret-key "$MINIO_ACCESS_SECRET" minio $MINIO_ROOT_USER && server --console-address ":9001" /data'
+    command: server --console-address ":9001" /data
+    #entrypoint: /bin/bash
+    #command: -c 'minio server --console-address ":9001" /data'
+    #restart: always
+    #depends_on:
+    #  - graphql-engine
+  
+  configure-minio:
+    build:
+      context: ./minio
+      dockerfile: Dockerfile
+    #image: minio/mc
+    #profiles: ["dev"]
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: minio_user
+      MINIO_ROOT_PASSWORD: minio_pass
+      MINIO_ACCESS_KEY: LZAw7hwBziRjwAhfP6Xi
+      MINIO_ACCESS_SECRET: 4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct
+      MINIO_PRIVATE_URI: http://minio:9000
+      MINIO_PUBLIC_BUCKET: public
+      MINIO_BUCKET: election-event-documents
+    entrypoint: /scripts/entrypoint.sh
+
+  # hashicorp vault to store secrets
+  vault:
+    profiles: ["dev"]
+    build:
+      context: ./vault
+      dockerfile: Dockerfile
+    container_name: vault
+    restart: on-failure:10
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+      - "8201:8201"
+      - "8200:8200"
+    environment:
+      VAULT_API_ADDR: 'http://0.0.0.0:8200'
+      VAULT_ADDR: 'http://0.0.0.0:8201'
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-volume:/vault
+    healthcheck:
+      retries: 5
+    entrypoint: vault server -config /opt/vault/config.hcl
+    depends_on:
+      - minio
+
   graphql-engine:
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
     ports:
@@ -80,7 +148,7 @@ services:
       # HASURA_GRAPHQL_ADMIN_SECRET: myadminsecretkey
       HASURA_GRAPHQL_METADATA_DEFAULTS: '{"backend_configs":{"dataconnector":{"athena":{"uri":"http://data-connector-agent:8081/api/v1/athena"},"mariadb":{"uri":"http://data-connector-agent:8081/api/v1/mariadb"},"mysql8":{"uri":"http://data-connector-agent:8081/api/v1/mysql"},"oracle":{"uri":"http://data-connector-agent:8081/api/v1/oracle"},"snowflake":{"uri":"http://data-connector-agent:8081/api/v1/snowflake"}}}}'
       # keycloak jwks endpoint
-      HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url": "http://keycloak:8090/realms/electoral-process/protocol/openid-connect/certs"}'
+      HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url": "http://minio:9000/public/certs.json"}'
       HASURA_GRAPHQL_ADMIN_SECRET: 'admin'
       ACTIONS_ADMIN_SECRET: 'admin'
     depends_on:
@@ -249,30 +317,6 @@ services:
     depends_on:
       - immudb
 
-  minio:
-    profiles: ["dev"]
-    image: minio/minio
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_storage:/data
-    environment:
-      MINIO_ROOT_USER: minio_user
-      MINIO_ROOT_PASSWORD: minio_pass
-      MINIO_ACCESS_KEY: LZAw7hwBziRjwAhfP6Xi
-      MINIO_ACCESS_SECRET: 4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct
-    #entrypoint: sh
-    #command: -c 'mc config host add minio http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD && mc admin user svcacct add --access-key "$MINIO_ACCESS_KEY" --secret-key "$MINIO_ACCESS_SECRET" minio $MINIO_ROOT_USER && server --console-address ":9001" /data'
-    command: server --console-address ":9001" /data
-    #entrypoint: /bin/bash
-    #command: -c 'minio server --console-address ":9001" /data'
-    #restart: always
-    #depends_on:
-    #  - graphql-engine
-
   # Create collection in immudb
   immudb-log-audit-init:
     profiles: ["dev"]
@@ -308,30 +352,6 @@ services:
       - postgres
       - immudb
       - immudb-log-audit-init
-
-  # hashicorp vault to store secrets
-  vault:
-    profiles: ["dev"]
-    build:
-      context: ./vault
-      dockerfile: Dockerfile
-    container_name: vault
-    restart: on-failure:10
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - "8201:8201"
-      - "8200:8200"
-    environment:
-      VAULT_API_ADDR: 'http://0.0.0.0:8200'
-      VAULT_ADDR: 'http://0.0.0.0:8201'
-    cap_add:
-      - IPC_LOCK
-    volumes:
-      - vault-volume:/vault
-    healthcheck:
-      retries: 5
-    entrypoint: vault server -config /opt/vault/config.hcl
 
   rabbitmq:
     image: rabbitmq:management
