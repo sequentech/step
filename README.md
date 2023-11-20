@@ -210,7 +210,7 @@ Also clone this github project on your local machine (so this is apart from runn
 it on Codespaces), and from the `backend-services/hasura` folder, run this:
 
 ```bash
-hasura console --endpoint "http://127.0.0.1:8080" --admin-secret "admin"
+hasura console --endpoint "http://graphql-engine:8080" --admin-secret "admin"
 ```
 
 Then open `http://localhost:9695` on the browser and make the changes you need.
