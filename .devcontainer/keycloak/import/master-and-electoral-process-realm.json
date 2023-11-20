@@ -2740,9 +2740,18 @@
             "userSetupAllowed": false
           },
           {
+            "authenticatorConfig": "security-question-auth",
+            "authenticator": "security-question-authenticator",
+            "authenticatorFlow": false,
+            "requirement": "DISABLED",
+            "priority": 21,
+            "autheticatorFlow": false,
+            "userSetupAllowed": false
+          },
+          {
             "authenticatorFlow": true,
             "requirement": "CONDITIONAL",
-            "priority": 21,
+            "priority": 22,
             "autheticatorFlow": true,
             "flowAlias": "sequent browser flow Browser - Conditional Message OTP",
             "userSetupAllowed": false
@@ -2819,6 +2828,14 @@
         "alias": "review profile config",
         "config": {
           "update.profile.on.first.login": "missing"
+        }
+      },
+      {
+        "id": "85156ecc-8989-40b5-90e9-81492dc8e3db",
+        "alias": "security-question-auth",
+        "config": {
+          "user-attribute": "sequent.read-only.mobile-number",
+          "num-last-chars": "4"
         }
       },
       {
@@ -2933,12 +2950,21 @@
         "config": {}
       },
       {
+        "alias": "security-question-ra",
+        "name": "Security Question",
+        "providerId": "security-question-ra",
+        "enabled": true,
+        "defaultAction": false,
+        "priority": 1001,
+        "config": {}
+      },
+      {
         "alias": "mfa-method-selector",
         "name": "Configure MFA method to use",
         "providerId": "mfa-method-selector",
         "enabled": true,
         "defaultAction": false,
-        "priority": 1001,
+        "priority": 1002,
         "config": {}
       },
       {
@@ -2947,7 +2973,7 @@
         "providerId": "message-otp-ra",
         "enabled": true,
         "defaultAction": false,
-        "priority": 1002,
+        "priority": 1003,
         "config": {}
       }
     ],
