@@ -58,11 +58,6 @@ const MenuWrapper = styled(Box)`
 
 export const CustomMenu = () => {
     const [open, setOpen] = useSidebarState()
-    const resource = useResourceContext()
-
-    useEffect(() => {
-        console.log("LS -> src/components/CustomMenu.tsx:128 -> resource: ", resource)
-    }, [resource])
 
     return (
         <StyledMenu

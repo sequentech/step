@@ -109,7 +109,9 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/messages" element={<Messages />} />
             </CustomRoutes>
-            <Resource name="pgaudit" list={PgAuditList} options={{label: "PGAudit"}} />
+            {
+                // <Resource name="pgaudit" list={PgAuditList} options={{label: "PGAudit"}} />
+            }
             <Resource
                 name="sequent_backend_election_event"
                 list={ElectionEventList}
