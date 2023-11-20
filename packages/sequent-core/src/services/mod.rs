@@ -4,6 +4,8 @@
 
 #[cfg(feature = "keycloak")]
 pub mod connection;
+//#[cfg(feature = "keycloak")]
+pub mod jwt;
 #[cfg(feature = "keycloak")]
 pub mod keycloak;
 #[cfg(feature = "reports")]
