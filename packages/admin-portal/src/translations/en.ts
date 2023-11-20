@@ -146,6 +146,28 @@ const englishTranslation = {
                 endDateTime: "End Date and Time",
             },
         },
+        electionScreen: {
+            common: {
+                subtitle: "Election configuration.",
+            },
+            edit: {
+                general: "General",
+                dates: "Dates",
+                language: "Language",
+                allowed: "Voting Channels Allowed",
+                default: "Default",
+                receipts: "Receipts",
+                image: "Image",
+                advanced: "Advanced Configuration",
+            },
+            field: {
+                name: "Name",
+                language: "Language",
+                votingChannels: "Voting Channels",
+                startDateTime: "Start Date and Time",
+                endDateTime: "End Date and Time",
+            },
+        },
         common: {
             label: {
                 add: "Add",

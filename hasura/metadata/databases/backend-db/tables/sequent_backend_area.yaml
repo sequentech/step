@@ -2,128 +2,128 @@ table:
   name: area
   schema: sequent_backend
 insert_permissions:
-  - role: admin-user
-    permission:
-      check: {}
-      columns:
-        - name
-        - type
-        - annotations
-        - labels
-        - description
-        - created_at
-        - last_updated_at
-        - election_event_id
-        - id
-        - tenant_id
-    comment: ""
-  - role: service-account
-    permission:
-      check: {}
-      columns:
-        - name
-        - type
-        - annotations
-        - labels
-        - description
-        - created_at
-        - last_updated_at
-        - election_event_id
-        - id
-        - tenant_id
-    comment: ""
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - name
+    - type
+    - annotations
+    - labels
+    - description
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - name
+    - type
+    - annotations
+    - labels
+    - description
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+  role: service-account
 select_permissions:
-  - role: admin-user
-    permission:
-      columns:
-        - name
-        - type
-        - annotations
-        - labels
-        - description
-        - created_at
-        - last_updated_at
-        - election_event_id
-        - id
-        - tenant_id
-      filter: {}
-      allow_aggregations: true
-    comment: ""
-  - role: service-account
-    permission:
-      columns:
-        - name
-        - type
-        - annotations
-        - labels
-        - description
-        - created_at
-        - last_updated_at
-        - election_event_id
-        - id
-        - tenant_id
-      filter: {}
-      allow_aggregations: true
-    comment: ""
-  - role: user
-    permission:
-      columns:
-        - name
-        - type
-        - annotations
-        - labels
-        - description
-        - created_at
-        - last_updated_at
-        - election_event_id
-        - id
-        - tenant_id
-      filter:
-        _and:
-          - tenant_id:
-              _eq: X-Hasura-Tenant-Id
-          - id:
-              _eq: X-Hasura-Area-Id
-    comment: ""
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - name
+    - type
+    - annotations
+    - labels
+    - description
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - name
+    - type
+    - annotations
+    - labels
+    - description
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: service-account
+- comment: ""
+  permission:
+    columns:
+    - name
+    - type
+    - annotations
+    - labels
+    - description
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      _and:
+      - tenant_id:
+          _eq: X-Hasura-Tenant-Id
+      - id:
+          _eq: X-Hasura-Area-Id
+  role: user
 update_permissions:
-  - role: admin-user
-    permission:
-      columns:
-        - name
-        - type
-        - annotations
-        - labels
-        - description
-        - created_at
-        - last_updated_at
-        - election_event_id
-        - id
-        - tenant_id
-      filter: {}
-      check: {}
-    comment: ""
-  - role: service-account
-    permission:
-      columns:
-        - name
-        - type
-        - annotations
-        - labels
-        - description
-        - created_at
-        - last_updated_at
-        - election_event_id
-        - id
-        - tenant_id
-      filter: {}
-      check: {}
-    comment: ""
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - name
+    - type
+    - annotations
+    - labels
+    - description
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - name
+    - type
+    - annotations
+    - labels
+    - description
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: service-account
 delete_permissions:
-  - role: admin-user
-    permission:
-      filter: {}
-    comment: ""
-  - role: service-account
-    permission:
-      filter: {}
-    comment: ""
+- comment: ""
+  permission:
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    filter: {}
+  role: service-account
