@@ -12,6 +12,7 @@ import {
     faFileText,
     faAngleDoubleLeft,
     faAngleDoubleRight,
+    faEnvelope,
 } from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {Box} from "@mui/material"
@@ -78,41 +79,49 @@ export const CustomMenu = () => {
 
                 <ElectionEvents />
 
-                <StyledItem
-                    to="/pgaudit"
-                    primaryText={open ? "PG Audit" : null}
-                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                />
-                <StyledItem
-                    to="/sequent_backend_area"
-                    primaryText={open ? "Areas" : null}
-                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                />
-                <StyledItem
-                    to="/sequent_backend_area_contest"
-                    primaryText={open ? "Area Contests" : null}
-                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                />
-                <StyledItem
-                    to="/sequent_backend_ballot_style"
-                    primaryText={open ? "Ballot Styles" : null}
-                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                />
-                <StyledItem
-                    to="/sequent_backend_tenant"
-                    primaryText={open ? "Customers" : null}
-                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                />
-                <StyledItem
-                    to="/sequent_backend_document"
-                    primaryText={open ? "Documents" : null}
-                    leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
-                />
-                <StyledItem
-                    to="/sequent_backend_trustee"
-                    primaryText={open ? "Trustees" : null}
-                    leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
-                />
+                {
+                    // <StyledItem
+                    //     to="/pgaudit"
+                    //     primaryText={open ? "PG Audit" : null}
+                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                    // />
+                    // <StyledItem
+                    //     to="/sequent_backend_area"
+                    //     primaryText={open ? "Areas" : null}
+                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                    // />
+                    // <StyledItem
+                    //     to="/sequent_backend_area_contest"
+                    //     primaryText={open ? "Area Contests" : null}
+                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                    // />
+                    // <StyledItem
+                    //     to="/sequent_backend_ballot_style"
+                    //     primaryText={open ? "Ballot Styles" : null}
+                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                    // />
+                    // <StyledItem
+                    //     to="/sequent_backend_tenant"
+                    //     primaryText={open ? "Customers" : null}
+                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                    // />
+                    // <StyledItem
+                    //     to="/sequent_backend_document"
+                    //     primaryText={open ? "Documents" : null}
+                    //     leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
+                    // />
+                    // <StyledItem
+                    //     to="/sequent_backend_trustee"
+                    //     primaryText={open ? "Trustees" : null}
+                    //     leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
+                    // />
+                    // <StyledItem
+                    //     to="/messages"
+                    //     primaryText={open ? "Messages" : null}
+                    //     leftIcon={<IconButton icon={faStar} fontSize="24px" />}
+                    // />
+                }
+
                 <StyledItem
                     to="/user-roles"
                     primaryText={open ? "User and Roles" : null}
@@ -124,11 +133,12 @@ export const CustomMenu = () => {
                     leftIcon={<IconButton icon={faCog} fontSize="24px" />}
                 />
                 <StyledItem
-                    to="/messages"
-                    primaryText={open ? "Messages" : null}
-                    leftIcon={<IconButton icon={faStar} fontSize="24px" />}
+                    to="/"
+                    primaryText={open && "Communication Templates"}
+                    leftIcon={<IconButton icon={faEnvelope} fontSize="24px" />}
                 />
             </MenuWrapper>
+
             <DrawerContainer>
                 <IconButton
                     icon={open ? faAngleDoubleLeft : faAngleDoubleRight}
