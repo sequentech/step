@@ -31,7 +31,8 @@ public class Utils {
 		KeycloakSession session,
 		UserModel user,
 		AuthenticationSessionModel authSession
-	) throws IOException {
+	) throws IOException
+	{
 		Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
 		String telUserAttribute = config
 			.getConfig()

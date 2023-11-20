@@ -289,31 +289,6 @@ public class SmartLink {
         return false;
     }
 
-    public static boolean sendOtpEmail(
-        KeycloakSession session,
-        UserModel user,
-        String code
-    ) {
-        RealmModel realm = session.getContext().getRealm();
-        try {
-            EmailTemplateProvider emailTemplateProvider =
-                session.getProvider(EmailTemplateProvider.class);
-            String realmName = getRealmName(realm);
-            List<Object> subjAttr = ImmutableList.of(realmName);
-            Map<String, Object> bodyAttr = Maps.newHashMap();
-            bodyAttr.put("code", code);
-            emailTemplateProvider
-                .setRealm(realm)
-                .setUser(user)
-                .setAttribute("realmName", realmName)
-                .send("otpSubject", subjAttr, "otp-email.ftl", bodyAttr);
-            return true;
-        } catch (EmailException error) {
-            log.error("Failed to send otp mail", error);
-        }
-        return false;
-    }
-
     public static String getRealmName(RealmModel realm)
     {
         return Strings.isNullOrEmpty(realm.getDisplayName())

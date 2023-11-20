@@ -58,6 +58,7 @@ public class MessageOTPAuthenticatorFactory
 		AuthenticationExecutionModel.Requirement.ALTERNATIVE,
 		AuthenticationExecutionModel.Requirement.DISABLED
 	};
+
 	@Override
 	public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
 		return REQUIREMENT_CHOICES;

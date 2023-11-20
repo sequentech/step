@@ -19,6 +19,7 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
+import java.security.MessageDigest;
 
 import java.util.Locale;
 import java.util.Optional;
@@ -103,7 +104,12 @@ public class MessageOTPAuthenticator implements Authenticator, CredentialValidat
 			return;
 		}
 
-		boolean isValid = enteredCode.equals(code);
+		// We use constant time comparison for security reasons, to avoid timing
+		// attacks
+		boolean isValid = MessageDigest.isEqual(
+			enteredCode.getBytes(),
+			code.getBytes()
+		);
 		if (isValid) {
 			if (Long.parseLong(ttl) < System.currentTimeMillis()) {
 				// expired

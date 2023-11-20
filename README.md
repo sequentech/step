@@ -278,7 +278,7 @@ We use Hashicorp Vault to store secrets. We run it in production mode as otherwi
 the data would only be stored in memory and it would be lost each time the container
 is restarted.
 
-Once the `vault`container is started, you can log in here:
+Once the `vault` container is started, you can log in here:
 
 [http://127.0.0.1:8201/ui/vault/auth?with=token]
 
