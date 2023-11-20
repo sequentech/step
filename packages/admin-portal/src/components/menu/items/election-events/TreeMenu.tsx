@@ -19,16 +19,21 @@ interface Options extends ResourceOptions {
 
 interface TreeLeavesProps {
     isOpen: boolean
+    resourceName: string
     resourceId?: string
     treeResources: Array<ResourceDefinition<Options>>
     filter?: object
 }
 
-const TreeLeaves: React.FC<TreeLeavesProps> = ({isOpen, resourceId, treeResources, filter}) => {
+function TreeLeaves({isOpen, resourceName, resourceId, treeResources, filter}: TreeLeavesProps) {
+    console.log(
+        "LS -> src/components/menu/items/election-events/TreeMenu.tsx:28 -> treeResources: ",
+        treeResources
+    )
     const [tenantId] = useTenantStore()
 
-    const {data, total, isLoading, error} = useGetList(treeResources[0]?.name || "", {
-        pagination: {page: 1, perPage: 10},
+    const {data, isLoading, error} = useGetList(resourceName, {
+        // pagination: {page: 1, perPage: 10},
         sort: {field: "created_at", order: "DESC"},
         filter: resourceId
             ? {
@@ -50,18 +55,27 @@ const TreeLeaves: React.FC<TreeLeavesProps> = ({isOpen, resourceId, treeResource
         return null
     }
 
+    const subTreeResources = treeResources.slice(1)
+    const nextResourceName = subTreeResources[0]?.name ?? null
+
     return (
         <div className="bg-white">
             <div className="flex flex-col ml-3">
-                {data?.map((resource, idx) => (
-                    <TreeMenuItem
-                        isOpen={isOpen}
-                        resourceType={treeResources[0].name}
-                        resource={resource}
-                        treeResources={treeResources.slice(1)}
-                        key={idx}
-                    />
-                ))}
+                {data?.map((resource, idx) => {
+                    if (nextResourceName) {
+                        return (
+                            <TreeMenuItem
+                                isOpen={isOpen}
+                                resource={resource}
+                                resourceName={nextResourceName}
+                                treeResources={subTreeResources}
+                                key={idx}
+                            />
+                        )
+                    }
+
+                    return <p key={idx}>None</p>
+                })}
             </div>
         </div>
     )
@@ -69,17 +83,12 @@ const TreeLeaves: React.FC<TreeLeavesProps> = ({isOpen, resourceId, treeResource
 
 interface TreeMenuItemProps {
     isOpen: boolean
-    resourceType: string
+    resourceName: string
     resource: any
     treeResources: Array<ResourceDefinition<Options>>
 }
 
-const TreeMenuItem: React.FC<TreeMenuItemProps> = ({
-    isOpen,
-    resourceType,
-    resource,
-    treeResources,
-}) => {
+function TreeMenuItem({isOpen, resourceName, resource, treeResources}: TreeMenuItemProps) {
     const [open, setOpen] = useState(false)
     const onClick = () => setOpen(!open)
     const hasLeaves = treeResources.length > 0
@@ -103,7 +112,7 @@ const TreeMenuItem: React.FC<TreeMenuItemProps> = ({
                                     isActive && "border-b-2 border-brand-color"
                                 )
                             }
-                            to={`/${resourceType}/${resource.id}`}
+                            to={`/${resourceName}/${resource.id}`}
                         >
                             {resource.name}
                         </NavLink>
@@ -114,6 +123,7 @@ const TreeMenuItem: React.FC<TreeMenuItemProps> = ({
                 <div className="">
                     <TreeLeaves
                         isOpen={isOpen}
+                        resourceName={resourceName}
                         resourceId={resource.id}
                         treeResources={treeResources}
                     />
@@ -123,39 +133,13 @@ const TreeMenuItem: React.FC<TreeMenuItemProps> = ({
     )
 }
 
-interface TreeMenuProps {
-    isOpen: boolean
-}
-export const TreeMenu: React.FC<TreeMenuProps> = ({isOpen}) => {
-    let allResources = useResourceDefinitions()
-    let [treeResources, setTreeResources] = useState<Array<ResourceDefinition<Options>>>([])
+export function TreeMenu({isOpen, resourceNames}: {isOpen: boolean; resourceNames: string[]}) {
     const [archivedMenu, setArchivedMenu] = useState(0)
 
-    useEffect(() => {
-        const resources: Array<ResourceDefinition<Options>> = Object.keys(allResources).map(
-            (name) => allResources[name]
-        )
-        let parent = resources.find((resource) => resource.options?.isMenuParent)
-
-        if (!parent) {
-            return
-        }
-
-        let tree: Array<ResourceDefinition<Options>> = [parent]
-        let finished = false
-        while (!finished) {
-            let lastLeave = tree[tree.length - 1]
-            let leave = resources.find(
-                (resource) => resource.options?.menuParent === lastLeave.name
-            )
-            if (!leave) {
-                finished = true
-            } else {
-                tree.push(leave)
-            }
-        }
-        setTreeResources(tree)
-    }, [allResources])
+    let allResources = useResourceDefinitions()
+    let treeResources = Object.keys(allResources)
+        .map((name) => allResources[name])
+        .filter((resource) => resourceNames.includes(resource.name))
 
     function tabChange(val: number) {
         setArchivedMenu(val)
@@ -189,6 +173,7 @@ export const TreeMenu: React.FC<TreeMenuProps> = ({isOpen}) => {
             </ul>
             <div className="mx-5 py-2">
                 <TreeLeaves
+                    resourceName={resourceNames[0]}
                     treeResources={treeResources}
                     isOpen={isOpen}
                     filter={{is_archived: archivedMenu === 1}}

@@ -29,18 +29,25 @@ const activeRouteList = [
 ]
 
 export default function ElectionEvents() {
-    const [open, setOpen] = useSidebarState()
-    const [search, setSearch] = useState<string | null>(null)
+    const [open] = useSidebarState()
+    const [searchInput, setSearchInput] = useState<string | null>(null)
 
-    const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        // Update the state with the input field's current value
-        setSearch(event.target.value)
+    function handleSearchChange(event: React.ChangeEvent<HTMLInputElement>) {
+        const searchInput = event.target.value
+        setSearchInput(searchInput)
     }
 
     const location = useLocation()
     const isElectionEventActive = activeRouteList.some(
         (route) => location.pathname.search(route) > -1
     )
+
+    const treeResourceNames = [
+        "sequent_backend_election_event",
+        "sequent_backend_election",
+        "sequent_backend_contest",
+        "sequent_backend_candidate",
+    ]
 
     return (
         <>
@@ -56,12 +63,12 @@ export default function ElectionEvents() {
                             <TextField
                                 label="Search"
                                 size="small"
-                                value={search}
+                                value={searchInput}
                                 onChange={handleSearchChange}
                             />
                             <IconButton icon={faSearch} fontSize="18px" sx={{margin: "0 12px"}} />
                         </div>
-                        <TreeMenu isOpen={open} />
+                        <TreeMenu isOpen={open} resourceNames={treeResourceNames} />
                     </>
                 )}
             </div>
