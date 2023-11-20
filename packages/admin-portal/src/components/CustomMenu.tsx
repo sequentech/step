@@ -138,11 +138,17 @@ export const CustomMenu = () => {
         >
             <MenuWrapper>
                 <CustomerSelector />
-                <StyledItem
-                    to="/sequent_backend_election_event"
-                    primaryText={open ? "Election Events" : null}
-                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                />
+                <HorizontalBox sx={{alignItems: "center"}}>
+                    <StyledItem
+                        to="/sequent_backend_election_event"
+                        primaryText={open ? "Election Events" : null}
+                        leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                        sx={{flexGrow: 2}}
+                    />
+                    <Link to="/sequent_backend_election_event/create">
+                        <StyledIconButton icon={faPlusCircle} sx={{paddingRight: "16px"}}/>
+                    </Link>
+                </HorizontalBox>
                 <HorizontalBox sx={{margin: "2px 16px"}}>
                     <Box sx={{margin: "-16px 0"}}>
                         <TextField
