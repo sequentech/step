@@ -2,14 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect} from "react"
-import {Menu, useSidebarState, useResourceContext} from "react-admin"
+import {Menu, useSidebarState} from "react-admin"
 import {
-    faThLarge,
     faUsers,
     faCog,
-    faStar,
-    faFileText,
     faAngleDoubleLeft,
     faAngleDoubleRight,
     faEnvelope,
@@ -17,12 +13,12 @@ import {
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
-import {useLocalStorage} from "react-use"
 import SelectTenants from "./menu/items/SelectTenants"
 import ElectionEvents from "./menu/items/ElectionEvents"
+import {useLocalStorage} from "@uidotdev/usehooks"
 
 export function useTenantStore() {
-    return useLocalStorage("tenantId")
+    return useLocalStorage("selected-tenant-id")
 }
 
 const StyledItem = styled(Menu.Item)`
