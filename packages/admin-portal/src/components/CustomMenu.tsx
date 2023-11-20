@@ -1,31 +1,25 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
-import {Menu, useSidebarState, useGetList, useResourceContext} from "react-admin"
+
+import React from "react"
+import {Menu, useSidebarState} from "react-admin"
 import {
-    faThLarge,
     faUsers,
     faCog,
-    faStar,
-    faPlusCircle,
-    faFileText,
     faAngleDoubleLeft,
     faAngleDoubleRight,
-    faSearch,
+    faEnvelope,
 } from "@fortawesome/free-solid-svg-icons"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
-import {HorizontalBox} from "./HorizontalBox"
-import {Box, MenuItem, Select, SelectChangeEvent, TextField} from "@mui/material"
+import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
-import {Link} from "react-router-dom"
-import {TreeMenu} from "./TreeMenu"
+import SelectTenants from "./menu/items/SelectTenants"
+import ElectionEvents from "./menu/items/ElectionEvents"
+import {useLocalStorage} from "@uidotdev/usehooks"
 
-export const useTenantStore: () => [string | null, (tenantId: string | null) => void] = () => {
-    return [
-        localStorage.getItem("tenantId"),
-        (tenantId: string | null) => localStorage.setItem("tenantId", tenantId || ""),
-    ]
+export function useTenantStore() {
+    return useLocalStorage("selected-tenant-id")
 }
 
 const StyledItem = styled(Menu.Item)`
@@ -35,12 +29,6 @@ const StyledItem = styled(Menu.Item)`
     .MuiIconButton-root {
         color: ${adminTheme.palette.brandColor};
     }
-`
-
-const StyledIconButton = styled(IconButton)`
-    color: ${adminTheme.palette.brandColor};
-    font-size: 24px;
-    margin-left: 19px;
 `
 
 const StyledMenu = styled(Menu)`
@@ -65,66 +53,8 @@ const MenuWrapper = styled(Box)`
     border-bottom: 2px solid ${adminTheme.palette.customGrey.light};
 `
 
-const CustomerSelector: React.FC = () => {
-    const [open] = useSidebarState()
-    const [tenant, setTenant] = useTenantStore()
-
-    const {data, total, isLoading, error} = useGetList("sequent_backend_tenant", {
-        pagination: {page: 1, perPage: 10},
-        sort: {field: "updated_at", order: "DESC"},
-        filter: {is_active: true},
-    })
-
-    const showCustomers = open && !isLoading && !error
-
-    const handleChange = (event: SelectChangeEvent<unknown>) => {
-        setTenant(event.target.value as any)
-    }
-
-    return (
-        <HorizontalBox sx={{alignItems: "center", padding: "0 16px"}}>
-            <IconButton icon={faThLarge} fontSize="24px" />
-            {showCustomers ? (
-                <>
-                    <Select
-                        labelId="tenant-select-label"
-                        id="tenant-select"
-                        value={tenant}
-                        onChange={handleChange}
-                        sx={{
-                            flexGrow: 2,
-                            paddingRight: "16px",
-                            margin: "4px 10px 4px 10px",
-                        }}
-                    >
-                        {data?.map((tenant) => (
-                            <MenuItem key={tenant.id} value={tenant.id}>
-                                {tenant.slug}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                    <Link to="/sequent_backend_tenant/create">
-                        <StyledIconButton icon={faPlusCircle} />
-                    </Link>
-                </>
-            ) : null}
-        </HorizontalBox>
-    )
-}
-
 export const CustomMenu = () => {
     const [open, setOpen] = useSidebarState()
-    const resource = useResourceContext()
-    const [search, setSearch] = useState<string | null>(null)
-
-    useEffect(() => {
-        console.log(resource)
-    }, [resource])
-
-    const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        // Update the state with the input field's current value
-        setSearch(event.target.value);
-      };
 
     return (
         <StyledMenu
@@ -137,65 +67,53 @@ export const CustomMenu = () => {
             }}
         >
             <MenuWrapper>
-                <CustomerSelector />
-                <HorizontalBox sx={{alignItems: "center"}}>
-                    <StyledItem
-                        to="/sequent_backend_election_event"
-                        primaryText={open ? "Election Events" : null}
-                        leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                        sx={{flexGrow: 2}}
-                    />
-                    <Link to="/sequent_backend_election_event/create">
-                        <StyledIconButton icon={faPlusCircle} sx={{paddingRight: "16px"}}/>
-                    </Link>
-                </HorizontalBox>
-                <HorizontalBox sx={{margin: "2px 16px"}}>
-                    <Box sx={{margin: "-16px 0"}}>
-                        <TextField
-                            label="Search"
-                            size="small"
-                            value={search}
-                            onChange={handleSearchChange}
-                        />
-                    </Box>
-                    <IconButton icon={faSearch} fontSize="18px" sx={{margin: "0 12px"}} />
-                </HorizontalBox>
-                <TreeMenu isOpen={open} />
-                <StyledItem
-                    to="/pgaudit"
-                    primaryText="PG Audit"
-                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                />
-                <StyledItem
-                    to="/sequent_backend_area"
-                    primaryText={open ? "Areas" : null}
-                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                />
-                <StyledItem
-                    to="/sequent_backend_area_contest"
-                    primaryText={open ? "Area Contests" : null}
-                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                />
-                <StyledItem
-                    to="/sequent_backend_ballot_style"
-                    primaryText={open ? "Ballot Styles" : null}
-                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                />
-                <StyledItem
-                    to="/sequent_backend_tenant"
-                    primaryText={open ? "Customers" : null}
-                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                />
-                <StyledItem
-                    to="/sequent_backend_document"
-                    primaryText={open ? "Documents" : null}
-                    leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
-                />
-                <StyledItem
-                    to="/sequent_backend_trustee"
-                    primaryText={open ? "Trustees" : null}
-                    leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
-                />
+                <SelectTenants />
+
+                <ElectionEvents />
+
+                {
+                    // <StyledItem
+                    //     to="/pgaudit"
+                    //     primaryText={open ? "PG Audit" : null}
+                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                    // />
+                    // <StyledItem
+                    //     to="/sequent_backend_area"
+                    //     primaryText={open ? "Areas" : null}
+                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                    // />
+                    // <StyledItem
+                    //     to="/sequent_backend_area_contest"
+                    //     primaryText={open ? "Area Contests" : null}
+                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                    // />
+                    // <StyledItem
+                    //     to="/sequent_backend_ballot_style"
+                    //     primaryText={open ? "Ballot Styles" : null}
+                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                    // />
+                    // <StyledItem
+                    //     to="/sequent_backend_tenant"
+                    //     primaryText={open ? "Customers" : null}
+                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                    // />
+                    // <StyledItem
+                    //     to="/sequent_backend_document"
+                    //     primaryText={open ? "Documents" : null}
+                    //     leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
+                    // />
+                    // <StyledItem
+                    //     to="/sequent_backend_trustee"
+                    //     primaryText={open ? "Trustees" : null}
+                    //     leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
+                    // />
+                    // <StyledItem
+                    //     to="/messages"
+                    //     primaryText={open ? "Messages" : null}
+                    //     leftIcon={<IconButton icon={faStar} fontSize="24px" />}
+                    // />
+                }
+
                 <StyledItem
                     to="/user-roles"
                     primaryText={open ? "User and Roles" : null}
@@ -207,11 +125,12 @@ export const CustomMenu = () => {
                     leftIcon={<IconButton icon={faCog} fontSize="24px" />}
                 />
                 <StyledItem
-                    to="/messages"
-                    primaryText={open ? "Messages" : null}
-                    leftIcon={<IconButton icon={faStar} fontSize="24px" />}
+                    to="/"
+                    primaryText={open && "Communication Templates"}
+                    leftIcon={<IconButton icon={faEnvelope} fontSize="24px" />}
                 />
             </MenuWrapper>
+
             <DrawerContainer>
                 <IconButton
                     icon={open ? faAngleDoubleLeft : faAngleDoubleRight}
