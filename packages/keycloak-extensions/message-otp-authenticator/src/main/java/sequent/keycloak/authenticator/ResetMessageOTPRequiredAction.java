@@ -2,13 +2,11 @@ package sequent.keycloak.authenticator;
 
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
-import sequent.keycloak.authenticator.credential.MessageOTPCredentialProviderFactory;
 import org.jboss.logging.Logger;
 import jakarta.ws.rs.core.Response;
 import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.authentication.RequiredActionProvider;
-import org.keycloak.credential.CredentialProvider;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;

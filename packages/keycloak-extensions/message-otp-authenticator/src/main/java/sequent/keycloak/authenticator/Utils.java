@@ -114,7 +114,8 @@ public class Utils {
 			.filter(model -> {
 				boolean ret = (
 					model.getAuthenticator() != null &&
-					model.getAuthenticator()
+					model
+						.getAuthenticator()
 						.equals(MessageOTPAuthenticatorFactory.PROVIDER_ID)
 				);
 				return ret;

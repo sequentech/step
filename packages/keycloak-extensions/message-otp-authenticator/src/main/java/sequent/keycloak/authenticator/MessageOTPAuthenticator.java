@@ -24,9 +24,6 @@ import java.security.MessageDigest;
 import java.util.Locale;
 import java.util.Optional;
 
-/**
- * @author Niko Köbler, https://www.n-k.de, @sequent
- */
 public class MessageOTPAuthenticator implements Authenticator, CredentialValidator<MessageOTPCredentialProvider> {
 
 	private static final Logger logger = Logger
