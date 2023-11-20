@@ -43,7 +43,7 @@ pub async fn render_report(
         .data
         .expect("expected data".into())
         .sequent_backend_tenant[0]
-        .username
+        .slug
         .clone();
     let mut variables_map = input.variables.clone();
     if !variables_map.contains_key("username") {

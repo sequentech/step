@@ -14,7 +14,7 @@ const TenantForm: React.FC = () => {
             <Typography variant="body2">Customer configuration</Typography>
             <Typography variant="h5">ID</Typography>
             <TextField source="id" />
-            <TextInput source="username" />
+            <TextInput source="slug" />
             <BooleanInput source="is_active" />
             <JsonInput
                 source="labels"

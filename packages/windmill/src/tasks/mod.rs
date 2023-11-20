@@ -7,6 +7,7 @@ pub mod create_keys;
 pub mod execute_tally_session;
 pub mod insert_ballots;
 pub mod insert_election_event;
+pub mod insert_tenant;
 pub mod process_board;
 pub mod render_report;
 pub mod review_boards;

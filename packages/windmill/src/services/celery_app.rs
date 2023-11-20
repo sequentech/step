@@ -13,6 +13,7 @@ use crate::tasks::create_keys::create_keys;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::insert_election_event::insert_election_event_t;
+use crate::tasks::insert_tenant::insert_tenant;
 use crate::tasks::process_board::process_board;
 use crate::tasks::render_report::render_report;
 use crate::tasks::review_boards::review_boards;
@@ -65,6 +66,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             update_election_event_ballot_styles,
             update_voting_status,
             insert_election_event_t,
+            insert_tenant,
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
@@ -80,6 +82,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "update_election_event_ballot_styles" => "short_queue",
             "update_voting_status" => "short_queue",
             "insert_election_event_t" => "short_queue",
+            "insert_tenant" => "short_queue",
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

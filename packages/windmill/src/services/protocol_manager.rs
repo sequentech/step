@@ -17,7 +17,7 @@ use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
 use strand::util::StrandError;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use std::env;
 use std::marker::PhantomData;
 use tracing::{event, info, instrument, Level};
@@ -177,7 +177,13 @@ pub async fn add_ballots_to_board<C: Ctx>(
     batch: BatchNumber,
     trustee_pks: Vec<StrandSignaturePk>,
 ) -> Result<()> {
-    let pms = vault::read_secret(format!("boards/{}/protocol-manager", board_name)).await?;
+    let pms_opt = vault::read_secret(format!("boards/{}/protocol-manager", board_name)).await?;
+    let pms = match pms_opt {
+        Some(pms) => pms,
+        None => {
+            return Err(anyhow!("protocol manager secret not found"));
+        }
+    };
     let pm = deserialize_protocol_manager::<C>(pms);
 
     let mut board = get_board_client().await?;
