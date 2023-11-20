@@ -111,11 +111,6 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
 				context.getUser(),
 				MessageOTPCredentialModel.create(/* isSetup= */ true)
 			);
-		// TODO: do we need to mark the verification of the message-otp
-		// authenticator as done?
-
-		// context .getAuthenticationSession()
-		//.setAuthNote(VERIFIED_PHONE_NUMBER, phoneNumber);
 
 		user.removeRequiredAction(PROVIDER_ID);
 		context.getAuthenticationSession().removeRequiredAction(PROVIDER_ID);

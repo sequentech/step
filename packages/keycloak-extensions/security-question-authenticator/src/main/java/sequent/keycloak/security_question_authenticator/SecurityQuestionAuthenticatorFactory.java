@@ -72,7 +72,7 @@ public class SecurityQuestionAuthenticatorFactory
 				"User Attribute",
 				"The user attribute to check against.",
 				ProviderConfigProperty.STRING_TYPE,
-				"read-only.telephone"
+				"read-only.mobile-number"
 			),
 			new ProviderConfigProperty(
 				Utils.NUM_LAST_CHARS,

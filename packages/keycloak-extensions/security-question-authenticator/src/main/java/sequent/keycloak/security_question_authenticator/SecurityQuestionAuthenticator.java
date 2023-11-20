@@ -78,18 +78,19 @@ public class SecurityQuestionAuthenticator implements Authenticator
             .getHttpRequest()
             .getDecodedFormParameters();
         String secretAnswer = formData.getFirst(Utils.FORM_SECURITY_ANSWER_FIELD);
-        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-		KeycloakSession session = context.getSession();
+        AuthenticatorConfigModel config = Utils
+            .getConfig(context.getRealm())
+            .get();
 		UserModel user = context.getUser();
-		AuthenticationSessionModel authSession = context
-			.getAuthenticationSession();
 
         String numLastCharsString = config
             .getConfig()
             .get(Utils.NUM_LAST_CHARS);
-        String userAttributeValue = config
-			.getConfig()
-			.get(Utils.USER_ATTRIBUTE);
+        String userAttributeName = config
+            .getConfig()
+            .get(Utils.USER_ATTRIBUTE);
+        String userAttributeValue = user.getFirstAttribute(userAttributeName);
+        log.info("comparing userAttributeValue=" + userAttributeValue + ", secretAnswer=" + secretAnswer + ", numLastChars=" + numLastCharsString);
         if (userAttributeValue == null || numLastCharsString == null) {
             return false;
         }
@@ -115,7 +116,7 @@ public class SecurityQuestionAuthenticator implements Authenticator
         RealmModel realm,
         UserModel user
     ) {
-        return true;
+        return false;
     }
  
      @Override

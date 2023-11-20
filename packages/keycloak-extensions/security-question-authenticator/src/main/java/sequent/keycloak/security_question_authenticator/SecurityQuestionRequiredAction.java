@@ -11,15 +11,32 @@ import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.credential.OTPCredentialModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 import jakarta.ws.rs.core.MultivaluedMap;
 import java.util.function.Consumer;
+import java.util.Map;
 import java.util.Optional;
 import java.security.MessageDigest;
 
 @JBossLog
 public class SecurityQuestionRequiredAction implements RequiredActionProvider {
+
+	// map of key-value pairs:
+    // - key = credential type
+    // - value = associated required action id
+	// {
+	//  	"otp": "CONFIGURE_TOTP",
+	// 		"message-otp": "message-otp-ra"
+	// }
+	private static final Map<String, String> credentialTypes = Map.of(
+		OTPCredentialModel.TYPE, 
+		UserModel.RequiredAction.CONFIGURE_TOTP.name(),
+
+		"message-otp",
+		"message-otp-ra"
+	);
 	public static final String PROVIDER_ID = "security-question-ra";
 
 	@Override
@@ -29,6 +46,48 @@ public class SecurityQuestionRequiredAction implements RequiredActionProvider {
 
 	@Override
 	public void evaluateTriggers(RequiredActionContext context) {
+		log.info("evaluateTriggers()");
+		// self registering if user doesn't have already one out of the
+		// configured credential types
+		UserModel user = context.getUser();
+		AuthenticationSessionModel authSession = context
+			.getAuthenticationSession();
+
+		if (
+			authSession
+				.getRequiredActions()
+                .stream()
+				.noneMatch(PROVIDER_ID::equals) &&
+            credentialTypes
+                .keySet()
+                .stream()
+                .noneMatch(
+                    type -> {
+						boolean ret = user
+							.credentialManager()
+							.getStoredCredentialsByTypeStream(type)
+							.findAny()
+							.isPresent();
+						// TODO: The following doesn't work, for some unknown
+						// reason
+						// boolean ret = user
+						// 	.credentialManager()
+						// 	.isConfiguredFor(type);
+						log.info("evaluateTriggers(): credentiaTypes: type=" + type + ", userHasAny=" + ret);
+						return ret;
+					}
+                ) &&
+            user
+                .getRequiredActionsStream()
+                .noneMatch(credentialTypes::containsValue) &&
+            authSession
+                .getRequiredActions()
+                .stream()
+                .noneMatch(credentialTypes::containsValue)
+        ) {
+			log.info("evaluateTriggers(): adding required action");
+            authSession.addRequiredAction(PROVIDER_ID);
+		}
 	}
 
 	@Override
@@ -71,17 +130,16 @@ public class SecurityQuestionRequiredAction implements RequiredActionProvider {
         AuthenticatorConfigModel config = Utils
             .getConfig(context.getRealm())
             .get();
-		KeycloakSession session = context.getSession();
 		UserModel user = context.getUser();
-		AuthenticationSessionModel authSession = context
-			.getAuthenticationSession();
 
         String numLastCharsString = config
             .getConfig()
             .get(Utils.NUM_LAST_CHARS);
-        String userAttributeValue = config
+        String userAttributeName = config
             .getConfig()
             .get(Utils.USER_ATTRIBUTE);
+        String userAttributeValue = user.getFirstAttribute(userAttributeName);
+        log.info("comparing userAttributeValue=" + userAttributeValue + ", secretAnswer=" + secretAnswer + ", numLastChars=" + numLastCharsString);
         if (userAttributeValue == null || numLastCharsString == null) {
             return false;
         }

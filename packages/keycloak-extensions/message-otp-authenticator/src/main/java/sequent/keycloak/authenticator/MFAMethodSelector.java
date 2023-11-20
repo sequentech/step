@@ -4,6 +4,7 @@ import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.ResetMessageOTPRequiredAction;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedMap;
+import lombok.extern.jbosslog.JBossLog;
 
 import org.jboss.logging.Logger;
 import org.keycloak.Config;
@@ -26,12 +27,10 @@ import java.util.Map;
  * method, thus implementing MFA enforment.
  */
 @AutoService(RequiredActionFactory.class)
+@JBossLog
 public class MFAMethodSelector 
     implements RequiredActionFactory, RequiredActionProvider
 {
-	private static final Logger logger = Logger
-		.getLogger(MFAMethodSelector .class);
-
 	public static final String PROVIDER_ID = "mfa-method-selector";
 	private static final String TPL_SELECTOR = "selector-2fa.ftl";
 
@@ -57,7 +56,7 @@ public class MFAMethodSelector
 
 	@Override
 	public void evaluateTriggers(RequiredActionContext context) {
-		logger.info("evaluateTriggers()");
+		log.info("evaluateTriggers()");
 		// self registering if user doesn't have already one out of the
 		// configured credential types
 		UserModel user = context.getUser();
@@ -84,7 +83,7 @@ public class MFAMethodSelector
 						// boolean ret = user
 						// 	.credentialManager()
 						// 	.isConfiguredFor(type);
-						logger.info("evaluateTriggers(): credentiaTypes: type=" + type + ", userHasAny=" + ret);
+						log.info("evaluateTriggers(): credentiaTypes: type=" + type + ", userHasAny=" + ret);
 						return ret;
 					}
                 ) &&
@@ -96,7 +95,7 @@ public class MFAMethodSelector
                 .stream()
                 .noneMatch(credentialTypes::containsValue)
         ) {
-			logger.info("evaluateTriggers(): adding required action");
+			log.info("evaluateTriggers(): adding required action");
             authSession.addRequiredAction(PROVIDER_ID);
 		}
 	}
