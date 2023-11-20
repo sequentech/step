@@ -30,12 +30,17 @@ const activeRouteList = [
 
 export default function ElectionEvents() {
     const [open] = useSidebarState()
-    const [searchInput, setSearchInput] = useState<string | null>(null)
+    const [searchInput, setSearchInput] = useState<string>("")
 
-    function handleSearchChange(event: React.ChangeEvent<HTMLInputElement>) {
-        const searchInput = event.target.value
+    function handleSearchChange(searchInput: string) {
         setSearchInput(searchInput)
     }
+
+    const searchFilter = searchInput.trim()
+        ? {
+              "name@_like": searchInput.trim(),
+          }
+        : {}
 
     const location = useLocation()
     const isElectionEventActive = activeRouteList.some(
@@ -64,11 +69,15 @@ export default function ElectionEvents() {
                                 label="Search"
                                 size="small"
                                 value={searchInput}
-                                onChange={handleSearchChange}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                             />
                             <IconButton icon={faSearch} fontSize="18px" sx={{margin: "0 12px"}} />
                         </div>
-                        <TreeMenu isOpen={open} resourceNames={treeResourceNames} />
+                        <TreeMenu
+                            isOpen={open}
+                            resourceNames={treeResourceNames}
+                            filter={searchFilter}
+                        />
                     </>
                 )}
             </div>

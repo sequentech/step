@@ -35,13 +35,6 @@ function TreeLeaves({isOpen, resourceName, treeResources, filter}: TreeLeavesPro
             tenant_id: tenantId,
             ...filter,
         },
-        // resourceId
-        //         ? {
-        //               tenant_id: tenantId,
-        //               [treeResources[0]?.options?.foreignKeyFrom || ""]: resourceId,
-        //               ...filter,
-        //           }
-        //         :
     })
 
     if (isLoading) {
@@ -126,7 +119,15 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
     )
 }
 
-export function TreeMenu({isOpen, resourceNames}: {isOpen: boolean; resourceNames: string[]}) {
+export function TreeMenu({
+    isOpen,
+    resourceNames,
+    filter,
+}: {
+    isOpen: boolean
+    resourceNames: string[]
+    filter: object
+}) {
     const [archivedMenu, setArchivedMenu] = useState(0)
 
     let allResources = useResourceDefinitions()
@@ -169,7 +170,7 @@ export function TreeMenu({isOpen, resourceNames}: {isOpen: boolean; resourceName
                     resourceName={resourceNames[0]}
                     treeResources={treeResources}
                     isOpen={isOpen}
-                    filter={{is_archived: archivedMenu === 1}}
+                    filter={Object.assign({}, {is_archived: archivedMenu === 1}, filter)}
                 />
             </div>
         </>
