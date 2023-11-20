@@ -126,9 +126,11 @@ const spanishTranslation = {
         },
         areas: {
             common: {
-                title: "Areas",
-                subTitle: "Area configuration.",
+                title: "Áreas",
+                subTitle: "Configuración de Área.",
             },
+            createAreaSuccess: "Área creadas",
+            createAreaError: "Error creando área",
         },
         electionEventScreen: {
             common: {
@@ -149,6 +151,8 @@ const spanishTranslation = {
                 language: "Idioma",
                 votingChannels: "Canales de Voto",
             },
+            createElectionEventSuccess: "Evento de Elección creado",
+            createElectionEventError: "Error creando Evento de Elección",
         },
         common: {
             label: {
@@ -167,6 +171,10 @@ const spanishTranslation = {
                 delete: "¿Estás seguro de que quieres eliminar este elemento?",
             },
         },
+        tenant: {
+            createSuccess: "Cliente creado",
+            createError: "Error creando cliente",
+        }
     },
 }
 

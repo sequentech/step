@@ -33,7 +33,7 @@ export const CreateArea: React.FC<CreateAreaProps> = (props) => {
 
     const onSuccess = () => {
         refresh()
-        notify("Area created", {type: "success"})
+        notify(t("areas.createAreaSuccess"), {type: "success"})
         if (close) {
             close()
         }
@@ -41,7 +41,7 @@ export const CreateArea: React.FC<CreateAreaProps> = (props) => {
 
     const onError = async (res: any) => {
         refresh()
-        notify("Could not create Area", {type: "error"})
+        notify("areas.createAreaError", {type: "error"})
         if (close) {
             close()
         }

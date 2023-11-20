@@ -4,5 +4,11 @@ mc mb -p myminio/$MINIO_PUBLIC_BUCKET;
 mc mb -p myminio/$MINIO_BUCKET;
 mc anonymous set download myminio/$MINIO_PUBLIC_BUCKET;
 mc admin user svcacct add --access-key $MINIO_ACCESS_KEY --secret-key $MINIO_ACCESS_SECRET myminio $MINIO_ROOT_USER;
-mc cp /scripts/certs.json myminio/public/certs.json
+mc stat myminio/public/certs.json
+if [ $? -eq 1 ]; then
+    echo uploading file
+    mc cp /scripts/certs.json myminio/public/certs.json
+else
+    echo file already exists
+fi
 exit 0;

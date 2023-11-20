@@ -4,6 +4,7 @@
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
 use serde::{Deserialize, Serialize};
+use crate::services::jwt::*;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthHeaders {
@@ -34,6 +35,26 @@ impl<'r> FromRequest<'r> for AuthHeaders {
             })
         } else {
             Outcome::Failure((Status::Unauthorized, ()))
+        }
+    }
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for JwtClaims {
+    type Error = ();
+
+    async fn from_request(
+        request: &'r Request<'_>,
+    ) -> Outcome<Self, Self::Error> {
+        let headers = request.headers().clone();
+        match headers.get_one("authorization") {
+            Some(authorization) => {
+                match authorization.strip_prefix("Bearer ") {
+                    Some(token) => Outcome::Success(decode_jwt(token).unwrap()),
+                    None => Outcome::Failure((Status::Unauthorized, ()))
+                }
+            },
+            None => Outcome::Failure((Status::Unauthorized, ()))
         }
     }
 }

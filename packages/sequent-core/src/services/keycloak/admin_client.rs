@@ -1,17 +1,13 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::connection;
+use crate::services::connection;
 use anyhow::{anyhow, Result};
-use keycloak::{
-    types::*,
-    {KeycloakAdmin, KeycloakAdminToken, KeycloakError},
-};
+use keycloak::{KeycloakAdmin, KeycloakAdminToken};
 use reqwest;
 use serde::{Deserialize, Serialize};
-use serde_urlencoded;
 use std::env;
-use tracing::{event, Level, instrument};
+use tracing::{event, instrument, Level};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct TokenResponse {
@@ -96,7 +92,7 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
 }
 
 pub struct KeycloakAdminClient {
-    client: KeycloakAdmin
+    pub client: KeycloakAdmin,
 }
 
 impl KeycloakAdminClient {
@@ -113,25 +109,6 @@ impl KeycloakAdminClient {
         .await?;
         event!(Level::INFO, "Successfully acquired credentials");
         let client = KeycloakAdmin::new(&login_config.url, admin_token, client);
-        Ok(KeycloakAdminClient {
-            client
-        })
+        Ok(KeycloakAdminClient { client })
     }
-
-    pub async fn upsert_realm(self, board_name: &str, json_realm_config: &str) -> Result<(), KeycloakError> {
-        let real_get_result = self.client.realm_get(board_name).await;
-        let realm: RealmRepresentation = serde_json::from_str(json_realm_config).unwrap();
-        match real_get_result {
-            Err(_) => self.client
-                .post(RealmRepresentation {
-                    realm: Some(board_name.into()),
-                    ..realm
-                })
-                .await,
-            Ok(_) => Ok(()),
-        }
-        
-    }
-
-
 }

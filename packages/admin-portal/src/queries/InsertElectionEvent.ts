@@ -5,18 +5,10 @@ import {gql} from "@apollo/client"
 
 export const INSERT_ELECTION_EVENT = gql`
     mutation CreateElectionEvent(
-        $electionEvent: sequent_backend_election_event_insert_input!
-        $elections: [sequent_backend_election_insert_input!]!
+        $electionEvent: CreateElectionEventInput!
     ) {
-        insert_sequent_backend_election_event(objects: [$electionEvent]) {
-            returning {
-                id
-            }
-        }
-        insert_sequent_backend_election(objects: $elections) {
-            returning {
-                id
-            }
+        insertElectionEvent(object: $electionEvent) {
+            id
         }
     }
 `

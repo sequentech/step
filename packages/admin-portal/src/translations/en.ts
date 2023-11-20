@@ -127,6 +127,8 @@ const englishTranslation = {
                 title: "Areas",
                 subTitle: "Area configuration.",
             },
+            createAreaSuccess: "Area created",
+            createAreaError: "Could not create Area",
         },
         electionEventScreen: {
             common: {
@@ -145,6 +147,8 @@ const englishTranslation = {
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
             },
+            createElectionEventSuccess: "Election Event created",
+            createElectionEventError: "Error creating election event",
         },
         common: {
             label: {
@@ -163,6 +167,10 @@ const englishTranslation = {
                 delete: "Are you sure you want to delete this item?",
             },
         },
+        tenant: {
+            createSuccess: "Customer created",
+            createError: "Error creating customer",
+        }
     },
 }
 
