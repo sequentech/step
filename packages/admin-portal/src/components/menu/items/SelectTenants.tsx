@@ -21,6 +21,12 @@ const SelectTenants: React.FC = () => {
         filter: {is_active: true},
     })
 
+    useEffect(() => {
+        if (data?.length === 1) {
+            setTenantId(data[0].id)
+        }
+    }, [data, setTenantId])
+
     const hasSingle = total === 1
 
     const handleChange = (event: SelectChangeEvent<unknown>) => {

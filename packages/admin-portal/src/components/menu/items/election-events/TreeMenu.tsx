@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {NavLink} from "react-router-dom"
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import {ResourceOptions, ResourceDefinition, useResourceDefinitions, useGetList} from "react-admin"
 import {CircularProgress} from "@mui/material"
 import {useTenantStore} from "../../../CustomMenu"
