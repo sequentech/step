@@ -8,6 +8,7 @@ import {
     DateTimeInput,
     Edit,
     EditBase,
+    RecordContext,
     ReferenceManyField,
     SelectInput,
     SimpleForm,
@@ -32,7 +33,7 @@ import {
     Grid,
 } from "@mui/material"
 import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import {faPieChart, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
@@ -65,6 +66,32 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const refresh = useRefresh()
     const {t} = useTranslation()
+
+    const [languageSettings, setLanguageSettings] = useState<any>([{es: true}, {en: true}])
+
+    const parseValues = (data: any) => {
+        const temp = {...data}
+        if (data.presentation) {
+            if (data.presentation.language_conf) {
+                temp.enabled_languages = []
+
+                for (const settingLang of languageSettings) {
+                    const enabled_lang: any = {}
+                    const isInEnabled = data.presentation.language_conf.enabled_language_codes.find(
+                        (item: any) => Object.keys(settingLang)[0] === item
+                    )
+                    if (isInEnabled) {
+                        enabled_lang[Object.keys(settingLang)[0]] = true
+                    } else {
+                        enabled_lang[Object.keys(settingLang)[0]] = false
+                    }
+
+                    temp.enabled_languages.push({...enabled_lang})
+                }
+            }
+        }
+        return temp
+    }
 
     const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
         setAnchorEl(event.currentTarget)
@@ -168,316 +195,190 @@ export const EditElectionEventDataForm: React.FC = () => {
     }
 
     return (
-        <SimpleForm validate={formValidator}>
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "election-event-data-general"}
-                onChange={() => setExpanded("election-event-data-general")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-general" />}>
-                    <ElectionHeaderStyles.Wrapper>
-                        <ElectionHeaderStyles.Title>
-                            {t("electionEventScreen.edit.general")}
-                        </ElectionHeaderStyles.Title>
-                    </ElectionHeaderStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <Tabs value={value} onChange={handleChange}>
-                        <Tab label="English" id="tab-1"></Tab>
-                        <Tab label="Spanish" id="tab-2"></Tab>
-                    </Tabs>
-                    <CustomTabPanel value={value} index={0}>
-                        <div style={{marginTop: "16px"}}>
-                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
-                            <TextInput
-                                source="alias"
-                                label={t("electionEventScreen.field.alias")}
-                            />
-                            <TextInput
-                                source="description"
-                                label={t("electionEventScreen.field.description")}
-                            />
-                        </div>
-                    </CustomTabPanel>
-                    <CustomTabPanel value={value} index={1}>
-                        <div style={{marginTop: "16px"}}>
-                            <TextInput source="name" label={t("electionEventScreen.field.name")} />
-                            <TextInput
-                                source="alias"
-                                label={t("electionEventScreen.field.alias")}
-                            />
-                            <TextInput
-                                source="description"
-                                label={t("electionEventScreen.field.description")}
-                            />
-                        </div>
-                    </CustomTabPanel>
-                </AccordionDetails>
-            </Accordion>
+        <RecordContext.Consumer>
+            {(data) => {
+                const parsedValue = parseValues(data)
+                console.log("parsedValue :>> ", parsedValue)
+                return (
+                    <SimpleForm validate={formValidator} record={parsedValue}>
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "election-event-data-general"}
+                            onChange={() => setExpanded("election-event-data-general")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="election-event-data-general" />}
+                            >
+                                <ElectionHeaderStyles.Wrapper>
+                                    <ElectionHeaderStyles.Title>
+                                        {t("electionEventScreen.edit.general")}
+                                    </ElectionHeaderStyles.Title>
+                                </ElectionHeaderStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Tabs value={value} onChange={handleChange}>
+                                    {parsedValue?.enabled_languages.map((lang: any) => {
+                                        if (lang[Object.keys(lang)[0]]) {   
+                                            return <Tab
+                                                key={Object.keys(lang)[0]}
+                                                label={t(`common.language.${Object.keys(lang)[0]}`)}
+                                                id={Object.keys(lang)[0]}
+                                            ></Tab>
+                                     } else {
+                                            return null
+                                        }
+                                    })}
+                                    {/* <Tab label="Spanish" id="tab-2"></Tab> */}
+                                </Tabs>
+                                {parsedValue?.enabled_languages.map((lang: any, index: number) => {
+                                    return (
+                                        <CustomTabPanel
+                                            key={Object.keys(lang)[0]}
+                                            value={value}
+                                            index={index}
+                                        >
+                                            <div style={{marginTop: "16px"}}>
+                                                <TextInput
+                                                    source="name"
+                                                    label={t("electionEventScreen.field.name")}
+                                                />
+                                                <TextInput
+                                                    source="alias"
+                                                    label={t("electionEventScreen.field.alias")}
+                                                />
+                                                <TextInput
+                                                    source="description"
+                                                    label={t(
+                                                        "electionEventScreen.field.description"
+                                                    )}
+                                                />
+                                            </div>
+                                        </CustomTabPanel>
+                                    )
+                                })}
+                                {/* <CustomTabPanel value={value} index={1}>
+                                    <div style={{marginTop: "16px"}}>
+                                        <TextInput
+                                            source="name"
+                                            label={t("electionEventScreen.field.name")}
+                                        />
+                                        <TextInput
+                                            source="alias"
+                                            label={t("electionEventScreen.field.alias")}
+                                        />
+                                        <TextInput
+                                            source="description"
+                                            label={t("electionEventScreen.field.description")}
+                                        />
+                                    </div>
+                                </CustomTabPanel> */}
+                            </AccordionDetails>
+                        </Accordion>
 
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "election-event-data-dates"}
-                onChange={() => setExpanded("election-event-data-dates")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-dates" />}>
-                    <ElectionHeaderStyles.Wrapper>
-                        <ElectionHeaderStyles.Title>
-                            {t("electionEventScreen.edit.dates")}
-                        </ElectionHeaderStyles.Title>
-                    </ElectionHeaderStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <Grid container spacing={4}>
-                        <Grid item xs={12} md={6}>
-                            <DateTimeInput
-                                source="dates.start_date"
-                                label={t("electionScreen.field.startDateTime")}
-                                parse={(value) => new Date(value).toISOString()}
-                            />
-                        </Grid>
-                        <Grid item xs={12} md={6}>
-                            <DateTimeInput
-                                source="dates.end_date"
-                                label={t("electionScreen.field.endDateTime")}
-                                parse={(value) => new Date(value).toISOString()}
-                            />
-                        </Grid>
-                    </Grid>
-                </AccordionDetails>
-            </Accordion>
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "election-event-data-dates"}
+                            onChange={() => setExpanded("election-event-data-dates")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="election-event-data-dates" />}
+                            >
+                                <ElectionHeaderStyles.Wrapper>
+                                    <ElectionHeaderStyles.Title>
+                                        {t("electionEventScreen.edit.dates")}
+                                    </ElectionHeaderStyles.Title>
+                                </ElectionHeaderStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Grid container spacing={4}>
+                                    <Grid item xs={12} md={6}>
+                                        <DateTimeInput
+                                            source="dates.start_date"
+                                            label={t("electionScreen.field.startDateTime")}
+                                            parse={(value) => new Date(value).toISOString()}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} md={6}>
+                                        <DateTimeInput
+                                            source="dates.end_date"
+                                            label={t("electionScreen.field.endDateTime")}
+                                            parse={(value) => new Date(value).toISOString()}
+                                        />
+                                    </Grid>
+                                </Grid>
+                            </AccordionDetails>
+                        </Accordion>
 
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "election-event-data-language"}
-                onChange={() => setExpanded("election-event-data-language")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-language" />}>
-                    <ElectionHeaderStyles.Wrapper>
-                        <ElectionHeaderStyles.Title>
-                            {t("electionEventScreen.edit.language")}
-                        </ElectionHeaderStyles.Title>
-                    </ElectionHeaderStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <Grid container spacing={4}>
-                        <Grid item xs={12} md={6}>
-                            <BooleanInput
-                                source="language.english"
-                                label={"English"}
-                                defaultValue={true}
-                            />
-                            <BooleanInput
-                                source="language.spanish"
-                                label={"Spanish"}
-                                defaultValue={false}
-                            />
-                        </Grid>
-                    </Grid>
-                </AccordionDetails>
-            </Accordion>
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "election-event-data-language"}
+                            onChange={() => setExpanded("election-event-data-language")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="election-event-data-language" />}
+                            >
+                                <ElectionHeaderStyles.Wrapper>
+                                    <ElectionHeaderStyles.Title>
+                                        {t("electionEventScreen.edit.language")}
+                                    </ElectionHeaderStyles.Title>
+                                </ElectionHeaderStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Grid container spacing={4}>
+                                    <Grid item xs={12} md={6}>
+                                        {parsedValue?.enabled_languages.map((lang: any) => {
+                                            return (
+                                                <BooleanInput
+                                                    key={Object.keys(lang)[0]}
+                                                    source={`enabled_languages.${
+                                                        Object.keys(lang)[0]
+                                                    }`}
+                                                    label={t(
+                                                        `common.language.${Object.keys(lang)[0]}`
+                                                    )}
+                                                    defaultValue={lang[Object.keys(lang)[0]]}
+                                                />
+                                            )
+                                        })}
+                                    </Grid>
+                                </Grid>
+                            </AccordionDetails>
+                        </Accordion>
 
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "election-event-data-allowed"}
-                onChange={() => setExpanded("election-event-data-allowed")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-event-data-allowed" />}>
-                    <ElectionHeaderStyles.Wrapper>
-                        <ElectionHeaderStyles.Title>
-                            {t("electionEventScreen.edit.allowed")}
-                        </ElectionHeaderStyles.Title>
-                    </ElectionHeaderStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    {" "}
-                    <Grid container spacing={4}>
-                        <Grid item xs={12} md={6}>
-                            <BooleanInput source="allowed.one" label={"One"} defaultValue={true} />
-                            <BooleanInput source="allowed.two" label={"Two"} defaultValue={true} />
-                        </Grid>
-                    </Grid>
-                </AccordionDetails>
-            </Accordion>
-
-            {/* <Typography variant="h4">Election Event</Typography>
-            <Typography variant="body2">Election event configuration</Typography>
-            <Button onClick={handleActionsButtonClick}>
-                Actions {showProgress ? <CircularProgress /> : null}
-            </Button>
-            <Menu
-                id="election-event-actions-menu"
-                anchorEl={anchorEl}
-                open={showMenu}
-                onClose={() => setShowMenu(false)}
-            >
-                <MenuItem
-                    onClick={createBulletinBoardAction}
-                    disabled={!!record.bulletin_board_reference}
-                >
-                    Create Bulletin Board
-                </MenuItem>
-                <MenuItem
-                    onClick={openKeysDialog}
-                    disabled={!record.bulletin_board_reference || configCreatedStatus}
-                >
-                    Create Keys
-                </MenuItem>
-                <MenuItem
-                    onClick={setPublicKeysAction}
-                    disabled={!!record.public_key || !configCreatedStatus}
-                >
-                    Set Public Keys
-                </MenuItem>
-                <MenuItem onClick={createBallotStylesAction}>Create Ballot Styles</MenuItem>
-                <MenuItem onClick={openStartTallyDialog}>Start Tally</MenuItem>
-            </Menu>
-            <KeysGenerationDialog
-                show={showCreateKeysDialog}
-                handleClose={() => setShowCreateKeysDialog(false)}
-                electionEvent={record}
-            />
-            <StartTallyDialog
-                show={showStartTallyDialog}
-                handleClose={() => setShowStartTallyDialog(false)}
-                electionEvent={record}
-            />
-            <Typography variant="h5">ID</Typography>
-            <TextField source="id" />
-            <TextInput source="name" />
-            <TextInput source="description" />
-            <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />
-            <BooleanInput source="is_archived" />
-            <BooleanInput source="is_audit" />
-            <TextInput source="public_key" />
-            <Typography variant="h5">Elections</Typography>
-            <ReferenceManyField
-                label="Elections"
-                reference="sequent_backend_election"
-                target="election_event_id"
-            >
-                <HorizontalBox>
-                    <ChipList
-                        source="sequent_backend_election"
-                        filterFields={["election_event_id"]}
-                    />
-                </HorizontalBox>
-            </ReferenceManyField>
-            <Link
-                to={{
-                    pathname: "/sequent_backend_election/create",
-                }}
-                state={{
-                    record: {
-                        election_event_id: record.id,
-                        tenant_id: record.tenant_id,
-                    },
-                }}
-            >
-                <Button>
-                    <IconButton icon={faPlusCircle} fontSize="24px" />
-                    Add election
-                </Button>
-            </Link>
-            <Typography variant="h5">Areas</Typography>
-            <ReferenceManyField
-                label="Areas"
-                reference="sequent_backend_area"
-                target="election_event_id"
-            >
-                <ChipList source="sequent_backend_area" filterFields={["election_event_id"]} />
-            </ReferenceManyField>
-            <Link
-                to={{
-                    pathname: "/sequent_backend_area/create",
-                }}
-                state={{
-                    record: {
-                        election_event_id: record.id,
-                        tenant_id: record.tenant_id,
-                    },
-                }}
-            >
-                <Button>
-                    <IconButton icon={faPlusCircle} fontSize="24px" />
-                    Add area
-                </Button>
-            </Link>
-            <JsonInput
-                source="bulletin_board_reference"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="labels"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="presentation"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="voting_channels"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="voting_channels"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="dates"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <TextInput source="user_boards" />
-            <TextInput source="audit_election_event_id" />
-            <Typography variant="h5">Documents</Typography>
-            <ReferenceManyField
-                label="Documents"
-                reference="sequent_backend_document"
-                target="election_event_id"
-            >
-                <HorizontalBox>
-                    <ChipList
-                        source="sequent_backend_document"
-                        filterFields={["election_event_id"]}
-                    />
-                </HorizontalBox>
-            </ReferenceManyField> */}
-        </SimpleForm>
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "election-event-data-allowed"}
+                            onChange={() => setExpanded("election-event-data-allowed")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="election-event-data-allowed" />}
+                            >
+                                <ElectionHeaderStyles.Wrapper>
+                                    <ElectionHeaderStyles.Title>
+                                        {t("electionEventScreen.edit.allowed")}
+                                    </ElectionHeaderStyles.Title>
+                                </ElectionHeaderStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Grid container spacing={4}>
+                                    <Grid item xs={12} md={6}>
+                                        <BooleanInput
+                                            source="allowed.one"
+                                            label={"One"}
+                                            defaultValue={true}
+                                        />
+                                        <BooleanInput
+                                            source="allowed.two"
+                                            label={"Two"}
+                                            defaultValue={true}
+                                        />
+                                    </Grid>
+                                </Grid>
+                            </AccordionDetails>
+                        </Accordion>
+                    </SimpleForm>
+                )
+            }}
+        </RecordContext.Consumer>
     )
 }

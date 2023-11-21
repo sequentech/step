@@ -201,6 +201,10 @@ const englishTranslation = {
             message: {
                 delete: "Are you sure you want to delete this item?",
             },
+            language: {
+                es: "Spanish",
+                en: "English",
+            }
         },
         tenant: {
             createSuccess: "Customer created",
