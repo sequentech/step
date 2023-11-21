@@ -1,4 +1,4 @@
-import { NoDescription } from './../../../ui-essentials/src/components/Candidate/__stories__/Candidate.stories';
+import {NoDescription} from "./../../../ui-essentials/src/components/Candidate/__stories__/Candidate.stories"
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -143,14 +143,18 @@ const englishTranslation = {
             },
             field: {
                 name: "Name",
-                language: "Language",
-                votingChannels: "Voting Channels",
+                alias: "Alias",
+                description: "Description",
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
+                language: "Language",
+                votingChannels: "Voting Channels",
             },
             error: {
                 endDate: "End date must be after start date",
             },
+            createElectionEventSuccess: "Election Event created",
+            createElectionEventError: "Error creating election event",
         },
         electionScreen: {
             common: {
@@ -201,7 +205,7 @@ const englishTranslation = {
         tenant: {
             createSuccess: "Customer created",
             createError: "Error creating customer",
-        }
+        },
     },
 }
 
