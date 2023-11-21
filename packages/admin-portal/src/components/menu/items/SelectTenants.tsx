@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { useEffect } from "react"
+import React, {useEffect} from "react"
 import {useSidebarState, useGetList} from "react-admin"
 import {faThLarge, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {IconButton} from "@sequentech/ui-essentials"
@@ -21,12 +21,6 @@ const SelectTenants: React.FC = () => {
         filter: {is_active: true},
     })
 
-    const showCustomers = open && !isLoading && !error && !!data
-
-    useEffect(() => {
-        console.log(`${data}, ${open}, ${isLoading}, ${error} ${showCustomers}`)
-    }, [data, total, isLoading, error, showCustomers])
-
     const hasSingle = total === 1
 
     const handleChange = (event: SelectChangeEvent<unknown>) => {
@@ -40,7 +34,7 @@ const SelectTenants: React.FC = () => {
             {!!data && (
                 <>
                     {hasSingle ? (
-                        <p className="ml-2.5">{data[0].slug}</p>
+                        <p className="grow ml-2.5">{data[0].slug}</p>
                     ) : (
                         <Select
                             labelId="tenant-select-label"
