@@ -457,9 +457,9 @@
     "otpPolicyPeriod": 30,
     "otpPolicyCodeReusable": false,
     "otpSupportedApplications": [
-      "totpAppGoogleName",
       "totpAppFreeOTPName",
-      "totpAppMicrosoftAuthenticatorName"
+      "totpAppMicrosoftAuthenticatorName",
+      "totpAppGoogleName"
     ],
     "webAuthnPolicyRpEntityName": "keycloak",
     "webAuthnPolicySignatureAlgorithms": [
@@ -2145,6 +2145,59 @@
         ]
       },
       {
+        "id": "e341874b-5d60-4444-a8ec-50174596b6ad",
+        "alias": "Message OTP Subflow",
+        "description": "Flow to determine if the Message OTP is required for the authentication",
+        "providerId": "basic-flow",
+        "topLevel": false,
+        "builtIn": false,
+        "authenticationExecutions": [
+          {
+            "authenticator": "conditional-user-configured",
+            "authenticatorFlow": false,
+            "requirement": "REQUIRED",
+            "priority": 10,
+            "autheticatorFlow": false,
+            "userSetupAllowed": false
+          },
+          {
+            "authenticatorConfig": "email-sms",
+            "authenticator": "message-otp-authenticator",
+            "authenticatorFlow": false,
+            "requirement": "REQUIRED",
+            "priority": 13,
+            "autheticatorFlow": false,
+            "userSetupAllowed": false
+          }
+        ]
+      },
+      {
+        "id": "d2e3daea-22d0-4e24-8c6e-c9228ac74f07",
+        "alias": "Normal OTP Subflow",
+        "description": "",
+        "providerId": "basic-flow",
+        "topLevel": false,
+        "builtIn": false,
+        "authenticationExecutions": [
+          {
+            "authenticator": "conditional-user-configured",
+            "authenticatorFlow": false,
+            "requirement": "REQUIRED",
+            "priority": 0,
+            "autheticatorFlow": false,
+            "userSetupAllowed": false
+          },
+          {
+            "authenticator": "auth-otp-form",
+            "authenticatorFlow": false,
+            "requirement": "REQUIRED",
+            "priority": 1,
+            "autheticatorFlow": false,
+            "userSetupAllowed": false
+          }
+        ]
+      },
+      {
         "id": "14420845-746e-4837-aa37-dcd103793fdb",
         "alias": "Reset - Conditional OTP",
         "description": "Flow to determine if the OTP should be reset or not. Set to REQUIRED to force.",
@@ -2680,41 +2733,6 @@
         ]
       },
       {
-        "id": "e341874b-5d60-4444-a8ec-50174596b6ad",
-        "alias": "sequent browser flow Browser - Conditional Message OTP",
-        "description": "Flow to determine if the OTP is required for the authentication",
-        "providerId": "basic-flow",
-        "topLevel": false,
-        "builtIn": false,
-        "authenticationExecutions": [
-          {
-            "authenticator": "conditional-user-configured",
-            "authenticatorFlow": false,
-            "requirement": "REQUIRED",
-            "priority": 10,
-            "autheticatorFlow": false,
-            "userSetupAllowed": false
-          },
-          {
-            "authenticatorConfig": "email-sms",
-            "authenticator": "message-otp-authenticator",
-            "authenticatorFlow": false,
-            "requirement": "REQUIRED",
-            "priority": 12,
-            "autheticatorFlow": false,
-            "userSetupAllowed": false
-          },
-          {
-            "authenticator": "auth-otp-form",
-            "authenticatorFlow": false,
-            "requirement": "DISABLED",
-            "priority": 13,
-            "autheticatorFlow": false,
-            "userSetupAllowed": false
-          }
-        ]
-      },
-      {
         "id": "559b8e47-af40-4d63-af6f-4228f51c804f",
         "alias": "sequent browser flow forms",
         "description": "Username, password, otp and other auth forms.",
@@ -2753,7 +2771,15 @@
             "requirement": "CONDITIONAL",
             "priority": 22,
             "autheticatorFlow": true,
-            "flowAlias": "sequent browser flow Browser - Conditional Message OTP",
+            "flowAlias": "Message OTP Subflow",
+            "userSetupAllowed": false
+          },
+          {
+            "authenticatorFlow": true,
+            "requirement": "CONDITIONAL",
+            "priority": 24,
+            "autheticatorFlow": true,
+            "flowAlias": "Normal OTP Subflow",
             "userSetupAllowed": false
           }
         ]

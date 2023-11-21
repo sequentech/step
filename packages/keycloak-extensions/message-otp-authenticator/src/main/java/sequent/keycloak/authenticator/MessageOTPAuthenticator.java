@@ -6,6 +6,7 @@ import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProviderFactory;
 import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
+import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
@@ -24,19 +25,19 @@ import java.security.MessageDigest;
 import java.util.Locale;
 import java.util.Optional;
 
-public class MessageOTPAuthenticator implements Authenticator, CredentialValidator<MessageOTPCredentialProvider> {
-
-	private static final Logger logger = Logger
-		.getLogger(MessageOTPAuthenticator.class);
-	public static final String MOBILE_NUMBER_FIELD = "read-only.mobile-number";
-	public static final String EMAIL_ADDRESS_FIELD = "read-only.email-address";
+@JBossLog
+public class MessageOTPAuthenticator
+	implements Authenticator, CredentialValidator<MessageOTPCredentialProvider>
+{
+	public static final String MOBILE_NUMBER_FIELD = "sequent.read-only.mobile-number";
+	public static final String EMAIL_ADDRESS_FIELD = "sequent.read-only.email-address";
 	private static final String TPL_CODE = "login-message-otp.ftl";
 
 	@Override
 	public MessageOTPCredentialProvider getCredentialProvider(
 		KeycloakSession session
 	) {
-		logger.info("getCredentialProvider()");
+		log.info("getCredentialProvider()");
 		return new MessageOTPCredentialProvider(session);
 		// TODO: doesn't work - why?
 		// return (MessageOTPCredentialProvider) session
@@ -48,7 +49,7 @@ public class MessageOTPAuthenticator implements Authenticator, CredentialValidat
 
 	@Override
 	public void authenticate(AuthenticationFlowContext context) {
-		logger.info("authenticate() called");
+		log.info("authenticate() called");
 		AuthenticatorConfigModel config = context.getAuthenticatorConfig();
 		KeycloakSession session = context.getSession();
 		UserModel user = context.getUser();
@@ -80,7 +81,7 @@ public class MessageOTPAuthenticator implements Authenticator, CredentialValidat
 
 	@Override
 	public void action(AuthenticationFlowContext context) {
-		logger.info("action() called");
+		log.info("action() called");
 		String enteredCode = context
 			.getHttpRequest()
 			.getDecodedFormParameters()
@@ -108,6 +109,9 @@ public class MessageOTPAuthenticator implements Authenticator, CredentialValidat
 			code.getBytes()
 		);
 		if (isValid) {
+			context
+				.getAuthenticationSession()
+				.removeAuthNote(Utils.CODE);
 			if (Long.parseLong(ttl) < System.currentTimeMillis()) {
 				// expired
 				context.failureChallenge(
@@ -141,7 +145,7 @@ public class MessageOTPAuthenticator implements Authenticator, CredentialValidat
 
 	@Override
 	public boolean requiresUser() {
-		logger.info("requiresUser() called");
+		log.info("requiresUser() called");
 		return true;
 	}
 
@@ -151,7 +155,7 @@ public class MessageOTPAuthenticator implements Authenticator, CredentialValidat
 		RealmModel realm,
 		UserModel user
 	) {
-		logger.info("configuredFor() called");
+		log.info("configuredFor() called");
 		MessageOTPCredentialProvider provider = getCredentialProvider(session);
 		if (
 			provider == null ||
@@ -167,12 +171,10 @@ public class MessageOTPAuthenticator implements Authenticator, CredentialValidat
 	 	if (!config.isPresent()) {
 			return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
 		}
-	
-		String telUserAttribute = config
-			.get()
-			.getConfig()
-			.get(Utils.TEL_USER_ATTRIBUTE);
-		return user.getFirstAttribute(telUserAttribute) != null;
+		String mobileNumber = Utils.getMobile(config.get(), user);
+		String emailAddress = Utils.getEmail(config.get(), user);
+
+		return mobileNumber != null || emailAddress != null;
 	}
 
 	@Override
@@ -181,7 +183,7 @@ public class MessageOTPAuthenticator implements Authenticator, CredentialValidat
 		RealmModel realm,
 		UserModel user
 	) {
-		logger.info("setRequiredActions() called");
+		log.info("setRequiredActions() called");
 		// this will only work if you have the required action from here
 		// configured:
 		// https://github.com/dasniko/keycloak-extensions-demo/tree/main/requiredaction
