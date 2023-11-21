@@ -23,8 +23,9 @@ import {
     faTrash,
     faArchive,
 } from "@fortawesome/free-solid-svg-icons"
-import {Icon} from "@sequentech/ui-essentials"
+import {adminTheme, Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
+import styled from "@emotion/styled"
 
 interface Options extends ResourceOptions {
     isMenuParent?: boolean
@@ -129,6 +130,10 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
     const openActionMenu = Boolean(anchorEl)
     const idActionMenu = openActionMenu ? "action-menu" : undefined
 
+    const StyledIcon = styled(Icon)`
+        color: ${adminTheme.palette.brandColor};
+    `
+
     return (
         <div className="bg-white">
             <div ref={menuItemRef} className="group flex text-center space-x-2 items-center">
@@ -180,21 +185,21 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
                         <MenuList dense>
                             <MenuItem>
                                 <ListItemIcon>
-                                    <Icon icon={faCirclePlus} />
+                                    <StyledIcon icon={faCirclePlus} />
                                 </ListItemIcon>
                                 Add
                             </MenuItem>
                             <Divider />
                             <MenuItem>
                                 <ListItemIcon>
-                                    <Icon icon={faTrash} />
+                                    <StyledIcon icon={faTrash} />
                                 </ListItemIcon>
                                 Remove
                             </MenuItem>
                             <Divider />
                             <MenuItem>
                                 <ListItemIcon>
-                                    <Icon icon={faArchive} />
+                                    <StyledIcon icon={faArchive} />
                                 </ListItemIcon>
                                 Archive
                             </MenuItem>
