@@ -18,7 +18,6 @@ import java.util.LinkedHashMap;
 public class MessageOTPAuthenticatorFactory 
 	implements AuthenticatorFactory, ServerInfoAwareProviderFactory
 {
-
 	public static final String PROVIDER_ID = "message-otp-authenticator";
 
 	private static final MessageOTPAuthenticator SINGLETON = new MessageOTPAuthenticator();

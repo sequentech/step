@@ -3,6 +3,7 @@ package sequent.keycloak.authenticator;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 import org.jboss.logging.Logger;
+import lombok.extern.jbosslog.JBossLog;
 import jakarta.ws.rs.core.Response;
 import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
@@ -13,13 +14,12 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
+import java.security.MessageDigest;
 import java.util.function.Consumer;
 import java.util.Optional;
 
+@JBossLog
 public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
-	private static final Logger logger = Logger
-		.getLogger(ResetMessageOTPRequiredAction.class);
-
 	public static final String PROVIDER_ID = "message-otp-ra";
 
     public static final String IS_SETUP_FIELD = "is-setup";
@@ -29,7 +29,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
 	public MessageOTPCredentialProvider getCredentialProvider(
 		KeycloakSession session
 	) {
-		logger.info("getCredentialProvider()");
+		log.info("getCredentialProvider()");
 		return new MessageOTPCredentialProvider(session);
 		// TODO: doesn't work - why?
 		// return (MessageOTPCredentialProvider) session
@@ -55,7 +55,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
 
 	@Override
 	public void processAction(RequiredActionContext context) {
-		logger.info("action() called");
+		log.info("action() called");
 		
 		UserModel user = context.getUser();
 		String enteredCode = context
@@ -73,8 +73,14 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
 			return;
 		}
 
-		boolean isValid = enteredCode.equals(code);
+		boolean isValid = Utils.constantTimeIsEqual(
+			enteredCode.getBytes(),
+			code.getBytes()
+		);
 		if (isValid) {
+			context
+				.getAuthenticationSession()
+				.removeAuthNote(Utils.CODE);
 			if (Long.parseLong(ttl) < System.currentTimeMillis()) {
 				// expired
 				context.challenge(
