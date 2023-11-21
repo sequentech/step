@@ -90,7 +90,7 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
                 {isOpen && (
                     <>
                         <NavLink
-                            title={resource.name}
+                            title={resource.alias ?? resource.name}
                             className={({isActive}) =>
                                 cn(
                                     "px-4 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
