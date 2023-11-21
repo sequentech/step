@@ -52,6 +52,7 @@ import {useTenantStore} from "../../components/CustomMenu"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionHeaderStyles} from "../../components/styles/ElectionHeaderStyles"
+import {parse} from "path"
 
 export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -73,7 +74,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         const temp = {...data}
         if (data.presentation) {
             if (data.presentation.language_conf) {
-                temp.enabled_languages = []
+                temp.enabled_languages = {}
 
                 for (const settingLang of languageSettings) {
                     const enabled_lang: any = {}
@@ -86,7 +87,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                         enabled_lang[Object.keys(settingLang)[0]] = false
                     }
 
-                    temp.enabled_languages.push({...enabled_lang})
+                    temp.enabled_languages = {...temp.enabled_languages, ...enabled_lang}
                 }
             }
         }
@@ -194,6 +195,51 @@ export const EditElectionEventDataForm: React.FC = () => {
         return errors
     }
 
+    const renderLangs = (parsedValue: any) => {
+        let langNodes = []
+        for (const lang in parsedValue?.enabled_languages) {
+            langNodes.push(
+                <BooleanInput
+                    key={lang}
+                    source={`enabled_languages[${lang}]`}
+                    label={t(`common.language.${lang}`)}
+                />
+            )
+        }
+        return langNodes
+    }
+
+    const renderTabs = (parsedValue: any) => {
+        let tabNodes = []
+        for (const lang in parsedValue?.enabled_languages) {
+            if (parsedValue?.enabled_languages[lang]) {
+                tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
+            }
+        }
+        return tabNodes
+    }
+
+    const renderTabContent = (parsedValue: any) => {
+        let tabNodes = []
+        let index = 0
+        for (const lang in parsedValue?.enabled_languages) {
+            tabNodes.push(
+                <CustomTabPanel key={lang} value={value} index={index}>
+                    <div style={{marginTop: "16px"}}>
+                        <TextInput source="name" label={t("electionEventScreen.field.name")} />
+                        <TextInput source="alias" label={t("electionEventScreen.field.alias")} />
+                        <TextInput
+                            source="description"
+                            label={t("electionEventScreen.field.description")}
+                        />
+                    </div>
+                </CustomTabPanel>
+            )
+            index++
+        }
+        return tabNodes
+    }
+
     return (
         <RecordContext.Consumer>
             {(data) => {
@@ -217,23 +263,14 @@ export const EditElectionEventDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <Tabs value={value} onChange={handleChange}>
-                                    {parsedValue?.enabled_languages.map((lang: any) => {
-                                        if (lang[Object.keys(lang)[0]]) {   
-                                            return <Tab
-                                                key={Object.keys(lang)[0]}
-                                                label={t(`common.language.${Object.keys(lang)[0]}`)}
-                                                id={Object.keys(lang)[0]}
-                                            ></Tab>
-                                     } else {
-                                            return null
-                                        }
-                                    })}
+                                    {renderTabs(parsedValue)}
                                     {/* <Tab label="Spanish" id="tab-2"></Tab> */}
                                 </Tabs>
-                                {parsedValue?.enabled_languages.map((lang: any, index: number) => {
+                                {renderTabContent(parsedValue)}
+                                {/* {parsedValue?.enabled_languages.map((lang: any, index: number) => {
                                     return (
                                         <CustomTabPanel
-                                            key={Object.keys(lang)[0]}
+                                            key={lang}
                                             value={value}
                                             index={index}
                                         >
@@ -255,23 +292,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                             </div>
                                         </CustomTabPanel>
                                     )
-                                })}
-                                {/* <CustomTabPanel value={value} index={1}>
-                                    <div style={{marginTop: "16px"}}>
-                                        <TextInput
-                                            source="name"
-                                            label={t("electionEventScreen.field.name")}
-                                        />
-                                        <TextInput
-                                            source="alias"
-                                            label={t("electionEventScreen.field.alias")}
-                                        />
-                                        <TextInput
-                                            source="description"
-                                            label={t("electionEventScreen.field.description")}
-                                        />
-                                    </div>
-                                </CustomTabPanel> */}
+                                })} */}
                             </AccordionDetails>
                         </Accordion>
 
@@ -326,20 +347,27 @@ export const EditElectionEventDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <Grid container spacing={4}>
                                     <Grid item xs={12} md={6}>
-                                        {parsedValue?.enabled_languages.map((lang: any) => {
+                                        {renderLangs(parsedValue)}
+                                        {/* {parsedValue?.enabled_languages.map((lang: any) => {
+                                            console.log(
+                                                "lang",
+                                                `enabled_languages[${Object.keys(lang)[0]}]`,
+                                                lang,
+                                                lang[Object.keys(lang)[0]]
+                                            )
                                             return (
                                                 <BooleanInput
                                                     key={Object.keys(lang)[0]}
-                                                    source={`enabled_languages.${
+                                                    source={`lang[${
                                                         Object.keys(lang)[0]
-                                                    }`}
+                                                    }]`}
                                                     label={t(
                                                         `common.language.${Object.keys(lang)[0]}`
                                                     )}
-                                                    defaultValue={lang[Object.keys(lang)[0]]}
+                                                    // defaultValue={lang[Object.keys(lang)[0]]}
                                                 />
                                             )
-                                        })}
+                                        })} */}
                                     </Grid>
                                 </Grid>
                             </AccordionDetails>
