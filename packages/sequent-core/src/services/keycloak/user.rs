@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use keycloak::types::UserRepresentation;
 use std::convert::From;
-use tracing::instrument;
+use tracing::{Level, event, instrument};
 
 impl From<UserRepresentation> for User {
     fn from(item: UserRepresentation) -> Self {
@@ -39,7 +39,8 @@ impl KeycloakAdminClient {
                 realm, None, email, None, None, None, None, None, None, None,
                 None, max, None, search, None,
             )
-            .await?;
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
         Ok(users.into_iter().map(|user| user.into()).collect())
     }
 }
