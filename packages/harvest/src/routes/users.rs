@@ -21,7 +21,8 @@ pub struct GetUsersBody {
     tenant_id: String,
     search: Option<String>,
     email: Option<String>,
-    max: Option<i32>,
+    limit: Option<i32>,
+    offset: Option<i32>,
 }
 
 //#[instrument(skip(claims))]
@@ -41,15 +42,17 @@ pub async fn get_users(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let users = client
-        //.list_users(&board, input.search, input.email, input.max)
-        .list_users("electoral-process", input.search, input.email, input.max)
+    let (users, count) = client
+        //.list_users(&board, input.search, input.email, input.limit, input.offset)
+        .list_users("electoral-process", input.search, input.email, input.limit, input.offset)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(Json(DataList {
         items: users,
         total: TotalAggregate {
-            aggregate: Aggregate { count: 2 },
+            aggregate: Aggregate {
+                count: count as i64,
+            },
         },
     }))
 }
