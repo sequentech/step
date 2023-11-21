@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
+use crate::types::resources::{
+    Aggregate, DataList, OrderDirection, TotalAggregate,
+};
 use anyhow::{anyhow, Result};
 use immu_board::util::get_tenant_name;
 use rocket::http::Status;
@@ -11,7 +14,7 @@ use sequent_core::services::jwt;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::User;
 use serde::{Deserialize, Serialize};
-use tracing::{Level, event, instrument};
+use tracing::{event, instrument, Level};
 
 #[derive(Deserialize, Debug)]
 pub struct GetUsersBody {
@@ -26,7 +29,7 @@ pub struct GetUsersBody {
 pub async fn get_users(
     //claims: jwt::JwtClaims,
     body: Json<GetUsersBody>,
-) -> Result<Json<Vec<User>>, (Status, String)> {
+) -> Result<Json<DataList<User>>, (Status, String)> {
     let input = body.into_inner();
     /*authorize(
         &claims,
@@ -43,5 +46,10 @@ pub async fn get_users(
         .list_users("electoral-process", input.search, input.email, input.max)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    Ok(Json(users))
+    Ok(Json(DataList {
+        items: users,
+        total: TotalAggregate {
+            aggregate: Aggregate { count: 2 },
+        },
+    }))
 }
