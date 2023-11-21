@@ -10,8 +10,6 @@ export const EditElectionEventData: React.FC = () => {
         console.log("data before :: ", data)
         const enabled_language_codes = []
         for (const key in data.enabled_languages) {
-            console.log('key :>> ', key);
-            console.log("key type :>> ", typeof data.enabled_languages[key])
             if (typeof data.enabled_languages[key] === 'boolean' && data.enabled_languages[key]) {
                 enabled_language_codes.push(key)
             }
@@ -20,21 +18,14 @@ export const EditElectionEventData: React.FC = () => {
             enabled_language_codes: enabled_language_codes,
         }
         // i18n
-        const i18n = {}
-
-        console.log("data to send :: ", {
-            ...data,
-            presentation: {
-                language_conf: {...language_conf},
-                i18n: {...i18n},
-            },
-        })
+        // is alll object, no change needed
+        delete data.enabled_languages
 
         return {
             ...data,
             presentation: {
+                ...data.presentation,
                 language_conf: {...language_conf},
-                i18n: {...i18n},
             },
         }
     }

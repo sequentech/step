@@ -73,6 +73,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const parseValues = (data: any) => {
         const temp = {...data}
         if (data.presentation) {
+            // languages
             if (data.presentation.language_conf) {
                 temp.enabled_languages = {}
 
@@ -90,6 +91,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     temp.enabled_languages = {...temp.enabled_languages, ...enabled_lang}
                 }
             }
+            // i18n
         }
         return temp
     }
@@ -226,10 +228,16 @@ export const EditElectionEventDataForm: React.FC = () => {
             tabNodes.push(
                 <CustomTabPanel key={lang} value={value} index={index}>
                     <div style={{marginTop: "16px"}}>
-                        <TextInput source="name" label={t("electionEventScreen.field.name")} />
-                        <TextInput source="alias" label={t("electionEventScreen.field.alias")} />
                         <TextInput
-                            source="description"
+                            source={`presentation.i18n[${lang}].name`}
+                            label={t("electionEventScreen.field.name")}
+                        />
+                        <TextInput
+                            source={`presentation.i18n[${lang}].alias`}
+                            label={t("electionEventScreen.field.alias")}
+                        />
+                        <TextInput
+                            source={`presentation.i18n[${lang}].description`}
                             label={t("electionEventScreen.field.description")}
                         />
                     </div>
