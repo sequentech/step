@@ -85,6 +85,18 @@ interface TreeMenuItemProps {
     treeResources: Array<ResourceDefinition<Options>>
 }
 
+enum Action {
+    Add,
+    Remove,
+    Archive,
+}
+
+type ActionPayload = {
+    id: string
+    name: string
+    type: string
+}
+
 function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
     const [open, setOpen] = useState(false)
     const onClick = () => setOpen(!open)
@@ -96,31 +108,15 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
     const menuItemRef = useRef(null)
     const [anchorEl, setAnchorEl] = React.useState<HTMLParagraphElement | null>(null)
 
-    function handleOpenItemActions({
-        event,
-        id,
-        name,
-        type,
-    }: {
-        event: React.MouseEvent<HTMLParagraphElement>
-        id: string
-        name: string
-        type: string
-    }): void {
-        console.log(
-            "LS -> src/components/menu/items/election-events/TreeMenu.tsx:80 -> type: ",
-            type
-        )
-        console.log("LS -> src/components/menu/items/election-events/TreeMenu.tsx:80 -> id: ", id)
-        console.log(
-            "LS -> src/components/menu/items/election-events/TreeMenu.tsx:80 -> name: ",
-            name
-        )
-        console.log(
-            "LS -> src/components/menu/items/election-events/TreeMenu.tsx:102 -> event.currentTarget: ",
-            event.currentTarget
-        )
+    function handleOpenItemActions(event: React.MouseEvent<HTMLParagraphElement>): void {
         setAnchorEl(menuItemRef.current)
+    }
+
+    function handleAction(action: Action, payload: ActionPayload) {
+        console.log(
+            "LS -> src/components/menu/items/election-events/TreeMenu.tsx:115 -> payload: ",
+            payload
+        )
     }
 
     const handleCloseActionMenu = () => {
@@ -159,17 +155,7 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
                     </NavLink>
                 )}
                 <div className="grow hidden group-hover:block">
-                    <p
-                        className="text-right px-1 cursor-pointer"
-                        onClick={(e) =>
-                            handleOpenItemActions({
-                                event: e,
-                                id: resource.id,
-                                name: resource.name,
-                                type: treeResources[0].name,
-                            })
-                        }
-                    >
+                    <p className="text-right px-1 cursor-pointer" onClick={handleOpenItemActions}>
                         <Icon icon={faEllipsisH} />
                     </p>
                     <Popover
@@ -183,21 +169,45 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
                         }}
                     >
                         <MenuList dense>
-                            <MenuItem>
+                            <MenuItem
+                                onClick={() =>
+                                    handleAction(Action.Add, {
+                                        id: resource.id,
+                                        name: resource.name,
+                                        type: treeResources[0].name,
+                                    })
+                                }
+                            >
                                 <ListItemIcon>
                                     <StyledIcon icon={faCirclePlus} />
                                 </ListItemIcon>
                                 Add
                             </MenuItem>
                             <Divider />
-                            <MenuItem>
+                            <MenuItem
+                                onClick={() =>
+                                    handleAction(Action.Remove, {
+                                        id: resource.id,
+                                        name: resource.name,
+                                        type: treeResources[0].name,
+                                    })
+                                }
+                            >
                                 <ListItemIcon>
                                     <StyledIcon icon={faTrash} />
                                 </ListItemIcon>
                                 Remove
                             </MenuItem>
                             <Divider />
-                            <MenuItem>
+                            <MenuItem
+                                onClick={() =>
+                                    handleAction(Action.Archive, {
+                                        id: resource.id,
+                                        name: resource.name,
+                                        type: treeResources[0].name,
+                                    })
+                                }
+                            >
                                 <ListItemIcon>
                                     <StyledIcon icon={faArchive} />
                                 </ListItemIcon>
