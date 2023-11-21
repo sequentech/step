@@ -35,7 +35,12 @@ pub async fn get_jwks() -> Result<Vec<JWKKey>> {
         env::var("MINIO_PRIVATE_URI").expect(&format!("MINIO_PRIVATE_URI must be set"));
     let bucket = s3::get_public_bucket();
 
-    let hasura_endpoint = format!("{}/{}/{}", minio_private_uri, bucket, get_jwks_secret_path());
+    let hasura_endpoint = format!(
+        "{}/{}/{}",
+        minio_private_uri,
+        bucket,
+        get_jwks_secret_path()
+    );
 
     let client = reqwest::Client::new();
     let response = client.get(hasura_endpoint).send().await?;

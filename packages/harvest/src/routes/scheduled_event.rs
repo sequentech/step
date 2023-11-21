@@ -6,7 +6,7 @@ use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
 use windmill::types::scheduled_event::*;
@@ -25,7 +25,7 @@ pub struct CreateEventBody {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CreateEventOutput {
-    pub id: String
+    pub id: String,
 }
 
 #[instrument(skip(_auth_headers))]

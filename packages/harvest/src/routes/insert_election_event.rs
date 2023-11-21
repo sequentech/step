@@ -6,16 +6,16 @@ use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
+use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
+use uuid::Uuid;
 use windmill::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::insert_election_event;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct CreateElectionEventOutput {
-    id: String
+    id: String,
 }
 
 #[instrument(skip(auth_headers))]
@@ -31,7 +31,7 @@ pub async fn insert_election_event_f(
     let task = celery_app
         .send_task(insert_election_event::insert_election_event_t::new(
             object,
-            id.clone()
+            id.clone(),
         ))
         .await
         .map_err(|e| anyhow::Error::from(e))?;
@@ -41,7 +41,5 @@ pub async fn insert_election_event_f(
         task.task_id
     );
 
-    Ok(Json(CreateElectionEventOutput {
-        id,
-    }))
+    Ok(Json(CreateElectionEventOutput { id }))
 }

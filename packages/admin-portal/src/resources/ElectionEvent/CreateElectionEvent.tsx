@@ -2,19 +2,25 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useMutation} from "@apollo/client"
-import React from "react"
+import React, { useEffect, useState } from "react"
 import {CreateElectionEventMutation} from "../../gql/graphql"
 import {v4} from "uuid"
 import {
-    ArrayInput,
+    BooleanInput,
     ReferenceInput,
     SelectInput,
     SimpleForm,
-    SimpleFormIterator,
     TextInput,
+    useGetOne,
+    useNotify,
+    useRefresh,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
+import { CircularProgress } from "@mui/material"
+import { useTranslation } from "react-i18next"
+import { isNull } from "@sequentech/ui-essentials"
+import { useNavigate } from "react-router"
 
 interface IElectionSubmit {
     description: string
@@ -32,21 +38,54 @@ interface IElectionEventSubmit {
 
 export const CreateElectionList: React.FC = () => {
     const [insertElectionEvent] = useMutation<CreateElectionEventMutation>(INSERT_ELECTION_EVENT)
+    const notify = useNotify()
+    const [newId, setNewId] = useState<string | null>(null)
+    const [isLoading, setIsLoading] = useState(false)
+    const {t} = useTranslation()
+    const navigate = useNavigate()
+    const refresh = useRefresh()
     const postDefaultValues = () => ({id: v4()})
+    const { data: newElectionEvent, isLoading: isOneLoading, error } = useGetOne(
+        'sequent_backend_election_event',
+        {
+            id: newId,
+        }
+    )
+
+    useEffect(() => {
+        if (isNull(newId)) {
+            return
+        }
+        if (isLoading && error && !isOneLoading) {
+            setIsLoading(false)
+            notify(t("electionEventScreen.createElectionEventError"), { type: "error"})
+            refresh()
+            return
+        }
+        if (isLoading && !error && !isOneLoading && newElectionEvent) {
+            setIsLoading(false)
+            notify(t("electionEventScreen.createElectionEventSuccess"), { type: "success"})
+            refresh()
+            navigate(`/sequent_backend_election_event/${newId}`)
+
+        } 
+    }, [isLoading, newElectionEvent, isOneLoading, error])
 
     const handleSubmit = async (values: any) => {
-        const {elections, ...electionSubmit} = values as IElectionEventSubmit
-        await insertElectionEvent({
+        const electionSubmit = values as IElectionEventSubmit
+        let {data, errors} = await insertElectionEvent({
             variables: {
-                elections: elections.map((e) => ({
-                    election_event_id: electionSubmit.id,
-                    tenant_id: electionSubmit.tenant_id,
-                    ...e,
-                })),
                 electionEvent: electionSubmit,
             },
         })
-        console.log(values)
+
+        if (data?.insertElectionEvent?.id) {
+            setNewId(data?.insertElectionEvent?.id)
+            setIsLoading(true)
+        } else {
+            notify(t("electionEventScreen.createElectionEventError"), { type: "error"})
+            setIsLoading(false)
+        }
     }
     return (
         <SimpleForm defaultValues={postDefaultValues} onSubmit={handleSubmit}>
@@ -54,14 +93,9 @@ export const CreateElectionList: React.FC = () => {
             <TextInput source="name" />
             <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />
             <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
-                <SelectInput optionText="username" />
+                <SelectInput optionText="slug" />
             </ReferenceInput>
-            <ArrayInput source="elections">
-                <SimpleFormIterator inline>
-                    <TextInput source="name" />
-                    <TextInput source="description" />
-                </SimpleFormIterator>
-            </ArrayInput>
+            <BooleanInput source="is_archived" defaultValue={false} />
             <JsonInput
                 source="labels"
                 jsonString={false}
@@ -114,6 +148,7 @@ export const CreateElectionList: React.FC = () => {
             />
             <TextInput source="user_boards" />
             <TextInput source="audit_election_event_id" />
+            {isLoading ? <CircularProgress /> : null}
         </SimpleForm>
     )
 }

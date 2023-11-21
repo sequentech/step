@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, { useEffect } from "react"
 import {useSidebarState, useGetList} from "react-admin"
 import {faThLarge, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {IconButton} from "@sequentech/ui-essentials"
@@ -23,6 +23,10 @@ const SelectTenants: React.FC = () => {
 
     const showCustomers = open && !isLoading && !error && !!data
 
+    useEffect(() => {
+        console.log(`${data}, ${open}, ${isLoading}, ${error} ${showCustomers}`)
+    }, [data, total, isLoading, error, showCustomers])
+
     const hasSingle = total === 1
 
     const handleChange = (event: SelectChangeEvent<unknown>) => {
@@ -33,10 +37,10 @@ const SelectTenants: React.FC = () => {
     return (
         <div className={cn("flex items-center px-4 space-x-4", hasSingle ? "py-1.5" : "py-1")}>
             <IconButton icon={faThLarge} />
-            {showCustomers && (
+            {!!data && (
                 <>
                     {hasSingle ? (
-                        <p className="ml-2.5">{data[0].username}</p>
+                        <p className="ml-2.5">{data[0].slug}</p>
                     ) : (
                         <Select
                             labelId="tenant-select-label"
@@ -47,7 +51,7 @@ const SelectTenants: React.FC = () => {
                         >
                             {data?.map((tenant) => (
                                 <MenuItem key={tenant.id} value={tenant.id}>
-                                    {tenant.username}
+                                    {tenant.slug}
                                 </MenuItem>
                             ))}
                         </Select>

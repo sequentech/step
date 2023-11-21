@@ -9,8 +9,10 @@ import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {TextField} from "@mui/material"
 import {Menu, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
-import {faThLarge, faSearch} from "@fortawesome/free-solid-svg-icons"
+import {faThLarge, faSearch, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {cn} from "../../../lib/utils"
+import { HorizontalBox } from "../../HorizontalBox"
+import {Link} from "react-router-dom"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -19,6 +21,15 @@ const MenuItem = styled(Menu.Item)`
     .MuiIconButton-root {
         color: ${adminTheme.palette.brandColor};
     }
+`
+
+const StyledIconButton = styled(IconButton)`
+    &:hover {
+        padding: unset !important;
+    }
+    margin-right: 16px;
+    font-size: 1rem;
+    line-height: 1.5rem;
 `
 
 const activeRouteList = [
@@ -57,11 +68,17 @@ export default function ElectionEvents() {
     return (
         <>
             <div className={cn(isElectionEventActive && "bg-green-light")}>
-                <MenuItem
-                    to="/sequent_backend_election_event"
-                    primaryText={open && "Election Events"}
-                    leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                />
+                <HorizontalBox sx={{alignItems: "center"}}>
+                    <MenuItem
+                        to="/sequent_backend_election_event"
+                        primaryText={open && "Election Events"}
+                        leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                        sx={{flexGrow: 2}}
+                    />
+                    <Link to="/sequent_backend_election_event/create">
+                        <StyledIconButton icon={faPlusCircle} size="xs"/>
+                    </Link>
+                </HorizontalBox>
                 {open && isElectionEventActive && (
                     <>
                         <div className="flex bg-white px-4">
