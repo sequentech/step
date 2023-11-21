@@ -7,7 +7,7 @@ import React, {useEffect, useState} from "react"
 import {ResourceOptions, ResourceDefinition, useResourceDefinitions, useGetList} from "react-admin"
 import {CircularProgress} from "@mui/material"
 import {useTenantStore} from "../../../CustomMenu"
-import {faAngleRight, faAngleDown} from "@fortawesome/free-solid-svg-icons"
+import {faAngleRight, faAngleDown, faEllipsisH} from "@fortawesome/free-solid-svg-icons"
 import {Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
 
@@ -79,7 +79,7 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
 
     return (
         <div className="bg-white">
-            <div className="flex text-center  space-x-2 items-center">
+            <div className="flex text-center space-x-2 items-center">
                 {hasNext ? (
                     <div className="w-6 h-6 cursor-pointer" onClick={onClick}>
                         <Icon icon={open ? faAngleDown : faAngleRight} />
@@ -88,21 +88,24 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
                     <div className="w-6 h-6"></div>
                 )}
                 {isOpen && (
-                    <>
-                        <NavLink
-                            title={resource.alias ?? resource.name}
-                            className={({isActive}) =>
-                                cn(
-                                    "px-4 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
-                                    isActive && "border-b-2 border-brand-color"
-                                )
-                            }
-                            to={`/${treeResources[0].name}/${resource.id}`}
-                        >
-                            {resource.name}
-                        </NavLink>
-                    </>
+                    <NavLink
+                        title={resource.alias ?? resource.name}
+                        className={({isActive}) =>
+                            cn(
+                                "px-4 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
+                                isActive && "border-b-2 border-brand-color"
+                            )
+                        }
+                        to={`/${treeResources[0].name}/${resource.id}`}
+                    >
+                        {resource.name}
+                    </NavLink>
                 )}
+                <div className="grow">
+                    <p className="text-right px-1">
+                        <Icon icon={faEllipsisH} />
+                    </p>
+                </div>
             </div>
             {open && (
                 <div className="">
