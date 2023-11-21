@@ -5,6 +5,8 @@ import { isConstValueNode } from 'graphql'
 
 export const EditElectionEventData: React.FC = () => {
     const transform = (data: any) => {
+        console.log("TRANSFORM :: ", data)
+        
         // save presentation object
         // language_conf
         console.log("data before :: ", data)

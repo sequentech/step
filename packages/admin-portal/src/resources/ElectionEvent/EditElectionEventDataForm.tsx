@@ -52,7 +52,6 @@ import {useTenantStore} from "../../components/CustomMenu"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionHeaderStyles} from "../../components/styles/ElectionHeaderStyles"
-import {parse} from "path"
 
 export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -68,31 +67,55 @@ export const EditElectionEventDataForm: React.FC = () => {
     const refresh = useRefresh()
     const {t} = useTranslation()
 
-    const [languageSettings, setLanguageSettings] = useState<any>([{es: true}, {en: true}])
+    const [languageSettings] = useState<any>([{es: true}, {en: true}])
+    const [votingSettings] = useState<any>({online: true, kiosk: true})
 
     const parseValues = (data: any) => {
         const temp = {...data}
-        if (data.presentation) {
-            // languages
-            if (data.presentation.language_conf) {
-                temp.enabled_languages = {}
 
-                for (const settingLang of languageSettings) {
-                    const enabled_lang: any = {}
-                    const isInEnabled = data.presentation.language_conf.enabled_language_codes.find(
-                        (item: any) => Object.keys(settingLang)[0] === item
-                    )
-                    if (isInEnabled) {
-                        enabled_lang[Object.keys(settingLang)[0]] = true
-                    } else {
-                        enabled_lang[Object.keys(settingLang)[0]] = false
-                    }
+        // languages
+        temp.enabled_languages = {}
 
-                    temp.enabled_languages = {...temp.enabled_languages, ...enabled_lang}
+        if (
+            data?.presentation?.language_conf?.enabled_language_codes && data?.presentation
+                ?.language_conf?.enabled_language_codes.length > 0
+        ) {
+            // if presentation has lang then set from event
+            for (const setting of languageSettings) {
+                const enabled_item: any = {}
+
+                const isInEnabled =
+                    data?.presentation?.language_conf?.enabled_language_codes.length > 0
+                        ? data?.presentation?.language_conf?.enabled_language_codes.find(
+                              (item: any) => Object.keys(setting)[0] === item
+                          )
+                        : false
+
+                if (isInEnabled) {
+                    enabled_item[Object.keys(setting)[0]] = true
+                } else {
+                    enabled_item[Object.keys(setting)[0]] = false // setting[Object.keys(setting)[0]]
                 }
+                temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
             }
-            // i18n
+        } else {
+            // if presentation has no lang then use always de default settings
+            for (const item of languageSettings) {
+                temp.enabled_languages = {...temp.enabled_languages, ...item}
+            }
         }
+
+        // voting channels
+        const all_channels = {...data?.voting_channels}
+        delete data.voting_channels
+        temp.voting_channels = {}
+        for (const setting in votingSettings) {
+            const enabled_item: any = {}
+            enabled_item[setting] =
+                setting in all_channels ? all_channels[setting] : votingSettings[setting]
+            temp.voting_channels = {...temp.voting_channels, ...enabled_item}
+        }
+
         return temp
     }
 
@@ -211,6 +234,20 @@ export const EditElectionEventDataForm: React.FC = () => {
         return langNodes
     }
 
+    const renderVotingChannels = (parsedValue: any) => {
+        let channelNodes = []
+        for (const channel in parsedValue?.voting_channels) {
+            channelNodes.push(
+                <BooleanInput
+                    key={channel}
+                    source={`voting_channels[${channel}]`}
+                    label={t(`common.channel.${channel}`)}
+                />
+            )
+        }
+        return channelNodes
+    }
+
     const renderTabs = (parsedValue: any) => {
         let tabNodes = []
         for (const lang in parsedValue?.enabled_languages) {
@@ -218,6 +255,12 @@ export const EditElectionEventDataForm: React.FC = () => {
                 tabNodes.push(<Tab key={lang} label={t(`common.language.${lang}`)} id={lang}></Tab>)
             }
         }
+
+        // reset actived tab to first tab if only one
+        if (tabNodes.length === 1) {
+            setValue(0)
+        }
+
         return tabNodes
     }
 
@@ -225,25 +268,27 @@ export const EditElectionEventDataForm: React.FC = () => {
         let tabNodes = []
         let index = 0
         for (const lang in parsedValue?.enabled_languages) {
-            tabNodes.push(
-                <CustomTabPanel key={lang} value={value} index={index}>
-                    <div style={{marginTop: "16px"}}>
-                        <TextInput
-                            source={`presentation.i18n[${lang}].name`}
-                            label={t("electionEventScreen.field.name")}
-                        />
-                        <TextInput
-                            source={`presentation.i18n[${lang}].alias`}
-                            label={t("electionEventScreen.field.alias")}
-                        />
-                        <TextInput
-                            source={`presentation.i18n[${lang}].description`}
-                            label={t("electionEventScreen.field.description")}
-                        />
-                    </div>
-                </CustomTabPanel>
-            )
-            index++
+            if (parsedValue?.enabled_languages[lang]) {
+                tabNodes.push(
+                    <CustomTabPanel key={lang} value={value} index={index}>
+                        <div style={{marginTop: "16px"}}>
+                            <TextInput
+                                source={`presentation.i18n[${lang}].name`}
+                                label={t("electionEventScreen.field.name")}
+                            />
+                            <TextInput
+                                source={`presentation.i18n[${lang}].alias`}
+                                label={t("electionEventScreen.field.alias")}
+                            />
+                            <TextInput
+                                source={`presentation.i18n[${lang}].description`}
+                                label={t("electionEventScreen.field.description")}
+                            />
+                        </div>
+                    </CustomTabPanel>
+                )
+                index++
+            }
         }
         return tabNodes
     }
@@ -356,26 +401,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 <Grid container spacing={4}>
                                     <Grid item xs={12} md={6}>
                                         {renderLangs(parsedValue)}
-                                        {/* {parsedValue?.enabled_languages.map((lang: any) => {
-                                            console.log(
-                                                "lang",
-                                                `enabled_languages[${Object.keys(lang)[0]}]`,
-                                                lang,
-                                                lang[Object.keys(lang)[0]]
-                                            )
-                                            return (
-                                                <BooleanInput
-                                                    key={Object.keys(lang)[0]}
-                                                    source={`lang[${
-                                                        Object.keys(lang)[0]
-                                                    }]`}
-                                                    label={t(
-                                                        `common.language.${Object.keys(lang)[0]}`
-                                                    )}
-                                                    // defaultValue={lang[Object.keys(lang)[0]]}
-                                                />
-                                            )
-                                        })} */}
                                     </Grid>
                                 </Grid>
                             </AccordionDetails>
@@ -398,16 +423,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <Grid container spacing={4}>
                                     <Grid item xs={12} md={6}>
-                                        <BooleanInput
-                                            source="allowed.one"
-                                            label={"One"}
-                                            defaultValue={true}
-                                        />
-                                        <BooleanInput
-                                            source="allowed.two"
-                                            label={"Two"}
-                                            defaultValue={true}
-                                        />
+                                        {renderVotingChannels(parsedValue)}
                                     </Grid>
                                 </Grid>
                             </AccordionDetails>
