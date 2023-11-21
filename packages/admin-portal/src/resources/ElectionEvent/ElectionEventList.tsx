@@ -10,7 +10,6 @@ import {
     ReferenceManyField,
     TextField,
     TextInput,
-    useGetList,
 } from "react-admin"
 
 import React, {ReactElement} from "react"
@@ -20,7 +19,10 @@ import {CreateElectionList} from "./CreateElectionEvent"
 import ElectionHeader from "../../components/ElectionHeader"
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
-import {useNavigate} from "react-router-dom"
+import {Link} from "react-router-dom"
+import {Button} from "@mui/material"
+import {IconButton} from "@sequentech/ui-essentials"
+import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 
 const OMIT_FIELDS = ["id", "sequent_backend_area", "is_archived", "is_audit", "public_key"]
 
@@ -42,6 +44,15 @@ export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => 
 
     const actions = <ListActions withFilter={true} Component={<CreateElectionList />} />
 
+    const empty = (
+        <Link style={{padding: "16px"}} to="/sequent_backend_election_event/create">
+            <Button>
+                <IconButton icon={faPlusCircle} fontSize="24px" />
+                Create new election event
+            </Button>
+        </Link>
+    )
+
     return (
         <>
             <ElectionHeader title="Election Events" subtitle="Election Events Subtitle" />
@@ -50,6 +61,7 @@ export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => 
                 filter={{tenant_id: tenantId || undefined}}
                 filters={Filters}
                 aside={aside}
+                empty={empty}
             >
                 <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
                     <TextField source="id" />
