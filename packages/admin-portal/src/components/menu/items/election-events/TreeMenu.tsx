@@ -77,6 +77,18 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
     const nextResource = subTreeResources[0] ?? null
     const hasNext = !!nextResource
 
+    function handleItemActions({id, name, type}: {id: string; name: string; type: string}): void {
+        console.log(
+            "LS -> src/components/menu/items/election-events/TreeMenu.tsx:80 -> type: ",
+            type
+        )
+        console.log("LS -> src/components/menu/items/election-events/TreeMenu.tsx:80 -> id: ", id)
+        console.log(
+            "LS -> src/components/menu/items/election-events/TreeMenu.tsx:80 -> name: ",
+            name
+        )
+    }
+
     return (
         <div className="bg-white">
             <div className="group flex text-center space-x-2 items-center">
@@ -102,7 +114,16 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
                     </NavLink>
                 )}
                 <div className="grow hidden group-hover:block">
-                    <p className="text-right px-1 cursor-pointer">
+                    <p
+                        className="text-right px-1 cursor-pointer"
+                        onClick={() =>
+                            handleItemActions({
+                                id: resource.id,
+                                name: resource.name,
+                                type: treeResources[0].name,
+                            })
+                        }
+                    >
                         <Icon icon={faEllipsisH} />
                     </p>
                 </div>
