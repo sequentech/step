@@ -20,7 +20,7 @@ type Query {
 type Query {
   get_users(
     body: GetUsersInput!
-  ): [KeycloakUser!]!
+  ): GetUsersOutput!
 }
 
 type Mutation {
@@ -96,7 +96,8 @@ input GetUsersInput {
   tenant_id: String!
   search: String
   email: String
-  max: Int
+  limit: Int
+  offset: Int
 }
 
 type TemplateOutput {
@@ -182,5 +183,10 @@ type KeycloakUser {
   groups: [String!]
   last_name: String
   username: String
+}
+
+type GetUsersOutput {
+  items: [KeycloakUser!]!
+  count: Int
 }
 

@@ -139,4 +139,5 @@ custom_types:
     - name: CreateElectionEventOutput
     - name: InsertTenantOutput
     - name: KeycloakUser
+    - name: GetUsersOutput
   scalars: []
