@@ -73,7 +73,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
 			return;
 		}
 
-		boolean isValid = MessageDigest.isEqual(
+		boolean isValid = Utils.constantTimeIsEqual(
 			enteredCode.getBytes(),
 			code.getBytes()
 		);

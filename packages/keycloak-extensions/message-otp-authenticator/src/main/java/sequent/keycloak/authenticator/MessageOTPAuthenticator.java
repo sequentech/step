@@ -102,9 +102,7 @@ public class MessageOTPAuthenticator
 			return;
 		}
 
-		// We use constant time comparison for security reasons, to avoid timing
-		// attacks
-		boolean isValid = MessageDigest.isEqual(
+		boolean isValid = Utils.constantTimeIsEqual(
 			enteredCode.getBytes(),
 			code.getBytes()
 		);

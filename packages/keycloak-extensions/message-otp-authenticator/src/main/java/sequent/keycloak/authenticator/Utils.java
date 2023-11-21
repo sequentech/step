@@ -189,4 +189,22 @@ public class Utils {
 			.findFirst();
 		return configOptional;
 	}
+
+	/**
+	 * We use constant time comparison for security reasons, to avoid timing
+	 * attacks
+	 */
+	boolean constantTimeIsEqual(byte[] digesta, byte[] digestb)
+	{
+		if (digesta.length != digestb.length) {
+			return false;
+		}
+	
+		int result = 0;
+		// time-constant comparison
+		for (int i = 0; i < digesta.length; i++) {
+			result |= digesta[i] ^ digestb[i];
+		}
+		return result == 0;
+	}
 }
