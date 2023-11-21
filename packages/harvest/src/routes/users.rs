@@ -10,29 +10,36 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::User;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-#[instrument(skip(claims))]
-#[get("/<tenant_id>/users?<search>&<email>&<max>")]
-pub async fn get_users(
-    claims: jwt::JwtClaims,
-    tenant_id: &str,
+#[derive(Deserialize, Debug)]
+pub struct GetUsersBody {
+    tenant_id: String,
     search: Option<String>,
     email: Option<String>,
     max: Option<i32>,
+}
+
+#[instrument(skip(claims))]
+#[get("/users", format = "json", data = "<body>")]
+pub async fn get_users(
+    claims: jwt::JwtClaims,
+    body: Json<GetUsersBody>,
 ) -> Result<Json<Vec<User>>, (Status, String)> {
+    let input = body.into_inner();
     authorize(
         &claims,
         true,
-        Some(tenant_id.into()),
+        Some(input.tenant_id.clone()),
         vec!["read-users".into()],
     )?;
-    let board = get_tenant_name(tenant_id);
+    let board = get_tenant_name(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let users = client
-        .list_users(&board, search, email, max)
+        .list_users(&board, input.search, input.email, input.max)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(Json(users))
