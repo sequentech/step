@@ -79,7 +79,7 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
 
     return (
         <div className="bg-white">
-            <div className="flex text-center space-x-2 items-center">
+            <div className="group flex text-center space-x-2 items-center">
                 {hasNext ? (
                     <div className="w-6 h-6 cursor-pointer" onClick={onClick}>
                         <Icon icon={open ? faAngleDown : faAngleRight} />
@@ -101,8 +101,8 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
                         {resource.name}
                     </NavLink>
                 )}
-                <div className="grow">
-                    <p className="text-right px-1">
+                <div className="grow hidden group-hover:block">
+                    <p className="text-right px-1 cursor-pointer">
                         <Icon icon={faEllipsisH} />
                     </p>
                 </div>
