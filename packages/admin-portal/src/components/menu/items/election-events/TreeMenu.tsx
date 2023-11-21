@@ -3,11 +3,26 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {NavLink} from "react-router-dom"
-import React, {useEffect, useState} from "react"
+import React, {useRef, useState} from "react"
 import {ResourceOptions, ResourceDefinition, useResourceDefinitions, useGetList} from "react-admin"
-import {CircularProgress} from "@mui/material"
+import {
+    CircularProgress,
+    Divider,
+    ListItemIcon,
+    ListItemText,
+    MenuItem,
+    MenuList,
+    Popover,
+} from "@mui/material"
 import {useTenantStore} from "../../../CustomMenu"
-import {faAngleRight, faAngleDown, faEllipsisH} from "@fortawesome/free-solid-svg-icons"
+import {
+    faAngleRight,
+    faAngleDown,
+    faEllipsisH,
+    faCirclePlus,
+    faTrash,
+    faArchive,
+} from "@fortawesome/free-solid-svg-icons"
 import {Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
 
@@ -77,7 +92,20 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
     const nextResource = subTreeResources[0] ?? null
     const hasNext = !!nextResource
 
-    function handleItemActions({id, name, type}: {id: string; name: string; type: string}): void {
+    const menuItemRef = useRef(null)
+    const [anchorEl, setAnchorEl] = React.useState<HTMLParagraphElement | null>(null)
+
+    function handleOpenItemActions({
+        event,
+        id,
+        name,
+        type,
+    }: {
+        event: React.MouseEvent<HTMLParagraphElement>
+        id: string
+        name: string
+        type: string
+    }): void {
         console.log(
             "LS -> src/components/menu/items/election-events/TreeMenu.tsx:80 -> type: ",
             type
@@ -87,11 +115,23 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
             "LS -> src/components/menu/items/election-events/TreeMenu.tsx:80 -> name: ",
             name
         )
+        console.log(
+            "LS -> src/components/menu/items/election-events/TreeMenu.tsx:102 -> event.currentTarget: ",
+            event.currentTarget
+        )
+        setAnchorEl(menuItemRef.current)
     }
+
+    const handleCloseActionMenu = () => {
+        setAnchorEl(null)
+    }
+
+    const openActionMenu = Boolean(anchorEl)
+    const idActionMenu = openActionMenu ? "action-menu" : undefined
 
     return (
         <div className="bg-white">
-            <div className="group flex text-center space-x-2 items-center">
+            <div ref={menuItemRef} className="group flex text-center space-x-2 items-center">
                 {hasNext ? (
                     <div className="w-6 h-6 cursor-pointer" onClick={onClick}>
                         <Icon icon={open ? faAngleDown : faAngleRight} />
@@ -116,8 +156,9 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
                 <div className="grow hidden group-hover:block">
                     <p
                         className="text-right px-1 cursor-pointer"
-                        onClick={() =>
-                            handleItemActions({
+                        onClick={(e) =>
+                            handleOpenItemActions({
+                                event: e,
                                 id: resource.id,
                                 name: resource.name,
                                 type: treeResources[0].name,
@@ -126,6 +167,39 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
                     >
                         <Icon icon={faEllipsisH} />
                     </p>
+                    <Popover
+                        id={idActionMenu}
+                        open={openActionMenu}
+                        anchorEl={anchorEl}
+                        onClose={handleCloseActionMenu}
+                        anchorOrigin={{
+                            vertical: "bottom",
+                            horizontal: "right",
+                        }}
+                    >
+                        <MenuList dense>
+                            <MenuItem>
+                                <ListItemIcon>
+                                    <Icon icon={faCirclePlus} />
+                                </ListItemIcon>
+                                Add
+                            </MenuItem>
+                            <Divider />
+                            <MenuItem>
+                                <ListItemIcon>
+                                    <Icon icon={faTrash} />
+                                </ListItemIcon>
+                                Remove
+                            </MenuItem>
+                            <Divider />
+                            <MenuItem>
+                                <ListItemIcon>
+                                    <Icon icon={faArchive} />
+                                </ListItemIcon>
+                                Archive
+                            </MenuItem>
+                        </MenuList>
+                    </Popover>
                 </div>
             </div>
             {open && (
