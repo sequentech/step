@@ -38,6 +38,19 @@ actions:
     permissions:
       - role: admin-user
     comment: fetch document
+  - name: get_users
+    definition:
+      kind: ""
+      handler: http://harvest:8400/get-users
+      forward_client_headers: true
+      request_transform:
+        body:
+          action: transform
+          template: '{{$body.input.body}}'
+        template_engine: Kriti
+        version: 2
+    permissions:
+      - role: admin-user
   - name: insertElectionEvent
     definition:
       kind: synchronous
@@ -111,6 +124,7 @@ custom_types:
     - name: PgAuditOrderBy
     - name: SampleInput
     - name: CreateElectionEventInput
+    - name: GetUsersInput
   objects:
     - name: TemplateOutput
     - name: FetchDocumentOutput
@@ -124,4 +138,5 @@ custom_types:
     - name: SampleOutput
     - name: CreateElectionEventOutput
     - name: InsertTenantOutput
+    - name: KeycloakUser
   scalars: []

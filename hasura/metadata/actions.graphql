@@ -17,6 +17,12 @@ type Query {
   ): FetchDocumentOutput
 }
 
+type Query {
+  get_users(
+    body: GetUsersInput!
+  ): [KeycloakUser!]!
+}
+
 type Mutation {
   insertElectionEvent(
     object: CreateElectionEventInput!
@@ -84,6 +90,13 @@ input CreateElectionEventInput {
   is_audit: Boolean
   audit_election_event_id: String
   public_key: String
+}
+
+input GetUsersInput {
+  tenant_id: String!
+  search: String
+  email: String
+  max: Int
 }
 
 type TemplateOutput {
@@ -157,5 +170,17 @@ type CreateElectionEventOutput {
 type InsertTenantOutput {
   id: uuid!
   slug: String!
+}
+
+type KeycloakUser {
+  id: String
+  attributes: jsonb
+  email: String
+  email_verified: Boolean
+  enabled: Boolean
+  first_name: String
+  groups: [String!]
+  last_name: String
+  username: String
 }
 
