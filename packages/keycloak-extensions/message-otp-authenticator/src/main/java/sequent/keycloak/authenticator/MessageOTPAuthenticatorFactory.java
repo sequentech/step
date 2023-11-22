@@ -103,7 +103,7 @@ public class MessageOTPAuthenticatorFactory
 			new ProviderConfigProperty(
 				Utils.SIMULATION_MODE,
 				"Simulation mode",
-				"In simulation mode, the SMS won't be sent, but printed to the server logs", ProviderConfigProperty.BOOLEAN_TYPE,
+				"In simulation mode, Emails/SMS won't be sent, but printed to the server logs", ProviderConfigProperty.BOOLEAN_TYPE,
 				true
 			)
 		);

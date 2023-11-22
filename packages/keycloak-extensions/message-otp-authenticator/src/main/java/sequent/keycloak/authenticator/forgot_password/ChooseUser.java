@@ -23,6 +23,7 @@ import com.google.auto.service.AutoService;
 
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import lombok.extern.jbosslog.JBossLog;
 
 import java.util.List;
 
@@ -31,9 +32,9 @@ import java.util.List;
  * Password flow, as the first step.
  */
 @AutoService(AuthenticatorFactory.class)
+@JBossLog
 public class ChooseUser implements Authenticator, AuthenticatorFactory {
 
-    private static final Logger logger = Logger.getLogger(ChooseUser.class);
     public static final String PROVIDER_ID = "forgot-password-choose-user";
     public static final String FORM_FTL = "forgot-password-choose-user.ftl";
     public static final Requirement[] REQUIREMENT_CHOICES = {
@@ -55,7 +56,7 @@ public class ChooseUser implements Authenticator, AuthenticatorFactory {
                     context.getAuthenticationSession()
                 );
 
-            logger.infov(
+            log.infov(
                 "Forget-password triggered when reauthenticating user after first broker login. Prefilling reset-credential-choose-user screen with user '{0}' ", existingUser.getUsername()
             );
             context.setUser(existingUser);
@@ -76,7 +77,7 @@ public class ChooseUser implements Authenticator, AuthenticatorFactory {
 
             // Action token logics handles checks for user ID validity and user
             // being enabled
-            logger.infov(
+            log.infov(
                 "Forget-password triggered when reauthenticating user after authentication via action token. Skipping reset-credential-choose-user screen and using user '{0}' ",
                 existingUser.getUsername()
             );
