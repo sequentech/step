@@ -10,7 +10,7 @@ import {createContext, useEffect, useState} from "react"
  */
 const keycloakConfig: KeycloakConfig = {
     realm: "electoral-process",
-    clientId: "frontend",
+    clientId: "voting-portal",
     url: "http://127.0.0.1:8090/",
 }
 

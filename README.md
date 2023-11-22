@@ -189,14 +189,16 @@ clicking on `Action` > `Partial export`.
 However that won't export users. You can export them by running this:
 
 ```bash
+cd /workspaces/backend-services/.devcontainer
 docker compose exec keycloak sh -c '/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm electoral-process'
-docker compose exec keycloak sh -c 'cat /tmp/export.json' > file.json
+docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/import/electoral-process.json
 ```
 
-Then you'll find the export -including users- in the `file.json`. You
-can then for example update the file `.devcontainer/keycloak/import/electoral-process-realm.json`
-if you want to automatically import that data when the container is
-created.
+Then you'll find the export -including users- in the
+`keycloak/import/electoral-process.json` or wherever you want to export the
+realm. In our example we use this to update the file
+`.devcontainer/keycloak/import/electoral-process.json` to automatically import
+that data when the container is created.
 
 ### Add Hasura migrations/changes
 
