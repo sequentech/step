@@ -187,6 +187,6 @@ type KeycloakUser {
 
 type GetUsersOutput {
   items: [KeycloakUser!]!
-  count: Int
+  count: TotalAggregate!
 }
 
