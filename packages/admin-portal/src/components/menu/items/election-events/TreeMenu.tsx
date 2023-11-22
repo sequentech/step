@@ -4,7 +4,13 @@
 
 import {NavLink} from "react-router-dom"
 import React, {useRef, useState} from "react"
-import {ResourceOptions, ResourceDefinition, useResourceDefinitions, useGetList} from "react-admin"
+import {
+    ResourceOptions,
+    ResourceDefinition,
+    useResourceDefinitions,
+    useGetList,
+    useSidebarState,
+} from "react-admin"
 import {
     CircularProgress,
     Divider,
@@ -26,72 +32,58 @@ import {
 import {adminTheme, Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
 import styled from "@emotion/styled"
+import {ElectionEventsTree} from "../ElectionEvents"
 
-interface Options extends ResourceOptions {
-    isMenuParent?: boolean
-    menuParent?: string
-    foreignKeyFrom?: string
+type ResourceName =
+    | "sequent_backend_election_event"
+    | "sequent_backend_election"
+    | "sequent_backend_contest"
+    | "sequent_backend_candidate"
+
+function mapDataChildren(key: ResourceName): string {
+    const map = {
+        sequent_backend_election_event: "electionEvents",
+        sequent_backend_election: "elections",
+        sequent_backend_contest: "contests",
+        sequent_backend_candidate: "candidates",
+    }
+    return map[key]
 }
 
 interface TreeLeavesProps {
-    isOpen: boolean
-    resourceName: string
-    resourceId?: string
-    treeResources: Array<ResourceDefinition<Options>>
-    filter?: object
+    data: any
+    treeResourceNames: string[]
     searchFilter?: string
 }
 
-function TreeLeaves({isOpen, resourceName, treeResources, filter, searchFilter}: TreeLeavesProps) {
-    console.log(
-        "LS -> src/components/menu/items/election-events/TreeMenu.tsx:45 -> searchFilter: ",
-        searchFilter
-    )
-    console.log(
-        "LS -> src/components/menu/items/election-events/TreeMenu.tsx:44 -> filter: ",
-        filter
-    )
-    const [tenantId] = useTenantStore()
-
-    const {data, isLoading, error} = useGetList(resourceName, {
-        sort: {field: "created_at", order: "DESC"},
-        filter: {
-            tenant_id: tenantId,
-            ...filter,
-        },
-    })
-
-    if (isLoading) {
-        return <CircularProgress />
-    }
-
-    if (error || !data) {
-        return null
-    }
-
+function TreeLeaves({data, treeResourceNames, searchFilter}: TreeLeavesProps) {
     return (
         <div className="bg-white">
             <div className="flex flex-col ml-3">
-                {data?.map((resource, idx) => {
-                    return (
-                        <TreeMenuItem
-                            isOpen={isOpen}
-                            resource={resource}
-                            treeResources={treeResources}
-                            searchFilter={searchFilter}
-                            key={idx}
-                        />
-                    )
-                })}
+                {data?.[mapDataChildren(treeResourceNames[0] as ResourceName)]?.map(
+                    (resource: any) => {
+                        return (
+                            <TreeMenuItem
+                                key={resource.id}
+                                resource={resource}
+                                id={resource.id}
+                                name={resource.name}
+                                treeResourceNames={treeResourceNames}
+                                searchFilter={searchFilter}
+                            />
+                        )
+                    }
+                )}
             </div>
         </div>
     )
 }
 
 interface TreeMenuItemProps {
-    isOpen: boolean
     resource: any
-    treeResources: Array<ResourceDefinition<Options>>
+    id: string
+    name: string
+    treeResourceNames: string[]
     searchFilter?: string
 }
 
@@ -107,13 +99,21 @@ type ActionPayload = {
     type: string
 }
 
-function TreeMenuItem({isOpen, resource, treeResources, searchFilter}: TreeMenuItemProps) {
+function TreeMenuItem({resource, id, name, treeResourceNames, searchFilter}: TreeMenuItemProps) {
+    const [isOpenSidebar] = useSidebarState()
+
     const [open, setOpen] = useState(false)
     const onClick = () => setOpen(!open)
 
-    const subTreeResources = treeResources.slice(1)
-    const nextResource = subTreeResources[0] ?? null
-    const hasNext = !!nextResource
+    const subTreeResourceNames = treeResourceNames.slice(1)
+    const nextResourceName = subTreeResourceNames[0] ?? null
+    const hasNext = !!nextResourceName
+
+    let data: Partial<Record<ResourceName, (typeof resource)[ResourceName]>> = {}
+    if (hasNext) {
+        const key = mapDataChildren(subTreeResourceNames[0] as ResourceName)
+        data[key as ResourceName] = resource[key]
+    }
 
     const menuItemRef = useRef(null)
     const [anchorEl, setAnchorEl] = React.useState<HTMLParagraphElement | null>(null)
@@ -150,18 +150,18 @@ function TreeMenuItem({isOpen, resource, treeResources, searchFilter}: TreeMenuI
                 ) : (
                     <div className="w-6 h-6"></div>
                 )}
-                {isOpen && resource.name.search(searchFilter) > -1 && (
+                {isOpenSidebar && name?.search(searchFilter ?? "") > -1 && (
                     <NavLink
-                        title={resource.alias ?? resource.name}
+                        title={name}
                         className={({isActive}) =>
                             cn(
                                 "px-4 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
                                 isActive && "border-b-2 border-brand-color"
                             )
                         }
-                        to={`/${treeResources[0].name}/${resource.id}`}
+                        to={`/${treeResourceNames[0]}/${id}`}
                     >
-                        {resource.name}
+                        {name}
                     </NavLink>
                 )}
                 <div className="grow hidden group-hover:block">
@@ -182,9 +182,9 @@ function TreeMenuItem({isOpen, resource, treeResources, searchFilter}: TreeMenuI
                             <MenuItem
                                 onClick={() =>
                                     handleAction(Action.Add, {
-                                        id: resource.id,
-                                        name: resource.name,
-                                        type: treeResources[0].name,
+                                        id,
+                                        name,
+                                        type: treeResourceNames[0],
                                     })
                                 }
                             >
@@ -197,9 +197,9 @@ function TreeMenuItem({isOpen, resource, treeResources, searchFilter}: TreeMenuI
                             <MenuItem
                                 onClick={() =>
                                     handleAction(Action.Remove, {
-                                        id: resource.id,
-                                        name: resource.name,
-                                        type: treeResources[0].name,
+                                        id,
+                                        name,
+                                        type: treeResourceNames[0],
                                     })
                                 }
                             >
@@ -212,9 +212,9 @@ function TreeMenuItem({isOpen, resource, treeResources, searchFilter}: TreeMenuI
                             <MenuItem
                                 onClick={() =>
                                     handleAction(Action.Archive, {
-                                        id: resource.id,
-                                        name: resource.name,
-                                        type: treeResources[0].name,
+                                        id,
+                                        name,
+                                        type: treeResourceNames[0],
                                     })
                                 }
                             >
@@ -231,9 +231,8 @@ function TreeMenuItem({isOpen, resource, treeResources, searchFilter}: TreeMenuI
                 <div className="">
                     {hasNext && (
                         <TreeLeaves
-                            isOpen={isOpen}
-                            resourceName={nextResource.name}
-                            treeResources={subTreeResources}
+                            data={data}
+                            treeResourceNames={subTreeResourceNames}
                             searchFilter={searchFilter}
                         />
                     )}
@@ -244,57 +243,48 @@ function TreeMenuItem({isOpen, resource, treeResources, searchFilter}: TreeMenuI
 }
 
 export function TreeMenu({
-    isOpen,
-    resourceNames,
+    data,
+    treeResourceNames,
+    isArchivedElectionEvents,
+    onArchiveElectionEventsSelect,
     searchFilter,
 }: {
-    isOpen: boolean
-    resourceNames: string[]
+    data: {electionEvents: ElectionEventsTree}
+    treeResourceNames: string[]
+    isArchivedElectionEvents: boolean
+    onArchiveElectionEventsSelect: (val: number) => void
     searchFilter: string
 }) {
-    const [archivedMenu, setArchivedMenu] = useState(0)
-
-    let allResources = useResourceDefinitions()
-    let treeResources = Object.keys(allResources)
-        .map((name) => allResources[name])
-        .filter((resource) => resourceNames.includes(resource.name))
-
-    function tabChange(val: number) {
-        setArchivedMenu(val)
-    }
-
     return (
         <>
             <ul className="flex px-4 space-x-4 bg-white uppercase text-xs leading-6">
                 <li
                     className={cn(
                         "px-4 py-1 cursor-pointer",
-                        archivedMenu === 0
+                        !isArchivedElectionEvents
                             ? "text-brand-color border-b-2 border-brand-success"
                             : "text-secondary"
                     )}
-                    onClick={() => tabChange(0)}
+                    onClick={() => onArchiveElectionEventsSelect(0)}
                 >
                     Active
                 </li>
                 <li
                     className={cn(
                         "px-4 py-1 cursor-pointer",
-                        archivedMenu === 1
+                        isArchivedElectionEvents
                             ? "text-brand-color border-b-2 border-brand-success"
                             : "text-secondary"
                     )}
-                    onClick={() => tabChange(1)}
+                    onClick={() => onArchiveElectionEventsSelect(1)}
                 >
                     Archived
                 </li>
             </ul>
             <div className="mx-5 py-2">
                 <TreeLeaves
-                    resourceName={resourceNames[0]}
-                    treeResources={treeResources}
-                    isOpen={isOpen}
-                    filter={{is_archived: archivedMenu === 1}}
+                    data={data}
+                    treeResourceNames={treeResourceNames}
                     searchFilter={searchFilter}
                 />
             </div>
