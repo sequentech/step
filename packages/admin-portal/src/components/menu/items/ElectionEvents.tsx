@@ -4,6 +4,7 @@
 
 import React, {useState} from "react"
 
+import {useTenantStore} from "../../CustomMenu"
 import {useQuery} from "@apollo/client"
 import {useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
@@ -86,6 +87,7 @@ function filterTree(tree: any, filterName: string): any {
 }
 
 export default function ElectionEvents() {
+    const [tenantId] = useTenantStore()
     const [isOpenSidebar] = useSidebarState()
     const [searchInput, setSearchInput] = useState<string>("")
     const [archivedElectionEvents, setArchivedElectionEvents] = useState(0)
@@ -105,12 +107,13 @@ export default function ElectionEvents() {
 
     const {data, loading} = useQuery(FETCH_ELECTION_EVENTS_TREE, {
         variables: {
+            tenantId: tenantId,
             isArchived: isArchivedElectionEvents,
         },
     })
 
     let resultData = data
-    if (!loading) {
+    if (!loading && data && data.sequent_backend_election_event) {
         resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
     }
 

@@ -5,8 +5,10 @@
 import {gql} from "@apollo/client"
 
 export const FETCH_ELECTION_EVENTS_TREE = gql`
-    query election_events_tree($isArchived: Boolean!) {
-        sequent_backend_election_event(where: {is_archived: {_eq: $isArchived}}) {
+    query election_events_tree($tenantId: uuid!, $isArchived: Boolean!) {
+        sequent_backend_election_event(
+            where: {is_archived: {_eq: $isArchived}, _and: {tenant_id: {_eq: $tenantId}}}
+        ) {
             id
             name
             is_archived
