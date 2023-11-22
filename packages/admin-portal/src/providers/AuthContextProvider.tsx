@@ -10,7 +10,7 @@ import {sleep} from "@sequentech/ui-essentials"
  * KeycloakConfig configures the connection to the Keycloak server.
  */
 const keycloakConfig: KeycloakConfig = {
-    realm: "tenant90505c8a23a94cdfa26b4e19f6a097d5",
+    realm: "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
     clientId: "admin-portal",
     url: "http://127.0.0.1:8090/",
 }

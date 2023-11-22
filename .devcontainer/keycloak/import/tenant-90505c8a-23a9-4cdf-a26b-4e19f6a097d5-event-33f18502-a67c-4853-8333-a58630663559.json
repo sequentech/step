@@ -1,6 +1,6 @@
 {
   "id" : "613e770d-7498-4726-90ff-b288f40a7b30",
-  "realm" : "tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559",
+  "realm" : "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559",
   "notBefore" : 0,
   "defaultSignatureAlgorithm" : "RS256",
   "revokeRefreshToken" : false,
