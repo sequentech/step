@@ -17,22 +17,24 @@ insert_permissions:
   permission:
     check: {}
     columns:
-    - is_consolidated_ballot_encoding
-    - spoil_ballot_option
     - name
-    - num_allowed_revotes
-    - annotations
-    - dates
-    - labels
-    - presentation
     - status
-    - description
-    - eml
+    - alias
+    - annotations
     - created_at
-    - last_updated_at
+    - dates
+    - description
     - election_event_id
+    - eml
     - id
+    - is_consolidated_ballot_encoding
+    - labels
+    - last_updated_at
+    - num_allowed_revotes
+    - presentation
+    - spoil_ballot_option
     - tenant_id
+    - voting_channels
   role: admin-user
 - comment: ""
   permission:
@@ -47,6 +49,8 @@ insert_permissions:
     - labels
     - presentation
     - status
+    - voting_channels
+    - alias
     - description
     - eml
     - created_at
@@ -69,6 +73,8 @@ select_permissions:
     - labels
     - presentation
     - status
+    - voting_channels
+    - alias
     - description
     - eml
     - created_at
@@ -91,6 +97,8 @@ select_permissions:
     - labels
     - presentation
     - status
+    - voting_channels
+    - alias
     - description
     - eml
     - created_at
@@ -112,6 +120,8 @@ select_permissions:
     - labels
     - presentation
     - status
+    - voting_channels
+    - alias
     - description
     - eml
     - created_at
@@ -137,6 +147,8 @@ update_permissions:
     - labels
     - presentation
     - status
+    - voting_channels
+    - alias
     - description
     - eml
     - created_at
@@ -159,6 +171,8 @@ update_permissions:
     - labels
     - presentation
     - status
+    - voting_channels
+    - alias
     - description
     - eml
     - created_at

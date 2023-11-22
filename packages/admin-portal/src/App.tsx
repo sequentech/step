@@ -13,19 +13,6 @@ import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
 import {CreateCandidate} from "./resources/Candidate/CreateCandidate"
 import {CreateContest} from "./resources/Contest/CreateContest"
 import {CreateDocument} from "./resources/Document/CreateDocument"
-import {CreateElection} from "./resources/Election/CreateElection"
-import {CreateElectionList} from "./resources/ElectionEvent/CreateElectionEvent"
-import {CreateTenant} from "./resources/Tenant/CreateTenant"
-import {CreateTrustee} from "./resources/Trustee/CreateTrustee"
-import {CustomLayout} from "./components/CustomLayout"
-import {EditArea} from "./resources/Area/EditArea"
-import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
-import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
-import {EditCandidate} from "./resources/Candidate/EditCandidate"
-import {EditContest} from "./resources/Contest/EditContest"
-import {EditElection} from "./resources/Election/EditElection"
-import {EditTenant} from "./resources/Tenant/EditTenant"
-import {EditTrustee} from "./resources/Trustee/EditTrustee"
 import {ElectionEventList} from "./resources/ElectionEvent/ElectionEventList"
 import {ListArea} from "./resources/Area/ListArea"
 import {ListAreaContest} from "./resources/AreaContest/ListAreaContest"
@@ -47,6 +34,19 @@ import {createApolloClient} from "./services/ApolloService"
 import {customBuildQuery} from "./queries/customBuildQuery"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {isNull} from "@sequentech/ui-essentials"
+import { CreateElectionList } from './resources/ElectionEvent/CreateElectionEvent'
+import { CustomLayout } from './components/CustomLayout'
+import { EditContest } from './resources/Contest/EditContest'
+import { EditCandidate } from './resources/Candidate/EditCandidate'
+import { EditBallotStyle } from './resources/BallotStyle/EditBallotStyle'
+import { EditArea } from './resources/Area/EditArea'
+import { EditAreaContest } from './resources/AreaContest/EditAreaContest'
+import { EditTenant } from './resources/Tenant/EditTenant'
+import { CreateTenant } from './resources/Tenant/CreateTenant'
+import { EditTrustee } from './resources/Trustee/EditTrustee'
+import { CreateTrustee } from './resources/Trustee/CreateTrustee'
+import { CreateElection } from './resources/Election/CreateElection'
+import { ElectionBaseTabs } from './resources/ElectionEvent/ElectionBaseTabs'
 
 export const AppWrapper = () => {
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
@@ -122,9 +122,10 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
             />
             <Resource
                 name="sequent_backend_election"
-                edit={EditElection}
                 list={ListElection}
                 create={CreateElection}
+                show={ElectionBaseTabs}
+                edit={ElectionBaseTabs}
                 options={{
                     label: "Elections",
                     menuParent: "sequent_backend_election_event",
