@@ -34,20 +34,20 @@ import {createApolloClient} from "./services/ApolloService"
 import {customBuildQuery} from "./queries/customBuildQuery"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {isNull} from "@sequentech/ui-essentials"
-import { ListUsers } from "./resources/User/ListUsers"
-import { CreateElectionList } from './resources/ElectionEvent/CreateElectionEvent'
-import { CustomLayout } from './components/CustomLayout'
-import { EditContest } from './resources/Contest/EditContest'
-import { EditCandidate } from './resources/Candidate/EditCandidate'
-import { EditBallotStyle } from './resources/BallotStyle/EditBallotStyle'
-import { EditArea } from './resources/Area/EditArea'
-import { EditAreaContest } from './resources/AreaContest/EditAreaContest'
-import { EditTenant } from './resources/Tenant/EditTenant'
-import { CreateTenant } from './resources/Tenant/CreateTenant'
-import { EditTrustee } from './resources/Trustee/EditTrustee'
-import { CreateTrustee } from './resources/Trustee/CreateTrustee'
-import { CreateElection } from './resources/Election/CreateElection'
-import { ElectionBaseTabs } from './resources/ElectionEvent/ElectionBaseTabs'
+import {ListUsers} from "./resources/User/ListUsers"
+import {CreateElectionList} from "./resources/ElectionEvent/CreateElectionEvent"
+import {CustomLayout} from "./components/CustomLayout"
+import {EditContest} from "./resources/Contest/EditContest"
+import {EditCandidate} from "./resources/Candidate/EditCandidate"
+import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
+import {EditArea} from "./resources/Area/EditArea"
+import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
+import {EditTenant} from "./resources/Tenant/EditTenant"
+import {CreateTenant} from "./resources/Tenant/CreateTenant"
+import {EditTrustee} from "./resources/Trustee/EditTrustee"
+import {CreateTrustee} from "./resources/Trustee/CreateTrustee"
+import {CreateElection} from "./resources/Election/CreateElection"
+import {ElectionBaseTabs} from "./resources/ElectionEvent/ElectionBaseTabs"
 
 export const AppWrapper = () => {
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(

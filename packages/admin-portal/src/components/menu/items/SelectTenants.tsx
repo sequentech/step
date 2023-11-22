@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, { useEffect } from "react"
+import React, {useContext, useEffect} from "react"
 import {useSidebarState, useGetList} from "react-admin"
 import {faThLarge, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {IconButton} from "@sequentech/ui-essentials"
@@ -10,10 +10,12 @@ import {MenuItem, Select, SelectChangeEvent} from "@mui/material"
 import {Link} from "react-router-dom"
 import {useTenantStore} from "../../CustomMenu"
 import {cn} from "../../../lib/utils"
+import {AuthContext} from "../../../providers/AuthContextProvider"
 
 const SelectTenants: React.FC = () => {
     const [open] = useSidebarState()
     const [tenantId, setTenantId] = useTenantStore()
+    const authContext = useContext(AuthContext)
 
     const {data, total, isLoading, error} = useGetList("sequent_backend_tenant", {
         pagination: {page: 1, perPage: 10},
@@ -22,6 +24,12 @@ const SelectTenants: React.FC = () => {
     })
 
     const showCustomers = open && !isLoading && !error && !!data
+
+    useEffect(() => {
+        if (!tenantId && authContext.tenantId) {
+            setTenantId(authContext.tenantId)
+        }
+    }, [tenantId, authContext.tenantId])
 
     useEffect(() => {
         console.log(`${data}, ${open}, ${isLoading}, ${error} ${showCustomers}`)

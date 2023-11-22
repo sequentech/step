@@ -57,11 +57,10 @@ export const ElectionDataForm: React.FC = () => {
     const [showProgress, setShowProgress] = useState(false)
     const [showCreateKeysDialog, setShowCreateKeysDialog] = useState(false)
     const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)
-    
+
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
     const [defaultLangValue, setDefaultLangValue] = useState<string>("")
-
 
     const {data} = useGetOne("sequent_backend_election_event", {
         id: record.election_event_id,
@@ -238,17 +237,17 @@ export const ElectionDataForm: React.FC = () => {
 
     const renderLangs = (parsedValue: any) => {
         let langNodes = []
-            for (const lang in parsedValue?.enabled_languages) {
-                langNodes.push(
-                    <BooleanInput
-                        key={lang}
-                        source={`enabled_languages.${lang}`}
-                        label={t(`common.language.${lang}`)}
-                        helperText={false}
-                    />
-                )
-            }
-            return <div style={{marginTop: "46px"}}>{langNodes}</div>
+        for (const lang in parsedValue?.enabled_languages) {
+            langNodes.push(
+                <BooleanInput
+                    key={lang}
+                    source={`enabled_languages.${lang}`}
+                    label={t(`common.language.${lang}`)}
+                    helperText={false}
+                />
+            )
+        }
+        return <div style={{marginTop: "46px"}}>{langNodes}</div>
     }
 
     const renderDefaultLangs = (parsedValue: any) => {
@@ -256,13 +255,7 @@ export const ElectionDataForm: React.FC = () => {
         for (const lang in parsedValue?.enabled_languages) {
             langNodes.push({id: lang, name: t(`electionScreen.edit.default`)})
         }
-        return (
-            <RadioButtonGroupInput
-                source="defaultLanguage"
-                choices={langNodes}
-                row={true}
-            />
-        )
+        return <RadioButtonGroupInput source="defaultLanguage" choices={langNodes} row={true} />
     }
 
     const renderVotingChannels = (parsedValue: any) => {

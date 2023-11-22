@@ -20,14 +20,14 @@ import {
     faUsers,
 } from "@fortawesome/free-solid-svg-icons"
 
-    import ElectionHeader from '../../components/ElectionHeader'
+import ElectionHeader from "../../components/ElectionHeader"
 import {GET_CAST_VOTES} from "../../queries/GetCastVotes"
 import {GET_ELECTION_EVENT_STATS} from "../../queries/GetElectionEventStats"
 import React from "react"
 import {ReportDialog} from "../../components/ReportDialog"
 import {styled} from "@mui/material/styles"
 import {useQuery} from "@apollo/client"
-import { EditElectionEventData } from './EditElectionEventData'
+import {EditElectionEventData} from "./EditElectionEventData"
 
 const CardList = styled(Box)`
     display: flex;

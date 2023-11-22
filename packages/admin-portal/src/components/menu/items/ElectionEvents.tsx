@@ -11,7 +11,7 @@ import {Menu, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
 import {faThLarge, faSearch, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {cn} from "../../../lib/utils"
-import { HorizontalBox } from "../../HorizontalBox"
+import {HorizontalBox} from "../../HorizontalBox"
 import {Link} from "react-router-dom"
 
 const MenuItem = styled(Menu.Item)`
@@ -76,7 +76,7 @@ export default function ElectionEvents() {
                         sx={{flexGrow: 2}}
                     />
                     <Link to="/sequent_backend_election_event/create">
-                        <StyledIconButton icon={faPlusCircle} size="xs"/>
+                        <StyledIconButton icon={faPlusCircle} size="xs" />
                     </Link>
                 </HorizontalBox>
                 {open && isElectionEventActive && (

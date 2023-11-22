@@ -160,11 +160,11 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
     const clickHandler = async (val: boolean) => {
         if (val) {
             try {
-                setTimeout(function() {
+                setTimeout(function () {
                     setShowProgress(false)
                     handleClose(true)
-                    downloadUrl("/report.pdf", "report.pdf");
-                }, 5000);
+                    downloadUrl("/report.pdf", "report.pdf")
+                }, 5000)
                 await startTally()
             } catch (error) {
                 console.log(`Error trying to start tally: ${error}`)

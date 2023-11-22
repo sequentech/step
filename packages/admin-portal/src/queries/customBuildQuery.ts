@@ -1,6 +1,6 @@
 import {buildQuery, buildVariables} from "ra-data-hasura"
 import {getList} from "./ListPgAudit"
-import { getUsers } from "./GetUsers"
+import {getUsers} from "./GetUsers"
 
 export const customBuildQuery =
     (introspectionResults: any) => (raFetchType: any, resourceName: any, params: any) => {

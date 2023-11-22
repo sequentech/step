@@ -153,6 +153,9 @@ const englishTranslation = {
             error: {
                 endDate: "End date must be after start date",
             },
+            voters: {
+                title: "Voters",
+            },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
         },
@@ -208,7 +211,7 @@ const englishTranslation = {
             channel: {
                 online: "Online",
                 kiosk: "Kiosk",
-            }
+            },
         },
         tenant: {
             createSuccess: "Customer created",

@@ -13,8 +13,8 @@ import {
 import React, {ReactElement} from "react"
 
 import {ChipList} from "../../components/ChipList"
-import { CreateElectionList } from './CreateElectionEvent'
-import ElectionHeader from '../../components/ElectionHeader'
+import {CreateElectionList} from "./CreateElectionEvent"
+import ElectionHeader from "../../components/ElectionHeader"
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
 
@@ -40,12 +40,7 @@ export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => 
         <>
             <ElectionHeader title="Election Events" subtitle="Election Events Subtitle" />
             <List
-                actions={
-                    <ListActions
-                        withFilter={true}
-                        Component={<CreateElectionList />}
-                    />
-                }
+                actions={<ListActions withFilter={true} Component={<CreateElectionList />} />}
                 filter={{tenant_id: tenantId || undefined}}
                 filters={Filters}
                 aside={aside}

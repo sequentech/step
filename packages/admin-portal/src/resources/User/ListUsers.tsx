@@ -17,6 +17,7 @@ import {
 } from "react-admin"
 import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
+import {useTranslation} from "react-i18next"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -27,10 +28,11 @@ export interface ListUsersProps {
 
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) => {
     const [tenantId] = useTenantStore()
+    const {t} = useTranslation()
 
     return (
         <>
-            <Typography variant="h5">Users</Typography>
+            <Typography variant="h5">{t("electionEventScreen.voters.title")}</Typography>
             <List
                 resource="user"
                 actions={
