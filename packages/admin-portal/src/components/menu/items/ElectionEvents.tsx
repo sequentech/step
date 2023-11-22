@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useState} from "react"
+import React, {useState} from "react"
 
 import {useQuery} from "@apollo/client"
 import {useLocation} from "react-router-dom"
@@ -103,7 +103,7 @@ export default function ElectionEvents() {
         (route) => location.pathname.search(route) > -1
     )
 
-    const {data, loading, error} = useQuery(FETCH_ELECTION_EVENTS_TREE, {
+    const {data, loading} = useQuery(FETCH_ELECTION_EVENTS_TREE, {
         variables: {
             isArchived: isArchivedElectionEvents,
         },

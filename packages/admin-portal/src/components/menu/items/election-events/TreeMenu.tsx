@@ -4,23 +4,9 @@
 
 import {NavLink} from "react-router-dom"
 import React, {useRef, useState} from "react"
-import {
-    ResourceOptions,
-    ResourceDefinition,
-    useResourceDefinitions,
-    useGetList,
-    useSidebarState,
-} from "react-admin"
-import {
-    CircularProgress,
-    Divider,
-    ListItemIcon,
-    ListItemText,
-    MenuItem,
-    MenuList,
-    Popover,
-} from "@mui/material"
-import {useTenantStore} from "../../../CustomMenu"
+import {useSidebarState} from "react-admin"
+import {Divider, ListItemIcon, MenuItem, MenuList, Popover} from "@mui/material"
+
 import {
     faAngleRight,
     faAngleDown,
@@ -115,7 +101,7 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
     const menuItemRef = useRef(null)
     const [anchorEl, setAnchorEl] = React.useState<HTMLParagraphElement | null>(null)
 
-    function handleOpenItemActions(event: React.MouseEvent<HTMLParagraphElement>): void {
+    function handleOpenItemActions(): void {
         setAnchorEl(menuItemRef.current)
     }
 
@@ -226,12 +212,7 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
             </div>
             {open && (
                 <div className="">
-                    {hasNext && (
-                        <TreeLeaves
-                            data={data}
-                            treeResourceNames={subTreeResourceNames}
-                        />
-                    )}
+                    {hasNext && <TreeLeaves data={data} treeResourceNames={subTreeResourceNames} />}
                 </div>
             )}
         </div>
