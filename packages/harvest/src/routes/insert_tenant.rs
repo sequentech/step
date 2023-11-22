@@ -7,10 +7,7 @@ use rocket::http::Status;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
-<<<<<<< HEAD
 use sequent_core::services::jwt::JwtClaims;
-=======
->>>>>>> main
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
