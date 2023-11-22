@@ -10,16 +10,17 @@ import {
     ReferenceManyField,
     TextField,
     TextInput,
+    useGetList,
 } from "react-admin"
 
-import React, {ReactElement} from "react"
+import React, {ReactElement, useEffect} from "react"
 
 import {ChipList} from "../../components/ChipList"
 import {CreateElectionList} from "./CreateElectionEvent"
 import ElectionHeader from "../../components/ElectionHeader"
 import {ListActions} from "../../components/ListActions"
 import {useTenantStore} from "../../components/CustomMenu"
-import {Link} from "react-router-dom"
+import {Link, useNavigate} from "react-router-dom"
 import {Button} from "@mui/material"
 import {IconButton} from "@sequentech/ui-essentials"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
@@ -40,7 +41,22 @@ export interface ElectionEventListProps {
 }
 
 export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => {
+    const navigate = useNavigate()
     const [tenantId] = useTenantStore()
+
+    const {data} = useGetList("sequent_backend_election_event", {
+        sort: {field: "created_at", order: "DESC"},
+        filter: {
+            tenant_id: tenantId,
+        },
+    })
+
+    useEffect(() => {
+        if (data && data.length > 0) {
+            const id = data[0].id ?? null
+            id && navigate("/sequent_backend_election_event/" + id)
+        }
+    })
 
     const actions = <ListActions withFilter={true} Component={<CreateElectionList />} />
 
