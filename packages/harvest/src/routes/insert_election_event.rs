@@ -2,10 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::authorization::authorize;
 use anyhow::Result;
+use rocket::http::Status;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
+use sequent_core::services::jwt::JwtClaims;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -18,12 +21,13 @@ struct CreateElectionEventOutput {
     id: String,
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(claims))]
 #[post("/insert-election-event", format = "json", data = "<body>")]
 pub async fn insert_election_event_f(
     body: Json<InsertElectionEventInput>,
-    auth_headers: connection::AuthHeaders,
-) -> Result<Json<CreateElectionEventOutput>, Debug<anyhow::Error>> {
+    claims: JwtClaims,
+) -> Result<Json<CreateElectionEventOutput>, (Status, String)> {
+    authorize(&claims, true, None, vec!["create-election-event".into()])?;
     let celery_app = get_celery_app().await;
     // always set an id;
     let object = body.into_inner().clone();
@@ -34,7 +38,7 @@ pub async fn insert_election_event_f(
             id.clone(),
         ))
         .await
-        .map_err(|e| anyhow::Error::from(e))?;
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     event!(
         Level::INFO,
         "Sent INSERT_ELECTION_EVENT task {}",

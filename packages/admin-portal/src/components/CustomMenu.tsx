@@ -16,10 +16,12 @@ import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import SelectTenants from "./menu/items/SelectTenants"
 import ElectionEvents from "./menu/items/ElectionEvents"
-import {useLocalStorage} from "@uidotdev/usehooks"
 
-export function useTenantStore() {
-    return useLocalStorage("selected-tenant-id")
+export const useTenantStore: () => [string | null, (tenantId: string | null) => void] = () => {
+    return [
+        localStorage.getItem("selected-tenant-id"),
+        (tenantId: string | null) => localStorage.setItem("selected-tenant-id", tenantId || ""),
+    ]
 }
 
 const StyledItem = styled(Menu.Item)`

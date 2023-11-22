@@ -12,6 +12,7 @@ mod pdf;
 mod routes;
 mod s3;
 mod services;
+mod types;
 
 #[launch]
 fn rocket() -> _ {

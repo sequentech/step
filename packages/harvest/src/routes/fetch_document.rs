@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::s3;
 use anyhow::Result;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
@@ -9,8 +10,6 @@ use sequent_core::services::connection;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::hasura;
-
-use crate::s3;
 
 #[derive(Deserialize, Debug)]
 pub struct GetDocumentUrlBody {

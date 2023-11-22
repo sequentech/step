@@ -20,14 +20,14 @@ import {
     faUsers,
 } from "@fortawesome/free-solid-svg-icons"
 
-    import ElectionHeader from '../../components/ElectionHeader'
+import ElectionHeader from "../../components/ElectionHeader"
 import {GET_CAST_VOTES} from "../../queries/GetCastVotes"
 import {GET_ELECTION_EVENT_STATS} from "../../queries/GetElectionEventStats"
 import React from "react"
 import {ReportDialog} from "../../components/ReportDialog"
 import {styled} from "@mui/material/styles"
 import {useQuery} from "@apollo/client"
-import { EditElectionEventData } from './EditElectionEventData'
+import {EditElectionEventData} from "./EditElectionEventData"
 
 const CardList = styled(Box)`
     display: flex;
@@ -65,6 +65,12 @@ const BarChartPaper = styled(Paper)`
 const Separator = styled(Box)`
     border-top: 1px solid ${theme.palette.customGrey.light};
     margin: 16px 0;
+`
+
+const StyledTypography = styled(Typography)`
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 0;
 `
 
 export const PieChart: React.FC = () => {
@@ -197,44 +203,44 @@ export const ElectionStats: React.FC = () => {
         <CardList>
             <CardContainer>
                 <IconButton icon={faBriefcase} fontSize="38px" />
-                <Typography fontSize="24px">5</Typography>
-                <Typography fontSize="12px">TRUSTEES</Typography>
+                <StyledTypography fontSize="24px">5</StyledTypography>
+                <StyledTypography fontSize="12px">TRUSTEES</StyledTypography>
             </CardContainer>
             <CardContainer selected={true}>
                 <IconButton icon={faUsers} fontSize="38px" />
-                <Typography fontSize="24px">
+                <StyledTypography fontSize="24px">
                     {data.sequent_backend_cast_vote_aggregate.aggregate?.count}
-                </Typography>
-                <Typography fontSize="12px">VOTERS</Typography>
+                </StyledTypography>
+                <StyledTypography fontSize="12px">VOTERS</StyledTypography>
             </CardContainer>
             <CardContainer>
                 <IconButton icon={faUsers} fontSize="38px" />
-                <Typography fontSize="24px">
+                <StyledTypography fontSize="24px">
                     {data.sequent_backend_election_aggregate.aggregate?.count}
-                </Typography>
-                <Typography fontSize="12px">ELECTIONS</Typography>
+                </StyledTypography>
+                <StyledTypography fontSize="12px">ELECTIONS</StyledTypography>
             </CardContainer>
             <CardContainer>
                 <IconButton icon={faGlobe} fontSize="38px" />
-                <Typography fontSize="24px">
+                <StyledTypography fontSize="24px">
                     {data.sequent_backend_area_aggregate.aggregate?.count}
-                </Typography>
-                <Typography fontSize="12px">AREAS</Typography>
+                </StyledTypography>
+                <StyledTypography fontSize="12px">AREAS</StyledTypography>
             </CardContainer>
             <CardContainer>
                 <IconButton icon={faEnvelope} fontSize="38px" />
-                <Typography fontSize="24px">50</Typography>
-                <Typography fontSize="12px">EMAILS SENT</Typography>
+                <StyledTypography fontSize="24px">50</StyledTypography>
+                <StyledTypography fontSize="12px">EMAILS SENT</StyledTypography>
             </CardContainer>
             <CardContainer>
                 <IconButton icon={faCommentSms} fontSize="38px" />
-                <Typography fontSize="24px">50</Typography>
-                <Typography fontSize="12px">SMS SENT</Typography>
+                <StyledTypography fontSize="24px">50</StyledTypography>
+                <StyledTypography fontSize="12px">SMS SENT</StyledTypography>
             </CardContainer>
             <CardContainer>
                 <IconButton icon={faCalendar} fontSize="38px" />
-                <Typography fontSize="24px">Scheduled</Typography>
-                <Typography fontSize="12px">CALENDAR</Typography>
+                <StyledTypography fontSize="24px">Scheduled</StyledTypography>
+                <StyledTypography fontSize="12px">CALENDAR</StyledTypography>
             </CardContainer>
         </CardList>
     )

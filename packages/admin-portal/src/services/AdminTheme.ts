@@ -9,12 +9,9 @@ export const mixedAdminTheme = {
     ...adminTheme,
 }
 
-
 let AdminMuiButton = {
     styleOverrides: adminTheme.components?.MuiButton?.styleOverrides,
-    variants: [
-        ...(adminTheme.components?.MuiButton?.variants ||[]),
-    ]
+    variants: [...(adminTheme.components?.MuiButton?.variants || [])],
 }
 
 export const fullAdminTheme = {
@@ -31,9 +28,9 @@ export const fullAdminTheme = {
                 root: {
                     "& .MuiTab-textColorPrimary": {
                         color: adminTheme.palette.brandColor,
-                    }
-                }
-            }
+                    },
+                },
+            },
         },
         MuiTextField: {
             styleOverrides: {

@@ -10,14 +10,7 @@ import {
     useRecordContext,
     useRefresh,
 } from "react-admin"
-import {
-    Accordion,
-    AccordionDetails,
-    AccordionSummary,
-    Tabs,
-    Tab,
-    Grid,
-} from "@mui/material"
+import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid} from "@mui/material"
 import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import React, {useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -43,7 +36,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [showCreateKeysDialog, setShowCreateKeysDialog] = useState(false)
     const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)
     const {t} = useTranslation()
-    
+
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings] = useState<any>([{es: true}, {en: true}])
@@ -56,8 +49,8 @@ export const EditElectionEventDataForm: React.FC = () => {
         temp.enabled_languages = {}
 
         if (
-            incoming?.presentation?.language_conf?.enabled_language_codes && incoming?.presentation
-                ?.language_conf?.enabled_language_codes.length > 0
+            incoming?.presentation?.language_conf?.enabled_language_codes &&
+            incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
         ) {
             // if presentation has lang then set from event
             for (const setting of languageSettings) {
