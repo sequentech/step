@@ -45,9 +45,49 @@
   "failureFactor" : 30,
   "roles" : {
     "realm" : [ {
+      "id" : "aeaf0472-95f6-4306-83f7-fcfbd3497ea1",
+      "name" : "create-election-event",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
+      "id" : "598ac2b0-fb77-464a-9df3-966334cfd3f6",
+      "name" : "read-event-users",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
+      "id" : "32885b8a-a3b4-45a7-bec7-f12c006b895b",
+      "name" : "read-users",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
+      "id" : "800039b8-0e8c-4476-a248-a6db7f681d5b",
+      "name" : "create-tenant",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
       "id" : "80c8d356-238c-452f-a96a-a5780637f194",
       "name" : "uma_authorization",
       "description" : "${role_uma_authorization}",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
+      "id" : "aa3384c6-83cb-4c00-b930-4c048b2114e4",
+      "name" : "admin-user",
+      "description" : "",
       "composite" : false,
       "clientRole" : false,
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -360,7 +400,15 @@
       } ]
     }
   },
-  "groups" : [ ],
+  "groups" : [ {
+    "id" : "7b5d27d5-9eb6-4261-8265-6d5fd48e1cfb",
+    "name" : "admin",
+    "path" : "/admin",
+    "attributes" : { },
+    "realmRoles" : [ "create-election-event", "read-users", "create-tenant", "admin-user" ],
+    "clientRoles" : { },
+    "subGroups" : [ ]
+  } ],
   "defaultRole" : {
     "id" : "576e4f9b-d534-472d-b237-f9e9f3e7b237",
     "name" : "default-roles-electoral-process",
@@ -426,11 +474,8 @@
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-electoral-process" ],
-    "clientRoles" : {
-      "admin-portal" : [ "admin-user" ]
-    },
     "notBefore" : 0,
-    "groups" : [ ]
+    "groups" : [ "/admin" ]
   }, {
     "id" : "0516ed22-3a8f-48ca-9514-83020e242159",
     "createdTimestamp" : 1691702289318,
@@ -663,10 +708,10 @@
         "jsonType.label" : "String"
       }
     }, {
-      "id" : "f7a40402-453e-4876-ba5f-9a74a66a0fff",
+      "id" : "2c68a0a2-b475-4285-b41c-e1c1786c43d0",
       "name" : "x-hasura-allowed-roles",
       "protocol" : "openid-connect",
-      "protocolMapper" : "oidc-usermodel-client-role-mapper",
+      "protocolMapper" : "oidc-usermodel-realm-role-mapper",
       "consentRequired" : false,
       "config" : {
         "multivalued" : "true",
@@ -674,8 +719,7 @@
         "id.token.claim" : "true",
         "access.token.claim" : "true",
         "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
-        "jsonType.label" : "String",
-        "usermodel.clientRoleMapping.clientId" : "admin-portal"
+        "jsonType.label" : "String"
       }
     } ],
     "defaultClientScopes" : [ "web-origins", "acr", "profile", "roles", "email" ],

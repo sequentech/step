@@ -67,6 +67,14 @@
       "containerId" : "613e770d-7498-4726-90ff-b288f40a7b30",
       "attributes" : { }
     }, {
+      "id" : "05732aa0-039e-4b9e-86b3-855fb27f6b75",
+      "name" : "user",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "613e770d-7498-4726-90ff-b288f40a7b30",
+      "attributes" : { }
+    }, {
       "id" : "bb262177-2aa4-4d77-8680-960bed6b98bc",
       "name" : "offline_access",
       "description" : "${role_offline-access}",
@@ -245,15 +253,7 @@
         "attributes" : { }
       } ],
       "security-admin-console" : [ ],
-      "voting-portal" : [ {
-        "id" : "2699cc16-8b92-4f4e-81b1-a468d82b3361",
-        "name" : "user",
-        "description" : "",
-        "composite" : false,
-        "clientRole" : true,
-        "containerId" : "cb6b40d8-6c21-4b9e-ad88-eb98825ecdc9",
-        "attributes" : { }
-      } ],
+      "voting-portal" : [ ],
       "admin-cli" : [ ],
       "account-console" : [ ],
       "broker" : [ {
@@ -342,7 +342,15 @@
       } ]
     }
   },
-  "groups" : [ ],
+  "groups" : [ {
+    "id" : "82fc5034-6aca-4193-922a-ffeeadef9471",
+    "name" : "voter",
+    "path" : "/voter",
+    "attributes" : { },
+    "realmRoles" : [ "user" ],
+    "clientRoles" : { },
+    "subGroups" : [ ]
+  } ],
   "defaultRole" : {
     "id" : "810bd5e4-2b7d-4ee8-b71e-cfa7667d4be4",
     "name" : "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559",
@@ -402,11 +410,8 @@
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
     "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559" ],
-    "clientRoles" : {
-      "voting-portal" : [ "user" ]
-    },
     "notBefore" : 0,
-    "groups" : [ ]
+    "groups" : [ "/voter" ]
   } ],
   "scopeMappings" : [ {
     "clientScope" : "offline_access",
@@ -653,10 +658,10 @@
     "fullScopeAllowed" : true,
     "nodeReRegistrationTimeout" : -1,
     "protocolMappers" : [ {
-      "id" : "32946e8a-3f90-4098-93dd-5f71bf9f7d5c",
+      "id" : "307ffaf5-f69c-4cfd-a25b-d114d9429f9b",
       "name" : "x-hasura-allowed-roles",
       "protocol" : "openid-connect",
-      "protocolMapper" : "oidc-usermodel-client-role-mapper",
+      "protocolMapper" : "oidc-usermodel-realm-role-mapper",
       "consentRequired" : false,
       "config" : {
         "multivalued" : "true",
@@ -664,8 +669,7 @@
         "id.token.claim" : "true",
         "access.token.claim" : "true",
         "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
-        "jsonType.label" : "String",
-        "usermodel.clientRoleMapping.clientId" : "voting-portal"
+        "jsonType.label" : "String"
       }
     }, {
       "id" : "e670cf67-335b-40dc-8ec3-057d0d12ce90",

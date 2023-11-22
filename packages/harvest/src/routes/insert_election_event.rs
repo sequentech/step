@@ -27,7 +27,7 @@ pub async fn insert_election_event_f(
     body: Json<InsertElectionEventInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateElectionEventOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec!["create-tenant".into()])?;
+    authorize(&claims, true, None, vec!["create-election-event".into()])?;
     let celery_app = get_celery_app().await;
     // always set an id;
     let object = body.into_inner().clone();

@@ -33,6 +33,11 @@ pub async fn get_users(
     body: Json<GetUsersBody>,
 ) -> Result<Json<DataList<User>>, (Status, String)> {
     let input = body.into_inner();
+    let required_perm: String = if input.election_event_id.is_some() {
+        "read-event-users".into()
+    } else {
+        "read-users".into()
+    };
     authorize(
         &claims,
         true,
