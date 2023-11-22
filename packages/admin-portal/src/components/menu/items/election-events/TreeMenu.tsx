@@ -53,10 +53,9 @@ function mapDataChildren(key: ResourceName): string {
 interface TreeLeavesProps {
     data: any
     treeResourceNames: string[]
-    searchFilter?: string
 }
 
-function TreeLeaves({data, treeResourceNames, searchFilter}: TreeLeavesProps) {
+function TreeLeaves({data, treeResourceNames}: TreeLeavesProps) {
     return (
         <div className="bg-white">
             <div className="flex flex-col ml-3">
@@ -69,7 +68,6 @@ function TreeLeaves({data, treeResourceNames, searchFilter}: TreeLeavesProps) {
                                 id={resource.id}
                                 name={resource.name}
                                 treeResourceNames={treeResourceNames}
-                                searchFilter={searchFilter}
                             />
                         )
                     }
@@ -84,7 +82,6 @@ interface TreeMenuItemProps {
     id: string
     name: string
     treeResourceNames: string[]
-    searchFilter?: string
 }
 
 enum Action {
@@ -99,7 +96,7 @@ type ActionPayload = {
     type: string
 }
 
-function TreeMenuItem({resource, id, name, treeResourceNames, searchFilter}: TreeMenuItemProps) {
+function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps) {
     const [isOpenSidebar] = useSidebarState()
 
     const [open, setOpen] = useState(false)
@@ -150,7 +147,7 @@ function TreeMenuItem({resource, id, name, treeResourceNames, searchFilter}: Tre
                 ) : (
                     <div className="w-6 h-6"></div>
                 )}
-                {isOpenSidebar && name?.search(searchFilter ?? "") > -1 && (
+                {isOpenSidebar && (
                     <NavLink
                         title={name}
                         className={({isActive}) =>
@@ -233,7 +230,6 @@ function TreeMenuItem({resource, id, name, treeResourceNames, searchFilter}: Tre
                         <TreeLeaves
                             data={data}
                             treeResourceNames={subTreeResourceNames}
-                            searchFilter={searchFilter}
                         />
                     )}
                 </div>
@@ -247,13 +243,11 @@ export function TreeMenu({
     treeResourceNames,
     isArchivedElectionEvents,
     onArchiveElectionEventsSelect,
-    searchFilter,
 }: {
     data: {electionEvents: ElectionEventsTree}
     treeResourceNames: string[]
     isArchivedElectionEvents: boolean
     onArchiveElectionEventsSelect: (val: number) => void
-    searchFilter: string
 }) {
     return (
         <>
@@ -282,11 +276,7 @@ export function TreeMenu({
                 </li>
             </ul>
             <div className="mx-5 py-2">
-                <TreeLeaves
-                    data={data}
-                    treeResourceNames={treeResourceNames}
-                    searchFilter={searchFilter}
-                />
+                <TreeLeaves data={data} treeResourceNames={treeResourceNames} />
             </div>
         </>
     )

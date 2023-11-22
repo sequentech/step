@@ -64,6 +64,27 @@ export interface ElectionEventsTree {
     elections: ElectionTree[]
 }
 
+function filterTree(tree: any, filterName: string): any {
+    if (Array.isArray(tree)) {
+        return tree.map((subTree) => filterTree(subTree, filterName)).filter((v) => v !== null)
+    } else if (typeof tree === "object" && tree !== null) {
+        for (let key in tree) {
+            if (tree.name?.toLowerCase().search(filterName.toLowerCase()) > -1) {
+                return tree
+            } else if (["electionEvents", "elections", "contests", "candidates"].includes(key)) {
+                let filteredSubTree = filterTree(tree[key], filterName)
+                if (filteredSubTree.length > 0) {
+                    let filteredObj = {...tree}
+                    filteredObj[key] = filteredSubTree
+                    return filteredObj
+                }
+            }
+        }
+    }
+
+    return null
+}
+
 export default function ElectionEvents() {
     const [isOpenSidebar] = useSidebarState()
     const [searchInput, setSearchInput] = useState<string>("")
@@ -88,15 +109,19 @@ export default function ElectionEvents() {
         },
     })
 
+    let resultData = data
+    if (!loading) {
+        resultData = filterTree({electionEvents: data?.sequent_backend_election_event}, searchInput)
+    }
+
     const treeMenu = loading ? (
         <CircularProgress />
     ) : (
         <TreeMenu
-            data={{electionEvents: data.sequent_backend_election_event}}
+            data={resultData}
             treeResourceNames={treeResourceNames}
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
-            searchFilter={searchInput.trim()}
         />
     )
 
