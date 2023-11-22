@@ -47,8 +47,8 @@ export const customBuildQuery =
                 parseResponse: (res: any) => {
                     const response = res.data.get_users
                     let output = {
-                        data: res.data.get_users,
-                        total: res.data.get_users.length,
+                        data: response.items,
+                        total: response.total.aggregate.count,
                     }
                     return output
                 },

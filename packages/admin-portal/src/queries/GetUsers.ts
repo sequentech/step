@@ -11,15 +11,22 @@ export const getUsers = (fields: any) => {
             get_users(body: {
                 tenant_id: $tenant_id
             }) {
-            id
-            attributes
-            email
-            email_verified
-            enabled
-            first_name
-            groups
-            last_name
-            username
+                items {
+                    id
+                    attributes
+                    email
+                    email_verified
+                    enabled
+                    first_name
+                    groups
+                    last_name
+                    username
+                }
+                total {
+                    aggregate {
+                        count
+                    }
+                }
             }
         }
         `
