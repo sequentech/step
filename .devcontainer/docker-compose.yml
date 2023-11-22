@@ -94,7 +94,7 @@ services:
 
   # hashicorp vault to store secrets
   vault:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     build:
       context: ./vault
       dockerfile: Dockerfile
@@ -115,8 +115,6 @@ services:
     healthcheck:
       retries: 5
     entrypoint: vault server -config /opt/vault/config.hcl
-    depends_on:
-      - minio
 
   graphql-engine:
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
