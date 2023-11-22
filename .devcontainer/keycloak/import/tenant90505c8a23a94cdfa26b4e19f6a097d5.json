@@ -176,7 +176,7 @@
         "composite" : true,
         "composites" : {
           "client" : {
-            "realm-management" : [ "manage-events", "query-users", "manage-users", "view-users", "view-identity-providers", "create-client", "view-authorization", "manage-authorization", "view-realm", "manage-clients", "impersonation", "manage-identity-providers", "query-clients", "query-realms", "view-clients", "view-events", "query-groups", "manage-realm" ]
+            "realm-management" : [ "manage-events", "query-users", "manage-users", "view-users", "view-identity-providers", "create-client", "view-authorization", "manage-authorization", "impersonation", "manage-clients", "view-realm", "manage-identity-providers", "query-clients", "query-realms", "view-clients", "view-events", "query-groups", "manage-realm" ]
           }
         },
         "clientRole" : true,
@@ -263,6 +263,15 @@
         "composite" : false,
         "clientRole" : true,
         "containerId" : "793cdd12-94f6-461d-8450-e1eb7f5ee82d",
+        "attributes" : { }
+      } ],
+      "service-account" : [ {
+        "id" : "c488fce8-5616-4796-bed6-a92031cf8560",
+        "name" : "service-role",
+        "description" : "",
+        "composite" : false,
+        "clientRole" : true,
+        "containerId" : "35a287ed-36e6-4e0e-96ce-1992a894797a",
         "attributes" : { }
       } ],
       "account" : [ {
@@ -359,7 +368,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppMicrosoftAuthenticatorName", "totpAppGoogleName", "totpAppFreeOTPName" ],
+  "otpSupportedApplications" : [ "totpAppGoogleName", "totpAppFreeOTPName", "totpAppMicrosoftAuthenticatorName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -405,6 +414,20 @@
     "clientRoles" : {
       "admin-portal" : [ "admin-user" ]
     },
+    "notBefore" : 0,
+    "groups" : [ ]
+  }, {
+    "id" : "adb837d9-2ef5-4987-b706-94c641c3f676",
+    "createdTimestamp" : 1700651849025,
+    "username" : "service-account-service-account",
+    "enabled" : true,
+    "totp" : false,
+    "emailVerified" : false,
+    "serviceAccountClientId" : "service-account",
+    "credentials" : [ ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5" ],
     "notBefore" : 0,
     "groups" : [ ]
   } ],
@@ -507,7 +530,9 @@
     "publicClient" : true,
     "frontchannelLogout" : false,
     "protocol" : "openid-connect",
-    "attributes" : { },
+    "attributes" : {
+      "post.logout.redirect.uris" : "+"
+    },
     "authenticationFlowBindingOverrides" : { },
     "fullScopeAllowed" : false,
     "nodeReRegistrationTimeout" : 0,
@@ -629,7 +654,9 @@
     "publicClient" : false,
     "frontchannelLogout" : false,
     "protocol" : "openid-connect",
-    "attributes" : { },
+    "attributes" : {
+      "post.logout.redirect.uris" : "+"
+    },
     "authenticationFlowBindingOverrides" : { },
     "fullScopeAllowed" : false,
     "nodeReRegistrationTimeout" : 0,
@@ -655,7 +682,9 @@
     "publicClient" : false,
     "frontchannelLogout" : false,
     "protocol" : "openid-connect",
-    "attributes" : { },
+    "attributes" : {
+      "post.logout.redirect.uris" : "+"
+    },
     "authenticationFlowBindingOverrides" : { },
     "fullScopeAllowed" : false,
     "nodeReRegistrationTimeout" : 0,
@@ -702,6 +731,141 @@
         "id.token.claim" : "true",
         "access.token.claim" : "true",
         "claim.name" : "locale",
+        "jsonType.label" : "String"
+      }
+    } ],
+    "defaultClientScopes" : [ "web-origins", "acr", "profile", "roles", "email" ],
+    "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
+  }, {
+    "id" : "35a287ed-36e6-4e0e-96ce-1992a894797a",
+    "clientId" : "service-account",
+    "name" : "",
+    "description" : "",
+    "rootUrl" : "",
+    "adminUrl" : "",
+    "baseUrl" : "",
+    "surrogateAuthRequired" : false,
+    "enabled" : true,
+    "alwaysDisplayInConsole" : false,
+    "clientAuthenticatorType" : "client-secret",
+    "secret" : "G1UE19UtM1BcEQxcuK0u3EJr1y1Hv7qr",
+    "redirectUris" : [ "/*" ],
+    "webOrigins" : [ "/*" ],
+    "notBefore" : 0,
+    "bearerOnly" : false,
+    "consentRequired" : false,
+    "standardFlowEnabled" : true,
+    "implicitFlowEnabled" : false,
+    "directAccessGrantsEnabled" : true,
+    "serviceAccountsEnabled" : true,
+    "publicClient" : false,
+    "frontchannelLogout" : true,
+    "protocol" : "openid-connect",
+    "attributes" : {
+      "oidc.ciba.grant.enabled" : "false",
+      "oauth2.device.authorization.grant.enabled" : "false",
+      "client.secret.creation.time" : "1700651849",
+      "backchannel.logout.session.required" : "true",
+      "backchannel.logout.revoke.offline.tokens" : "false"
+    },
+    "authenticationFlowBindingOverrides" : { },
+    "fullScopeAllowed" : true,
+    "nodeReRegistrationTimeout" : -1,
+    "protocolMappers" : [ {
+      "id" : "c64592c6-81c5-485b-adfd-350ecfa8e344",
+      "name" : "x-hasura-user-id",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-usermodel-property-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "userinfo.token.claim" : "true",
+        "user.attribute" : "id",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-user-id",
+        "jsonType.label" : "String"
+      }
+    }, {
+      "id" : "fe6d79bf-e820-4cf0-8d82-9fcbcafbef68",
+      "name" : "Client ID",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-usersessionmodel-note-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "user.session.note" : "client_id",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "client_id",
+        "jsonType.label" : "String"
+      }
+    }, {
+      "id" : "de579c96-0e39-4b1e-aa14-cff641679615",
+      "name" : "Client Host",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-usersessionmodel-note-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "user.session.note" : "clientHost",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "clientHost",
+        "jsonType.label" : "String"
+      }
+    }, {
+      "id" : "ead6aa47-daa6-43b8-8ace-e996a36b0ac1",
+      "name" : "x-hasura-default-role",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-hardcoded-claim-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "claim.value" : "service-account",
+        "userinfo.token.claim" : "true",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-default-role",
+        "jsonType.label" : "String",
+        "access.tokenResponse.claim" : "false"
+      }
+    }, {
+      "id" : "a214a7c7-3889-4633-a2c0-9ffccc5ad3a1",
+      "name" : "x-hasura-allowed-roles",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-hardcoded-claim-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "claim.value" : "[\"service-account\"]",
+        "userinfo.token.claim" : "true",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
+        "jsonType.label" : "String",
+        "access.tokenResponse.claim" : "false"
+      }
+    }, {
+      "id" : "dbd4e077-037d-48a0-8954-40d20984083a",
+      "name" : "x-hasura-tenant-id",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-usermodel-attribute-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "userinfo.token.claim" : "true",
+        "user.attribute" : "tenant-id",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "https://hasura\\.io/jwt/claims.x-hasura-tenant-id",
+        "jsonType.label" : "String"
+      }
+    }, {
+      "id" : "8418501f-93a7-407f-a222-f0e575511b4d",
+      "name" : "Client IP Address",
+      "protocol" : "openid-connect",
+      "protocolMapper" : "oidc-usersessionmodel-note-mapper",
+      "consentRequired" : false,
+      "config" : {
+        "user.session.note" : "clientAddress",
+        "id.token.claim" : "true",
+        "access.token.claim" : "true",
+        "claim.name" : "clientAddress",
         "jsonType.label" : "String"
       }
     } ],
@@ -782,7 +946,8 @@
       "consentRequired" : false,
       "config" : {
         "id.token.claim" : "true",
-        "access.token.claim" : "true"
+        "access.token.claim" : "true",
+        "userinfo.token.claim" : "true"
       }
     } ]
   }, {
@@ -830,6 +995,7 @@
       "consentRequired" : false,
       "config" : {
         "multivalued" : "true",
+        "userinfo.token.claim" : "true",
         "user.attribute" : "foo",
         "id.token.claim" : "true",
         "access.token.claim" : "true",
@@ -1238,7 +1404,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-property-mapper", "saml-user-attribute-mapper", "oidc-full-name-mapper", "saml-user-property-mapper", "oidc-usermodel-attribute-mapper", "saml-role-list-mapper", "oidc-address-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-usermodel-attribute-mapper", "oidc-full-name-mapper", "oidc-usermodel-property-mapper", "oidc-address-mapper", "saml-user-property-mapper", "saml-user-attribute-mapper", "saml-role-list-mapper", "oidc-sha256-pairwise-sub-mapper" ]
       }
     }, {
       "id" : "d0a19d22-4a1d-4658-87fa-e859b977d707",
@@ -1257,7 +1423,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "saml-role-list-mapper", "oidc-usermodel-attribute-mapper", "oidc-address-mapper", "saml-user-attribute-mapper", "oidc-full-name-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-user-property-mapper", "oidc-usermodel-property-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-usermodel-property-mapper", "saml-user-attribute-mapper", "saml-user-property-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-role-list-mapper", "oidc-address-mapper", "oidc-full-name-mapper", "oidc-usermodel-attribute-mapper" ]
       }
     } ],
     "org.keycloak.keys.KeyProvider" : [ {
@@ -1907,8 +2073,12 @@
     "cibaExpiresIn" : "120",
     "cibaAuthRequestedUserHint" : "login_hint",
     "oauth2DeviceCodeLifespan" : "600",
+    "clientOfflineSessionMaxLifespan" : "0",
     "oauth2DevicePollingInterval" : "5",
+    "clientSessionIdleTimeout" : "0",
     "parRequestUriLifespan" : "60",
+    "clientSessionMaxLifespan" : "0",
+    "clientOfflineSessionIdleTimeout" : "0",
     "cibaInterval" : "5",
     "realmReusableOtpCode" : "false"
   },
