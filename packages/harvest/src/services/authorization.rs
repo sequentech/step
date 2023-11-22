@@ -5,7 +5,9 @@ use rocket::http::Status;
 use sequent_core::services::jwt::JwtClaims;
 use std::collections::HashSet;
 use std::env;
+use tracing::instrument;
 
+#[instrument(skip(claims))]
 pub fn authorize(
     claims: &JwtClaims,
     check_super_admin: bool,
