@@ -200,6 +200,32 @@ realm. In our example we use this to update the file
 `.devcontainer/keycloak/import/electoral-process.json` to automatically import
 that data when the container is created.
 
+Whenever the `electoral-process` realm is updated, there's a chance that the JWK
+used have changed. This JWK is used to verify the JWT that is received from
+keycloak. These keys are configured in S3/minio in the
+`.devcontainer/minio/certs.json` file via the `configure-minio` helper docker
+service. If the keys changed and we don't update the keys serviced by minio/s3,
+then the admin-portal or the voting-booth might show some errors because this
+JWT verification fails.
+
+To fix that issue by updating the JWK serviced by minio, perform the following
+2 steps:
+
+1. Update the `.devcontainer/minio/certs.json` file: 
+
+```bash
+cd /workspaces/backend-services/.devcontainer
+curl http://keycloak:8090/realms/electoral-process/protocol/openid-connect/certs | python -m json.tool > minio/certs.json
+```
+
+2. Rerun the `configure-minio` docker service to update the certificate serviced
+   by `minio`:
+  
+```bash
+cd /workspaces/backend-services/.devcontainer/
+docker compose build configure-minio && docker compose up -d --no-deps configure-minio && docker compose logs -f configure-minio
+```
+
 ### Add Hasura migrations/changes
 
 If you want to make changes to hasura, or if you want the Hasura console to
