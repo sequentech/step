@@ -1,28 +1,19 @@
 package sequent.keycloak.authenticator;
 
-import sequent.keycloak.authenticator.gateway.SmsServiceFactory;
-import sequent.keycloak.authenticator.gateway.EmailServiceFactory;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
-import sequent.keycloak.authenticator.credential.MessageOTPCredentialProviderFactory;
 import jakarta.ws.rs.core.Response;
-import org.jboss.logging.Logger;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.CredentialValidator;
-import org.keycloak.common.util.SecretGenerator;
-import org.keycloak.credential.CredentialProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
-import org.keycloak.theme.Theme;
-import java.security.MessageDigest;
 
-import java.util.Locale;
 import java.util.Optional;
 
 @JBossLog
@@ -80,7 +71,8 @@ public class MessageOTPAuthenticator
 	}
 
 	@Override
-	public void action(AuthenticationFlowContext context) {
+	public void action(AuthenticationFlowContext context)
+	{
 		log.info("action() called");
 		String enteredCode = context
 			.getHttpRequest()

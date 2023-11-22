@@ -20,6 +20,12 @@ public class MessageOTPAuthenticatorFactory
 {
 	public static final String PROVIDER_ID = "message-otp-authenticator";
 
+    private static AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
+		AuthenticationExecutionModel.Requirement.REQUIRED,
+		AuthenticationExecutionModel.Requirement.ALTERNATIVE,
+		AuthenticationExecutionModel.Requirement.DISABLED
+	};
+
 	private static final MessageOTPAuthenticator SINGLETON = new MessageOTPAuthenticator();
 
 	@Override
@@ -51,12 +57,6 @@ public class MessageOTPAuthenticatorFactory
 	public boolean isUserSetupAllowed() {
 		return true;
 	}
-
-    private static AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
-		AuthenticationExecutionModel.Requirement.REQUIRED,
-		AuthenticationExecutionModel.Requirement.ALTERNATIVE,
-		AuthenticationExecutionModel.Requirement.DISABLED
-	};
 
 	@Override
 	public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
