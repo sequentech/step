@@ -25,6 +25,7 @@ struct KeycloakLoginConfig {
     url: String,
     client_id: String,
     client_secret: String,
+    realm: String,
 }
 
 fn get_keycloak_login_config() -> KeycloakLoginConfig {
@@ -34,10 +35,13 @@ fn get_keycloak_login_config() -> KeycloakLoginConfig {
         .expect(&format!("KEYCLOAK_CLIENT_ID must be set"));
     let client_secret = env::var("KEYCLOAK_CLIENT_SECRET")
         .expect(&format!("KEYCLOAK_CLIENT_SECRET must be set"));
+    let realm = env::var("KEYCLOAK_REALM")
+        .expect(&format!("KEYCLOAK_REALM must be set"));
     KeycloakLoginConfig {
         url,
         client_id,
         client_secret,
+        realm,
     }
 }
 
@@ -48,10 +52,13 @@ fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
         .expect(&format!("KEYCLOAK_ADMIN_CLIENT_ID must be set"));
     let client_secret = env::var("KEYCLOAK_ADMIN_CLIENT_SECRET")
         .expect(&format!("KEYCLOAK_ADMIN_CLIENT_SECRET must be set"));
+    let realm = env::var("KEYCLOAK_REALM")
+        .expect(&format!("KEYCLOAK_REALM must be set"));
     KeycloakLoginConfig {
         url,
         client_id,
         client_secret,
+        realm,
     }
 }
 
@@ -69,8 +76,9 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     .unwrap();
 
     let keycloak_endpoint = format!(
-        "{}/realms/electoral-process/protocol/openid-connect/token",
-        login_config.url
+        "{}/realms/{}/protocol/openid-connect/token",
+        login_config.url,
+        login_config.realm
     );
 
     let client = reqwest::Client::new();
