@@ -3,6 +3,8 @@ package sequent.keycloak.conditional_authenticators;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.models.AuthenticatorConfigModel;
+import org.keycloak.protocol.oidc.OIDCLoginProtocol;
+import org.keycloak.protocol.oidc.TokenManager;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -12,13 +14,15 @@ import org.keycloak.authentication.authenticators.conditional.ConditionalAuthent
 
 /**
  * Conditional Client Authenticator allows you to create conditional flows that
- * only execute when a specific client is performing the authentication
+ * only execute when a specific authNote is present in the AuthSession with a
+ * given value.
  */
 @JBossLog
-public class ConditionalClientAuthenticator implements ConditionalAuthenticator
+public class ConditionalAuthNoteAuthenticator
+    implements ConditionalAuthenticator
 {
-    public static final ConditionalClientAuthenticator SINGLETON = 
-        new ConditionalClientAuthenticator();
+    public static final ConditionalAuthNoteAuthenticator SINGLETON = 
+        new ConditionalAuthNoteAuthenticator();
 
     @Override
     public boolean matchCondition(AuthenticationFlowContext context)
@@ -40,13 +44,16 @@ public class ConditionalClientAuthenticator implements ConditionalAuthenticator
             return false;
         }
 
-        String requiredClientId = authConfig
+        String requiredAuthNoteKey = authConfig
             .getConfig()
-            .get(ConditionalClientAuthenticatorFactory.CONDITIONAL_CLIENT_ID);
+            .get(ConditionalAuthNoteAuthenticatorFactory.CONDITIONAL_AUTH_NOTE_KEY);
+        String requiredAuthNoteValue = authConfig
+            .getConfig()
+            .get(ConditionalAuthNoteAuthenticatorFactory.CONDITIONAL_AUTH_NOTE_VALUE);
         boolean negateOutput = Boolean.parseBoolean(
             authConfig
                 .getConfig()
-                .get(ConditionalClientAuthenticatorFactory.CONF_NEGATE)
+                .get(ConditionalAuthNoteAuthenticatorFactory.CONF_NEGATE)
         );
 
         AuthenticationSessionModel authSession = context
@@ -58,23 +65,24 @@ public class ConditionalClientAuthenticator implements ConditionalAuthenticator
             );
             return false;
         }
-        ClientModel client = authSession.getClient();
-        if (client == null) {
+        String authNoteValue = authSession.getAuthNote(requiredAuthNoteKey);
+        if (authNoteValue == null) {
             log.infov(
-                "matchCondition(): NULL found client={0}",
-                client
+                "matchCondition(): requiredAuthNoteKey={0} not present",
+                requiredAuthNoteKey
             );
             return false;
         }
-        boolean clientIdMatch = requiredClientId.equals(client.getClientId());
+        boolean authNoteMatch = requiredAuthNoteValue.equals(authNoteValue);
         log.infov(
-            "matchCondition(): client.getClientId()={0}, requiredClientId={1}, negateOutput[{2}] != clientIdMatch[{3}]",
-            client.getClientId(),
-            requiredClientId,
+            "matchCondition(): requiredAuthNoteKey={0}, requiredAuthNoteValue={1}, authNoteValue={2}, negateOutput[{3}] != authNoteMatch[{4}]",
+            requiredAuthNoteKey,
+            requiredAuthNoteValue,
+            authNoteValue,
             negateOutput,
-            clientIdMatch
+            authNoteMatch
         );
-        return negateOutput != clientIdMatch;
+        return negateOutput != authNoteMatch;
     }
 
     @Override

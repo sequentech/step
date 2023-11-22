@@ -1773,7 +1773,7 @@
       "userSetupAllowed" : false
     }, {
       "authenticatorConfig" : "voting-client",
-      "authenticator" : "conditional-user-client",
+      "authenticator" : "conditional-client",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 13,
@@ -1804,7 +1804,7 @@
       "userSetupAllowed" : false
     }, {
       "authenticatorConfig" : "otp-voting-client",
-      "authenticator" : "conditional-user-client",
+      "authenticator" : "conditional-client",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 1,
@@ -2381,7 +2381,7 @@
     "alias" : "otp-voting-client",
     "config" : {
       "negate" : "false",
-      "conditional-user-client" : "voting-portal"
+      "conditional-client" : "voting-portal"
     }
   }, {
     "id" : "68cd831a-6406-4ba0-a3b5-1b48a80e4ee2",
@@ -2410,7 +2410,7 @@
     "alias" : "voting-client",
     "config" : {
       "negate" : "false",
-      "conditional-user-client" : "voting-portal"
+      "conditional-client" : "voting-portal"
     }
   } ],
   "requiredActions" : [ {
