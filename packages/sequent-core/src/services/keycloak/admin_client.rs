@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::connection;
+use crate::services::keycloak::realm::get_tenant_realm;
 use anyhow::{anyhow, Result};
 use keycloak::{KeycloakAdmin, KeycloakAdminToken};
 use reqwest;
@@ -35,8 +36,9 @@ fn get_keycloak_login_config() -> KeycloakLoginConfig {
         .expect(&format!("KEYCLOAK_CLIENT_ID must be set"));
     let client_secret = env::var("KEYCLOAK_CLIENT_SECRET")
         .expect(&format!("KEYCLOAK_CLIENT_SECRET must be set"));
-    let realm = env::var("KEYCLOAK_REALM")
-        .expect(&format!("KEYCLOAK_REALM must be set"));
+    let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
+        .expect(&format!("SUPER_ADMIN_TENANT_ID must be set"));
+    let realm = get_tenant_realm(&tenant_id);
     KeycloakLoginConfig {
         url,
         client_id,
@@ -52,8 +54,9 @@ fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
         .expect(&format!("KEYCLOAK_ADMIN_CLIENT_ID must be set"));
     let client_secret = env::var("KEYCLOAK_ADMIN_CLIENT_SECRET")
         .expect(&format!("KEYCLOAK_ADMIN_CLIENT_SECRET must be set"));
-    let realm = env::var("KEYCLOAK_REALM")
-        .expect(&format!("KEYCLOAK_REALM must be set"));
+    let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
+        .expect(&format!("SUPER_ADMIN_TENANT_ID must be set"));
+    let realm = get_tenant_realm(&tenant_id);
     KeycloakLoginConfig {
         url,
         client_id,

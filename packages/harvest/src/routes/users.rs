@@ -6,7 +6,7 @@ use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
 };
 use anyhow::{anyhow, Result};
-use immu_board::util::get_tenant_name;
+use sequent_core::services::keycloak::get_tenant_realm;
 use rocket::http::Status;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
@@ -38,7 +38,7 @@ pub async fn get_users(
         Some(input.tenant_id.clone()),
         vec!["read-users".into()],
     )?;*/
-    let board = get_tenant_name(&input.tenant_id);
+    let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
