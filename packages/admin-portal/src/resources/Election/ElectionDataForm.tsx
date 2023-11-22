@@ -244,10 +244,11 @@ export const ElectionDataForm: React.FC = () => {
                         key={lang}
                         source={`enabled_languages.${lang}`}
                         label={t(`common.language.${lang}`)}
+                        helperText={false}
                     />
                 )
             }
-            return <div style={{marginTop: "36px"}}>{langNodes}</div>
+            return <div style={{marginTop: "46px"}}>{langNodes}</div>
     }
 
     const renderDefaultLangs = (parsedValue: any) => {
@@ -293,6 +294,8 @@ export const ElectionDataForm: React.FC = () => {
 
         return tabNodes
     }
+
+    // TODO: renderReceipts
 
     const renderTabContent = (parsedValue: any) => {
         let tabNodes = []
