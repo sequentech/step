@@ -39,13 +39,21 @@ interface TreeLeavesProps {
     resourceId?: string
     treeResources: Array<ResourceDefinition<Options>>
     filter?: object
+    searchFilter?: string
 }
 
-function TreeLeaves({isOpen, resourceName, treeResources, filter}: TreeLeavesProps) {
+function TreeLeaves({isOpen, resourceName, treeResources, filter, searchFilter}: TreeLeavesProps) {
+    console.log(
+        "LS -> src/components/menu/items/election-events/TreeMenu.tsx:45 -> searchFilter: ",
+        searchFilter
+    )
+    console.log(
+        "LS -> src/components/menu/items/election-events/TreeMenu.tsx:44 -> filter: ",
+        filter
+    )
     const [tenantId] = useTenantStore()
 
     const {data, isLoading, error} = useGetList(resourceName, {
-        // pagination: {page: 1, perPage: 10},
         sort: {field: "created_at", order: "DESC"},
         filter: {
             tenant_id: tenantId,
@@ -70,6 +78,7 @@ function TreeLeaves({isOpen, resourceName, treeResources, filter}: TreeLeavesPro
                             isOpen={isOpen}
                             resource={resource}
                             treeResources={treeResources}
+                            searchFilter={searchFilter}
                             key={idx}
                         />
                     )
@@ -83,6 +92,7 @@ interface TreeMenuItemProps {
     isOpen: boolean
     resource: any
     treeResources: Array<ResourceDefinition<Options>>
+    searchFilter?: string
 }
 
 enum Action {
@@ -97,7 +107,7 @@ type ActionPayload = {
     type: string
 }
 
-function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
+function TreeMenuItem({isOpen, resource, treeResources, searchFilter}: TreeMenuItemProps) {
     const [open, setOpen] = useState(false)
     const onClick = () => setOpen(!open)
 
@@ -140,7 +150,7 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
                 ) : (
                     <div className="w-6 h-6"></div>
                 )}
-                {isOpen && (
+                {isOpen && resource.name.search(searchFilter) > -1 && (
                     <NavLink
                         title={resource.alias ?? resource.name}
                         className={({isActive}) =>
@@ -224,6 +234,7 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
                             isOpen={isOpen}
                             resourceName={nextResource.name}
                             treeResources={subTreeResources}
+                            searchFilter={searchFilter}
                         />
                     )}
                 </div>
@@ -235,11 +246,11 @@ function TreeMenuItem({isOpen, resource, treeResources}: TreeMenuItemProps) {
 export function TreeMenu({
     isOpen,
     resourceNames,
-    filter,
+    searchFilter,
 }: {
     isOpen: boolean
     resourceNames: string[]
-    filter: object
+    searchFilter: string
 }) {
     const [archivedMenu, setArchivedMenu] = useState(0)
 
@@ -283,7 +294,8 @@ export function TreeMenu({
                     resourceName={resourceNames[0]}
                     treeResources={treeResources}
                     isOpen={isOpen}
-                    filter={Object.assign({}, {is_archived: archivedMenu === 1}, filter)}
+                    filter={{is_archived: archivedMenu === 1}}
+                    searchFilter={searchFilter}
                 />
             </div>
         </>
