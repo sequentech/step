@@ -1,7 +1,6 @@
 import React from "react"
 import {EditBase} from "react-admin"
 import {EditElectionEventDataForm} from "./EditElectionEventDataForm"
-import { isConstValueNode } from 'graphql'
 
 export const EditElectionEventData: React.FC = () => {
     const transform = (data: any) => {

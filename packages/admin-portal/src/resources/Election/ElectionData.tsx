@@ -1,10 +1,10 @@
 import React from "react"
 import {EditBase} from "react-admin"
-import {EditElectionDataForm} from "./ElectionDataForm"
+import {ElectionDataForm} from "./ElectionDataForm"
 
 export const EditElectionData: React.FC = () => {
     const transform = (data: any) => {
-        console.log("TRANSFORM :: ", data)
+        console.log("TRANSFORM ELECTION :: ", data)
 
         // save presentation object
         // language_conf
@@ -33,7 +33,7 @@ export const EditElectionData: React.FC = () => {
 
     return (
         <EditBase redirect={"."} transform={transform}>
-            <EditElectionDataForm />
+            <ElectionDataForm />
         </EditBase>
     )
 }

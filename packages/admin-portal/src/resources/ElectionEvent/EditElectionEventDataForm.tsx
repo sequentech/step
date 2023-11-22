@@ -3,18 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
     BooleanInput,
-    DateField,
-    DateInput,
     DateTimeInput,
-    Edit,
-    EditBase,
     RecordContext,
-    ReferenceManyField,
-    SelectInput,
     SimpleForm,
-    TabbedForm,
-    TabbedShowLayout,
-    TextField,
     TextInput,
     useRecordContext,
     useRefresh,
@@ -23,29 +14,16 @@ import {
     Accordion,
     AccordionDetails,
     AccordionSummary,
-    Button,
     Tabs,
     Tab,
-    CircularProgress,
-    Menu,
-    MenuItem,
-    Typography,
     Grid,
 } from "@mui/material"
 import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
-import React, {useEffect, useState} from "react"
-import {faPieChart, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import React, {useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
-import {ChipList} from "../../components/ChipList"
-import {HorizontalBox} from "../../components/HorizontalBox"
-import {IconButton} from "@sequentech/ui-essentials"
-import {JsonInput} from "react-admin-json-view"
-import {KeysGenerationDialog} from "../../components/KeysGenerationDialog"
-import {Link} from "react-router-dom"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
-import {StartTallyDialog} from "../../components/StartTallyDialog"
 import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
 import {useMutation} from "@apollo/client"
 import {useTenantStore} from "../../components/CustomMenu"
@@ -55,29 +33,30 @@ import {ElectionHeaderStyles} from "../../components/styles/ElectionHeaderStyles
 
 export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
-    const [expanded, setExpanded] = useState("election-event-data-general")
+    const [tenantId] = useTenantStore()
+    const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
+    const refresh = useRefresh()
+
     const [showMenu, setShowMenu] = useState(false)
-    const [value, setValue] = useState(0)
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const [showProgress, setShowProgress] = useState(false)
     const [showCreateKeysDialog, setShowCreateKeysDialog] = useState(false)
     const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)
-    const [tenantId] = useTenantStore()
-    const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
-    const refresh = useRefresh()
     const {t} = useTranslation()
-
+    
+    const [value, setValue] = useState(0)
+    const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings] = useState<any>([{es: true}, {en: true}])
     const [votingSettings] = useState<any>({online: true, kiosk: true})
 
-    const parseValues = (data: any) => {
-        const temp = {...data}
+    const parseValues = (incoming: any) => {
+        const temp = {...incoming}
 
         // languages
         temp.enabled_languages = {}
 
         if (
-            data?.presentation?.language_conf?.enabled_language_codes && data?.presentation
+            incoming?.presentation?.language_conf?.enabled_language_codes && incoming?.presentation
                 ?.language_conf?.enabled_language_codes.length > 0
         ) {
             // if presentation has lang then set from event
@@ -85,8 +64,8 @@ export const EditElectionEventDataForm: React.FC = () => {
                 const enabled_item: any = {}
 
                 const isInEnabled =
-                    data?.presentation?.language_conf?.enabled_language_codes.length > 0
-                        ? data?.presentation?.language_conf?.enabled_language_codes.find(
+                    incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
+                        ? incoming?.presentation?.language_conf?.enabled_language_codes.find(
                               (item: any) => Object.keys(setting)[0] === item
                           )
                         : false
@@ -106,8 +85,8 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
 
         // voting channels
-        const all_channels = {...data?.voting_channels}
-        delete data.voting_channels
+        const all_channels = {...incoming?.voting_channels}
+        delete incoming.voting_channels
         temp.voting_channels = {}
         for (const setting in votingSettings) {
             const enabled_item: any = {}
@@ -226,12 +205,12 @@ export const EditElectionEventDataForm: React.FC = () => {
             langNodes.push(
                 <BooleanInput
                     key={lang}
-                    source={`enabled_languages[${lang}]`}
+                    source={`enabled_languages.${lang}`}
                     label={t(`common.language.${lang}`)}
                 />
             )
         }
-        return langNodes
+        return <div>{langNodes}</div>
     }
 
     const renderVotingChannels = (parsedValue: any) => {
@@ -295,8 +274,8 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     return (
         <RecordContext.Consumer>
-            {(data) => {
-                const parsedValue = parseValues(data)
+            {(incoming) => {
+                const parsedValue = parseValues(incoming)
                 console.log("parsedValue :>> ", parsedValue)
                 return (
                     <SimpleForm validate={formValidator} record={parsedValue}>
@@ -317,35 +296,8 @@ export const EditElectionEventDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <Tabs value={value} onChange={handleChange}>
                                     {renderTabs(parsedValue)}
-                                    {/* <Tab label="Spanish" id="tab-2"></Tab> */}
                                 </Tabs>
                                 {renderTabContent(parsedValue)}
-                                {/* {parsedValue?.enabled_languages.map((lang: any, index: number) => {
-                                    return (
-                                        <CustomTabPanel
-                                            key={lang}
-                                            value={value}
-                                            index={index}
-                                        >
-                                            <div style={{marginTop: "16px"}}>
-                                                <TextInput
-                                                    source="name"
-                                                    label={t("electionEventScreen.field.name")}
-                                                />
-                                                <TextInput
-                                                    source="alias"
-                                                    label={t("electionEventScreen.field.alias")}
-                                                />
-                                                <TextInput
-                                                    source="description"
-                                                    label={t(
-                                                        "electionEventScreen.field.description"
-                                                    )}
-                                                />
-                                            </div>
-                                        </CustomTabPanel>
-                                    )
-                                })} */}
                             </AccordionDetails>
                         </Accordion>
 

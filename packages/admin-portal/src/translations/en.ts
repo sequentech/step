@@ -204,6 +204,10 @@ const englishTranslation = {
             language: {
                 es: "Spanish",
                 en: "English",
+            },
+            channel: {
+                online: "Online",
+                kiosk: "Kiosk",
             }
         },
         tenant: {
