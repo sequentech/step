@@ -1,114 +1,114 @@
 actions:
-  - name: createScheduledEvent
-    definition:
-      kind: synchronous
-      handler: http://harvest:8400/scheduled-event
-      forward_client_headers: true
-      headers:
-        - name: X-Hasura-Admin-Secret
-          value_from_env: ACTIONS_ADMIN_SECRET
-      request_transform:
-        body:
-          action: transform
-          template: '{{$body.input}}'
-        template_engine: Kriti
-        version: 2
-    permissions:
-      - role: admin-user
-    comment: create scheduled event
-  - name: fetchDocument
-    definition:
-      kind: ""
-      handler: http://harvest:8400/fetch-document
-      forward_client_headers: true
-      headers:
-        - name: X-Hasura-Admin-Secret
-          value_from_env: ACTIONS_ADMIN_SECRET
-      request_transform:
-        body:
-          action: transform
-          template: |-
-            {
-                "tenant_id": {{$body.input.tenant_id}},
-                "election_event_id": {{$body.input.election_event_id}},
-                "document_id": {{$body.input.document_id}}
-            }
-        template_engine: Kriti
-        version: 2
-    permissions:
-      - role: admin-user
-    comment: fetch document
-  - name: get_users
-    definition:
-      kind: ""
-      handler: http://harvest:8400/get-users
-      forward_client_headers: true
-      request_transform:
-        body:
-          action: transform
-          template: '{{$body.input.body}}'
-        template_engine: Kriti
-        version: 2
-    permissions:
-      - role: admin-user
-  - name: insertElectionEvent
-    definition:
-      kind: synchronous
-      handler: http://harvest:8400/insert-election-event
-      forward_client_headers: true
-      headers:
-        - name: X-Hasura-Admin-Secret
-          value_from_env: ACTIONS_ADMIN_SECRET
-      request_transform:
-        body:
-          action: transform
-          template: '{{$body.input.object}}'
-        template_engine: Kriti
-        version: 2
-    permissions:
-      - role: admin-user
-  - name: insertTenant
-    definition:
-      kind: synchronous
-      handler: http://harvest:8400/insert-tenant
-      forward_client_headers: true
-      headers:
-        - name: X-Hasura-Admin-Secret
-          value: ACTIONS_ADMIN_SECRET
-      request_transform:
-        body:
-          action: transform
-          template: '{{$body.input}}'
-        template_engine: Kriti
-        version: 2
-    permissions:
-      - role: admin-user
-    comment: insertTenant
-  - name: listPgaudit
-    definition:
-      kind: ""
-      handler: http://harvest:8400/immudb/pgaudit-list
-      forward_client_headers: true
-      headers:
-        - name: X-Hasura-Admin-Secret
-          value_from_env: ACTIONS_ADMIN_SECRET
-      request_transform:
-        body:
-          action: transform
-          template: |-
-            {
-              "tenant_id": {{ head(removeNulls([$session_variables?['x-hasura-tenant-id'],""])) }},
-              "election_event_id": {{ head(removeNulls([$session_variables?['x-hasura-election-event-id'],"defaultdb"])) }},
-              "limit": {{$body.input?.limit}},
-              "offset": {{$body.input?.offset}},
-              "order_by": {{$body.input?.order_by}}
-            }
-        template_engine: Kriti
-        version: 2
-    permissions:
-      - role: immudb:log:read
-      - role: admin-user
-    comment: List PostgreSQL audit logs
+- name: createScheduledEvent
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/scheduled-event
+    forward_client_headers: true
+    headers:
+    - name: X-Hasura-Admin-Secret
+      value_from_env: ACTIONS_ADMIN_SECRET
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  comment: create scheduled event
+- name: fetchDocument
+  definition:
+    kind: ""
+    handler: http://harvest:8400/fetch-document
+    forward_client_headers: true
+    headers:
+    - name: X-Hasura-Admin-Secret
+      value_from_env: ACTIONS_ADMIN_SECRET
+    request_transform:
+      body:
+        action: transform
+        template: |-
+          {
+              "tenant_id": {{$body.input.tenant_id}},
+              "election_event_id": {{$body.input.election_event_id}},
+              "document_id": {{$body.input.document_id}}
+          }
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  comment: fetch document
+- name: get_users
+  definition:
+    kind: ""
+    handler: http://harvest:8400/get-users
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.body}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+- name: insertElectionEvent
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/insert-election-event
+    forward_client_headers: true
+    headers:
+    - name: X-Hasura-Admin-Secret
+      value_from_env: ACTIONS_ADMIN_SECRET
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.object}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+- name: insertTenant
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/insert-tenant
+    forward_client_headers: true
+    headers:
+    - name: X-Hasura-Admin-Secret
+      value: ACTIONS_ADMIN_SECRET
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  comment: insertTenant
+- name: listPgaudit
+  definition:
+    kind: ""
+    handler: http://harvest:8400/immudb/pgaudit-list
+    forward_client_headers: true
+    headers:
+    - name: X-Hasura-Admin-Secret
+      value_from_env: ACTIONS_ADMIN_SECRET
+    request_transform:
+      body:
+        action: transform
+        template: |-
+          {
+            "tenant_id": {{ head(removeNulls([$session_variables?['x-hasura-tenant-id'],""])) }},
+            "election_event_id": {{ head(removeNulls([$session_variables?['x-hasura-election-event-id'],"defaultdb"])) }},
+            "limit": {{$body.input?.limit}},
+            "offset": {{$body.input?.offset}},
+            "order_by": {{$body.input?.order_by}}
+          }
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: immudb:log:read
+  - role: admin-user
+  comment: List PostgreSQL audit logs
 custom_types:
   enums:
   - name: OrderDirection
@@ -120,24 +120,24 @@ custom_types:
       is_deprecated: null
       value: desc
   input_objects:
-    - name: TemplateInput
-    - name: PgAuditOrderBy
-    - name: SampleInput
-    - name: CreateElectionEventInput
-    - name: GetUsersInput
+  - name: TemplateInput
+  - name: PgAuditOrderBy
+  - name: SampleInput
+  - name: CreateElectionEventInput
+  - name: GetUsersInput
   objects:
-    - name: TemplateOutput
-    - name: FetchDocumentOutput
-    - name: ScheduledEventOutput
-    - name: PgAuditRow
-    - name: Aggregate
-    - name: DataListPgAudit
-    - name: TotalAggregate
-    - name: ScheduledEventOutput2
-    - name: ScheduledEventOutput3
-    - name: SampleOutput
-    - name: CreateElectionEventOutput
-    - name: InsertTenantOutput
-    - name: KeycloakUser
-    - name: GetUsersOutput
+  - name: TemplateOutput
+  - name: FetchDocumentOutput
+  - name: ScheduledEventOutput
+  - name: PgAuditRow
+  - name: Aggregate
+  - name: DataListPgAudit
+  - name: TotalAggregate
+  - name: ScheduledEventOutput2
+  - name: ScheduledEventOutput3
+  - name: SampleOutput
+  - name: CreateElectionEventOutput
+  - name: InsertTenantOutput
+  - name: KeycloakUser
+  - name: GetUsersOutput
   scalars: []

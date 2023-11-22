@@ -18,7 +18,7 @@ type Query {
 }
 
 type Query {
-  get_users(
+  get_users (
     body: GetUsersInput!
   ): GetUsersOutput!
 }
@@ -93,11 +93,12 @@ input CreateElectionEventInput {
 }
 
 input GetUsersInput {
-  tenant_id: String!
-  search: String
-  email: String
-  limit: Int
-  offset: Int
+  tenant_id : String!
+  election_event_id : String
+  search : String
+  email : String
+  limit : Int
+  offset : Int
 }
 
 type TemplateOutput {
@@ -174,19 +175,19 @@ type InsertTenantOutput {
 }
 
 type KeycloakUser {
-  id: String
-  attributes: jsonb
-  email: String
-  email_verified: Boolean
-  enabled: Boolean
-  first_name: String
-  groups: [String!]
-  last_name: String
-  username: String
+  id : String
+  attributes : jsonb
+  email : String
+  email_verified : Boolean
+  enabled : Boolean
+  first_name : String
+  groups : [String!]
+  last_name : String
+  username : String
 }
 
 type GetUsersOutput {
-  items: [KeycloakUser!]!
-  total: TotalAggregate!
+  items : [KeycloakUser!]!
+  total : TotalAggregate!
 }
 

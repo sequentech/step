@@ -6,7 +6,7 @@ use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
 };
 use anyhow::{anyhow, Result};
-use sequent_core::services::keycloak::get_tenant_realm;
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use rocket::http::Status;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
@@ -19,32 +19,35 @@ use tracing::{event, instrument, Level};
 #[derive(Deserialize, Debug)]
 pub struct GetUsersBody {
     tenant_id: String,
+    election_event_id: Option<String>,
     search: Option<String>,
     email: Option<String>,
     limit: Option<i32>,
     offset: Option<i32>,
 }
 
-//#[instrument(skip(claims))]
+#[instrument(skip(claims))]
 #[post("/get-users", format = "json", data = "<body>")]
 pub async fn get_users(
-    //claims: jwt::JwtClaims,
+    claims: jwt::JwtClaims,
     body: Json<GetUsersBody>,
 ) -> Result<Json<DataList<User>>, (Status, String)> {
     let input = body.into_inner();
-    /*authorize(
+    authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
         vec!["read-users".into()],
-    )?;*/
-    let realm = get_tenant_realm(&input.tenant_id);
+    )?;
+    let realm = match input.election_event_id {
+        Some(election_event_id) =>  get_event_realm(&input.tenant_id, &election_event_id),
+        None => get_tenant_realm(&input.tenant_id),
+    };
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let (users, count) = client
-        //.list_users(&board, input.search, input.email, input.limit, input.offset)
-        .list_users("electoral-process", input.search, input.email, input.limit, input.offset)
+        .list_users(&realm, input.search, input.email, input.limit, input.offset)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(Json(DataList {
