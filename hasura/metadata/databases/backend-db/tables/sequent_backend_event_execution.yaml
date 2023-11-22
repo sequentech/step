@@ -2,114 +2,114 @@ table:
   name: event_execution
   schema: sequent_backend
 insert_permissions:
-  - role: admin-user
-    permission:
-      check: {}
-      columns:
-        - execution_state
-        - annotations
-        - execution_payload
-        - labels
-        - result_payload
-        - ended_at
-        - started_at
-        - election_event_id
-        - id
-        - scheduled_event_id
-        - tenant_id
-    comment: ""
-  - role: service-account
-    permission:
-      check: {}
-      columns:
-        - execution_state
-        - annotations
-        - execution_payload
-        - labels
-        - result_payload
-        - ended_at
-        - started_at
-        - election_event_id
-        - id
-        - scheduled_event_id
-        - tenant_id
-    comment: ""
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - execution_state
+    - annotations
+    - execution_payload
+    - labels
+    - result_payload
+    - ended_at
+    - started_at
+    - election_event_id
+    - id
+    - scheduled_event_id
+    - tenant_id
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - execution_state
+    - annotations
+    - execution_payload
+    - labels
+    - result_payload
+    - ended_at
+    - started_at
+    - election_event_id
+    - id
+    - scheduled_event_id
+    - tenant_id
+  role: service-account
 select_permissions:
-  - role: admin-user
-    permission:
-      columns:
-        - execution_state
-        - annotations
-        - execution_payload
-        - labels
-        - result_payload
-        - ended_at
-        - started_at
-        - election_event_id
-        - id
-        - scheduled_event_id
-        - tenant_id
-      filter: {}
-      allow_aggregations: true
-    comment: ""
-  - role: service-account
-    permission:
-      columns:
-        - execution_state
-        - annotations
-        - execution_payload
-        - labels
-        - result_payload
-        - ended_at
-        - started_at
-        - election_event_id
-        - id
-        - scheduled_event_id
-        - tenant_id
-      filter: {}
-      allow_aggregations: true
-    comment: ""
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - execution_state
+    - annotations
+    - execution_payload
+    - labels
+    - result_payload
+    - ended_at
+    - started_at
+    - election_event_id
+    - id
+    - scheduled_event_id
+    - tenant_id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - execution_state
+    - annotations
+    - execution_payload
+    - labels
+    - result_payload
+    - ended_at
+    - started_at
+    - election_event_id
+    - id
+    - scheduled_event_id
+    - tenant_id
+    filter: {}
+  role: service-account
 update_permissions:
-  - role: admin-user
-    permission:
-      columns:
-        - execution_state
-        - annotations
-        - execution_payload
-        - labels
-        - result_payload
-        - ended_at
-        - started_at
-        - election_event_id
-        - id
-        - scheduled_event_id
-        - tenant_id
-      filter: {}
-      check: {}
-    comment: ""
-  - role: service-account
-    permission:
-      columns:
-        - execution_state
-        - annotations
-        - execution_payload
-        - labels
-        - result_payload
-        - ended_at
-        - started_at
-        - election_event_id
-        - id
-        - scheduled_event_id
-        - tenant_id
-      filter: {}
-      check: {}
-    comment: ""
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - execution_state
+    - annotations
+    - execution_payload
+    - labels
+    - result_payload
+    - ended_at
+    - started_at
+    - election_event_id
+    - id
+    - scheduled_event_id
+    - tenant_id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - execution_state
+    - annotations
+    - execution_payload
+    - labels
+    - result_payload
+    - ended_at
+    - started_at
+    - election_event_id
+    - id
+    - scheduled_event_id
+    - tenant_id
+    filter: {}
+  role: service-account
 delete_permissions:
-  - role: admin-user
-    permission:
-      filter: {}
-    comment: ""
-  - role: service-account
-    permission:
-      filter: {}
-    comment: ""
+- comment: ""
+  permission:
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    filter: {}
+  role: service-account

@@ -111,14 +111,14 @@ actions:
     comment: List PostgreSQL audit logs
 custom_types:
   enums:
-    - name: OrderDirection
-      values:
-        - description: null
-          is_deprecated: null
-          value: asc
-        - description: null
-          is_deprecated: null
-          value: desc
+  - name: OrderDirection
+    values:
+    - description: null
+      is_deprecated: null
+      value: asc
+    - description: null
+      is_deprecated: null
+      value: desc
   input_objects:
     - name: TemplateInput
     - name: PgAuditOrderBy

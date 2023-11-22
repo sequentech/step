@@ -13,6 +13,7 @@
 	<modules>
 		<module>message-otp-authenticator</module>
 		<module>security-question-authenticator</module>
+		<module>conditional-authenticators</module>
     </modules>
 
 	<properties>
