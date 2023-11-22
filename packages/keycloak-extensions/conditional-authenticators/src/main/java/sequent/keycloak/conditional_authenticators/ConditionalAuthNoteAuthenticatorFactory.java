@@ -48,7 +48,7 @@ public class ConditionalAuthNoteAuthenticatorFactory
 
     @Override
     public String getDisplayType() {
-        return "Condition - Client Id";
+        return "Condition - Auth Note";
     }
 
     @Override
@@ -68,7 +68,7 @@ public class ConditionalAuthNoteAuthenticatorFactory
 
     @Override
     public String getHelpText() {
-        return "Flow is executed only if authentication is performed by the correct client.";
+        return "Flow is executed only if authentication session has the correct Auth Note.";
     }
 
     @Override
