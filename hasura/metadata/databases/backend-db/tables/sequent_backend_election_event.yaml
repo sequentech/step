@@ -2,188 +2,195 @@ table:
   name: election_event
   schema: sequent_backend
 insert_permissions:
-  - role: admin-user
-    permission:
-      check: {}
-      columns:
-        - annotations
-        - audit_election_event_id
-        - bulletin_board_reference
-        - created_at
-        - dates
-        - description
-        - encryption_protocol
-        - id
-        - is_archived
-        - is_audit
-        - labels
-        - name
-        - presentation
-        - public_key
-        - status
-        - tenant_id
-        - updated_at
-        - user_boards
-        - voting_channels
-    comment: ""
-  - role: service-account
-    permission:
-      check: {}
-      columns:
-        - is_archived
-        - is_audit
-        - encryption_protocol
-        - name
-        - user_boards
-        - annotations
-        - bulletin_board_reference
-        - dates
-        - labels
-        - presentation
-        - status
-        - voting_channels
-        - description
-        - public_key
-        - created_at
-        - updated_at
-        - audit_election_event_id
-        - id
-        - tenant_id
-    comment: ""
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - alias
+    - annotations
+    - audit_election_event_id
+    - bulletin_board_reference
+    - created_at
+    - dates
+    - description
+    - encryption_protocol
+    - id
+    - is_archived
+    - is_audit
+    - labels
+    - name
+    - presentation
+    - public_key
+    - status
+    - tenant_id
+    - updated_at
+    - user_boards
+    - voting_channels
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - alias
+    - annotations
+    - audit_election_event_id
+    - bulletin_board_reference
+    - created_at
+    - dates
+    - description
+    - encryption_protocol
+    - id
+    - is_archived
+    - is_audit
+    - labels
+    - name
+    - presentation
+    - public_key
+    - status
+    - tenant_id
+    - updated_at
+    - user_boards
+    - voting_channels
+  role: service-account
 select_permissions:
-  - role: admin-user
-    permission:
-      columns:
-        - annotations
-        - audit_election_event_id
-        - bulletin_board_reference
-        - created_at
-        - dates
-        - description
-        - encryption_protocol
-        - id
-        - is_archived
-        - is_audit
-        - labels
-        - name
-        - presentation
-        - public_key
-        - status
-        - tenant_id
-        - updated_at
-        - user_boards
-        - voting_channels
-      filter: {}
-      allow_aggregations: true
-    comment: ""
-  - role: service-account
-    permission:
-      columns:
-        - is_archived
-        - is_audit
-        - encryption_protocol
-        - name
-        - user_boards
-        - annotations
-        - bulletin_board_reference
-        - dates
-        - labels
-        - presentation
-        - status
-        - voting_channels
-        - description
-        - public_key
-        - created_at
-        - updated_at
-        - audit_election_event_id
-        - id
-        - tenant_id
-      filter: {}
-      allow_aggregations: true
-    comment: ""
-  - role: user
-    permission:
-      columns:
-        - annotations
-        - audit_election_event_id
-        - bulletin_board_reference
-        - created_at
-        - dates
-        - description
-        - encryption_protocol
-        - id
-        - is_archived
-        - is_audit
-        - labels
-        - name
-        - presentation
-        - public_key
-        - status
-        - tenant_id
-        - updated_at
-        - user_boards
-        - voting_channels
-      filter:
-        tenant_id:
-          _eq: X-Hasura-Tenant-Id
-    comment: ""
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - alias
+    - annotations
+    - audit_election_event_id
+    - bulletin_board_reference
+    - created_at
+    - dates
+    - description
+    - encryption_protocol
+    - id
+    - is_archived
+    - is_audit
+    - labels
+    - name
+    - presentation
+    - public_key
+    - status
+    - tenant_id
+    - updated_at
+    - user_boards
+    - voting_channels
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - alias
+    - annotations
+    - audit_election_event_id
+    - bulletin_board_reference
+    - created_at
+    - dates
+    - description
+    - encryption_protocol
+    - id
+    - is_archived
+    - is_audit
+    - labels
+    - name
+    - presentation
+    - public_key
+    - status
+    - tenant_id
+    - updated_at
+    - user_boards
+    - voting_channels
+    filter: {}
+  role: service-account
+- comment: ""
+  permission:
+    columns:
+    - alias
+    - annotations
+    - audit_election_event_id
+    - bulletin_board_reference
+    - created_at
+    - dates
+    - description
+    - encryption_protocol
+    - id
+    - is_archived
+    - is_audit
+    - labels
+    - name
+    - presentation
+    - public_key
+    - status
+    - tenant_id
+    - updated_at
+    - user_boards
+    - voting_channels
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: user
 update_permissions:
-  - role: admin-user
-    permission:
-      columns:
-        - annotations
-        - audit_election_event_id
-        - bulletin_board_reference
-        - created_at
-        - dates
-        - description
-        - encryption_protocol
-        - id
-        - is_archived
-        - is_audit
-        - labels
-        - name
-        - presentation
-        - public_key
-        - status
-        - tenant_id
-        - updated_at
-        - user_boards
-        - voting_channels
-      filter: {}
-      check: {}
-    comment: ""
-  - role: service-account
-    permission:
-      columns:
-        - is_archived
-        - is_audit
-        - encryption_protocol
-        - name
-        - user_boards
-        - annotations
-        - bulletin_board_reference
-        - dates
-        - labels
-        - presentation
-        - status
-        - voting_channels
-        - description
-        - public_key
-        - created_at
-        - updated_at
-        - audit_election_event_id
-        - id
-        - tenant_id
-      filter: {}
-      check: {}
-    comment: ""
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - alias
+    - annotations
+    - audit_election_event_id
+    - bulletin_board_reference
+    - created_at
+    - dates
+    - description
+    - encryption_protocol
+    - id
+    - is_archived
+    - is_audit
+    - labels
+    - name
+    - presentation
+    - public_key
+    - status
+    - tenant_id
+    - updated_at
+    - user_boards
+    - voting_channels
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - alias
+    - annotations
+    - audit_election_event_id
+    - bulletin_board_reference
+    - created_at
+    - dates
+    - description
+    - encryption_protocol
+    - id
+    - is_archived
+    - is_audit
+    - labels
+    - name
+    - presentation
+    - public_key
+    - status
+    - tenant_id
+    - updated_at
+    - user_boards
+    - voting_channels
+    filter: {}
+  role: service-account
 delete_permissions:
-  - role: admin-user
-    permission:
-      filter: {}
-    comment: ""
-  - role: service-account
-    permission:
-      filter: {}
-    comment: ""
+- comment: ""
+  permission:
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    filter: {}
+  role: service-account

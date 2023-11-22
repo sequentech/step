@@ -146,13 +146,45 @@ const spanishTranslation = {
                 name: "Nombre",
                 alias: "Alias",
                 description: "Descripción",
-                startDate: "Fecha de inicio",
-                endDate: "Fecha de finalización",
+                startDateTime: "Fecha y hora de inicio",
+                endDateTime: "Fecha y hora de finalización",
                 language: "Idioma",
                 votingChannels: "Canales de Voto",
             },
+            error: {
+                endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
+            },
             createElectionEventSuccess: "Evento de Elección creado",
             createElectionEventError: "Error creando Evento de Elección",
+        },
+        electionScreen: {
+            common: {
+                subtitle: "Configuración de la elección.",
+            },
+            edit: {
+                general: "General",
+                dates: "Fechas",
+                language: "Idioma",
+                allowed: "Canales de Voto Permitidos",
+                default: "Por defecto",
+                receipts: "Comprobantes",
+                image: "Imagen",
+                advanced: "Configuración Avanzada",
+            },
+            field: {
+                name: "Nombre",
+                language: "Idioma",
+                votingChannels: "Canales de Voto",
+                startDateTime: "Fecha y hora de inicio",
+                endDateTime: "Fecha y hora de finalización",
+                alias: "Alias",
+                description: "Descripción",
+            },
+            error: {
+                endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
+            },
+            createElectionEventSuccess: "Creada la elección",
+            createElectionEventError: "Error CReando la elección",
         },
         common: {
             label: {
@@ -174,7 +206,7 @@ const spanishTranslation = {
         tenant: {
             createSuccess: "Cliente creado",
             createError: "Error creando cliente",
-        }
+        },
     },
 }
 

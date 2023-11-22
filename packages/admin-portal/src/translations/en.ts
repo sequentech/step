@@ -1,3 +1,4 @@
+import {NoDescription} from "./../../../ui-essentials/src/components/Candidate/__stories__/Candidate.stories"
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -142,10 +143,44 @@ const englishTranslation = {
             },
             field: {
                 name: "Name",
+                alias: "Alias",
+                description: "Description",
+                startDateTime: "Start Date and Time",
+                endDateTime: "End Date and Time",
+                language: "Language",
+                votingChannels: "Voting Channels",
+            },
+            error: {
+                endDate: "End date must be after start date",
+            },
+            createElectionEventSuccess: "Election Event created",
+            createElectionEventError: "Error creating election event",
+        },
+        electionScreen: {
+            common: {
+                subtitle: "Election configuration.",
+            },
+            edit: {
+                general: "General",
+                dates: "Dates",
+                language: "Language",
+                allowed: "Voting Channels Allowed",
+                default: "Default",
+                receipts: "Receipts",
+                image: "Image",
+                advanced: "Advanced Configuration",
+            },
+            field: {
+                name: "Name",
                 language: "Language",
                 votingChannels: "Voting Channels",
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
+                alias: "Alias",
+                description: "Description",
+            },
+            error: {
+                endDate: "End date must be after start date",
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
@@ -166,11 +201,19 @@ const englishTranslation = {
             message: {
                 delete: "Are you sure you want to delete this item?",
             },
+            language: {
+                es: "Spanish",
+                en: "English",
+            },
+            channel: {
+                online: "Online",
+                kiosk: "Kiosk",
+            }
         },
         tenant: {
             createSuccess: "Customer created",
             createError: "Error creating customer",
-        }
+        },
     },
 }
 
