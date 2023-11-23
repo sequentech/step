@@ -4,7 +4,7 @@
 import React from "react"
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
-import {sleep} from "@sequentech/ui-essentials"
+import {isNull, sleep} from "@sequentech/ui-essentials"
 
 const DEFAULT_TENANT = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
 
@@ -59,6 +59,15 @@ interface AuthContextValues {
      * Get Access Token
      */
     getAccessToken: () => string | undefined
+
+    /**
+     * Check whether the use has permissions for an action or data
+     * @param tenantId
+     * @param electionEventId
+     * @param role
+     * @returns
+     */
+    hasPermissions: (checkSuperAdmin: boolean, someTenantId: string | null, role: string) => boolean
 }
 
 /**
@@ -71,6 +80,7 @@ const defaultAuthContextValues: AuthContextValues = {
     logout: () => {},
     hasRole: (role) => false,
     getAccessToken: () => undefined,
+    hasPermissions: () => false,
 }
 
 /**
@@ -202,10 +212,31 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     const getAccessToken = () => keycloak.token
 
+    const hasPermissions = (
+        checkSuperAdmin: boolean,
+        someTenantId: string | null,
+        role: string
+    ): boolean => {
+        const isSuperAdmin = DEFAULT_TENANT === tenantId
+        const isValidTenant = tenantId === someTenantId
+        if (!((checkSuperAdmin && isSuperAdmin) || (!isNull(someTenantId) && isValidTenant))) {
+            return false
+        }
+        return hasRole(role)
+    }
+
     // Setup the context provider
     return (
         <AuthContext.Provider
-            value={{isAuthenticated, username, tenantId, logout, hasRole, getAccessToken}}
+            value={{
+                isAuthenticated,
+                username,
+                tenantId,
+                logout,
+                hasRole,
+                getAccessToken,
+                hasPermissions,
+            }}
         >
             {props.children}
         </AuthContext.Provider>

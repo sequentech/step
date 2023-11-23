@@ -7,7 +7,9 @@ export const getUsers = (fields: any) => {
     return gql`
         query getUsers(
             $tenant_id: String! = "${fields.tenant_id}"
-            $election_event_id: String = ${fields?.election_event_id? `"${fields?.election_event_id}"`: "null"}
+            $election_event_id: String = ${
+                fields?.election_event_id ? `"${fields?.election_event_id}"` : "null"
+            }
         ) {
             get_users(body: {
                 tenant_id: $tenant_id,

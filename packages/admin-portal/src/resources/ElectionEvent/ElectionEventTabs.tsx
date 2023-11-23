@@ -1,4 +1,4 @@
-import React from "react"
+import React, {useContext} from "react"
 import {TabbedShowLayout, TextField, useRecordContext} from "react-admin"
 import {Sequent_Backend_Election_Event} from "../../gql/graphql"
 import ElectionHeader from "../../components/ElectionHeader"
@@ -8,9 +8,12 @@ import {BarChart, ChartsContainer, ElectionStats, PieChart} from "./EditElection
 import {ReportDialog} from "../../components/ReportDialog"
 import {EditElectionEventAreas} from "./EditElectionEventAreas"
 import {EditElectionEventUsers} from "./EditElectionEventUsers"
+import {AuthContext} from "../../providers/AuthContextProvider"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const authContext = useContext(AuthContext)
+    const showVoters = authContext.hasPermissions(false, authContext.tenantId, "read-event-users")
 
     return (
         <>
@@ -30,9 +33,11 @@ export const ElectionEventTabs: React.FC = () => {
                 <TabbedShowLayout.Tab label="Data">
                     <EditElectionEventData />
                 </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Voters">
-                    <EditElectionEventUsers />
-                </TabbedShowLayout.Tab>
+                {showVoters ? (
+                    <TabbedShowLayout.Tab label="Voters">
+                        <EditElectionEventUsers />
+                    </TabbedShowLayout.Tab>
+                ) : null}
                 <TabbedShowLayout.Tab label="Areas">
                     <EditElectionEventAreas />
                 </TabbedShowLayout.Tab>

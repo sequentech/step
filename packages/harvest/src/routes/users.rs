@@ -42,7 +42,7 @@ pub async fn get_users(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec!["read-users".into()],
+        vec![required_perm],
     )?;
     let realm = match input.election_event_id {
         Some(election_event_id) =>  get_event_realm(&input.tenant_id, &election_event_id),
