@@ -97,7 +97,7 @@ function Step({variant, label, isSelected, isLast, index, warning, colorStep = f
 }
 
 interface BreadCrumbStepsProps {
-    variant: BreadCrumbStepsVariant
+    variant?: BreadCrumbStepsVariant
     labels: Array<string>
     selected: number
     warning?: boolean
