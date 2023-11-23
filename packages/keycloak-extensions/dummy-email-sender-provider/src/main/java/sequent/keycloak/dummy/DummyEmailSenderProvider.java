@@ -26,7 +26,7 @@ public class DummyEmailSenderProvider implements EmailSenderProvider {
     ) throws EmailException
     {
         log.infov(
-            "**Sending dummy email:\t- subject={0}\n\t- address={1}\n\t- textBody={2}\n\t- htmlBody={3}",
+            "**Sending dummy email**:\n\t- subject={0}\n\t- address={1}\n\t- textBody={2}\n\t- htmlBody={3}",
             subject,
             address,
             textBody,

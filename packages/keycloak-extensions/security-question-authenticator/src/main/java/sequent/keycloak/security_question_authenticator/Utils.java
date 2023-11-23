@@ -1,11 +1,7 @@
 package sequent.keycloak.security_question_authenticator;
 
 import org.keycloak.models.AuthenticatorConfigModel;
-import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.RealmModel;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.UserModel;
-import org.keycloak.sessions.AuthenticationSessionModel;
 import lombok.experimental.UtilityClass;
 import java.util.Optional;
 
@@ -18,7 +14,8 @@ public class Utils {
     final public String SECURITY_QUESTION_FORM = "security-question.ftl";
 
 
-	Optional<AuthenticatorConfigModel> getConfig(RealmModel realm) {
+	Optional<AuthenticatorConfigModel> getConfig(RealmModel realm)
+	{
 		// Using streams to find the first matching configuration
 		// TODO: We're assuming there's only one instance in this realm of this 
 		// authenticator

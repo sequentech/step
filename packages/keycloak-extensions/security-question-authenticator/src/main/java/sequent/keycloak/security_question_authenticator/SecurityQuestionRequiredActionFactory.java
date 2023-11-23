@@ -1,6 +1,5 @@
 package sequent.keycloak.security_question_authenticator;
 
-import sequent.keycloak.security_question_authenticator.SecurityQuestionRequiredAction;
 import com.google.auto.service.AutoService;
 import org.keycloak.Config;
 import org.keycloak.authentication.RequiredActionFactory;

@@ -8,11 +8,9 @@ import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
-import lombok.extern.jbosslog.JBossLog;
 
 import java.util.List;
 
-@JBossLog
 @AutoService(AuthenticatorFactory.class)
 public class ConditionalClientAuthenticatorFactory 
     implements ConditionalAuthenticatorFactory

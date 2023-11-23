@@ -8,11 +8,9 @@ import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
-import lombok.extern.jbosslog.JBossLog;
 
 import java.util.List;
 
-@JBossLog
 @AutoService(AuthenticatorFactory.class)
 public class ConditionalHasUserAttributeAuthenticatorFactory 
     implements ConditionalAuthenticatorFactory
@@ -28,7 +26,6 @@ public class ConditionalHasUserAttributeAuthenticatorFactory
 
     @Override
     public void init(Scope config) {
-        log.info("init()");
         // no-op
     }
 
@@ -64,7 +61,6 @@ public class ConditionalHasUserAttributeAuthenticatorFactory
 
     @Override
     public boolean isUserSetupAllowed() {
-        log.info("isUserSetupAllowed()");
         return false;
     }
 

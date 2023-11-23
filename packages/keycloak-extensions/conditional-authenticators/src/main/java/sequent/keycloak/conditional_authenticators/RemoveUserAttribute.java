@@ -19,7 +19,8 @@ public class RemoveUserAttribute
     public static final String CONF_USER_ATTRIBUTE = "userAttribute";
 
     @Override
-    public void authenticate(AuthenticationFlowContext context) {
+    public void authenticate(AuthenticationFlowContext context)
+    {
         log.info("authenticate()");
         UserModel user = context.getUser();
         if (user == null) {
