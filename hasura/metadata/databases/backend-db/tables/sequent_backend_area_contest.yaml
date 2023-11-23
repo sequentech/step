@@ -2,6 +2,12 @@ table:
   name: area_contest
   schema: sequent_backend
 object_relationships:
+- name: area
+  using:
+    foreign_key_constraint_on:
+    - area_id
+    - tenant_id
+    - election_event_id
 - name: contest
   using:
     manual_configuration:

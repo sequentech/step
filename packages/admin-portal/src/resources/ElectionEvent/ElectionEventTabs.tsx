@@ -1,11 +1,9 @@
 import React, {useContext} from "react"
-import {TabbedShowLayout, TextField, useRecordContext} from "react-admin"
+import {TabbedShowLayout, useRecordContext} from "react-admin"
 import {Sequent_Backend_Election_Event} from "../../gql/graphql"
 import ElectionHeader from "../../components/ElectionHeader"
-import {Box} from "@mui/material"
 import {EditElectionEventData} from "./EditElectionEventData"
-import {BarChart, ChartsContainer, ElectionStats, PieChart} from "./EditElectionEventDashboard"
-import {ReportDialog} from "../../components/ReportDialog"
+import DashboardElectionEvent from "../../components/election-event/Dashboard"
 import {EditElectionEventAreas} from "./EditElectionEventAreas"
 import {EditElectionEventUsers} from "./EditElectionEventUsers"
 import {AuthContext} from "../../providers/AuthContextProvider"
@@ -20,15 +18,7 @@ export const ElectionEventTabs: React.FC = () => {
             <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
             <TabbedShowLayout>
                 <TabbedShowLayout.Tab label="Dashboard">
-                    <Box sx={{padding: "16px"}}>
-                        <TextField source="name" fontSize="24px" fontWeight="bold" />
-                        <ElectionStats />
-                        <ChartsContainer>
-                            <BarChart />
-                            <PieChart />
-                        </ChartsContainer>
-                        <ReportDialog />
-                    </Box>
+                    <DashboardElectionEvent />
                 </TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label="Data">
                     <EditElectionEventData />
