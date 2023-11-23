@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, { createContext, useState } from "react"
 import {Menu, useSidebarState} from "react-admin"
 import {
     faUsers,
@@ -17,11 +17,56 @@ import {styled} from "@mui/material/styles"
 import SelectTenants from "./menu/items/SelectTenants"
 import ElectionEvents from "./menu/items/ElectionEvents"
 
+interface TenantContext {
+    tenantId: string | null
+    setTenantId: (tenantId: string | null) => void
+}
+
+const defaultTenantContext: TenantContext = {
+    tenantId: null,
+    setTenantId: () => undefined
+}
+
+export const TenantContext = createContext<TenantContext>(defaultTenantContext)
+
+interface TenantContextProviderProps {
+    /**
+     * The elements wrapped by the tenant context.
+     */
+    children: JSX.Element
+}
+
+
+const TenantContextProvider = (props: TenantContextProviderProps) => {
+    const [tenant, setTenant] = useState<string | null>(localStorage.getItem("selected-tenant-id"))
+
+    const setTenantId = (tenantId: string | null): void => {
+        localStorage.setItem("selected-tenant-id", tenantId || "")
+        setTenant(tenantId)
+    }
+
+    // Setup the context provider
+    return (
+        <TenantContext.Provider
+            value={{
+                tenantId: tenant,
+                setTenantId,
+            }}
+        >
+            {props.children}
+        </TenantContext.Provider>
+    )
+}
+
 export const useTenantStore: () => [string | null, (tenantId: string | null) => void] = () => {
-    return [
-        localStorage.getItem("selected-tenant-id"),
-        (tenantId: string | null) => localStorage.setItem("selected-tenant-id", tenantId || ""),
-    ]
+    const [tenant, setTenant] = useState<string | null>(localStorage.getItem("selected-tenant-id"))
+
+    const setTenantId = (tenantId: string | null): void => {
+        localStorage.setItem("selected-tenant-id", tenantId || "")
+        setTenant(tenantId)
+    }
+
+    return [tenant, setTenantId]
 }
 
 const StyledItem = styled(Menu.Item)`
