@@ -35,7 +35,7 @@ public class Utils {
 	public final String PASSWORD_EXPIRATION_SECONDS_DEFAULT = "7200";
 	public final String PASSWORD_EXPIRATION_USER_ATTRIBUTE = "passwordExpirationUserAttribute";
 	public final String PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT = "sequent.read-only.expirationDate";
-	public final String NEW_PASSWORD_EMAIL_FORMAT_KEY = "NewPasswordEmailSubject";
+	public final String NEW_PASSWORD_EMAIL_FORMAT_KEY = "newPassword.email.subject";
 	public final String NEW_PASSWORD_EMAIL_FTL = "forgot-password-send-new-password.ftl";
 	public final String NEW_PASSWORD_EMAIL_HTML_FTL = "forgot-password-send-new-password_html.ftl";
 
@@ -187,8 +187,13 @@ public class Utils {
     public static void sendNewPasswordNotification(
         KeycloakSession session,
         UserModel user,
-        String temporaryPassword
+        String temporaryPassword,
+		boolean simulationMode
     ) throws EmailException {
+		log.infov(
+			"sendNewPasswordNotification(): to user with email={0}",
+			user.getEmail()
+		);
         RealmModel realm = session.getContext().getRealm();
 		EmailTemplateProvider emailTemplateProvider =
 			session.getProvider(EmailTemplateProvider.class);
@@ -197,6 +202,16 @@ public class Utils {
 		Map<String, Object> bodyAttr = Maps.newHashMap();
 		bodyAttr.put("realmName", realmName);
 		bodyAttr.put("temporaryPassword", temporaryPassword);
+
+		// TODO: just let the emailTemplateProvider do the simulation
+		if (simulationMode) {
+			log.infov(
+				"***SIMULATION MODE** Sending new password notification:\nto={0}\ntemporaryPassword={1}",
+				user.getEmail(),
+				temporaryPassword
+			);
+			return;
+		}
 		emailTemplateProvider
 			.setRealm(realm)
 			.setUser(user)

@@ -1,7 +1,6 @@
 package sequent.keycloak.authenticator.forgot_password;
 
 import org.keycloak.models.DefaultActionTokenKey;
-import org.jboss.logging.Logger;
 import org.keycloak.Config;
 import org.keycloak.authentication.*;
 import org.keycloak.authentication.authenticators.broker.AbstractIdpAuthenticator;
@@ -170,11 +169,10 @@ public class ChooseUser implements Authenticator, AuthenticatorFactory {
         // we don't want people guessing usernames or emails, so if there is a
         // problem, just continue, but don't set the user a null user will
         // notify further executions, that this was a failure.
-        String userEmail = Utils.getEmail(config, user);
         if (
             user == null ||
             !Utils.constantTimeIsEqual(
-                userEmail.getBytes(),
+                Utils.getEmail(config, user).getBytes(),
                 reqEmail.getBytes()
             )
         ) {

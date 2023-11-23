@@ -2,12 +2,9 @@ package sequent.keycloak.authenticator.forgot_password;
 
 import org.keycloak.Config;
 import org.keycloak.authentication.*;
-import org.keycloak.authentication.actiontoken.resetcred.ResetCredentialsActionToken;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.common.util.Time;
-import org.keycloak.credential.*;
 import org.keycloak.email.EmailException;
-import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
@@ -15,28 +12,17 @@ import org.keycloak.events.EventType;
 import org.keycloak.models.*;
 import org.keycloak.models.utils.FormMessage;
 import org.keycloak.policy.PasswordPolicyManagerProvider;
-import org.keycloak.policy.PolicyError;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.services.ServicesLogger;
 import org.keycloak.services.messages.Messages;
-import org.keycloak.sessions.AuthenticationSessionCompoundId;
 import org.keycloak.sessions.AuthenticationSessionModel;
-import org.keycloak.theme.Theme;
 
 import com.google.auto.service.AutoService;
 import lombok.extern.jbosslog.JBossLog;
-import sequent.keycloak.authenticator.gateway.EmailServiceFactory;
 
 import java.security.SecureRandom;
 import java.util.*;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.UriBuilder;
-import java.util.concurrent.TimeUnit;
-
-/**
- * @author <a href="mailto:bill@burkecentral.com">Bill Burke</a>
- * @version $Revision: 1 $
- */
 
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
@@ -51,9 +37,9 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
         AuthenticatorConfigModel config = context.getAuthenticatorConfig();
         AuthenticationSessionModel authenticationSession = context
             .getAuthenticationSession();
-        String username = authenticationSession
+        String attemptedUsername = authenticationSession
             .getAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME);
-        String email = authenticationSession
+        String attemptedEmail = authenticationSession
             .getAuthNote(Utils.ATTEMPTED_EMAIL);
 
         // we don't want people guessing usernames, so if there was a problem
@@ -89,7 +75,7 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
         if (userEmail == null || userEmail.trim().length() == 0) {
             event
                 .user(user)
-                .detail(Details.USERNAME, username)
+                .detail(Details.USERNAME, attemptedUsername)
                 .error(Errors.INVALID_EMAIL);
 
             context.forkWithSuccessMessage(
@@ -116,20 +102,28 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
             expirationUserAttribute,
             String.valueOf(absoluteExpirationInSecs)
         );
+        // TODO: implement simulationMode directly in the emailservice provider
+        boolean simulationMode = true;
 
         // Send email with password
         try {
+            // TODO: FIXME: Always use user.getEmail() instead of a custom
+            // property. need to setEmail() here since it's used by
+            // Utils.sendNewPasswordNotification()
+            user.setEmail(userEmail);
+
             Utils.sendNewPasswordNotification(
                 context.getSession(),
                 user,
-                temporaryPassword
+                temporaryPassword,
+                simulationMode
             );
             event
                 .clone()
                 .event(EventType.SEND_RESET_PASSWORD)
                 .user(user)
-                .detail(Details.USERNAME, username)
-                .detail(Details.EMAIL, email)
+                .detail(Details.USERNAME, attemptedUsername)
+                .detail(Details.EMAIL, attemptedEmail)
                 .detail(
                     Details.CODE_ID,
                     authenticationSession.getParentSession().getId()
@@ -143,7 +137,7 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
             event
                 .clone()
                 .event(EventType.SEND_RESET_PASSWORD)
-                .detail(Details.USERNAME, username)
+                .detail(Details.USERNAME, attemptedUsername)
                 .user(user)
                 .error(Errors.EMAIL_SEND_FAILED);
             ServicesLogger.LOGGER.failedToSendPwdResetEmail(error);
@@ -220,7 +214,7 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
 
     @Override
     public String getDisplayType() {
-        return "Send Reset Email";
+        return "Send Forgot Password Email";
     }
 
     @Override
@@ -266,7 +260,7 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
             new ProviderConfigProperty(
 				Utils.PASSWORD_CHARS,
 				"Allowed password characters",
-				"List of characters used for generating the random password",ProviderConfigProperty.BOOLEAN_TYPE,
+				"List of characters used for generating the random password",ProviderConfigProperty.STRING_TYPE,
 				Utils.PASSWORD_CHARS_DEFAULT
 			),
             new ProviderConfigProperty(
