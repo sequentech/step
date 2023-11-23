@@ -105,6 +105,7 @@ impl TryFrom<&Row> for Board {
 }
 
 impl BoardClient {
+    #[instrument(skip(password))]
     pub async fn new(
         server_url: &str,
         username: &str,
@@ -119,6 +120,7 @@ impl BoardClient {
     }
 
     /// Get all messages whose id is bigger than `last_id`
+    #[instrument(skip(self))]
     pub async fn get_messages(
         &mut self,
         board_db: &str,
@@ -150,6 +152,7 @@ impl BoardClient {
         Ok(messages)
     }
 
+    #[instrument(skip(self, messages))]
     pub async fn insert_messages(
         &mut self,
         board_db: &str,
@@ -216,6 +219,7 @@ impl BoardClient {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub async fn get_boards(&mut self, index_db: &str) -> Result<Vec<Board>> {
         self.client.open_session(index_db).await?;
         let sql = format!(
@@ -240,6 +244,7 @@ impl BoardClient {
         Ok(boards)
     }
 
+    #[instrument(skip(self))]
     pub async fn get_board(&mut self, index_db: &str, board_db: &str) -> Result<Board> {
         self.client.use_database(index_db).await?;
         let message_sql = r#"
