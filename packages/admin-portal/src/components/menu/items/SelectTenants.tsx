@@ -17,10 +17,6 @@ const SelectTenants: React.FC = () => {
     const [tenantId, setTenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
-    useEffect(() => {
-        console.log(`FF 2 ${tenantId}`)
-    }, [tenantId])
-
     const {data, total} = useGetList("sequent_backend_tenant", {
         pagination: {page: 1, perPage: 10},
         sort: {field: "updated_at", order: "DESC"},
@@ -31,10 +27,7 @@ const SelectTenants: React.FC = () => {
         if (!tenantId && authContext.tenantId) {
             setTenantId(authContext.tenantId)
         }
-        if (data?.length === 1) {
-            setTenantId(data[0].id)
-        }
-    }, [data, tenantId, authContext.tenantId, setTenantId])
+    }, [tenantId, authContext.tenantId, setTenantId])
 
     const hasSingle = total === 1
 

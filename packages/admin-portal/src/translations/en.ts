@@ -227,6 +227,11 @@ const englishTranslation = {
                 kiosk: "Kiosk",
             },
         },
+        sideMenu: {
+            usersAndRoles: "Users and Roles",
+            settings: "Settings",
+            communicationTemplates: "Communication Templates",
+        },
     },
 }
 

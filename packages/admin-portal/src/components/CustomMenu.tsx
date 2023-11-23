@@ -16,6 +16,7 @@ import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import SelectTenants from "./menu/items/SelectTenants"
 import ElectionEvents from "./menu/items/ElectionEvents"
+import {useTranslation} from "react-i18next"
 
 const StyledItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -50,6 +51,7 @@ const MenuWrapper = styled(Box)`
 
 export const CustomMenu = () => {
     const [open, setOpen] = useSidebarState()
+    const {t} = useTranslation()
 
     return (
         <StyledMenu
@@ -111,17 +113,17 @@ export const CustomMenu = () => {
 
                 <StyledItem
                     to="/user-roles"
-                    primaryText={open ? "User and Roles" : null}
+                    primaryText={open ? t("sideMenu.usersAndRoles") : null}
                     leftIcon={<IconButton icon={faUsers} fontSize="24px" />}
                 />
                 <StyledItem
                     to="/settings"
-                    primaryText={open ? "Settings" : null}
+                    primaryText={open ? t("sideMenu.settings") : null}
                     leftIcon={<IconButton icon={faCog} fontSize="24px" />}
                 />
                 <StyledItem
                     to="/"
-                    primaryText={open && "Communication Templates"}
+                    primaryText={open && t("sideMenu.communicationTemplates")}
                     leftIcon={<IconButton icon={faEnvelope} fontSize="24px" />}
                 />
             </MenuWrapper>
