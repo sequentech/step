@@ -21,7 +21,7 @@ import {CircularProgress} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {isNull} from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router"
-import {useTenantStore} from "../../components/CustomMenu"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 interface IElectionSubmit {
     description: string

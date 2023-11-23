@@ -37,12 +37,12 @@ import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
 import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
 import {useMutation} from "@apollo/client"
-import {useTenantStore} from "../../components/CustomMenu"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {DropFile} from "@sequentech/ui-essentials"
 import {useFormState, useForm} from "react-hook-form"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 export const ElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()

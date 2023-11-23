@@ -39,10 +39,10 @@ import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
 import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
 import {useMutation} from "@apollo/client"
-import {useTenantStore} from "../../components/CustomMenu"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionHeaderStyles} from "../../components/styles/ElectionHeaderStyles"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 export const EditElectionEventAreasList: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()

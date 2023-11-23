@@ -15,7 +15,6 @@ import {
     useDelete,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {useTenantStore} from "../../components/CustomMenu"
 import {Drawer, IconButton, Typography, styled} from "@mui/material"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
@@ -28,6 +27,7 @@ import {faPen, faTrash} from "@fortawesome/free-solid-svg-icons"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
 const Filters: Array<ReactElement> = [

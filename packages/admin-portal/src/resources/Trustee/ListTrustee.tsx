@@ -4,8 +4,8 @@
 import React, {ReactElement} from "react"
 import {DatagridConfigurable, List, TextField, TextInput} from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 

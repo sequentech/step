@@ -17,13 +17,6 @@ import {styled} from "@mui/material/styles"
 import SelectTenants from "./menu/items/SelectTenants"
 import ElectionEvents from "./menu/items/ElectionEvents"
 
-export const useTenantStore: () => [string | null, (tenantId: string | null) => void] = () => {
-    return [
-        localStorage.getItem("selected-tenant-id"),
-        (tenantId: string | null) => localStorage.setItem("selected-tenant-id", tenantId || ""),
-    ]
-}
-
 const StyledItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
 

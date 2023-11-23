@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {NavLink} from "react-router-dom"
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import {ResourceOptions, ResourceDefinition, useResourceDefinitions, useGetList} from "react-admin"
 import {CircularProgress} from "@mui/material"
-import {useTenantStore} from "../../../CustomMenu"
 import {faAngleRight, faAngleDown} from "@fortawesome/free-solid-svg-icons"
 import {Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
+import {useTenantStore} from "../../../../providers/TenantContextProvider"
 
 interface Options extends ResourceOptions {
     isMenuParent?: boolean
@@ -36,6 +36,10 @@ function TreeLeaves({isOpen, resourceName, treeResources, filter}: TreeLeavesPro
             ...filter,
         },
     })
+
+    useEffect(() => {
+        console.log(`FF 1 ${tenantId}`)
+    }, [tenantId])
 
     if (isLoading) {
         return <CircularProgress />
