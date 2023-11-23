@@ -4,11 +4,13 @@ import {Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {useRecordContext} from "react-admin"
 import {AuthContext} from "../../providers/AuthContextProvider"
 import { IPermissions } from "sequent-core"
+import { useTenantStore } from "../../providers/TenantContextProvider"
 
 export const EditElectionEventUsers: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
-    const showUsers = authContext.isAuthorized(false, authContext.tenantId, IPermissions.VOTER_READ)
+    const [tenantId] = useTenantStore()
+    const showUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_READ)
 
     if (!showUsers) {
         return null

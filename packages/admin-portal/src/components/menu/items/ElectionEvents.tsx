@@ -16,6 +16,7 @@ import {HorizontalBox} from "../../HorizontalBox"
 import {Link} from "react-router-dom"
 import {FETCH_ELECTION_EVENTS_TREE} from "../../../queries/GetElectionEventsTree"
 import {useTenantStore} from "../../../providers/TenantContextProvider"
+import { IPermissions } from "sequent-core"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -126,6 +127,7 @@ export default function ElectionEvents() {
     const [isOpenSidebar] = useSidebarState()
     const [searchInput, setSearchInput] = useState<string>("")
     const [archivedElectionEvents, setArchivedElectionEvents] = useState(0)
+    const showAddElectionEvent = authContext.isAuthorized(true, tenantId, IPermissions.ELECTION_EVENT_CREATE)
 
     const isArchivedElectionEvents = archivedElectionEvents === 1
     function handleSearchChange(searchInput: string) {
@@ -173,9 +175,13 @@ export default function ElectionEvents() {
                         leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
                         sx={{flexGrow: 2}}
                     />
-                    <Link to="/sequent_backend_election_event/create">
-                        <StyledIconButton icon={faPlusCircle} size="xs" />
-                    </Link>
+                    {
+                        showAddElectionEvent
+                        ? <Link to="/sequent_backend_election_event/create">
+                            <StyledIconButton icon={faPlusCircle} size="xs" />
+                        </Link>
+                        : null
+                    }
                 </HorizontalBox>
                 {isOpenSidebar && isElectionEventActive && (
                     <>

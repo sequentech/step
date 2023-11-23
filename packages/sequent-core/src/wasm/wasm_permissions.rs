@@ -6,6 +6,9 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen(typescript_custom_section)]
 const IPERMISSIONS: &'static str = r#"
 enum IPermissions {
+    TENANT_CREATE = "tenant-create",
+    TENANT_READ = "tenant-read",
+    TENANT_WRITE = "tenant-write",
     ELECTION_EVENT_CREATE = "election-event-create",
     ELECTION_EVENT_READ = "election-event-read",
     ELECTION_EVENT_WRITE = "election-event-write",

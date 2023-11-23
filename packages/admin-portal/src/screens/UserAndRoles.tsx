@@ -6,11 +6,13 @@ import React, {useContext} from "react"
 import {ListUsers} from "../resources/User/ListUsers"
 import {AuthContext} from "../providers/AuthContextProvider"
 import { IPermissions } from "sequent-core"
+import { useTenantStore } from "../providers/TenantContextProvider"
 
 export const UserAndRoles: React.FC = () => {
     const authContext = useContext(AuthContext)
+    const [tenantId] = useTenantStore()
     
-    const showUsers = authContext.isAuthorized(false, authContext.tenantId, IPermissions.USER_READ)
+    const showUsers = authContext.isAuthorized(true, tenantId, IPermissions.USER_READ)
 
     return (
         <Box>

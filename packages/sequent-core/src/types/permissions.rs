@@ -17,6 +17,12 @@ use serde::{Deserialize, Serialize};
     EnumString,
 )]
 pub enum Permissions {
+    #[strum(serialize = "tenant-create")]
+    TENANT_CREATE,
+    #[strum(serialize = "tenant-read")]
+    TENANT_READ,
+    #[strum(serialize = "tenant-write")]
+    TENANT_WRITE,
     #[strum(serialize = "election-event-create")]
     ELECTION_EVENT_CREATE,
     #[strum(serialize = "election-event-read")]
