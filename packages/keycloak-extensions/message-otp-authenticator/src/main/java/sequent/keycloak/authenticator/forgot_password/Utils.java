@@ -35,9 +35,8 @@ public class Utils {
 	public final String PASSWORD_EXPIRATION_SECONDS_DEFAULT = "7200";
 	public final String PASSWORD_EXPIRATION_USER_ATTRIBUTE = "passwordExpirationUserAttribute";
 	public final String PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT = "sequent.read-only.expirationDate";
-	public final String NEW_PASSWORD_EMAIL_FORMAT_KEY = "newPassword.email.subject";
+	public final String NEW_PASSWORD_EMAIL_SUBJECT = "newPassword.email.subject";
 	public final String NEW_PASSWORD_EMAIL_FTL = "forgot-password-send-new-password.ftl";
-	public final String NEW_PASSWORD_EMAIL_HTML_FTL = "forgot-password-send-new-password_html.ftl";
 
 	String getEmail(AuthenticatorConfigModel config, UserModel user)
 	{
@@ -202,23 +201,13 @@ public class Utils {
 		Map<String, Object> bodyAttr = Maps.newHashMap();
 		bodyAttr.put("realmName", realmName);
 		bodyAttr.put("temporaryPassword", temporaryPassword);
-
-		// TODO: just let the emailTemplateProvider do the simulation
-		if (simulationMode) {
-			log.infov(
-				"***SIMULATION MODE** Sending new password notification:\nto={0}\ntemporaryPassword={1}",
-				user.getEmail(),
-				temporaryPassword
-			);
-			return;
-		}
 		emailTemplateProvider
 			.setRealm(realm)
 			.setUser(user)
 			.setAttribute("realmName", realmName)
 			.send(
-				Utils.NEW_PASSWORD_EMAIL_FORMAT_KEY,
-				subjAttr, 
+				Utils.NEW_PASSWORD_EMAIL_SUBJECT,
+				subjAttr,
 				Utils.NEW_PASSWORD_EMAIL_FTL,
 				bodyAttr
 			);

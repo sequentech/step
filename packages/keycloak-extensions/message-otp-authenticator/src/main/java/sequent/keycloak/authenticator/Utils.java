@@ -1,19 +1,26 @@
 package sequent.keycloak.authenticator;
 
 import org.keycloak.common.util.SecretGenerator;
+import org.keycloak.email.EmailTemplateProvider;
+import org.keycloak.email.EmailException;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
+
 import lombok.extern.jbosslog.JBossLog;
 
 import lombok.experimental.UtilityClass;
-import sequent.keycloak.authenticator.gateway.EmailServiceFactory;
 import sequent.keycloak.authenticator.gateway.SmsServiceFactory;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Map;
@@ -21,13 +28,15 @@ import java.util.Map;
 @UtilityClass
 @JBossLog
 public class Utils {
-	public String CODE = "code";
-	public String CODE_LENGTH = "length";
-	public String CODE_TTL = "ttl";
-	public String SENDER_ID = "senderId";
-	public String SIMULATION_MODE = "simulation";
-	public String TEL_USER_ATTRIBUTE = "telUserAttribute";
-	public String EMAIL_USER_ATTRIBUTE = "emailUserAttribute";
+	public final String CODE = "code";
+	public final String CODE_LENGTH = "length";
+	public final String CODE_TTL = "ttl";
+	public final String SENDER_ID = "senderId";
+	public final String SIMULATION_MODE = "simulation";
+	public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
+	public final String EMAIL_USER_ATTRIBUTE = "emailUserAttribute";
+	public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
+	public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
 
 	/**
 	 * Sends code and also sets the auth notes related to the code
@@ -37,7 +46,7 @@ public class Utils {
 		KeycloakSession session,
 		UserModel user,
 		AuthenticationSessionModel authSession
-	) throws IOException
+	) throws IOException, EmailException
 	{
 		log.info("sendCode()");
 		Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
@@ -73,31 +82,24 @@ public class Utils {
 				.send(mobileNumber, smsText);
 		}
 		if (emailAddress != null) {
-			String emailAuthTitle = theme
-				.getMessages(locale)
-				.getProperty("emailAuthTitle");
-			String emailTitle = String
-				.format(emailAuthTitle, code, Math.floorDiv(ttl, 60));
-
-			String emailAuthBody = theme
-				.getMessages(locale)
-				.getProperty("emailAuthBody");
-			String emailBody = String
-				.format(emailAuthBody, code, Math.floorDiv(ttl, 60));
-
-			String emailAuthHtmlBody = theme
-				.getMessages(locale)
-				.getProperty("emailAuthHtmlBody");
-			String emailHtmlBody = String
-				.format(emailAuthHtmlBody, code, Math.floorDiv(ttl, 60));
-
-			EmailServiceFactory
-				.get(config.getConfig())
+			EmailTemplateProvider emailTemplateProvider =
+				session.getProvider(EmailTemplateProvider.class);
+			RealmModel realm = authSession.getRealm();
+			String realmName = getRealmName(realm);
+			List<Object> subjAttr = ImmutableList.of(realmName);
+			Map<String, Object> bodyAttr = Maps.newHashMap();
+			bodyAttr.put("realmName", realmName);
+			bodyAttr.put("code", code);
+			bodyAttr.put("ttl", Math.floorDiv(ttl, 60));
+			emailTemplateProvider
+				.setRealm(realm)
+				.setUser(user)
+				.setAttribute("realmName", realmName)
 				.send(
-					emailAddress,
-					emailTitle,
-					emailBody,
-					emailHtmlBody
+					Utils.SEND_CODE_EMAIL_SUBJECT,
+					subjAttr, 
+					Utils.SEND_CODE_EMAIL_FTL,
+					bodyAttr
 				);
 		}
 	}
@@ -207,4 +209,13 @@ public class Utils {
 		}
 		return result == 0;
 	}
+
+
+    public static String getRealmName(RealmModel realm)
+    {
+        return Strings.isNullOrEmpty(realm.getDisplayName())
+            ? realm.getName()
+            : realm.getDisplayName();
+    }
+
 }
