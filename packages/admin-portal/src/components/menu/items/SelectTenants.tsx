@@ -8,9 +8,9 @@ import {faThLarge, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {IconButton} from "@sequentech/ui-essentials"
 import {MenuItem, Select, SelectChangeEvent} from "@mui/material"
 import {Link} from "react-router-dom"
-import {useTenantStore} from "../../CustomMenu"
 import {cn} from "../../../lib/utils"
 import {AuthContext} from "../../../providers/AuthContextProvider"
+import {useTenantStore} from "../../../providers/TenantContextProvider"
 
 const SelectTenants: React.FC = () => {
     const [open] = useSidebarState()

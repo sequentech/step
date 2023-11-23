@@ -11,6 +11,7 @@ import {ThemeProvider} from "@mui/material"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {fullAdminTheme} from "./services/AdminTheme"
+import {TenantContextProvider} from "./providers/TenantContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -19,9 +20,11 @@ SequentCoreLibInit().then(set_hooks)
 root.render(
     <React.StrictMode>
         <AuthContextProvider>
-            <ThemeProvider theme={fullAdminTheme}>
-                <AppWrapper />
-            </ThemeProvider>
+            <TenantContextProvider>
+                <ThemeProvider theme={fullAdminTheme}>
+                    <AppWrapper />
+                </ThemeProvider>
+            </TenantContextProvider>
         </AuthContextProvider>
     </React.StrictMode>
 )

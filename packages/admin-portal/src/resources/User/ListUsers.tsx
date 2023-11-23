@@ -15,9 +15,9 @@ import {
     TopToolbar,
     BooleanField,
 } from "react-admin"
-import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 const OMIT_FIELDS: Array<string> = []
 

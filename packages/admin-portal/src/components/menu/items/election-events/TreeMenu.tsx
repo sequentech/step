@@ -6,10 +6,10 @@ import {NavLink} from "react-router-dom"
 import React, {useEffect, useState} from "react"
 import {ResourceOptions, ResourceDefinition, useResourceDefinitions, useGetList} from "react-admin"
 import {CircularProgress} from "@mui/material"
-import {useTenantStore} from "../../../CustomMenu"
 import {faAngleRight, faAngleDown} from "@fortawesome/free-solid-svg-icons"
 import {Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
+import {useTenantStore} from "../../../../providers/TenantContextProvider"
 
 interface Options extends ResourceOptions {
     isMenuParent?: boolean
