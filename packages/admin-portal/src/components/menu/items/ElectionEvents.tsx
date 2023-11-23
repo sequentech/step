@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useState} from "react"
-
 import {useQuery} from "@apollo/client"
 import {useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
@@ -16,6 +15,7 @@ import {cn} from "../../../lib/utils"
 import {HorizontalBox} from "../../HorizontalBox"
 import {Link} from "react-router-dom"
 import {FETCH_ELECTION_EVENTS_TREE} from "../../../queries/get-election-events-tree"
+import {useTenantStore} from "../../../providers/TenantContextProvider"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -122,7 +122,7 @@ function filterTree(tree: any, filterName: string): any {
 }
 
 export default function ElectionEvents() {
-    // const [tenantId] = useTenantStore()
+    const [tenantId] = useTenantStore()
     const [isOpenSidebar] = useSidebarState()
     const [searchInput, setSearchInput] = useState<string>("")
     const [archivedElectionEvents, setArchivedElectionEvents] = useState(0)
@@ -142,7 +142,7 @@ export default function ElectionEvents() {
 
     const {data, loading} = useQuery(FETCH_ELECTION_EVENTS_TREE, {
         variables: {
-            // tenantId: tenantId,
+            tenantId: tenantId,
             isArchived: isArchivedElectionEvents,
         },
     })

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect} from "react"
-import {useSidebarState, useGetList, useRefresh} from "react-admin"
+import {useGetList, useRefresh} from "react-admin"
 import {faThLarge, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {IconButton} from "@sequentech/ui-essentials"
 import {MenuItem, Select, SelectChangeEvent} from "@mui/material"
@@ -13,16 +13,15 @@ import {AuthContext} from "../../../providers/AuthContextProvider"
 import {useTenantStore} from "../../../providers/TenantContextProvider"
 
 const SelectTenants: React.FC = () => {
-    const [open] = useSidebarState()
-    const [tenantId, setTenantId] = useTenantStore()
     const refresh = useRefresh()
+    const [tenantId, setTenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
     useEffect(() => {
         console.log(`FF 2 ${tenantId}`)
     }, [tenantId])
 
-    const {data, total, isLoading, error} = useGetList("sequent_backend_tenant", {
+    const {data, total} = useGetList("sequent_backend_tenant", {
         pagination: {page: 1, perPage: 10},
         sort: {field: "updated_at", order: "DESC"},
         filter: {is_active: true},
