@@ -13,5 +13,8 @@ pub mod wasm_interpret_plaintext;
 #[cfg(feature = "wasm")]
 pub mod wasm_permissions;
 
+#[cfg(feature = "wasm")]
+pub mod wasm_keycloak;
+
 #[cfg(feature = "wasmtest")]
 pub mod test;
