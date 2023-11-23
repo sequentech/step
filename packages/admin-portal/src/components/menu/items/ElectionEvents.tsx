@@ -14,7 +14,7 @@ import {faThLarge, faSearch, faPlusCircle} from "@fortawesome/free-solid-svg-ico
 import {cn} from "../../../lib/utils"
 import {HorizontalBox} from "../../HorizontalBox"
 import {Link} from "react-router-dom"
-import {FETCH_ELECTION_EVENTS_TREE} from "../../../queries/get-election-events-tree"
+import {FETCH_ELECTION_EVENTS_TREE} from "../../../queries/GetElectionEventsTree"
 import {useTenantStore} from "../../../providers/TenantContextProvider"
 
 export type ResourceName =
