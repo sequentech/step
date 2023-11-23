@@ -18,24 +18,6 @@ import {HorizontalBox} from "../../HorizontalBox"
 import {Link} from "react-router-dom"
 import {FETCH_ELECTION_EVENTS_TREE} from "../../../queries/get-election-events-tree"
 
-const MenuItem = styled(Menu.Item)`
-    color: ${adminTheme.palette.brandColor};
-
-    &.RaMenuItemLink-active,
-    .MuiIconButton-root {
-        color: ${adminTheme.palette.brandColor};
-    }
-`
-
-const StyledIconButton = styled(IconButton)`
-    &:hover {
-        padding: unset !important;
-    }
-    margin-right: 16px;
-    font-size: 1rem;
-    line-height: 1.5rem;
-`
-
 export type ResourceName =
     | "sequent_backend_election_event"
     | "sequent_backend_election"
@@ -89,6 +71,35 @@ export interface ElectionEventsTree {
     is_archived: boolean
     elections: Array<ElectionTree>
 }
+
+type BaseType = {__typename: ResourceName; id: string; name: string}
+
+type CandidateType = BaseType & {__typename: "sequent_backend_candidate"}
+
+type ContestType = BaseType & {
+    __typename: "sequent_backend_contest"
+    candidates: Array<CandidateType>
+}
+
+type ElectionType = BaseType & {
+    __typename: "sequent_backend_election"
+    contests: Array<ContestType>
+}
+
+type ElectionEventType = BaseType & {
+    __typename: "sequent_backend_election_event"
+    is_archived: boolean
+    elections: Array<ElectionType>
+}
+
+export type DynEntityType = {
+    electionEvents?: ElectionEventType[]
+    elections?: ElectionType[]
+    contests?: ContestType[]
+    candidates?: CandidateType[]
+}
+
+export type DataTreeMenuType = BaseType | CandidateType | ElectionType | ElectionEventType
 
 function filterTree(tree: any, filterName: string): any {
     if (Array.isArray(tree)) {
@@ -186,3 +197,21 @@ export default function ElectionEvents() {
         </>
     )
 }
+
+const MenuItem = styled(Menu.Item)`
+    color: ${adminTheme.palette.brandColor};
+
+    &.RaMenuItemLink-active,
+    .MuiIconButton-root {
+        color: ${adminTheme.palette.brandColor};
+    }
+`
+
+const StyledIconButton = styled(IconButton)`
+    &:hover {
+        padding: unset !important;
+    }
+    margin-right: 16px;
+    font-size: 1rem;
+    line-height: 1.5rem;
+`

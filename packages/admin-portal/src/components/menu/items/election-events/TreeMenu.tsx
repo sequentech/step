@@ -18,10 +18,10 @@ import {
 import {adminTheme, Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
 import styled from "@emotion/styled"
-import {ElectionEventsTree, mapDataChildren, ResourceName} from "../ElectionEvents"
+import {mapDataChildren, ResourceName, DataTreeMenuType, DynEntityType} from "../ElectionEvents"
 
 interface TreeLeavesProps {
-    data: any
+    data: DynEntityType
     treeResourceNames: string[]
 }
 
@@ -30,7 +30,7 @@ function TreeLeaves({data, treeResourceNames}: TreeLeavesProps) {
         <div className="bg-white">
             <div className="flex flex-col ml-3">
                 {data?.[mapDataChildren(treeResourceNames[0] as ResourceName)]?.map(
-                    (resource: any) => {
+                    (resource: DataTreeMenuType) => {
                         return (
                             <TreeMenuItem
                                 key={resource.id}
@@ -48,7 +48,7 @@ function TreeLeaves({data, treeResourceNames}: TreeLeavesProps) {
 }
 
 interface TreeMenuItemProps {
-    resource: any
+    resource: DataTreeMenuType
     id: string
     name: string
     treeResourceNames: string[]
@@ -76,10 +76,10 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
     const nextResourceName = subTreeResourceNames[0] ?? null
     const hasNext = !!nextResourceName
 
-    let data: Partial<Record<ResourceName, (typeof resource)[ResourceName]>> = {}
+    let data: DynEntityType = {}
     if (hasNext) {
         const key = mapDataChildren(subTreeResourceNames[0] as ResourceName)
-        data[key as ResourceName] = resource[key]
+        data[key] = (resource as any)[key]
     }
 
     const menuItemRef = useRef(null)
@@ -206,7 +206,7 @@ export function TreeMenu({
     isArchivedElectionEvents,
     onArchiveElectionEventsSelect,
 }: {
-    data: {electionEvents: ElectionEventsTree}
+    data: DynEntityType
     treeResourceNames: string[]
     isArchivedElectionEvents: boolean
     onArchiveElectionEventsSelect: (val: number) => void
