@@ -1,4 +1,3 @@
-import {NoDescription} from "./../../../ui-essentials/src/components/Candidate/__stories__/Candidate.stories"
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -232,8 +231,8 @@ const englishTranslation = {
                 description: "Description",
             },
             error: {},
-            createElectionEventSuccess: "Election Event created",
-            createElectionEventError: "Error creating election event",
+            createCandidateSuccess: "Candidate created",
+            createCandidateError: "Error creating candidate",
         },
     },
 }

@@ -31,12 +31,13 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
 import {useMutation} from "@apollo/client"
-import {useTenantStore} from "../../components/CustomMenu"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {DropFile} from "@sequentech/ui-essentials"
 import {useForm} from "react-hook-form"
 import { CandidateStyles } from '../../components/styles/CandidateStyles'
+import { useTenantStore } from '../../providers/TenantContextProvider'
+import { CANDIDATE_TYPES } from './constants'
 
 export const CandidateDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Candidate>()
@@ -223,7 +224,7 @@ export const CandidateDataForm: React.FC = () => {
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-
+                                <SelectInput source="type" choices={CANDIDATE_TYPES} />
                             </AccordionDetails>
                         </Accordion>
 

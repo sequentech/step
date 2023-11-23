@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-// import {TranslationType} from "./en"
+import {TranslationType} from "./en"
 
-const spanishTranslation = {
+const spanishTranslation: TranslationType = {
     translations: {
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
@@ -187,7 +187,7 @@ const spanishTranslation = {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
             },
             createElectionEventSuccess: "Creada la elección",
-            createElectionEventError: "Error CReando la elección",
+            createElectionEventError: "Error Creando la elección",
         },
         common: {
             label: {
@@ -205,10 +205,36 @@ const spanishTranslation = {
             message: {
                 delete: "¿Estás seguro de que quieres eliminar este elemento?",
             },
+            language: {
+                es: "Español",
+                en: "Ingles",
+            },
+            channel: {
+                online: "Online",
+                kiosk: "Kiosko",
+            },
         },
         tenant: {
             createSuccess: "Cliente creado",
             createError: "Error creando cliente",
+        },
+        candidateScreen: {
+            common: {
+                subtitle: "Configuración de candidatos.",
+            },
+            edit: {
+                general: "General",
+                type: "Tipo",
+                image: "Imagen",
+            },
+            field: {
+                name: "Nombre",
+                alias: "Alias",
+                description: "Descripción",
+            },
+            error: {},
+            createCandidateSuccess: "Candidato creado",
+            createCandidateError: "Error creating candidato",
         },
     },
 }
