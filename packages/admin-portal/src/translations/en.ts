@@ -132,7 +132,11 @@ const englishTranslation = {
             createAreaError: "Could not create Area",
         },
         electionEventScreen: {
+            new: {
+                subtitle: "Create Election Event",
+            },
             common: {
+                title: "Election Event",
                 subtitle: "Election event configuration.",
             },
             edit: {
@@ -188,6 +192,16 @@ const englishTranslation = {
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
         },
+        tenantScreen: {
+            common: {
+                title: "Client",
+            },
+            new: {
+                subtitle: "Create Client",
+            },
+            createSuccess: "Customer created",
+            createError: "Error creating customer",
+        },
         common: {
             label: {
                 add: "Add",
@@ -212,10 +226,6 @@ const englishTranslation = {
                 online: "Online",
                 kiosk: "Kiosk",
             },
-        },
-        tenant: {
-            createSuccess: "Customer created",
-            createError: "Error creating customer",
         },
     },
 }

@@ -34,13 +34,13 @@ export const CreateTenant: React.FC = () => {
         }
         if (isLoading && error && !isOneLoading) {
             setIsLoading(false)
-            notify(t("tenant.createError"), {type: "error"})
+            notify(t("tenantScreen.createError"), {type: "error"})
             refresh()
             return
         }
         if (isLoading && !error && !isOneLoading && newTenant) {
             setIsLoading(false)
-            notify(t("tenant.createSuccess"), {type: "success"})
+            notify(t("tenantScreen.createSuccess"), {type: "success"})
             refresh()
             navigate(`/sequent_backend_tenant/${newId}`)
         }
@@ -57,15 +57,15 @@ export const CreateTenant: React.FC = () => {
             setNewId(data?.insertTenant?.id)
             setIsLoading(true)
         } else {
-            notify(t("tenant.createError"), {type: "error"})
+            notify(t("tenantScreen.createError"), {type: "error"})
             setIsLoading(false)
         }
     }
     return (
         <Create>
             <SimpleForm onSubmit={onSubmit}>
-                <Typography variant="h4">Customer</Typography>
-                <Typography variant="body2">Customer creation</Typography>
+                <Typography variant="h4">{t("tenantScreen.common.title")}</Typography>
+                <Typography variant="body2">{t("tenantScreen.new.subtitle")}</Typography>
                 <TextInput source="slug" />
                 {isLoading ? <CircularProgress /> : null}
             </SimpleForm>
