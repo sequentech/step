@@ -1,20 +1,13 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use strum_macros::{Display, EnumString};
-use serde::{Deserialize, Serialize};
 
 #[allow(non_camel_case_types)]
 #[derive(
-    Display,
-    Serialize,
-    Deserialize,
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    EnumString,
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
 )]
 pub enum Permissions {
     #[strum(serialize = "tenant-create")]

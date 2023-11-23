@@ -18,3 +18,12 @@ pub struct User {
     pub last_name: Option<String>,
     pub username: Option<String>,
 }
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct Permission {
+    pub id: Option<String>,
+    pub attributes: Option<HashMap<String, Value>>,
+    pub container_id: Option<String>,
+    pub description: Option<String>,
+    pub name: Option<String>,
+}

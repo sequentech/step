@@ -8,12 +8,12 @@ use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks;
-use sequent_core::types::permissions::Permissions;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTenantInput {

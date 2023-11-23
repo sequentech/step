@@ -10,13 +10,11 @@ use std::collections::HashMap;
 use tracing::instrument;
 use uuid::Uuid;
 
-pub fn get_event_realm(tenant_id: &str, election_event_id: &str)
--> String {
+pub fn get_event_realm(tenant_id: &str, election_event_id: &str) -> String {
     format!("tenant-{}-event-{}", tenant_id, election_event_id)
 }
 
-pub fn get_tenant_realm(tenant_id: &str)
--> String {
+pub fn get_tenant_realm(tenant_id: &str) -> String {
     format!("tenant-{}", tenant_id)
 }
 

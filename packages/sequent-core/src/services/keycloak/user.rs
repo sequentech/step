@@ -6,7 +6,7 @@ use crate::types::keycloak::*;
 use anyhow::{anyhow, Result};
 use keycloak::types::UserRepresentation;
 use std::convert::From;
-use tracing::{Level, event, instrument};
+use tracing::{event, instrument, Level};
 
 impl From<UserRepresentation> for User {
     fn from(item: UserRepresentation) -> Self {
@@ -37,19 +37,35 @@ impl KeycloakAdminClient {
         let user_representations: Vec<UserRepresentation> = self
             .client
             .realm_users_get(
-                realm.clone(), None, email.clone(), None, None, None, offset.clone(), None, None, None,
-                None, limit.clone(), None, search.clone(), None,
+                realm.clone(),
+                None,
+                email.clone(),
+                None,
+                None,
+                None,
+                offset.clone(),
+                None,
+                None,
+                None,
+                None,
+                limit.clone(),
+                None,
+                search.clone(),
+                None,
             )
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         let count: i32 = self
             .client
             .realm_users_count_get(
-                realm, email, None, None, None, None, search, None
+                realm, email, None, None, None, None, search, None,
             )
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
-        let users = user_representations.into_iter().map(|user| user.into()).collect();
+        let users = user_representations
+            .into_iter()
+            .map(|user| user.into())
+            .collect();
         Ok((users, count))
     }
 }
