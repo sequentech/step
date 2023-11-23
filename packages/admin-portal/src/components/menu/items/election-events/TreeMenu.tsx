@@ -18,23 +18,7 @@ import {
 import {adminTheme, Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
 import styled from "@emotion/styled"
-import {ElectionEventsTree} from "../ElectionEvents"
-
-type ResourceName =
-    | "sequent_backend_election_event"
-    | "sequent_backend_election"
-    | "sequent_backend_contest"
-    | "sequent_backend_candidate"
-
-function mapDataChildren(key: ResourceName): string {
-    const map = {
-        sequent_backend_election_event: "electionEvents",
-        sequent_backend_election: "elections",
-        sequent_backend_contest: "contests",
-        sequent_backend_candidate: "candidates",
-    }
-    return map[key]
-}
+import {ElectionEventsTree, mapDataChildren, ResourceName} from "../ElectionEvents"
 
 interface TreeLeavesProps {
     data: any
@@ -105,11 +89,8 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
         setAnchorEl(menuItemRef.current)
     }
 
-    function handleAction(action: Action, payload: ActionPayload) {
-        console.log(
-            "LS -> src/components/menu/items/election-events/TreeMenu.tsx:115 -> payload: ",
-            payload
-        )
+    function handleAction(_action: Action, _payload: ActionPayload) {
+        // TODO
     }
 
     const handleCloseActionMenu = () => {

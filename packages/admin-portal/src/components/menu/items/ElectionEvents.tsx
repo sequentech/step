@@ -36,11 +36,36 @@ const StyledIconButton = styled(IconButton)`
     line-height: 1.5rem;
 `
 
-const treeResourceNames = [
+export type ResourceName =
+    | "sequent_backend_election_event"
+    | "sequent_backend_election"
+    | "sequent_backend_contest"
+    | "sequent_backend_candidate"
+
+export type EntityFieldName = "electionEvents" | "elections" | "contests" | "candidates"
+
+export function mapDataChildren(key: ResourceName): EntityFieldName {
+    const map: Record<ResourceName, EntityFieldName> = {
+        sequent_backend_election_event: "electionEvents",
+        sequent_backend_election: "elections",
+        sequent_backend_contest: "contests",
+        sequent_backend_candidate: "candidates",
+    }
+    return map[key]
+}
+
+const TREE_RESOURCE_NAMES: Array<ResourceName> = [
     "sequent_backend_election_event",
     "sequent_backend_election",
     "sequent_backend_contest",
     "sequent_backend_candidate",
+]
+
+const ENTITY_FIELD_NAMES: Array<EntityFieldName> = [
+    "electionEvents",
+    "elections",
+    "contests",
+    "candidates",
 ]
 
 export interface CandidatesTree {
@@ -50,19 +75,19 @@ export interface CandidatesTree {
 export interface ContestTree {
     id: string
     name: string
-    candidates: CandidatesTree[]
+    candidates: Array<CandidatesTree>
 }
 export interface ElectionTree {
     id: string
     name: string
-    contests: ContestTree[]
+    contests: Array<ContestTree>
 }
 
 export interface ElectionEventsTree {
     id: string
     name: string
     is_archived: boolean
-    elections: ElectionTree[]
+    elections: Array<ElectionTree>
 }
 
 function filterTree(tree: any, filterName: string): any {
@@ -72,7 +97,7 @@ function filterTree(tree: any, filterName: string): any {
         for (let key in tree) {
             if (tree.name?.toLowerCase().search(filterName.toLowerCase()) > -1) {
                 return tree
-            } else if (["electionEvents", "elections", "contests", "candidates"].includes(key)) {
+            } else if (ENTITY_FIELD_NAMES.includes(key as EntityFieldName)) {
                 let filteredSubTree = filterTree(tree[key], filterName)
                 if (filteredSubTree.length > 0) {
                     let filteredObj = {...tree}
@@ -101,7 +126,7 @@ export default function ElectionEvents() {
     }
 
     const location = useLocation()
-    const isElectionEventActive = treeResourceNames.some(
+    const isElectionEventActive = TREE_RESOURCE_NAMES.some(
         (route) => location.pathname.search(route) > -1
     )
 
@@ -122,7 +147,7 @@ export default function ElectionEvents() {
     ) : (
         <TreeMenu
             data={resultData}
-            treeResourceNames={treeResourceNames}
+            treeResourceNames={TREE_RESOURCE_NAMES}
             isArchivedElectionEvents={isArchivedElectionEvents}
             onArchiveElectionEventsSelect={changeArchiveSelection}
         />
