@@ -16,7 +16,7 @@ import {ChipList} from "../../components/ChipList"
 import {CreateElectionList} from "./CreateElectionEvent"
 import ElectionHeader from "../../components/ElectionHeader"
 import {ListActions} from "../../components/ListActions"
-import {useTenantStore} from "../../components/CustomMenu"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 const OMIT_FIELDS = ["id", "sequent_backend_area", "is_archived", "is_audit", "public_key"]
 

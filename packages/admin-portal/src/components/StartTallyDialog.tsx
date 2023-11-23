@@ -26,7 +26,7 @@ import {styled} from "@mui/material/styles"
 import {useMutation} from "@apollo/client"
 import {CREATE_SCHEDULED_EVENT} from "../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../services/ScheduledEvent"
-import {useTenantStore} from "./CustomMenu"
+import {useTenantStore} from "../providers/TenantContextProvider"
 
 const Horizontal = styled(Box)`
     display: flex;

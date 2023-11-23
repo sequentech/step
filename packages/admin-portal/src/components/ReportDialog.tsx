@@ -4,7 +4,7 @@
 import React, {useEffect, useState} from "react"
 import {Dialog, downloadUrl} from "@sequentech/ui-essentials"
 import {Button, MenuItem, Select, TextField, Typography} from "@mui/material"
-import {useTenantStore} from "./CustomMenu"
+import {useTenantStore} from "../providers/TenantContextProvider"
 import {
     CreateScheduledEventMutation,
     FetchDocumentQuery,

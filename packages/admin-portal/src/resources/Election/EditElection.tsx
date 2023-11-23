@@ -23,12 +23,12 @@ import {IconButton} from "@sequentech/ui-essentials"
 import {CreateScheduledEventMutation, Sequent_Backend_Election} from "../../gql/graphql"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import {useMutation} from "@apollo/client"
-import {useTenantStore} from "../../components/CustomMenu"
 import {IVotingStatus, getVotingStatus} from "../../services/ElectionStatus"
 import {CircularProgress} from "@mui/material"
 import {useRefresh} from "react-admin"
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 const ElectionForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
