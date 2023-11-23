@@ -1,6 +1,6 @@
 import React from "react"
 import {Box} from "@mui/material"
-import {TextField} from "react-admin"
+
 import {
     BarChart,
     ChartsContainer,
@@ -14,16 +14,12 @@ export default function DashboardElectionEvent() {
     return (
         <>
             <Box sx={{padding: "16px"}}>
-                <Box sx={{padding: "12px 0"}}>
-                    <BreadCrumbSteps
-                        labels={["created", "keys", "publish", "started", "ended", "results"]}
-                        selected={1}
-                        variant={BreadCrumbStepsVariant.Circle}
-                        colorPreviousSteps={true}
-                    />
-                </Box>
-
-                <TextField source="name" fontSize="24px" fontWeight="bold" />
+                <BreadCrumbSteps
+                    labels={["created", "keys", "publish", "started", "ended", "results"]}
+                    selected={1}
+                    variant={BreadCrumbStepsVariant.Circle}
+                    colorPreviousSteps={true}
+                />
 
                 <ElectionStats />
 
