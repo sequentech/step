@@ -37,12 +37,12 @@ import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../../services/ScheduledEvent"
 import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
 import {useMutation} from "@apollo/client"
-import {useTenantStore} from "../../components/CustomMenu"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {DropFile} from "@sequentech/ui-essentials"
 import {useFormState, useForm} from "react-hook-form"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 export const ElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -57,11 +57,10 @@ export const ElectionDataForm: React.FC = () => {
     const [showProgress, setShowProgress] = useState(false)
     const [showCreateKeysDialog, setShowCreateKeysDialog] = useState(false)
     const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)
-    
+
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
     const [defaultLangValue, setDefaultLangValue] = useState<string>("")
-
 
     const {data} = useGetOne("sequent_backend_election_event", {
         id: record.election_event_id,
@@ -238,17 +237,17 @@ export const ElectionDataForm: React.FC = () => {
 
     const renderLangs = (parsedValue: any) => {
         let langNodes = []
-            for (const lang in parsedValue?.enabled_languages) {
-                langNodes.push(
-                    <BooleanInput
-                        key={lang}
-                        source={`enabled_languages.${lang}`}
-                        label={t(`common.language.${lang}`)}
-                        helperText={false}
-                    />
-                )
-            }
-            return <div style={{marginTop: "46px"}}>{langNodes}</div>
+        for (const lang in parsedValue?.enabled_languages) {
+            langNodes.push(
+                <BooleanInput
+                    key={lang}
+                    source={`enabled_languages.${lang}`}
+                    label={t(`common.language.${lang}`)}
+                    helperText={false}
+                />
+            )
+        }
+        return <div style={{marginTop: "46px"}}>{langNodes}</div>
     }
 
     const renderDefaultLangs = (parsedValue: any) => {
@@ -256,13 +255,7 @@ export const ElectionDataForm: React.FC = () => {
         for (const lang in parsedValue?.enabled_languages) {
             langNodes.push({id: lang, name: t(`electionScreen.edit.default`)})
         }
-        return (
-            <RadioButtonGroupInput
-                source="defaultLanguage"
-                choices={langNodes}
-                row={true}
-            />
-        )
+        return <RadioButtonGroupInput source="defaultLanguage" choices={langNodes} row={true} />
     }
 
     const renderVotingChannels = (parsedValue: any) => {

@@ -6,12 +6,12 @@ import React, {useState} from "react"
 import {NumberField, ReferenceField, Show, TextField, useRecordContext} from "react-admin"
 import {ListDocument} from "./ListDocument"
 import {JsonField} from "react-admin-json-view"
-import {useTenantStore} from "../../components/CustomMenu"
 import {useQuery} from "@apollo/client"
 import {FetchDocumentQuery, Sequent_Backend_Document} from "../../gql/graphql"
 import {FETCH_DOCUMENT} from "../../queries/FetchDocument"
 import {CircularProgress} from "@mui/material"
 import {downloadUrl} from "@sequentech/ui-essentials"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 interface PerformDownloadProps {
     onDownload: () => void

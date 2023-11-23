@@ -4,9 +4,7 @@
 import {gql} from "@apollo/client"
 
 export const INSERT_ELECTION_EVENT = gql`
-    mutation CreateElectionEvent(
-        $electionEvent: CreateElectionEventInput!
-    ) {
+    mutation CreateElectionEvent($electionEvent: CreateElectionEventInput!) {
         insertElectionEvent(object: $electionEvent) {
             id
         }

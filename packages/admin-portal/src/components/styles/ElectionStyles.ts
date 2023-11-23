@@ -4,10 +4,10 @@ import styled from "@emotion/styled"
 
 export const ElectionStyles = {
     Wrapper: styled.div`
-    display: flex;
-    flex-direction: column;
-    padding: var(--2, 16px);
-    align-items: left;
+        display: flex;
+        flex-direction: column;
+        padding: var(--2, 16px);
+        align-items: left;
     `,
     AccordionContainer: styled.div`
         display: flex;
@@ -18,7 +18,8 @@ export const ElectionStyles = {
         display: grid;
         grid-template-columns: 1fr 1fr;
         justify-content: space-between;
-        align-items: ${({alignment = "start"} : {alignment?: 'center' | 'start' | 'end'}) => (alignment)};
+        align-items: ${({alignment = "start"}: {alignment?: "center" | "start" | "end"}) =>
+            alignment};
     `,
     Title: styled.div`
         color: rgba(0, 0, 0, 0.87);

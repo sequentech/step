@@ -19,11 +19,11 @@ import {ChipList} from "../../components/ChipList"
 import {CreateElectionList} from "./CreateElectionEvent"
 import ElectionHeader from "../../components/ElectionHeader"
 import {ListActions} from "../../components/ListActions"
-import {useTenantStore} from "../../components/CustomMenu"
 import {Link, useNavigate} from "react-router-dom"
 import {Button} from "@mui/material"
 import {IconButton} from "@sequentech/ui-essentials"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 const OMIT_FIELDS = ["id", "sequent_backend_area", "is_archived", "is_audit", "public_key"]
 

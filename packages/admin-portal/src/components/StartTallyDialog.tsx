@@ -26,7 +26,7 @@ import {styled} from "@mui/material/styles"
 import {useMutation} from "@apollo/client"
 import {CREATE_SCHEDULED_EVENT} from "../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../services/ScheduledEvent"
-import {useTenantStore} from "./CustomMenu"
+import {useTenantStore} from "../providers/TenantContextProvider"
 
 const Horizontal = styled(Box)`
     display: flex;
@@ -160,11 +160,11 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
     const clickHandler = async (val: boolean) => {
         if (val) {
             try {
-                setTimeout(function() {
+                setTimeout(function () {
                     setShowProgress(false)
                     handleClose(true)
-                    downloadUrl("/report.pdf", "report.pdf");
-                }, 5000);
+                    downloadUrl("/report.pdf", "report.pdf")
+                }, 5000)
                 await startTally()
             } catch (error) {
                 console.log(`Error trying to start tally: ${error}`)

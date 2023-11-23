@@ -154,6 +154,9 @@ const spanishTranslation = {
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
             },
+            voters: {
+                title: "Votantes",
+            },
             createElectionEventSuccess: "Evento de Elección creado",
             createElectionEventError: "Error creando Evento de Elección",
         },

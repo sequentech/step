@@ -16,11 +16,6 @@ import {Box} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import SelectTenants from "./menu/items/SelectTenants"
 import ElectionEvents from "./menu/items/ElectionEvents"
-import {useLocalStorage} from "@uidotdev/usehooks"
-
-export function useTenantStore() {
-    return useLocalStorage("selected-tenant-id")
-}
 
 const StyledItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};

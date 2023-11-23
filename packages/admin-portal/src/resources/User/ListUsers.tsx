@@ -13,47 +13,45 @@ import {
     ExportButton,
     SelectColumnsButton,
     TopToolbar,
+    BooleanField,
 } from "react-admin"
 import {Typography} from "@mui/material"
+import {useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 
-const OMIT_FIELDS = ["audit_type", "class", "dbname", "session", "user"]
+const OMIT_FIELDS: Array<string> = []
 
-export interface PgAuditListProps {
+export interface ListUsersProps {
     aside?: ReactElement
+    electionEventId?: string
 }
 
-export const PgAuditList: React.FC<PgAuditListProps> = ({aside}) => {
+export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) => {
     const [tenantId] = useTenantStore()
+    const {t} = useTranslation()
 
     return (
         <>
-            <Typography variant="h5">PG Audit</Typography>
+            <Typography variant="h5">{t("electionEventScreen.voters.title")}</Typography>
             <List
+                resource="user"
                 actions={
                     <TopToolbar>
                         <SelectColumnsButton />
                         <ExportButton />
                     </TopToolbar>
                 }
-                filter={{tenant_id: tenantId || undefined}}
+                filter={{tenant_id: tenantId, election_event_id: electionEventId}}
                 aside={aside}
             >
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                     <NumberField source="id" />
-                    <TextField source="audit_type" />
-                    <TextField source="class" />
-                    <TextField source="command" />
-                    <TextField source="dbname" />
-                    <FunctionField
-                        source="server_timestamp"
-                        render={(record: any) =>
-                            new Date(record.server_timestamp / 1000).toUTCString()
-                        }
-                    />
-                    <TextField source="session_id" />
-                    <TextField source="statement" />
-                    <TextField source="user" />
+                    <TextField source="email" />
+                    <BooleanField source="email_verified" />
+                    <BooleanField source="enabled" />
+                    <TextField source="first_name" />
+                    <TextField source="last_name" />
+                    <TextField source="username" />
                 </DatagridConfigurable>
             </List>
         </>
