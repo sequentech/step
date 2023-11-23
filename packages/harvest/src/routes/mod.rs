@@ -8,5 +8,6 @@ pub mod immudb_log_audit;
 pub mod insert_election_event;
 pub mod insert_tenant;
 pub mod permissions;
+pub mod roles;
 pub mod scheduled_event;
 pub mod users;

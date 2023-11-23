@@ -27,3 +27,13 @@ pub struct Permission {
     pub description: Option<String>,
     pub name: Option<String>,
 }
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct Role {
+    pub id: Option<String>,
+    pub name: Option<String>,
+    pub permissions: Option<Vec<String>>,
+    pub access: Option<HashMap<String, Value>>,
+    pub attributes: Option<HashMap<String, Value>>,
+    pub client_roles: Option<HashMap<String, Value>>,
+}
