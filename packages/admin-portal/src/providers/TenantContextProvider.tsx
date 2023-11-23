@@ -25,7 +25,7 @@ interface TenantContextProviderProps {
 
 export const TenantContextProvider = (props: TenantContextProviderProps) => {
     const [tenant, setTenant] = useState<string | null>(
-        localStorage.getItem("selected-tenant-id") || DEFAULT_TENANT
+        localStorage.getItem("selected-tenant-id") || null
     )
 
     const setTenantId = (tenantId: string | null): void => {

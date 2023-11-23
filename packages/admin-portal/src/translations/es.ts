@@ -230,6 +230,11 @@ const spanishTranslation: TranslationType = {
                 kiosk: "Kiosco",
             },
         },
+        sideMenu: {
+            usersAndRoles: "Usuarios y Roles",
+            settings: "Configuracion",
+            communicationTemplates: "Plantillas de Comunicación",
+        },
     },
 }
 
