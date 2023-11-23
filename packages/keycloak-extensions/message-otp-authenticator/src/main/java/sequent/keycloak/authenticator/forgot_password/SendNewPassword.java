@@ -103,7 +103,7 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
             String.valueOf(absoluteExpirationInSecs)
         );
         // TODO: implement simulationMode directly in the emailservice provider
-        boolean simulationMode = true;
+        boolean simulationMode = false;
 
         // Send email with password
         try {
