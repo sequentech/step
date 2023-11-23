@@ -24,6 +24,12 @@ type Query {
 }
 
 type Query {
+  get_roles (
+    body: GetRolesInput!
+  ): GetRolesOutput!
+}
+
+type Query {
   get_users (
     body: GetUsersInput!
   ): GetUsersOutput!
@@ -108,6 +114,13 @@ input GetUsersInput {
 }
 
 input GetPermissionsInput {
+  tenant_id : String!
+  search : String
+  limit : Int
+  offset : Int
+}
+
+input GetRolesInput {
   tenant_id : String!
   search : String
   limit : Int
@@ -215,5 +228,19 @@ type KeycloakPermission {
   container_id : String
   description : String
   name : String
+}
+
+type GetRolesOutput {
+  items : [KeycloakRole!]!
+  total : TotalAggregate!
+}
+
+type KeycloakRole {
+  id : String
+  name : String
+  permissions : jsonb
+  access : jsonb
+  attributes : jsonb
+  client_roles : jsonb
 }
 
