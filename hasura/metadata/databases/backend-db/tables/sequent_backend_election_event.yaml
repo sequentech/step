@@ -1,6 +1,14 @@
 table:
   name: election_event
   schema: sequent_backend
+array_relationships:
+- name: elections
+  using:
+    foreign_key_constraint_on:
+      column: election_event_id
+      table:
+        name: election
+        schema: sequent_backend
 insert_permissions:
 - comment: ""
   permission:
