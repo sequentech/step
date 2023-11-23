@@ -11,7 +11,7 @@ pub mod wasm_plaintext;
 pub mod wasm_interpret_plaintext;
 
 #[cfg(feature = "wasm")]
-pub mod wasm_election_event;
+pub mod wasm_permissions;
 
 #[cfg(feature = "wasmtest")]
 pub mod test;

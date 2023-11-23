@@ -13,6 +13,7 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks;
+use sequent_core::types::permissions::Permissions;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTenantInput {
@@ -31,7 +32,7 @@ pub async fn insert_tenant(
     body: Json<CreateTenantInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateTenantOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec!["create-tenant".into()])?;
+    authorize(&claims, true, None, vec![Permissions::TENANT_CREATE])?;
 
     let celery_app = get_celery_app().await;
     // always set an id;

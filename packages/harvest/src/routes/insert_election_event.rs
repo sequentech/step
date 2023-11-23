@@ -15,6 +15,7 @@ use uuid::Uuid;
 use windmill::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::insert_election_event;
+use sequent_core::types::permissions::Permissions;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct CreateElectionEventOutput {
@@ -27,7 +28,7 @@ pub async fn insert_election_event_f(
     body: Json<InsertElectionEventInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateElectionEventOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec!["create-election-event".into()])?;
+    authorize(&claims, true, None, vec![Permissions::ELECTION_EVENT_CREATE])?;
     let celery_app = get_celery_app().await;
     // always set an id;
     let object = body.into_inner().clone();

@@ -15,6 +15,7 @@ use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::User;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
+use sequent_core::types::permissions::Permissions;
 
 #[derive(Deserialize, Debug)]
 pub struct GetUsersBody {
@@ -33,10 +34,10 @@ pub async fn get_users(
     body: Json<GetUsersBody>,
 ) -> Result<Json<DataList<User>>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: String = if input.election_event_id.is_some() {
-        "read-event-users".into()
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_READ
     } else {
-        "read-users".into()
+        Permissions::USER_READ
     };
     authorize(
         &claims,
