@@ -4,7 +4,7 @@ import {Sequent_Backend_Election_Event} from "../../gql/graphql"
 import ElectionHeader from "../../components/ElectionHeader"
 import {EditElectionEventData} from "./EditElectionEventData"
 import {EditElectionEventAreas} from "./EditElectionEventAreas"
-import DashboardElectionEvent from "../../components/election-event/dashboard"
+import DashboardElectionEvent from "../../components/election-event/Dashboard"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
