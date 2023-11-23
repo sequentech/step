@@ -15,7 +15,14 @@ export default function DashboardElectionEvent() {
         <>
             <Box sx={{padding: "16px"}}>
                 <BreadCrumbSteps
-                    labels={["created", "keys", "publish", "started", "ended", "results"]}
+                    labels={[
+                        "electionEventBreadcrumbSteps.created",
+                        "electionEventBreadcrumbSteps.keys",
+                        "electionEventBreadcrumbSteps.publish",
+                        "electionEventBreadcrumbSteps.started",
+                        "electionEventBreadcrumbSteps.ended",
+                        "electionEventBreadcrumbSteps.results",
+                    ]}
                     selected={1}
                     variant={BreadCrumbStepsVariant.Circle}
                     colorPreviousSteps={true}
