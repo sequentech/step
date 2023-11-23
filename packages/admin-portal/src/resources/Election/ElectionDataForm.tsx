@@ -67,13 +67,20 @@ export const ElectionDataForm: React.FC = () => {
     })
 
     const buildLanguageSettings = () => {
+        console.log("data :>> ", data)
         const tempSettings = data?.presentation?.language_conf?.enabled_language_codes
+
+        console.log("tempSettings :>> ", tempSettings)
+
         const temp = []
-        for (const item of tempSettings) {
-            const enabled_item: any = {}
-            enabled_item[item] = true
-            temp.push(enabled_item)
+        if (tempSettings) {
+            for (const item of tempSettings) {
+                const enabled_item: any = {}
+                enabled_item[item] = true
+                temp.push(enabled_item)
+            }
         }
+
         return temp
     }
 
@@ -229,7 +236,7 @@ export const ElectionDataForm: React.FC = () => {
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
-        if (values?.dates?.end_date <= values?.dates?.start_date) {
+        if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
             errors.dates.end_date = t("electionEventScreen.error.endDate")
         }
         return errors

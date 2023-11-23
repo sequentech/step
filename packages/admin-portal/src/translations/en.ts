@@ -217,6 +217,24 @@ const englishTranslation = {
             createSuccess: "Customer created",
             createError: "Error creating customer",
         },
+        candidateScreen: {
+            common: {
+                subtitle: "Candidate configuration.",
+            },
+            edit: {
+                general: "General",
+                type: "Type",
+                image: "Image",
+            },
+            field: {
+                name: "Name",
+                alias: "Alias",
+                description: "Description",
+            },
+            error: {},
+            createElectionEventSuccess: "Election Event created",
+            createElectionEventError: "Error creating election event",
+        },
     },
 }
 
