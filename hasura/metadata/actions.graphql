@@ -18,6 +18,12 @@ type Query {
 }
 
 type Query {
+  get_permissions (
+    body: GetPermissionsInput!
+  ): GetPermissionsOutput!
+}
+
+type Query {
   get_users (
     body: GetUsersInput!
   ): GetUsersOutput!
@@ -97,6 +103,13 @@ input GetUsersInput {
   election_event_id : String
   search : String
   email : String
+  limit : Int
+  offset : Int
+}
+
+input GetPermissionsInput {
+  tenant_id : String!
+  search : String
   limit : Int
   offset : Int
 }
@@ -189,5 +202,18 @@ type KeycloakUser {
 type GetUsersOutput {
   items : [KeycloakUser!]!
   total : TotalAggregate!
+}
+
+type GetPermissionsOutput {
+  items : [KeycloakPermission!]!
+  total : TotalAggregate!
+}
+
+type KeycloakPermission {
+  id : String
+  attributes : jsonb
+  container_id : String
+  description : String
+  name : String
 }
 

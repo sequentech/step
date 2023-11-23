@@ -38,6 +38,18 @@ actions:
   permissions:
   - role: admin-user
   comment: fetch document
+- name: get_permissions
+  definition:
+    kind: ""
+    handler: http://harvest:8400/get-permissions
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.body}}'
+      template_engine: Kriti
+      version: 2
+  comment: list permissions
 - name: get_users
   definition:
     kind: ""
@@ -125,6 +137,7 @@ custom_types:
   - name: SampleInput
   - name: CreateElectionEventInput
   - name: GetUsersInput
+  - name: GetPermissionsInput
   objects:
   - name: TemplateOutput
   - name: FetchDocumentOutput
@@ -140,4 +153,6 @@ custom_types:
   - name: InsertTenantOutput
   - name: KeycloakUser
   - name: GetUsersOutput
+  - name: GetPermissionsOutput
+  - name: KeycloakPermission
   scalars: []

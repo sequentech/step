@@ -6,8 +6,8 @@ array_relationships:
   using:
     manual_configuration:
       column_mapping:
-        id: contest_id
         election_event_id: election_event_id
+        id: contest_id
         tenant_id: tenant_id
       insertion_order: null
       remote_table:
