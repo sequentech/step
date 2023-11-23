@@ -217,6 +217,9 @@ services:
       - ./keycloak/quarkus.properties:/opt/keycloak/conf/quarkus.properties
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
+    #
+    # We are doing the same to configure the dummy sms sender provider
+    #
     # More info here: https://www.keycloak.org/server/configuration-provider
     entrypoint: >
       /opt/keycloak/bin/kc.sh start-dev
@@ -227,6 +230,9 @@ services:
       --spi-email-sender-provider=dummy
       --spi-email-sender-dummy-enabled=true
       --spi-email-sender-default-enabled=false
+      --spi-sms-sender-provider=dummy
+      --spi-sms-sender-dummy-enabled=true
+      --spi-sms-sender-aws-enabled=false
       --import-realm
     depends_on:
       postgres_keycloak:

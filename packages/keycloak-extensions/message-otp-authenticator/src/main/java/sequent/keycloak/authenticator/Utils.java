@@ -17,7 +17,8 @@ import com.google.common.collect.Maps;
 import lombok.extern.jbosslog.JBossLog;
 
 import lombok.experimental.UtilityClass;
-import sequent.keycloak.authenticator.gateway.SmsServiceFactory;
+import sequent.keycloak.authenticator.gateway.AwsSmsSenderProvider;
+import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 
 import java.io.IOException;
 import java.util.List;
@@ -71,17 +72,20 @@ public class Utils {
 
 		Locale locale = session.getContext().resolveLocale(user);
 
-		if (mobileNumber != null) {
+		if (mobileNumber != null)
+		{
 			String smsAuthText = theme
 				.getMessages(locale)
 				.getProperty("smsAuthText");
 			String smsText = String
 				.format(smsAuthText, code, Math.floorDiv(ttl, 60));
-			SmsServiceFactory
-				.get(config.getConfig())
-				.send(mobileNumber, smsText);
+			SmsSenderProvider smsSenderProvider = 
+				session.getProvider(SmsSenderProvider.class);
+			
+			smsSenderProvider.send(mobileNumber, smsText);
 		}
-		if (emailAddress != null) {
+		if (emailAddress != null)
+		{
 			EmailTemplateProvider emailTemplateProvider =
 				session.getProvider(EmailTemplateProvider.class);
 			RealmModel realm = authSession.getRealm();

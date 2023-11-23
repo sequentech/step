@@ -2,22 +2,21 @@ package sequent.keycloak.authenticator.gateway;
 
 import software.amazon.awssdk.services.sns.SnsClient;
 import software.amazon.awssdk.services.sns.model.MessageAttributeValue;
-
 import java.util.HashMap;
 import java.util.Map;
 
-public class AwsSmsService implements SmsService {
+public class AwsSmsSenderProvider implements SmsSenderProvider {
 
 	private static final SnsClient sns = SnsClient.create();
-
 	private final String senderId;
 
-	AwsSmsService(Map<String, String> config) {
-		senderId = config.get("senderId");
+	AwsSmsSenderProvider(String senderId) {
+		this.senderId = senderId;
 	}
 
 	@Override
-	public void send(String phoneNumber, String message) {
+	public void send(String phoneNumber, String message)
+	{
 		Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
 		messageAttributes.put(
 			"AWS.SNS.SMS.SenderID",
@@ -41,5 +40,9 @@ public class AwsSmsService implements SmsService {
 			.phoneNumber(phoneNumber)
 			.messageAttributes(messageAttributes)
 		);
+	}
+
+	@Override
+	public void close() {
 	}
 }
