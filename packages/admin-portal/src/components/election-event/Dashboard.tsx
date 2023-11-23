@@ -8,7 +8,7 @@ import {
     PieChart,
 } from "../../resources/ElectionEvent/EditElectionEventDashboard"
 import {ReportDialog} from "../ReportDialog"
-import {BreadCrumbSteps} from "@sequentech/ui-essentials"
+import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 
 export default function DashboardElectionEvent() {
     return (
@@ -16,12 +16,10 @@ export default function DashboardElectionEvent() {
             <Box sx={{padding: "16px"}}>
                 <Box sx={{padding: "12px 0"}}>
                     <BreadCrumbSteps
-                        labels={[
-                            "breadcrumbSteps.import",
-                            "breadcrumbSteps.verify",
-                            "breadcrumbSteps.finish",
-                        ]}
+                        labels={["created", "keys", "publish", "started", "ended", "results"]}
                         selected={1}
+                        variant={BreadCrumbStepsVariant.Circle}
+                        colorPreviousSteps={true}
                     />
                 </Box>
 
