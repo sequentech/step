@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // import {TranslationType} from "./en"
 
-const spanishTranslation = {
+import {TranslationType} from "./en"
+
+const spanishTranslation: TranslationType = {
     translations: {
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
@@ -133,7 +135,11 @@ const spanishTranslation = {
             createAreaError: "Error creando área",
         },
         electionEventScreen: {
+            new: {
+                subtitle: "Crear Evento Electoral",
+            },
             common: {
+                title: "Evento Electoral",
                 subtitle: "Configuración del Evento de Elección.",
             },
             edit: {
@@ -187,7 +193,17 @@ const spanishTranslation = {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
             },
             createElectionEventSuccess: "Creada la elección",
-            createElectionEventError: "Error CReando la elección",
+            createElectionEventError: "Error Creando la elección",
+        },
+        tenantScreen: {
+            common: {
+                title: "Cliente",
+            },
+            new: {
+                subtitle: "Crear Cliente",
+            },
+            createSuccess: "Cliente creado",
+            createError: "Error creando cliente",
         },
         common: {
             label: {
@@ -205,10 +221,19 @@ const spanishTranslation = {
             message: {
                 delete: "¿Estás seguro de que quieres eliminar este elemento?",
             },
+            language: {
+                es: "Español",
+                en: "Inglés",
+            },
+            channel: {
+                online: "En línea",
+                kiosk: "Kiosco",
+            },
         },
-        tenant: {
-            createSuccess: "Cliente creado",
-            createError: "Error creando cliente",
+        sideMenu: {
+            usersAndRoles: "Usuarios y Roles",
+            settings: "Configuracion",
+            communicationTemplates: "Plantillas de Comunicación",
         },
     },
 }

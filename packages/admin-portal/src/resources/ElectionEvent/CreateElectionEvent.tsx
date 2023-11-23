@@ -17,11 +17,16 @@ import {
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
-import {CircularProgress} from "@mui/material"
+import {Box, CircularProgress, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {isNull} from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router"
 import {useTenantStore} from "../../providers/TenantContextProvider"
+import {styled} from "@mui/material/styles"
+
+const Hidden = styled(Box)`
+    display: none;
+`
 
 interface IElectionSubmit {
     description: string
@@ -91,65 +96,69 @@ export const CreateElectionList: React.FC = () => {
     }
     return (
         <SimpleForm defaultValues={postDefaultValues} onSubmit={handleSubmit}>
+            <Typography variant="h4">{t("electionEventScreen.common.title")}</Typography>
+            <Typography variant="body2">{t("electionEventScreen.new.subtitle")}</Typography>
             <TextInput source="description" />
             <TextInput source="name" />
             <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />
-            <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
-                <SelectInput optionText="slug" />
-            </ReferenceInput>
-            <BooleanInput source="is_archived" defaultValue={false} />
-            <JsonInput
-                source="labels"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="presentation"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="voting_channels"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="voting_channels"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="dates"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <TextInput source="user_boards" />
-            <TextInput source="audit_election_event_id" />
+            <Hidden>
+                <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
+                    <SelectInput optionText="slug" defaultValue={tenantId} />
+                </ReferenceInput>
+                <BooleanInput source="is_archived" defaultValue={false} />
+                <JsonInput
+                    source="labels"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="presentation"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="voting_channels"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="voting_channels"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="dates"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <TextInput source="user_boards" />
+                <TextInput source="audit_election_event_id" />
+            </Hidden>
             {isLoading ? <CircularProgress /> : null}
         </SimpleForm>
     )
