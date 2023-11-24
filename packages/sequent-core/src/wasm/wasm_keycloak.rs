@@ -43,7 +43,7 @@ extern "C" {
 
 #[wasm_bindgen(typescript_custom_section)]
 const IROLE: &'static str = r#"
-pub struct IRole {
+interface IRole {
     id?: string;
     name?: string;
     permissions?: Array<string>;

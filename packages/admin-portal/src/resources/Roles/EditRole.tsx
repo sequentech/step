@@ -6,6 +6,7 @@ import {Edit, Identifier, useListContext} from "react-admin"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import ElectionHeader from "../../components/ElectionHeader"
 import {useTranslation} from "react-i18next"
+import {IRole} from "sequent-core"
 
 interface EditRoleProps {
     id?: Identifier | undefined
@@ -18,7 +19,7 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close}) => {
     if (isLoading || !data) {
         return null
     }
-    let role = data?.find((element) => element.id === id)
+    let role: IRole | undefined = data?.find((element) => element.id === id)
 
     return (
         <PageHeaderStyles.Wrapper>
