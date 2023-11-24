@@ -4,13 +4,15 @@
 import React from "react"
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
-import {sleep} from "@sequentech/ui-essentials"
+import {isNull, sleep} from "@sequentech/ui-essentials"
+
+export const DEFAULT_TENANT = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
 
 /**
  * KeycloakConfig configures the connection to the Keycloak server.
  */
 const keycloakConfig: KeycloakConfig = {
-    realm: "electoral-process",
+    realm: `tenant-${DEFAULT_TENANT}`,
     clientId: "admin-portal",
     url: "http://127.0.0.1:8090/",
 }
@@ -42,6 +44,10 @@ interface AuthContextValues {
      */
     username: string
     /**
+     * The tenant id of the authenticated user
+     */
+    tenantId: string
+    /**
      * Function to initiate the logout
      */
     logout: () => void
@@ -53,6 +59,15 @@ interface AuthContextValues {
      * Get Access Token
      */
     getAccessToken: () => string | undefined
+
+    /**
+     * Check whether the use has permissions for an action or data
+     * @param tenantId
+     * @param electionEventId
+     * @param role
+     * @returns
+     */
+    hasPermissions: (checkSuperAdmin: boolean, someTenantId: string | null, role: string) => boolean
 }
 
 /**
@@ -61,9 +76,11 @@ interface AuthContextValues {
 const defaultAuthContextValues: AuthContextValues = {
     isAuthenticated: false,
     username: "",
+    tenantId: "",
     logout: () => {},
     hasRole: (role) => false,
     getAccessToken: () => undefined,
+    hasPermissions: () => false,
 }
 
 /**
@@ -93,6 +110,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
     // Local state that will contain the users name once it is loaded
     const [username, setUsername] = useState<string>("")
+    const [tenantId, setTenantId] = useState<string>("")
     const sleepSecs = 50
     const bufferSecs = 10
 
@@ -158,6 +176,12 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 } else if (profile.username) {
                     setUsername(profile.username)
                 }
+                const newTenantId: string | undefined = (profile as any)?.attributes[
+                    "tenant-id"
+                ]?.[0]
+                if (newTenantId) {
+                    setTenantId(newTenantId)
+                }
             } catch {
                 console.log("error trying to load the users profile")
             }
@@ -188,9 +212,32 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     const getAccessToken = () => keycloak.token
 
+    const hasPermissions = (
+        checkSuperAdmin: boolean,
+        someTenantId: string | null,
+        role: string
+    ): boolean => {
+        const isSuperAdmin = DEFAULT_TENANT === tenantId
+        const isValidTenant = tenantId === someTenantId
+        if (!((checkSuperAdmin && isSuperAdmin) || (!isNull(someTenantId) && isValidTenant))) {
+            return false
+        }
+        return hasRole(role)
+    }
+
     // Setup the context provider
     return (
-        <AuthContext.Provider value={{isAuthenticated, username, logout, hasRole, getAccessToken}}>
+        <AuthContext.Provider
+            value={{
+                isAuthenticated,
+                username,
+                tenantId,
+                logout,
+                hasRole,
+                getAccessToken,
+                hasPermissions,
+            }}
+        >
             {props.children}
         </AuthContext.Provider>
     )

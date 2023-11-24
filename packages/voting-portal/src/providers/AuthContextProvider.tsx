@@ -9,8 +9,8 @@ import {createContext, useEffect, useState} from "react"
  * KeycloakConfig configures the connection to the Keycloak server.
  */
 const keycloakConfig: KeycloakConfig = {
-    realm: "electoral-process",
-    clientId: "frontend",
+    realm: "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559",
+    clientId: "voting-portal",
     url: "http://127.0.0.1:8090/",
 }
 

@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // import {TranslationType} from "./en"
 
-const spanishTranslation = {
+import {TranslationType} from "./en"
+
+const spanishTranslation: TranslationType = {
     translations: {
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
@@ -126,12 +128,18 @@ const spanishTranslation = {
         },
         areas: {
             common: {
-                title: "Areas",
-                subTitle: "Area configuration.",
+                title: "Áreas",
+                subTitle: "Configuración de Área.",
             },
+            createAreaSuccess: "Área creadas",
+            createAreaError: "Error creando área",
         },
         electionEventScreen: {
+            new: {
+                subtitle: "Crear Evento Electoral",
+            },
             common: {
+                title: "Evento Electoral",
                 subtitle: "Configuración del Evento de Elección.",
             },
             edit: {
@@ -144,11 +152,58 @@ const spanishTranslation = {
                 name: "Nombre",
                 alias: "Alias",
                 description: "Descripción",
-                startDate: "Fecha de inicio",
-                endDate: "Fecha de finalización",
+                startDateTime: "Fecha y hora de inicio",
+                endDateTime: "Fecha y hora de finalización",
                 language: "Idioma",
                 votingChannels: "Canales de Voto",
             },
+            error: {
+                endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
+            },
+            voters: {
+                title: "Votantes",
+            },
+            createElectionEventSuccess: "Evento de Elección creado",
+            createElectionEventError: "Error creando Evento de Elección",
+        },
+        electionScreen: {
+            common: {
+                subtitle: "Configuración de la elección.",
+            },
+            edit: {
+                general: "General",
+                dates: "Fechas",
+                language: "Idioma",
+                allowed: "Canales de Voto Permitidos",
+                default: "Por defecto",
+                receipts: "Comprobantes",
+                image: "Imagen",
+                advanced: "Configuración Avanzada",
+            },
+            field: {
+                name: "Nombre",
+                language: "Idioma",
+                votingChannels: "Canales de Voto",
+                startDateTime: "Fecha y hora de inicio",
+                endDateTime: "Fecha y hora de finalización",
+                alias: "Alias",
+                description: "Descripción",
+            },
+            error: {
+                endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
+            },
+            createElectionEventSuccess: "Creada la elección",
+            createElectionEventError: "Error Creando la elección",
+        },
+        tenantScreen: {
+            common: {
+                title: "Cliente",
+            },
+            new: {
+                subtitle: "Crear Cliente",
+            },
+            createSuccess: "Cliente creado",
+            createError: "Error creando cliente",
         },
         common: {
             label: {
@@ -166,6 +221,19 @@ const spanishTranslation = {
             message: {
                 delete: "¿Estás seguro de que quieres eliminar este elemento?",
             },
+            language: {
+                es: "Español",
+                en: "Inglés",
+            },
+            channel: {
+                online: "En línea",
+                kiosk: "Kiosco",
+            },
+        },
+        sideMenu: {
+            usersAndRoles: "Usuarios y Roles",
+            settings: "Configuracion",
+            communicationTemplates: "Plantillas de Comunicación",
         },
     },
 }

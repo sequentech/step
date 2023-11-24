@@ -14,8 +14,8 @@ import {
     SelectColumnsButton,
     TopToolbar,
 } from "react-admin"
-import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 const OMIT_FIELDS = ["audit_type", "class", "dbname", "session", "user"]
 

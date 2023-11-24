@@ -16,9 +16,9 @@ import {
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {ChipList} from "../../components/ChipList"
-import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
 import {generateRowClickHandler} from "../../services/RowClickService"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 const OMIT_FIELDS = [
     "id",

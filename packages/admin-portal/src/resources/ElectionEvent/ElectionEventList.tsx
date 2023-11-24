@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import {
     BooleanField,
     BooleanInput,
@@ -6,17 +10,20 @@ import {
     ReferenceManyField,
     TextField,
     TextInput,
+    useGetList,
 } from "react-admin"
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement} from "react"
+
+import React, {ReactElement, useEffect} from "react"
 
 import {ChipList} from "../../components/ChipList"
-import { CreateElectionList } from './CreateElectionEvent'
-import ElectionHeader from '../../components/ElectionHeader'
+import {CreateElectionList} from "./CreateElectionEvent"
+import ElectionHeader from "../../components/ElectionHeader"
 import {ListActions} from "../../components/ListActions"
-import {useTenantStore} from "../../components/CustomMenu"
+import {Link, useNavigate} from "react-router-dom"
+import {Button} from "@mui/material"
+import {IconButton} from "@sequentech/ui-essentials"
+import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 const OMIT_FIELDS = ["id", "sequent_backend_area", "is_archived", "is_audit", "public_key"]
 
@@ -34,21 +41,43 @@ export interface ElectionEventListProps {
 }
 
 export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => {
+    const navigate = useNavigate()
     const [tenantId] = useTenantStore()
+
+    const {data} = useGetList("sequent_backend_election_event", {
+        sort: {field: "created_at", order: "DESC"},
+        filter: {
+            tenant_id: tenantId,
+        },
+    })
+
+    useEffect(() => {
+        if (data && data.length > 0) {
+            const id = data[0].id ?? null
+            id && navigate("/sequent_backend_election_event/" + id)
+        }
+    })
+
+    const actions = <ListActions withFilter={true} Component={<CreateElectionList />} />
+
+    const empty = (
+        <Link style={{padding: "16px"}} to="/sequent_backend_election_event/create">
+            <Button>
+                <IconButton icon={faPlusCircle} fontSize="24px" />
+                Create new election event
+            </Button>
+        </Link>
+    )
 
     return (
         <>
             <ElectionHeader title="Election Events" subtitle="Election Events Subtitle" />
             <List
-                actions={
-                    <ListActions
-                        withFilter={true}
-                        Component={<CreateElectionList />}
-                    />
-                }
+                actions={actions}
                 filter={{tenant_id: tenantId || undefined}}
                 filters={Filters}
                 aside={aside}
+                empty={empty}
             >
                 <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
                     <TextField source="id" />

@@ -1,17 +1,14 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::connection;
+use crate::services::connection;
+use crate::services::keycloak::realm::get_tenant_realm;
 use anyhow::{anyhow, Result};
-use keycloak::{
-    types::*,
-    {KeycloakAdmin, KeycloakAdminToken, KeycloakError},
-};
+use keycloak::{KeycloakAdmin, KeycloakAdminToken};
 use reqwest;
 use serde::{Deserialize, Serialize};
-use serde_urlencoded;
 use std::env;
-use tracing::{event, Level, instrument};
+use tracing::{event, instrument, Level};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct TokenResponse {
@@ -29,6 +26,7 @@ struct KeycloakLoginConfig {
     url: String,
     client_id: String,
     client_secret: String,
+    realm: String,
 }
 
 fn get_keycloak_login_config() -> KeycloakLoginConfig {
@@ -38,10 +36,14 @@ fn get_keycloak_login_config() -> KeycloakLoginConfig {
         .expect(&format!("KEYCLOAK_CLIENT_ID must be set"));
     let client_secret = env::var("KEYCLOAK_CLIENT_SECRET")
         .expect(&format!("KEYCLOAK_CLIENT_SECRET must be set"));
+    let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
+        .expect(&format!("SUPER_ADMIN_TENANT_ID must be set"));
+    let realm = get_tenant_realm(&tenant_id);
     KeycloakLoginConfig {
         url,
         client_id,
         client_secret,
+        realm,
     }
 }
 
@@ -52,10 +54,14 @@ fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
         .expect(&format!("KEYCLOAK_ADMIN_CLIENT_ID must be set"));
     let client_secret = env::var("KEYCLOAK_ADMIN_CLIENT_SECRET")
         .expect(&format!("KEYCLOAK_ADMIN_CLIENT_SECRET must be set"));
+    let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
+        .expect(&format!("SUPER_ADMIN_TENANT_ID must be set"));
+    let realm = get_tenant_realm(&tenant_id);
     KeycloakLoginConfig {
         url,
         client_id,
         client_secret,
+        realm,
     }
 }
 
@@ -73,8 +79,9 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     .unwrap();
 
     let keycloak_endpoint = format!(
-        "{}/realms/electoral-process/protocol/openid-connect/token",
-        login_config.url
+        "{}/realms/{}/protocol/openid-connect/token",
+        login_config.url,
+        login_config.realm
     );
 
     let client = reqwest::Client::new();
@@ -96,7 +103,7 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
 }
 
 pub struct KeycloakAdminClient {
-    client: KeycloakAdmin
+    pub client: KeycloakAdmin,
 }
 
 impl KeycloakAdminClient {
@@ -113,25 +120,6 @@ impl KeycloakAdminClient {
         .await?;
         event!(Level::INFO, "Successfully acquired credentials");
         let client = KeycloakAdmin::new(&login_config.url, admin_token, client);
-        Ok(KeycloakAdminClient {
-            client
-        })
+        Ok(KeycloakAdminClient { client })
     }
-
-    pub async fn upsert_realm(self, board_name: &str, json_realm_config: &str) -> Result<(), KeycloakError> {
-        let real_get_result = self.client.realm_get(board_name).await;
-        let realm: RealmRepresentation = serde_json::from_str(json_realm_config).unwrap();
-        match real_get_result {
-            Err(_) => self.client
-                .post(RealmRepresentation {
-                    realm: Some(board_name.into()),
-                    ..realm
-                })
-                .await,
-            Ok(_) => Ok(()),
-        }
-        
-    }
-
-
 }

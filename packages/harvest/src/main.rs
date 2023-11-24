@@ -12,6 +12,7 @@ mod pdf;
 mod routes;
 mod s3;
 mod services;
+mod types;
 
 #[launch]
 fn rocket() -> _ {
@@ -34,7 +35,7 @@ fn rocket() -> _ {
                 routes::immudb_log_audit::list_pgaudit,
                 routes::insert_election_event::insert_election_event_f,
                 routes::insert_tenant::insert_tenant,
-                routes::keycloak_jwks::get_jwks_json,
+                routes::users::get_users,
             ],
         )
 }

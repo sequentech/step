@@ -64,6 +64,13 @@
     packages.rust-src = pkgs.rustPlatform.rustLibSrc;
   };
 
+  languages.java = {
+    enable = true;
+    maven = {
+      enable = true;
+    };
+  };
+
   # https://devenv.sh/pre-commit-hooks/
   pre-commit.hooks = {
     clippy.enable = false;

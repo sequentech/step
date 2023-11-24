@@ -68,7 +68,10 @@
                 "stkb.rewrap",
 
 				// Mermaid support in markdown
-				"bierner.markdown-mermaid"
+				"bierner.markdown-mermaid",
+
+				// For Keycloak SPIs
+				"vscjava.vscode-java-pack"
     		]
 		}
 	}

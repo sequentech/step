@@ -4,8 +4,7 @@ import {adminTheme} from "@sequentech/ui-essentials"
 import React from "react"
 import {Identifier, useRecordContext} from "react-admin"
 
-
-    /*  
+/*  
         In the component where you want to use the actions column:
         
         - define the functions and the actions custom column to be showned

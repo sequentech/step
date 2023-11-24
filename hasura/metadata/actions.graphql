@@ -1,5 +1,5 @@
 type Mutation {
-  createScheduledEvent(
+  createScheduledEvent (
     tenant_id: String!
     election_event_id: String!
     event_processor: String!
@@ -10,27 +10,33 @@ type Mutation {
 }
 
 type Query {
-  fetchDocument(
+  fetchDocument (
     tenant_id: String!
     election_event_id: String!
     document_id: String!
   ): FetchDocumentOutput
 }
 
+type Query {
+  get_users (
+    body: GetUsersInput!
+  ): GetUsersOutput!
+}
+
 type Mutation {
-  insertElectionEvent(
+  insertElectionEvent (
     object: CreateElectionEventInput!
   ): CreateElectionEventOutput
 }
 
 type Mutation {
-  insertTenant(
+  insertTenant (
     slug: String!
   ): InsertTenantOutput
 }
 
 type Query {
-  listPgaudit(
+  listPgaudit (
     limit: Int
     offset: Int
     order_by: PgAuditOrderBy
@@ -43,119 +49,145 @@ enum OrderDirection {
 }
 
 input TemplateInput {
-  template: String!
-  format: String!
+  template : String!
+  format : String!
 }
 
 input PgAuditOrderBy {
-  id: OrderDirection
-  audit_type: OrderDirection
-  class: OrderDirection
-  command: OrderDirection
-  dbname: OrderDirection
-  server_timestamp: OrderDirection
-  session_id: OrderDirection
-  statement: OrderDirection
-  user: OrderDirection
+  id : OrderDirection
+  audit_type : OrderDirection
+  class : OrderDirection
+  command : OrderDirection
+  dbname : OrderDirection
+  server_timestamp : OrderDirection
+  session_id : OrderDirection
+  statement : OrderDirection
+  user : OrderDirection
 }
 
 input SampleInput {
-  username: String!
-  password: String!
+  username : String!
+  password : String!
 }
 
 input CreateElectionEventInput {
-  id: String
-  created_at: String
-  updated_at: String
-  labels: jsonb
-  annotations: jsonb
-  tenant_id: String!
-  name: String!
-  description: String
-  presentation: jsonb
-  bulletin_board_reference: jsonb
-  is_archived: Boolean
-  voting_channels: jsonb
-  dates: jsonb
-  status: jsonb
-  user_boards: String
-  encryption_protocol: String
-  is_audit: Boolean
-  audit_election_event_id: String
-  public_key: String
+  id : String
+  created_at : String
+  updated_at : String
+  labels : jsonb
+  annotations : jsonb
+  tenant_id : String!
+  name : String!
+  description : String
+  presentation : jsonb
+  bulletin_board_reference : jsonb
+  is_archived : Boolean
+  voting_channels : jsonb
+  dates : jsonb
+  status : jsonb
+  user_boards : String
+  encryption_protocol : String
+  is_audit : Boolean
+  audit_election_event_id : String
+  public_key : String
+}
+
+input GetUsersInput {
+  tenant_id : String!
+  election_event_id : String
+  search : String
+  email : String
+  limit : Int
+  offset : Int
 }
 
 type TemplateOutput {
-  id: String!
-  election_event_id: String
-  tenant_id: String
-  name: String
-  size: Int
-  media_type: String
+  id : String!
+  election_event_id : String
+  tenant_id : String
+  name : String
+  size : Int
+  media_type : String
 }
 
 type FetchDocumentOutput {
-  url: String!
+  url : String!
 }
 
 type ScheduledEventOutput {
-  id: String!
-  tenant_id: String
-  election_event_id: String
-  created_at: String
-  stopped_at: String
-  labels: jsonb
-  annotations: jsonb
-  event_processor: String
-  cron_config: String
-  event_payload: jsonb
-  created_by: String
+  id : String!
+  tenant_id : String
+  election_event_id : String
+  created_at : String
+  stopped_at : String
+  labels : jsonb
+  annotations : jsonb
+  event_processor : String
+  cron_config : String
+  event_payload : jsonb
+  created_by : String
 }
 
 type PgAuditRow {
-  id: Int!
-  audit_type: String!
-  class: String!
-  command: String!
-  dbname: String!
-  server_timestamp: Int!
-  session_id: String!
-  statement: String!
-  user: String!
+  id : Int!
+  audit_type : String!
+  class : String!
+  command : String!
+  dbname : String!
+  server_timestamp : Int!
+  session_id : String!
+  statement : String!
+  user : String!
 }
 
 type Aggregate {
-  count: Int!
+  count : Int!
 }
 
 type DataListPgAudit {
-  items: [PgAuditRow]!
-  total: TotalAggregate!
+  items : [PgAuditRow]!
+  total : TotalAggregate!
 }
 
 type TotalAggregate {
-  aggregate: Aggregate!
+  aggregate : Aggregate!
 }
 
 type ScheduledEventOutput2 {
-  tenant_id: String
+  tenant_id : String
 }
 
 type ScheduledEventOutput3 {
-  id: String
+  id : String
 }
 
 type SampleOutput {
-  accessToken: String!
+  accessToken : String!
 }
 
 type CreateElectionEventOutput {
-  id: String!
+  id : String!
 }
 
 type InsertTenantOutput {
-  id: uuid!
-  slug: String!
+  id : uuid!
+  slug : String!
+}
+
+type KeycloakUser {
+  id : String
+  attributes : jsonb
+  email : String
+  email_verified : Boolean
+  enabled : Boolean
+  first_name : String
+  groups : [String!]
+  last_name : String
+  username : String
+}
+
+type GetUsersOutput {
+  items : [KeycloakUser!]!
+  total : TotalAggregate!
 }
 

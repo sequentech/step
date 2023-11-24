@@ -1,42 +1,73 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Typography} from "@mui/material"
-import React from "react"
-import {SimpleForm, TextInput, Create, BooleanInput, ReferenceInput, SelectInput} from "react-admin"
-import {JsonInput} from "react-admin-json-view"
+import {CircularProgress, Typography} from "@mui/material"
+import React, {useEffect, useState} from "react"
+import {SimpleForm, TextInput, Create, useNotify, useRefresh, useGetOne} from "react-admin"
+import {useMutation} from "@apollo/client"
+import {INSERT_TENANT} from "../../queries/InsertTenant"
+import {InsertTenantMutation} from "../../gql/graphql"
+import {FieldValues, SubmitHandler} from "react-hook-form"
+import {useTranslation} from "react-i18next"
+import {useNavigate} from "react-router"
+import {isNull} from "@sequentech/ui-essentials"
 
 export const CreateTenant: React.FC = () => {
+    const [createTenant] = useMutation<InsertTenantMutation>(INSERT_TENANT)
+    const notify = useNotify()
+    const [newId, setNewId] = useState<string | null>(null)
+    const [isLoading, setIsLoading] = useState(false)
+    const {t} = useTranslation()
+    const navigate = useNavigate()
+    const refresh = useRefresh()
+    const {
+        data: newTenant,
+        isLoading: isOneLoading,
+        error,
+    } = useGetOne("sequent_backend_tenant", {
+        id: newId,
+    })
+
+    useEffect(() => {
+        if (isNull(newId)) {
+            return
+        }
+        if (isLoading && error && !isOneLoading) {
+            setIsLoading(false)
+            notify(t("tenantScreen.createError"), {type: "error"})
+            refresh()
+            return
+        }
+        if (isLoading && !error && !isOneLoading && newTenant) {
+            setIsLoading(false)
+            notify(t("tenantScreen.createSuccess"), {type: "success"})
+            refresh()
+            navigate(`/sequent_backend_tenant/${newId}`)
+        }
+    }, [isLoading, newTenant, isOneLoading, error])
+
+    const onSubmit: SubmitHandler<FieldValues> = async ({slug}) => {
+        let {data, errors} = await createTenant({
+            variables: {
+                slug,
+            },
+        })
+
+        if (data?.insertTenant?.id) {
+            setNewId(data?.insertTenant?.id)
+            setIsLoading(true)
+        } else {
+            notify(t("tenantScreen.createError"), {type: "error"})
+            setIsLoading(false)
+        }
+    }
     return (
         <Create>
-            <SimpleForm>
-                <Typography variant="h4">Customer</Typography>
-                <Typography variant="body2">Customer creation</Typography>
+            <SimpleForm onSubmit={onSubmit}>
+                <Typography variant="h4">{t("tenantScreen.common.title")}</Typography>
+                <Typography variant="body2">{t("tenantScreen.new.subtitle")}</Typography>
                 <TextInput source="slug" />
-                <BooleanInput source="is_active" />
-                <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
-                    <SelectInput optionText="slug" />
-                </ReferenceInput>
-                <JsonInput
-                    source="labels"
-                    jsonString={false}
-                    reactJsonOptions={{
-                        name: null,
-                        collapsed: true,
-                        enableClipboard: true,
-                        displayDataTypes: false,
-                    }}
-                />
-                <JsonInput
-                    source="annotations"
-                    jsonString={false}
-                    reactJsonOptions={{
-                        name: null,
-                        collapsed: true,
-                        enableClipboard: true,
-                        displayDataTypes: false,
-                    }}
-                />
+                {isLoading ? <CircularProgress /> : null}
             </SimpleForm>
         </Create>
     )
