@@ -51,9 +51,10 @@ COPY --chown=keycloak:keycloak \
    /build/keycloak-extensions/message-otp-authenticator/target/sequent.message-otp-authenticator.jar \
    /build/keycloak-extensions/security-question-authenticator/target/sequent.security-question-authenticator.jar \
    /build/keycloak-extensions/conditional-authenticators/target/sequent.conditional-authenticators.jar \
+   /build/keycloak-extensions/dummy-email-sender-provider/target/sequent.dummy-email-sender-provider.jar \
    /opt/keycloak/providers/
 
-RUN /opt/keycloak/bin/kc.sh build
+RUN /opt/keycloak/bin/kc.sh build 
 
 FROM quay.io/keycloak/keycloak:22.0
 COPY --from=builder /opt/keycloak/ /opt/keycloak/

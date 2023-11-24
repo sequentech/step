@@ -6,18 +6,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.authentication.RequiredActionProvider;
-import org.keycloak.forms.login.LoginFormsProvider;
-import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
-import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.OTPCredentialModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 import jakarta.ws.rs.core.MultivaluedMap;
-import java.util.function.Consumer;
 import java.util.Map;
-import java.util.Optional;
 import java.security.MessageDigest;
 
 @JBossLog
@@ -142,7 +137,8 @@ public class SecurityQuestionRequiredAction implements RequiredActionProvider {
         MultivaluedMap<String, String> formData = context
             .getHttpRequest()
             .getDecodedFormParameters();
-        String secretAnswer = formData.getFirst(Utils.FORM_SECURITY_ANSWER_FIELD);
+        String secretAnswer = formData
+            .getFirst(Utils.FORM_SECURITY_ANSWER_FIELD);
         AuthenticatorConfigModel config = Utils
             .getConfig(context.getRealm())
             .get();

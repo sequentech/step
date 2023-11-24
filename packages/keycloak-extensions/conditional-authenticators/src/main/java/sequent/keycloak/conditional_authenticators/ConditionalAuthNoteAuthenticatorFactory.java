@@ -12,12 +12,13 @@ import org.keycloak.provider.ProviderConfigProperty;
 import java.util.List;
 
 @AutoService(AuthenticatorFactory.class)
-public class ConditionalClientAuthenticatorFactory 
+public class ConditionalAuthNoteAuthenticatorFactory 
     implements ConditionalAuthenticatorFactory
 {
-    public static final String PROVIDER_ID = "conditional-client";
+    public static final String PROVIDER_ID = "conditional-auth-note";
 
-    public static final String CONDITIONAL_CLIENT_ID = "conditional-client";
+    public static final String CONDITIONAL_AUTH_NOTE_KEY = "conditional-auth-note-key";
+    public static final String CONDITIONAL_AUTH_NOTE_VALUE = "conditional-auth-note-value";
     public static final String CONF_NEGATE = "negate";
 
     private static final Requirement[] REQUIREMENT_CHOICES = {
@@ -47,7 +48,7 @@ public class ConditionalClientAuthenticatorFactory
 
     @Override
     public String getDisplayType() {
-        return "Condition - Client Id";
+        return "Condition - Auth Note";
     }
 
     @Override
@@ -67,7 +68,7 @@ public class ConditionalClientAuthenticatorFactory
 
     @Override
     public String getHelpText() {
-        return "Flow is executed only if authentication is performed by the correct client.";
+        return "Flow is executed only if authentication session has the correct Auth Note.";
     }
 
     @Override
@@ -75,16 +76,23 @@ public class ConditionalClientAuthenticatorFactory
     {
         return List.of(
 			new ProviderConfigProperty(
-				CONDITIONAL_CLIENT_ID,
-				"Client",
-				"Client id that should be executing this flow.",
+				CONDITIONAL_AUTH_NOTE_KEY,
+				"Auth Note Key",
+				"Auth Note Key that should be present in the Auth Session executing this flow.",
+				ProviderConfigProperty.STRING_TYPE,
+				""
+			),
+			new ProviderConfigProperty(
+				CONDITIONAL_AUTH_NOTE_VALUE,
+				"Auth Note Value",
+				"Auth Note Value that the Auth Note Key should have in the Auth Session executing this flow.",
 				ProviderConfigProperty.STRING_TYPE,
 				""
 			),
 			new ProviderConfigProperty(
 				CONF_NEGATE,
 				"Negate output",
-				"Apply a NOT to the check result. When this is true, then the condition will evaluate to true just if the authentication is NOT performed using the specified client id. When this is false, the condition will evaluate to true just if the authentication performed using the specified client id.",
+				"Apply a NOT to the check result.",
 				ProviderConfigProperty.BOOLEAN_TYPE,
 				false
 			)
@@ -93,6 +101,6 @@ public class ConditionalClientAuthenticatorFactory
 
     @Override
     public ConditionalAuthenticator getSingleton() {
-        return ConditionalClientAuthenticator.SINGLETON;
+        return ConditionalAuthNoteAuthenticator.SINGLETON;
     }
 }

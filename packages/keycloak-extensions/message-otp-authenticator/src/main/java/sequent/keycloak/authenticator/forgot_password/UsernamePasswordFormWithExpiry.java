@@ -1,0 +1,313 @@
+package sequent.keycloak.authenticator.forgot_password;
+
+import org.keycloak.Config;
+import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
+import org.keycloak.common.util.Time;
+import org.jboss.resteasy.specimpl.MultivaluedMapImpl;
+import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.authentication.Authenticator;
+import org.keycloak.authentication.AuthenticatorFactory;
+import org.keycloak.forms.login.LoginFormsProvider;
+import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.AuthenticationExecutionModel.Requirement;
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.models.ModelDuplicateException;
+import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserModel;
+import org.keycloak.protocol.oidc.OIDCLoginProtocol;
+import org.keycloak.services.managers.AuthenticationManager;
+import org.keycloak.models.credential.PasswordCredentialModel;
+import org.keycloak.models.utils.KeycloakModelUtils;
+import org.keycloak.provider.ProviderConfigProperty;
+
+import com.google.auto.service.AutoService;
+import lombok.extern.jbosslog.JBossLog;
+
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
+
+import java.util.*;
+
+/**
+ * This is just like the normal Username Password form, except it allows to 
+ * check if the password has expired or not
+ */
+@JBossLog
+@AutoService(AuthenticatorFactory.class)
+public class UsernamePasswordFormWithExpiry 
+    extends AbstractUsernameFormAuthenticator
+    implements Authenticator, AuthenticatorFactory
+{
+    public static final String PROVIDER_ID =
+        "expiry-username-password-form";
+    public static final UsernamePasswordFormWithExpiry SINGLETON =
+        new UsernamePasswordFormWithExpiry();
+    public static final Requirement[] REQUIREMENT_CHOICES = {
+        Requirement.REQUIRED
+    };
+
+    @Override
+    public void action(AuthenticationFlowContext context)
+    {
+        log.info("action()");
+        MultivaluedMap<String, String> formData = context
+            .getHttpRequest()
+            .getDecodedFormParameters();
+        if (formData.containsKey("cancel"))
+        {
+            context.cancelLogin();
+            return;
+        }
+        if (!validateForm(context, formData))
+        {
+            return;
+        }
+        context.success();
+    }
+
+    protected boolean validateForm(
+        AuthenticationFlowContext context,
+        MultivaluedMap<String, String> formData
+    ) {
+        log.info("validateForm()");
+        if (!validateUserAndPassword(context, formData)) {
+            log.info("validateForm(): invalid form");
+            return false;
+        }
+        // If we reach here, password was validated. But now we need to check
+        // if there's an user expiration attribute and if so, if it has expired
+        // already
+
+
+        UserModel user = getUser(context, formData);
+        if (user == null) {
+            // should not happen. We have validated the form, so we should have
+            // found both the username/email and password to be valid!
+            log.info("validateForm(): user not found - should not happen");
+            return false;
+        }
+
+        // get the user attribute name
+        String passwordExpirationUserAttribute =
+            Utils.getPasswordExpirationUserAttribute(
+                context.getAuthenticatorConfig(),
+                user
+            );
+        if (passwordExpirationUserAttribute == null) {
+            // shouldn't happen since we have a fall-back user attribute name
+            log.info("validateForm(): password expiration user attribute is null - should not happen - return true");
+            return true;
+        }
+        String passwordExpiration = user.getFirstAttribute(
+            passwordExpirationUserAttribute
+        );
+        if (passwordExpiration == null) {
+            // if password expiration is null it means the user doesn't have this
+            // attribute set, and thus we can ignore and return true
+            log.info("validateForm(): password expiration not set - return true");
+            return true;
+        }
+        int passwordExpirationInt = Integer.valueOf(passwordExpiration);
+        int currentTime = Time.currentTime();
+        if (currentTime > passwordExpirationInt) {
+            // the user has an expired password
+            log.infov(
+                "validateForm(): expired password, currentTime[{0}] > passwordExpirationInt[{1}]",
+                currentTime,
+                passwordExpirationInt
+            );
+            return false;
+        }
+
+        return true;
+    }
+
+
+    private UserModel getUser(
+        AuthenticationFlowContext context, 
+        MultivaluedMap<String, String> inputData
+    ) {
+        UserModel user = context.getUser();
+        if (user != null) {
+            return user;
+        } else {
+            return getUserFromForm(context, inputData);
+        }
+    }
+
+    private UserModel getUserFromForm(
+        AuthenticationFlowContext context,
+        MultivaluedMap<String, String> inputData
+    ) {
+        String username = inputData.getFirst(
+            AuthenticationManager.FORM_USERNAME
+        );
+        if (username == null) {
+            return null;
+        }
+
+        // remove leading and trailing whitespace
+        username = username.trim();
+
+        UserModel user = null;
+        try {
+            user = KeycloakModelUtils.findUserByNameOrEmail(
+                context.getSession(),
+                context.getRealm(),
+                username
+            );
+        } catch (ModelDuplicateException mde)
+        {
+            return user;
+        }
+
+        return user;
+    }
+
+    @Override
+    public void authenticate(AuthenticationFlowContext context)
+    {
+        log.info("action()");
+        MultivaluedMap<String, String> formData = new MultivaluedMapImpl<>();
+        String loginHint = context
+            .getAuthenticationSession()
+            .getClientNote(OIDCLoginProtocol.LOGIN_HINT_PARAM);
+        String rememberMeUsername = AuthenticationManager.getRememberMeUsername(
+            context.getRealm(), context.getHttpRequest().getHttpHeaders()
+        );
+
+        if (context.getUser() != null)
+        {
+            LoginFormsProvider form = context.form();
+            form.setAttribute(LoginFormsProvider.USERNAME_HIDDEN, true);
+            form.setAttribute(LoginFormsProvider.REGISTRATION_DISABLED, true);
+            context
+                .getAuthenticationSession()
+                .setAuthNote(USER_SET_BEFORE_USERNAME_PASSWORD_AUTH, "true");
+        } else
+        {
+            context
+                .getAuthenticationSession()
+                .removeAuthNote(USER_SET_BEFORE_USERNAME_PASSWORD_AUTH);
+            if (loginHint != null || rememberMeUsername != null)
+            {
+                if (loginHint != null) {
+                    formData
+                        .add(AuthenticationManager.FORM_USERNAME, loginHint);
+                } else {
+                    formData.add(
+                        AuthenticationManager.FORM_USERNAME,
+                        rememberMeUsername
+                    );
+                    formData.add("rememberMe", "on");
+                }
+            }
+        }
+        Response challengeResponse = challenge(context, formData);
+        context.challenge(challengeResponse);
+    }
+
+    @Override
+    public boolean requiresUser() {
+        return false;
+    }
+
+    protected Response challenge(
+        AuthenticationFlowContext context,
+        MultivaluedMap<String, String> formData
+    ) {
+        LoginFormsProvider forms = context.form();
+
+        if (formData.size() > 0) forms.setFormData(formData);
+
+        return forms.createLoginUsernamePassword();
+    }
+
+    @Override
+    public boolean configuredFor(
+        KeycloakSession session,
+        RealmModel realm,
+        UserModel user
+    ) {
+        // never called
+        return true;
+    }
+
+    @Override
+    public void setRequiredActions(
+        KeycloakSession session,
+        RealmModel realm,
+        UserModel user
+    ) {
+        // never called
+    }
+
+    @Override
+    public Authenticator create(KeycloakSession session) {
+        return SINGLETON;
+    }
+
+    @Override
+    public void init(Config.Scope config) {
+
+    }
+
+    @Override
+    public void postInit(KeycloakSessionFactory factory) {
+
+    }
+
+    @Override
+    public void close() {
+
+    }
+
+    @Override
+    public String getId() {
+        return PROVIDER_ID;
+    }
+
+    @Override
+    public String getReferenceCategory() {
+        return PasswordCredentialModel.TYPE;
+    }
+
+    @Override
+    public boolean isConfigurable() {
+        return true;
+    }
+
+    @Override
+    public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
+        return REQUIREMENT_CHOICES;
+    }
+
+    @Override
+    public String getDisplayType() {
+        return "Username Password Form - allowing password expiration";
+    }
+
+    @Override
+    public String getHelpText() {
+        return "Validates a username and password from login form. Also checks if the password has expired.";
+    }
+
+    @Override
+    public List<ProviderConfigProperty> getConfigProperties() {
+        return List.of(
+            new ProviderConfigProperty(
+				Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE,
+				"User attribute for Password Expiration Date",
+				"User attribute to use storing the Password Expiration Date. Should be read-only.",
+                ProviderConfigProperty.STRING_TYPE,
+				Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT
+			)
+        );
+    }
+
+    @Override
+    public boolean isUserSetupAllowed() {
+        return false;
+    }
+}

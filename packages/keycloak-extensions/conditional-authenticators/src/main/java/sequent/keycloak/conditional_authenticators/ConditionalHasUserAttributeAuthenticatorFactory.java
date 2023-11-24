@@ -12,18 +12,17 @@ import org.keycloak.provider.ProviderConfigProperty;
 import java.util.List;
 
 @AutoService(AuthenticatorFactory.class)
-public class ConditionalClientAuthenticatorFactory 
+public class ConditionalHasUserAttributeAuthenticatorFactory 
     implements ConditionalAuthenticatorFactory
 {
-    public static final String PROVIDER_ID = "conditional-client";
-
-    public static final String CONDITIONAL_CLIENT_ID = "conditional-client";
+    public static final String PROVIDER_ID = "conditional-user-attr";
+    public static final String CONF_USER_ATTRIBUTE_KEY = "userAttribute";
     public static final String CONF_NEGATE = "negate";
-
     private static final Requirement[] REQUIREMENT_CHOICES = {
         Requirement.REQUIRED,
         Requirement.DISABLED
     };
+
 
     @Override
     public void init(Scope config) {
@@ -47,7 +46,7 @@ public class ConditionalClientAuthenticatorFactory
 
     @Override
     public String getDisplayType() {
-        return "Condition - Client Id";
+        return "Condition - Has User Attribute";
     }
 
     @Override
@@ -67,7 +66,7 @@ public class ConditionalClientAuthenticatorFactory
 
     @Override
     public String getHelpText() {
-        return "Flow is executed only if authentication is performed by the correct client.";
+        return "Flow is executed only if an user attribute is present in the user.";
     }
 
     @Override
@@ -75,16 +74,16 @@ public class ConditionalClientAuthenticatorFactory
     {
         return List.of(
 			new ProviderConfigProperty(
-				CONDITIONAL_CLIENT_ID,
-				"Client",
-				"Client id that should be executing this flow.",
+				CONF_USER_ATTRIBUTE_KEY,
+				"User Attribute",
+				"User attribute that needs to be present in the user",
 				ProviderConfigProperty.STRING_TYPE,
 				""
 			),
 			new ProviderConfigProperty(
 				CONF_NEGATE,
 				"Negate output",
-				"Apply a NOT to the check result. When this is true, then the condition will evaluate to true just if the authentication is NOT performed using the specified client id. When this is false, the condition will evaluate to true just if the authentication performed using the specified client id.",
+				"Apply a NOT to the check result.",
 				ProviderConfigProperty.BOOLEAN_TYPE,
 				false
 			)
@@ -93,6 +92,6 @@ public class ConditionalClientAuthenticatorFactory
 
     @Override
     public ConditionalAuthenticator getSingleton() {
-        return ConditionalClientAuthenticator.SINGLETON;
+        return ConditionalHasUserAttributeAuthenticator.SINGLETON;
     }
 }
