@@ -18,14 +18,14 @@ const CardContainer = styled(Box)<{selected?: boolean}>`
         selected ? "background: linear-gradient(180deg, #0FADCF 0%, #0F054B 100%); " : ""}
 `
 
-const StyledTypography1 = styled(Typography)<{uppercase?: boolean}>`
+const StyledTypography1 = styled(Typography)<{uppercase?: string}>`
     text-align: center;
     margin-top: 12px;
     margin-bottom: 0;
     ${({uppercase}) => uppercase && "text-transform: uppercase;"}
 `
 
-const StyledTypography2 = styled(Typography)<{uppercase?: boolean}>`
+const StyledTypography2 = styled(Typography)<{uppercase?: string}>`
     text-align: center;
     margin-top: 0;
     margin-bottom: 0;
@@ -45,7 +45,7 @@ export default function StatItem({
         <CardContainer>
             <IconButton icon={icon} fontSize="38px" />
             <StyledTypography1 fontSize="24px">{count}</StyledTypography1>
-            <StyledTypography2 fontSize="12px" uppercase={true}>
+            <StyledTypography2 fontSize="12px" uppercase="true">
                 {label}
             </StyledTypography2>
         </CardContainer>

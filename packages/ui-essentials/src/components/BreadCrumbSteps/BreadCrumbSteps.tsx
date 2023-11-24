@@ -23,8 +23,8 @@ const StepsContainer = styled(Box)`
 
 interface StepNumberProps {
     variant: BreadCrumbStepsVariant
-    isSelected: boolean
-    warning: boolean
+    isselected: string
+    warning: string
 }
 
 const StepNumber = styled(Box)<StepNumberProps>`
@@ -33,20 +33,24 @@ const StepNumber = styled(Box)<StepNumberProps>`
     height: 22px;
     font-size: 15px;
     font-style: normal;
-    font-weight: ${({isSelected}) => (isSelected ? "600" : "400")};
+    font-weight: ${({isselected}) => (isselected === "true" ? "600" : "400")};
     flex-direction: column;
     justify-content: center;
     align-items: center;
     gap: 8px;
     ${({variant}) =>
         variant === BreadCrumbStepsVariant.Default ? "border-radius: 4px;" : "border-radius: 100%;"}
-    ${({isSelected}) => !isSelected && "opacity: 0.5;"}
-    border: ${({isSelected, theme}) =>
-        isSelected ? "inherit" : `1px solid ${theme.palette.brandColor}`};
-    color: ${({isSelected, theme}) =>
-        isSelected ? theme.palette.white : theme.palette.brandColor};
-    background: ${({isSelected, warning, theme}) =>
-        isSelected ? (warning ? theme.palette.errorColor : theme.palette.brandColor) : "inherit"};
+    ${({isselected}) => isselected !== "true" && "opacity: 0.5;"}
+    border: ${({isselected, theme}) =>
+        isselected === "true" ? "inherit" : `1px solid ${theme.palette.brandColor}`};
+    color: ${({isselected, theme}) =>
+        isselected === "true" ? theme.palette.white : theme.palette.brandColor};
+    background: ${({isselected, warning, theme}) =>
+        isselected === "true"
+            ? warning === "true"
+                ? theme.palette.errorColor
+                : theme.palette.brandColor
+            : "inherit"};
 `
 
 const StepSeparator = styled(Box)(
@@ -59,12 +63,14 @@ const StepSeparator = styled(Box)(
 )
 
 interface StepLabelProps {
-    isSelected: boolean
+    isselected: string
 }
 
 const StepLabel = styledEmotion(Box)<StepLabelProps>`
-    color: ${({isSelected, theme}) =>
-        isSelected ? theme.palette.customGrey.contrastText : theme.palette.customGrey.main};
+    color: ${({isselected, theme}) =>
+        isselected === "true"
+            ? theme.palette.customGrey.contrastText
+            : theme.palette.customGrey.main};
 `
 
 interface StepProps {
@@ -82,11 +88,15 @@ function Step({variant, label, isSelected, isLast, index, warning, colorStep = f
 
     return (
         <>
-            <StepNumber variant={variant} isSelected={isSelected || colorStep} warning={!!warning}>
+            <StepNumber
+                variant={variant}
+                isselected={(isSelected || colorStep).toString()}
+                warning={(!!warning).toString()}
+            >
                 {index + 1}
             </StepNumber>
             <StepLabel
-                isSelected={isSelected || colorStep}
+                isselected={(isSelected || colorStep).toString()}
                 className={isSelected ? "selected" : "not-selected"}
             >
                 {t(label)}
