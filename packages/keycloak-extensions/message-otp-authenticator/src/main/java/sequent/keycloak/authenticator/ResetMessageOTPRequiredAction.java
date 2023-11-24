@@ -144,6 +144,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
                 authSession
             );
         } catch (Exception error) {
+			log.infov("there was an error {0}", error);
 			context.failure();
         }
 

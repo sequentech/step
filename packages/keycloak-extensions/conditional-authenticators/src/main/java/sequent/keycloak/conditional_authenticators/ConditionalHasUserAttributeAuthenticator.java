@@ -1,24 +1,24 @@
 package sequent.keycloak.conditional_authenticators;
 
 import lombok.extern.jbosslog.JBossLog;
+
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
-import org.keycloak.models.ClientModel;
-import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.authentication.authenticators.conditional.ConditionalAuthenticator;
 
 /**
  * Conditional Client Authenticator allows you to create conditional flows that
- * only execute when a specific client is performing the authentication
+ * only execute when a specific user attribute is present in the user.
  */
 @JBossLog
-public class ConditionalClientAuthenticator implements ConditionalAuthenticator
+public class ConditionalHasUserAttributeAuthenticator
+    implements ConditionalAuthenticator
 {
-    public static final ConditionalClientAuthenticator SINGLETON = 
-        new ConditionalClientAuthenticator();
+    public static final ConditionalHasUserAttributeAuthenticator SINGLETON = 
+        new ConditionalHasUserAttributeAuthenticator();
 
     @Override
     public boolean matchCondition(AuthenticationFlowContext context)
@@ -41,50 +41,45 @@ public class ConditionalClientAuthenticator implements ConditionalAuthenticator
             return false;
         }
 
-        String requiredClientId = authConfig
+        String requiredUserAttributeKey = authConfig
             .getConfig()
-            .get(ConditionalClientAuthenticatorFactory.CONDITIONAL_CLIENT_ID);
+            .get(ConditionalHasUserAttributeAuthenticatorFactory.CONF_USER_ATTRIBUTE_KEY);
         boolean negateOutput = Boolean.parseBoolean(
             authConfig
                 .getConfig()
-                .get(ConditionalClientAuthenticatorFactory.CONF_NEGATE)
+                .get(ConditionalHasUserAttributeAuthenticatorFactory.CONF_NEGATE)
         );
 
-        AuthenticationSessionModel authSession = context
-            .getAuthenticationSession();
-        if (authSession == null) {
+        UserModel user = context.getUser();
+        if (user == null) {
             log.infov(
-                "matchCondition(): NULL found authSession={0}",
-                authSession
+                "matchCondition(): NULL found user={0}",
+                user
             );
             return false;
         }
-        ClientModel client = authSession.getClient();
-        if (client == null) {
-            log.infov(
-                "matchCondition(): NULL found client={0}",
-                client
-            );
-            return false;
-        }
-        boolean clientIdMatch = requiredClientId.equals(client.getClientId());
+        String userAttributeValue = user.getFirstAttribute(requiredUserAttributeKey);
+        boolean userAttributePresent = (userAttributeValue != null);
         log.infov(
-            "matchCondition(): client.getClientId()={0}, requiredClientId={1}, negateOutput[{2}] != clientIdMatch[{3}]",
-            client.getClientId(),
-            requiredClientId,
+            "matchCondition(): requiredUserAttributeKey={0}, userAttributeValue={1}, negateOutput[{2}] != userAttributePresent[{3}]",
+            requiredUserAttributeKey,
+            userAttributeValue,
             negateOutput,
-            clientIdMatch
+            userAttributePresent
+
         );
-        return negateOutput != clientIdMatch;
+        return negateOutput != userAttributePresent;
     }
 
     @Override
     public void action(AuthenticationFlowContext context) {
+        log.info("action()");
         // Not used
     }
 
     @Override
     public boolean requiresUser() {
+        log.info("requiresUser()");
         return true;
     }
 
@@ -99,6 +94,5 @@ public class ConditionalClientAuthenticator implements ConditionalAuthenticator
 
     @Override
     public void close() {
-        // Does nothing
     }
 }

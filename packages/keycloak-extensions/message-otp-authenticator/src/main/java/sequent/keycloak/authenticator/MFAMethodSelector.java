@@ -1,12 +1,10 @@
 package sequent.keycloak.authenticator;
 
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
-import sequent.keycloak.authenticator.ResetMessageOTPRequiredAction;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedMap;
 import lombok.extern.jbosslog.JBossLog;
 
-import org.jboss.logging.Logger;
 import org.keycloak.Config;
 import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;

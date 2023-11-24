@@ -1,28 +1,19 @@
 package sequent.keycloak.authenticator;
 
-import sequent.keycloak.authenticator.gateway.SmsServiceFactory;
-import sequent.keycloak.authenticator.gateway.EmailServiceFactory;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
-import sequent.keycloak.authenticator.credential.MessageOTPCredentialProviderFactory;
 import jakarta.ws.rs.core.Response;
-import org.jboss.logging.Logger;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.CredentialValidator;
-import org.keycloak.common.util.SecretGenerator;
-import org.keycloak.credential.CredentialProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
-import org.keycloak.theme.Theme;
-import java.security.MessageDigest;
 
-import java.util.Locale;
 import java.util.Optional;
 
 @JBossLog
@@ -30,7 +21,6 @@ public class MessageOTPAuthenticator
 	implements Authenticator, CredentialValidator<MessageOTPCredentialProvider>
 {
 	public static final String MOBILE_NUMBER_FIELD = "sequent.read-only.mobile-number";
-	public static final String EMAIL_ADDRESS_FIELD = "sequent.read-only.email-address";
 	private static final String TPL_CODE = "login-message-otp.ftl";
 
 	@Override
@@ -69,6 +59,7 @@ public class MessageOTPAuthenticator
 				)
 				.createForm(TPL_CODE));
 		} catch (Exception error) {
+			log.infov("there was an error {0}", error);
 			context.failureChallenge(
 				AuthenticationFlowError.INTERNAL_ERROR,
 				context
@@ -80,7 +71,8 @@ public class MessageOTPAuthenticator
 	}
 
 	@Override
-	public void action(AuthenticationFlowContext context) {
+	public void action(AuthenticationFlowContext context)
+	{
 		log.info("action() called");
 		String enteredCode = context
 			.getHttpRequest()
@@ -170,7 +162,7 @@ public class MessageOTPAuthenticator
 			return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
 		}
 		String mobileNumber = Utils.getMobile(config.get(), user);
-		String emailAddress = Utils.getEmail(config.get(), user);
+		String emailAddress = user.getEmail();
 
 		return mobileNumber != null || emailAddress != null;
 	}

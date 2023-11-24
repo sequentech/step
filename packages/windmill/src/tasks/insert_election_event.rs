@@ -11,6 +11,7 @@ use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClie
 use sequent_core::services::keycloak::get_event_realm;
 use serde_json::Value;
 use std::env;
+use std::fs;
 use tracing::{event, instrument, Level};
 
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
@@ -39,12 +40,14 @@ pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Resu
 
 #[instrument]
 pub async fn upsert_keycloak_realm(tenant_id: &str, election_event_id: &str) -> Result<()> {
-    let json_realm_config = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG")
-        .expect(&format!("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG must be set"));
+    let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH")
+        .expect(&format!("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set"));
+    let realm_config = fs::read_to_string(&realm_config_path)
+        .expect(&format!("Should have been able to read the configuration file in KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH={realm_config_path}"));
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
     client
-        .upsert_realm(realm_name.as_str(), &json_realm_config)
+        .upsert_realm(realm_name.as_str(), &realm_config)
         .await?;
     upsert_realm_jwks(realm_name.as_str()).await?;
     Ok(())
