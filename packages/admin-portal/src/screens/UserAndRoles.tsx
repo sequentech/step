@@ -13,6 +13,7 @@ import {TabbedShowLayout} from "react-admin"
 import {CustomTabPanel} from "../components/CustomTabPanel"
 import ElectionHeader from "../components/ElectionHeader"
 import {useTranslation} from "react-i18next"
+import { ListRoles } from "../resources/Roles/ListRoles"
 
 export const UserAndRoles: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -39,7 +40,7 @@ export const UserAndRoles: React.FC = () => {
                 <ListUsers />
             </CustomTabPanel>
             <CustomTabPanel value={value} index={1}>
-                hey
+                <ListRoles />
             </CustomTabPanel>
         </>
     )
