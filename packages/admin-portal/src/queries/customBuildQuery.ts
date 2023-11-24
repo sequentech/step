@@ -72,7 +72,7 @@ export const customBuildQuery =
                     null
                 ),
                 parseResponse: (res: any) => {
-                    const response = res.data.get_users
+                    const response = res.data.get_roles
                     let output = {
                         data: response.items,
                         total: response.total.aggregate.count,
@@ -97,7 +97,7 @@ export const customBuildQuery =
                     null
                 ),
                 parseResponse: (res: any) => {
-                    const response = res.data.get_users
+                    const response = res.data.get_permissions
                     let output = {
                         data: response.items,
                         total: response.total.aggregate.count,

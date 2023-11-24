@@ -21,6 +21,7 @@ impl From<RoleRepresentation> for Permission {
 }
 
 impl KeycloakAdminClient {
+    #[instrument(skip(self))]
     pub async fn list_permissions(
         self,
         realm: &str,

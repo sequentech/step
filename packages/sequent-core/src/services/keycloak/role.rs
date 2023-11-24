@@ -22,6 +22,7 @@ impl From<GroupRepresentation> for Role {
 }
 
 impl KeycloakAdminClient {
+    #[instrument(skip(self))]
     pub async fn list_roles(
         self,
         realm: &str,
