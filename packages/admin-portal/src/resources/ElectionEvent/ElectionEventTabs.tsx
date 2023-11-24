@@ -7,12 +7,12 @@ import DashboardElectionEvent from "../../components/election-event/Dashboard"
 import {EditElectionEventAreas} from "./EditElectionEventAreas"
 import {EditElectionEventUsers} from "./EditElectionEventUsers"
 import {AuthContext} from "../../providers/AuthContextProvider"
-//import { IPermissions } from "sequent-core"
+import {IPermissions} from "../../types/keycloak"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
-    const showVoters = authContext.isAuthorized(true, authContext.tenantId, "voter-read")
+    const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
 
     return (
         <>

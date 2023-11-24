@@ -9,6 +9,18 @@ import {useTranslation} from "react-i18next"
 import {IPermission, IRole} from "sequent-core"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
+import {IPermissions} from "../../types/keycloak"
+
+type EnumObject = {[key: string]: number | string}
+type EnumObjectEnum<E extends EnumObject> = E extends {[key: string]: infer ET | string}
+    ? ET
+    : never
+
+function getEnumValues<E extends EnumObject>(enumObject: E): EnumObjectEnum<E>[] {
+    return Object.keys(enumObject)
+        .filter((key) => Number.isNaN(Number(key)))
+        .map((key) => enumObject[key] as EnumObjectEnum<E>)
+}
 
 interface EditRoleProps {
     id?: Identifier | undefined
@@ -26,13 +38,17 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
 
     let rolePermissions: Array<string> = role?.permissions || []
 
-    let rows: Array<IPermission & {id: string; active: boolean}> = (permissions || []).map(
-        (permission) => ({
+    let validPermissions = getEnumValues(IPermissions)
+
+    let rows: Array<IPermission & {id: string; active: boolean}> = (permissions || [])
+        .map((permission) => ({
             ...permission,
             id: permission.id || "",
             active: (!!permission.name && rolePermissions.includes(permission.name)) || false,
-        })
-    )
+        }))
+        .filter(
+            (permission) => permission.name && validPermissions.includes(permission.name as any)
+        )
 
     const columns: GridColDef[] = [
         {

@@ -11,14 +11,14 @@ import {Link} from "react-router-dom"
 import {cn} from "../../../lib/utils"
 import {AuthContext} from "../../../providers/AuthContextProvider"
 import {useTenantStore} from "../../../providers/TenantContextProvider"
-//import { IPermissions } from "sequent-core"
+import {IPermissions} from "../../../types/keycloak"
 
 const SelectTenants: React.FC = () => {
     const refresh = useRefresh()
     const [tenantId, setTenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
-    const showAddTenant = authContext.isAuthorized(true, null, "tenant-create")
+    const showAddTenant = authContext.isAuthorized(true, null, IPermissions.TENANT_CREATE)
 
     const {data, total} = useGetList("sequent_backend_tenant", {
         pagination: {page: 1, perPage: 10},

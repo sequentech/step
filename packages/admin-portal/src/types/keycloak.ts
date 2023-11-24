@@ -1,10 +1,3 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
-use wasm_bindgen::prelude::*;
-
-#[wasm_bindgen(typescript_custom_section)]
-const IPERMISSIONS: &'static str = r#"
 export enum IPermissions {
     TENANT_CREATE = "tenant-create",
     TENANT_READ = "tenant-read",
@@ -12,7 +5,7 @@ export enum IPermissions {
     ELECTION_EVENT_CREATE = "election-event-create",
     ELECTION_EVENT_READ = "election-event-read",
     ELECTION_EVENT_WRITE = "election-event-write",
-    VOTER_CREATE  = "voter-create",
+    VOTER_CREATE = "voter-create",
     VOTER_READ = "voter-read",
     VOTER_WRITE = "voter-write",
     USER_CREATE = "user-create",
@@ -51,4 +44,3 @@ export enum IPermissions {
     LOGS_READ = "logs-read",
     KEYS_READ = "keys-read",
 }
-"#;
