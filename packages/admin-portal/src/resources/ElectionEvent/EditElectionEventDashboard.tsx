@@ -9,7 +9,7 @@ import {Box, CircularProgress, Paper, Typography} from "@mui/material"
 import Chart, {Props} from "react-apexcharts"
 import {GetCastVotesQuery, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {IconButton, theme} from "@sequentech/ui-essentials"
-import {useRecordContext} from "react-admin"
+import {useGetList, useRecordContext} from "react-admin"
 import {
     faCalendar,
     faClock,
@@ -24,6 +24,8 @@ import {GET_ELECTION_EVENT_STATS} from "../../queries/GetElectionEventStats"
 
 import StatItem from "@/components/election-event/dashboard/StatItem"
 import {useTranslation} from "react-i18next"
+
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 const CardList = styled(Box)`
     display: flex;
@@ -162,23 +164,40 @@ export const BarChart: React.FC = () => {
 
 export function ElectionStats() {
     const {t} = useTranslation()
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const [tenantId] = useTenantStore()
 
-    const {loading, data} = useQuery(GET_ELECTION_EVENT_STATS, {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+    const electionEventId = record.id
+
+    const {loading, data: dataStats} = useQuery(GET_ELECTION_EVENT_STATS, {
         variables: {
-            electionEventId: record.id,
+            electionEventId,
             tenantId: record.tenant_id,
         },
     })
+
+    const {data: users, total: totalUsers} = useGetList("user", {
+        filter: {tenant_id: tenantId, election_event_id: electionEventId},
+    })
+
+    console.log(
+        "LS -> src/resources/ElectionEvent/EditElectionEventDashboard.tsx:181 -> totalUsers: ",
+        totalUsers
+    )
+
+    console.log(
+        "LS -> src/resources/ElectionEvent/EditElectionEventDashboard.tsx:182 -> users: ",
+        users
+    )
 
     if (loading) {
         return <CircularProgress />
     }
 
     const res = {
-        castVotes: data.castVotes.aggregate.count,
-        elections: data.elections.aggregate.count,
-        areas: data.areas.aggregate.count,
+        castVotes: dataStats.castVotes.aggregate.count,
+        elections: dataStats.elections.aggregate.count,
+        areas: dataStats.areas.aggregate.count,
     }
 
     return (
