@@ -14,7 +14,9 @@ const SettingsVotingChannelsStyles = {
         align-items: center;
         justify-content: space-between;
     `,
-    Text: styled.span``,
+    Text: styled.span`
+        text-transform: capitalize
+    `,
 }
 
 const theme = createTheme({
@@ -67,7 +69,7 @@ export const SettingsVotingChannels: React.FC<void> = () => {
                         }}
                     >
                         <SettingsVotingChannelsStyles.Text>
-                            {method.charAt(0).toUpperCase() + method.slice(1)} Voting
+                            {method} Voting
                         </SettingsVotingChannelsStyles.Text>
 
                         <Switch defaultChecked />

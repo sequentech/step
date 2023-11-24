@@ -2,7 +2,6 @@ import React, {ReactElement} from "react"
 
 import {
     BooleanField,
-    BooleanInput,
     DatagridConfigurable,
     List,
     ReferenceManyField,
@@ -11,8 +10,10 @@ import {
 } from "react-admin"
 
 import {ListActions} from "../../components/ListActions"
+
 //TODO: Remove Create Election List Component
 import {ChipList} from "../../components/ChipList"
+
 import {CreateElectionList} from "../ElectionEvent/CreateElectionEvent"
 
 const OMIT_FIELDS = ["id", "sequent_backend_area", "is_archived", "is_audit", "public_key"]
@@ -22,7 +23,7 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
     return (
         <List
             filters={Filters}
-            actions={<ListActions custom withFilter={true} Component={<CreateElectionList />} />}
+            actions={<ListActions custom withFilter Component={<CreateElectionList />} />}
         >
             <DatagridConfigurable rowClick="edit" omit={OMIT_FIELDS}>
                 <TextField source="id" />

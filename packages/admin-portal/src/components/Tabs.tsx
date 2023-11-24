@@ -1,4 +1,4 @@
-import React from "react"
+import React, { SyntheticEvent } from "react"
 import styled from "@emotion/styled"
 
 import {Tabs as MuiTabs, Tab as MuiTab, createTheme, ThemeProvider} from "@mui/material"
@@ -48,10 +48,10 @@ const theme = createTheme({
     },
 })
 
-export const Tabs: React.FC<any> = ({elements}) => {
+export const Tabs: React.FC<{elements: {label: string, component: React.FC}[]}> = ({elements, ...props}) => {
     const [selectedTab, setSelectedTab] = React.useState(0)
 
-    const handleChange = (event: any, newValue: any) => {
+    const handleChange = (event: SyntheticEvent<Element, Event>, newValue: number) => {
         setSelectedTab(newValue)
     }
 
@@ -65,12 +65,12 @@ export const Tabs: React.FC<any> = ({elements}) => {
                     textColor="primary"
                     aria-label="disabled tabs example"
                 >
-                    {elements.map((tab: any) => (
+                    {elements.map((tab: { label: string }) => (
                         <MuiTab key={tab.label} label={tab.label} />
                     ))}
                 </MuiTabs>
 
-                <TabStyles.Content>{elements[selectedTab]?.component()}</TabStyles.Content>
+                <TabStyles.Content>{elements[selectedTab]?.component(props)}</TabStyles.Content>
             </TabStyles.Wrapper>
         </ThemeProvider>
     )
