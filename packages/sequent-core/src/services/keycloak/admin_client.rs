@@ -80,8 +80,7 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
 
     let keycloak_endpoint = format!(
         "{}/realms/{}/protocol/openid-connect/token",
-        login_config.url,
-        login_config.realm
+        login_config.url, login_config.realm
     );
 
     let client = reqwest::Client::new();

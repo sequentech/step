@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useState} from "react"
+import React, {useContext, useState} from "react"
 import {useQuery} from "@apollo/client"
 import {useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
@@ -16,6 +16,9 @@ import {HorizontalBox} from "../../HorizontalBox"
 import {Link} from "react-router-dom"
 import {FETCH_ELECTION_EVENTS_TREE} from "../../../queries/GetElectionEventsTree"
 import {useTenantStore} from "../../../providers/TenantContextProvider"
+//import { IPermissions } from "sequent-core"
+import {AuthContext} from "../../../providers/AuthContextProvider"
+import {useTranslation} from "react-i18next"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -126,6 +129,9 @@ export default function ElectionEvents() {
     const [isOpenSidebar] = useSidebarState()
     const [searchInput, setSearchInput] = useState<string>("")
     const [archivedElectionEvents, setArchivedElectionEvents] = useState(0)
+    const authContext = useContext(AuthContext)
+    const showAddElectionEvent = authContext.isAuthorized(true, tenantId, "election-event-create")
+    const {t} = useTranslation()
 
     const isArchivedElectionEvents = archivedElectionEvents === 1
     function handleSearchChange(searchInput: string) {
@@ -169,19 +175,21 @@ export default function ElectionEvents() {
                 <HorizontalBox sx={{alignItems: "center"}}>
                     <MenuItem
                         to="/sequent_backend_election_event"
-                        primaryText={isOpenSidebar && "Election Events"}
+                        primaryText={isOpenSidebar && t("sideMenu.electionEvents")}
                         leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
                         sx={{flexGrow: 2}}
                     />
-                    <Link to="/sequent_backend_election_event/create">
-                        <StyledIconButton icon={faPlusCircle} size="xs" />
-                    </Link>
+                    {showAddElectionEvent ? (
+                        <Link to="/sequent_backend_election_event/create">
+                            <StyledIconButton icon={faPlusCircle} size="xs" />
+                        </Link>
+                    ) : null}
                 </HorizontalBox>
                 {isOpenSidebar && isElectionEventActive && (
                     <>
                         <div className="flex bg-white px-4">
                             <TextField
-                                label="Search"
+                                label={t("sideMenu.search")}
                                 size="small"
                                 value={searchInput}
                                 onChange={(e) => handleSearchChange(e.target.value)}

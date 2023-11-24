@@ -67,7 +67,7 @@ interface AuthContextValues {
      * @param role
      * @returns
      */
-    hasPermissions: (checkSuperAdmin: boolean, someTenantId: string | null, role: string) => boolean
+    isAuthorized: (checkSuperAdmin: boolean, someTenantId: string | null, role: string) => boolean
 }
 
 /**
@@ -80,7 +80,7 @@ const defaultAuthContextValues: AuthContextValues = {
     logout: () => {},
     hasRole: (role) => false,
     getAccessToken: () => undefined,
-    hasPermissions: () => false,
+    isAuthorized: () => false,
 }
 
 /**
@@ -212,7 +212,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     const getAccessToken = () => keycloak.token
 
-    const hasPermissions = (
+    const isAuthorized = (
         checkSuperAdmin: boolean,
         someTenantId: string | null,
         role: string
@@ -235,7 +235,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 logout,
                 hasRole,
                 getAccessToken,
-                hasPermissions,
+                isAuthorized,
             }}
         >
             {props.children}

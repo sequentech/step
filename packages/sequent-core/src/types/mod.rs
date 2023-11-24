@@ -4,3 +4,4 @@
 
 pub mod hasura_types;
 pub mod keycloak;
+pub mod permissions;

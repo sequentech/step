@@ -216,6 +216,22 @@ const spanishTranslation: TranslationType = {
             createSuccess: "Cliente creado",
             createError: "Error creando cliente",
         },
+        usersAndRolesScreen: {
+            common: {
+                title: "Usuarios y Roles",
+                subtitle: "Configuración general",
+            },
+            users: {
+                title: "Usuarios",
+            },
+            roles: {
+                title: "Roles",
+                edit: {
+                    title: "Información de Rol",
+                    subtitle: "Ver y editar Rol",
+                },
+            },
+        },
         common: {
             label: {
                 add: "Añadir",
@@ -242,9 +258,13 @@ const spanishTranslation: TranslationType = {
             },
         },
         sideMenu: {
+            electionEvents: "Procesos Electorales",
+            search: "Buscar",
             usersAndRoles: "Usuarios y Roles",
             settings: "Configuracion",
             communicationTemplates: "Plantillas de Comunicación",
+            active: "Activos",
+            archived: "Archivados",
         },
     },
 }
