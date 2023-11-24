@@ -24,8 +24,6 @@ export default function DashboardElectionEvent() {
 
                 <ReportDialog />
             </Box>
-
-            <div>hello</div>
         </>
     )
 }

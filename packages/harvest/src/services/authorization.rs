@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use rocket::http::Status;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::permissions::Permissions;
 use std::collections::HashSet;
 use std::env;
 use tracing::instrument;
@@ -12,7 +13,7 @@ pub fn authorize(
     claims: &JwtClaims,
     check_super_admin: bool,
     tenant_id_opt: Option<String>,
-    permissions: Vec<String>,
+    permissions: Vec<Permissions>,
 ) -> Result<(), (Status, String)> {
     let super_admin_tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
         .expect(&format!("SUPER_ADMIN_TENANT_ID must be set"));
@@ -27,11 +28,14 @@ pub fn authorize(
     {
         return Err((Status::Unauthorized, "".into()));
     }
+    let perms_str: Vec<String> = permissions
+        .into_iter()
+        .map(|permission| permission.to_string())
+        .collect();
     let permissions_set: HashSet<_> =
         claims.hasura_claims.allowed_roles.iter().collect();
-    let all_contained = permissions
-        .iter()
-        .all(|item| permissions_set.contains(&item));
+    let all_contained =
+        perms_str.iter().all(|item| permissions_set.contains(&item));
 
     if !all_contained {
         Err((Status::Unauthorized, "".into()))

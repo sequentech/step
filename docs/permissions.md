@@ -16,7 +16,27 @@ Users (both admin and voter users) need to have configured an attribute: tenant-
 # API
 
 CRUD endpoints for:
-- Admin Users.
-- Voter Users.
+- Admin/Voter Users.
 - Permissions.
 - Roles.
+
+# Permissions
+
+- tenant-create|read|write
+- election-event-create|read|write
+- voter-create|read|write
+- user-create|read|write
+- user-permission-create|read|write
+- role-create|read|write|assign
+- communication-template-create|read|write
+- notification-read|write|send
+- area-read|write
+- election-state-write
+- election-type-create|read|write
+- voting-channel-read|write
+- trustee-create|read|write
+- tally-read|start|write
+- tally-results-read
+- publish-read|write
+- logs-read
+- keys-read
