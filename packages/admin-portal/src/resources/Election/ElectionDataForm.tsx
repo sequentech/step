@@ -301,6 +301,23 @@ export const ElectionDataForm: React.FC = () => {
         return tabNodes
     }
 
+    const getJsonText = (value: any, parsedValue: any) => {
+        var url = URL.createObjectURL(value) //Create Object URL
+        var xhr = new XMLHttpRequest()
+        xhr.open("GET", url, false) //Synchronous XMLHttpRequest on Object URL
+        xhr.overrideMimeType("text/plain; charset=x-user-defined") //Override MIME Type to prevent UTF-8 related errors
+        xhr.send()
+        URL.revokeObjectURL(url)
+        var returnText = ""
+        for (var i = 0; i < xhr.responseText.length; i++) {
+            returnText += String.fromCharCode(xhr.responseText.charCodeAt(i) & 0xff)
+        } //remove higher byte
+        return {
+            ...parsedValue.configuration,
+            ...(JSON.parse(returnText as string) || {}),
+        }
+    }
+
     // TODO: renderReceipts
 
     const renderTabContent = (parsedValue: any) => {
@@ -549,30 +566,15 @@ export const ElectionDataForm: React.FC = () => {
                                     source="configuration"
                                     accept={"application/json"}
                                     parse={(value) => {
-                                        const fileReader = new FileReader()
-                                        fileReader.readAsText(value, "UTF-8")
-                                        fileReader.onload = (e) => {
-                                            const theJson = JSON.parse(fileReader.result as string)
-                                            if (theJson) {
-                                                setJsonConfiguration({
-                                                    ...parsedValue.configuration,
-                                                    ...theJson,
-                                                })
-                                            }
-                                            return {name: value.name}
-                                        }
-                                        return {...jsonConfiguration}
+                                        return getJsonText(value, parsedValue)
                                     }}
                                 />
 
-                                <JsonInput
-                                    parse={(value) => {
-                                        return {...jsonConfiguration}
-                                    }}
-                                    source="configuration"
+                                <JsonField
+                                    source="presentation"
                                     reactJsonOptions={{
                                         name: null,
-                                        collapsed: false,
+                                        collapsed: true,
                                         enableClipboard: true,
                                         displayDataTypes: false,
                                     }}
