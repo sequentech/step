@@ -28,6 +28,11 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close}) => {
                 subtitle="usersAndRolesScreen.roles.edit.subtitle"
             />
             {role?.id}
+            {
+                role?.permissions?.map(permission => <div key={permission}>
+                    {permission}
+                </div>)
+            }
         </PageHeaderStyles.Wrapper>
     )
 }
