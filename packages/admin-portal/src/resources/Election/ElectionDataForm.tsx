@@ -12,6 +12,8 @@ import {
     useGetOne,
     RecordContext,
     RadioButtonGroupInput,
+    FileField,
+    FileInput,
 } from "react-admin"
 import {
     Accordion,
@@ -43,6 +45,7 @@ import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {DropFile} from "@sequentech/ui-essentials"
 import {useFormState, useForm} from "react-hook-form"
 import {useTenantStore} from "../../providers/TenantContextProvider"
+import {JsonField, JsonInput} from "react-admin-json-view"
 
 export const ElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -61,16 +64,14 @@ export const ElectionDataForm: React.FC = () => {
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
     const [defaultLangValue, setDefaultLangValue] = useState<string>("")
+    const [jsonConfiguration, setJsonConfiguration] = useState<any>({})
 
     const {data} = useGetOne("sequent_backend_election_event", {
         id: record.election_event_id,
     })
 
     const buildLanguageSettings = () => {
-        console.log("data :>> ", data)
         const tempSettings = data?.presentation?.language_conf?.enabled_language_codes
-
-        console.log("tempSettings :>> ", tempSettings)
 
         const temp = []
         if (tempSettings) {
@@ -85,12 +86,15 @@ export const ElectionDataForm: React.FC = () => {
     }
 
     const parseValues = (incoming: any) => {
+        console.log("incoming :>> ", incoming)
+
         const temp = {...incoming}
 
         const languageSettings = buildLanguageSettings()
         const votingSettings = data?.voting_channels
 
         // languages
+        // temp.configuration = {...jsonConfiguration}
         temp.enabled_languages = {}
 
         if (languageSettings) {
@@ -278,6 +282,8 @@ export const ElectionDataForm: React.FC = () => {
         }
         return channelNodes
     }
+
+    // const getJsonText = (json: any) => {
 
     const renderTabs = (parsedValue: any) => {
         let tabNodes = []
@@ -539,9 +545,36 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <DropFile
-                                    handleFiles={function (files: FileList): void | Promise<void> {
-                                        throw new Error("Function not implemented.")
+                                <FileInput
+                                    source="configuration"
+                                    accept={"application/json"}
+                                    parse={(value) => {
+                                        const fileReader = new FileReader()
+                                        fileReader.readAsText(value, "UTF-8")
+                                        fileReader.onload = (e) => {
+                                            const theJson = JSON.parse(fileReader.result as string)
+                                            if (theJson) {
+                                                setJsonConfiguration({
+                                                    ...parsedValue.configuration,
+                                                    ...theJson,
+                                                })
+                                            }
+                                            return {name: value.name}
+                                        }
+                                        return {...jsonConfiguration}
+                                    }}
+                                />
+
+                                <JsonInput
+                                    parse={(value) => {
+                                        return {...jsonConfiguration}
+                                    }}
+                                    source="configuration"
+                                    reactJsonOptions={{
+                                        name: null,
+                                        collapsed: false,
+                                        enableClipboard: true,
+                                        displayDataTypes: false,
                                     }}
                                 />
                             </AccordionDetails>
