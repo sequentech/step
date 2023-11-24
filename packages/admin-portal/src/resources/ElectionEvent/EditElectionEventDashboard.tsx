@@ -5,17 +5,12 @@
 import React from "react"
 import {styled} from "@mui/material/styles"
 import {useQuery} from "@apollo/client"
-import {Box, Paper, Typography} from "@mui/material"
+import {Box, CircularProgress, Paper, Typography} from "@mui/material"
 import Chart, {Props} from "react-apexcharts"
-import {
-    GetCastVotesQuery,
-    GetElectionEventStatsQuery,
-    Sequent_Backend_Election_Event,
-} from "../../gql/graphql"
+import {GetCastVotesQuery, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {IconButton, theme} from "@sequentech/ui-essentials"
 import {useRecordContext} from "react-admin"
 import {
-    faBriefcase,
     faCalendar,
     faClock,
     faCommentSms,
@@ -28,6 +23,7 @@ import {GET_CAST_VOTES} from "../../queries/GetCastVotes"
 import {GET_ELECTION_EVENT_STATS} from "../../queries/GetElectionEventStats"
 
 import StatItem from "@/components/election-event/dashboard/StatItem"
+import {useTranslation} from "react-i18next"
 
 const CardList = styled(Box)`
     display: flex;
@@ -164,28 +160,59 @@ export const BarChart: React.FC = () => {
     )
 }
 
-export const ElectionStats: React.FC = () => {
+export function ElectionStats() {
+    const {t} = useTranslation()
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
-    const {loading, error, data} = useQuery<GetElectionEventStatsQuery>(GET_ELECTION_EVENT_STATS, {
+    const {loading, data} = useQuery(GET_ELECTION_EVENT_STATS, {
         variables: {
             electionEventId: record.id,
             tenantId: record.tenant_id,
         },
     })
 
-    if (loading || error || !data) {
-        return null
+    if (loading) {
+        return <CircularProgress />
+    }
+
+    const res = {
+        castVotes: data.castVotes.aggregate.count,
+        elections: data.elections.aggregate.count,
+        areas: data.areas.aggregate.count,
     }
 
     return (
         <CardList>
-            <StatItem icon={faBriefcase} count={0} label="trustees"></StatItem>
-            <StatItem icon={faUsers} count={0} label="voters"></StatItem>
-            <StatItem icon={faUsers} count={0} label="elections"></StatItem>
-            <StatItem icon={faGlobe} count={0} label="area"></StatItem>
-            <StatItem icon={faEnvelope} count={0} label="emails sent"></StatItem>
-            <StatItem icon={faCommentSms} count={0} label="sms sent"></StatItem>
+            <StatItem
+                icon={faUsers}
+                count={-1}
+                label={t("electionEventScreen.stats.elegibleVoters")}
+            ></StatItem>
+            <StatItem
+                icon={faUsers}
+                count={res.elections}
+                label={t("electionEventScreen.stats.elections")}
+            ></StatItem>
+            <StatItem
+                icon={faGlobe}
+                count={res.areas}
+                label={t("electionEventScreen.stats.areas")}
+            ></StatItem>
+            <StatItem
+                icon={faEnvelope}
+                count={-1}
+                label={t("electionEventScreen.stats.sentEmails")}
+            ></StatItem>
+            <StatItem
+                icon={faCommentSms}
+                count={-1}
+                label={t("electionEventScreen.stats.sentSMS")}
+            ></StatItem>
+            <StatItem
+                icon={faCalendar}
+                count={t("electionEventScreen.stats.calendar.scheduled")}
+                label={t("electionEventScreen.stats.calendar.title")}
+            ></StatItem>
         </CardList>
     )
 }

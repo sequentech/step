@@ -165,6 +165,17 @@ const spanishTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Evento de Elección creado",
             createElectionEventError: "Error creando Evento de Elección",
+            stats: {
+                elegibleVoters: "Votantes elegibles",
+                elections: "Elecciones",
+                areas: "Áreas",
+                sentEmails: "Correos electrónicos enviados",
+                sentSMS: "SMS enviados",
+                calendar: {
+                    title: "Calendario",
+                    scheduled: "Programado",
+                },
+            },
         },
         electionScreen: {
             common: {

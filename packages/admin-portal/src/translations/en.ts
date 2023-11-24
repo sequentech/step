@@ -162,6 +162,17 @@ const englishTranslation = {
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
+            stats: {
+                elegibleVoters: "Elegible voters",
+                elections: "Elections",
+                areas: "Areas",
+                sentEmails: "Emails sent",
+                sentSMS: "SMS sent",
+                calendar: {
+                    title: "Calendar",
+                    scheduled: "Scheduled",
+                },
+            },
         },
         electionScreen: {
             common: {
