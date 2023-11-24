@@ -27,6 +27,7 @@
     "generate:admin": "yarn --cwd ./admin-portal generate"
   },
   "dependencies": {
-    "@mui/styles": "^5.14.18"
+    "@mui/styles": "^5.14.18",
+    "tailwind-merge": "^2.0.0"
   }
 }
