@@ -30,12 +30,7 @@ export const SettingsVotingChannels: React.FC<void> = () => {
     return (
         <SettingsVotingChannelsStyles.Wrapper>
             {Object.keys(voting).map((method: string) => (
-                <SettingsVotingChannelsStyles.Content
-                    key={method}
-                    style={{
-                        display: "flex",
-                    }}
-                >
+                <SettingsVotingChannelsStyles.Content key={method}>
                     <SettingsVotingChannelsStyles.Text>
                         {method} Voting
                     </SettingsVotingChannelsStyles.Text>
