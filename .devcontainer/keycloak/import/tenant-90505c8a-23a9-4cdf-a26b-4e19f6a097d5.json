@@ -482,7 +482,7 @@
     "enabled" : true,
     "totp" : false,
     "emailVerified" : true,
-    "email" : "edu@sequentech.io",
+    "email" : "felix@sequentech.io",
     "attributes" : {
       "sequent.read-only.otp-method" : [ "email-or-sms" ],
       "sequent.read-only.mobile-number" : [ "+34634571634" ],

@@ -35,7 +35,7 @@ public class MessageOTPAuthenticatorFactory
 
 	@Override
 	public String getDisplayType() {
-		return "Email/SMS Authentication";
+		return "OTP - Message via Email/SMS";
 	}
 
 	@Override

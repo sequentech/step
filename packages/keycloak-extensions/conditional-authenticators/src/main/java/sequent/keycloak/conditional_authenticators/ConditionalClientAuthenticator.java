@@ -32,6 +32,7 @@ public class ConditionalClientAuthenticator implements ConditionalAuthenticator
             );
             return false;
         }
+        log.infov("matchCondition(): alias={0}", authConfig.getAlias());
         if (authConfig.getConfig() == null) {
             log.infov(
                 "matchCondition(): NULL found authConfig.getConfig()={0}",

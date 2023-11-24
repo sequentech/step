@@ -105,11 +105,6 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
 
         // Send email with password
         try {
-            // TODO: FIXME: Always use user.getEmail() instead of a custom
-            // property. need to setEmail() here since it's used by
-            // Utils.sendNewPasswordNotification()
-            user.setEmail(userEmail);
-
             Utils.sendNewPasswordNotification(
                 context.getSession(),
                 user,
