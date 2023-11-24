@@ -28,7 +28,7 @@ pub struct GetPermissionsBody {
 
 #[instrument(skip(claims))]
 #[post("/get-permissions", format = "json", data = "<body>")]
-pub async fn get_users(
+pub async fn get_permissions(
     claims: jwt::JwtClaims,
     body: Json<GetPermissionsBody>,
 ) -> Result<Json<DataList<Permission>>, (Status, String)> {
