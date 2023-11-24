@@ -46,6 +46,7 @@ import {DropFile} from "@sequentech/ui-essentials"
 import {useFormState, useForm} from "react-hook-form"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {JsonField, JsonInput} from "react-admin-json-view"
+import FileJsonInput from "../../components/FileJsonInput"
 
 export const ElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -86,8 +87,6 @@ export const ElectionDataForm: React.FC = () => {
     }
 
     const parseValues = (incoming: any) => {
-        console.log("incoming :>> ", incoming)
-
         const temp = {...incoming}
 
         const languageSettings = buildLanguageSettings()
@@ -301,22 +300,22 @@ export const ElectionDataForm: React.FC = () => {
         return tabNodes
     }
 
-    const getJsonText = (value: any, parsedValue: any) => {
-        var url = URL.createObjectURL(value) //Create Object URL
-        var xhr = new XMLHttpRequest()
-        xhr.open("GET", url, false) //Synchronous XMLHttpRequest on Object URL
-        xhr.overrideMimeType("text/plain; charset=x-user-defined") //Override MIME Type to prevent UTF-8 related errors
-        xhr.send()
-        URL.revokeObjectURL(url)
-        var returnText = ""
-        for (var i = 0; i < xhr.responseText.length; i++) {
-            returnText += String.fromCharCode(xhr.responseText.charCodeAt(i) & 0xff)
-        } //remove higher byte
-        return {
-            ...parsedValue.configuration,
-            ...(JSON.parse(returnText as string) || {}),
-        }
-    }
+    // const getJsonText = (value: any, parsedValue: any) => {
+    //     var url = URL.createObjectURL(value) //Create Object URL
+    //     var xhr = new XMLHttpRequest()
+    //     xhr.open("GET", url, false) //Synchronous XMLHttpRequest on Object URL
+    //     xhr.overrideMimeType("text/plain; charset=x-user-defined") //Override MIME Type to prevent UTF-8 related errors
+    //     xhr.send()
+    //     URL.revokeObjectURL(url)
+    //     var returnText = ""
+    //     for (var i = 0; i < xhr.responseText.length; i++) {
+    //         returnText += String.fromCharCode(xhr.responseText.charCodeAt(i) & 0xff)
+    //     } //remove higher byte
+    //     return {
+    //         ...parsedValue.configuration,
+    //         ...(JSON.parse(returnText as string) || {}),
+    //     }
+    // }
 
     // TODO: renderReceipts
 
@@ -353,7 +352,7 @@ export const ElectionDataForm: React.FC = () => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming)
-                console.log("parsedValue :>> ", parsedValue)
+                // console.log("parsedValue :>> ", parsedValue)
                 return (
                     <SimpleForm validate={formValidator} record={parsedValue}>
                         <Accordion
@@ -562,22 +561,10 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <FileInput
-                                    source="configuration"
-                                    accept={"application/json"}
-                                    parse={(value) => {
-                                        return getJsonText(value, parsedValue)
-                                    }}
-                                />
-
-                                <JsonField
-                                    source="presentation"
-                                    reactJsonOptions={{
-                                        name: null,
-                                        collapsed: true,
-                                        enableClipboard: true,
-                                        displayDataTypes: false,
-                                    }}
+                                <FileJsonInput
+                                    parsedValue={parsedValue}
+                                    fileSource="configuration"
+                                    jsonSource="presentation"
                                 />
                             </AccordionDetails>
                         </Accordion>

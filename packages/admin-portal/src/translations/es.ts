@@ -216,6 +216,7 @@ const spanishTranslation: TranslationType = {
                 back: "Atrás",
                 next: "Siguiente",
                 warning: "Aviso",
+                json: "Vista previa",
             },
             message: {
                 delete: "¿Estás seguro de que quieres eliminar este elemento?",

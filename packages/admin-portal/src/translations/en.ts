@@ -213,6 +213,7 @@ const englishTranslation = {
                 back: "Back",
                 next: "Next",
                 warning: "Warning",
+                json: "Preview",
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
