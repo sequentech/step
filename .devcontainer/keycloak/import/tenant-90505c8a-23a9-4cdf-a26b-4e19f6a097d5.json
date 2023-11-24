@@ -426,7 +426,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppGoogleName", "totpAppFreeOTPName", "totpAppMicrosoftAuthenticatorName" ],
+  "otpSupportedApplications" : [ "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -496,12 +496,6 @@
       "createdDate" : 1700745545314,
       "secretData" : "{\"value\":\"gexmfPWthLIk9nLGTMQSb7N3esWa7lqtWbBK3ExKlmI=\",\"salt\":\"NnIXTNwcCFAK5WINWww8+g==\",\"additionalParameters\":{}}",
       "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-    }, {
-      "id" : "0cb1e3af-cb8e-468f-b353-1202194c0782",
-      "type" : "message-otp",
-      "createdDate" : 1700745554207,
-      "secretData" : "{\"nothing\":\"nothing\"}",
-      "credentialData" : "{\"setup\":true}"
     } ],
     "disableableCredentialTypes" : [ ],
     "requiredActions" : [ ],
@@ -1581,7 +1575,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-full-name-mapper", "saml-user-attribute-mapper", "saml-user-property-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-role-list-mapper", "oidc-address-mapper", "oidc-usermodel-property-mapper", "oidc-usermodel-attribute-mapper" ]
+        "allowed-protocol-mapper-types" : [ "saml-user-property-mapper", "oidc-full-name-mapper", "saml-role-list-mapper", "saml-user-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-address-mapper", "oidc-usermodel-property-mapper", "oidc-usermodel-attribute-mapper" ]
       }
     }, {
       "id" : "563febd2-5ea9-4258-bc2d-a4e9f2fcac38",
@@ -1634,7 +1628,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-full-name-mapper", "saml-role-list-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-attribute-mapper", "oidc-address-mapper", "oidc-usermodel-property-mapper", "saml-user-attribute-mapper", "saml-user-property-mapper" ]
+        "allowed-protocol-mapper-types" : [ "saml-role-list-mapper", "oidc-full-name-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-address-mapper", "oidc-usermodel-property-mapper", "oidc-usermodel-attribute-mapper", "saml-user-attribute-mapper", "saml-user-property-mapper" ]
       }
     } ],
     "org.keycloak.keys.KeyProvider" : [ {
@@ -1729,28 +1723,6 @@
       "userSetupAllowed" : false
     } ]
   }, {
-    "id" : "80d5253e-4a0a-4135-aeb5-76e5b34a9b2c",
-    "alias" : "Conditional Reset OTP",
-    "description" : "",
-    "providerId" : "basic-flow",
-    "topLevel" : false,
-    "builtIn" : false,
-    "authenticationExecutions" : [ {
-      "authenticator" : "conditional-user-attribute",
-      "authenticatorFlow" : false,
-      "requirement" : "DISABLED",
-      "priority" : 0,
-      "autheticatorFlow" : false,
-      "userSetupAllowed" : false
-    }, {
-      "authenticator" : "reset-otp",
-      "authenticatorFlow" : false,
-      "requirement" : "DISABLED",
-      "priority" : 1,
-      "autheticatorFlow" : false,
-      "userSetupAllowed" : false
-    } ]
-  }, {
     "id" : "1ce5be5b-ab9f-4740-afa5-2b9af3df259f",
     "alias" : "Direct Grant - Conditional OTP",
     "description" : "Flow to determine if the OTP is required for the authentication",
@@ -1824,23 +1796,23 @@
     "topLevel" : false,
     "builtIn" : false,
     "authenticationExecutions" : [ {
-      "authenticator" : "conditional-user-configured",
+      "authenticatorConfig" : "message-otp-voting-portal-client",
+      "authenticator" : "conditional-client",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 10,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {
-      "authenticatorConfig" : "message-otp-not-temp",
-      "authenticator" : "conditional-user-attr",
+      "authenticator" : "conditional-user-configured",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 14,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {
-      "authenticatorConfig" : "message-otp-voting-portal-client",
-      "authenticator" : "conditional-client",
+      "authenticatorConfig" : "message-otp-not-temp",
+      "authenticator" : "conditional-user-attr",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 15,
@@ -1863,23 +1835,23 @@
     "topLevel" : false,
     "builtIn" : false,
     "authenticationExecutions" : [ {
-      "authenticator" : "conditional-user-configured",
+      "authenticatorConfig" : "normal-otp-voting-portal-client",
+      "authenticator" : "conditional-client",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 0,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {
-      "authenticatorConfig" : "otp-not-temp2",
-      "authenticator" : "conditional-user-attr",
+      "authenticator" : "conditional-user-configured",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 3,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {
-      "authenticatorConfig" : "normal-otp-voting-portal-client",
-      "authenticator" : "conditional-client",
+      "authenticatorConfig" : "otp-not-temp2",
+      "authenticator" : "conditional-user-attr",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 4,
@@ -2196,8 +2168,8 @@
     "topLevel" : false,
     "builtIn" : false,
     "authenticationExecutions" : [ {
-      "authenticatorConfig" : "has-temporary-password",
-      "authenticator" : "conditional-user-attr",
+      "authenticatorConfig" : "forgot-client-id",
+      "authenticator" : "conditional-client",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 0,
@@ -2211,10 +2183,18 @@
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {
-      "authenticator" : "reset-password",
+      "authenticatorConfig" : "has-temporary-password",
+      "authenticator" : "conditional-user-attr",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 2,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticator" : "reset-password",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 3,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {
@@ -2222,14 +2202,6 @@
       "authenticator" : "remove-user-attribute",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
-      "priority" : 3,
-      "autheticatorFlow" : false,
-      "userSetupAllowed" : false
-    }, {
-      "authenticatorConfig" : "reset-otp",
-      "authenticator" : "reset-otp",
-      "authenticatorFlow" : false,
-      "requirement" : "DISABLED",
       "priority" : 4,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
@@ -2238,6 +2210,13 @@
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 5,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticator" : "reset-otp-sequent",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 6,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     } ]
@@ -2478,19 +2457,49 @@
       "priority" : 41,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
-    }, {
-      "authenticator" : "reset-password",
+    } ]
+  }, {
+    "id" : "293704e3-883d-411b-8766-084e1c43096d",
+    "alias" : "smart-link",
+    "description" : "Simple smart link authentication flow.",
+    "providerId" : "basic-flow",
+    "topLevel" : true,
+    "builtIn" : true,
+    "authenticationExecutions" : [ {
+      "authenticator" : "auth-cookie",
       "authenticatorFlow" : false,
-      "requirement" : "REQUIRED",
-      "priority" : 42,
+      "requirement" : "ALTERNATIVE",
+      "priority" : 0,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticator" : "identity-provider-redirector",
+      "authenticatorFlow" : false,
+      "requirement" : "ALTERNATIVE",
+      "priority" : 0,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {
       "authenticatorFlow" : true,
-      "requirement" : "DISABLED",
-      "priority" : 43,
+      "requirement" : "ALTERNATIVE",
+      "priority" : 1,
       "autheticatorFlow" : true,
-      "flowAlias" : "Conditional Reset OTP",
+      "flowAlias" : "smart-link forms",
+      "userSetupAllowed" : false
+    } ]
+  }, {
+    "id" : "c9d1cf4c-c819-4c83-aef8-74a12e93fb5f",
+    "alias" : "smart-link forms",
+    "description" : "Forms for simple smart link authentication flow.",
+    "providerId" : "basic-flow",
+    "topLevel" : false,
+    "builtIn" : false,
+    "authenticationExecutions" : [ {
+      "authenticator" : "smart-link",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 0,
+      "autheticatorFlow" : false,
       "userSetupAllowed" : false
     } ]
   } ],
@@ -2526,16 +2535,22 @@
     "id" : "31b33e7f-781d-4b4f-b8cf-23987c87ea56",
     "alias" : "email-sms",
     "config" : {
-      "senderId" : "Keycloak",
-      "telUserAttribute" : "sequent.read-only.mobile-number",
       "length" : "6",
-      "ttl" : "300"
+      "senderId" : "Keycloak",
+      "ttl" : "300",
+      "telUserAttribute" : "sequent.read-only.mobile-number"
+    }
+  }, {
+    "id" : "51708ed3-9524-4abe-b28d-fc88a167d5fe",
+    "alias" : "forgot-client-id",
+    "config" : {
+      "conditional-client" : "voting-portal",
+      "negate" : "false"
     }
   }, {
     "id" : "6c314d5f-ac82-493b-ac1c-a1c3733ef32a",
     "alias" : "forgot.choose-user",
-    "config" : {
-    }
+    "config" : { }
   }, {
     "id" : "99eba665-0ca9-4dea-8010-1c95c1d2588c",
     "alias" : "has-temporary-password",
@@ -2744,7 +2759,7 @@
     "alias" : "security-question-ra",
     "name" : "Security Question",
     "providerId" : "security-question-ra",
-    "enabled" : false,
+    "enabled" : true,
     "defaultAction" : false,
     "priority" : 1001,
     "config" : { }
@@ -2752,7 +2767,7 @@
     "alias" : "mfa-method-selector",
     "name" : "Configure MFA method to use",
     "providerId" : "mfa-method-selector",
-    "enabled" : false,
+    "enabled" : true,
     "defaultAction" : false,
     "priority" : 1002,
     "config" : { }
@@ -2760,7 +2775,7 @@
     "alias" : "message-otp-ra",
     "name" : "Reset Message OTP",
     "providerId" : "message-otp-ra",
-    "enabled" : false,
+    "enabled" : true,
     "defaultAction" : false,
     "priority" : 1003,
     "config" : { }

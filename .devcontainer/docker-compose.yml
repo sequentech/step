@@ -376,6 +376,8 @@ services:
   windmill:
     profiles: ["dev"]
     stdin_open: true
+    volumes:
+      - ./keycloak/import:/import
     build:
       context: ../packages/
       dockerfile: ./windmill/Dockerfile
@@ -383,6 +385,8 @@ services:
       - IMMUDB_SERVER_URL=http://immudb:3322
       - IMMUDB_USERNAME=immudb
       - IMMUDB_PASSWORD=immudb
+      - KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH=/import/${ELECTION_EVENT_REALM_FILENAME}
+      - KEYCLOAK_TENANT_REALM_CONFIG_PATH=/import/${TENANT_REALM_FILENAME}
 
 volumes:
   db_data:
