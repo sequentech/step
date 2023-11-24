@@ -25,7 +25,6 @@ import {CreateScheduledEventMutation, Sequent_Backend_Area} from "../../gql/grap
 import {Link} from "react-router-dom"
 import {IconButton} from "@sequentech/ui-essentials"
 import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
-import {useTenantStore} from "../../components/CustomMenu"
 import {useMutation} from "@apollo/client"
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../../services/ScheduledEvent"

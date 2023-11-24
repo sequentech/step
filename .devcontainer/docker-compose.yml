@@ -115,8 +115,6 @@ services:
     healthcheck:
       retries: 5
     entrypoint: vault server -config /opt/vault/config.hcl
-    depends_on:
-      - minio
 
   graphql-engine:
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
@@ -277,7 +275,7 @@ services:
       - immudb_logs:/var/log/immudb
   
   harvest:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     build:
       context: ../packages/

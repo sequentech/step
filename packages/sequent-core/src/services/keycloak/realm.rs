@@ -10,6 +10,16 @@ use std::collections::HashMap;
 use tracing::instrument;
 use uuid::Uuid;
 
+pub fn get_event_realm(tenant_id: &str, election_event_id: &str)
+-> String {
+    format!("tenant-{}-event-{}", tenant_id, election_event_id)
+}
+
+pub fn get_tenant_realm(tenant_id: &str)
+-> String {
+    format!("tenant-{}", tenant_id)
+}
+
 fn replace_uuids(input: &str) -> String {
     let uuid_regex =
         Regex::new(r"\b[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\b")

@@ -50,9 +50,9 @@ pub struct JwtClaims {
     #[serde(rename = "https://hasura.io/jwt/claims")] 
     pub hasura_claims: JwtHasuraClaims,
     pub name: String, 
-    pub preferred_username: String, 
-    pub given_name: String, 
-    pub family_name: String, 
+    pub preferred_username: Option<String>, 
+    pub given_name: Option<String>, 
+    pub family_name: Option<String>, 
  }
 
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {

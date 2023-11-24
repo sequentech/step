@@ -378,7 +378,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppFreeOTPName", "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName" ],
+  "otpSupportedApplications" : [ "totpAppFreeOTPName", "totpAppMicrosoftAuthenticatorName", "totpAppGoogleName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -454,13 +454,13 @@
     "credentials" : [ {
       "id" : "6d4932d1-daf6-4e97-ae40-29a10f241f63",
       "type" : "password",
-      "createdDate" : 1700745545314,
-      "secretData" : "{\"value\":\"gexmfPWthLIk9nLGTMQSb7N3esWa7lqtWbBK3ExKlmI=\",\"salt\":\"NnIXTNwcCFAK5WINWww8+g==\",\"additionalParameters\":{}}",
+      "createdDate" : 1700804716997,
+      "secretData" : "{\"value\":\"rHtsDkwSEaEdnvnOrargmqUdPAd06ZO8R0yJUnVMWb4=\",\"salt\":\"4VuAKAvwlXLQ7CVoLnOWRw==\",\"additionalParameters\":{}}",
       "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
     }, {
-      "id" : "0cb1e3af-cb8e-468f-b353-1202194c0782",
+      "id" : "a09b35c7-306d-4ffe-b241-3b2c89f5411f",
       "type" : "message-otp",
-      "createdDate" : 1700745554207,
+      "createdDate" : 1700806083091,
       "secretData" : "{\"nothing\":\"nothing\"}",
       "credentialData" : "{\"setup\":true}"
     } ],
@@ -1519,7 +1519,17 @@
     "xXSSProtection" : "1; mode=block",
     "strictTransportSecurity" : "max-age=31536000; includeSubDomains"
   },
-  "smtpServer" : { },
+  "smtpServer" : {
+    "replyToDisplayName" : "",
+    "starttls" : "false",
+    "auth" : "",
+    "host" : "sequentech.io",
+    "replyTo" : "no-reply@sequentech.io",
+    "from" : "no-reply@sequentech.io",
+    "fromDisplayName" : "Sequent Tech No Reply",
+    "envelopeFrom" : "",
+    "ssl" : "false"
+  },
   "eventsEnabled" : true,
   "eventsExpiration" : 15552000,
   "eventsListeners" : [ "jboss-logging" ],
@@ -2470,6 +2480,7 @@
       "length" : "6",
       "senderId" : "Keycloak",
       "ttl" : "300",
+      "simulation" : "true",
       "telUserAttribute" : "sequent.read-only.mobile-number"
     }
   }, {
@@ -2489,7 +2500,9 @@
     "alias" : "email-sms",
     "config" : {
       "senderId" : "Keycloak",
+      "simulation" : "true",
       "telUserAttribute" : "sequent.read-only.mobile-number",
+      "emailUserAttribute" : "sequent.read-only.email-address",
       "length" : "6",
       "ttl" : "300"
     }
@@ -2497,6 +2510,7 @@
     "id" : "6c314d5f-ac82-493b-ac1c-a1c3733ef32a",
     "alias" : "forgot.choose-user",
     "config" : {
+      "emailUserAttribute" : "sequent.read-only.email-address"
     }
   }, {
     "id" : "99eba665-0ca9-4dea-8010-1c95c1d2588c",
@@ -2589,7 +2603,7 @@
       "passwordExpiration" : "7200",
       "passwordExpirationUserAttribute" : "sequent.read-only.expirationDate",
       "passwordLength" : "12",
-      "simulationMode" : "true"
+      "simulationMode" : "false"
     }
   }, {
     "id" : "14301189-f3d6-4e1e-babb-44b71d5abb2b",

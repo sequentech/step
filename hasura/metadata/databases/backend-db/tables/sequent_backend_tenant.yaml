@@ -2,104 +2,104 @@ table:
   name: tenant
   schema: sequent_backend
 insert_permissions:
-  - role: admin-user
-    permission:
-      check: {}
-      columns:
-        - is_active
-        - annotations
-        - labels
-        - slug
-        - created_at
-        - updated_at
-        - id
-    comment: ""
-  - role: service-account
-    permission:
-      check: {}
-      columns:
-        - is_active
-        - annotations
-        - labels
-        - slug
-        - created_at
-        - updated_at
-        - id
-    comment: ""
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - is_active
+    - annotations
+    - labels
+    - slug
+    - created_at
+    - updated_at
+    - id
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - is_active
+    - annotations
+    - labels
+    - slug
+    - created_at
+    - updated_at
+    - id
+  role: service-account
 select_permissions:
-  - role: admin-user
-    permission:
-      columns:
-        - is_active
-        - annotations
-        - labels
-        - slug
-        - created_at
-        - updated_at
-        - id
-      filter: {}
-      allow_aggregations: true
-    comment: ""
-  - role: service-account
-    permission:
-      columns:
-        - is_active
-        - annotations
-        - labels
-        - slug
-        - created_at
-        - updated_at
-        - id
-      filter: {}
-      allow_aggregations: true
-    comment: ""
-  - role: user
-    permission:
-      columns:
-        - is_active
-        - annotations
-        - labels
-        - slug
-        - created_at
-        - updated_at
-        - id
-      filter:
-        id:
-          _eq: X-Hasura-Tenant-Id
-    comment: ""
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_active
+    - annotations
+    - labels
+    - slug
+    - created_at
+    - updated_at
+    - id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - is_active
+    - annotations
+    - labels
+    - slug
+    - created_at
+    - updated_at
+    - id
+    filter: {}
+  role: service-account
+- comment: ""
+  permission:
+    columns:
+    - is_active
+    - annotations
+    - labels
+    - slug
+    - created_at
+    - updated_at
+    - id
+    filter:
+      id:
+        _eq: X-Hasura-Tenant-Id
+  role: user
 update_permissions:
-  - role: admin-user
-    permission:
-      columns:
-        - is_active
-        - annotations
-        - labels
-        - slug
-        - created_at
-        - updated_at
-        - id
-      filter: {}
-      check: {}
-    comment: ""
-  - role: service-account
-    permission:
-      columns:
-        - is_active
-        - annotations
-        - labels
-        - slug
-        - created_at
-        - updated_at
-        - id
-      filter: {}
-      check: {}
-    comment: ""
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - is_active
+    - annotations
+    - labels
+    - slug
+    - created_at
+    - updated_at
+    - id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - is_active
+    - annotations
+    - labels
+    - slug
+    - created_at
+    - updated_at
+    - id
+    filter: {}
+  role: service-account
 delete_permissions:
-  - role: admin-user
-    permission:
-      filter: {}
-    comment: ""
-  - role: service-account
-    permission:
-      filter: {}
-    comment: ""
+- comment: ""
+  permission:
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    filter: {}
+  role: service-account

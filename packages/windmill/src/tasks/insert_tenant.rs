@@ -7,7 +7,7 @@ use crate::hasura::tenant::*;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::types::error::Result;
 use celery::error::TaskError;
-use immu_board::util::get_tenant_name;
+use sequent_core::services::keycloak::get_tenant_realm;
 use sequent_core;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
@@ -20,11 +20,11 @@ pub async fn upsert_keycloak_realm(tenant_id: &str) -> Result<()> {
     let json_realm_config = env::var("KEYCLOAK_TENANT_REALM_CONFIG")
         .expect(&format!("KEYCLOAK_TENANT_REALM_CONFIG must be set"));
     let client = KeycloakAdminClient::new().await?;
-    let tenant_name = get_tenant_name(tenant_id);
+    let realm = get_tenant_realm(tenant_id);
     client
-        .upsert_realm(tenant_name.as_str(), &json_realm_config)
+        .upsert_realm(realm.as_str(), &json_realm_config)
         .await?;
-    upsert_realm_jwks(tenant_name.as_str()).await?;
+    upsert_realm_jwks(realm.as_str()).await?;
     Ok(())
 }
 
