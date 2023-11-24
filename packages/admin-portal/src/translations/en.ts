@@ -250,6 +250,26 @@ const englishTranslation = {
             createCandidateSuccess: "Candidate created",
             createCandidateError: "Error creating candidate",
         },
+        contestScreen: {
+            common: {
+                subtitle: "Contest configuration.",
+            },
+            edit: {
+                general: "General",
+                type: "Type",
+                image: "Image",
+                system: "Ballot Voting System",
+                design: "Ballot Design",
+            },
+            field: {
+                name: "Name",
+                alias: "Alias",
+                description: "Description",
+            },
+            error: {},
+            createContestSuccess: "Contest created",
+            createContestError: "Error creating candidate",
+        },
     },
 }
 

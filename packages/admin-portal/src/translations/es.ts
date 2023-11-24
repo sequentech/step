@@ -253,6 +253,26 @@ const spanishTranslation: TranslationType = {
             createCandidateSuccess: "Candidato creado",
             createCandidateError: "Error creating candidato",
         },
+        contestScreen: {
+            common: {
+                subtitle: "Configuración de contienda.",
+            },
+            edit: {
+                general: "General",
+                type: "Tipo",
+                image: "Imagen",
+                system: "Ballot Voting System",
+                design: "Ballot Design",
+            },
+            field: {
+                name: "Nombre",
+                alias: "Alias",
+                description: "Descripción",
+            },
+            error: {},
+            createContestSuccess: "Contienda creado",
+            createContestError: "Error creating contienda",
+        },
     },
 }
 

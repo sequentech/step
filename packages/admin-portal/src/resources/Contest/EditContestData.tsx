@@ -1,8 +1,8 @@
 import React from "react"
 import {EditBase} from "react-admin"
-import {ElectionDataForm} from "./ElectionDataForm"
+import { ContestDataForm } from './EditContestDataForm'
 
-export const EditElectionData: React.FC = () => {
+export const EditContestData: React.FC = () => {
     const transform = (data: any) => {
         console.log("TRANSFORM ELECTION :: ", data)
         console.log("TRANSFORM ELECTION :: enabled langs :: ", data.enabled_languages)
@@ -56,7 +56,7 @@ export const EditElectionData: React.FC = () => {
 
     return (
         <EditBase redirect={"."} transform={transform}>
-            <ElectionDataForm />
+            <ContestDataForm />
         </EditBase>
     )
 }

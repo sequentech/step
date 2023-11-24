@@ -50,6 +50,8 @@ import {CreateElection} from "./resources/Election/CreateElection"
 import {ElectionBaseTabs} from "./resources/ElectionEvent/ElectionBaseTabs"
 import {CandidateBaseTabs} from "./resources/Candidate/CandidateBaseTabs"
 import {CreateCandidateData} from "./resources/Candidate/CreateCandidateData"
+import { ContestBaseTabs } from './resources/Contest/ContestBaseTabs'
+import { CreateContestData } from './resources/Contest/CreateContestData'
 
 export const AppWrapper = () => {
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
@@ -138,9 +140,10 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
             />
             <Resource
                 name="sequent_backend_contest"
-                edit={EditContest}
                 list={ListContest}
-                create={CreateContest}
+                create={CreateContestData}
+                edit={ContestBaseTabs}
+                show={ContestBaseTabs}
                 options={{
                     label: "Contests",
                     menuParent: "sequent_backend_election",
