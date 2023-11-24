@@ -39,7 +39,6 @@ import {ListTrustee} from "./resources/Trustee/ListTrustee"
 import {Messages} from "./screens/Messages"
 import {PgAuditList} from "./resources/PgAudit/PgAuditList"
 import {Route} from "react-router-dom"
-import {Settings} from "./screens/Settings"
 import {ShowDocument} from "./resources/Document/ShowDocument"
 import {UserAndRoles} from "./screens/UserAndRoles"
 import buildHasuraProvider from "ra-data-hasura"
@@ -47,6 +46,7 @@ import {createApolloClient} from "./services/ApolloService"
 import {customBuildQuery} from "./queries/customBuildQuery"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {isNull} from "@sequentech/ui-essentials"
+import {SettingsScreen} from "./screens/SettingsScreen"
 
 export const AppWrapper = () => {
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
@@ -106,10 +106,12 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
         >
             <CustomRoutes>
                 <Route path="/user-roles" element={<UserAndRoles />} />
-                <Route path="/settings" element={<Settings />} />
                 <Route path="/messages" element={<Messages />} />
+                <Route path="/settings" element={<SettingsScreen />} />
             </CustomRoutes>
+
             <Resource name="pgaudit" list={PgAuditList} options={{label: "PGAudit"}} />
+            
             <Resource
                 name="sequent_backend_election_event"
                 list={ElectionEventList}
@@ -118,6 +120,7 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
                 show={ElectionEventBaseTabs}
                 options={{label: "Election Events", isMenuParent: true}}
             />
+
             <Resource
                 name="sequent_backend_election"
                 edit={EditElection}
