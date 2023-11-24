@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
 
+
 const spanishTranslation: TranslationType = {
     translations: {
         breadcrumbSteps: {
@@ -133,7 +134,11 @@ const spanishTranslation: TranslationType = {
             createAreaError: "Error creando área",
         },
         electionEventScreen: {
+            new: {
+                subtitle: "Crear Evento Electoral",
+            },
             common: {
+                title: "Evento Electoral",
                 subtitle: "Configuración del Evento de Elección.",
             },
             edit: {
@@ -189,6 +194,16 @@ const spanishTranslation: TranslationType = {
             createElectionEventSuccess: "Creada la elección",
             createElectionEventError: "Error Creando la elección",
         },
+        tenantScreen: {
+            common: {
+                title: "Cliente",
+            },
+            new: {
+                subtitle: "Crear Cliente",
+            },
+            createSuccess: "Cliente creado",
+            createError: "Error creando cliente",
+        },
         common: {
             label: {
                 add: "Añadir",
@@ -207,16 +222,17 @@ const spanishTranslation: TranslationType = {
             },
             language: {
                 es: "Español",
-                en: "Ingles",
+                en: "Inglés",
             },
             channel: {
-                online: "Online",
-                kiosk: "Kiosko",
+                online: "En línea",
+                kiosk: "Kiosco",
             },
         },
-        tenant: {
-            createSuccess: "Cliente creado",
-            createError: "Error creando cliente",
+        sideMenu: {
+            usersAndRoles: "Usuarios y Roles",
+            settings: "Configuracion",
+            communicationTemplates: "Plantillas de Comunicación",
         },
         candidateScreen: {
             common: {

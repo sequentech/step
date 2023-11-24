@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useState} from "react"
-import { DEFAULT_TENANT } from "./AuthContextProvider"
+import {DEFAULT_TENANT} from "./AuthContextProvider"
 
 interface TenantContext {
     tenantId: string | null
@@ -24,7 +24,9 @@ interface TenantContextProviderProps {
 }
 
 export const TenantContextProvider = (props: TenantContextProviderProps) => {
-    const [tenant, setTenant] = useState<string | null>(localStorage.getItem("selected-tenant-id") || DEFAULT_TENANT)
+    const [tenant, setTenant] = useState<string | null>(
+        localStorage.getItem("selected-tenant-id") || null
+    )
 
     const setTenantId = (tenantId: string | null): void => {
         localStorage.setItem("selected-tenant-id", tenantId || "")
