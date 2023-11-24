@@ -12,10 +12,10 @@ export const COUNTING_ALGORITHMS = [
     {id: "plurality-at-large", name: "plurality-at-large"},
 ]
 
-type OrderAnwer  = typeof ORDER_ANSWER[0]
+type OrderAnwer  = typeof ORDER_ANSWERS[0]
 type OrderAnwers = OrderAnwer[]
 
-export const ORDER_ANSWER = [
+export const ORDER_ANSWERS = [
     {id: "random-asnwers", name: "random-asnwers"},
     {id: "custom", name: "custom"},
     {id: "alphabetical", name: "alphabetical"},

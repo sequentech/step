@@ -3,39 +3,28 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
     BooleanInput,
-    DateTimeInput,
     SelectInput,
     TextInput,
     useRecordContext,
-    useRefresh,
     SimpleForm,
     useGetOne,
     RecordContext,
-    RadioButtonGroupInput,
     NumberInput,
 } from "react-admin"
-import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid} from "@mui/material"
-import {CreateScheduledEventMutation, Sequent_Backend_Contest} from "../../gql/graphql"
+import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab} from "@mui/material"
+import {Sequent_Backend_Contest} from "../../gql/graphql"
 import React, {useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
-import {ScheduledEventType} from "../../services/ScheduledEvent"
-import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {DropFile} from "@sequentech/ui-essentials"
-import {useForm} from "react-hook-form"
-import {useTenantStore} from "../../providers/TenantContextProvider"
-import {COUNTING_ALGORITHMS, VOTING_TYPES} from "./constants"
+import {COUNTING_ALGORITHMS, ORDER_ANSWERS, VOTING_TYPES} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
 
 export const ContestDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()
-    const [tenantId] = useTenantStore()
-    const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
-    const refresh = useRefresh()
     const {t} = useTranslation()
 
     const [value, setValue] = useState(0)
@@ -242,7 +231,7 @@ export const ContestDataForm: React.FC = () => {
                                 <NumberInput source="min_votes" />
                                 <NumberInput source="max_votes" />
                                 <NumberInput source="winning_candidates_num" />
-                                <SelectInput source="voting_type" choices={VOTING_TYPES} />
+                                <SelectInput source="order_answers" choices={ORDER_ANSWERS} />
                             </AccordionDetails>
                         </Accordion>
 
