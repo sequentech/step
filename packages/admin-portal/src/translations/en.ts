@@ -270,6 +270,7 @@ const englishTranslation = {
                 image: "Image",
                 system: "Ballot Voting System",
                 design: "Ballot Design",
+                reorder: "Reorder candidates",
             },
             field: {
                 name: "Name",

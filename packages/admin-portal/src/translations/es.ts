@@ -273,6 +273,7 @@ const spanishTranslation: TranslationType = {
                 image: "Imagen",
                 system: "Sistema de votación de papeletas",
                 design: "Diseño de la papeleta",
+                reorder: "Reordernar candidatos",
             },
             field: {
                 name: "Nombre",

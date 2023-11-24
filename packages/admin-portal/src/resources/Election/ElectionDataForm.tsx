@@ -12,27 +12,12 @@ import {
     useGetOne,
     RecordContext,
     RadioButtonGroupInput,
-    FileField,
-    FileInput,
+    Toolbar,
+    SaveButton,
 } from "react-admin"
-import {
-    Accordion,
-    AccordionDetails,
-    AccordionSummary,
-    Tabs,
-    Tab,
-    Grid,
-    Radio,
-    FormControl,
-    RadioGroup,
-    FormControlLabel,
-} from "@mui/material"
-import {
-    CreateScheduledEventMutation,
-    Sequent_Backend_Election,
-    Sequent_Backend_Election_Event,
-} from "../../gql/graphql"
-import React, {useEffect, useState} from "react"
+import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid} from "@mui/material"
+import {CreateScheduledEventMutation, Sequent_Backend_Election} from "../../gql/graphql"
+import React, {useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
@@ -43,9 +28,8 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {DropFile} from "@sequentech/ui-essentials"
-import {useFormState, useForm} from "react-hook-form"
+import {useForm} from "react-hook-form"
 import {useTenantStore} from "../../providers/TenantContextProvider"
-import {JsonField, JsonInput} from "react-admin-json-view"
 import FileJsonInput from "../../components/FileJsonInput"
 
 export const ElectionDataForm: React.FC = () => {
@@ -300,23 +284,6 @@ export const ElectionDataForm: React.FC = () => {
         return tabNodes
     }
 
-    // const getJsonText = (value: any, parsedValue: any) => {
-    //     var url = URL.createObjectURL(value) //Create Object URL
-    //     var xhr = new XMLHttpRequest()
-    //     xhr.open("GET", url, false) //Synchronous XMLHttpRequest on Object URL
-    //     xhr.overrideMimeType("text/plain; charset=x-user-defined") //Override MIME Type to prevent UTF-8 related errors
-    //     xhr.send()
-    //     URL.revokeObjectURL(url)
-    //     var returnText = ""
-    //     for (var i = 0; i < xhr.responseText.length; i++) {
-    //         returnText += String.fromCharCode(xhr.responseText.charCodeAt(i) & 0xff)
-    //     } //remove higher byte
-    //     return {
-    //         ...parsedValue.configuration,
-    //         ...(JSON.parse(returnText as string) || {}),
-    //     }
-    // }
-
     // TODO: renderReceipts
 
     const renderTabContent = (parsedValue: any) => {
@@ -354,7 +321,15 @@ export const ElectionDataForm: React.FC = () => {
                 const parsedValue = parseValues(incoming)
                 // console.log("parsedValue :>> ", parsedValue)
                 return (
-                    <SimpleForm validate={formValidator} record={parsedValue}>
+                    <SimpleForm
+                        validate={formValidator}
+                        record={parsedValue}
+                        toolbar={
+                            <Toolbar>
+                                <SaveButton />
+                            </Toolbar>
+                        }
+                    >
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-general"}

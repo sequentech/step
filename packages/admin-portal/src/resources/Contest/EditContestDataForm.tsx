@@ -10,30 +10,59 @@ import {
     useGetOne,
     RecordContext,
     NumberInput,
+    Toolbar,
+    SaveButton,
+    FormDataConsumer,
+    useGetList,
+    TextField,
+    useUpdate,
 } from "react-admin"
-import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab} from "@mui/material"
-import {Sequent_Backend_Contest} from "../../gql/graphql"
-import React, {useState} from "react"
+import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Typography} from "@mui/material"
+import {Sequent_Backend_Candidate, Sequent_Backend_Contest} from "../../gql/graphql"
+import React, {useCallback, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import styled from "@emotion/styled"
 
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
-import {DropFile} from "@sequentech/ui-essentials"
+import {DropFile, theme} from "@sequentech/ui-essentials"
 import {COUNTING_ALGORITHMS, ORDER_ANSWERS, VOTING_TYPES} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
+import {DndProvider} from "react-dnd"
+import {HTML5Backend} from "react-dnd-html5-backend"
+import {CandidateRowItem} from "../../components/CandateRowItem"
 
 export const ContestDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()
+
     const {t} = useTranslation()
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("contest-data-general")
-    // const [defaultLangValue, setDefaultLangValue] = useState<string>("")
+    const [candidate, setCandidate] = useState<any>(null)
+    const [candidatesList, setCandidatesList] = useState<Sequent_Backend_Candidate[] | undefined>()
 
     const {data} = useGetOne("sequent_backend_election_event", {
         id: record.election_event_id,
     })
+
+    const {data: candidates, refetch} = useGetList("sequent_backend_candidate", {
+        filter: {contest_id: record.id},
+    })
+
+    const [update] = useUpdate(
+        "sequent_backend_candidate",
+        {id: candidate?.id, data: candidate},
+        {onSuccess: () => refetch()}
+    )
+
+    useEffect(() => {
+        if (candidates) {
+            console.log("candidates :>> ", candidates)
+            setCandidatesList(candidates)
+        }
+    }, [candidates])
 
     const buildLanguageSettings = () => {
         const tempSettings = data?.presentation?.language_conf?.enabled_language_codes
@@ -160,13 +189,49 @@ export const ContestDataForm: React.FC = () => {
         return tabNodes
     }
 
+    const CandidateRows = styled.div`
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        cursor: pointer;
+        margin-bottom: 0.1rem;
+        padding: 1rem;
+    `
+
+    const moveCard = useCallback((dragIndex: number, hoverIndex: number) => {
+        console.log("dragIndex :>> ", dragIndex)
+        console.log("hoverIndex :>> ", hoverIndex)
+
+        setCandidatesList((prevState) => {
+            const newState = [...(prevState || [])]
+            newState.splice(dragIndex, 1)
+            newState.splice(hoverIndex, 0, newState[dragIndex] as any)
+            return newState
+        })
+    }, [])
+
+    useEffect(() => {
+        if (candidate) {
+            console.log("candidate UPDATE :: >> ", candidate)
+            // update()
+        }
+    }, [candidate])
+
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming)
-                console.log("parsedValue :>> ", parsedValue)
+                // console.log("parsedValue :>> ", parsedValue)
                 return (
-                    <SimpleForm validate={formValidator} record={parsedValue}>
+                    <SimpleForm
+                        validate={formValidator}
+                        record={parsedValue}
+                        toolbar={
+                            <Toolbar>
+                                <SaveButton />
+                            </Toolbar>
+                        }
+                    >
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "contest-data-general"}
@@ -228,10 +293,45 @@ export const ContestDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <BooleanInput source="is_acclaimed" />
-                                <NumberInput source="min_votes" />
-                                <NumberInput source="max_votes" />
-                                <NumberInput source="winning_candidates_num" />
+                                <NumberInput source="min_votes" min={0} />
+                                <NumberInput source="max_votes" min={0} />
+                                <NumberInput source="winning_candidates_num" min={0} />
                                 <SelectInput source="order_answers" choices={ORDER_ANSWERS(t)} />
+                                <FormDataConsumer>
+                                    {({formData, ...rest}) => {
+                                        return formData?.order_answers === "custom" ? (
+                                            <CandidateRows>
+                                                <Typography
+                                                    variant="body1"
+                                                    component="span"
+                                                    sx={{
+                                                        padding: "0.5rem 1rem",
+                                                        fontWeight: "bold",
+                                                        margin: 0,
+                                                        display: {xs: "none", sm: "block"},
+                                                    }}
+                                                >
+                                                    {t("contestScreen.edit.reorder")}
+                                                </Typography>
+                                                <DndProvider backend={HTML5Backend}>
+                                                    {candidatesList?.map(
+                                                        (candidate: any, index: number) => {
+                                                            return (
+                                                                <CandidateRowItem
+                                                                    key={candidate.id}
+                                                                    index={index}
+                                                                    id={candidate.id}
+                                                                    candidate={candidate}
+                                                                    moveCard={moveCard}
+                                                                ></CandidateRowItem>
+                                                            )
+                                                        }
+                                                    )}
+                                                </DndProvider>
+                                            </CandidateRows>
+                                        ) : null
+                                    }}
+                                </FormDataConsumer>
                             </AccordionDetails>
                         </Accordion>
 

@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
-    BooleanInput,
-    DateTimeInput,
     SelectInput,
     TextInput,
     useRecordContext,
@@ -11,7 +9,8 @@ import {
     SimpleForm,
     useGetOne,
     RecordContext,
-    RadioButtonGroupInput,
+    Toolbar,
+    SaveButton
 } from "react-admin"
 import {
     Accordion,
@@ -19,7 +18,6 @@ import {
     AccordionSummary,
     Tabs,
     Tab,
-    Grid,
 } from "@mui/material"
 import {
     CreateScheduledEventMutation,
@@ -186,7 +184,15 @@ export const CandidateDataForm: React.FC = () => {
                 const parsedValue = parseValues(incoming)
                 console.log("parsedValue :>> ", parsedValue)
                 return (
-                    <SimpleForm validate={formValidator} record={parsedValue}>
+                    <SimpleForm
+                        validate={formValidator}
+                        record={parsedValue}
+                        toolbar={
+                            <Toolbar>
+                                <SaveButton />
+                            </Toolbar>
+                        }
+                    >
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "candidate-data-general"}
@@ -250,7 +256,6 @@ export const CandidateDataForm: React.FC = () => {
                                 />
                             </AccordionDetails>
                         </Accordion>
-
                     </SimpleForm>
                 )
             }}
