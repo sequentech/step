@@ -21,7 +21,6 @@ public class MessageOTPAuthenticator
 	implements Authenticator, CredentialValidator<MessageOTPCredentialProvider>
 {
 	public static final String MOBILE_NUMBER_FIELD = "sequent.read-only.mobile-number";
-	public static final String EMAIL_ADDRESS_FIELD = "sequent.read-only.email-address";
 	private static final String TPL_CODE = "login-message-otp.ftl";
 
 	@Override
@@ -163,7 +162,7 @@ public class MessageOTPAuthenticator
 			return user.getFirstAttribute(MOBILE_NUMBER_FIELD) != null;
 		}
 		String mobileNumber = Utils.getMobile(config.get(), user);
-		String emailAddress = Utils.getEmail(config.get(), user);
+		String emailAddress = user.getEmail();
 
 		return mobileNumber != null || emailAddress != null;
 	}

@@ -412,7 +412,6 @@
     "attributes" : {
       "sequent.read-only.otp-method" : [ "email-or-sms" ],
       "sequent.read-only.mobile-number" : [ "+34634571634" ],
-      "sequent.read-only.email-address" : [ "felix@sequentech.io" ],
       "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
     },
     "credentials" : [ {
@@ -447,7 +446,6 @@
     "email" : "edu@sequentech.io",
     "attributes" : {
       "sequent.read-only.otp-method" : [ "email-or-sms" ],
-      "sequent.read-only.email-address" : [ "edu@sequentech.io" ],
       "sequent.read-only.mobile-number" : [ "+34634571634" ],
       "area-id" : [ "2f312a36-f39c-46e4-9670-1d1ce4625745" ],
       "locale" : [ "en" ],
@@ -2472,7 +2470,6 @@
       "length" : "6",
       "senderId" : "Keycloak",
       "ttl" : "300",
-      "simulation" : "true",
       "telUserAttribute" : "sequent.read-only.mobile-number"
     }
   }, {
@@ -2492,9 +2489,7 @@
     "alias" : "email-sms",
     "config" : {
       "senderId" : "Keycloak",
-      "simulation" : "true",
       "telUserAttribute" : "sequent.read-only.mobile-number",
-      "emailUserAttribute" : "sequent.read-only.email-address",
       "length" : "6",
       "ttl" : "300"
     }
@@ -2502,7 +2497,6 @@
     "id" : "6c314d5f-ac82-493b-ac1c-a1c3733ef32a",
     "alias" : "forgot.choose-user",
     "config" : {
-      "emailUserAttribute" : "sequent.read-only.email-address"
     }
   }, {
     "id" : "99eba665-0ca9-4dea-8010-1c95c1d2588c",

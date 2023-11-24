@@ -172,7 +172,7 @@ public class ChooseUser implements Authenticator, AuthenticatorFactory {
         if (
             user == null ||
             !Utils.constantTimeIsEqual(
-                Utils.getEmail(config, user).getBytes(),
+                user.getEmail().getBytes(),
                 reqEmail.getBytes()
             )
         ) {
@@ -232,7 +232,7 @@ public class ChooseUser implements Authenticator, AuthenticatorFactory {
 
     @Override
     public boolean isConfigurable() {
-        return true;
+        return false;
     }
 
     @Override
@@ -253,15 +253,7 @@ public class ChooseUser implements Authenticator, AuthenticatorFactory {
 	@Override
 	public List<ProviderConfigProperty> getConfigProperties()
     {
-		return List.of(
-			new ProviderConfigProperty(
-				Utils.EMAIL_USER_ATTRIBUTE,
-				"Email User Attribute",
-				"Name of the user attribute used to retrieve the email address of the user. Please make sure this is a read-only attribute for security reasons.", 
-				ProviderConfigProperty.STRING_TYPE,
-				Utils.EMAIL_ADDRESS_FIELD
-			)
-		);
+		return List.of();
 	}
 
     @Override

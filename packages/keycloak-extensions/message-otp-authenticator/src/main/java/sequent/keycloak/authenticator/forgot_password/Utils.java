@@ -22,10 +22,6 @@ import java.util.Map;
 @UtilityClass
 @JBossLog
 public class Utils {
-	public final String EMAIL_USER_ATTRIBUTE = "emailUserAttribute";
-	public final String SIMULATION_MODE = "simulationMode";
-	public final boolean SIMULATION_MODE_DEFAULT = true;
-    public final String EMAIL_ADDRESS_FIELD = "sequent.read-only.email-address";
     public final String ATTEMPTED_EMAIL = "ATTEMPTED_EMAIL";
 	public final String PASSWORD_CHARS = "passwordChars";
 	public final String PASSWORD_CHARS_DEFAULT = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-!¡?¿*:;&()=@#$%";
@@ -37,37 +33,6 @@ public class Utils {
 	public final String PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT = "sequent.read-only.expirationDate";
 	public final String NEW_PASSWORD_EMAIL_SUBJECT = "newPassword.email.subject";
 	public final String NEW_PASSWORD_EMAIL_FTL = "forgot-password-send-new-password.ftl";
-
-	String getEmail(AuthenticatorConfigModel config, UserModel user)
-	{
-		log.infov("getEmail()");
-		if (config == null) {
-			log.infov("getEmail(): NULL config={0}", config);
-			return user.getFirstAttribute(
-				Utils.EMAIL_ADDRESS_FIELD
-			);
-		}
-
-		Map<String, String> mapConfig = config.getConfig();
-		if (
-			mapConfig == null ||
-			!mapConfig.containsKey(Utils.EMAIL_USER_ATTRIBUTE)
-		) {
-			log.infov("getEmail(): NullOrNotFound mapConfig={0}", mapConfig);
-			return user.getFirstAttribute(
-				Utils.EMAIL_ADDRESS_FIELD
-			);
-		}
-		String emailUserAttribute = mapConfig.get(Utils.EMAIL_USER_ATTRIBUTE);
-
-		String email = user.getFirstAttribute(emailUserAttribute);
-		log.infov(
-			"getEmail(): emailUserAttribute={0}, email={1}",
-			emailUserAttribute,
-			email
-		);
-		return email;
-	}
 
 	int getPasswordLength(AuthenticatorConfigModel config, UserModel user)
 	{
@@ -186,8 +151,7 @@ public class Utils {
     public static void sendNewPasswordNotification(
         KeycloakSession session,
         UserModel user,
-        String temporaryPassword,
-		boolean simulationMode
+        String temporaryPassword
     ) throws EmailException {
 		log.infov(
 			"sendNewPasswordNotification(): to user with email={0}",

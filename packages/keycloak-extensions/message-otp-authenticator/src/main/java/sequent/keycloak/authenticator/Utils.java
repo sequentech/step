@@ -30,9 +30,7 @@ public class Utils {
 	public final String CODE_LENGTH = "length";
 	public final String CODE_TTL = "ttl";
 	public final String SENDER_ID = "senderId";
-	public final String SIMULATION_MODE = "simulation";
 	public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
-	public final String EMAIL_USER_ATTRIBUTE = "emailUserAttribute";
 	public final String SEND_CODE_SMS_I18N_KEY = "messageOtp.sendCode.sms.text";
 	public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
 	public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
@@ -49,7 +47,7 @@ public class Utils {
 	{
 		log.info("sendCode()");
 		String mobileNumber = Utils.getMobile(config, user);
-		String emailAddress = Utils.getEmail(config, user);
+		String emailAddress = user.getEmail();
 
 		int length = Integer.parseInt(
 			config.getConfig().get(Utils.CODE_LENGTH)
@@ -143,37 +141,6 @@ public class Utils {
 			mobile
 		);
 		return mobile;
-	}
-
-	String getEmail(AuthenticatorConfigModel config, UserModel user)
-	{
-		log.infov("getEmail()");
-		if (config == null) {
-			log.infov("getEmail(): NULL config={0}", config);
-			return user.getFirstAttribute(
-				MessageOTPAuthenticator.EMAIL_ADDRESS_FIELD
-			);
-		}
-
-		Map<String, String> mapConfig = config.getConfig();
-		if (
-			mapConfig == null ||
-			!mapConfig.containsKey(Utils.EMAIL_USER_ATTRIBUTE)
-		) {
-			log.infov("getEmail(): NullOrNotFound mapConfig={0}", mapConfig);
-			return user.getFirstAttribute(
-				MessageOTPAuthenticator.EMAIL_ADDRESS_FIELD
-			);
-		}
-		String emailUserAttribute = mapConfig.get(Utils.EMAIL_USER_ATTRIBUTE);
-
-		String email = user.getFirstAttribute(emailUserAttribute);
-		log.infov(
-			"getEmail(): emailUserAttribute={0}, email={1}",
-			emailUserAttribute,
-			email
-		);
-		return email;
 	}
 
 	Optional<AuthenticatorConfigModel> getConfig(RealmModel realm)

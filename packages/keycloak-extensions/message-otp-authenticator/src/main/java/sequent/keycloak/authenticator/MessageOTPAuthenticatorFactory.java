@@ -87,24 +87,11 @@ public class MessageOTPAuthenticatorFactory
 				"Keycloak"
 			),
 			new ProviderConfigProperty(
-				Utils.EMAIL_USER_ATTRIBUTE,
-				"Email User Attribute",
-				"Name of the user attribute used to retrieve the email address of the user. Please make sure this is a read-only attribute for security reasons.", 
-				ProviderConfigProperty.STRING_TYPE,
-				MessageOTPAuthenticator.EMAIL_ADDRESS_FIELD
-			),
-			new ProviderConfigProperty(
 				Utils.TEL_USER_ATTRIBUTE,
 				"Telephone User Attribute",
 				"Name of the user attribute used to retrieve the mobile telephone number of the user. Please make sure this is a read-only attribute for security reasons.", 
 				ProviderConfigProperty.STRING_TYPE,
 				MessageOTPAuthenticator.MOBILE_NUMBER_FIELD
-			),
-			new ProviderConfigProperty(
-				Utils.SIMULATION_MODE,
-				"Simulation mode",
-				"In simulation mode, Emails/SMS won't be sent, but printed to the server logs", ProviderConfigProperty.BOOLEAN_TYPE,
-				true
 			)
 		);
 	}

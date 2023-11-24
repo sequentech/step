@@ -69,7 +69,7 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
         }
 
         EventBuilder event = context.getEvent();
-        String userEmail = Utils.getEmail(config, user);
+        String userEmail = user.getEmail();
 
         // we don't want people guessing usernames, so if there is a problem, just continuously challenge
         if (userEmail == null || userEmail.trim().length() == 0) {
@@ -102,8 +102,6 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
             expirationUserAttribute,
             String.valueOf(absoluteExpirationInSecs)
         );
-        // TODO: implement simulationMode directly in the emailservice provider
-        boolean simulationMode = false;
 
         // Send email with password
         try {
@@ -115,8 +113,7 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
             Utils.sendNewPasswordNotification(
                 context.getSession(),
                 user,
-                temporaryPassword,
-                simulationMode
+                temporaryPassword
             );
             event
                 .clone()
@@ -250,13 +247,6 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
 	public List<ProviderConfigProperty> getConfigProperties()
     {
 		return List.of(
-			new ProviderConfigProperty(
-				Utils.SIMULATION_MODE,
-				"Simulation mode",
-				"In simulation mode, the Email/SMS won't be sent, but printed to the server logs",
-                ProviderConfigProperty.BOOLEAN_TYPE,
-				Utils.SIMULATION_MODE_DEFAULT
-			),
             new ProviderConfigProperty(
 				Utils.PASSWORD_CHARS,
 				"Allowed password characters",
