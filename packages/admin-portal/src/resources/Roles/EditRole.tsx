@@ -1,21 +1,22 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState} from "react"
-import {Edit, Identifier, useListContext} from "react-admin"
+import React from "react"
+import {Identifier, useListContext} from "react-admin"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import ElectionHeader from "../../components/ElectionHeader"
 import {useTranslation} from "react-i18next"
 import {IPermission, IRole} from "sequent-core"
-import {DataGrid, GridColDef, GridRenderCellParams, GridValueGetterParams} from "@mui/x-data-grid"
+import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 
 interface EditRoleProps {
     id?: Identifier | undefined
     close?: () => void
+    permissions?: Array<IPermission>
 }
 
-export const EditRole: React.FC<EditRoleProps> = ({id, close}) => {
+export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
     const {data, isLoading} = useListContext()
     const {t} = useTranslation()
     if (isLoading || !data) {
@@ -23,20 +24,21 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close}) => {
     }
     let role: IRole | undefined = data?.find((element) => element.id === id)
 
-    let permissions: Array<string> = role?.permissions || []
+    let rolePermissions: Array<string> = role?.permissions || []
 
-    let rows: Array<IPermission & {active: boolean}> = permissions.map((permission) => ({
-        id: permission,
-        name: permission,
-        attributes: {},
-        active: true,
-    }))
+    let rows: Array<IPermission & {id: string; active: boolean}> = (permissions || []).map(
+        (permission) => ({
+            ...permission,
+            id: permission.id || "",
+            active: (!!permission.name && rolePermissions.includes(permission.name)) || false,
+        })
+    )
 
     const columns: GridColDef[] = [
         {
             field: "name",
             headerName: "Permission",
-            width: 200,
+            width: 350,
             editable: false,
         },
         {
@@ -63,11 +65,11 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close}) => {
                 initialState={{
                     pagination: {
                         paginationModel: {
-                            pageSize: 20,
+                            pageSize: 10,
                         },
                     },
                 }}
-                pageSizeOptions={[20, 50, 100]}
+                pageSizeOptions={[10, 20, 50, 100]}
                 disableRowSelectionOnClick
             />
         </PageHeaderStyles.Wrapper>

@@ -10,6 +10,7 @@ import {
     SelectColumnsButton,
     TopToolbar,
     Identifier,
+    useGetList,
 } from "react-admin"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {Action, ActionsColumn} from "../../components/ActionButons"
@@ -17,6 +18,7 @@ import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {Drawer} from "@mui/material"
 import {EditRole} from "./EditRole"
+import {IPermission} from "sequent-core"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -29,6 +31,15 @@ export const ListRoles: React.FC<ListRolesProps> = ({aside, electionEventId}) =>
     const [tenantId] = useTenantStore()
     const [open, setOpen] = React.useState(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+    const {
+        data: permissions,
+        total,
+        isLoading,
+        error,
+        refetch,
+    } = useGetList<IPermission & {id: string}>("permission", {
+        filter: {tenant_id: tenantId},
+    })
     const handleCloseEditDrawer = () => {
         setOpen(false)
         setTimeout(() => {
@@ -74,7 +85,11 @@ export const ListRoles: React.FC<ListRolesProps> = ({aside, electionEventId}) =>
                         sx: {width: "40%"},
                     }}
                 >
-                    <EditRole id={recordId} close={handleCloseEditDrawer} />
+                    <EditRole
+                        id={recordId}
+                        close={handleCloseEditDrawer}
+                        permissions={permissions}
+                    />
                 </Drawer>
             </List>
         </>
