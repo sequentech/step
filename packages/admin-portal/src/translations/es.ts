@@ -215,6 +215,10 @@ const spanishTranslation: TranslationType = {
             },
             roles: {
                 title: "Roles",
+                edit: {
+                    title: "Información de Rol",
+                    subtitle: "Ver y editar Rol",
+                },
             },
         },
         common: {

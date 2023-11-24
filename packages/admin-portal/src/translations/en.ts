@@ -212,6 +212,10 @@ const englishTranslation = {
             },
             roles: {
                 title: "Roles",
+                edit: {
+                    title: "Role Data",
+                    subtitle: "View and edit role",
+                },
             },
         },
         common: {
