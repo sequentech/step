@@ -6,8 +6,7 @@ import {
     ChartsContainer,
     ElectionStats,
     PieChart,
-} from "../../resources/ElectionEvent/EditElectionEventDashboard"
-import {ReportDialog} from "../ReportDialog"
+} from "@/resources/ElectionEvent/EditElectionEventDashboard"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 
 export default function DashboardElectionEvent() {
@@ -34,8 +33,6 @@ export default function DashboardElectionEvent() {
                     <BarChart />
                     <PieChart />
                 </ChartsContainer>
-
-                <ReportDialog />
             </Box>
         </>
     )

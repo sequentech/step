@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+import React from "react"
+import {styled} from "@mui/material/styles"
+import {useQuery} from "@apollo/client"
 import {Box, Paper, Typography} from "@mui/material"
 import Chart, {Props} from "react-apexcharts"
 import {
@@ -9,7 +13,7 @@ import {
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
 import {IconButton, theme} from "@sequentech/ui-essentials"
-import {ShowBase, TabbedShowLayout, TextField, useRecordContext} from "react-admin"
+import {useRecordContext} from "react-admin"
 import {
     faBriefcase,
     faCalendar,
@@ -20,35 +24,16 @@ import {
     faUsers,
 } from "@fortawesome/free-solid-svg-icons"
 
-import ElectionHeader from "../../components/ElectionHeader"
 import {GET_CAST_VOTES} from "../../queries/GetCastVotes"
 import {GET_ELECTION_EVENT_STATS} from "../../queries/GetElectionEventStats"
-import React from "react"
-import {ReportDialog} from "../../components/ReportDialog"
-import {styled} from "@mui/material/styles"
-import {useQuery} from "@apollo/client"
-import {EditElectionEventData} from "./EditElectionEventData"
+
+import StatItem from "@/components/election-event/dashboard/StatItem"
 
 const CardList = styled(Box)`
     display: flex;
     flex-direction: row;
     gap: 24px;
     margin: 20px 0;
-`
-
-const CardContainer = styled(Box)<{selected?: boolean}>`
-    display: flex;
-    flex-direction: column;
-    padding: 16px;
-    border-radius: 4px;
-    border: 1px solid ${theme.palette.customGrey.light};
-    color: ${({selected}) => (selected ? theme.palette.white : theme.palette.customGrey.main)};
-    justify-content: center;
-    text-align: center;
-    width: 160px;
-    height: 140px;
-    ${({selected}) =>
-        selected ? "background: linear-gradient(180deg, #0FADCF 0%, #0F054B 100%); " : ""}
 `
 
 export const ChartsContainer = styled(Box)`
@@ -65,12 +50,6 @@ const BarChartPaper = styled(Paper)`
 const Separator = styled(Box)`
     border-top: 1px solid ${theme.palette.customGrey.light};
     margin: 16px 0;
-`
-
-const StyledTypography = styled(Typography)`
-    text-align: center;
-    margin-top: 0;
-    margin-bottom: 0;
 `
 
 export const PieChart: React.FC = () => {
@@ -201,47 +180,12 @@ export const ElectionStats: React.FC = () => {
 
     return (
         <CardList>
-            <CardContainer>
-                <IconButton icon={faBriefcase} fontSize="38px" />
-                <StyledTypography fontSize="24px">5</StyledTypography>
-                <StyledTypography fontSize="12px">TRUSTEES</StyledTypography>
-            </CardContainer>
-            <CardContainer selected={true}>
-                <IconButton icon={faUsers} fontSize="38px" />
-                <StyledTypography fontSize="24px">
-                    {data.sequent_backend_cast_vote_aggregate.aggregate?.count}
-                </StyledTypography>
-                <StyledTypography fontSize="12px">VOTERS</StyledTypography>
-            </CardContainer>
-            <CardContainer>
-                <IconButton icon={faUsers} fontSize="38px" />
-                <StyledTypography fontSize="24px">
-                    {data.sequent_backend_election_aggregate.aggregate?.count}
-                </StyledTypography>
-                <StyledTypography fontSize="12px">ELECTIONS</StyledTypography>
-            </CardContainer>
-            <CardContainer>
-                <IconButton icon={faGlobe} fontSize="38px" />
-                <StyledTypography fontSize="24px">
-                    {data.sequent_backend_area_aggregate.aggregate?.count}
-                </StyledTypography>
-                <StyledTypography fontSize="12px">AREAS</StyledTypography>
-            </CardContainer>
-            <CardContainer>
-                <IconButton icon={faEnvelope} fontSize="38px" />
-                <StyledTypography fontSize="24px">50</StyledTypography>
-                <StyledTypography fontSize="12px">EMAILS SENT</StyledTypography>
-            </CardContainer>
-            <CardContainer>
-                <IconButton icon={faCommentSms} fontSize="38px" />
-                <StyledTypography fontSize="24px">50</StyledTypography>
-                <StyledTypography fontSize="12px">SMS SENT</StyledTypography>
-            </CardContainer>
-            <CardContainer>
-                <IconButton icon={faCalendar} fontSize="38px" />
-                <StyledTypography fontSize="24px">Scheduled</StyledTypography>
-                <StyledTypography fontSize="12px">CALENDAR</StyledTypography>
-            </CardContainer>
+            <StatItem icon={faBriefcase} count={0} label="trustees"></StatItem>
+            <StatItem icon={faUsers} count={0} label="voters"></StatItem>
+            <StatItem icon={faUsers} count={0} label="elections"></StatItem>
+            <StatItem icon={faGlobe} count={0} label="area"></StatItem>
+            <StatItem icon={faEnvelope} count={0} label="emails sent"></StatItem>
+            <StatItem icon={faCommentSms} count={0} label="sms sent"></StatItem>
         </CardList>
     )
 }
