@@ -1,22 +1,19 @@
-type VotingType  = typeof VOTING_TYPES[0]
-type VotingTypes = VotingType[]
+type Option  = {
+    id: string
+    name: string
+}
+type VotingTypes = Option[]
+type CountingAlgorithms = Option[]
+type OrderAnwers = Option[]
 
-export const VOTING_TYPES = [
-    {id: "no-preferential", name: "no-preferential"},
+export const VOTING_TYPES = (t: any) => [{id: "no-preferential", name: t("contestScreen.options.no-preferential")}]
+
+export const COUNTING_ALGORITHMS = (t: any) => [
+    {id: "plurality-at-large", name: t("contestScreen.options.plurality-at-large")},
 ]
 
-type CountingAlgorithm  = typeof COUNTING_ALGORITHMS[0]
-type CountingAlgorithms = CountingAlgorithm[]
-
-export const COUNTING_ALGORITHMS = [
-    {id: "plurality-at-large", name: "plurality-at-large"},
-]
-
-type OrderAnwer  = typeof ORDER_ANSWERS[0]
-type OrderAnwers = OrderAnwer[]
-
-export const ORDER_ANSWERS = [
-    {id: "random-asnwers", name: "random-asnwers"},
-    {id: "custom", name: "custom"},
-    {id: "alphabetical", name: "alphabetical"},
+export const ORDER_ANSWERS = (t: any) => [
+    {id: "random-asnwers", name: t("contestScreen.options.random-asnwers")},
+    {id: "custom", name: t("contestScreen.options.custom")},
+    {id: "alphabetical", name: t("contestScreen.options.alphabetical")},
 ]

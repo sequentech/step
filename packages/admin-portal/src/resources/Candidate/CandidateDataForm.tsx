@@ -224,7 +224,7 @@ export const CandidateDataForm: React.FC = () => {
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <SelectInput source="type" choices={CANDIDATE_TYPES} />
+                                <SelectInput source="type" choices={CANDIDATE_TYPES(t)} />
                             </AccordionDetails>
                         </Accordion>
 

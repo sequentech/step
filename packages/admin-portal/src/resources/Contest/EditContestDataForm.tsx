@@ -204,10 +204,10 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <SelectInput source="voting_type" choices={VOTING_TYPES} />
+                                <SelectInput source="voting_type" choices={VOTING_TYPES(t)} />
                                 <SelectInput
                                     source="counting_algorithm"
-                                    choices={COUNTING_ALGORITHMS}
+                                    choices={COUNTING_ALGORITHMS(t)}
                                 />
                             </AccordionDetails>
                         </Accordion>
@@ -231,7 +231,7 @@ export const ContestDataForm: React.FC = () => {
                                 <NumberInput source="min_votes" />
                                 <NumberInput source="max_votes" />
                                 <NumberInput source="winning_candidates_num" />
-                                <SelectInput source="order_answers" choices={ORDER_ANSWERS} />
+                                <SelectInput source="order_answers" choices={ORDER_ANSWERS(t)} />
                             </AccordionDetails>
                         </Accordion>
 

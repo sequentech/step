@@ -1,13 +1,17 @@
-type CandidateType  = typeof CANDIDATE_TYPES[0]
-type CandidateTypes = CandidateType[]
+type Option  = {
+    id: string
+    name: string
+}
 
-export const CANDIDATE_TYPES = [
-    {id: "Candidate", name: "Candidate"},
-    {id: "Option", name: "Option"},
-    {id: "Write In", name: "Write In"},
-    {id: "Open List", name: "Open List"},
-    {id: "Closed List", name: "Closed List"},
-    {id: "Semi Open List", name: "Semi Open List"},
-    {id: "Invalid Vote", name: "Invalid Vote"},
-    {id: "Blank Vote", name: "Blank Vote"},
+type CandidateTypes = Option[]
+
+export const CANDIDATE_TYPES = (t: any) => [
+    {id: "candidate", name: t("candidateScreen.options.candidate")},
+    {id: "option", name: t("candidateScreen.options.option")},
+    {id: "write-in", name: t("candidateScreen.options.write-in")},
+    {id: "open-list", name: t("candidateScreen.options.open-list")},
+    {id: "closed-list", name: t("candidateScreen.options.closed-list")},
+    {id: "semi-open-list", name: t("candidateScreen.options.semi-open-list")},
+    {id: "invalid-vote", name: t("candidateScreen.options.invalid-vote")},
+    {id: "blank-vote", name: t("candidateScreen.options.blank-vote")},
 ]
