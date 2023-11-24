@@ -202,6 +202,18 @@ const englishTranslation = {
             createSuccess: "Customer created",
             createError: "Error creating customer",
         },
+        usersAndRolesScreen: {
+            common: {
+                title: "Users and Roles",
+                subtitle: "General configuration",
+            },
+            users: {
+                title: "Users",
+            },
+            roles: {
+                title: "Roles",
+            },
+        },
         common: {
             label: {
                 add: "Add",
@@ -228,9 +240,13 @@ const englishTranslation = {
             },
         },
         sideMenu: {
+            electionEvents: "Election Events",
+            search: "Search",
             usersAndRoles: "Users and Roles",
             settings: "Settings",
             communicationTemplates: "Communication Templates",
+            active: "Active",
+            archived: "Archived",
         },
     },
 }

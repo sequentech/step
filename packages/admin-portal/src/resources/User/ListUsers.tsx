@@ -32,7 +32,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
 
     return (
         <>
-            <Typography variant="h5">{t("electionEventScreen.voters.title")}</Typography>
             <List
                 resource="user"
                 actions={

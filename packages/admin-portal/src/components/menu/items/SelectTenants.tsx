@@ -11,14 +11,14 @@ import {Link} from "react-router-dom"
 import {cn} from "../../../lib/utils"
 import {AuthContext} from "../../../providers/AuthContextProvider"
 import {useTenantStore} from "../../../providers/TenantContextProvider"
-import { IPermissions } from "sequent-core"
+//import { IPermissions } from "sequent-core"
 
 const SelectTenants: React.FC = () => {
     const refresh = useRefresh()
     const [tenantId, setTenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
-    
-    const showAddTenant = authContext.isAuthorized(true, null, IPermissions.TENANT_CREATE)
+
+    const showAddTenant = authContext.isAuthorized(true, null, "tenant-create")
 
     const {data, total} = useGetList("sequent_backend_tenant", {
         pagination: {page: 1, perPage: 10},
@@ -62,13 +62,14 @@ const SelectTenants: React.FC = () => {
                             ))}
                         </Select>
                     )}
-                    {
-                        showAddTenant
-                        ? <Link to="/sequent_backend_tenant/create">
-                            <IconButton className="text-brand-color text-base" icon={faPlusCircle} />
+                    {showAddTenant ? (
+                        <Link to="/sequent_backend_tenant/create">
+                            <IconButton
+                                className="text-brand-color text-base"
+                                icon={faPlusCircle}
+                            />
                         </Link>
-                        : null
-                    }
+                    ) : null}
                 </>
             )}
         </div>
