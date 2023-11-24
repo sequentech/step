@@ -1,8 +1,18 @@
 package sequent.keycloak.authenticator.gateway;
 
-import lombok.extern.jbosslog.JBossLog;
-import java.util.HashMap;
+import java.io.IOException;
+import java.text.MessageFormat;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
+
+import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserModel;
+import org.keycloak.theme.Theme;
+
+import lombok.extern.jbosslog.JBossLog;
 
 @JBossLog
 public class DummySmsSenderProvider implements SmsSenderProvider
@@ -11,8 +21,26 @@ public class DummySmsSenderProvider implements SmsSenderProvider
 	}
 
 	@Override
-	public void send(String phoneNumber, String message)
-	{
+    public void send(
+		String phoneNumber,
+		String messageKey,
+		List<String> attributes,
+		RealmModel realm,
+		UserModel user,
+        KeycloakSession session
+	) throws IOException {
+		log.infov("send(): called");
+		SmsSenderProvider.super.send(
+			phoneNumber, messageKey, attributes, realm, user, session
+		);
+	}
+
+	@Override
+	public void send(
+		String phoneNumber,
+		String message
+	) {
+		log.infov("send() small: called");
         log.infov(
             "**Sending dummy sms**:\n\t- phoneNumber={0}\n\t- message={1}",
             phoneNumber,

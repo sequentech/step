@@ -8,7 +8,6 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
-import org.keycloak.theme.Theme;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -17,12 +16,10 @@ import com.google.common.collect.Maps;
 import lombok.extern.jbosslog.JBossLog;
 
 import lombok.experimental.UtilityClass;
-import sequent.keycloak.authenticator.gateway.AwsSmsSenderProvider;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Map;
 
@@ -36,6 +33,7 @@ public class Utils {
 	public final String SIMULATION_MODE = "simulation";
 	public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
 	public final String EMAIL_USER_ATTRIBUTE = "emailUserAttribute";
+	public final String SEND_CODE_SMS_I18N_KEY = "messageOtp.sendCode.sms.text";
 	public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
 	public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
 
@@ -50,7 +48,6 @@ public class Utils {
 	) throws IOException, EmailException
 	{
 		log.info("sendCode()");
-		Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
 		String mobileNumber = Utils.getMobile(config, user);
 		String emailAddress = Utils.getEmail(config, user);
 
@@ -69,32 +66,41 @@ public class Utils {
 			Utils.CODE_TTL,
 			Long.toString(System.currentTimeMillis() + (ttl * 1000L))
 		);
-
-		Locale locale = session.getContext().resolveLocale(user);
+		RealmModel realm = authSession.getRealm();
+		String realmName = getRealmName(realm);
 
 		if (mobileNumber != null)
 		{
-			String smsAuthText = theme
-				.getMessages(locale)
-				.getProperty("smsAuthText");
-			String smsText = String
-				.format(smsAuthText, code, Math.floorDiv(ttl, 60));
 			SmsSenderProvider smsSenderProvider = 
 				session.getProvider(SmsSenderProvider.class);
-			
-			smsSenderProvider.send(mobileNumber, smsText);
+			log.infov("Sending sms to={0}", mobileNumber);
+			List<String> smsAttributes = ImmutableList.of(
+				realmName,
+				code,
+				String.valueOf(Math.floorDiv(ttl, 60))
+			);
+
+			smsSenderProvider.send(
+				mobileNumber,
+				Utils.SEND_CODE_SMS_I18N_KEY,
+				smsAttributes,
+				realm,
+				user,
+				session
+			);
 		}
+
 		if (emailAddress != null)
 		{
 			EmailTemplateProvider emailTemplateProvider =
 				session.getProvider(EmailTemplateProvider.class);
-			RealmModel realm = authSession.getRealm();
-			String realmName = getRealmName(realm);
+
+			Map<String, Object> messageAttributes = Maps.newHashMap();
+			messageAttributes.put("realmName", realmName);
+			messageAttributes.put("code", code);
+			messageAttributes.put("ttl", Math.floorDiv(ttl, 60));
+
 			List<Object> subjAttr = ImmutableList.of(realmName);
-			Map<String, Object> bodyAttr = Maps.newHashMap();
-			bodyAttr.put("realmName", realmName);
-			bodyAttr.put("code", code);
-			bodyAttr.put("ttl", Math.floorDiv(ttl, 60));
 			emailTemplateProvider
 				.setRealm(realm)
 				.setUser(user)
@@ -103,7 +109,7 @@ public class Utils {
 					Utils.SEND_CODE_EMAIL_SUBJECT,
 					subjAttr, 
 					Utils.SEND_CODE_EMAIL_FTL,
-					bodyAttr
+					messageAttributes
 				);
 		}
 	}
