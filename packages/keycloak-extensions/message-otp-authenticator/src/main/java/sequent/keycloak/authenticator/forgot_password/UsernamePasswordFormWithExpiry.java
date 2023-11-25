@@ -1,13 +1,24 @@
 package sequent.keycloak.authenticator.forgot_password;
 
+import org.apache.http.message.BasicNameValuePair;
 import org.keycloak.Config;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.common.util.Time;
+import org.keycloak.connections.httpclient.HttpClientProvider;
+import org.keycloak.events.Errors;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.NameValuePair;
+import org.apache.http.HttpResponse;
 import org.jboss.resteasy.specimpl.MultivaluedMapImpl;
 import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
+import org.keycloak.forms.login.LoginFormsPages;
 import org.keycloak.forms.login.LoginFormsProvider;
+import org.keycloak.forms.login.freemarker.Templates;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
@@ -17,8 +28,13 @@ import org.keycloak.models.ModelDuplicateException;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
+import org.keycloak.services.ServicesLogger;
 import org.keycloak.services.managers.AuthenticationManager;
+import org.keycloak.services.messages.Messages;
+import org.keycloak.services.validation.Validation;
+import org.keycloak.util.JsonSerialization;
 import org.keycloak.models.credential.PasswordCredentialModel;
+import org.keycloak.models.utils.FormMessage;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.provider.ProviderConfigProperty;
 
@@ -27,12 +43,13 @@ import lombok.extern.jbosslog.JBossLog;
 
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
-
+import java.io.InputStream;
 import java.util.*;
 
 /**
- * This is just like the normal Username Password form, except it allows to 
- * check if the password has expired or not
+ * This is just like the normal Username Password form, except:
+ * - it allows to check if the password has expired or not
+ * - it supports recaptcha v3 for login
  */
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
@@ -72,15 +89,61 @@ public class UsernamePasswordFormWithExpiry
         MultivaluedMap<String, String> formData
     ) {
         log.info("validateForm()");
+        AuthenticatorConfigModel authConfig = context.getAuthenticatorConfig();
+        boolean recaptchaEnabled = Utils.getBoolean(
+            authConfig, Utils.RECAPTCHA_ENABLED_ATTRIBUTE, false
+        );
+        boolean recaptchaValidated = false;
+        if (recaptchaEnabled)
+        {
+            String recaptchaSiteSecret = Utils.getString(
+                authConfig, Utils.RECAPTCHA_SITE_SECRET_ATTRIBUTE
+            );
+            Double recaptchaMinScore = Double.parseDouble(
+                Utils.getString(
+                    authConfig, Utils.RECAPTCHA_MIN_SCORE_ATTRIBUTE, "1"
+                )
+            );
+            String captchaResponse = formData.getFirst(
+                Utils.RECAPTCHA_G_RESPONSE
+            );
+            if (!Validation.isBlank(captchaResponse)) {
+                recaptchaValidated = validateRecaptcha(
+                    context,
+                    recaptchaValidated,
+                    captchaResponse,
+                    recaptchaSiteSecret,
+                    recaptchaMinScore
+                );
+                log.infov(
+                    "validateForm(): recaptchaValidated={0}",
+                    recaptchaValidated
+                );
+            }
+        }
+
+        if (recaptchaEnabled && !recaptchaValidated)
+        {
+            log.info("validateForm(): invalid recaptcha");
+            formData.remove(Utils.RECAPTCHA_G_RESPONSE);
+			context.failureChallenge(
+				AuthenticationFlowError.INVALID_CREDENTIALS,
+                context
+                    .form()
+					.setError(Messages.RECAPTCHA_FAILED)
+                    .createErrorPage(Response.Status.BAD_REQUEST)
+			);
+            return false;
+        }
+
         if (!validateUserAndPassword(context, formData)) {
             log.info("validateForm(): invalid form");
             return false;
         }
+
         // If we reach here, password was validated. But now we need to check
         // if there's an user expiration attribute and if so, if it has expired
         // already
-
-
         UserModel user = getUser(context, formData);
         if (user == null) {
             // should not happen. We have validated the form, so we should have
@@ -123,6 +186,60 @@ public class UsernamePasswordFormWithExpiry
         return true;
     }
 
+    protected boolean validateRecaptcha(
+        AuthenticationFlowContext context,
+        boolean success,
+        String captcha,
+        String secret,
+        Double minScore
+    ) {
+        log.info("validateRecaptcha()");
+        HttpClient httpClient = context
+            .getSession()
+            .getProvider(HttpClientProvider.class)
+            .getHttpClient();
+        HttpPost post = new HttpPost(Utils.SITE_VERIFY_URL);
+        List<NameValuePair> formparams = new LinkedList<>();
+        formparams.add(new BasicNameValuePair("secret", secret));
+        formparams.add(new BasicNameValuePair("response", captcha));
+        formparams.add(
+            new BasicNameValuePair("remoteip",
+            context.getConnection().getRemoteAddr())
+        );
+        try {
+            UrlEncodedFormEntity form = new UrlEncodedFormEntity(
+                formparams, 
+                "UTF-8"
+            );
+            post.setEntity(form);
+            HttpResponse response = httpClient.execute(post);
+            InputStream content = response.getEntity().getContent();
+            try {
+                Double userScore = Double.parseDouble(
+                    JsonSerialization
+                        .readValue(content, Map.class)
+                        .get("score")
+                        .toString()
+                );
+                log.infov(
+                    "validateRecaptcha() userScore[{0}] > minScore[{1}] = [{2}]",
+                    userScore,
+                    minScore,
+                    (userScore > minScore)
+                );
+                if (userScore > minScore) {
+                    success = true;
+                } else {
+                    success = false;
+                }
+            } finally {
+                content.close();
+            }
+        } catch (Exception error) {
+            log.infov("validateRecaptcha(): error {0}", error);
+        }
+        return success;
+    }
 
     private UserModel getUser(
         AuthenticationFlowContext context, 
@@ -219,7 +336,7 @@ public class UsernamePasswordFormWithExpiry
     ) {
         AuthenticatorConfigModel authConfig = context.getAuthenticatorConfig();
         boolean recaptchaEnabled = Utils.getBoolean(
-            authConfig, Utils.RECAPTCHA_ENABLED, false
+            authConfig, Utils.RECAPTCHA_ENABLED_ATTRIBUTE, false
         );
 
         LoginFormsProvider forms = context.form();
@@ -227,7 +344,14 @@ public class UsernamePasswordFormWithExpiry
             String recaptchaSiteKey = Utils.getString(
                 authConfig, Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE
             );
-            forms.setAttribute(Utils.RECAPTCHA_ENABLED, true);
+            String recaptchaActionName = Utils.getString(
+                authConfig, Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE
+            );
+            forms.setAttribute(Utils.RECAPTCHA_ENABLED_ATTRIBUTE, true);
+            forms.setAttribute(
+                Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE,
+                recaptchaActionName
+            );
             forms.setAttribute(
                 Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE,
                 recaptchaSiteKey
@@ -238,7 +362,9 @@ public class UsernamePasswordFormWithExpiry
                 .resolveLocale(context.getUser())
                 .toLanguageTag();
             forms.addScript(
-                "https://www.google.com/recaptcha/api.js?hl=" + userLanguageTag
+                "https://www.google.com/recaptcha/api.js?hl=" +
+                userLanguageTag + "&render=" + recaptchaSiteKey + 
+                "&onload=onRecaptchaLoaded"
             );
         }
 
@@ -343,14 +469,21 @@ public class UsernamePasswordFormWithExpiry
 				""
 			),
             new ProviderConfigProperty(
-				Utils.RECAPTCHA_MIN_SCORE,
+				Utils.RECAPTCHA_MIN_SCORE_ATTRIBUTE,
 				"reCAPTCHA v3 Minimum Score",
 				"",
                 ProviderConfigProperty.STRING_TYPE,
 				"0.5"
 			),
             new ProviderConfigProperty(
-				Utils.RECAPTCHA_ENABLED,
+				Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE,
+				"reCAPTCHA v3 Action Name",
+				"",
+                ProviderConfigProperty.STRING_TYPE,
+				Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE
+			),
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_ENABLED_ATTRIBUTE,
 				"Enable reCAPTCHA v3",
 				"",
                 ProviderConfigProperty.BOOLEAN_TYPE,

@@ -5,13 +5,6 @@
     <#elseif section = "form">
         <div id="kc-form">
           <div id="kc-form-wrapper">
-            <#if recaptchaEnabled??>
-                <script>
-                    function onLoginSubmit(token) {
-                        document.getElementById("kc-form-login").submit();
-                    }
-                </script>
-            </#if>
             <#if realm.password>
                 <form id="kc-form-login" onsubmit="login.disabled = true; return true;" action="${url.loginAction}" method="post">
                     <#if !usernameHidden??>
@@ -69,6 +62,28 @@
                             </div>
 
                       </div>
+                    
+                    <#if recaptchaEnabled??>
+                        <input
+                            type="hidden"
+                            id="g-recaptcha-response"
+                            name="g-recaptcha-response" />
+                        <script>
+                            var onRecaptchaLoaded = function()
+                            {
+                                grecaptcha
+                                    .execute(
+                                        '${recaptchaSiteKey}',
+                                        { action:'${recaptchaActionName}' }
+                                    )
+                                    .then(function(token) {
+                                        document.getElementById(
+                                            'g-recaptcha-response'
+                                        ).value = token;
+                                    });
+                            };
+                        </script>
+                    </#if>
 
                       <div id="kc-form-buttons" class="${properties.kcFormGroupClass!}">
                           <input type="hidden" id="id-hidden-input" name="credentialId" <#if auth.selectedCredential?has_content>value="${auth.selectedCredential}"</#if>/>
@@ -78,14 +93,7 @@
                             name="login"
                             id="kc-login"
                             value="${msg("doLogIn")}"
-
-                            <#if recaptchaEnabled?? >
-                                data-sitekey="${recaptchaSiteKey}"
-                                data-callback='onLoginSubmit'
-                                data-action='submit'
-                            <#else>
-                                type="submit"
-                            </#if>
+                            type="submit"
                         />
                       </div>
                 </form>

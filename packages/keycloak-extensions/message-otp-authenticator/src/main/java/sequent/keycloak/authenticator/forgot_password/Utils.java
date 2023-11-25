@@ -34,10 +34,16 @@ public class Utils {
 	public final String NEW_PASSWORD_EMAIL_SUBJECT = "newPassword.email.subject";
 	public final String NEW_PASSWORD_EMAIL_FTL = "forgot-password-send-new-password.ftl";
 
+	public final String RECAPTCHA_G_RESPONSE = "g-recaptcha-response";
+	public final String SITE_VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify";
+
+	public final String RECAPTCHA_ACTION_NAME_ATTRIBUTE = "recaptchaActionName";
+	public final String RECAPTCHA_ACTION_NAME_ATTRIBUTE_DEFAULT = "recaptcha.action";
+
 	public final String RECAPTCHA_SITE_KEY_ATTRIBUTE = "recaptchaSiteKey";
 	public final String RECAPTCHA_SITE_SECRET_ATTRIBUTE = "siteSecret";
-	public final String RECAPTCHA_ENABLED = "recaptchaEnabled";
-	public final String RECAPTCHA_MIN_SCORE = "recaptchaMinScore";
+	public final String RECAPTCHA_ENABLED_ATTRIBUTE = "recaptchaEnabled";
+	public final String RECAPTCHA_MIN_SCORE_ATTRIBUTE = "recaptchaMinScore";
 
 	public String getString(
 		AuthenticatorConfigModel config,

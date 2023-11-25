@@ -101,7 +101,6 @@ public class ChooseUser implements Authenticator, AuthenticatorFactory {
         MultivaluedMap<String, String> formData = context
             .getHttpRequest()
             .getDecodedFormParameters();
-        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
         
         // Get username form input
         String reqUsername = formData.getFirst("username");
