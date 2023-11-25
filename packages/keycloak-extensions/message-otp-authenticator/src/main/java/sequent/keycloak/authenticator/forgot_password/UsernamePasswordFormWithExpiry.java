@@ -5,7 +5,6 @@ import org.keycloak.Config;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.common.util.Time;
 import org.keycloak.connections.httpclient.HttpClientProvider;
-import org.keycloak.events.Errors;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
@@ -16,9 +15,7 @@ import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
-import org.keycloak.forms.login.LoginFormsPages;
 import org.keycloak.forms.login.LoginFormsProvider;
-import org.keycloak.forms.login.freemarker.Templates;
 import org.keycloak.models.AuthenticationExecutionModel;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
@@ -28,13 +25,11 @@ import org.keycloak.models.ModelDuplicateException;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
-import org.keycloak.services.ServicesLogger;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.services.validation.Validation;
 import org.keycloak.util.JsonSerialization;
 import org.keycloak.models.credential.PasswordCredentialModel;
-import org.keycloak.models.utils.FormMessage;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.provider.ProviderConfigProperty;
 
@@ -43,7 +38,10 @@ import lombok.extern.jbosslog.JBossLog;
 
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+
+import java.io.BufferedReader;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.*;
 
 /**
@@ -96,13 +94,17 @@ public class UsernamePasswordFormWithExpiry
         boolean recaptchaValidated = false;
         if (recaptchaEnabled)
         {
-            String recaptchaSiteSecret = Utils.getString(
-                authConfig, Utils.RECAPTCHA_SITE_SECRET_ATTRIBUTE
-            );
-            Double recaptchaMinScore = Double.parseDouble(
-                Utils.getString(
-                    authConfig, Utils.RECAPTCHA_MIN_SCORE_ATTRIBUTE, "1"
+            String recaptchaSiteSecret = Utils
+                .getString(
+                    authConfig, Utils.RECAPTCHA_SITE_SECRET_ATTRIBUTE
                 )
+                .strip();
+            Double recaptchaMinScore = Double.parseDouble(
+                Utils
+                    .getString(
+                        authConfig, Utils.RECAPTCHA_MIN_SCORE_ATTRIBUTE, "1"
+                    )
+                    .strip()
             );
             String captchaResponse = formData.getFirst(
                 Utils.RECAPTCHA_G_RESPONSE
@@ -206,6 +208,11 @@ public class UsernamePasswordFormWithExpiry
             new BasicNameValuePair("remoteip",
             context.getConnection().getRemoteAddr())
         );
+        log.infov(
+            "validateRecaptcha(): secret={0},  captcha={1}",
+            secret,
+            captcha
+        );
         try {
             UrlEncodedFormEntity form = new UrlEncodedFormEntity(
                 formparams, 
@@ -214,12 +221,20 @@ public class UsernamePasswordFormWithExpiry
             post.setEntity(form);
             HttpResponse response = httpClient.execute(post);
             InputStream content = response.getEntity().getContent();
+            InputStreamReader isr = new InputStreamReader(content);
+            BufferedReader br = new BufferedReader(isr);
+            StringBuilder result = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) {
+                result.append(line);
+            }
+            log.infov("recaptcha result = {0}", result.toString());
             try {
+                Object scoreObj = JsonSerialization
+                    .readValue(result.toString(), Map.class)
+                    .get("score");
                 Double userScore = Double.parseDouble(
-                    JsonSerialization
-                        .readValue(content, Map.class)
-                        .get("score")
-                        .toString()
+                    (scoreObj != null) ? scoreObj.toString() : "0"
                 );
                 log.infov(
                     "validateRecaptcha() userScore[{0}] > minScore[{1}] = [{2}]",
@@ -341,12 +356,16 @@ public class UsernamePasswordFormWithExpiry
 
         LoginFormsProvider forms = context.form();
         if (recaptchaEnabled) {
-            String recaptchaSiteKey = Utils.getString(
-                authConfig, Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE
-            );
-            String recaptchaActionName = Utils.getString(
-                authConfig, Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE
-            );
+            String recaptchaSiteKey = Utils
+                .getString(
+                    authConfig, Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE
+                )
+                .strip();
+            String recaptchaActionName = Utils
+                .getString(
+                    authConfig, Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE
+                )
+                .strip();
             forms.setAttribute(Utils.RECAPTCHA_ENABLED_ATTRIBUTE, true);
             forms.setAttribute(
                 Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE,
