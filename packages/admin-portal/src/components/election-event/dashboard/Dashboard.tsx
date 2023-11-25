@@ -3,7 +3,14 @@ import {Box} from "@mui/material"
 
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import Stats from "./Stats"
-import {BarChart, ChartsContainer, PieChart} from "./Charts"
+import {VotesByDay, VotesByChannel} from "./Charts"
+import styled from "@emotion/styled"
+
+const Container = styled(Box)`
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+`
 
 export default function DashboardElectionEvent() {
     return (
@@ -27,10 +34,10 @@ export default function DashboardElectionEvent() {
                 <Box sx={{paddingX: "48px"}}>
                     <Stats />
 
-                    <ChartsContainer>
-                        <BarChart />
-                        <PieChart />
-                    </ChartsContainer>
+                    <Container>
+                        <VotesByDay />
+                        <VotesByChannel />
+                    </Container>
                 </Box>
             </Box>
         </>

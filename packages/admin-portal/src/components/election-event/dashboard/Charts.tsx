@@ -25,7 +25,9 @@ function aggregateByDay(votes?: GetCastVotesQuery["sequent_backend_cast_vote"]):
     if (!votes) {
         return [35, 50, 49, 60, 70, 91, 125]
     }
+
     let values: Array<number> = []
+
     for (let i = 0; i < 7; i++) {
         let endDate = daysBefore(now, i)
         let startDate = daysBefore(now, i + 1)
@@ -34,6 +36,7 @@ function aggregateByDay(votes?: GetCastVotesQuery["sequent_backend_cast_vote"]):
             let createdAt = new Date(vote.created_at)
             return createdAt < endDate && createdAt >= startDate
         })
+
         values.push(filteredVotes.length)
     }
 
@@ -47,14 +50,7 @@ function getWeekLegend(): Array<string> {
     return [...legend.slice(dayOfWeek, 7), ...legend.slice(0, dayOfWeek)]
 }
 
-export const ChartsContainer = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 24px;
-`
-
-const BarChartPaper = styled(Paper)`
+const StyledPaper = styled(Paper)`
     padding: 16px 16px 25px 16px;
 `
 
@@ -63,7 +59,7 @@ const Separator = styled(Box)`
     margin: 16px 0;
 `
 
-export const PieChart: React.FC = () => {
+export const VotesByChannel: React.FC = () => {
     const state: Props = {
         options: {
             labels: ["Online", "Paper", "IVR", "Postal"],
@@ -72,7 +68,7 @@ export const PieChart: React.FC = () => {
     }
 
     return (
-        <BarChartPaper>
+        <StyledPaper>
             <Chart
                 options={state.options}
                 series={state.series}
@@ -84,11 +80,11 @@ export const PieChart: React.FC = () => {
             <Typography fontSize="16px" color={theme.palette.customGrey.main}>
                 Votes by Channel
             </Typography>
-        </BarChartPaper>
+        </StyledPaper>
     )
 }
 
-export const BarChart: React.FC = () => {
+export const VotesByDay: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const {loading, error, data} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
@@ -117,12 +113,13 @@ export const BarChart: React.FC = () => {
             {
                 name: "series-1",
                 data: aggregateByDay(data?.sequent_backend_cast_vote),
+                // data: aggregateByDay(),
             },
         ],
     }
 
     return (
-        <BarChartPaper>
+        <StyledPaper>
             <Chart
                 options={state.options}
                 series={state.series}
@@ -133,15 +130,18 @@ export const BarChart: React.FC = () => {
             <Typography fontSize="16px" color={theme.palette.customGrey.main}>
                 Votes by day
             </Typography>
-            <Separator />
-            <Typography
-                sx={{display: "flex"}}
-                fontSize="14px"
-                color={theme.palette.customGrey.main}
-            >
-                <IconButton icon={faClock} fontSize="14px" sx={{marginRight: "4px"}} />
-                <span>Election started 23/12/2022 at 12:00 pm</span>
-            </Typography>
-        </BarChartPaper>
+            {
+                // <Separator />
+                // <Typography
+                //     sx={{display: "flex"}}
+                //     fontSize="14px"
+                //     color={theme.palette.customGrey.main}
+                // >
+                // <IconButton icon={faClock} fontSize="14px" sx={{marginRight: "4px"}} />
+                // <span>Election started 23/12/2022 at 12:00 pm</span>
+                //{" "}
+                // </Typography>
+            }
+        </StyledPaper>
     )
 }
