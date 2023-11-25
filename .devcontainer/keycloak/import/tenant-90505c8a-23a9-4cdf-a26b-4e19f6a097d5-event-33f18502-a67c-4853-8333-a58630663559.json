@@ -1,6 +1,8 @@
 {
   "id" : "613e770d-7498-4726-90ff-b288f40a7b30",
   "realm" : "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559",
+  "displayName" : "Election Event",
+  "displayNameHtml" : "",
   "notBefore" : 0,
   "defaultSignatureAlgorithm" : "RS256",
   "revokeRefreshToken" : false,
@@ -368,7 +370,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName", "totpAppGoogleName" ],
+  "otpSupportedApplications" : [ "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -400,13 +402,14 @@
     "attributes" : {
       "sequent.read-only.mobile-number" : [ "+34666000111" ],
       "area-id" : [ "2f312a36-f39c-46e4-9670-1d1ce4625745" ],
-      "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
+      "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ],
+      "sequent.read-only.expirationDate" : [ "1700939473" ]
     },
     "credentials" : [ {
       "id" : "19f5adbc-93ef-4ecf-b3b5-fc6e016aa33e",
       "type" : "password",
-      "createdDate" : 1700845750723,
-      "secretData" : "{\"value\":\"zExtE4Fu8djmSyLazuQ36AdBNK+rFC1UPOIN6KJ+Bc8=\",\"salt\":\"KvqJOhVTeuBV3+CXyd5qgg==\",\"additionalParameters\":{}}",
+      "createdDate" : 1700932273686,
+      "secretData" : "{\"value\":\"fSGOdOmwz7gqeGNGbUH8hsqDGiFWQJYyF97kWGfp8b0=\",\"salt\":\"dbC1k3YCCOpsrGsEl0bW7Q==\",\"additionalParameters\":{}}",
       "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
     } ],
     "disableableCredentialTypes" : [ ],
@@ -1204,12 +1207,16 @@
     "xContentTypeOptions" : "nosniff",
     "referrerPolicy" : "no-referrer",
     "xRobotsTag" : "none",
-    "xFrameOptions" : "SAMEORIGIN",
-    "contentSecurityPolicy" : "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+    "xFrameOptions" : "SAMEORIGIN ALLOW-FROM https://www.google.com",
+    "contentSecurityPolicy" : "frame-src 'self' https://www.google.com; frame-ancestors 'self'; object-src 'none';",
     "xXSSProtection" : "1; mode=block",
     "strictTransportSecurity" : "max-age=31536000; includeSubDomains"
   },
   "smtpServer" : { },
+  "loginTheme" : "sequent",
+  "accountTheme" : "",
+  "adminTheme" : "",
+  "emailTheme" : "",
   "eventsEnabled" : false,
   "eventsListeners" : [ "jboss-logging" ],
   "enabledEventTypes" : [ ],
@@ -1334,8 +1341,9 @@
       }
     } ]
   },
-  "internationalizationEnabled" : false,
-  "supportedLocales" : [ ],
+  "internationalizationEnabled" : true,
+  "supportedLocales" : [ "en", "es" ],
+  "defaultLocale" : "en",
   "authenticationFlows" : [ {
     "id" : "673f4038-bec0-4598-b60f-f3231fad3ff7",
     "alias" : "Account verification options",
@@ -2189,7 +2197,12 @@
     "id" : "139477b4-0b84-4182-9230-b6dc67853849",
     "alias" : "username-password-exp",
     "config" : {
-      "passwordExpirationUserAttribute" : "sequent.read-only.expirationDate"
+      "recaptchaSiteKey" : "6LfJ_RspAAAAAAX_gikmCVVs1MP8DPWV71WYUKUK",
+      "recaptchaActionName" : "recaptcha.login",
+      "siteSecret" : "6LfJ_RspAAAAAOAA1TlNmGRgzUANakib7MSQe1ae",
+      "passwordExpirationUserAttribute" : "sequent.read-only.expirationDate",
+      "recaptchaEnabled" : "true",
+      "recaptchaMinScore" : "0.5"
     }
   }, {
     "id" : "bab4b81a-bd49-46f1-8f97-ae667905e995",
@@ -2320,17 +2333,20 @@
   "dockerAuthenticationFlow" : "docker auth",
   "attributes" : {
     "cibaBackchannelTokenDeliveryMode" : "poll",
-    "cibaExpiresIn" : "120",
     "cibaAuthRequestedUserHint" : "login_hint",
-    "oauth2DeviceCodeLifespan" : "600",
     "clientOfflineSessionMaxLifespan" : "0",
     "oauth2DevicePollingInterval" : "5",
     "clientSessionIdleTimeout" : "0",
-    "parRequestUriLifespan" : "60",
-    "clientSessionMaxLifespan" : "0",
+    "userProfileEnabled" : "false",
     "clientOfflineSessionIdleTimeout" : "0",
     "cibaInterval" : "5",
-    "realmReusableOtpCode" : "false"
+    "realmReusableOtpCode" : "false",
+    "cibaExpiresIn" : "120",
+    "oauth2DeviceCodeLifespan" : "600",
+    "parRequestUriLifespan" : "60",
+    "clientSessionMaxLifespan" : "0",
+    "frontendUrl" : "",
+    "acr.loa.map" : "{}"
   },
   "keycloakVersion" : "22.0.5",
   "userManagedAccessAllowed" : false,
