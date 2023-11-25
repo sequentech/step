@@ -1,7 +1,10 @@
 import React from "react"
-import {Box, styled, Typography} from "@mui/material"
-import {IconButton, theme} from "@sequentech/ui-essentials"
+import {Box, styled, SvgIconTypeMap, Typography, Icon} from "@mui/material"
+import {theme} from "@sequentech/ui-essentials"
 import {IconDefinition} from "@fortawesome/free-solid-svg-icons"
+import {OverridableComponent} from "@mui/material/OverridableComponent"
+import FenceIcon from "@mui/icons-material/Fence"
+import DeleteIcon from "@mui/icons-material/Delete"
 
 const CardContainer = styled(Box)<{selected?: boolean}>`
     display: flex;
@@ -37,13 +40,17 @@ export default function StatItem({
     count,
     label,
 }: {
-    icon: IconDefinition
+    icon: any
     count: number | string
     label: string
 }) {
+    const iconSize = 60
+
     return (
         <CardContainer>
-            <IconButton icon={icon} fontSize="38px" />
+            <Icon sx={{width: iconSize, height: iconSize, textAlign: "center", marginX: "auto"}}>
+                {icon}
+            </Icon>
             <StyledTypography1 fontSize="24px">{count}</StyledTypography1>
             <StyledTypography2 fontSize="12px" uppercase="true">
                 {label}
