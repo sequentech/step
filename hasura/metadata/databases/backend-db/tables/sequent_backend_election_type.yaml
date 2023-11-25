@@ -1,5 +1,5 @@
 table:
-  name: tenant
+  name: election_type
   schema: sequent_backend
 insert_permissions:
 - comment: ""
@@ -7,26 +7,24 @@ insert_permissions:
     check: {}
     columns:
     - annotations
-    - created_at
-    - id
-    - is_active
     - labels
-    - slug
+    - name
+    - created_at
     - updated_at
-    - voting_channels
+    - id
+    - tenant_id
   role: admin-user
 - comment: ""
   permission:
     check: {}
     columns:
     - annotations
-    - created_at
-    - id
-    - is_active
     - labels
-    - slug
+    - name
+    - created_at
     - updated_at
-    - voting_channels
+    - id
+    - tenant_id
   role: service-account
 select_permissions:
 - comment: ""
@@ -34,13 +32,12 @@ select_permissions:
     allow_aggregations: true
     columns:
     - annotations
-    - created_at
-    - id
-    - is_active
     - labels
-    - slug
+    - name
+    - created_at
     - updated_at
-    - voting_channels
+    - id
+    - tenant_id
     filter: {}
   role: admin-user
 - comment: ""
@@ -48,43 +45,26 @@ select_permissions:
     allow_aggregations: true
     columns:
     - annotations
-    - created_at
-    - id
-    - is_active
     - labels
-    - slug
+    - name
+    - created_at
     - updated_at
-    - voting_channels
+    - id
+    - tenant_id
     filter: {}
   role: service-account
-- comment: ""
-  permission:
-    columns:
-    - annotations
-    - created_at
-    - id
-    - is_active
-    - labels
-    - slug
-    - updated_at
-    - voting_channels
-    filter:
-      id:
-        _eq: X-Hasura-Tenant-Id
-  role: user
 update_permissions:
 - comment: ""
   permission:
     check: {}
     columns:
     - annotations
-    - created_at
-    - id
-    - is_active
     - labels
-    - slug
+    - name
+    - created_at
     - updated_at
-    - voting_channels
+    - id
+    - tenant_id
     filter: {}
   role: admin-user
 - comment: ""
@@ -92,13 +72,12 @@ update_permissions:
     check: {}
     columns:
     - annotations
-    - created_at
-    - id
-    - is_active
     - labels
-    - slug
+    - name
+    - created_at
     - updated_at
-    - voting_channels
+    - id
+    - tenant_id
     filter: {}
   role: service-account
 delete_permissions:
