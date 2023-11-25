@@ -1,18 +1,14 @@
 import React from "react"
 import {Box} from "@mui/material"
 
-import {
-    BarChart,
-    ChartsContainer,
-    PieChart,
-} from "@/resources/ElectionEvent/EditElectionEventDashboard"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
-
-import ElectionStats from "./ElectionStats"
+import Stats from "./Stats"
+import {BarChart, ChartsContainer, PieChart} from "./Charts"
 
 export default function DashboardElectionEvent() {
     return (
         <>
+            {" "}
             <Box sx={{maxWidth: 1258}}>
                 <BreadCrumbSteps
                     labels={[
@@ -29,7 +25,7 @@ export default function DashboardElectionEvent() {
                 />
 
                 <Box sx={{paddingX: "48px"}}>
-                    <ElectionStats />
+                    <Stats />
 
                     <ChartsContainer>
                         <BarChart />

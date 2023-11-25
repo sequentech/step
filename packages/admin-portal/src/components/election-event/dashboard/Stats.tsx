@@ -26,7 +26,7 @@ const CardList = styled(Box)`
     margin: 20px 0;
 `
 
-export default function ElectionStats() {
+export default function Stats() {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
 
