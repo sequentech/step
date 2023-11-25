@@ -90,13 +90,11 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
         user
             .credentialManager()
             .updateCredential(UserCredentialModel.password(temporaryPassword));
-        int expirationSeconds = Utils.getPasswordExpirationSeconds(
-            config, user
-        );
+        int expirationSeconds = Utils.getPasswordExpirationSeconds(config);
 
         // Mark password to expire
         String expirationUserAttribute = Utils
-            .getPasswordExpirationUserAttribute(config, user);
+            .getPasswordExpirationUserAttribute(config);
         int absoluteExpirationInSecs = Time.currentTime() + expirationSeconds;
         user.setSingleAttribute(
             expirationUserAttribute,
@@ -146,14 +144,9 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
     ) {
         RealmModel realm = context.getRealm();
         UserModel user = context.getUser();
-        int passwordLength = Utils.getPasswordLength(
-            context.getAuthenticatorConfig(),
-            user
-        );
-        String charList = Utils.getPasswordChars(
-            context.getAuthenticatorConfig(),
-            user
-        );; 
+        AuthenticatorConfigModel authConfig = context.getAuthenticatorConfig();
+        int passwordLength = Utils.getPasswordLength(authConfig);
+        String charList = Utils.getPasswordChars(authConfig);
         PasswordPolicyManagerProvider policyManager = context
             .getSession()
             .getProvider(PasswordPolicyManagerProvider.class);

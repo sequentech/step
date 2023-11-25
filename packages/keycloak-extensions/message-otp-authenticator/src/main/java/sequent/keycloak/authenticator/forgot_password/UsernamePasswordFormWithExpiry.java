@@ -9,6 +9,7 @@ import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
@@ -91,8 +92,7 @@ public class UsernamePasswordFormWithExpiry
         // get the user attribute name
         String passwordExpirationUserAttribute =
             Utils.getPasswordExpirationUserAttribute(
-                context.getAuthenticatorConfig(),
-                user
+                context.getAuthenticatorConfig()
             );
         if (passwordExpirationUserAttribute == null) {
             // shouldn't happen since we have a fall-back user attribute name
@@ -217,9 +217,34 @@ public class UsernamePasswordFormWithExpiry
         AuthenticationFlowContext context,
         MultivaluedMap<String, String> formData
     ) {
-        LoginFormsProvider forms = context.form();
+        AuthenticatorConfigModel authConfig = context.getAuthenticatorConfig();
+        boolean recaptchaEnabled = Utils.getBoolean(
+            authConfig, Utils.RECAPTCHA_ENABLED, false
+        );
 
-        if (formData.size() > 0) forms.setFormData(formData);
+        LoginFormsProvider forms = context.form();
+        if (recaptchaEnabled) {
+            String recaptchaSiteKey = Utils.getString(
+                authConfig, Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE
+            );
+            forms.setAttribute(Utils.RECAPTCHA_ENABLED, true);
+            forms.setAttribute(
+                Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE,
+                recaptchaSiteKey
+            );
+            String userLanguageTag = context
+                .getSession()
+                .getContext()
+                .resolveLocale(context.getUser())
+                .toLanguageTag();
+            forms.addScript(
+                "https://www.google.com/recaptcha/api.js?hl=" + userLanguageTag
+            );
+        }
+
+        if (formData.size() > 0) {
+            forms.setFormData(formData);
+        }
 
         return forms.createLoginUsernamePassword();
     }
@@ -302,6 +327,34 @@ public class UsernamePasswordFormWithExpiry
 				"User attribute to use storing the Password Expiration Date. Should be read-only.",
                 ProviderConfigProperty.STRING_TYPE,
 				Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT
+			),
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE,
+				"reCAPTCHA v3 Site Key",
+				"",
+                ProviderConfigProperty.STRING_TYPE,
+				""
+			),
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_SITE_SECRET_ATTRIBUTE,
+				"reCAPTCHA v3 Site Secret",
+				"",
+                ProviderConfigProperty.STRING_TYPE,
+				""
+			),
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_MIN_SCORE,
+				"reCAPTCHA v3 Minimum Score",
+				"",
+                ProviderConfigProperty.STRING_TYPE,
+				"0.5"
+			),
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_ENABLED,
+				"Enable reCAPTCHA v3",
+				"",
+                ProviderConfigProperty.BOOLEAN_TYPE,
+				false
 			)
         );
     }

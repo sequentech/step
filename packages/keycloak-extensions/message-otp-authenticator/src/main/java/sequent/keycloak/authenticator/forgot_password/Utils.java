@@ -34,85 +34,134 @@ public class Utils {
 	public final String NEW_PASSWORD_EMAIL_SUBJECT = "newPassword.email.subject";
 	public final String NEW_PASSWORD_EMAIL_FTL = "forgot-password-send-new-password.ftl";
 
-	int getPasswordLength(AuthenticatorConfigModel config, UserModel user)
-	{
-		log.infov("getPasswordLength()");
-		if (config == null) {
-			log.infov("getPasswordLength(): NULL config={0}", config);
-			return Integer.parseInt(Utils.PASSWORD_LENGTH_DEFAULT);
-		}
+	public final String RECAPTCHA_SITE_KEY_ATTRIBUTE = "recaptchaSiteKey";
+	public final String RECAPTCHA_SITE_SECRET_ATTRIBUTE = "siteSecret";
+	public final String RECAPTCHA_ENABLED = "recaptchaEnabled";
+	public final String RECAPTCHA_MIN_SCORE = "recaptchaMinScore";
 
-		Map<String, String> mapConfig = config.getConfig();
-		if (
-			mapConfig == null ||
-			!mapConfig.containsKey(Utils.PASSWORD_LENGTH) ||
-			mapConfig.get(Utils.PASSWORD_LENGTH).strip().length() == 0
-		) {
-			log.infov("getPasswordLength(): NullOrNotFound mapConfig={0}", mapConfig);
-			return Integer.parseInt(Utils.PASSWORD_LENGTH_DEFAULT);
-		}
-		return Integer.parseInt(mapConfig.get(Utils.PASSWORD_LENGTH));
+	public String getString(
+		AuthenticatorConfigModel config,
+		String configKey
+	) {
+		return getString(config, configKey, "");
 	}
 
-	String getPasswordChars(AuthenticatorConfigModel config, UserModel user)
-	{
-		log.infov("getPasswordChars()");
+	public String getString(
+		AuthenticatorConfigModel config,
+		String configKey,
+		String defaultValue
+	) {
+		log.infov(
+			"getString(configKey={0}, defaultValue={1})",
+			configKey,
+			defaultValue
+		);
 		if (config == null) {
-			log.infov("getPasswordChars(): NULL config={0}", config);
-			return Utils.PASSWORD_CHARS_DEFAULT;
+			log.infov("getString(): NULL config={0}", config);
+			return defaultValue;
 		}
 
 		Map<String, String> mapConfig = config.getConfig();
 		if (
 			mapConfig == null ||
-			!mapConfig.containsKey(Utils.PASSWORD_CHARS) ||
-			mapConfig.get(Utils.PASSWORD_CHARS).strip().length() == 0
+			!mapConfig.containsKey(configKey) ||
+			mapConfig.get(configKey).strip().length() == 0
 		) {
-			log.infov("getPasswordChars(): NullOrNotFound mapConfig={0}", mapConfig);
-			return Utils.PASSWORD_CHARS_DEFAULT;
+			log.infov("getString(): NullOrNotFound mapConfig={0}", mapConfig);
+			return defaultValue;
 		}
-		return mapConfig.get(Utils.PASSWORD_CHARS);
+		return mapConfig.get(configKey);
 	}
 
-	int getPasswordExpirationSeconds(AuthenticatorConfigModel config, UserModel user)
-	{
-		log.infov("getPasswordExpiration()");
+	public int getInt(
+		AuthenticatorConfigModel config,
+		String configKey,
+		String defaultValue
+	) {
+		log.infov(
+			"getInt(configKey={0}, defaultValue={1})",
+			configKey,
+			defaultValue
+		);
 		if (config == null) {
-			log.infov("getPasswordExpiration(): NULL config={0}", config);
-			return Integer.parseInt(Utils.PASSWORD_EXPIRATION_SECONDS_DEFAULT);
+			log.infov("getInt(): NULL config={0}", config);
+			return Integer.parseInt(defaultValue);
 		}
 
 		Map<String, String> mapConfig = config.getConfig();
 		if (
 			mapConfig == null ||
-			!mapConfig.containsKey(Utils.PASSWORD_EXPIRATION_SECONDS) ||
-			mapConfig.get(Utils.PASSWORD_EXPIRATION_SECONDS).strip().length() == 0
+			!mapConfig.containsKey(configKey) ||
+			mapConfig.get(configKey).strip().length() == 0
 		) {
-			log.infov("getPasswordExpiration(): NullOrNotFound mapConfig={0}", mapConfig);
-			return Integer.parseInt(Utils.PASSWORD_EXPIRATION_SECONDS_DEFAULT);
+			log.infov("getInt(): NullOrNotFound mapConfig={0}", mapConfig);
+			return Integer.parseInt(defaultValue);
 		}
-		return Integer.parseInt(mapConfig.get(Utils.PASSWORD_EXPIRATION_SECONDS));
+		return Integer.parseInt(mapConfig.get(configKey));
+	}
+
+	public boolean getBoolean(
+		AuthenticatorConfigModel config,
+		String configKey,
+		boolean defaultValue
+	) {
+		log.infov(
+			"getBoolean(configKey={0}, defaultValue={1})",
+			configKey,
+			defaultValue
+		);
+		if (config == null) {
+			log.infov("getBoolean(): NULL config={0}", config);
+			return defaultValue;
+		}
+
+		Map<String, String> mapConfig = config.getConfig();
+		if (
+			mapConfig == null ||
+			!mapConfig.containsKey(configKey) ||
+			mapConfig.get(configKey).strip().length() == 0
+		) {
+			log.infov("getBoolean(): NullOrNotFound mapConfig={0}", mapConfig);
+			return defaultValue;
+		}
+		return Boolean.parseBoolean(mapConfig.get(configKey));
+	}
+
+	int getPasswordLength(AuthenticatorConfigModel config)
+	{
+		return getInt(
+			config,
+			Utils.PASSWORD_LENGTH,
+			Utils.PASSWORD_LENGTH_DEFAULT
+		);
+	}
+
+	String getPasswordChars(AuthenticatorConfigModel config)
+	{
+		return getString(
+			config,
+			Utils.PASSWORD_CHARS,
+			Utils.PASSWORD_CHARS_DEFAULT
+		);
+	}
+
+	int getPasswordExpirationSeconds(AuthenticatorConfigModel config)
+	{
+		return getInt(
+			config,
+			Utils.PASSWORD_EXPIRATION_SECONDS,
+			Utils.PASSWORD_EXPIRATION_SECONDS_DEFAULT
+		);
 	}
 
 	String getPasswordExpirationUserAttribute(
-		AuthenticatorConfigModel config, UserModel user
+		AuthenticatorConfigModel config
 	) {
-		log.infov("getPasswordExpirationUserAttribute()");
-		if (config == null) {
-			log.infov("getPasswordExpirationUserAttribute(): NULL config={0}", config);
-			return Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT;
-		}
-
-		Map<String, String> mapConfig = config.getConfig();
-		if (
-			mapConfig == null ||
-			!mapConfig.containsKey(Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE) ||
-			mapConfig.get(Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE).strip().length() == 0
-		) {
-			log.infov("getPasswordExpirationUserAttribute(): NullOrNotFound mapConfig={0}", mapConfig);
-			return Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT;
-		}
-		return mapConfig.get(Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE);
+		return getString(
+			config,
+			Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE,
+			Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT
+		);
 	}
 
 	Optional<AuthenticatorConfigModel> getConfig(RealmModel realm)
