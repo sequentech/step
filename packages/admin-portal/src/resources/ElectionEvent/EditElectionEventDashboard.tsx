@@ -5,33 +5,13 @@
 import React from "react"
 import {styled} from "@mui/material/styles"
 import {useQuery} from "@apollo/client"
-import {Box, CircularProgress, Paper, Typography} from "@mui/material"
+import {Box, Paper, Typography} from "@mui/material"
 import Chart, {Props} from "react-apexcharts"
 import {GetCastVotesQuery, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {IconButton, theme} from "@sequentech/ui-essentials"
-import {useGetList, useRecordContext} from "react-admin"
-
-import FenceIcon from "@mui/icons-material/Fence"
-import GroupIcon from "@mui/icons-material/Group"
-import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined"
-import SmsOutlinedIcon from "@mui/icons-material/SmsOutlined"
-import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined"
-
+import {useRecordContext} from "react-admin"
 import {GET_CAST_VOTES} from "../../queries/GetCastVotes"
-import {GET_ELECTION_EVENT_STATS} from "../../queries/GetElectionEventStats"
-
-import StatItem from "@/components/election-event/dashboard/StatItem"
-import {useTranslation} from "react-i18next"
-
-import {useTenantStore} from "@/providers/TenantContextProvider"
 import {faClock} from "@fortawesome/free-solid-svg-icons"
-
-const CardList = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    gap: 24px;
-    margin: 20px 0;
-`
 
 export const ChartsContainer = styled(Box)`
     display: flex;
@@ -158,81 +138,5 @@ export const BarChart: React.FC = () => {
                 Election started 23/12/2022 at 12:00 pm
             </Typography>
         </BarChartPaper>
-    )
-}
-
-export function ElectionStats() {
-    const {t} = useTranslation()
-    const [tenantId] = useTenantStore()
-
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
-    const electionEventId = record.id
-
-    const {loading, data: dataStats} = useQuery(GET_ELECTION_EVENT_STATS, {
-        variables: {
-            electionEventId,
-            tenantId: record.tenant_id,
-        },
-    })
-
-    const {data: users, total: totalUsers} = useGetList("user", {
-        filter: {tenant_id: tenantId, election_event_id: electionEventId},
-    })
-
-    console.log(
-        "LS -> src/resources/ElectionEvent/EditElectionEventDashboard.tsx:181 -> totalUsers: ",
-        totalUsers
-    )
-
-    console.log(
-        "LS -> src/resources/ElectionEvent/EditElectionEventDashboard.tsx:182 -> users: ",
-        users
-    )
-
-    if (loading) {
-        return <CircularProgress />
-    }
-
-    const res = {
-        castVotes: dataStats.castVotes.aggregate.count,
-        elections: dataStats.elections.aggregate.count,
-        areas: dataStats.areas.aggregate.count,
-    }
-
-    const iconSize = 60
-
-    return (
-        <CardList>
-            <StatItem
-                icon={<GroupIcon sx={{fontSize: iconSize}} />}
-                count={-1}
-                label={t("electionEventScreen.stats.elegibleVoters")}
-            ></StatItem>
-            <StatItem
-                icon={<GroupIcon sx={{fontSize: iconSize}} />}
-                count={res.elections}
-                label={t("electionEventScreen.stats.elections")}
-            ></StatItem>
-            <StatItem
-                icon={<FenceIcon sx={{fontSize: iconSize}} />}
-                count={res.areas}
-                label={t("electionEventScreen.stats.areas")}
-            ></StatItem>
-            <StatItem
-                icon={<MarkEmailReadOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={-1}
-                label={t("electionEventScreen.stats.sentEmails")}
-            ></StatItem>
-            <StatItem
-                icon={<SmsOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={-1}
-                label={t("electionEventScreen.stats.sentSMS")}
-            ></StatItem>
-            <StatItem
-                icon={<CalendarMonthOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={t("electionEventScreen.stats.calendar.scheduled")}
-                label={t("electionEventScreen.stats.calendar.title")}
-            ></StatItem>
-        </CardList>
     )
 }

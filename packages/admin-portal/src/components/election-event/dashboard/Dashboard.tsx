@@ -4,15 +4,16 @@ import {Box} from "@mui/material"
 import {
     BarChart,
     ChartsContainer,
-    ElectionStats,
     PieChart,
 } from "@/resources/ElectionEvent/EditElectionEventDashboard"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 
+import ElectionStats from "./ElectionStats"
+
 export default function DashboardElectionEvent() {
     return (
         <>
-            <Box sx={{padding: "16px"}}>
+            <Box sx={{maxWidth: 1258}}>
                 <BreadCrumbSteps
                     labels={[
                         "electionEventBreadcrumbSteps.created",
@@ -27,12 +28,14 @@ export default function DashboardElectionEvent() {
                     colorPreviousSteps={true}
                 />
 
-                <ElectionStats />
+                <Box sx={{paddingX: "48px"}}>
+                    <ElectionStats />
 
-                <ChartsContainer>
-                    <BarChart />
-                    <PieChart />
-                </ChartsContainer>
+                    <ChartsContainer>
+                        <BarChart />
+                        <PieChart />
+                    </ChartsContainer>
+                </Box>
             </Box>
         </>
     )
