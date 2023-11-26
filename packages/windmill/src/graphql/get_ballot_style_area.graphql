@@ -68,6 +68,7 @@ query GetBallotStyleArea(
     eml
     num_allowed_revotes
     is_consolidated_ballot_encoding
+    is_kiosk
     spoil_ballot_option
   }
   sequent_backend_area_contest(

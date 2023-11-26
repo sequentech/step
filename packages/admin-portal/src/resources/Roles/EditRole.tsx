@@ -9,6 +9,19 @@ import {useTranslation} from "react-i18next"
 import {IPermission, IRole} from "sequent-core"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
+import {IPermissions} from "../../types/keycloak"
+import { TextField } from "@mui/material"
+
+type EnumObject = {[key: string]: number | string}
+type EnumObjectEnum<E extends EnumObject> = E extends {[key: string]: infer ET | string}
+    ? ET
+    : never
+
+function getEnumValues<E extends EnumObject>(enumObject: E): EnumObjectEnum<E>[] {
+    return Object.keys(enumObject)
+        .filter((key) => Number.isNaN(Number(key)))
+        .map((key) => enumObject[key] as EnumObjectEnum<E>)
+}
 
 interface EditRoleProps {
     id?: Identifier | undefined
@@ -26,13 +39,18 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
 
     let rolePermissions: Array<string> = role?.permissions || []
 
-    let rows: Array<IPermission & {id: string; active: boolean}> = (permissions || []).map(
-        (permission) => ({
+    let validPermissions = getEnumValues(IPermissions)
+
+    let rows: Array<IPermission & {id: string; active: boolean}> = (permissions || [])
+        .filter(
+            (permission) => permission.name && validPermissions.includes(permission.name as any)
+        )
+        .map((permission) => ({
             ...permission,
             id: permission.id || "",
+            name: permission.name && t(`usersAndRolesScreen.permissions.${permission.name}`),
             active: (!!permission.name && rolePermissions.includes(permission.name)) || false,
-        })
-    )
+        }))
 
     const columns: GridColDef[] = [
         {
@@ -57,6 +75,14 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
             <ElectionHeader
                 title={t("usersAndRolesScreen.roles.edit.title")}
                 subtitle="usersAndRolesScreen.roles.edit.subtitle"
+            />
+
+            <TextField
+                label="Name"
+                value={role?.name}
+                InputProps={{
+                    readOnly: true,
+                }}
             />
             {role?.name}
             <DataGrid

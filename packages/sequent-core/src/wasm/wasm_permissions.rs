@@ -5,7 +5,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(typescript_custom_section)]
 const IPERMISSIONS: &'static str = r#"
-enum IPermissions {
+export enum IPermissions {
     TENANT_CREATE = "tenant-create",
     TENANT_READ = "tenant-read",
     TENANT_WRITE = "tenant-write",
@@ -52,9 +52,3 @@ enum IPermissions {
     KEYS_READ = "keys-read",
 }
 "#;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(typescript_type = "IPermissions")]
-    pub type IPermissions;
-}

@@ -16,9 +16,9 @@ import {HorizontalBox} from "../../HorizontalBox"
 import {Link} from "react-router-dom"
 import {FETCH_ELECTION_EVENTS_TREE} from "../../../queries/GetElectionEventsTree"
 import {useTenantStore} from "../../../providers/TenantContextProvider"
-//import { IPermissions } from "sequent-core"
 import {AuthContext} from "../../../providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
+import {IPermissions} from "../../../types/keycloak"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -130,7 +130,11 @@ export default function ElectionEvents() {
     const [searchInput, setSearchInput] = useState<string>("")
     const [archivedElectionEvents, setArchivedElectionEvents] = useState(0)
     const authContext = useContext(AuthContext)
-    const showAddElectionEvent = authContext.isAuthorized(true, tenantId, "election-event-create")
+    const showAddElectionEvent = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.ELECTION_EVENT_CREATE
+    )
     const {t} = useTranslation()
 
     const isArchivedElectionEvents = archivedElectionEvents === 1
