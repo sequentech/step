@@ -15,7 +15,6 @@ const Container = styled(Box)`
 export default function DashboardElectionEvent() {
     return (
         <>
-            {" "}
             <Box sx={{maxWidth: 1258}}>
                 <BreadCrumbSteps
                     labels={[

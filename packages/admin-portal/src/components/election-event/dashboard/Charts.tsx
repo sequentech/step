@@ -21,11 +21,7 @@ function daysBefore(date: Date, days: number): Date {
     return before
 }
 
-function aggregateByDay(votes?: GetCastVotesQuery["sequent_backend_cast_vote"]): Array<number> {
-    if (!votes) {
-        return [35, 50, 49, 60, 70, 91, 125]
-    }
-
+function aggregateByDay(votes: GetCastVotesQuery["sequent_backend_cast_vote"]): Array<number> {
     let values: Array<number> = []
 
     for (let i = 0; i < 7; i++) {
@@ -113,7 +109,6 @@ export const VotesByDay: React.FC = () => {
             {
                 name: "series-1",
                 data: aggregateByDay(data?.sequent_backend_cast_vote),
-                // data: aggregateByDay(),
             },
         ],
     }
@@ -125,13 +120,13 @@ export const VotesByDay: React.FC = () => {
                 series={state.series}
                 type="bar"
                 width={370}
-                height={200}
+                height={250}
             />
+
             <Typography fontSize="16px" color={theme.palette.customGrey.main}>
                 Votes by day
             </Typography>
             {
-                // <Separator />
                 // <Typography
                 //     sx={{display: "flex"}}
                 //     fontSize="14px"
