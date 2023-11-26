@@ -1,5 +1,5 @@
 mutation InsertDocument(
-  $electionEventId: uuid!,
+  $electionEventId: uuid,
   $tenantId: uuid!,
   $name: String!,
   $size: Int!,

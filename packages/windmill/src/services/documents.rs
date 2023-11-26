@@ -24,7 +24,7 @@ pub async fn upload_and_return_document(
     let new_document = hasura::document::insert_document(
         auth_headers,
         tenant_id.clone(),
-        election_event_id.clone(),
+        Some(election_event_id.clone()),
         name,
         media_type.clone(),
         size as i64,
@@ -69,3 +69,30 @@ pub async fn upload_and_return_document(
             .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
     })
 }
+
+#[instrument]
+pub fn get_upload_url(
+    auth_headers: connection::AuthHeaders,
+    name: &str,
+    media_type: &str,
+    size: usize,
+    tenant_id: &str,
+) -> Result<(Document, String)> {
+    let new_document = hasura::document::insert_document(
+        auth_headers,
+        tenant_id.clone(),
+        None,
+        name,
+        media_type.clone(),
+        size as i64,
+    )
+        .await?
+        .data
+        .expect("expected data".into())
+        .insert_sequent_backend_document
+        .unwrap()
+        .returning[0];
+    let url = s3::get_upload_url(inner.name).await?;
+    Some(url)
+}
+

@@ -31,10 +31,12 @@ pub async fn upload_document(
     authorize(
         &claims,
         true,
-        Some(input.tenant_id.clone()),
+        Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::DOCUMENT_UPLOAD],
     )?;
     let inner = body.into_inner();
-    let url = s3::get_upload_url(inner.name).await.unwrap();
+    document_upload::get_upload_url(inner.name, inner.media_type, claims.hasura_claims.tenant_id)
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(Json(UploadDocumentOutput { url: url }))
 }

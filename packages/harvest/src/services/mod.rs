@@ -4,4 +4,3 @@
 
 pub mod authorization;
 pub mod worker;
-pub mod document_upload;

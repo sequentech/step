@@ -153,6 +153,6 @@ pub async fn get_upload_url(key: String) -> Result<String> {
     let public_bucket =
         Bucket::new(minio_bucket.as_str(), public_region, credentials.clone())?.with_path_style();
 
-    let upload_url = public_bucket.presign_put(key, 3600, None).unwrap();
+    let upload_url = public_bucket.presign_put(key, 3600, None)?;
     Ok(upload_url)
 }
