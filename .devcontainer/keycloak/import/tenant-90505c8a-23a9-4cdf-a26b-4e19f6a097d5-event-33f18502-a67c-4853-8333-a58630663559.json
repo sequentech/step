@@ -370,7 +370,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName" ],
+  "otpSupportedApplications" : [ "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName", "totpAppGoogleName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -2198,7 +2198,7 @@
     "alias" : "username-password-exp",
     "config" : {
       "recaptchaSiteKey" : "6LfJ_RspAAAAAAX_gikmCVVs1MP8DPWV71WYUKUK",
-      "recaptchaActionName" : "recaptcha.login",
+      "recaptchaActionName" : "login",
       "siteSecret" : "6LfJ_RspAAAAAOAA1TlNmGRgzUANakib7MSQe1ae",
       "passwordExpirationUserAttribute" : "sequent.read-only.expirationDate",
       "recaptchaEnabled" : "true",
