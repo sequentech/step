@@ -32,9 +32,11 @@ using them and continue development:
   - `master` realm:
     - Username: `admin`
     - Password: `admin`
-  - `electoral-process` realm (used through the react frontend):
-    - Username: `edu`
-    - Password: `edu`
+  - election event realm (used through the react frontend for voting portal):
+    - Username: `felix`
+    - Password: `felix`
+    - Telephone `+34666000111` (ends in `0111`)
+    - Configure a Authenticator OTP the first time
 - **Hasura console** at [http://127.0.0.1:8080].
   - This docker service has the `hasura/migrations` and `hasura/metadata`
   services mounted, so that you can work transparently on that and it's synced
