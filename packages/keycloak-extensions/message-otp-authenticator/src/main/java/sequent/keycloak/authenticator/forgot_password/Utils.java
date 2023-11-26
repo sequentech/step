@@ -78,13 +78,13 @@ public class Utils {
 		String configKey,
 		String defaultValue
 	) {
-		log.infov(
+		log.debugv(
 			"getString(configKey={0}, defaultValue={1})",
 			configKey,
 			defaultValue
 		);
 		if (config == null) {
-			log.infov("getString(): NULL config={0}", config);
+			log.debugv("getString(): NULL config={0}", config);
 			return defaultValue;
 		}
 
@@ -94,7 +94,7 @@ public class Utils {
 			!mapConfig.containsKey(configKey) ||
 			mapConfig.get(configKey).strip().length() == 0
 		) {
-			log.infov("getString(): NullOrNotFound mapConfig={0}", mapConfig);
+			log.debugv("getString(): NullOrNotFound mapConfig={0}", mapConfig);
 			return defaultValue;
 		}
 		return mapConfig.get(configKey);
@@ -105,13 +105,13 @@ public class Utils {
 		String configKey,
 		String defaultValue
 	) {
-		log.infov(
+		log.debugv(
 			"getInt(configKey={0}, defaultValue={1})",
 			configKey,
 			defaultValue
 		);
 		if (config == null) {
-			log.infov("getInt(): NULL config={0}", config);
+			log.debugv("getInt(): NULL config={0}", config);
 			return Integer.parseInt(defaultValue);
 		}
 
@@ -121,7 +121,7 @@ public class Utils {
 			!mapConfig.containsKey(configKey) ||
 			mapConfig.get(configKey).strip().length() == 0
 		) {
-			log.infov("getInt(): NullOrNotFound mapConfig={0}", mapConfig);
+			log.debugv("getInt(): NullOrNotFound mapConfig={0}", mapConfig);
 			return Integer.parseInt(defaultValue);
 		}
 		return Integer.parseInt(mapConfig.get(configKey));
@@ -132,13 +132,13 @@ public class Utils {
 		String configKey,
 		boolean defaultValue
 	) {
-		log.infov(
+		log.debugv(
 			"getBoolean(configKey={0}, defaultValue={1})",
 			configKey,
 			defaultValue
 		);
 		if (config == null) {
-			log.infov("getBoolean(): NULL config={0}", config);
+			log.debugv("getBoolean(): NULL config={0}", config);
 			return defaultValue;
 		}
 
@@ -148,7 +148,7 @@ public class Utils {
 			!mapConfig.containsKey(configKey) ||
 			mapConfig.get(configKey).strip().length() == 0
 		) {
-			log.infov("getBoolean(): NullOrNotFound mapConfig={0}", mapConfig);
+			log.debugv("getBoolean(): NullOrNotFound mapConfig={0}", mapConfig);
 			return defaultValue;
 		}
 		return Boolean.parseBoolean(mapConfig.get(configKey));
@@ -273,7 +273,7 @@ public class Utils {
             new BasicNameValuePair("remoteip",
             context.getConnection().getRemoteAddr())
         );
-        log.infov(
+        log.debugv(
             "validateRecaptcha(): secret={0},  captcha={1}",
             secret,
             captcha
@@ -293,7 +293,7 @@ public class Utils {
             while ((line = br.readLine()) != null) {
                 result.append(line);
             }
-            log.infov("recaptcha result = {0}", result.toString());
+            log.debugv("recaptcha result = {0}", result.toString());
             try {
                 Object scoreObj = JsonSerialization
                     .readValue(result.toString(), Map.class)
