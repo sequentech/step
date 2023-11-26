@@ -130,10 +130,7 @@ pub async fn get_document_url(key: String, minio_bucket: String) -> Result<Strin
 }
 
 #[instrument]
-pub def get_upload_url(
-    key: String,
-    media_type: String,
-) -> Promise<String> {
+pub async fn get_upload_url(key: String) -> Result<String> {
     let key_id = env::var("MINIO_ACCESS_KEY").expect(&format!("MINIO_ACCESS_KEY must be set"));
     let key_secret =
         env::var("MINIO_ACCESS_SECRET").expect(&format!("MINIO_ACCESS_SECRET must be set"));
@@ -156,8 +153,6 @@ pub def get_upload_url(
     let public_bucket =
         Bucket::new(minio_bucket.as_str(), public_region, credentials.clone())?.with_path_style();
 
-    let upload_url = bucket.presign_put(
-        key, 3600, None,
-    ).unwrap();
+    let upload_url = public_bucket.presign_put(key, 3600, None).unwrap();
     Ok(upload_url)
 }

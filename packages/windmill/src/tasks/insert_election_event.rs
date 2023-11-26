@@ -7,8 +7,8 @@ use celery::error::TaskError;
 use immu_board::util::get_event_board;
 use sequent_core;
 use sequent_core::services::connection;
-use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use serde_json::Value;
 use std::env;
 use std::fs;
@@ -40,8 +40,9 @@ pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Resu
 
 #[instrument]
 pub async fn upsert_keycloak_realm(tenant_id: &str, election_event_id: &str) -> Result<()> {
-    let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH")
-        .expect(&format!("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set"));
+    let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH").expect(&format!(
+        "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set"
+    ));
     let realm_config = fs::read_to_string(&realm_config_path)
         .expect(&format!("Should have been able to read the configuration file in KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH={realm_config_path}"));
     let client = KeycloakAdminClient::new().await?;

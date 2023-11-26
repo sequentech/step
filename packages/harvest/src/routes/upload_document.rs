@@ -18,13 +18,12 @@ pub struct UploadDocumentOutput {
     url: String,
 }
 
-
-#[instrument(skip(claims))]
+#[instrument]
 #[post("/upload_document", format = "json", data = "<body>")]
 pub async fn upload_document(
     body: Json<UploadDocumentInput>,
 ) -> Result<Json<UploadDocumentOutput>, (Status, String)> {
     let inner = body.into_inner();
-    let url = s3::get_upload_url(inner.path, "application/binary").await.unwrap();
-    Ok(Json(UploadDocumentOutput(url: url)))
+    let url = s3::get_upload_url(inner.path).await.unwrap();
+    Ok(Json(UploadDocumentOutput { url: url }))
 }
