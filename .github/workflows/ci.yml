@@ -1,0 +1,38 @@
+name: Build and Push to ECR
+
+on:
+  push:
+    branches: [ 'main' ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [keycloak, frontend, harvest, braid, windmil]  # List of services to build in the matrix
+      fail-fast: false
+
+    steps:
+    - name: Check Out Repo
+      uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: aws-region  # e.g., us-east-1
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build and Push Docker Image
+      run: |
+        docker build -t ${{ steps.login-ecr.outputs.registry }}/repo-name/${{ matrix.service }}:${{ github.sha }} -f Dockerfile.${{ matrix.service }} .
+        docker push ${{ steps.login-ecr.outputs.registry }}/repo-name/${{ matrix.service }}:${{ github.sha }}
+
+    # Add any other necessary steps (like testing or additional validations) here
