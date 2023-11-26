@@ -296,6 +296,24 @@ Afterwards, you need to regenerate the typescript auto-generated types using
 yarn generate
 ```
 
+Additionally, the same graphql schema file is needed in `windmill` to generate 
+the base types for Rust. To update them, execute the following:
+
+```bash
+cd packages/windmill/
+gq http://graphql-engine:8080/v1/graphql \
+    -H "X-Hasura-Admin-Secret: admin" \
+    --introspect  \
+    --format json \
+    > src/graphql/schema.json
+cargo build
+```
+
+It might be the case that for example if you added some new field to an existing
+table, you will have to update some graphql query in
+`packages/windmill/src/graphql/` directory and the corresponding boilerplate
+code in `packages/windmill/src/hasura/`. Otherwise the build might fail.
+
 ## Trustees
 
 By default the trustees in this repo are configured to use a predefined configuration/
