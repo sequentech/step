@@ -3,7 +3,8 @@ mutation InsertDocument(
   $tenantId: uuid!,
   $name: String!,
   $size: Int!,
-  $mediaType: String!
+  $mediaType: String!,
+  $is_public: Boolean!,
 ) {
   insert_sequent_backend_document(
     objects: 
@@ -13,6 +14,7 @@ mutation InsertDocument(
       name: $name,
       size: $size,
       media_type: $mediaType,
+      is_public: $is_public,
     }
   ) {
     returning {
@@ -26,6 +28,7 @@ mutation InsertDocument(
       annotations
       created_at
       last_updated_at
+      is_public
     }
   }
 }

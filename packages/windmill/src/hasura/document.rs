@@ -23,10 +23,11 @@ pub struct InsertDocument;
 pub async fn insert_document(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
-    election_event_id: String,
+    election_event_id: Option<String>,
     name: String,
     media_type: String,
     size: i64,
+    is_public: bool,
 ) -> Result<Response<insert_document::ResponseData>> {
     let variables = insert_document::Variables {
         tenant_id: tenant_id,
@@ -34,6 +35,7 @@ pub async fn insert_document(
         name: name,
         media_type: media_type,
         size: size,
+        is_public: is_public,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
@@ -66,9 +68,9 @@ pub async fn find_document(
     document_id: String,
 ) -> Result<Response<get_document::ResponseData>> {
     let variables = get_document::Variables {
-        tenant_id: tenant_id,
-        election_event_id: election_event_id,
-        document_id: document_id,
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+        document_id: document_id.to_string(),
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

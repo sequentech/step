@@ -119,6 +119,7 @@ pub struct Document {
     pub annotations: Option<Value>,
     pub created_at: Option<NaiveDateTime>,
     pub last_updated_at: Option<NaiveDateTime>,
+    pub is_public: Option<bool>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]

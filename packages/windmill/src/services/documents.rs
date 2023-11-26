@@ -28,6 +28,7 @@ pub async fn upload_and_return_document(
         name,
         media_type.clone(),
         size as i64,
+        false,
     )
     .await?;
 
@@ -67,24 +68,26 @@ pub async fn upload_and_return_document(
             .last_updated_at
             .clone()
             .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
+        is_public: document.is_public.clone(),
     })
 }
 
 #[instrument]
-pub fn get_upload_url(
+pub async fn get_upload_url(
     auth_headers: connection::AuthHeaders,
     name: &str,
     media_type: &str,
     size: usize,
     tenant_id: &str,
 ) -> Result<(Document, String)> {
-    let new_document = hasura::document::insert_document(
+    let document = &hasura::document::insert_document(
         auth_headers,
-        tenant_id.clone(),
+        tenant_id.to_string(),
         None,
-        name,
-        media_type.clone(),
+        name.to_string(),
+        media_type.to_string(),
         size as i64,
+        true,
     )
         .await?
         .data
@@ -92,7 +95,27 @@ pub fn get_upload_url(
         .insert_sequent_backend_document
         .unwrap()
         .returning[0];
-    let url = s3::get_upload_url(inner.name).await?;
-    Some(url)
+    let url = s3::get_upload_url(name.to_string()).await?;
+
+    let ret_document = Document {
+        id: document.id.clone(),
+        tenant_id: document.tenant_id.clone(),
+        election_event_id: document.election_event_id.clone(),
+        name: document.name.clone(),
+        media_type: document.media_type.clone(),
+        size: document.size.clone(),
+        labels: document.labels.clone(),
+        annotations: document.annotations.clone(),
+        created_at: document
+            .created_at
+            .clone()
+            .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
+        last_updated_at: document
+            .last_updated_at
+            .clone()
+            .map(|value| ISO8601::to_date(value.as_str()).unwrap()),
+        is_public: document.is_public.clone(),
+    };
+    Ok((ret_document, url))
 }
 
