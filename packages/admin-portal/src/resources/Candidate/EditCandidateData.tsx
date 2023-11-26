@@ -1,15 +1,14 @@
 import React from "react"
 import {EditBase} from "react-admin"
-import {ElectionDataForm} from "./ElectionDataForm"
+import {CandidateDataForm} from "./CandidateDataForm"
 
-export const EditElectionData: React.FC = () => {
+export const EditCandidateData: React.FC = () => {
     const transform = (data: any) => {
         console.log("TRANSFORM ELECTION :: ", data)
-        console.log("TRANSFORM ELECTION :: enabled langs :: ", data.enabled_languages)
-        console.log("TRANSFORM ELECTION :: configuration :: ", data.configuration)
 
         // save presentation object
         // language_conf
+        console.log("data before :: ", data)
         const enabled_language_codes = []
         for (const key in data.enabled_languages) {
             if (typeof data.enabled_languages[key] === "boolean" && data.enabled_languages[key]) {
@@ -45,7 +44,6 @@ export const EditElectionData: React.FC = () => {
             ...data,
             presentation: {
                 ...data.presentation,
-                ...data.configuration,
                 language_conf: {
                     ...language_conf,
                     default_language_code: data.defaultLanguage,
@@ -56,7 +54,7 @@ export const EditElectionData: React.FC = () => {
 
     return (
         <EditBase redirect={"."} transform={transform}>
-            <ElectionDataForm />
+            <CandidateDataForm />
         </EditBase>
     )
 }
