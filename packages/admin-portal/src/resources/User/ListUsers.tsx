@@ -7,16 +7,12 @@ import {
     DatagridConfigurable,
     List,
     TextField,
-    FunctionField,
-    TextInput,
     NumberField,
     ExportButton,
     SelectColumnsButton,
     TopToolbar,
     BooleanField,
 } from "react-admin"
-import {Typography} from "@mui/material"
-import {useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 
 const OMIT_FIELDS: Array<string> = []
@@ -28,11 +24,9 @@ export interface ListUsersProps {
 
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) => {
     const [tenantId] = useTenantStore()
-    const {t} = useTranslation()
 
     return (
         <>
-            <Typography variant="h5">{t("electionEventScreen.voters.title")}</Typography>
             <List
                 resource="user"
                 actions={
@@ -45,7 +39,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                 aside={aside}
             >
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
-                    <NumberField source="id" />
+                    <TextField source="id" />
                     <TextField source="email" />
                     <BooleanField source="email_verified" />
                     <BooleanField source="enabled" />

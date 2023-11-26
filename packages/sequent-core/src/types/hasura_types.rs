@@ -62,6 +62,7 @@ pub struct Election {
     pub num_allowed_revotes: Option<i64>,
     pub is_consolidated_ballot_encoding: Option<bool>,
     pub spoil_ballot_option: Option<bool>,
+    pub is_kiosk: Option<bool>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -118,4 +119,23 @@ pub struct Document {
     pub annotations: Option<Value>,
     pub created_at: Option<NaiveDateTime>,
     pub last_updated_at: Option<NaiveDateTime>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct VotingChannels {
+    pub online: Option<bool>,
+    pub kiosk: Option<bool>,
+    pub telephone: Option<bool>,
+    pub paper: Option<bool>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub struct ElectionType {
+    pub id: Uuid,
+    pub tenant_id: Option<Uuid>,
+    pub name: Option<String>,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
 }

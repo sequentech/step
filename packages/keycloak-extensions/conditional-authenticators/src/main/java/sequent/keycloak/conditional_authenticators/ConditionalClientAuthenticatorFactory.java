@@ -8,18 +8,16 @@ import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
-import lombok.extern.jbosslog.JBossLog;
 
 import java.util.List;
 
-@JBossLog
 @AutoService(AuthenticatorFactory.class)
 public class ConditionalClientAuthenticatorFactory 
     implements ConditionalAuthenticatorFactory
 {
-    public static final String PROVIDER_ID = "conditional-user-client";
+    public static final String PROVIDER_ID = "conditional-client";
 
-    public static final String CONDITIONAL_USER_CLIENT_ID = "conditional-user-client";
+    public static final String CONDITIONAL_CLIENT_ID = "conditional-client";
     public static final String CONF_NEGATE = "negate";
 
     private static final Requirement[] REQUIREMENT_CHOICES = {
@@ -77,7 +75,7 @@ public class ConditionalClientAuthenticatorFactory
     {
         return List.of(
 			new ProviderConfigProperty(
-				CONDITIONAL_USER_CLIENT_ID,
+				CONDITIONAL_CLIENT_ID,
 				"Client",
 				"Client id that should be executing this flow.",
 				ProviderConfigProperty.STRING_TYPE,
