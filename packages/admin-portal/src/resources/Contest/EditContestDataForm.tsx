@@ -323,7 +323,7 @@ export const ContestDataForm: React.FC = () => {
                                                                     id={candidate.id}
                                                                     candidate={candidate}
                                                                     moveCard={moveCard}
-                                                                ></CandidateRowItem>
+                                                                />
                                                             )
                                                         }
                                                     )}
