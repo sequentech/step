@@ -140,6 +140,8 @@ public class UsernamePasswordFormWithExpiry
 
         if (!validateUserAndPassword(context, formData)) {
             log.info("validateForm(): invalid form");
+            // We don't call context.failureChallenge() here because
+            // validateUserAndPassword() already does that
             return false;
         }
 
@@ -151,6 +153,12 @@ public class UsernamePasswordFormWithExpiry
             // should not happen. We have validated the form, so we should have
             // found both the username/email and password to be valid!
             log.info("validateForm(): user not found - should not happen");
+			context.failureChallenge(
+				AuthenticationFlowError.INTERNAL_ERROR,
+                context
+                    .form()
+                    .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR)
+			);
             return false;
         }
 
@@ -161,7 +169,7 @@ public class UsernamePasswordFormWithExpiry
             );
         if (passwordExpirationUserAttribute == null) {
             // shouldn't happen since we have a fall-back user attribute name
-            log.info("validateForm(): password expiration user attribute is null - should not happen - return true");
+            log.info("validateForm(): password expiration user attribute configuration is null - should not happen - return true");
             return true;
         }
         String passwordExpiration = user.getFirstAttribute(
@@ -182,6 +190,13 @@ public class UsernamePasswordFormWithExpiry
                 currentTime,
                 passwordExpirationInt
             );
+			context.failureChallenge(
+				AuthenticationFlowError.INVALID_CREDENTIALS,
+                context
+                    .form()
+					.setError(Messages.INVALID_PASSWORD)
+                    .createErrorPage(Response.Status.BAD_REQUEST)
+			);
             return false;
         }
 

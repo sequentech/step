@@ -38,7 +38,7 @@ public class Utils {
 	public final String SITE_VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify";
 
 	public final String RECAPTCHA_ACTION_NAME_ATTRIBUTE = "recaptchaActionName";
-	public final String RECAPTCHA_ACTION_NAME_ATTRIBUTE_DEFAULT = "recaptcha.action";
+	public final String RECAPTCHA_ACTION_NAME_ATTRIBUTE_DEFAULT = "login";
 
 	public final String RECAPTCHA_SITE_KEY_ATTRIBUTE = "recaptchaSiteKey";
 	public final String RECAPTCHA_SITE_SECRET_ATTRIBUTE = "siteSecret";
