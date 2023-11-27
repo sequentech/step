@@ -93,15 +93,16 @@ export const CreateElectionList: React.FC = () => {
             notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
             setIsLoading(false)
         }
+        refresh()
     }
     return (
         <SimpleForm defaultValues={postDefaultValues} onSubmit={handleSubmit}>
             <Typography variant="h4">{t("electionEventScreen.common.title")}</Typography>
             <Typography variant="body2">{t("electionEventScreen.new.subtitle")}</Typography>
-            <TextInput source="description" />
             <TextInput source="name" />
-            <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />
+            <TextInput source="description" />
             <Hidden>
+            <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />
                 <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                     <SelectInput optionText="slug" defaultValue={tenantId} />
                 </ReferenceInput>

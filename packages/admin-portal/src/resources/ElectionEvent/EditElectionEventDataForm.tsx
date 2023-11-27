@@ -29,7 +29,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const [tenantId] = useTenantStore()
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
-    const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
+    //const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const refresh = useRefresh()
 
     const [showMenu, setShowMenu] = useState(false)

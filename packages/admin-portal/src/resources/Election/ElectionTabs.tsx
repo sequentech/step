@@ -11,10 +11,10 @@ export const ElectionTabs: React.FC = () => {
         <>
             <ElectionHeader title={record?.name} subtitle="electionEventScreen.common.subtitle" />
             <TabbedShowLayout>
-                <TabbedShowLayout.Tab label="Dashboard">a</TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label="Data">
                     <EditElectionData />
                 </TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Dashboard">a</TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label="Voters">a</TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label="Publish">a</TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label="Logs">a</TabbedShowLayout.Tab>

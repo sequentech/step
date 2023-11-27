@@ -2,10 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {NavLink} from "react-router-dom"
+import {NavLink, useNavigate} from "react-router-dom"
 import React, {useRef, useState} from "react"
 import {useSidebarState} from "react-admin"
 import {Divider, ListItemIcon, MenuItem, MenuList, Popover} from "@mui/material"
+import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import {
     faAngleRight,
     faAngleDown,
@@ -67,6 +68,7 @@ type ActionPayload = {
 }
 
 function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps) {
+    const navigate = useNavigate()
     const [isOpenSidebar] = useSidebarState()
 
     const [open, setOpen] = useState(false)
@@ -89,8 +91,10 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
         setAnchorEl(menuItemRef.current)
     }
 
-    function handleAction(_action: Action, _payload: ActionPayload) {
-        // TODO
+    function handleAction(action: Action, payload: ActionPayload) {
+        if (action === Action.Add) {
+            navigate(`/${payload.type}/create`)
+        }
     }
 
     const handleCloseActionMenu = () => {
@@ -109,7 +113,11 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
             <div ref={menuItemRef} className="group flex text-center space-x-2 items-center">
                 {hasNext ? (
                     <div className="w-6 h-6 cursor-pointer" onClick={onClick}>
-                        <Icon icon={open ? faAngleDown : faAngleRight} />
+                        {treeResourceNames[0] === "sequent_backend_election_event" ? (
+                            <HowToVoteIcon></HowToVoteIcon>
+                        ) : (
+                            <Icon icon={open ? faAngleDown : faAngleRight} />
+                        )}
                     </div>
                 ) : (
                     <div className="w-6 h-6"></div>
@@ -157,36 +165,38 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
                                 </ListItemIcon>
                                 Add
                             </MenuItem>
-                            <Divider />
-                            <MenuItem
-                                onClick={() =>
-                                    handleAction(Action.Remove, {
-                                        id,
-                                        name,
-                                        type: treeResourceNames[0],
-                                    })
-                                }
-                            >
-                                <ListItemIcon>
-                                    <StyledIcon icon={faTrash} />
-                                </ListItemIcon>
-                                Remove
-                            </MenuItem>
-                            <Divider />
-                            <MenuItem
-                                onClick={() =>
-                                    handleAction(Action.Archive, {
-                                        id,
-                                        name,
-                                        type: treeResourceNames[0],
-                                    })
-                                }
-                            >
-                                <ListItemIcon>
-                                    <StyledIcon icon={faArchive} />
-                                </ListItemIcon>
-                                Archive
-                            </MenuItem>
+                            {
+                                // <Divider />
+                                // <MenuItem
+                                //     onClick={() =>
+                                //         handleAction(Action.Remove, {
+                                //             id,
+                                //             name,
+                                //             type: treeResourceNames[0],
+                                //         })
+                                //     }
+                                // >
+                                //     <ListItemIcon>
+                                //         <StyledIcon icon={faTrash} />
+                                //     </ListItemIcon>
+                                //     Remove
+                                // </MenuItem>
+                                // <Divider />
+                                // <MenuItem
+                                //     onClick={() =>
+                                //         handleAction(Action.Archive, {
+                                //             id,
+                                //             name,
+                                //             type: treeResourceNames[0],
+                                //         })
+                                //     }
+                                // >
+                                //     <ListItemIcon>
+                                //         <StyledIcon icon={faArchive} />
+                                //     </ListItemIcon>
+                                //     Archive
+                                // </MenuItem>
+                            }
                         </MenuList>
                     </Popover>
                 </div>
