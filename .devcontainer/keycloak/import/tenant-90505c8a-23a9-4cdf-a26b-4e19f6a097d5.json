@@ -2958,7 +2958,7 @@
     "alias" : "security-question-ra",
     "name" : "Security Question",
     "providerId" : "security-question-ra",
-    "enabled" : false,
+    "enabled" : true,
     "defaultAction" : false,
     "priority" : 1001,
     "config" : { }
@@ -2966,7 +2966,7 @@
     "alias" : "mfa-method-selector",
     "name" : "Configure MFA method to use",
     "providerId" : "mfa-method-selector",
-    "enabled" : false,
+    "enabled" : true,
     "defaultAction" : false,
     "priority" : 1002,
     "config" : { }
