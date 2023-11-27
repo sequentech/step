@@ -21,7 +21,6 @@ import styled from "@emotion/styled"
 const CardList = styled(Box)`
     display: flex;
     width: 100%;
-    flex-direction: row;
     justify-content: space-between;
     margin: 20px 0;
 `

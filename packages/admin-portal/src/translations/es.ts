@@ -167,7 +167,7 @@ const spanishTranslation: TranslationType = {
                 elegibleVoters: "Votantes elegibles",
                 elections: "Elecciones",
                 areas: "Áreas",
-                sentEmails: "Correos electrónicos enviados",
+                sentEmails: "Emails enviados",
                 sentSMS: "SMS enviados",
                 calendar: {
                     title: "Calendario",
