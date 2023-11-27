@@ -10,8 +10,8 @@ import {
     useRecordContext,
     useRefresh,
 } from "react-admin"
-import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid} from "@mui/material"
-import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
+import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid, Button} from "@mui/material"
+import {CreateScheduledEventMutation, GetUploadUrlMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import React, {useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
@@ -28,6 +28,7 @@ export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const [tenantId] = useTenantStore()
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
+    const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const refresh = useRefresh()
 
     const [showMenu, setShowMenu] = useState(false)
