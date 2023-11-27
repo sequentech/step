@@ -22,35 +22,17 @@ export const fullAdminTheme = {
     },
     components: {
         ...mixedAdminTheme.components,
-        MuiButton: AdminMuiButton,
-        MuiTabs: {
-            styleOverrides: {
-                indicator: {
-                    backgroundColor: "#43E3A1",
-                },
-            },
+        MuiButton: {
+            ...AdminMuiButton,
         },
-        MuiTab: {
-            styleOverrides: {
+        MuiToolbar: {
+            styleOverride: {
                 root: {
-                    "textTransform": "uppercase",
-                    "fontWeight": "500",
-                    "fontSize": "14px",
-                    "fontFamily": "Roboto",
-                    "lineHeight": "24px",
-                    "color": "#000",
-                    "opacity": 0.4,
-                    "letter": "0.4",
-                    "cursor": "pointer",
-                    "&:hover": {
-                        opacity: 0.6,
-                    },
-                    "&.Mui-selected": {
-                        color: "#0F054C",
-                        opacity: 1,
-                    },
-                },
-            },
+                    "&:last-child": {
+                        borderRight: '1px solid #0F054C',
+                    }
+                }
+            }
         },
         MuiTextField: {
             styleOverrides: {
@@ -159,5 +141,34 @@ export const fullAdminTheme = {
                 },
             },
         },
-    },
+        MuiTabs: {
+            styleOverrides: {
+                indicator: {
+                    backgroundColor: "#43E3A1",
+                },
+            },
+        },
+        MuiTab: {
+            styleOverrides: {
+                root: {
+                    "textTransform": "uppercase",
+                    "fontWeight": "500",
+                    "fontSize": "14px",
+                    "fontFamily": "Roboto",
+                    "lineHeight": "24px",
+                    "color": "#000",
+                    "opacity": 0.4,
+                    "letter": "0.4",
+                    "cursor": "pointer",
+                    "&:hover": {
+                        opacity: 0.6,
+                    },
+                    "&.Mui-selected": {
+                        color: "#0F054C",
+                        opacity: 1,
+                    },
+                },
+            },
+        },
+    }
 }

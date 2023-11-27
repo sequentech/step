@@ -23,7 +23,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
         withFilter = true,
         Component,
         closeDrawer = false,
-        custom = false,
+        custom = true,
     } = props
 
     const {t} = useTranslation()
