@@ -21,6 +21,13 @@ import styled from "@emotion/styled"
 import {mapDataChildren, ResourceName, DataTreeMenuType, DynEntityType} from "../ElectionEvents"
 import {useTranslation} from "react-i18next"
 
+const mapAddResource: Record<ResourceName, string> = {
+    sequent_backend_election_event: "sideMenu.addResource.addElectionEvent",
+    sequent_backend_election: "sideMenu.addResource.addElection",
+    sequent_backend_contest: "sideMenu.addResource.addContest",
+    sequent_backend_candidate: "sideMenu.addResource.addCandidate",
+}
+
 interface TreeLeavesProps {
     data: DynEntityType
     treeResourceNames: string[]
@@ -29,12 +36,6 @@ interface TreeLeavesProps {
 
 function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLeavesProps) {
     const {t} = useTranslation()
-    const mapAddResource: Record<ResourceName, string> = {
-        sequent_backend_election_event: "sideMenu.addResource.addElectionEvent",
-        sequent_backend_election: "sideMenu.addResource.addElection",
-        sequent_backend_contest: "sideMenu.addResource.addContest",
-        sequent_backend_candidate: "sideMenu.addResource.addCandidate",
-    }
 
     return (
         <div className="bg-white">
@@ -96,6 +97,7 @@ function TreeMenuItem({
     treeResourceNames,
     isArchivedElectionEvents,
 }: TreeMenuItemProps) {
+    const {t} = useTranslation()
     const navigate = useNavigate()
     const [isOpenSidebar] = useSidebarState()
 
@@ -187,7 +189,7 @@ function TreeMenuItem({
                                 <ListItemIcon>
                                     <StyledIcon icon={faCirclePlus} />
                                 </ListItemIcon>
-                                Add
+                                {t(mapAddResource[treeResourceNames[0] as ResourceName])}
                             </MenuItem>
                             {
                                 // <Divider />
