@@ -29,7 +29,7 @@ interface TreeLeavesProps {
 
 function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLeavesProps) {
     const {t} = useTranslation()
-    const mapAddResource: any = {
+    const mapAddResource: Record<ResourceName, string> = {
         sequent_backend_election_event: "sideMenu.addResource.addElectionEvent",
         sequent_backend_election: "sideMenu.addResource.addElection",
         sequent_backend_contest: "sideMenu.addResource.addContest",
@@ -60,7 +60,7 @@ function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLea
                             to={`/${treeResourceNames[0]}/create`}
                         >
                             <AddIcon></AddIcon>
-                            <span>{t(mapAddResource[treeResourceNames[0]])}</span>
+                            <span>{t(mapAddResource[treeResourceNames[0] as ResourceName])}</span>
                         </NavLink>
                     </div>
                 )}
