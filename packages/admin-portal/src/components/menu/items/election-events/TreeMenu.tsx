@@ -14,6 +14,7 @@ import {
     faTrash,
     faArchive,
 } from "@fortawesome/free-solid-svg-icons"
+import AddIcon from "@mui/icons-material/Add"
 import {adminTheme, Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
 import styled from "@emotion/styled"
@@ -26,6 +27,13 @@ interface TreeLeavesProps {
 }
 
 function TreeLeaves({data, treeResourceNames}: TreeLeavesProps) {
+    const mapAddResource: any = {
+        sequent_backend_election_event: "addElectionEvent",
+        sequent_backend_election: "addElection",
+        sequent_backend_contest: "addContest",
+        sequent_backend_candidate: "addCandidate",
+    }
+
     return (
         <div className="bg-white">
             <div className="flex flex-col ml-3">
@@ -42,6 +50,15 @@ function TreeLeaves({data, treeResourceNames}: TreeLeavesProps) {
                         )
                     }
                 )}
+                <div className="inline-flex">
+                    <NavLink
+                        className="flex items-center shrink space-x-2 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer"
+                        to={`/${treeResourceNames[0]}/create`}
+                    >
+                        <AddIcon></AddIcon>
+                        <span>{mapAddResource[treeResourceNames[0]]}</span>
+                    </NavLink>
+                </div>
             </div>
         </div>
     )
