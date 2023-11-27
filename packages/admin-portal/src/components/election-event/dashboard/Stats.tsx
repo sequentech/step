@@ -28,7 +28,7 @@ const CardList = styled(Box)`
 
 export default function Stats() {
     const {t} = useTranslation()
-    // const [tenantId] = useTenantStore()
+    const [tenantId] = useTenantStore()
 
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const electionEventId = record.id
@@ -40,9 +40,18 @@ export default function Stats() {
         },
     })
 
-    // const {data: users, total: totalUsers} = useGetList("user", {
-    //     filter: {tenant_id: tenantId, election_event_id: electionEventId},
-    // })
+    const {data: users, total: totalUsers} = useGetList("user", {
+        filter: {tenant_id: tenantId, election_event_id: electionEventId},
+    })
+  
+    console.log(
+        "LS -> packages/admin-portal/src/components/election-event/dashboard/Stats.tsx:45 -> totalUsers: ",
+        totalUsers
+    )
+    console.log(
+        "LS -> packages/admin-portal/src/components/election-event/dashboard/Stats.tsx:45 -> users: ",
+        users
+    )
 
     if (loading) {
         return <CircularProgress />
