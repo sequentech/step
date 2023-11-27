@@ -23,6 +23,7 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionHeaderStyles} from "../../components/styles/ElectionHeaderStyles"
 import {useTenantStore} from "../../providers/TenantContextProvider"
+import { GET_UPLOAD_URL } from '@/queries/GetUploadUrl'
 
 export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
