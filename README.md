@@ -376,6 +376,42 @@ Finally you'll need to rebuild/restart harvest:
 
     docker compose stop harvest && docker compose build harvest && docker compose up -d --no-deps harvest
 
+## Update Sequent Core
+
+```bash
+cd packages/sequent-core
+wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+wasm-pack -v pack .
+
+# esto da un hash que hay que poner en 3 sitios en el yarn.lock de packages:
+
+"sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
+  version "0.1.0"
+  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
+
+"sequent-core@file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz":
+  version "0.1.0"
+  resolved "file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
+
+"sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
+  version "0.1.0"
+  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
+
+# luego ejecutar en packages/
+rm ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
+cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
+cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
+cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
+
+rm -rf node_modules voting-portal/node_modules ballot-verifier/node_modules
+
+# y luego:
+
+yarn && yarn build:ui-essentials
+
+# y luego ya funciona todo
+```
+
 
 ## Create election event
 
