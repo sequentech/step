@@ -121,7 +121,10 @@ function TreeMenuItem({
         setAnchorEl(menuItemRef.current)
     }
 
-    function handleAction(action: Action, payload: ActionPayload) {
+    function handleAction(e: any, action: Action, payload: ActionPayload) {
+        // close the popover
+        setAnchorEl(null)
+
         if (action === Action.Add) {
             navigate(`/${payload.type}/create`)
         }
@@ -178,8 +181,8 @@ function TreeMenuItem({
                     >
                         <MenuList dense>
                             <MenuItem
-                                onClick={() =>
-                                    handleAction(Action.Add, {
+                                onClick={(e) =>
+                                    handleAction(e, Action.Add, {
                                         id,
                                         name,
                                         type: treeResourceNames[0],
