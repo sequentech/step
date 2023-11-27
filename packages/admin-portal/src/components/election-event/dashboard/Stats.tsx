@@ -74,12 +74,12 @@ export default function Stats() {
             ></StatItem>
             <StatItem
                 icon={<MarkEmailReadOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={-1}
+                count={0}
                 label={t("electionEventScreen.stats.sentEmails")}
             ></StatItem>
             <StatItem
                 icon={<SmsOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={-1}
+                count={0}
                 label={t("electionEventScreen.stats.sentSMS")}
             ></StatItem>
             <StatItem
