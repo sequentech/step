@@ -103,6 +103,18 @@ pub fn get_document_key(
 }
 
 #[instrument]
+pub fn get_public_document_key(
+    tenant_id: String,
+    document_id: String,
+    name: String,
+) -> String {
+    format!(
+        "tenant-{}/document-{}/{}",
+        tenant_id, document_id, name
+    )
+}
+
+#[instrument]
 pub async fn get_document_url(key: String, minio_bucket: String) -> Result<String> {
     let key_id = env::var("MINIO_ACCESS_KEY").expect(&format!("MINIO_ACCESS_KEY must be set"));
     let key_secret =
