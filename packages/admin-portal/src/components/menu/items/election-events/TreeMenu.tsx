@@ -27,11 +27,12 @@ interface TreeLeavesProps {
 }
 
 function TreeLeaves({data, treeResourceNames}: TreeLeavesProps) {
+    const {t} = useTranslation()
     const mapAddResource: any = {
-        sequent_backend_election_event: "addElectionEvent",
-        sequent_backend_election: "addElection",
-        sequent_backend_contest: "addContest",
-        sequent_backend_candidate: "addCandidate",
+        sequent_backend_election_event: "sideMenu.addResource.addElectionEvent",
+        sequent_backend_election: "sideMenu.addResource.addElection",
+        sequent_backend_contest: "sideMenu.addResource.addContest",
+        sequent_backend_candidate: "sideMenu.addResource.addCandidate",
     }
 
     return (
@@ -52,11 +53,11 @@ function TreeLeaves({data, treeResourceNames}: TreeLeavesProps) {
                 )}
                 <div className="inline-flex">
                     <NavLink
-                        className="flex items-center shrink space-x-2 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer"
+                        className="flex items-center shrink space-x-2 -ml-3 px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer"
                         to={`/${treeResourceNames[0]}/create`}
                     >
                         <AddIcon></AddIcon>
-                        <span>{mapAddResource[treeResourceNames[0]]}</span>
+                        <span>{t(mapAddResource[treeResourceNames[0]])}</span>
                     </NavLink>
                 </div>
             </div>
@@ -139,7 +140,7 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
                         title={name}
                         className={({isActive}) =>
                             cn(
-                                "px-4 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
+                                "px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
                                 isActive && "border-b-2 border-brand-color"
                             )
                         }
