@@ -54,7 +54,7 @@ export const CandidateDataForm: React.FC = () => {
     })
 
     const buildLanguageSettings = () => {
-        const tempSettings = data?.presentation?.language_conf?.enabled_language_codes
+        const tempSettings = data?.presentation?.language_conf?.enabled_language_codes || []
         const temp = []
         for (const item of tempSettings) {
             const enabled_item: any = {}
