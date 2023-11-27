@@ -376,6 +376,109 @@ Finally you'll need to rebuild/restart harvest:
 
     docker compose stop harvest && docker compose build harvest && docker compose up -d --no-deps harvest
 
+## Update Sequent Core
+
+```bash
+cd packages/sequent-core
+wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+wasm-pack -v pack .
+
+# esto da un hash que hay que poner en 3 sitios en el yarn.lock de packages:
+
+"sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
+  version "0.1.0"
+  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
+
+"sequent-core@file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz":
+  version "0.1.0"
+  resolved "file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
+
+"sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
+  version "0.1.0"
+  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
+
+# luego ejecutar en packages/
+rm ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
+cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
+cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
+cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
+
+rm -rf node_modules voting-portal/node_modules ballot-verifier/node_modules
+
+# y luego:
+
+yarn && yarn build:ui-essentials
+
+# y luego ya funciona todo
+```
+
+
+## Create election event
+
+In order to be able to create an election event, you need:
+
+1. Run harvest:
+
+```bash
+cd /workspaces/backend-services/.devcontainer
+docker compose stop harvest; docker compose up -d --no-deps harvest
+```
+
+2. Run the vault:
+
+```bash
+cd /workspaces/backend-services/.devcontainer
+docker compose stop vault; docker compose up -d --no-deps vault
+```
+
+3. Go to `http://127.0.0.1:8201` and set 1 key (both fields), then note down the
+   `Initial root token` and `Key 1` or `Download keys` in JSON. Then click in
+   `Continue to Unseal`. Put `Key 1` (`keys[0]` in the downloaded keys) in
+   `Unseal Key Portion` and press `Unseal`. If it works, it will redirect to
+   `Sign in to Vault`. You can stop there.
+  
+4. We'll generate an `.env` file for windmill. Start copying the example:
+
+```bash
+cd /workspaces/backend-services/packages/windmill
+cp .env.example .env
+```
+
+5. Copy the `Initial root token` (`"root_token"` in the downloaded keys) to the
+   `VAULT_TOKEN` environment variable in the
+   `/workspaces/backend-services/packages/windmill/.env` file.
+
+6. Without windmill the async background tasks - like the creation of an
+   election event - won't happen. For this reason, next we're going to run
+   windmill:
+
+```bash
+cd /workspaces/backend-services/packages/windmill
+cargo run --bin main consume -q short_queue tally_queue beat reports_queue beat
+```
+
+7. Finally, we need to create the indexdb in immudb: 
+
+
+```bash
+cd /workspaces/backend-services/packages/immu-board
+cargo build && \
+../target/debug/bb_helper \
+  --server-url http://immudb:3322 \
+  --username immudb \
+  --password immudb \
+  --index-dbname indexdb \
+  --board-dbname 33f18502a67c48538333a58630663559 \
+  --cache-dir /tmp/immu-board upsert-init-db
+```
+
+Now you should be able to create election events. For debugging, you can watch the logs of `harvest` and `windmill` (it's already in one terminal):
+
+```bash
+# do this in one terminal
+cd /workspaces/backend-services/.devcontainer
+docker compose logs -f harvest
+```
 
 ## Common issues
 

@@ -1,7 +1,7 @@
 {
   "id" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
   "realm" : "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
-  "displayName" : "Tenant",
+  "displayName" : "Sequent Platform Admin",
   "notBefore" : 0,
   "defaultSignatureAlgorithm" : "RS256",
   "revokeRefreshToken" : false,
@@ -1881,7 +1881,7 @@
     "strictTransportSecurity" : "max-age=31536000; includeSubDomains"
   },
   "smtpServer" : { },
-  "loginTheme" : "keycloak",
+  "loginTheme" : "sequent",
   "accountTheme" : "",
   "adminTheme" : "",
   "emailTheme" : "",
@@ -2958,7 +2958,7 @@
     "alias" : "security-question-ra",
     "name" : "Security Question",
     "providerId" : "security-question-ra",
-    "enabled" : false,
+    "enabled" : true,
     "defaultAction" : false,
     "priority" : 1001,
     "config" : { }
@@ -2966,7 +2966,7 @@
     "alias" : "mfa-method-selector",
     "name" : "Configure MFA method to use",
     "providerId" : "mfa-method-selector",
-    "enabled" : false,
+    "enabled" : true,
     "defaultAction" : false,
     "priority" : 1002,
     "config" : { }
