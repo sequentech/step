@@ -30,7 +30,10 @@ const SelectTenants: React.FC = () => {
         if (!tenantId && authContext.tenantId) {
             setTenantId(authContext.tenantId)
         }
-    }, [tenantId, authContext.tenantId, setTenantId])
+        if (data?.length === 1) {
+            setTenantId(data[0].id)
+        }
+    }, [data, tenantId, authContext.tenantId, setTenantId])
 
     const hasSingle = total === 1
 

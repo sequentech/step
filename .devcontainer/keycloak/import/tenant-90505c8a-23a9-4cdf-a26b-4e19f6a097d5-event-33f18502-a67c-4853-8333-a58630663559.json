@@ -1,6 +1,8 @@
 {
   "id" : "613e770d-7498-4726-90ff-b288f40a7b30",
   "realm" : "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559",
+  "displayName" : "Election Event",
+  "displayNameHtml" : "",
   "notBefore" : 0,
   "defaultSignatureAlgorithm" : "RS256",
   "revokeRefreshToken" : false,
@@ -368,7 +370,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName", "totpAppGoogleName" ],
+  "otpSupportedApplications" : [ "totpAppFreeOTPName", "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -405,8 +407,9 @@
     "credentials" : [ {
       "id" : "19f5adbc-93ef-4ecf-b3b5-fc6e016aa33e",
       "type" : "password",
-      "createdDate" : 1700845750723,
-      "secretData" : "{\"value\":\"zExtE4Fu8djmSyLazuQ36AdBNK+rFC1UPOIN6KJ+Bc8=\",\"salt\":\"KvqJOhVTeuBV3+CXyd5qgg==\",\"additionalParameters\":{}}",
+      "userLabel" : "My password",
+      "createdDate" : 1701013300288,
+      "secretData" : "{\"value\":\"IWVbCXtJNqzMp2drtcsvG5neVc1DUsHMwmx2s1Ut8II=\",\"salt\":\"TcRqjCUDCiklXQZqTXQxjg==\",\"additionalParameters\":{}}",
       "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
     } ],
     "disableableCredentialTypes" : [ ],
@@ -1204,12 +1207,16 @@
     "xContentTypeOptions" : "nosniff",
     "referrerPolicy" : "no-referrer",
     "xRobotsTag" : "none",
-    "xFrameOptions" : "SAMEORIGIN",
-    "contentSecurityPolicy" : "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+    "xFrameOptions" : "SAMEORIGIN ALLOW-FROM https://www.google.com",
+    "contentSecurityPolicy" : "frame-src 'self' https://www.google.com; frame-ancestors 'self'; object-src 'none';",
     "xXSSProtection" : "1; mode=block",
     "strictTransportSecurity" : "max-age=31536000; includeSubDomains"
   },
   "smtpServer" : { },
+  "loginTheme" : "sequent",
+  "accountTheme" : "",
+  "adminTheme" : "",
+  "emailTheme" : "",
   "eventsEnabled" : false,
   "eventsListeners" : [ "jboss-logging" ],
   "enabledEventTypes" : [ ],
@@ -1225,7 +1232,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "saml-user-property-mapper", "oidc-address-mapper", "saml-role-list-mapper", "oidc-full-name-mapper", "oidc-usermodel-property-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-attribute-mapper", "saml-user-attribute-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-usermodel-property-mapper", "saml-user-attribute-mapper", "oidc-full-name-mapper", "saml-role-list-mapper", "saml-user-property-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-attribute-mapper", "oidc-address-mapper" ]
       }
     }, {
       "id" : "a26aaeed-f109-40ab-ada2-c2cec32986bf",
@@ -1259,7 +1266,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-full-name-mapper", "saml-user-property-mapper", "saml-user-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-address-mapper", "oidc-usermodel-property-mapper", "saml-role-list-mapper", "oidc-usermodel-attribute-mapper" ]
+        "allowed-protocol-mapper-types" : [ "saml-user-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-user-property-mapper", "oidc-full-name-mapper", "oidc-address-mapper", "oidc-usermodel-property-mapper", "oidc-usermodel-attribute-mapper", "saml-role-list-mapper" ]
       }
     }, {
       "id" : "0d7794fa-2e22-499b-8aa6-7fde4d9c446d",
@@ -1334,8 +1341,9 @@
       }
     } ]
   },
-  "internationalizationEnabled" : false,
-  "supportedLocales" : [ ],
+  "internationalizationEnabled" : true,
+  "supportedLocales" : [ "en", "es" ],
+  "defaultLocale" : "en",
   "authenticationFlows" : [ {
     "id" : "673f4038-bec0-4598-b60f-f3231fad3ff7",
     "alias" : "Account verification options",
@@ -2012,6 +2020,7 @@
     "topLevel" : true,
     "builtIn" : false,
     "authenticationExecutions" : [ {
+      "authenticatorConfig" : "choose-user",
       "authenticator" : "forgot-password-choose-user",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
@@ -2073,6 +2082,16 @@
     } ]
   } ],
   "authenticatorConfig" : [ {
+    "id" : "f9975884-d43b-458f-8863-c5b70947f555",
+    "alias" : "choose-user",
+    "config" : {
+      "recaptchaActionName" : "forgotpassword",
+      "recaptchaSiteKey" : "6LfJ_RspAAAAAAX_gikmCVVs1MP8DPWV71WYUKUK",
+      "siteSecret" : "6LfJ_RspAAAAAOAA1TlNmGRgzUANakib7MSQe1ae",
+      "recaptchaEnabled" : "true",
+      "recaptchaMinScore" : "0.5"
+    }
+  }, {
     "id" : "cc2db1e0-c516-4e7a-ac66-e6e5003754d6",
     "alias" : "create unique user config",
     "config" : {
@@ -2189,7 +2208,12 @@
     "id" : "139477b4-0b84-4182-9230-b6dc67853849",
     "alias" : "username-password-exp",
     "config" : {
-      "passwordExpirationUserAttribute" : "sequent.read-only.expirationDate"
+      "recaptchaSiteKey" : "6LfJ_RspAAAAAAX_gikmCVVs1MP8DPWV71WYUKUK",
+      "recaptchaActionName" : "login",
+      "siteSecret" : "6LfJ_RspAAAAAOAA1TlNmGRgzUANakib7MSQe1ae",
+      "passwordExpirationUserAttribute" : "sequent.read-only.expirationDate",
+      "recaptchaEnabled" : "true",
+      "recaptchaMinScore" : "0.5"
     }
   }, {
     "id" : "bab4b81a-bd49-46f1-8f97-ae667905e995",
@@ -2320,17 +2344,20 @@
   "dockerAuthenticationFlow" : "docker auth",
   "attributes" : {
     "cibaBackchannelTokenDeliveryMode" : "poll",
-    "cibaExpiresIn" : "120",
     "cibaAuthRequestedUserHint" : "login_hint",
-    "oauth2DeviceCodeLifespan" : "600",
     "clientOfflineSessionMaxLifespan" : "0",
     "oauth2DevicePollingInterval" : "5",
     "clientSessionIdleTimeout" : "0",
-    "parRequestUriLifespan" : "60",
-    "clientSessionMaxLifespan" : "0",
+    "userProfileEnabled" : "false",
     "clientOfflineSessionIdleTimeout" : "0",
     "cibaInterval" : "5",
-    "realmReusableOtpCode" : "false"
+    "realmReusableOtpCode" : "false",
+    "cibaExpiresIn" : "120",
+    "oauth2DeviceCodeLifespan" : "600",
+    "parRequestUriLifespan" : "60",
+    "clientSessionMaxLifespan" : "0",
+    "frontendUrl" : "",
+    "acr.loa.map" : "{}"
   },
   "keycloakVersion" : "22.0.5",
   "userManagedAccessAllowed" : false,

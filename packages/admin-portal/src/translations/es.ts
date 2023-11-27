@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-// import {TranslationType} from "./en"
-
 import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
@@ -165,6 +163,17 @@ const spanishTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Evento de Elección creado",
             createElectionEventError: "Error creando Evento de Elección",
+            stats: {
+                elegibleVoters: "Votantes elegibles",
+                elections: "Elecciones",
+                areas: "Áreas",
+                sentEmails: "Correos electrónicos enviados",
+                sentSMS: "SMS enviados",
+                calendar: {
+                    title: "Calendario",
+                    scheduled: "Programado",
+                },
+            },
         },
         electionScreen: {
             common: {
@@ -279,6 +288,7 @@ const spanishTranslation: TranslationType = {
                 back: "Atrás",
                 next: "Siguiente",
                 warning: "Aviso",
+                json: "Vista previa",
             },
             message: {
                 delete: "¿Estás seguro de que quieres eliminar este elemento?",
@@ -300,6 +310,62 @@ const spanishTranslation: TranslationType = {
             communicationTemplates: "Plantillas de Comunicación",
             active: "Activos",
             archived: "Archivados",
+        },
+        candidateScreen: {
+            common: {
+                subtitle: "Configuración de candidatos.",
+            },
+            edit: {
+                general: "General",
+                type: "Tipo",
+                image: "Imagen",
+            },
+            field: {
+                name: "Nombre",
+                alias: "Alias",
+                description: "Descripción",
+            },
+            options: {
+                "candidate": "Candidato",
+                "option": "Opción",
+                "write-in": "Voto por Escrito",
+                "open-list": "Lista Abierta",
+                "closed-list": "Lista Cerrada",
+                "semi-open-list": "Lista Semiabierta",
+                "invalid-vote": "Voto Inválido",
+                "blank-vote": "Voto en Blanco",
+            },
+            error: {},
+            createCandidateSuccess: "Candidato creado",
+            createCandidateError: "Error creating candidato",
+        },
+        contestScreen: {
+            common: {
+                subtitle: "Configuración de contienda.",
+            },
+            edit: {
+                general: "General",
+                type: "Tipo",
+                image: "Imagen",
+                system: "Sistema de votación de papeletas",
+                design: "Diseño de la papeleta",
+                reorder: "Reordernar candidatos",
+            },
+            field: {
+                name: "Nombre",
+                alias: "Alias",
+                description: "Descripción",
+            },
+            options: {
+                "no-preferential": "Sin Preferencia",
+                "plurality-at-large": "Mayoría Plural",
+                "random-asnwers": "Respuestas Aleatorias",
+                "custom": "Personalizado",
+                "alphabetical": "Alfabético",
+            },
+            error: {},
+            createContestSuccess: "Contienda creado",
+            createContestError: "Error creating contienda",
         },
     },
 }

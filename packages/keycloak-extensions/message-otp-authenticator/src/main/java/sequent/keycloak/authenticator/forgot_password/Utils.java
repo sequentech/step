@@ -1,21 +1,40 @@
 package sequent.keycloak.authenticator.forgot_password;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.message.BasicNameValuePair;
+import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.connections.httpclient.HttpClientProvider;
 import org.keycloak.email.EmailException;
 import org.keycloak.email.EmailTemplateProvider;
+import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.util.JsonSerialization;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
+import jakarta.ws.rs.core.MultivaluedMap;
 import lombok.extern.jbosslog.JBossLog;
 
 import lombok.experimental.UtilityClass;
 
 import java.util.Optional;
+import java.util.StringJoiner;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -34,85 +53,142 @@ public class Utils {
 	public final String NEW_PASSWORD_EMAIL_SUBJECT = "newPassword.email.subject";
 	public final String NEW_PASSWORD_EMAIL_FTL = "forgot-password-send-new-password.ftl";
 
-	int getPasswordLength(AuthenticatorConfigModel config, UserModel user)
-	{
-		log.infov("getPasswordLength()");
-		if (config == null) {
-			log.infov("getPasswordLength(): NULL config={0}", config);
-			return Integer.parseInt(Utils.PASSWORD_LENGTH_DEFAULT);
-		}
+	public final String RECAPTCHA_G_RESPONSE = "g-recaptcha-response";
+	public final String RECAPTCHA_API_JS_URL = "https://www.google.com/recaptcha/api.js";
+	public final String RECAPTCHA_SITE_VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify";
 
-		Map<String, String> mapConfig = config.getConfig();
-		if (
-			mapConfig == null ||
-			!mapConfig.containsKey(Utils.PASSWORD_LENGTH) ||
-			mapConfig.get(Utils.PASSWORD_LENGTH).strip().length() == 0
-		) {
-			log.infov("getPasswordLength(): NullOrNotFound mapConfig={0}", mapConfig);
-			return Integer.parseInt(Utils.PASSWORD_LENGTH_DEFAULT);
-		}
-		return Integer.parseInt(mapConfig.get(Utils.PASSWORD_LENGTH));
+	public final String RECAPTCHA_ACTION_NAME_ATTRIBUTE = "recaptchaActionName";
+	public final String RECAPTCHA_ACTION_NAME_ATTRIBUTE_DEFAULT = "login";
+	public final String RECAPTCHA_ACTION_NAME_FORGOT_ATTRIBUTE_DEFAULT = "login";
+
+	public final String RECAPTCHA_SITE_KEY_ATTRIBUTE = "recaptchaSiteKey";
+	public final String RECAPTCHA_SITE_SECRET_ATTRIBUTE = "siteSecret";
+	public final String RECAPTCHA_ENABLED_ATTRIBUTE = "recaptchaEnabled";
+	public final String RECAPTCHA_MIN_SCORE_ATTRIBUTE = "recaptchaMinScore";
+
+	public String getString(
+		AuthenticatorConfigModel config,
+		String configKey
+	) {
+		return getString(config, configKey, "");
 	}
 
-	String getPasswordChars(AuthenticatorConfigModel config, UserModel user)
-	{
-		log.infov("getPasswordChars()");
+	public String getString(
+		AuthenticatorConfigModel config,
+		String configKey,
+		String defaultValue
+	) {
+		log.debugv(
+			"getString(configKey={0}, defaultValue={1})",
+			configKey,
+			defaultValue
+		);
 		if (config == null) {
-			log.infov("getPasswordChars(): NULL config={0}", config);
-			return Utils.PASSWORD_CHARS_DEFAULT;
+			log.debugv("getString(): NULL config={0}", config);
+			return defaultValue;
 		}
 
 		Map<String, String> mapConfig = config.getConfig();
 		if (
 			mapConfig == null ||
-			!mapConfig.containsKey(Utils.PASSWORD_CHARS) ||
-			mapConfig.get(Utils.PASSWORD_CHARS).strip().length() == 0
+			!mapConfig.containsKey(configKey) ||
+			mapConfig.get(configKey).strip().length() == 0
 		) {
-			log.infov("getPasswordChars(): NullOrNotFound mapConfig={0}", mapConfig);
-			return Utils.PASSWORD_CHARS_DEFAULT;
+			log.debugv("getString(): NullOrNotFound mapConfig={0}", mapConfig);
+			return defaultValue;
 		}
-		return mapConfig.get(Utils.PASSWORD_CHARS);
+		return mapConfig.get(configKey);
 	}
 
-	int getPasswordExpirationSeconds(AuthenticatorConfigModel config, UserModel user)
-	{
-		log.infov("getPasswordExpiration()");
+	public int getInt(
+		AuthenticatorConfigModel config,
+		String configKey,
+		String defaultValue
+	) {
+		log.debugv(
+			"getInt(configKey={0}, defaultValue={1})",
+			configKey,
+			defaultValue
+		);
 		if (config == null) {
-			log.infov("getPasswordExpiration(): NULL config={0}", config);
-			return Integer.parseInt(Utils.PASSWORD_EXPIRATION_SECONDS_DEFAULT);
+			log.debugv("getInt(): NULL config={0}", config);
+			return Integer.parseInt(defaultValue);
 		}
 
 		Map<String, String> mapConfig = config.getConfig();
 		if (
 			mapConfig == null ||
-			!mapConfig.containsKey(Utils.PASSWORD_EXPIRATION_SECONDS) ||
-			mapConfig.get(Utils.PASSWORD_EXPIRATION_SECONDS).strip().length() == 0
+			!mapConfig.containsKey(configKey) ||
+			mapConfig.get(configKey).strip().length() == 0
 		) {
-			log.infov("getPasswordExpiration(): NullOrNotFound mapConfig={0}", mapConfig);
-			return Integer.parseInt(Utils.PASSWORD_EXPIRATION_SECONDS_DEFAULT);
+			log.debugv("getInt(): NullOrNotFound mapConfig={0}", mapConfig);
+			return Integer.parseInt(defaultValue);
 		}
-		return Integer.parseInt(mapConfig.get(Utils.PASSWORD_EXPIRATION_SECONDS));
+		return Integer.parseInt(mapConfig.get(configKey));
+	}
+
+	public boolean getBoolean(
+		AuthenticatorConfigModel config,
+		String configKey,
+		boolean defaultValue
+	) {
+		log.debugv(
+			"getBoolean(configKey={0}, defaultValue={1})",
+			configKey,
+			defaultValue
+		);
+		if (config == null) {
+			log.debugv("getBoolean(): NULL config={0}", config);
+			return defaultValue;
+		}
+
+		Map<String, String> mapConfig = config.getConfig();
+		if (
+			mapConfig == null ||
+			!mapConfig.containsKey(configKey) ||
+			mapConfig.get(configKey).strip().length() == 0
+		) {
+			log.debugv("getBoolean(): NullOrNotFound mapConfig={0}", mapConfig);
+			return defaultValue;
+		}
+		return Boolean.parseBoolean(mapConfig.get(configKey));
+	}
+
+	int getPasswordLength(AuthenticatorConfigModel config)
+	{
+		return getInt(
+			config,
+			Utils.PASSWORD_LENGTH,
+			Utils.PASSWORD_LENGTH_DEFAULT
+		);
+	}
+
+	String getPasswordChars(AuthenticatorConfigModel config)
+	{
+		return getString(
+			config,
+			Utils.PASSWORD_CHARS,
+			Utils.PASSWORD_CHARS_DEFAULT
+		);
+	}
+
+	int getPasswordExpirationSeconds(AuthenticatorConfigModel config)
+	{
+		return getInt(
+			config,
+			Utils.PASSWORD_EXPIRATION_SECONDS,
+			Utils.PASSWORD_EXPIRATION_SECONDS_DEFAULT
+		);
 	}
 
 	String getPasswordExpirationUserAttribute(
-		AuthenticatorConfigModel config, UserModel user
+		AuthenticatorConfigModel config
 	) {
-		log.infov("getPasswordExpirationUserAttribute()");
-		if (config == null) {
-			log.infov("getPasswordExpirationUserAttribute(): NULL config={0}", config);
-			return Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT;
-		}
-
-		Map<String, String> mapConfig = config.getConfig();
-		if (
-			mapConfig == null ||
-			!mapConfig.containsKey(Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE) ||
-			mapConfig.get(Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE).strip().length() == 0
-		) {
-			log.infov("getPasswordExpirationUserAttribute(): NullOrNotFound mapConfig={0}", mapConfig);
-			return Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT;
-		}
-		return mapConfig.get(Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE);
+		return getString(
+			config,
+			Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE,
+			Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT
+		);
 	}
 
 	Optional<AuthenticatorConfigModel> getConfig(RealmModel realm)
@@ -176,6 +252,141 @@ public class Utils {
 				bodyAttr
 			);
     }
+
+    public boolean validateRecaptcha(
+        AuthenticationFlowContext context,
+        boolean success,
+        String captcha,
+        String secret,
+        Double minScore
+    ) {
+        log.info("validateRecaptcha()");
+        HttpClient httpClient = context
+            .getSession()
+            .getProvider(HttpClientProvider.class)
+            .getHttpClient();
+        HttpPost post = new HttpPost(Utils.RECAPTCHA_SITE_VERIFY_URL);
+        List<NameValuePair> formparams = new LinkedList<>();
+        formparams.add(new BasicNameValuePair("secret", secret));
+        formparams.add(new BasicNameValuePair("response", captcha));
+        formparams.add(
+            new BasicNameValuePair("remoteip",
+            context.getConnection().getRemoteAddr())
+        );
+        log.debugv(
+            "validateRecaptcha(): secret={0},  captcha={1}",
+            secret,
+            captcha
+        );
+        try {
+            UrlEncodedFormEntity form = new UrlEncodedFormEntity(
+                formparams, 
+                "UTF-8"
+            );
+            post.setEntity(form);
+            HttpResponse response = httpClient.execute(post);
+            InputStream content = response.getEntity().getContent();
+            InputStreamReader isr = new InputStreamReader(content);
+            BufferedReader br = new BufferedReader(isr);
+            StringBuilder result = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) {
+                result.append(line);
+            }
+            log.debugv("recaptcha result = {0}", result.toString());
+            try {
+                Object scoreObj = JsonSerialization
+                    .readValue(result.toString(), Map.class)
+                    .get("score");
+                Double userScore = Double.parseDouble(
+                    (scoreObj != null) ? scoreObj.toString() : "0"
+                );
+                log.infov(
+                    "validateRecaptcha() userScore[{0}] > minScore[{1}] = [{2}]",
+                    userScore,
+                    minScore,
+                    (userScore > minScore)
+                );
+                if (userScore > minScore) {
+                    success = true;
+                } else {
+                    success = false;
+                }
+            } finally {
+                content.close();
+            }
+        } catch (Exception error) {
+            log.infov("validateRecaptcha(): error {0}", error);
+        }
+        return success;
+    }
+
+	public String buildURLWithParams(
+		String baseURL,
+		Map<String, String> params
+	) {
+		StringJoiner query = new StringJoiner("&");
+
+		for (Map.Entry<String, String> entry : params.entrySet())
+		{
+			String encodedKey = URLEncoder.encode(
+				entry.getKey(), StandardCharsets.UTF_8
+			);
+			String encodedValue = URLEncoder.encode(
+				entry.getValue(), StandardCharsets.UTF_8
+			);
+			query.add(encodedKey + "=" + encodedValue);
+		}
+
+		return baseURL + "?" + query.toString();
+    }
+
+    public void addRecaptchaChallenge(
+        AuthenticationFlowContext context,
+        MultivaluedMap<String, String> formData
+    ) {
+        AuthenticatorConfigModel authConfig = context.getAuthenticatorConfig();
+        boolean recaptchaEnabled = Utils.getBoolean(
+            authConfig, Utils.RECAPTCHA_ENABLED_ATTRIBUTE, false
+        );
+
+        LoginFormsProvider forms = context.form();
+        if (recaptchaEnabled) {
+            String recaptchaSiteKey = Utils
+                .getString(
+                    authConfig, Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE
+                )
+                .strip();
+            String recaptchaActionName = Utils
+                .getString(
+                    authConfig, Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE
+                )
+                .strip();
+            forms.setAttribute(Utils.RECAPTCHA_ENABLED_ATTRIBUTE, true);
+            forms.setAttribute(
+                Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE,
+                recaptchaActionName
+            );
+            forms.setAttribute(
+                Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE,
+                recaptchaSiteKey
+            );
+            String userLanguageTag = context
+                .getSession()
+                .getContext()
+                .resolveLocale(context.getUser())
+                .toLanguageTag();
+			Map<String, String> params = new HashMap<>();
+			params.put("hl", userLanguageTag);
+			params.put("render", recaptchaSiteKey);
+			params.put("onload", "onRecaptchaLoaded");
+
+			String apiJsUrl = buildURLWithParams(
+				RECAPTCHA_API_JS_URL, params
+			);
+            forms.addScript(apiJsUrl);
+        }
+	}
 
 	/**
 	 * We use constant time comparison for security reasons, to avoid timing

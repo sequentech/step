@@ -1,4 +1,3 @@
-import {NoDescription} from "./../../../ui-essentials/src/components/Candidate/__stories__/Candidate.stories"
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -162,6 +161,17 @@ const englishTranslation = {
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
+            stats: {
+                elegibleVoters: "Elegible voters",
+                elections: "Elections",
+                areas: "Areas",
+                sentEmails: "Emails sent",
+                sentSMS: "SMS sent",
+                calendar: {
+                    title: "Calendar",
+                    scheduled: "Scheduled",
+                },
+            },
         },
         electionScreen: {
             common: {
@@ -276,6 +286,7 @@ const englishTranslation = {
                 back: "Back",
                 next: "Next",
                 warning: "Warning",
+                json: "Preview",
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
@@ -297,6 +308,62 @@ const englishTranslation = {
             communicationTemplates: "Communication Templates",
             active: "Active",
             archived: "Archived",
+        },
+        candidateScreen: {
+            common: {
+                subtitle: "Candidate configuration.",
+            },
+            edit: {
+                general: "General",
+                type: "Type",
+                image: "Image",
+            },
+            field: {
+                name: "Name",
+                alias: "Alias",
+                description: "Description",
+            },
+            options: {
+                "candidate": "Candidate",
+                "option": "Option",
+                "write-in": "Write-in",
+                "open-list": "Open List",
+                "closed-list": "Closed List",
+                "semi-open-list": "Semi Open List",
+                "invalid-vote": "Invalid Vote",
+                "blank-vote": "Blank Vote",
+            },
+            error: {},
+            createCandidateSuccess: "Candidate created",
+            createCandidateError: "Error creating candidate",
+        },
+        contestScreen: {
+            common: {
+                subtitle: "Contest configuration.",
+            },
+            edit: {
+                general: "General",
+                type: "Type",
+                image: "Image",
+                system: "Ballot Voting System",
+                design: "Ballot Design",
+                reorder: "Reorder candidates",
+            },
+            field: {
+                name: "Name",
+                alias: "Alias",
+                description: "Description",
+            },
+            options: {
+                "no-preferential": "No Preferential",
+                "plurality-at-large": "Plurality at Large",
+                "random-asnwers": "Random Answers",
+                "custom": "Custom",
+                "alphabetical": "Alphabetical",
+            },
+            error: {},
+            createContestSuccess: "Contest created",
+            createContestError: "Error creating candidate",
         },
     },
 }

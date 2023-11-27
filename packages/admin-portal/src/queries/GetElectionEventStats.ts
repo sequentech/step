@@ -5,21 +5,21 @@ import {gql} from "@apollo/client"
 
 export const GET_ELECTION_EVENT_STATS = gql`
     query GetElectionEventStats($electionEventId: uuid, $tenantId: uuid) {
-        sequent_backend_cast_vote_aggregate(
+        castVotes: sequent_backend_cast_vote_aggregate(
             where: {election_event_id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
         ) {
             aggregate {
                 count
             }
         }
-        sequent_backend_election_aggregate(
+        elections: sequent_backend_election_aggregate(
             where: {election_event_id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
         ) {
             aggregate {
                 count
             }
         }
-        sequent_backend_area_aggregate(
+        areas: sequent_backend_area_aggregate(
             where: {election_event_id: {_eq: $electionEventId}, tenant_id: {_eq: $tenantId}}
         ) {
             aggregate {

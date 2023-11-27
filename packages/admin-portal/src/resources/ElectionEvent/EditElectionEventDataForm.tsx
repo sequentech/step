@@ -187,7 +187,7 @@ export const EditElectionEventDataForm: React.FC = () => {
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
-        if (values?.dates?.end_date <= values?.dates?.start_date) {
+        if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
             errors.dates.end_date = t("electionEventScreen.error.endDate")
         }
         return errors

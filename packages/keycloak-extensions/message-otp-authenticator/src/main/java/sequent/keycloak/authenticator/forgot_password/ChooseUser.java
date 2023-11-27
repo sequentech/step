@@ -1,6 +1,7 @@
 package sequent.keycloak.authenticator.forgot_password;
 
 import org.keycloak.models.DefaultActionTokenKey;
+import org.jboss.resteasy.specimpl.MultivaluedMapImpl;
 import org.keycloak.Config;
 import org.keycloak.authentication.*;
 import org.keycloak.authentication.authenticators.broker.AbstractIdpAuthenticator;
@@ -8,6 +9,7 @@ import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAu
 import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
+import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
@@ -85,24 +87,88 @@ public class ChooseUser implements Authenticator, AuthenticatorFactory {
             return;
         }
 
-        context
-            .challenge(
-                context
-                    .form()
-                    .setAttribute("realm", context.getRealm())
-                    .createForm(FORM_FTL)
-            );
+        MultivaluedMap<String, String> formData = new MultivaluedMapImpl<>();
+        Response challengeResponse = challenge(context, formData);
+        context.challenge(challengeResponse);
+    }
+
+    protected Response challenge(
+        AuthenticationFlowContext context,
+        MultivaluedMap<String, String> formData
+    ) {
+        LoginFormsProvider forms = context.form();
+        Utils.addRecaptchaChallenge(context, formData);
+
+        if (formData.size() > 0) {
+            forms.setFormData(formData);
+        }
+
+        return context
+            .form()
+            .setAttribute("realm", context.getRealm())
+            .createForm(FORM_FTL);
     }
 
     @Override
     public void action(AuthenticationFlowContext context)
     {
+        log.info("action()");
         EventBuilder event = context.getEvent();
         MultivaluedMap<String, String> formData = context
             .getHttpRequest()
             .getDecodedFormParameters();
-        AuthenticatorConfigModel config = context.getAuthenticatorConfig();
-        
+
+        AuthenticatorConfigModel authConfig = context.getAuthenticatorConfig();
+        boolean recaptchaEnabled = Utils.getBoolean(
+            authConfig, Utils.RECAPTCHA_ENABLED_ATTRIBUTE, false
+        );
+        boolean recaptchaValidated = false;
+        if (recaptchaEnabled)
+        {
+            String recaptchaSiteSecret = Utils
+                .getString(
+                    authConfig, Utils.RECAPTCHA_SITE_SECRET_ATTRIBUTE
+                )
+                .strip();
+            Double recaptchaMinScore = Double.parseDouble(
+                Utils
+                    .getString(
+                        authConfig, Utils.RECAPTCHA_MIN_SCORE_ATTRIBUTE, "1"
+                    )
+                    .strip()
+            );
+            String captchaResponse = formData.getFirst(
+                Utils.RECAPTCHA_G_RESPONSE
+            );
+            if (!Validation.isBlank(captchaResponse)) {
+                recaptchaValidated = Utils.validateRecaptcha(
+                    context,
+                    recaptchaValidated,
+                    captchaResponse,
+                    recaptchaSiteSecret,
+                    recaptchaMinScore
+                );
+                log.infov(
+                    "action(): recaptchaValidated={0}",
+                    recaptchaValidated
+                );
+            }
+        }
+
+        if (recaptchaEnabled && !recaptchaValidated)
+        {
+            log.info("action(): invalid recaptcha");
+            formData.remove(Utils.RECAPTCHA_G_RESPONSE);
+			context.failureChallenge(
+				AuthenticationFlowError.INVALID_CREDENTIALS,
+                context
+                    .form()
+					.setError(Messages.RECAPTCHA_FAILED)
+                    .createErrorPage(Response.Status.BAD_REQUEST)
+			);
+            return;
+        }
+
         // Get username form input
         String reqUsername = formData.getFirst("username");
         if (reqUsername == null || reqUsername.trim().isEmpty())
@@ -232,7 +298,7 @@ public class ChooseUser implements Authenticator, AuthenticatorFactory {
 
     @Override
     public boolean isConfigurable() {
-        return false;
+        return true;
     }
 
     @Override
@@ -253,7 +319,43 @@ public class ChooseUser implements Authenticator, AuthenticatorFactory {
 	@Override
 	public List<ProviderConfigProperty> getConfigProperties()
     {
-		return List.of();
+		return List.of(
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE,
+				"reCAPTCHA v3 Site Key",
+				"",
+                ProviderConfigProperty.STRING_TYPE,
+				""
+			),
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_SITE_SECRET_ATTRIBUTE,
+				"reCAPTCHA v3 Site Secret",
+				"",
+                ProviderConfigProperty.STRING_TYPE,
+				""
+			),
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_MIN_SCORE_ATTRIBUTE,
+				"reCAPTCHA v3 Minimum Score",
+				"",
+                ProviderConfigProperty.STRING_TYPE,
+				"0.5"
+			),
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE,
+				"reCAPTCHA v3 Action Name",
+				"",
+                ProviderConfigProperty.STRING_TYPE,
+				Utils.RECAPTCHA_ACTION_NAME_FORGOT_ATTRIBUTE_DEFAULT
+			),
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_ENABLED_ATTRIBUTE,
+				"Enable reCAPTCHA v3",
+				"",
+                ProviderConfigProperty.BOOLEAN_TYPE,
+				false
+			)
+        );
 	}
 
     @Override

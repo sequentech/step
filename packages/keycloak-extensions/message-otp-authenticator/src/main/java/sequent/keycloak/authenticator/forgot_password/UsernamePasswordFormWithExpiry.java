@@ -1,14 +1,23 @@
 package sequent.keycloak.authenticator.forgot_password;
 
+import org.apache.http.message.BasicNameValuePair;
 import org.keycloak.Config;
 import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.common.util.Time;
+import org.keycloak.connections.httpclient.HttpClientProvider;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.NameValuePair;
+import org.apache.http.HttpResponse;
 import org.jboss.resteasy.specimpl.MultivaluedMapImpl;
 import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
+import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.AuthenticationExecutionModel.Requirement;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
@@ -17,6 +26,9 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.services.managers.AuthenticationManager;
+import org.keycloak.services.messages.Messages;
+import org.keycloak.services.validation.Validation;
+import org.keycloak.util.JsonSerialization;
 import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.models.utils.KeycloakModelUtils;
 import org.keycloak.provider.ProviderConfigProperty;
@@ -27,11 +39,15 @@ import lombok.extern.jbosslog.JBossLog;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.*;
 
 /**
- * This is just like the normal Username Password form, except it allows to 
- * check if the password has expired or not
+ * This is just like the normal Username Password form, except:
+ * - it allows to check if the password has expired or not
+ * - it supports recaptcha v3 for login
  */
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
@@ -71,32 +87,89 @@ public class UsernamePasswordFormWithExpiry
         MultivaluedMap<String, String> formData
     ) {
         log.info("validateForm()");
-        if (!validateUserAndPassword(context, formData)) {
-            log.info("validateForm(): invalid form");
+        AuthenticatorConfigModel authConfig = context.getAuthenticatorConfig();
+        boolean recaptchaEnabled = Utils.getBoolean(
+            authConfig, Utils.RECAPTCHA_ENABLED_ATTRIBUTE, false
+        );
+        boolean recaptchaValidated = false;
+        if (recaptchaEnabled)
+        {
+            String recaptchaSiteSecret = Utils
+                .getString(
+                    authConfig, Utils.RECAPTCHA_SITE_SECRET_ATTRIBUTE
+                )
+                .strip();
+            Double recaptchaMinScore = Double.parseDouble(
+                Utils
+                    .getString(
+                        authConfig, Utils.RECAPTCHA_MIN_SCORE_ATTRIBUTE, "1"
+                    )
+                    .strip()
+            );
+            String captchaResponse = formData.getFirst(
+                Utils.RECAPTCHA_G_RESPONSE
+            );
+            if (!Validation.isBlank(captchaResponse)) {
+                recaptchaValidated = Utils.validateRecaptcha(
+                    context,
+                    recaptchaValidated,
+                    captchaResponse,
+                    recaptchaSiteSecret,
+                    recaptchaMinScore
+                );
+                log.infov(
+                    "validateForm(): recaptchaValidated={0}",
+                    recaptchaValidated
+                );
+            }
+        }
+
+        if (recaptchaEnabled && !recaptchaValidated)
+        {
+            log.info("validateForm(): invalid recaptcha");
+            formData.remove(Utils.RECAPTCHA_G_RESPONSE);
+			context.failureChallenge(
+				AuthenticationFlowError.INVALID_CREDENTIALS,
+                context
+                    .form()
+					.setError(Messages.RECAPTCHA_FAILED)
+                    .createErrorPage(Response.Status.BAD_REQUEST)
+			);
             return false;
         }
+
+        if (!validateUserAndPassword(context, formData)) {
+            log.info("validateForm(): invalid form");
+            // We don't call context.failureChallenge() here because
+            // validateUserAndPassword() already does that
+            return false;
+        }
+
         // If we reach here, password was validated. But now we need to check
         // if there's an user expiration attribute and if so, if it has expired
         // already
-
-
         UserModel user = getUser(context, formData);
         if (user == null) {
             // should not happen. We have validated the form, so we should have
             // found both the username/email and password to be valid!
             log.info("validateForm(): user not found - should not happen");
+			context.failureChallenge(
+				AuthenticationFlowError.INTERNAL_ERROR,
+                context
+                    .form()
+                    .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR)
+			);
             return false;
         }
 
         // get the user attribute name
         String passwordExpirationUserAttribute =
             Utils.getPasswordExpirationUserAttribute(
-                context.getAuthenticatorConfig(),
-                user
+                context.getAuthenticatorConfig()
             );
         if (passwordExpirationUserAttribute == null) {
             // shouldn't happen since we have a fall-back user attribute name
-            log.info("validateForm(): password expiration user attribute is null - should not happen - return true");
+            log.info("validateForm(): password expiration user attribute configuration is null - should not happen - return true");
             return true;
         }
         String passwordExpiration = user.getFirstAttribute(
@@ -117,12 +190,18 @@ public class UsernamePasswordFormWithExpiry
                 currentTime,
                 passwordExpirationInt
             );
+			context.failureChallenge(
+				AuthenticationFlowError.INVALID_CREDENTIALS,
+                context
+                    .form()
+					.setError(Messages.INVALID_PASSWORD)
+                    .createErrorPage(Response.Status.BAD_REQUEST)
+			);
             return false;
         }
 
         return true;
     }
-
 
     private UserModel getUser(
         AuthenticationFlowContext context, 
@@ -218,8 +297,11 @@ public class UsernamePasswordFormWithExpiry
         MultivaluedMap<String, String> formData
     ) {
         LoginFormsProvider forms = context.form();
+        Utils.addRecaptchaChallenge(context, formData);
 
-        if (formData.size() > 0) forms.setFormData(formData);
+        if (formData.size() > 0) {
+            forms.setFormData(formData);
+        }
 
         return forms.createLoginUsernamePassword();
     }
@@ -302,6 +384,41 @@ public class UsernamePasswordFormWithExpiry
 				"User attribute to use storing the Password Expiration Date. Should be read-only.",
                 ProviderConfigProperty.STRING_TYPE,
 				Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT
+			),
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE,
+				"reCAPTCHA v3 Site Key",
+				"",
+                ProviderConfigProperty.STRING_TYPE,
+				""
+			),
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_SITE_SECRET_ATTRIBUTE,
+				"reCAPTCHA v3 Site Secret",
+				"",
+                ProviderConfigProperty.STRING_TYPE,
+				""
+			),
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_MIN_SCORE_ATTRIBUTE,
+				"reCAPTCHA v3 Minimum Score",
+				"",
+                ProviderConfigProperty.STRING_TYPE,
+				"0.5"
+			),
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE,
+				"reCAPTCHA v3 Action Name",
+				"",
+                ProviderConfigProperty.STRING_TYPE,
+				Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE_DEFAULT
+			),
+            new ProviderConfigProperty(
+				Utils.RECAPTCHA_ENABLED_ATTRIBUTE,
+				"Enable reCAPTCHA v3",
+				"",
+                ProviderConfigProperty.BOOLEAN_TYPE,
+				false
 			)
         );
     }
