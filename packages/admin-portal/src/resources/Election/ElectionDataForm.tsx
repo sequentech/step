@@ -120,6 +120,12 @@ export const ElectionDataForm: React.FC = () => {
             }
         }
 
+        // set english first lang always
+        const en = {en: temp.enabled_languages["en"]}
+        delete temp.enabled_languages.en
+        const rest = temp.enabled_languages
+        temp.enabled_languages = {...en, ...rest}
+
         // voting channels
         const all_channels = {...incoming?.voting_channels}
         delete incoming.voting_channels
@@ -130,6 +136,15 @@ export const ElectionDataForm: React.FC = () => {
                 setting in all_channels ? all_channels[setting] : votingSettings[setting]
             temp.voting_channels = {...temp.voting_channels, ...enabled_item}
         }
+
+        // name, alias and description fields
+        if (!temp.presentation || !temp.presentation?.i18n) {
+            temp.presentation = {i18n: {en: {}}}
+        }
+        console.log("temp.presentation :>> ", temp.presentation)
+        temp.presentation.i18n.en.name = temp.name
+        temp.presentation.i18n.en.alias = temp.alias
+        temp.presentation.i18n.en.description = temp.description
 
         return temp
     }
@@ -271,8 +286,6 @@ export const ElectionDataForm: React.FC = () => {
         }
         return channelNodes
     }
-
-    // const getJsonText = (json: any) => {
 
     const renderTabs = (parsedValue: any) => {
         let tabNodes = []
