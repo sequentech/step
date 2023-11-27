@@ -10,7 +10,7 @@ pub struct BoardClient {
     client: Client,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoardMessage {
     pub id: i64,
     pub created: i64,
@@ -263,7 +263,15 @@ impl BoardClient {
             .iter()
             .map(Board::try_from)
             .collect::<Result<Vec<Board>>>()?;
-        Ok(boards[0].clone())
+        
+        if boards.len() > 0 {
+            Ok(boards[0].clone())
+        }
+        else {
+            Err(anyhow!("board name '{}' not found", board_db))
+        }
+        
+        
     }
 
     
@@ -415,22 +423,69 @@ impl BoardClient {
 
 
 // Run ignored tests with 
-// cargo test connect -- --include-ignored
+// cargo test <test_name> -- --include-ignored
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use serial_test::serial;
+
+    const INDEX_DB: &'static str = "testindexdb";
+    const BOARD_DB: &'static str = "testdb";
+
+    async fn set_up() -> BoardClient {
+        let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb").await.unwrap();
+        
+        b.login().await.unwrap();
+        // In case the previous test did not clean up properly
+        b.delete_database(INDEX_DB).await.unwrap();
+        b.delete_database(BOARD_DB).await.unwrap();
+        
+        b.upsert_index_db(INDEX_DB).await.unwrap();
+        b.upsert_board_db(BOARD_DB).await.unwrap();
+        b.create_board(INDEX_DB, BOARD_DB).await.unwrap();
+
+        b
+    }
+
+    async fn tear_down(mut b: BoardClient) {
+        b.delete_board(INDEX_DB, BOARD_DB).await.unwrap();
+        b.delete_database(INDEX_DB).await.unwrap();
+    }
+    
+    #[tokio::test]
+    #[ignore]
+    #[serial]
+    pub async fn test_create_delete() {
+        let mut b = set_up().await;
+        
+        assert!(b.has_database(INDEX_DB).await.unwrap());
+        assert!(b.has_database(BOARD_DB).await.unwrap());
+        let board = b.get_board(INDEX_DB, BOARD_DB).await.unwrap();
+        assert_eq!(board.database_name, BOARD_DB);
+        let board = b.get_board(INDEX_DB, "NOT FOUND").await;
+        assert!(board.is_err());
+        tear_down(b).await;
+    }
 
     #[tokio::test]
     #[ignore]
-    pub async fn test_connect() {
-        let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb").await.unwrap();
-        let index_db = "testindexdb";
-        let board_db = "testdb";
-
-        b.login().await.unwrap();
-        b.upsert_index_db(index_db).await.unwrap();
-        b.upsert_board_db(board_db).await.unwrap();
-        b.create_board(index_db, board_db).await.unwrap();
-        b.delete_board(index_db, board_db).await.unwrap();
+    #[serial]
+    pub async fn test_message_create_retrieve() {
+        let mut b = set_up().await;
+        let board = b.get_board(INDEX_DB, BOARD_DB).await.unwrap();
+        assert_eq!(board.database_name, BOARD_DB);
+        let board_message = BoardMessage {
+            id: 1,
+            created: 0,
+            signer_key: vec![],
+            statement_timestamp: 0,
+            statement_kind: "".to_string(),
+            message: vec![],
+        };
+        let messages = vec![board_message];
+        b.insert_messages(BOARD_DB, &messages).await.unwrap();
+        let ret = b.get_messages(BOARD_DB, 0).await.unwrap();
+        assert_eq!(messages, ret);
+        tear_down(b).await;
     }
 }
