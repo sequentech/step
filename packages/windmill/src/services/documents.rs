@@ -72,7 +72,7 @@ pub async fn upload_and_return_document(
     })
 }
 
-#[instrument]
+#[instrument(skip(auth_headers))]
 pub async fn get_upload_url(
     auth_headers: connection::AuthHeaders,
     name: &str,

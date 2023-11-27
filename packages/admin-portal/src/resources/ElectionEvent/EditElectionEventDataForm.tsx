@@ -11,7 +11,7 @@ import {
     useRefresh,
 } from "react-admin"
 import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid, Button} from "@mui/material"
-import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
+import {CreateScheduledEventMutation, GetUploadUrlMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import React, {useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
@@ -23,11 +23,13 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionHeaderStyles} from "../../components/styles/ElectionHeaderStyles"
 import {useTenantStore} from "../../providers/TenantContextProvider"
+import { GET_UPLOAD_URL } from "../../queries/GetUploadUrl"
 
 export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const [tenantId] = useTenantStore()
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
+    const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const refresh = useRefresh()
 
     const [showMenu, setShowMenu] = useState(false)
@@ -265,6 +267,29 @@ export const EditElectionEventDataForm: React.FC = () => {
         return tabNodes
     }
 
+    const startUpload = async () => {
+        const {data, errors} = await getUploadUrl({
+            variables: {
+                name: "foo11.txt",
+                media_type: "text/plain",
+                size: 24
+            },
+        })
+
+        if (!data || errors) {
+            console.log(errors)
+            return
+        }
+        const result = await fetch(
+            data.get_upload_url!.url,
+            {
+                method: "PUT",
+                body: "Felix 2 was here!"
+            }
+        )
+        console.log(`FF result ${result}`)
+    }
+
     return (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -302,6 +327,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-event-data-dates" />}
                             >
+                                <Button onClick={startUpload}>
+                                    Upload Something
+                                </Button>
                                 <ElectionHeaderStyles.Wrapper>
                                     <ElectionHeaderStyles.Title>
                                         {t("electionEventScreen.edit.dates")}
