@@ -1,6 +1,7 @@
 {
   "id" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
   "realm" : "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+  "displayName" : "Tenant",
   "notBefore" : 0,
   "defaultSignatureAlgorithm" : "RS256",
   "revokeRefreshToken" : false,
@@ -2181,7 +2182,7 @@
       "userSetupAllowed" : false
     }, {
       "authenticatorConfig" : "voting-client",
-      "authenticator" : "conditional-user-client",
+      "authenticator" : "conditional-client",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 13,
@@ -2212,7 +2213,7 @@
       "userSetupAllowed" : false
     }, {
       "authenticatorConfig" : "otp-voting-client",
-      "authenticator" : "conditional-user-client",
+      "authenticator" : "conditional-client",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 1,
@@ -2833,7 +2834,7 @@
     "alias" : "otp-voting-client",
     "config" : {
       "negate" : "false",
-      "conditional-user-client" : "voting-portal"
+      "conditional-client" : "admin-portal"
     }
   }, {
     "id" : "68cd831a-6406-4ba0-a3b5-1b48a80e4ee2",
@@ -2862,7 +2863,7 @@
     "alias" : "voting-client",
     "config" : {
       "negate" : "false",
-      "conditional-user-client" : "voting-portal"
+      "conditional-client" : "admin-portal"
     }
   } ],
   "requiredActions" : [ {
