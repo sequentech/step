@@ -1,7 +1,7 @@
 ui = true
 
 storage "file" {
-    path = "/mnt/vault/data"
+    path = "/vault"
 }
 
 listener "tcp" {
