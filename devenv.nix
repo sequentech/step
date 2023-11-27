@@ -43,6 +43,9 @@
     pkgs.gcc
     pkgs.m4
 
+    # count line numbers
+    pkgs.scc
+
     # for development of immudb local store
     pkgs.sqlite
   ];

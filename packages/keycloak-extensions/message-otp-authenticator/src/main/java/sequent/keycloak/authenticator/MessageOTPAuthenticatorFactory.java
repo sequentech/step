@@ -20,6 +20,12 @@ public class MessageOTPAuthenticatorFactory
 {
 	public static final String PROVIDER_ID = "message-otp-authenticator";
 
+    private static AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
+		AuthenticationExecutionModel.Requirement.REQUIRED,
+		AuthenticationExecutionModel.Requirement.ALTERNATIVE,
+		AuthenticationExecutionModel.Requirement.DISABLED
+	};
+
 	private static final MessageOTPAuthenticator SINGLETON = new MessageOTPAuthenticator();
 
 	@Override
@@ -29,7 +35,7 @@ public class MessageOTPAuthenticatorFactory
 
 	@Override
 	public String getDisplayType() {
-		return "Email/SMS Authentication";
+		return "OTP - Message via Email/SMS";
 	}
 
 	@Override
@@ -51,12 +57,6 @@ public class MessageOTPAuthenticatorFactory
 	public boolean isUserSetupAllowed() {
 		return true;
 	}
-
-    private static AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
-		AuthenticationExecutionModel.Requirement.REQUIRED,
-		AuthenticationExecutionModel.Requirement.ALTERNATIVE,
-		AuthenticationExecutionModel.Requirement.DISABLED
-	};
 
 	@Override
 	public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
@@ -87,24 +87,11 @@ public class MessageOTPAuthenticatorFactory
 				"Keycloak"
 			),
 			new ProviderConfigProperty(
-				Utils.EMAIL_USER_ATTRIBUTE,
-				"Email User Attribute",
-				"Name of the user attribute used to retrieve the email address of the user. Please make sure this is a read-only attribute for security reasons.", 
-				ProviderConfigProperty.STRING_TYPE,
-				MessageOTPAuthenticator.EMAIL_ADDRESS_FIELD
-			),
-			new ProviderConfigProperty(
 				Utils.TEL_USER_ATTRIBUTE,
 				"Telephone User Attribute",
 				"Name of the user attribute used to retrieve the mobile telephone number of the user. Please make sure this is a read-only attribute for security reasons.", 
 				ProviderConfigProperty.STRING_TYPE,
 				MessageOTPAuthenticator.MOBILE_NUMBER_FIELD
-			),
-			new ProviderConfigProperty(
-				Utils.SIMULATION_MODE,
-				"Simulation mode",
-				"In simulation mode, the SMS won't be sent, but printed to the server logs", ProviderConfigProperty.BOOLEAN_TYPE,
-				true
 			)
 		);
 	}

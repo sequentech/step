@@ -1,4 +1,3 @@
-import {NoDescription} from "./../../../ui-essentials/src/components/Candidate/__stories__/Candidate.stories"
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -162,6 +161,17 @@ const englishTranslation = {
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
+            stats: {
+                elegibleVoters: "Elegible voters",
+                elections: "Elections",
+                areas: "Areas",
+                sentEmails: "Emails sent",
+                sentSMS: "SMS sent",
+                calendar: {
+                    title: "Calendar",
+                    scheduled: "Scheduled",
+                },
+            },
         },
         electionScreen: {
             common: {
@@ -202,6 +212,68 @@ const englishTranslation = {
             createSuccess: "Customer created",
             createError: "Error creating customer",
         },
+        usersAndRolesScreen: {
+            common: {
+                title: "Users and Roles",
+                subtitle: "General configuration",
+            },
+            users: {
+                title: "Users",
+            },
+            roles: {
+                title: "Roles",
+                edit: {
+                    title: "Role Data",
+                    subtitle: "View and edit role",
+                },
+            },
+            permissions: {
+                "tenant-create": "Create Tenant",
+                "tenant-read": "Read Tenant",
+                "tenant-write": "Edit Tenant",
+                "election-event-create": "Create Election Event",
+                "election-event-read": "Read Election Event",
+                "election-event-write": "Edit Election Event",
+                "voter-create": "Create Voter",
+                "voter-read": "Read Voter",
+                "voter-write": "Edit Voter",
+                "user-create": "Create User",
+                "user-read": "Read User",
+                "user-write": "Edit User",
+                "user-permission-create": "Create User Permission",
+                "user-permission-read": "Read User Permission",
+                "user-permission-write": "Edit User Permission",
+                "role-create": "Create Role",
+                "role-read": "Read Role",
+                "role-write": "Edit Role",
+                "role-assign": "Assign Role",
+                "communication-template-create": "Create Communication Template",
+                "communication-template-read": "Read Communication Template",
+                "communication-template-write": "Edit Communication Template",
+                "notification-read": "Read Notification",
+                "notification-write": "Edit Notification",
+                "notification-send": "Send Notification",
+                "area-read": "Read Area",
+                "area-write": "Edit Area",
+                "election-state-write": "Edit Election State",
+                "election-type-create": "Create Election Type",
+                "election-type-read": "Read Election Type",
+                "election-type-write": "Edit Election Type",
+                "voting-channel-read": "Read Voting Channel",
+                "voting-channel-write": "Edit Voting Channel",
+                "trustee-create": "Create Trustee",
+                "trustee-read": "Read Trustee",
+                "trustee-write": "Edit Trustee",
+                "tally-read": "Read Tally",
+                "tally-start": "Start Tally",
+                "tally-write": "Edit Tally",
+                "tally-results-read": "Read Tally Results",
+                "publish-read": "Read Publish",
+                "publish-write": "Edit Publish",
+                "logs-read": "Read Logs",
+                "keys-read": "Read Keys",
+            },
+        },
         common: {
             label: {
                 add: "Add",
@@ -214,6 +286,7 @@ const englishTranslation = {
                 back: "Back",
                 next: "Next",
                 warning: "Warning",
+                json: "Preview",
             },
             message: {
                 delete: "Are you sure you want to delete this item?",
@@ -228,9 +301,69 @@ const englishTranslation = {
             },
         },
         sideMenu: {
+            electionEvents: "Election Events",
+            search: "Search",
             usersAndRoles: "Users and Roles",
             settings: "Settings",
             communicationTemplates: "Communication Templates",
+            active: "Active",
+            archived: "Archived",
+        },
+        candidateScreen: {
+            common: {
+                subtitle: "Candidate configuration.",
+            },
+            edit: {
+                general: "General",
+                type: "Type",
+                image: "Image",
+            },
+            field: {
+                name: "Name",
+                alias: "Alias",
+                description: "Description",
+            },
+            options: {
+                "candidate": "Candidate",
+                "option": "Option",
+                "write-in": "Write-in",
+                "open-list": "Open List",
+                "closed-list": "Closed List",
+                "semi-open-list": "Semi Open List",
+                "invalid-vote": "Invalid Vote",
+                "blank-vote": "Blank Vote",
+            },
+            error: {},
+            createCandidateSuccess: "Candidate created",
+            createCandidateError: "Error creating candidate",
+        },
+        contestScreen: {
+            common: {
+                subtitle: "Contest configuration.",
+            },
+            edit: {
+                general: "General",
+                type: "Type",
+                image: "Image",
+                system: "Ballot Voting System",
+                design: "Ballot Design",
+                reorder: "Reorder candidates",
+            },
+            field: {
+                name: "Name",
+                alias: "Alias",
+                description: "Description",
+            },
+            options: {
+                "no-preferential": "No Preferential",
+                "plurality-at-large": "Plurality at Large",
+                "random-asnwers": "Random Answers",
+                "custom": "Custom",
+                "alphabetical": "Alphabetical",
+            },
+            error: {},
+            createContestSuccess: "Contest created",
+            createContestError: "Error creating candidate",
         },
     },
 }

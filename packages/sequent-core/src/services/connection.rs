@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::jwt::*;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome, Request};
 use serde::{Deserialize, Serialize};
-use crate::services::jwt::*;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthHeaders {
@@ -51,10 +51,10 @@ impl<'r> FromRequest<'r> for JwtClaims {
             Some(authorization) => {
                 match authorization.strip_prefix("Bearer ") {
                     Some(token) => Outcome::Success(decode_jwt(token).unwrap()),
-                    None => Outcome::Failure((Status::Unauthorized, ()))
+                    None => Outcome::Failure((Status::Unauthorized, ())),
                 }
-            },
-            None => Outcome::Failure((Status::Unauthorized, ()))
+            }
+            None => Outcome::Failure((Status::Unauthorized, ())),
         }
     }
 }

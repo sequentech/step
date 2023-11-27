@@ -1,6 +1,5 @@
 package sequent.keycloak.authenticator;
 
-import sequent.keycloak.authenticator.ResetMessageOTPRequiredAction;
 import com.google.auto.service.AutoService;
 import org.keycloak.Config;
 import org.keycloak.authentication.RequiredActionFactory;

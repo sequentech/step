@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-// import {TranslationType} from "./en"
-
 import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
@@ -165,6 +163,17 @@ const spanishTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Evento de Elección creado",
             createElectionEventError: "Error creando Evento de Elección",
+            stats: {
+                elegibleVoters: "Votantes elegibles",
+                elections: "Elecciones",
+                areas: "Áreas",
+                sentEmails: "Correos electrónicos enviados",
+                sentSMS: "SMS enviados",
+                calendar: {
+                    title: "Calendario",
+                    scheduled: "Programado",
+                },
+            },
         },
         electionScreen: {
             common: {
@@ -205,6 +214,68 @@ const spanishTranslation: TranslationType = {
             createSuccess: "Cliente creado",
             createError: "Error creando cliente",
         },
+        usersAndRolesScreen: {
+            common: {
+                title: "Usuarios y Roles",
+                subtitle: "Configuración general",
+            },
+            users: {
+                title: "Usuarios",
+            },
+            roles: {
+                title: "Roles",
+                edit: {
+                    title: "Información de Rol",
+                    subtitle: "Ver y editar Rol",
+                },
+            },
+            permissions: {
+                "tenant-create": "Create Tenant",
+                "tenant-read": "Read Tenant",
+                "tenant-write": "Edit Tenant",
+                "election-event-create": "Create Election Event",
+                "election-event-read": "Read Election Event",
+                "election-event-write": "Edit Election Event",
+                "voter-create": "Create Voter",
+                "voter-read": "Read Voter",
+                "voter-write": "Edit Voter",
+                "user-create": "Create User",
+                "user-read": "Read User",
+                "user-write": "Edit User",
+                "user-permission-create": "Create User Permission",
+                "user-permission-read": "Read User Permission",
+                "user-permission-write": "Edit User Permission",
+                "role-create": "Create Role",
+                "role-read": "Read Role",
+                "role-write": "Edit Role",
+                "role-assign": "Assign Role",
+                "communication-template-create": "Create Communication Template",
+                "communication-template-read": "Read Communication Template",
+                "communication-template-write": "Edit Communication Template",
+                "notification-read": "Read Notification",
+                "notification-write": "Edit Notification",
+                "notification-send": "Send Notification",
+                "area-read": "Read Area",
+                "area-write": "Edit Area",
+                "election-state-write": "Edit Election State",
+                "election-type-create": "Create Election Type",
+                "election-type-read": "Read Election Type",
+                "election-type-write": "Edit Election Type",
+                "voting-channel-read": "Read Voting Channel",
+                "voting-channel-write": "Edit Voting Channel",
+                "trustee-create": "Create Trustee",
+                "trustee-read": "Read Trustee",
+                "trustee-write": "Edit Trustee",
+                "tally-read": "Read Tally",
+                "tally-start": "Start Tally",
+                "tally-write": "Edit Tally",
+                "tally-results-read": "Read Tally Results",
+                "publish-read": "Read Publish",
+                "publish-write": "Edit Publish",
+                "logs-read": "Read Logs",
+                "keys-read": "Read Keys",
+            },
+        },
         common: {
             label: {
                 add: "Añadir",
@@ -217,6 +288,7 @@ const spanishTranslation: TranslationType = {
                 back: "Atrás",
                 next: "Siguiente",
                 warning: "Aviso",
+                json: "Vista previa",
             },
             message: {
                 delete: "¿Estás seguro de que quieres eliminar este elemento?",
@@ -231,9 +303,69 @@ const spanishTranslation: TranslationType = {
             },
         },
         sideMenu: {
+            electionEvents: "Procesos Electorales",
+            search: "Buscar",
             usersAndRoles: "Usuarios y Roles",
             settings: "Configuracion",
             communicationTemplates: "Plantillas de Comunicación",
+            active: "Activos",
+            archived: "Archivados",
+        },
+        candidateScreen: {
+            common: {
+                subtitle: "Configuración de candidatos.",
+            },
+            edit: {
+                general: "General",
+                type: "Tipo",
+                image: "Imagen",
+            },
+            field: {
+                name: "Nombre",
+                alias: "Alias",
+                description: "Descripción",
+            },
+            options: {
+                "candidate": "Candidato",
+                "option": "Opción",
+                "write-in": "Voto por Escrito",
+                "open-list": "Lista Abierta",
+                "closed-list": "Lista Cerrada",
+                "semi-open-list": "Lista Semiabierta",
+                "invalid-vote": "Voto Inválido",
+                "blank-vote": "Voto en Blanco",
+            },
+            error: {},
+            createCandidateSuccess: "Candidato creado",
+            createCandidateError: "Error creating candidato",
+        },
+        contestScreen: {
+            common: {
+                subtitle: "Configuración de contienda.",
+            },
+            edit: {
+                general: "General",
+                type: "Tipo",
+                image: "Imagen",
+                system: "Sistema de votación de papeletas",
+                design: "Diseño de la papeleta",
+                reorder: "Reordernar candidatos",
+            },
+            field: {
+                name: "Nombre",
+                alias: "Alias",
+                description: "Descripción",
+            },
+            options: {
+                "no-preferential": "Sin Preferencia",
+                "plurality-at-large": "Mayoría Plural",
+                "random-asnwers": "Respuestas Aleatorias",
+                "custom": "Personalizado",
+                "alphabetical": "Alfabético",
+            },
+            error: {},
+            createContestSuccess: "Contienda creado",
+            createContestError: "Error creating contienda",
         },
     },
 }

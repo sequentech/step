@@ -36,6 +36,9 @@ fn rocket() -> _ {
                 routes::insert_election_event::insert_election_event_f,
                 routes::insert_tenant::insert_tenant,
                 routes::users::get_users,
+                routes::roles::get_roles,
+                routes::permissions::get_permissions,
+                routes::upload_document::upload_document,
             ],
         )
 }

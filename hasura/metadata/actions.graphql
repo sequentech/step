@@ -18,6 +18,26 @@ type Query {
 }
 
 type Query {
+  get_permissions (
+    body: GetPermissionsInput!
+  ): GetPermissionsOutput!
+}
+
+type Query {
+  get_roles (
+    body: GetRolesInput!
+  ): GetRolesOutput!
+}
+
+type Mutation {
+  get_upload_url (
+    name: String!
+    media_type: String!
+    size: Int!
+  ): GetUploadUrlOutput
+}
+
+type Query {
   get_users (
     body: GetUsersInput!
   ): GetUsersOutput!
@@ -97,6 +117,20 @@ input GetUsersInput {
   election_event_id : String
   search : String
   email : String
+  limit : Int
+  offset : Int
+}
+
+input GetPermissionsInput {
+  tenant_id : String!
+  search : String
+  limit : Int
+  offset : Int
+}
+
+input GetRolesInput {
+  tenant_id : String!
+  search : String
   limit : Int
   offset : Int
 }
@@ -189,5 +223,37 @@ type KeycloakUser {
 type GetUsersOutput {
   items : [KeycloakUser!]!
   total : TotalAggregate!
+}
+
+type GetPermissionsOutput {
+  items : [KeycloakPermission!]!
+  total : TotalAggregate!
+}
+
+type KeycloakPermission {
+  id : String
+  attributes : jsonb
+  container_id : String
+  description : String
+  name : String
+}
+
+type GetRolesOutput {
+  items : [KeycloakRole!]!
+  total : TotalAggregate!
+}
+
+type KeycloakRole {
+  id : String
+  name : String
+  permissions : jsonb
+  access : jsonb
+  attributes : jsonb
+  client_roles : jsonb
+}
+
+type GetUploadUrlOutput {
+  url : String!
+  document_id : String!
 }
 

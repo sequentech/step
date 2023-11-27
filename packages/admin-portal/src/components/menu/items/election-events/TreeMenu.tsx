@@ -18,6 +18,7 @@ import {adminTheme, Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
 import styled from "@emotion/styled"
 import {mapDataChildren, ResourceName, DataTreeMenuType, DynEntityType} from "../ElectionEvents"
+import {useTranslation} from "react-i18next"
 
 interface TreeLeavesProps {
     data: DynEntityType
@@ -210,6 +211,7 @@ export function TreeMenu({
     isArchivedElectionEvents: boolean
     onArchiveElectionEventsSelect: (val: number) => void
 }) {
+    const {t} = useTranslation()
     return (
         <>
             <ul className="flex px-4 space-x-4 bg-white uppercase text-xs leading-6">
@@ -222,7 +224,7 @@ export function TreeMenu({
                     )}
                     onClick={() => onArchiveElectionEventsSelect(0)}
                 >
-                    Active
+                    {t("sideMenu.active")}
                 </li>
                 <li
                     className={cn(
@@ -233,7 +235,7 @@ export function TreeMenu({
                     )}
                     onClick={() => onArchiveElectionEventsSelect(1)}
                 >
-                    Archived
+                    {t("sideMenu.archived")}
                 </li>
             </ul>
             <div className="mx-5 py-2">
