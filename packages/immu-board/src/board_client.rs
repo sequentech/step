@@ -114,8 +114,8 @@ impl BoardClient {
         Ok(BoardClient { client: client })
     }
 
-    pub async fn login(&mut self, username: &str, password: &str) -> Result<()> {
-        self.client.login(&username, &password).await
+    pub async fn login(&mut self) -> Result<()> {
+        self.client.login().await
     }
 
     /// Get all messages whose id is bigger than `last_id`
@@ -266,6 +266,7 @@ impl BoardClient {
         Ok(boards[0].clone())
     }
 
+    
     #[instrument(skip(self))]
     pub async fn has_database(&mut self, database_name: &str) -> Result<bool> {
         self.client.has_database(database_name).await
@@ -317,5 +318,119 @@ impl BoardClient {
         let _ = self.client.sql_exec(&message_sql, params).await?;
 
         self.get_board(index_db, board_db).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn delete_board(&mut self, index_db: &str, board_db: &str) -> Result<()> {
+        self.delete_database(board_db).await?;
+        event!(Level::INFO, "Database deleted!");
+        self.client.use_database(index_db).await?;
+
+        let message_sql = r#"
+            DELETE from bulletin_boards where 
+            database_name = @database_name 
+            AND
+            is_archived = @is_archived;
+        "#;
+        let params = vec![
+            NamedParam {
+                name: String::from("database_name"),
+                value: Some(SqlValue {
+                    value: Some(Value::S(board_db.to_string())),
+                }),
+            },
+            NamedParam {
+                name: String::from("is_archived"),
+                value: Some(SqlValue {
+                    value: Some(Value::B(false)),
+                }),
+            },
+        ];
+        let _ = self.client.sql_exec(&message_sql, params).await?;
+
+        Ok(())
+    }
+
+    pub async fn upsert_index_db(&mut self, index_dbname: &str) -> Result<()> {
+        self.upsert_database(
+            index_dbname,
+            r#"
+            CREATE TABLE IF NOT EXISTS bulletin_boards (
+                id INTEGER AUTO_INCREMENT,
+                database_name VARCHAR[128],
+                is_archived BOOLEAN,
+                PRIMARY KEY id
+            );
+            CREATE UNIQUE INDEX ON bulletin_boards(database_name);
+            "#,
+        )
+        .await
+    }
+
+    pub async fn upsert_board_db(&mut self, board_dbname: &str) -> Result<()> {
+        self.upsert_database(
+            board_dbname,
+            r#"
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER AUTO_INCREMENT,
+                created TIMESTAMP,
+                signer_key BLOB,
+                statement_timestamp TIMESTAMP,
+                statement_kind VARCHAR,
+                message BLOB,
+                PRIMARY KEY id
+            );
+            "#,
+        )
+        .await
+    }
+
+    pub async fn delete_database(&mut self, database_name: &str) -> Result<()> {
+        if self.client.has_database(database_name).await? {
+            self.client.delete_database(database_name).await?;
+        }
+        Ok(())
+    }
+
+    /// Creates the database, only if it doesn't exist. It also creates
+    /// the appropriate tables if they don't exist.
+    async fn upsert_database(&mut self, database_name: &str, tables: &str) -> Result<()> {
+        // create database if it doesn't exist
+        if !self.client.has_database(database_name).await? {
+            self.client.create_database(database_name).await?;
+            event!(Level::INFO, "Database created!");
+        };
+        self.client.use_database(database_name).await?;
+
+        // List tables and create them if missing
+        if !self.client.has_tables().await? {
+            event!(Level::INFO, "no tables! let's create them");
+            self.client.sql_exec(&tables, vec![]).await?;
+        }
+        Ok(())
+    }
+
+}
+
+
+
+// Run ignored tests with 
+// cargo test connect -- --include-ignored
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+
+    #[tokio::test]
+    #[ignore]
+    pub async fn test_connect() {
+        let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb").await.unwrap();
+        let index_db = "testindexdb";
+        let board_db = "testdb";
+
+        b.login().await.unwrap();
+        b.upsert_index_db(index_db).await.unwrap();
+        b.upsert_board_db(board_db).await.unwrap();
+        b.create_board(index_db, board_db).await.unwrap();
+        b.delete_board(index_db, board_db).await.unwrap();
     }
 }
