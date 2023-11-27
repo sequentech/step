@@ -198,6 +198,7 @@ const englishTranslation = {
             },
             error: {
                 endDate: "End date must be after start date",
+                fileError: "Error uploading file",
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
