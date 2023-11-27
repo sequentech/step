@@ -7,10 +7,10 @@ use crate::hasura::tenant::*;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::types::error::Result;
 use celery::error::TaskError;
-use sequent_core::services::keycloak::get_tenant_realm;
 use sequent_core;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
+use sequent_core::services::keycloak::get_tenant_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use std::{env, fs};
 use tracing::{event, instrument, Level};
@@ -23,9 +23,7 @@ pub async fn upsert_keycloak_realm(tenant_id: &str) -> Result<()> {
         .expect(&format!("Should have been able to read the configuration file at KEYCLOAK_TENANT_REALM_CONFIG_PATH={realm_config_path}"));
     let client = KeycloakAdminClient::new().await?;
     let realm = get_tenant_realm(tenant_id);
-    client
-        .upsert_realm(realm.as_str(), &realm_config)
-        .await?;
+    client.upsert_realm(realm.as_str(), &realm_config).await?;
     upsert_realm_jwks(realm.as_str()).await?;
     Ok(())
 }

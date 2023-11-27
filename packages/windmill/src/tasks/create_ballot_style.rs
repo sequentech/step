@@ -81,8 +81,8 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendElection>
             eml: election.eml.clone(),
             num_allowed_revotes: election.num_allowed_revotes.clone(),
             is_consolidated_ballot_encoding: election.is_consolidated_ballot_encoding.clone(),
-            is_kiosk: election.is_kiosk.clone(),
             spoil_ballot_option: election.spoil_ballot_option.clone(),
+            is_kiosk: election.is_kiosk.clone(),
         }
     }
 }
