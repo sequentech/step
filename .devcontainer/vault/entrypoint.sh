@@ -9,7 +9,8 @@ fi
 # Then call the original entrypoint command
 vault server -config /opt/vault/config.hcl &
 sleep 5
-vault operator unseal $VAULT_KEY
+vault operator unseal $VAULT_UNSEAL_KEY
+vault secrets enable --version=1 --path=secrets kv
 
 # Now bring the vault server back into the foreground
 # so that it becomes the main process of the container

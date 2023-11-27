@@ -108,8 +108,8 @@ services:
     environment:
       VAULT_API_ADDR: 'http://0.0.0.0:8200'
       VAULT_ADDR: 'http://0.0.0.0:8201'
-      VAULT_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
-      VAULT_INITIAL_ROOT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
+      VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
+      VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
     cap_add:
       - IPC_LOCK
     volumes:
