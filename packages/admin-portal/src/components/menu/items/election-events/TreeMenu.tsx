@@ -160,7 +160,7 @@ function TreeMenuItem({
                         {name}
                     </NavLink>
                 )}
-                <div className="grow hidden group-hover:block">
+                <div className="grow invisible group-hover:visible">
                     <p className="text-right px-1 cursor-pointer" onClick={handleOpenItemActions}>
                         <Icon icon={faEllipsisH} />
                     </p>
