@@ -9,18 +9,28 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [keycloak, frontend, harvest, braid, windmil]  # List of services to build in the matrix
+        include:
+          - service: keycloak
+            path: packages/Dockerfile.keycloak
+          - service: frontend
+            path: packages/Dockerfile
+          - service: harvest
+            path: packages/harvest/Dockerfile
+          - service: braid
+            path: packages/braid/Dockerfile
+          - service: windmil
+            path: packages/windmill/Dockerfile
       fail-fast: false
 
     steps:
     - name: Check Out Repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      uses: docker/setup-buildx-action@v3
 
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
+      uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -28,11 +38,21 @@ jobs:
 
     - name: Login to Amazon ECR
       id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+      uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build and Push Docker Image
-      run: |
-        docker build -t ${{ steps.login-ecr.outputs.registry }}/repo-name/${{ matrix.service }}:${{ github.sha }} -f Dockerfile.${{ matrix.service }} .
-        docker push ${{ steps.login-ecr.outputs.registry }}/repo-name/${{ matrix.service }}:${{ github.sha }}
+    - name: Build & Push to ECR
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ github.workspace }}/${{ matrix.path | dirname }}
+        file: ${{ matrix.path | basename }}
+        push: true
+        tags: ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
+        cache-from: type=gha,scope=${{ matrix.service }}
+        cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+    # - name: Build and Push Docker Image
+    #   run: |
+    #     docker build -t ${{ steps.login-ecr.outputs.registry }}/repo-name/${{ matrix.service }}:${{ github.sha }} -f Dockerfile.${{ matrix.service }} .
+    #     docker push ${{ steps.login-ecr.outputs.registry }}/repo-name/${{ matrix.service }}:${{ github.sha }}
 
     # Add any other necessary steps (like testing or additional validations) here
