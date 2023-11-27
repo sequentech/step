@@ -24,9 +24,10 @@ import {useTranslation} from "react-i18next"
 interface TreeLeavesProps {
     data: DynEntityType
     treeResourceNames: string[]
+    isArchivedElectionEvents: boolean
 }
 
-function TreeLeaves({data, treeResourceNames}: TreeLeavesProps) {
+function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLeavesProps) {
     const {t} = useTranslation()
     const mapAddResource: any = {
         sequent_backend_election_event: "sideMenu.addResource.addElectionEvent",
@@ -47,19 +48,22 @@ function TreeLeaves({data, treeResourceNames}: TreeLeavesProps) {
                                 id={resource.id}
                                 name={resource.name}
                                 treeResourceNames={treeResourceNames}
+                                isArchivedElectionEvents={isArchivedElectionEvents}
                             />
                         )
                     }
                 )}
-                <div className="inline-flex">
-                    <NavLink
-                        className="flex items-center shrink space-x-2 -ml-3 px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer"
-                        to={`/${treeResourceNames[0]}/create`}
-                    >
-                        <AddIcon></AddIcon>
-                        <span>{t(mapAddResource[treeResourceNames[0]])}</span>
-                    </NavLink>
-                </div>
+                {!isArchivedElectionEvents && (
+                    <div className="inline-flex">
+                        <NavLink
+                            className="flex items-center shrink space-x-2 -ml-3 px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer"
+                            to={`/${treeResourceNames[0]}/create`}
+                        >
+                            <AddIcon></AddIcon>
+                            <span>{t(mapAddResource[treeResourceNames[0]])}</span>
+                        </NavLink>
+                    </div>
+                )}
             </div>
         </div>
     )
@@ -70,6 +74,7 @@ interface TreeMenuItemProps {
     id: string
     name: string
     treeResourceNames: string[]
+    isArchivedElectionEvents: boolean
 }
 
 enum Action {
@@ -84,7 +89,13 @@ type ActionPayload = {
     type: string
 }
 
-function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps) {
+function TreeMenuItem({
+    resource,
+    id,
+    name,
+    treeResourceNames,
+    isArchivedElectionEvents,
+}: TreeMenuItemProps) {
     const navigate = useNavigate()
     const [isOpenSidebar] = useSidebarState()
 
@@ -216,7 +227,13 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
             </div>
             {open && (
                 <div className="">
-                    {hasNext && <TreeLeaves data={data} treeResourceNames={subTreeResourceNames} />}
+                    {hasNext && (
+                        <TreeLeaves
+                            data={data}
+                            treeResourceNames={subTreeResourceNames}
+                            isArchivedElectionEvents={isArchivedElectionEvents}
+                        />
+                    )}
                 </div>
             )}
         </div>
@@ -262,7 +279,11 @@ export function TreeMenu({
                 </li>
             </ul>
             <div className="mx-5 py-2">
-                <TreeLeaves data={data} treeResourceNames={treeResourceNames} />
+                <TreeLeaves
+                    data={data}
+                    treeResourceNames={treeResourceNames}
+                    isArchivedElectionEvents={isArchivedElectionEvents}
+                />
             </div>
         </>
     )
