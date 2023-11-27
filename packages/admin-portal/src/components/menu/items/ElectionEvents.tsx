@@ -10,7 +10,8 @@ import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {CircularProgress, TextField} from "@mui/material"
 import {Menu, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
-import {faThLarge, faSearch, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import {faSearch, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import WebIcon from "@mui/icons-material/Web"
 import {cn} from "../../../lib/utils"
 import {HorizontalBox} from "../../HorizontalBox"
 import {Link} from "react-router-dom"
@@ -180,7 +181,7 @@ export default function ElectionEvents() {
                     <MenuItem
                         to="/sequent_backend_election_event"
                         primaryText={isOpenSidebar && t("sideMenu.electionEvents")}
-                        leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                        leftIcon={<WebIcon sx={{color: adminTheme.palette.brandColor}} />}
                         sx={{flexGrow: 2}}
                     />
                     {showAddElectionEvent ? (
