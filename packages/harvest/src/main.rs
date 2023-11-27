@@ -38,6 +38,7 @@ fn rocket() -> _ {
                 routes::users::get_users,
                 routes::roles::get_roles,
                 routes::permissions::get_permissions,
+                routes::upload_document::upload_document,
             ],
         )
 }

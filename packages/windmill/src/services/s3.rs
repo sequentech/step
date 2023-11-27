@@ -102,6 +102,19 @@ pub fn get_document_key(
     )
 }
 
+#[instrument]
+pub fn get_public_document_key(
+    tenant_id: String,
+    document_id: String,
+    name: String,
+) -> String {
+    format!(
+        "tenant-{}/document-{}/{}",
+        tenant_id, document_id, name
+    )
+}
+
+#[instrument]
 pub async fn get_document_url(key: String, minio_bucket: String) -> Result<String> {
     let key_id = env::var("MINIO_ACCESS_KEY").expect(&format!("MINIO_ACCESS_KEY must be set"));
     let key_secret =
@@ -126,4 +139,32 @@ pub async fn get_document_url(key: String, minio_bucket: String) -> Result<Strin
     let url = public_bucket.presign_get(key, 86400, None)?;
 
     Ok(url)
+}
+
+#[instrument]
+pub async fn get_upload_url(key: String) -> Result<String> {
+    let key_id = env::var("MINIO_ACCESS_KEY").expect(&format!("MINIO_ACCESS_KEY must be set"));
+    let key_secret =
+        env::var("MINIO_ACCESS_SECRET").expect(&format!("MINIO_ACCESS_SECRET must be set"));
+    let minio_public_uri =
+        env::var("MINIO_PUBLIC_URI").expect(&format!("MINIO_PUBLIC_URI must be set"));
+    let minio_region = env::var("MINIO_REGION").expect(&format!("MINIO_REGION must be set"));
+    let minio_bucket = get_public_bucket();
+
+    let credentials = Credentials {
+        access_key: Some(key_id.to_owned()),
+        secret_key: Some(key_secret.to_owned()),
+        security_token: None,
+        session_token: None,
+        expiration: None,
+    };
+    let public_region = Region::Custom {
+        region: minio_region.to_owned(),
+        endpoint: minio_public_uri.to_owned(),
+    };
+    let public_bucket =
+        Bucket::new(minio_bucket.as_str(), public_region, credentials.clone())?.with_path_style();
+
+    let upload_url = public_bucket.presign_put(key, 3600, None)?;
+    Ok(upload_url)
 }

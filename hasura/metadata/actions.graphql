@@ -29,6 +29,14 @@ type Query {
   ): GetRolesOutput!
 }
 
+type Mutation {
+  get_upload_url (
+    name: String!
+    media_type: String!
+    size: Int!
+  ): GetUploadUrlOutput
+}
+
 type Query {
   get_users (
     body: GetUsersInput!
@@ -242,5 +250,10 @@ type KeycloakRole {
   access : jsonb
   attributes : jsonb
   client_roles : jsonb
+}
+
+type GetUploadUrlOutput {
+  url : String!
+  document_id : String!
 }
 
