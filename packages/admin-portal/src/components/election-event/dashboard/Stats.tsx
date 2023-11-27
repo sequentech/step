@@ -39,18 +39,9 @@ export default function Stats() {
         },
     })
 
-    const {data: users, total: totalUsers} = useGetList("user", {
+    const {total: totalUsers} = useGetList("user", {
         filter: {tenant_id: tenantId, election_event_id: electionEventId},
     })
-  
-    console.log(
-        "LS -> packages/admin-portal/src/components/election-event/dashboard/Stats.tsx:45 -> totalUsers: ",
-        totalUsers
-    )
-    console.log(
-        "LS -> packages/admin-portal/src/components/election-event/dashboard/Stats.tsx:45 -> users: ",
-        users
-    )
 
     if (loading) {
         return <CircularProgress />
@@ -68,7 +59,7 @@ export default function Stats() {
         <CardList>
             <StatItem
                 icon={<GroupIcon sx={{fontSize: iconSize}} />}
-                count={-1}
+                count={totalUsers ?? 0}
                 label={t("electionEventScreen.stats.elegibleVoters")}
             ></StatItem>
             <StatItem
