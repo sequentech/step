@@ -151,7 +151,7 @@ function TreeMenuItem({
                         title={name}
                         className={({isActive}) =>
                             cn(
-                                "px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
+                                "grow px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
                                 isActive && "border-b-2 border-brand-color"
                             )
                         }
@@ -160,7 +160,7 @@ function TreeMenuItem({
                         {name}
                     </NavLink>
                 )}
-                <div className="grow invisible group-hover:visible">
+                <div className="invisible group-hover:visible">
                     <p className="text-right px-1 cursor-pointer" onClick={handleOpenItemActions}>
                         <Icon icon={faEllipsisH} />
                     </p>
