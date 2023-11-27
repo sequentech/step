@@ -324,16 +324,31 @@ export const ElectionDataForm: React.FC = () => {
     const handleFiles = async (files: FileList | null, parsedValues: any) => {
         console.log("files :>> ", files?.[0].name)
 
-        if (files && files.length > 0) {
+        const theFile = files?.[0]
+
+        if (theFile) {
             let {data, errors} = await getUploadUrl({
                 variables: {
-                    name: files[0].name,
-                    media_type: files[0].type,
-                    size: files[0].size,
+                    name: theFile.name,
+                    media_type: theFile.type,
+                    size: theFile.size,
                 },
             })
             if (data?.get_upload_url?.document_id) {
                 console.log("upload :>> ", data)
+                let formdata = new FormData()
+                if (theFile) {
+                    formdata.append("archivo", theFile, theFile.name)
+                }
+                try {
+                    await fetch(data.get_upload_url.url, {
+                        method: "PUT",
+                        body: formdata,
+                    })
+                } catch (e) {
+                    console.log("error :>> ", e)
+                    notify(t("electionScreen.error.fileError"), {type: "error"})
+                }
             } else {
                 console.log("error :>> ", errors)
                 notify(t("electionScreen.error.fileError"), {type: "error"})
