@@ -14,6 +14,7 @@ import {
     faTrash,
     faArchive,
 } from "@fortawesome/free-solid-svg-icons"
+import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import AddIcon from "@mui/icons-material/Add"
 import {adminTheme, Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
@@ -162,7 +163,14 @@ function TreeMenuItem({
                         }
                         to={`/${treeResourceNames[0]}/${id}`}
                     >
-                        {name}
+                        {treeResourceNames[0] === "sequent_backend_election_event" ? (
+                            <p className="flex items-center space-x-2">
+                                <HowToVoteIcon />
+                                <span>{name}</span>
+                            </p>
+                        ) : (
+                            <span>{name}</span>
+                        )}
                     </NavLink>
                 )}
                 <div className="invisible group-hover:visible">
