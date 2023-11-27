@@ -426,8 +426,14 @@ cargo run --bin main consume -q short_queue tally_queue beat reports_queue beat
 
 ```bash
 cd /workspaces/backend-services/packages/immu-board
-cargo build
-../target/debug/bb_helper --server-url http://immudb:3322 --username immudb --password immudb --index-dbname indexdb --board-dbname 33f18502a67c48538333a58630663559 --cache-dir /tmp/immu-board upsert-init-db
+cargo build && \
+../target/debug/bb_helper \
+  --server-url http://immudb:3322 \
+  --username immudb \
+  --password immudb \
+  --index-dbname indexdb \
+  --board-dbname 33f18502a67c48538333a58630663559 \
+  --cache-dir /tmp/immu-board upsert-init-db
 ```
 
 Now you should be able to create election events. For debugging, you can watch the logs of `harvest` and `windmill` (it's already in one terminal):
