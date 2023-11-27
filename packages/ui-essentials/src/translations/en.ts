@@ -11,6 +11,14 @@ const englishTranslation = {
             verify: "Verify",
             finish: "Finish",
         },
+        electionEventBreadcrumbSteps: {
+            created: "Created",
+            keys: "Keys",
+            publish: "Publish",
+            started: "Started",
+            ended: "Ended",
+            results: "Results",
+        },
         candidate: {
             moreInformationLink: "More information",
             writeInsPlaceholder: "Type write-in candidate here",
