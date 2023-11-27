@@ -6,7 +6,6 @@ import {NavLink, useNavigate} from "react-router-dom"
 import React, {useRef, useState} from "react"
 import {useSidebarState} from "react-admin"
 import {Divider, ListItemIcon, MenuItem, MenuList, Popover} from "@mui/material"
-import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import {
     faAngleRight,
     faAngleDown,
@@ -113,11 +112,7 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
             <div ref={menuItemRef} className="group flex text-center space-x-2 items-center">
                 {hasNext ? (
                     <div className="w-6 h-6 cursor-pointer" onClick={onClick}>
-                        {treeResourceNames[0] === "sequent_backend_election_event" ? (
-                            <HowToVoteIcon></HowToVoteIcon>
-                        ) : (
-                            <Icon icon={open ? faAngleDown : faAngleRight} />
-                        )}
+                        <Icon icon={open ? faAngleDown : faAngleRight} />
                     </div>
                 ) : (
                     <div className="w-6 h-6"></div>
