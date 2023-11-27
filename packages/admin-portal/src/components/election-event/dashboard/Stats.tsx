@@ -21,14 +21,13 @@ import styled from "@emotion/styled"
 const CardList = styled(Box)`
     display: flex;
     width: 100%;
-    flex-direction: row;
     justify-content: space-between;
     margin: 20px 0;
 `
 
 export default function Stats() {
     const {t} = useTranslation()
-    // const [tenantId] = useTenantStore()
+    const [tenantId] = useTenantStore()
 
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const electionEventId = record.id
@@ -40,9 +39,9 @@ export default function Stats() {
         },
     })
 
-    // const {data: users, total: totalUsers} = useGetList("user", {
-    //     filter: {tenant_id: tenantId, election_event_id: electionEventId},
-    // })
+    const {total: totalUsers} = useGetList("user", {
+        filter: {tenant_id: tenantId, election_event_id: electionEventId},
+    })
 
     if (loading) {
         return <CircularProgress />
@@ -60,7 +59,7 @@ export default function Stats() {
         <CardList>
             <StatItem
                 icon={<GroupIcon sx={{fontSize: iconSize}} />}
-                count={-1}
+                count={totalUsers ?? 0}
                 label={t("electionEventScreen.stats.elegibleVoters")}
             ></StatItem>
             <StatItem
@@ -75,12 +74,12 @@ export default function Stats() {
             ></StatItem>
             <StatItem
                 icon={<MarkEmailReadOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={-1}
+                count={0}
                 label={t("electionEventScreen.stats.sentEmails")}
             ></StatItem>
             <StatItem
                 icon={<SmsOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={-1}
+                count={0}
                 label={t("electionEventScreen.stats.sentSMS")}
             ></StatItem>
             <StatItem

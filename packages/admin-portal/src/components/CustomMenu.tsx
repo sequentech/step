@@ -17,6 +17,9 @@ import {styled} from "@mui/material/styles"
 import SelectTenants from "./menu/items/SelectTenants"
 import ElectionEvents from "./menu/items/ElectionEvents"
 import {useTranslation} from "react-i18next"
+import GroupIcon from "@mui/icons-material/Group"
+import SettingsIcon from "@mui/icons-material/Settings"
+import MailIcon from "@mui/icons-material/Mail"
 
 const StyledItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -68,63 +71,20 @@ export const CustomMenu = () => {
 
                 <ElectionEvents />
 
-                {
-                    // <StyledItem
-                    //     to="/pgaudit"
-                    //     primaryText={open ? "PG Audit" : null}
-                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                    // />
-                    // <StyledItem
-                    //     to="/sequent_backend_area"
-                    //     primaryText={open ? "Areas" : null}
-                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                    // />
-                    // <StyledItem
-                    //     to="/sequent_backend_area_contest"
-                    //     primaryText={open ? "Area Contests" : null}
-                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                    // />
-                    // <StyledItem
-                    //     to="/sequent_backend_ballot_style"
-                    //     primaryText={open ? "Ballot Styles" : null}
-                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                    // />
-                    // <StyledItem
-                    //     to="/sequent_backend_tenant"
-                    //     primaryText={open ? "Customers" : null}
-                    //     leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
-                    // />
-                    // <StyledItem
-                    //     to="/sequent_backend_document"
-                    //     primaryText={open ? "Documents" : null}
-                    //     leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
-                    // />
-                    // <StyledItem
-                    //     to="/sequent_backend_trustee"
-                    //     primaryText={open ? "Trustees" : null}
-                    //     leftIcon={<IconButton icon={faFileText} fontSize="24px" />}
-                    // />
-                    // <StyledItem
-                    //     to="/messages"
-                    //     primaryText={open ? "Messages" : null}
-                    //     leftIcon={<IconButton icon={faStar} fontSize="24px" />}
-                    // />
-                }
-
                 <StyledItem
                     to="/user-roles"
                     primaryText={open ? t("sideMenu.usersAndRoles") : null}
-                    leftIcon={<IconButton icon={faUsers} fontSize="24px" />}
+                    leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
                 />
                 <StyledItem
                     to="/settings"
                     primaryText={open ? t("sideMenu.settings") : null}
-                    leftIcon={<IconButton icon={faCog} fontSize="24px" />}
+                    leftIcon={<SettingsIcon sx={{color: adminTheme.palette.brandColor}} />}
                 />
                 <StyledItem
                     to="/"
                     primaryText={open && t("sideMenu.communicationTemplates")}
-                    leftIcon={<IconButton icon={faEnvelope} fontSize="24px" />}
+                    leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
                 />
             </MenuWrapper>
 

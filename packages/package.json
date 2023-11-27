@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@mui/styles": "^5.14.18",
+    "@mui/utils": "^5.14.18",
     "tailwind-merge": "^2.0.0"
   }
 }
