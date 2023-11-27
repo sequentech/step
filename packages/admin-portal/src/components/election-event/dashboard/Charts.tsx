@@ -55,7 +55,7 @@ const Separator = styled(Box)`
     margin: 16px 0;
 `
 
-const cardWidth = 600
+const cardWidth = 470
 
 export function VotesByChannel() {
     const state: Props = {

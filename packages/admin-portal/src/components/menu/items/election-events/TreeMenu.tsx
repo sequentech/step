@@ -6,7 +6,6 @@ import {NavLink, useNavigate} from "react-router-dom"
 import React, {useRef, useState} from "react"
 import {useSidebarState} from "react-admin"
 import {Divider, ListItemIcon, MenuItem, MenuList, Popover} from "@mui/material"
-import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import {
     faAngleRight,
     faAngleDown,
@@ -15,6 +14,7 @@ import {
     faTrash,
     faArchive,
 } from "@fortawesome/free-solid-svg-icons"
+import AddIcon from "@mui/icons-material/Add"
 import {adminTheme, Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
 import styled from "@emotion/styled"
@@ -24,9 +24,18 @@ import {useTranslation} from "react-i18next"
 interface TreeLeavesProps {
     data: DynEntityType
     treeResourceNames: string[]
+    isArchivedElectionEvents: boolean
 }
 
-function TreeLeaves({data, treeResourceNames}: TreeLeavesProps) {
+function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLeavesProps) {
+    const {t} = useTranslation()
+    const mapAddResource: any = {
+        sequent_backend_election_event: "sideMenu.addResource.addElectionEvent",
+        sequent_backend_election: "sideMenu.addResource.addElection",
+        sequent_backend_contest: "sideMenu.addResource.addContest",
+        sequent_backend_candidate: "sideMenu.addResource.addCandidate",
+    }
+
     return (
         <div className="bg-white">
             <div className="flex flex-col ml-3">
@@ -39,9 +48,21 @@ function TreeLeaves({data, treeResourceNames}: TreeLeavesProps) {
                                 id={resource.id}
                                 name={resource.name}
                                 treeResourceNames={treeResourceNames}
+                                isArchivedElectionEvents={isArchivedElectionEvents}
                             />
                         )
                     }
+                )}
+                {!isArchivedElectionEvents && (
+                    <div className="inline-flex">
+                        <NavLink
+                            className="flex items-center shrink space-x-2 -ml-3 px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer"
+                            to={`/${treeResourceNames[0]}/create`}
+                        >
+                            <AddIcon></AddIcon>
+                            <span>{t(mapAddResource[treeResourceNames[0]])}</span>
+                        </NavLink>
+                    </div>
                 )}
             </div>
         </div>
@@ -53,6 +74,7 @@ interface TreeMenuItemProps {
     id: string
     name: string
     treeResourceNames: string[]
+    isArchivedElectionEvents: boolean
 }
 
 enum Action {
@@ -67,7 +89,13 @@ type ActionPayload = {
     type: string
 }
 
-function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps) {
+function TreeMenuItem({
+    resource,
+    id,
+    name,
+    treeResourceNames,
+    isArchivedElectionEvents,
+}: TreeMenuItemProps) {
     const navigate = useNavigate()
     const [isOpenSidebar] = useSidebarState()
 
@@ -113,11 +141,7 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
             <div ref={menuItemRef} className="group flex text-center space-x-2 items-center">
                 {hasNext ? (
                     <div className="w-6 h-6 cursor-pointer" onClick={onClick}>
-                        {treeResourceNames[0] === "sequent_backend_election_event" ? (
-                            <HowToVoteIcon></HowToVoteIcon>
-                        ) : (
-                            <Icon icon={open ? faAngleDown : faAngleRight} />
-                        )}
+                        <Icon icon={open ? faAngleDown : faAngleRight} />
                     </div>
                 ) : (
                     <div className="w-6 h-6"></div>
@@ -127,7 +151,7 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
                         title={name}
                         className={({isActive}) =>
                             cn(
-                                "px-4 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
+                                "px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
                                 isActive && "border-b-2 border-brand-color"
                             )
                         }
@@ -203,7 +227,13 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
             </div>
             {open && (
                 <div className="">
-                    {hasNext && <TreeLeaves data={data} treeResourceNames={subTreeResourceNames} />}
+                    {hasNext && (
+                        <TreeLeaves
+                            data={data}
+                            treeResourceNames={subTreeResourceNames}
+                            isArchivedElectionEvents={isArchivedElectionEvents}
+                        />
+                    )}
                 </div>
             )}
         </div>
@@ -249,7 +279,11 @@ export function TreeMenu({
                 </li>
             </ul>
             <div className="mx-5 py-2">
-                <TreeLeaves data={data} treeResourceNames={treeResourceNames} />
+                <TreeLeaves
+                    data={data}
+                    treeResourceNames={treeResourceNames}
+                    isArchivedElectionEvents={isArchivedElectionEvents}
+                />
             </div>
         </>
     )
