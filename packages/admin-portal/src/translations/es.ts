@@ -310,6 +310,12 @@ const spanishTranslation: TranslationType = {
             communicationTemplates: "Plantillas de Comunicación",
             active: "Activos",
             archived: "Archivados",
+            addResource: {
+                addElectionEvent: "Agregar un evento electoral",
+                addElection: "Agregar una elección",
+                addContest: "Agregar un concurso",
+                addCandidate: "Agregar un candidato",
+            },
         },
         candidateScreen: {
             common: {

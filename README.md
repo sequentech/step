@@ -285,7 +285,7 @@ to export the json schema from Hasura, specifically you'll need to run something
 like:
 
 ```bash
-cd packages/admin-portal/
+cd /workspaces/backend-services/packages/admin-portal/
 gq http://graphql-engine:8080/v1/graphql \
     -H "X-Hasura-Admin-Secret: admin" \
     --introspect  \
@@ -297,6 +297,7 @@ Afterwards, you need to regenerate the typescript auto-generated types using
 `graphql-codegen` with:
 
 ```bash
+cd /workspaces/backend-services/packages/
 yarn generate
 ```
 
@@ -304,7 +305,7 @@ Additionally, the same graphql schema file is needed in `windmill` to generate
 the base types for Rust. To update them, execute the following:
 
 ```bash
-cd packages/windmill/
+cd /workspaces/backend-services/packages/windmill/
 gq http://graphql-engine:8080/v1/graphql \
     -H "X-Hasura-Admin-Secret: admin" \
     --introspect  \
@@ -318,7 +319,7 @@ table, you will have to update some graphql query in
 `packages/windmill/src/graphql/` directory and the corresponding boilerplate
 code in `packages/windmill/src/hasura/`. Otherwise the build might fail.
 
-## Trustees
+## Creating Trustees
 
 By default the trustees in this repo are configured to use a predefined configuration/
 set of keys. This is useful for development because these trustees are also added to
@@ -342,6 +343,22 @@ signing_key_pk = "YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k"
 ```
 
 Then add the trustee in the admin portal with the key, in this case `YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k`.
+
+## Running Trustees
+
+
+
+```bash
+# run windmill task generator
+cd /workspaces/backend-services/packages/windmill/
+cargo run --bin beat
+```
+
+```bash
+# run trustes
+cd /workspaces/backend-services/.devcontainer/
+docker compose up -d trustee1 trustee2
+```
 
 ## Vault
 

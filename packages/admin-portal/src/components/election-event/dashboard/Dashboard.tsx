@@ -15,7 +15,7 @@ const Container = styled(Box)`
 export default function DashboardElectionEvent() {
     return (
         <>
-            <Box sx={{width: 1280, marginX: "auto"}}>
+            <Box sx={{width: 1024, marginX: "auto"}}>
                 <BreadCrumbSteps
                     labels={[
                         "electionEventBreadcrumbSteps.created",
