@@ -94,7 +94,7 @@ services:
 
   # hashicorp vault to store secrets
   vault:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     build:
       context: ./vault
       dockerfile: Dockerfile
@@ -108,13 +108,15 @@ services:
     environment:
       VAULT_API_ADDR: 'http://0.0.0.0:8200'
       VAULT_ADDR: 'http://0.0.0.0:8201'
+      VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
+      VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
     cap_add:
       - IPC_LOCK
     volumes:
       - vault-volume:/vault
     healthcheck:
       retries: 5
-    entrypoint: vault server -config /opt/vault/config.hcl
+    entrypoint: /opt/vault/entrypoint.sh
 
   graphql-engine:
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
