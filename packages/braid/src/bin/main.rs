@@ -18,7 +18,6 @@ use braid::protocol2::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
 use braid::util::assert_folder;
 use sequent_core::util::init_log::init_log;
-use sequent_core::serialization::base64::Base64Deserialize;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
@@ -63,7 +62,7 @@ async fn main() -> Result<()> {
     info!("{}", strand::info_string());
 
     let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
-    let sk: StrandSignatureSk = Base64Deserialize::deserialize(tc.signing_key_sk).unwrap();
+    let sk: StrandSignatureSk = StrandSignatureSk::from_der_b64_string(&tc.signing_key_sk).unwrap();
 
     let bytes = braid::util::decode_base64(&tc.encryption_key)?;
     let ek = symm::sk_from_bytes(&bytes)?;

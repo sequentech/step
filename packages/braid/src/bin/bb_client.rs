@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Result};
-use base64::{engine::general_purpose, Engine as _};
 use clap::Parser;
 use rayon::prelude::*;
 use std::fs;
@@ -197,10 +196,7 @@ fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> ProtocolManager<C> {
         .expect("Should have been able to read the protocol manager file");
 
     let pm_config: ProtocolManagerConfig = toml::from_str(&contents).unwrap();
-    let bytes = general_purpose::STANDARD_NO_PAD
-        .decode(pm_config.signing_key)
-        .unwrap();
-    let sk = StrandSignatureSk::strand_deserialize(&bytes).unwrap();
+    let sk = StrandSignatureSk::from_der_b64_string(&pm_config.signing_key).unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: sk,
         phantom: ctxp,

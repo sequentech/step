@@ -1,6 +1,6 @@
 // This utility generates a trustee configuration printed to stdout with
 //
-//  * signing_key_sk: base64 encoding of a StrandSignatureSk serialization
+//  * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1 encoding
 //  * signing_key_pk: base64 encoding of corresponding StrandSignaturePk serialization
 //  * encryption_key: base64 encoding of a sign::SymmetricKey
 //
@@ -46,7 +46,7 @@ fn gen_trustee_config<C: Ctx>() {
 
     let ek_bytes = encryption_key.as_slice();
 
-    let sk_string: String = sk.serialize().unwrap();
+    let sk_string: String = sk.to_der_b64_string().unwrap();
     let pk_string: String = pk.serialize().unwrap();
     let ek_string: String = general_purpose::STANDARD_NO_PAD.encode(ek_bytes);
 

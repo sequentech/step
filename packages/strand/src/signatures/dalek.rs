@@ -45,6 +45,17 @@ impl StrandSignature {
 
         Ok(StrandSignature(signature))
     }
+
+    pub fn to_b64_string(&self) -> Result<String, StrandError> {
+        let bytes = self.0.to_bytes();
+        Ok(general_purpose::STANDARD.encode(bytes))
+    }
+
+    pub fn from_b64_string(b64: &str) -> Result<StrandSignature, StrandError> {
+        let bytes: Vec<u8> = general_purpose::STANDARD.decode(b64)?;
+        let bytes = util::to_u8_array(&bytes)?;
+        Self::from_bytes(bytes)
+    }
 }
 
 /// An ed25519-dalek backed signature verification key.
@@ -84,6 +95,18 @@ impl StrandSignaturePk {
             .map_err(|e| Error::new(ErrorKind::Other, e))?;
 
         Ok(StrandSignaturePk(sk))
+    }
+
+    /// Returns a base64 encoded spki der representation.
+    pub fn to_der_b64_string(&self) -> Result<String, StrandError> {
+        let bytes = self.to_der()?;
+        Ok(general_purpose::STANDARD.encode(bytes))
+    }
+
+    /// Parses a base 64 encoded spki der representation.
+    pub fn from_der_b64_string(b64_der: &str) -> Result<StrandSignaturePk, StrandError> {
+        let bytes: Vec<u8> = general_purpose::STANDARD.decode(b64_der)?;
+        Self::from_der(&bytes)
     }
     
     /// Parses a raw byte representation, can be used to read raw bytes inside spki.
@@ -167,6 +190,18 @@ impl StrandSignatureSk {
         Ok(StrandSignatureSk(sk))
     }
 
+    /// Returns a base64 encoded pkcs#8 v1 der representation.
+    pub fn to_der_b64_string(&self) -> Result<String, StrandError> {
+        let bytes = self.to_der()?;
+        Ok(general_purpose::STANDARD.encode(bytes))
+    }
+
+    /// Parses a base64 encoded pkcs#8 v1 der representation.
+    pub fn from_der_b64_string(b64_der: &str) -> Result<StrandSignatureSk, StrandError> {
+        let bytes: Vec<u8> = general_purpose::STANDARD.decode(b64_der)?;
+        Self::from_der(&bytes)
+    }
+
     /// Returns a pkcs#10 csr der representation.
     pub fn csr_der(&self, name: String) -> Result<Vec<u8>, StrandError> {
         let cert_sk_der = self.to_der()?;
@@ -219,26 +254,6 @@ impl std::fmt::Debug for StrandSignaturePk {
 }
 impl Eq for StrandSignaturePk {}
 
-impl BorshSerialize for StrandSignatureSk {
-    fn serialize<W: std::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> std::io::Result<()> {
-        let bytes: [u8; 32] = self.0.to_bytes();
-        bytes.serialize(writer)
-    }
-}
-
-impl BorshDeserialize for StrandSignatureSk {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <[u8; 32]>::deserialize(buf)?;
-        let sk = SigningKey::try_from(bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
-
-        Ok(StrandSignatureSk(sk))
-    }
-}
-
 impl BorshSerialize for StrandSignaturePk {
     fn serialize<W: std::io::Write>(
         &self,
@@ -273,7 +288,7 @@ impl BorshDeserialize for StrandSignature {
         StrandSignature::from_bytes(bytes).map_err(|e| Error::new(ErrorKind::Other, e))
     }
 }
-
+/*
 impl TryFrom<String> for StrandSignaturePk {
     type Error = StrandError;
 
@@ -327,7 +342,7 @@ impl TryFrom<StrandSignature> for String {
         let bytes = value.to_bytes();
         Ok(general_purpose::STANDARD.encode(bytes))
     }
-}
+}*/
 
 #[cfg(test)]
 pub(crate) mod tests {
@@ -344,7 +359,7 @@ pub(crate) mod tests {
     */
     const SK_STR: &'static str = "MC4CAQAwBQYDK2VwBCIEII6bMx4lMnY83pVId7YbeOYGHoSZAnP7KjR/WsjaXkc9";
     const PK_STR: &'static str = "MCowBQYDK2VwAyEApnH8A4iAauMx0tZOx9JrpnG37adrUPiXg5klJ7fZRLU=";
-
+    
     #[test]
     pub fn test_signature() {
         let msg = b"ok";
@@ -353,8 +368,8 @@ pub(crate) mod tests {
 
         let (vk_bytes, sig_bytes) = {
             let sk = StrandSignatureSk(SigningKey::generate(&mut rng));
-            let sk_b = sk.strand_serialize().unwrap();
-            let sk_d = StrandSignatureSk::strand_deserialize(&sk_b).unwrap();
+            let sk_b = sk.to_der().unwrap();
+            let sk_d = StrandSignatureSk::from_der(&sk_b).unwrap();
 
             let sig = sk_d.sign(msg);
 
@@ -408,6 +423,7 @@ pub(crate) mod tests {
         assert!(not_ok.is_err());
     }
 
+
     #[test]
     fn test_string_serialization() {
         let message = b"ok";
@@ -416,25 +432,22 @@ pub(crate) mod tests {
 
         let (public_key_string, signature_string) = {
             let signing_key = StrandSignatureSk(SigningKey::generate(&mut rng));
-            let signing_key_string: String = signing_key.try_into().unwrap();
-            let signing_key_deserialized: StrandSignatureSk =
-                signing_key_string.try_into().unwrap();
+            let signing_key_string: String = signing_key.to_der_b64_string().unwrap();
+            let signing_key_deserialized: StrandSignatureSk = StrandSignatureSk::from_der_b64_string(&signing_key_string).unwrap();
 
             let sig = signing_key_deserialized.sign(message);
 
-            let signature_string: String = sig.unwrap().try_into().unwrap();
+            let signature_string: String = sig.unwrap().to_b64_string().unwrap();
             let public_key_string: String =
                 StrandSignaturePk::from(&signing_key_deserialized)
                     .unwrap()
-                    .try_into()
-                    .unwrap();
+                    .to_der_b64_string().unwrap();
 
             (public_key_string, signature_string)
         };
 
-        let public_key: StrandSignaturePk =
-            public_key_string.try_into().unwrap();
-        let signature = signature_string.try_into().unwrap();
+        let public_key: StrandSignaturePk = StrandSignaturePk::from_der_b64_string(&public_key_string).unwrap();
+        let signature = StrandSignature::from_b64_string(&signature_string).unwrap();
 
         let ok = public_key.verify(&signature, message);
         assert!(ok.is_ok());
@@ -442,9 +455,9 @@ pub(crate) mod tests {
         let not_ok = public_key.verify(&signature, other_message);
         assert!(not_ok.is_err());
     }
-
+    
     #[test]
-    fn test_parse_b64_der() {
+    fn test_parse_openssl_b64_der() {
         let message = b"ok\n";
         /*
         data.txt contained one line with "ok"
@@ -455,20 +468,20 @@ pub(crate) mod tests {
         openssl pkeyutl -verify -pubin -inkey pk.der -rawin -in data.txt -sigfile data.txt.signature
         */
         let signature_string = "nMJ6twxCU1fogkNNNsmvdlTsdeiYn5SnDrjF0Jy5zURG/Z0ZdSY3JIj7Z2pQ4ANHMTBXzRDF60AtQ8EW7WQQBQ==".to_string();
-        let secret_key: StrandSignatureSk = SK_STR.to_string().try_into().unwrap();
-        let public_key: StrandSignaturePk = PK_STR.to_string().try_into().unwrap();
+        let secret_key: StrandSignatureSk = StrandSignatureSk::from_der_b64_string(SK_STR).unwrap();
+        let public_key: StrandSignaturePk = StrandSignaturePk::from_der_b64_string(PK_STR).unwrap();
 
         let sig = secret_key.sign(message).unwrap();
         let ok = public_key.verify(&sig, message);
 
         assert!(ok.is_ok());
 
-        let signature: StrandSignature = signature_string.try_into().unwrap();
+        let signature: StrandSignature = StrandSignature::from_b64_string(&signature_string).unwrap();
         let ok = public_key.verify(&signature, message);
 
         assert!(ok.is_ok());
     }
-
+    
     #[test]
     fn test_parse_x509() {
         let cert_der: Vec<u8> = general_purpose::STANDARD.decode(CERT_B64).unwrap();
@@ -477,7 +490,7 @@ pub(crate) mod tests {
 
         assert!(ok.is_ok());
     }
-
+    
     #[test]
     fn test_gen_sign_x509() {
         // Get CA certificate
@@ -492,7 +505,7 @@ pub(crate) mod tests {
         let der = ca_sk.sign_csr(&ca_der, &csr_der).unwrap();
     
         // Parse and validate the certificate we just generated with respect to the CA pk
-        let ca_pk: StrandSignaturePk = PK_STR.to_string().try_into().unwrap();
+        let ca_pk: StrandSignaturePk = StrandSignaturePk::from_der_b64_string(PK_STR).unwrap();
         let ok = StrandSignaturePk::verify_x509_der(&der, Some(&ca_pk));
         assert!(ok.is_ok());
 

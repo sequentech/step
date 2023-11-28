@@ -2,8 +2,8 @@
 // necessary to create a demo election, as files in the working directory:
 //
 // * Generate .toml config for each trustee, containing:
-//      * signing_key_sk: base64 encoding of a StrandSignatureSk serialization
-//      * signing_key_pk: base64 encoding of corresponding StrandSignaturePk serialization
+//      * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1 encoding
+//      * signing_key_pk: base64 encoding of a der encoded spki
 //      * encryption_key: base64 encoding of a sign::SymmetricKey
 // * Generate .toml config for the protocol manager:
 //      signing_key: base64 encoding of a StrandSignatureSk serialization

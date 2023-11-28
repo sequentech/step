@@ -46,7 +46,6 @@ use strand::symm::{self, EncryptionData};
 pub struct Trustee<C: Ctx> {
     pub(crate) name: String,
     pub(crate) signing_key: StrandSignatureSk,
-    // A ChaCha20Poly1305 encryption key
     pub(crate) encryption_key: symm::SymmetricKey,
     local_board: LocalBoard<C>,
 }
@@ -433,9 +432,7 @@ impl<C: Ctx> Trustee<C> {
     cfg_if::cfg_if! {
         if #[cfg(any(feature = "fips", feature = "fips_core"))] {
             pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, cfg: &Configuration<C>) -> Result<EncryptionData> {
-
-
-                let identifier: String = self.get_pk()?.try_into()?;
+                let identifier: String = self.get_pk()?.to_der_b64_string()?;
                 // 0 is a dummy batch value
                 let aad = cfg.label(0, format!("encrypted by {}", identifier));
                 let bytes: &[u8] = &sk.strand_serialize()?;
@@ -445,7 +442,7 @@ impl<C: Ctx> Trustee<C> {
             }
 
             pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, cfg: &Configuration<C>) -> Result<PrivateKey<C>> {
-                let identifier: String = self.get_pk()?.try_into()?;
+                let identifier: String = self.get_pk()?.to_der_b64_string()?;
                 // 0 is a dummy batch value
                 let aad = cfg.label(0, format!("encrypted by {}", identifier));
                 let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk, &aad)?;
