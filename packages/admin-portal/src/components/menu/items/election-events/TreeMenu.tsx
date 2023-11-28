@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {NavLink, useNavigate} from "react-router-dom"
-import React, {useRef, useState, useContext} from "react"
+import React, {useRef, useState} from "react"
 import {useSidebarState} from "react-admin"
 import {Divider, ListItemIcon, MenuItem, MenuList, Popover} from "@mui/material"
 import {
@@ -24,7 +24,6 @@ import {
     ResourceName,
     DataTreeMenuType,
     DynEntityType,
-    TreeMenuContext,
     ElectionType,
     ContestType,
     CandidateType,
@@ -80,8 +79,6 @@ interface TreeLeavesProps {
 
 function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLeavesProps) {
     const {t} = useTranslation()
-
-    const treeMenuContext = useContext(TreeMenuContext)
 
     return (
         <div className="bg-white">

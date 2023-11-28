@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {createContext, useContext, useState} from "react"
+import React, {useContext, useState} from "react"
 import {useQuery} from "@apollo/client"
 import {useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
@@ -132,8 +132,6 @@ function filterTree(tree: any, filterName: string): any {
     return null
 }
 
-export const TreeMenuContext = createContext<DynEntityType>({electionEvents: []})
-
 export default function ElectionEvents() {
     const [tenantId] = useTenantStore()
     const [isOpenSidebar] = useSidebarState()
@@ -175,14 +173,12 @@ export default function ElectionEvents() {
     const treeMenu = loading ? (
         <CircularProgress />
     ) : (
-        <TreeMenuContext.Provider value={resultData}>
-            <TreeMenu
-                data={resultData}
-                treeResourceNames={TREE_RESOURCE_NAMES}
-                isArchivedElectionEvents={isArchivedElectionEvents}
-                onArchiveElectionEventsSelect={changeArchiveSelection}
-            />
-        </TreeMenuContext.Provider>
+        <TreeMenu
+            data={resultData}
+            treeResourceNames={TREE_RESOURCE_NAMES}
+            isArchivedElectionEvents={isArchivedElectionEvents}
+            onArchiveElectionEventsSelect={changeArchiveSelection}
+        />
     )
 
     return (
