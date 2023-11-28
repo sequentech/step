@@ -13,9 +13,10 @@ import {
     SelectInput,
     SimpleForm,
     TextInput,
+    useRedirect,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
-import {useSearchParams} from "react-router-dom"
+import { useSearchParams } from 'react-router-dom'
 
 const Hidden = styled(Box)`
     display: none;
@@ -24,6 +25,7 @@ const Hidden = styled(Box)`
 export const CreateElection: React.FC = () => {
     const [tenantId] = useTenantStore()
     const [searchParams] = useSearchParams()
+    const redirect = useRedirect()
 
     const electionEventId = searchParams.get("electionEventId")
 
@@ -32,7 +34,10 @@ export const CreateElection: React.FC = () => {
     return (
         <Create
             mutationOptions={{
-                onSuccess: () => refetch(),
+                onSuccess: (data: any) => {
+                    refetch()
+                    redirect(`/sequent_backend_election/${data.id}`)
+                },
             }}
         >
             <SimpleForm>
