@@ -15,7 +15,7 @@ const CardContainer = styled(Box)<{selected?: boolean}>`
     color: ${({selected}) => (selected ? theme.palette.white : theme.palette.customGrey.main)};
     justify-content: center;
     text-align: center;
-    width: 185px;
+    width: 160px;
     height: 140px;
     ${({selected}) =>
         selected ? "background: linear-gradient(180deg, #0FADCF 0%, #0F054B 100%); " : ""}

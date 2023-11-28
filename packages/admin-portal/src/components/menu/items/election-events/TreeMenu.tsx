@@ -6,7 +6,6 @@ import {NavLink, useNavigate} from "react-router-dom"
 import React, {useRef, useState} from "react"
 import {useSidebarState} from "react-admin"
 import {Divider, ListItemIcon, MenuItem, MenuList, Popover} from "@mui/material"
-import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import {
     faAngleRight,
     faAngleDown,
@@ -15,12 +14,20 @@ import {
     faTrash,
     faArchive,
 } from "@fortawesome/free-solid-svg-icons"
+import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import AddIcon from "@mui/icons-material/Add"
 import {adminTheme, Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
 import styled from "@emotion/styled"
 import {mapDataChildren, ResourceName, DataTreeMenuType, DynEntityType} from "../ElectionEvents"
 import {useTranslation} from "react-i18next"
+
+const mapAddResource: Record<ResourceName, string> = {
+    sequent_backend_election_event: "sideMenu.addResource.addElectionEvent",
+    sequent_backend_election: "sideMenu.addResource.addElection",
+    sequent_backend_contest: "sideMenu.addResource.addContest",
+    sequent_backend_candidate: "sideMenu.addResource.addCandidate",
+}
 
 interface TreeLeavesProps {
     data: DynEntityType
@@ -30,12 +37,6 @@ interface TreeLeavesProps {
 
 function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLeavesProps) {
     const {t} = useTranslation()
-    const mapAddResource: any = {
-        sequent_backend_election_event: "sideMenu.addResource.addElectionEvent",
-        sequent_backend_election: "sideMenu.addResource.addElection",
-        sequent_backend_contest: "sideMenu.addResource.addContest",
-        sequent_backend_candidate: "sideMenu.addResource.addCandidate",
-    }
 
     return (
         <div className="bg-white">
@@ -61,7 +62,7 @@ function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLea
                             to={`/${treeResourceNames[0]}/create`}
                         >
                             <AddIcon></AddIcon>
-                            <span>{t(mapAddResource[treeResourceNames[0]])}</span>
+                            <span>{t(mapAddResource[treeResourceNames[0] as ResourceName])}</span>
                         </NavLink>
                     </div>
                 )}
@@ -97,6 +98,7 @@ function TreeMenuItem({
     treeResourceNames,
     isArchivedElectionEvents,
 }: TreeMenuItemProps) {
+    const {t} = useTranslation()
     const navigate = useNavigate()
     const [isOpenSidebar] = useSidebarState()
 
@@ -120,7 +122,10 @@ function TreeMenuItem({
         setAnchorEl(menuItemRef.current)
     }
 
-    function handleAction(action: Action, payload: ActionPayload) {
+    function handleAction(e: any, action: Action, payload: ActionPayload) {
+        // close the popover
+        setAnchorEl(null)
+
         if (action === Action.Add) {
             navigate(`/${payload.type}/create`)
         }
@@ -142,11 +147,7 @@ function TreeMenuItem({
             <div ref={menuItemRef} className="group flex text-center space-x-2 items-center">
                 {hasNext ? (
                     <div className="w-6 h-6 cursor-pointer" onClick={onClick}>
-                        {treeResourceNames[0] === "sequent_backend_election_event" ? (
-                            <HowToVoteIcon></HowToVoteIcon>
-                        ) : (
-                            <Icon icon={open ? faAngleDown : faAngleRight} />
-                        )}
+                        <Icon icon={open ? faAngleDown : faAngleRight} />
                     </div>
                 ) : (
                     <div className="w-6 h-6"></div>
@@ -156,16 +157,23 @@ function TreeMenuItem({
                         title={name}
                         className={({isActive}) =>
                             cn(
-                                "px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
+                                "grow px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
                                 isActive && "border-b-2 border-brand-color"
                             )
                         }
                         to={`/${treeResourceNames[0]}/${id}`}
                     >
-                        {name}
+                        {treeResourceNames[0] === "sequent_backend_election_event" ? (
+                            <p className="flex items-center space-x-2">
+                                <HowToVoteIcon />
+                                <span>{name}</span>
+                            </p>
+                        ) : (
+                            <span>{name}</span>
+                        )}
                     </NavLink>
                 )}
-                <div className="grow hidden group-hover:block">
+                <div className="invisible group-hover:visible">
                     <p className="text-right px-1 cursor-pointer" onClick={handleOpenItemActions}>
                         <Icon icon={faEllipsisH} />
                     </p>
@@ -181,8 +189,8 @@ function TreeMenuItem({
                     >
                         <MenuList dense>
                             <MenuItem
-                                onClick={() =>
-                                    handleAction(Action.Add, {
+                                onClick={(e) =>
+                                    handleAction(e, Action.Add, {
                                         id,
                                         name,
                                         type: treeResourceNames[0],
@@ -192,7 +200,7 @@ function TreeMenuItem({
                                 <ListItemIcon>
                                     <StyledIcon icon={faCirclePlus} />
                                 </ListItemIcon>
-                                Add
+                                {t(mapAddResource[treeResourceNames[0] as ResourceName])}
                             </MenuItem>
                             {
                                 // <Divider />
