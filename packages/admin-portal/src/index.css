@@ -29,4 +29,5 @@ code {
 
 .RaSidebar-fixed .MuiList-root {
   overflow-y: auto !important;
+  padding-bottom: 0 !important;
 }
