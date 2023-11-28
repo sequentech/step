@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useState} from "react"
-import {useQuery} from "@apollo/client"
 import {useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
@@ -15,11 +14,11 @@ import WebIcon from "@mui/icons-material/Web"
 import {cn} from "../../../lib/utils"
 import {HorizontalBox} from "../../HorizontalBox"
 import {Link} from "react-router-dom"
-import {FETCH_ELECTION_EVENTS_TREE} from "../../../queries/GetElectionEventsTree"
-import {useTenantStore} from "../../../providers/TenantContextProvider"
-import {AuthContext} from "../../../providers/AuthContextProvider"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
+import useTreeMenuHook from "./use-tree-menu-hook"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -158,12 +157,7 @@ export default function ElectionEvents() {
         (route) => location.pathname.search(route) > -1
     )
 
-    const {data, loading} = useQuery(FETCH_ELECTION_EVENTS_TREE, {
-        variables: {
-            tenantId: tenantId,
-            isArchived: isArchivedElectionEvents,
-        },
-    })
+    const {data, loading} = useTreeMenuHook(isArchivedElectionEvents)
 
     let resultData = data
     if (!loading && data && data.sequent_backend_election_event) {
