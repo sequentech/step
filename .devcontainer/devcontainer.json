@@ -24,7 +24,7 @@
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": false,
 
-	"onCreateCommand": "direnv allow",
+	"onCreateCommand": "direnv allow && devenv shell bash -c 'cd /workspaces/backend-services/packages/ && cargo build && yarn && yarn build:ui-essentials' || true",
 	"updateContentCommand": "direnv allow && devenv shell bash -c 'cd /workspaces/backend-services/packages/ && cargo build && yarn && yarn build:ui-essentials' || true",
 
 	"features": {
