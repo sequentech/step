@@ -10,4 +10,5 @@ pub mod insert_tenant;
 pub mod permissions;
 pub mod roles;
 pub mod scheduled_event;
+pub mod upload_document;
 pub mod users;

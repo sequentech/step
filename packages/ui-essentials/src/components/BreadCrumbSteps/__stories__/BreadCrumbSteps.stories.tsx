@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {Meta, StoryObj} from "@storybook/react"
-import BreadCrumbSteps from "../BreadCrumbSteps"
+import BreadCrumbSteps, {BreadCrumbStepsVariant} from "../BreadCrumbSteps"
 import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
 
 const meta: Meta<typeof BreadCrumbSteps> = {
@@ -24,16 +24,18 @@ export default meta
 
 type Story = StoryObj<typeof BreadCrumbSteps>
 
+const parameters = {
+    viewport: {
+        disable: true,
+    },
+}
+
 export const Primary: Story = {
     args: {
         labels: ["breadcrumbSteps.import", "breadcrumbSteps.verify", "breadcrumbSteps.finish"],
         selected: 1,
     },
-    parameters: {
-        viewport: {
-            disable: true,
-        },
-    },
+    parameters,
 }
 
 export const Warning: Story = {
@@ -42,9 +44,24 @@ export const Warning: Story = {
         selected: 2,
         warning: true,
     },
-    parameters: {
-        viewport: {
-            disable: true,
-        },
+    parameters,
+}
+
+export const Circle: Story = {
+    args: {
+        labels: ["breadcrumbSteps.import", "breadcrumbSteps.verify", "breadcrumbSteps.finish"],
+        selected: 1,
+        variant: BreadCrumbStepsVariant.Circle,
     },
+    parameters,
+}
+
+export const CircleColorPreviousSteps: Story = {
+    args: {
+        labels: ["breadcrumbSteps.import", "breadcrumbSteps.verify", "breadcrumbSteps.finish"],
+        selected: 1,
+        variant: BreadCrumbStepsVariant.Circle,
+        colorPreviousSteps: true,
+    },
+    parameters,
 }

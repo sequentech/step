@@ -12,25 +12,12 @@ import {
     useGetOne,
     RecordContext,
     RadioButtonGroupInput,
+    Toolbar,
+    SaveButton,
 } from "react-admin"
-import {
-    Accordion,
-    AccordionDetails,
-    AccordionSummary,
-    Tabs,
-    Tab,
-    Grid,
-    Radio,
-    FormControl,
-    RadioGroup,
-    FormControlLabel,
-} from "@mui/material"
-import {
-    CreateScheduledEventMutation,
-    Sequent_Backend_Election,
-    Sequent_Backend_Election_Event,
-} from "../../gql/graphql"
-import React, {useEffect, useState} from "react"
+import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid} from "@mui/material"
+import {CreateScheduledEventMutation, Sequent_Backend_Election} from "../../gql/graphql"
+import React, {useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
@@ -41,8 +28,9 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {DropFile} from "@sequentech/ui-essentials"
-import {useFormState, useForm} from "react-hook-form"
+import {useForm} from "react-hook-form"
 import {useTenantStore} from "../../providers/TenantContextProvider"
+import FileJsonInput from "../../components/FileJsonInput"
 
 export const ElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -61,6 +49,7 @@ export const ElectionDataForm: React.FC = () => {
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
     const [defaultLangValue, setDefaultLangValue] = useState<string>("")
+    const [jsonConfiguration, setJsonConfiguration] = useState<any>({})
 
     const {data} = useGetOne("sequent_backend_election_event", {
         id: record.election_event_id,
@@ -68,12 +57,16 @@ export const ElectionDataForm: React.FC = () => {
 
     const buildLanguageSettings = () => {
         const tempSettings = data?.presentation?.language_conf?.enabled_language_codes
+
         const temp = []
-        for (const item of tempSettings) {
-            const enabled_item: any = {}
-            enabled_item[item] = true
-            temp.push(enabled_item)
+        if (tempSettings) {
+            for (const item of tempSettings) {
+                const enabled_item: any = {}
+                enabled_item[item] = true
+                temp.push(enabled_item)
+            }
         }
+
         return temp
     }
 
@@ -84,6 +77,7 @@ export const ElectionDataForm: React.FC = () => {
         const votingSettings = data?.voting_channels
 
         // languages
+        // temp.configuration = {...jsonConfiguration}
         temp.enabled_languages = {}
 
         if (languageSettings) {
@@ -229,7 +223,7 @@ export const ElectionDataForm: React.FC = () => {
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
-        if (values?.dates?.end_date <= values?.dates?.start_date) {
+        if (values?.dates?.start_date && values?.dates?.end_date <= values?.dates?.start_date) {
             errors.dates.end_date = t("electionEventScreen.error.endDate")
         }
         return errors
@@ -271,6 +265,8 @@ export const ElectionDataForm: React.FC = () => {
         }
         return channelNodes
     }
+
+    // const getJsonText = (json: any) => {
 
     const renderTabs = (parsedValue: any) => {
         let tabNodes = []
@@ -323,9 +319,17 @@ export const ElectionDataForm: React.FC = () => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming)
-                console.log("parsedValue :>> ", parsedValue)
+                // console.log("parsedValue :>> ", parsedValue)
                 return (
-                    <SimpleForm validate={formValidator} record={parsedValue}>
+                    <SimpleForm
+                        validate={formValidator}
+                        record={parsedValue}
+                        toolbar={
+                            <Toolbar>
+                                <SaveButton />
+                            </Toolbar>
+                        }
+                    >
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-data-general"}
@@ -532,10 +536,10 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <DropFile
-                                    handleFiles={function (files: FileList): void | Promise<void> {
-                                        throw new Error("Function not implemented.")
-                                    }}
+                                <FileJsonInput
+                                    parsedValue={parsedValue}
+                                    fileSource="configuration"
+                                    jsonSource="presentation"
                                 />
                             </AccordionDetails>
                         </Accordion>
