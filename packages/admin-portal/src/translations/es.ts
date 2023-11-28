@@ -200,6 +200,7 @@ const spanishTranslation: TranslationType = {
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
+                fileError: "Error al cargar el archivo",
             },
             createElectionEventSuccess: "Creada la elección",
             createElectionEventError: "Error Creando la elección",

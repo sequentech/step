@@ -140,7 +140,7 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
             <Resource
                 name="sequent_backend_contest"
                 list={ListContest}
-                create={CreateContestData}
+                create={CreateContest}
                 edit={ContestBaseTabs}
                 show={ContestBaseTabs}
                 options={{
@@ -152,7 +152,7 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
             <Resource
                 name="sequent_backend_candidate"
                 list={ListCandidate}
-                create={CreateCandidateData}
+                create={CreateCandidate}
                 edit={CandidateBaseTabs}
                 show={CandidateBaseTabs}
                 options={{
