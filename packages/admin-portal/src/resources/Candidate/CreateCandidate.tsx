@@ -24,14 +24,8 @@ export const CreateCandidate: React.FC = () => {
 
     return (
         <Create
-            transform={(data: any) => {
-                console.log("LS -> src/resources/Candidate/CreateCandidate.tsx:38 -> data: ", data)
-
-                setTimeout(() => {
-                    refetch()
-                }, 1000)
-
-                return data
+            mutationOptions={{
+                onSuccess: () => refetch(),
             }}
         >
             <SimpleForm>
