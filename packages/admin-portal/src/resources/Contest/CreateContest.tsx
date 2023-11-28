@@ -15,6 +15,7 @@ import {
     SelectInput,
     ReferenceInput,
     Create,
+    useRedirect,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
@@ -26,6 +27,7 @@ const Hidden = styled(Box)`
 export const CreateContest: React.FC = () => {
     const [tenantId] = useTenantStore()
     const [searchParams] = useSearchParams()
+    const redirect = useRedirect()
 
     const electionEventId = searchParams.get("electionEventId")
     const electionId = searchParams.get("electionId")
@@ -35,7 +37,10 @@ export const CreateContest: React.FC = () => {
     return (
         <Create
             mutationOptions={{
-                onSuccess: () => refetch(),
+                onSuccess: (data: any) => {
+                    refetch()
+                    redirect(`/sequent_backend_contest/${data.id}`)
+                },
             }}
         >
             <SimpleForm>

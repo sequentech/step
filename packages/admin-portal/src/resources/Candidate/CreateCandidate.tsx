@@ -4,7 +4,7 @@
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
 import React, {useContext, useEffect} from "react"
-import {BooleanInput, SimpleForm, TextInput, SelectInput, ReferenceInput, Create} from "react-admin"
+import {BooleanInput, SimpleForm, TextInput, SelectInput, ReferenceInput, Create, useRedirect} from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
 import useTreeMenuHook from "@/components/menu/items/use-tree-menu-hook"
@@ -16,6 +16,7 @@ const Hidden = styled(Box)`
 export const CreateCandidate: React.FC = () => {
     const [tenantId] = useTenantStore()
     const [searchParams] = useSearchParams()
+    const redirect = useRedirect()
 
     const electionEventId = searchParams.get("electionEventId")
     const contestId = searchParams.get("contestId")
@@ -25,7 +26,10 @@ export const CreateCandidate: React.FC = () => {
     return (
         <Create
             mutationOptions={{
-                onSuccess: () => refetch(),
+                onSuccess: (data: any) => {
+                    refetch()
+                    redirect(`/sequent_backend_candidate/${data.id}`)
+                },
             }}
         >
             <SimpleForm>
