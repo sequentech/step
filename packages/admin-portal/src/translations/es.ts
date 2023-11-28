@@ -167,7 +167,7 @@ const spanishTranslation: TranslationType = {
                 elegibleVoters: "Votantes elegibles",
                 elections: "Elecciones",
                 areas: "Áreas",
-                sentEmails: "Correos electrónicos enviados",
+                sentEmails: "Emails enviados",
                 sentSMS: "SMS enviados",
                 calendar: {
                     title: "Calendario",
@@ -311,6 +311,12 @@ const spanishTranslation: TranslationType = {
             communicationTemplates: "Plantillas de Comunicación",
             active: "Activos",
             archived: "Archivados",
+            addResource: {
+                addElectionEvent: "Agregar un evento electoral",
+                addElection: "Agregar una elección",
+                addContest: "Agregar un concurso",
+                addCandidate: "Agregar un candidato",
+            },
         },
         candidateScreen: {
             common: {

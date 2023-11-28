@@ -117,7 +117,6 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
             {
                 // <Resource name="pgaudit" list={PgAuditList} options={{label: "PGAudit"}} />
             }
-            <Resource name="user" list={ListUsers} options={{label: "Users"}} />
             <Resource
                 name="sequent_backend_election_event"
                 list={ElectionEventList}
@@ -203,6 +202,11 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
                 list={ListTrustee}
                 create={CreateTrustee}
                 options={{label: "Trustee"}}
+            />
+            <Resource
+                name="user"
+                list={ListUsers}
+                options={{label: "Users"}}
             />
         </Admin>
     )

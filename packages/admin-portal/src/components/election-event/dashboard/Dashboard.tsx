@@ -9,13 +9,13 @@ import styled from "@emotion/styled"
 const Container = styled(Box)`
     display: flex;
     flex-wrap: wrap;
-    gap: 24px;
+    justify-content: space-between;
 `
 
 export default function DashboardElectionEvent() {
     return (
         <>
-            <Box sx={{maxWidth: 1258}}>
+            <Box sx={{width: 1024, marginX: "auto"}}>
                 <BreadCrumbSteps
                     labels={[
                         "electionEventBreadcrumbSteps.created",
@@ -30,7 +30,7 @@ export default function DashboardElectionEvent() {
                     colorPreviousSteps={true}
                 />
 
-                <Box sx={{paddingX: "48px"}}>
+                <Box>
                     <Stats />
 
                     <Container>

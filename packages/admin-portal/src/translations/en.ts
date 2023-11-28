@@ -309,6 +309,12 @@ const englishTranslation = {
             communicationTemplates: "Communication Templates",
             active: "Active",
             archived: "Archived",
+            addResource: {
+                addElectionEvent: "Add an election event",
+                addElection: "Add an election",
+                addContest: "Add a contest",
+                addCandidate: "Add a candidate",
+            },
         },
         candidateScreen: {
             common: {

@@ -29,8 +29,13 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
     let election_event = &election_event_response.sequent_backend_election_event[0];
 
     let bulletin_board_reference = election_event.bulletin_board_reference.clone();
-    let board_name = get_election_event_board(bulletin_board_reference)
-        .with_context(|| "election event is missing bulletin board")?;
+    let board_name = match get_election_event_board(bulletin_board_reference) {
+        Some(board_name) => board_name,
+        None => {
+            event!(Level::INFO, "Public key not found");
+            return Ok(());
+        }
+    };
 
     if election_event.public_key.is_some() {
         event!(Level::INFO, "Public key already set");

@@ -55,7 +55,9 @@ const Separator = styled(Box)`
     margin: 16px 0;
 `
 
-export const VotesByChannel: React.FC = () => {
+const cardWidth = 470
+
+export function VotesByChannel() {
     const state: Props = {
         options: {
             labels: ["Online", "Paper", "IVR", "Postal"],
@@ -69,7 +71,7 @@ export const VotesByChannel: React.FC = () => {
                 options={state.options}
                 series={state.series}
                 type="donut"
-                width={370}
+                width={cardWidth}
                 height={250}
             />
             <Separator />
@@ -80,7 +82,7 @@ export const VotesByChannel: React.FC = () => {
     )
 }
 
-export const VotesByDay: React.FC = () => {
+export function VotesByDay() {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const {loading, error, data} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
@@ -119,7 +121,7 @@ export const VotesByDay: React.FC = () => {
                 options={state.options}
                 series={state.series}
                 type="bar"
-                width={370}
+                width={cardWidth}
                 height={250}
             />
 

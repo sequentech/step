@@ -8,6 +8,9 @@ import {EditElectionEventAreas} from "./EditElectionEventAreas"
 import {EditElectionEventUsers} from "./EditElectionEventUsers"
 import {AuthContext} from "../../providers/AuthContextProvider"
 import {IPermissions} from "../../types/keycloak"
+import { EditElectionEventKeys } from "./EditElectionEventKeys"
+import { EditElectionEventTally } from "./EditElectionEventTally"
+import { EditElectionEventPublish } from "./EditElectionEventPublish"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -32,9 +35,15 @@ export const ElectionEventTabs: React.FC = () => {
                 <TabbedShowLayout.Tab label="Areas">
                     <EditElectionEventAreas />
                 </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Keys">a</TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Tally">a</TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Publish">a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Keys">
+                    <EditElectionEventKeys />
+                </TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Tally">
+                    <EditElectionEventTally />
+                </TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Publish">
+                    <EditElectionEventPublish />
+                </TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label="Logs">a</TabbedShowLayout.Tab>
             </TabbedShowLayout>
         </>
