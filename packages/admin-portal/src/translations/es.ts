@@ -312,10 +312,10 @@ const spanishTranslation: TranslationType = {
             active: "Activos",
             archived: "Archivados",
             addResource: {
-                addElectionEvent: "Agregar un evento electoral",
-                addElection: "Agregar una elección",
-                addContest: "Agregar un concurso",
-                addCandidate: "Agregar un candidato",
+                addElectionEvent: "Agregar un Evento Electoral",
+                addElection: "Agregar una Elección",
+                addContest: "Agregar un Concurso",
+                addCandidate: "Agregar un Candidato",
             },
         },
         candidateScreen: {

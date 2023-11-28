@@ -310,10 +310,10 @@ const englishTranslation = {
             active: "Active",
             archived: "Archived",
             addResource: {
-                addElectionEvent: "Add an election event",
-                addElection: "Add an election",
-                addContest: "Add a contest",
-                addCandidate: "Add a candidate",
+                addElectionEvent: "Add an Election Event",
+                addElection: "Add an Election",
+                addContest: "Add a Contest",
+                addCandidate: "Add a Candidate",
             },
         },
         candidateScreen: {
