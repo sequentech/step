@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import useTreeMenuHook from "@/components/menu/items/use-tree-menu-hook"
 import {useElectionStore} from "@/providers/ElectionContextProvider"
 import {useElectionEventStore} from "@/providers/ElectionEventContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -29,8 +30,14 @@ export const CreateContest: React.FC = () => {
     const electionEventId = searchParams.get("electionEventId")
     const electionId = searchParams.get("electionId")
 
+    const {refetch} = useTreeMenuHook(false)
+
     return (
-        <Create>
+        <Create
+            mutationOptions={{
+                onSuccess: () => refetch(),
+            }}
+        >
             <SimpleForm>
                 <Typography variant="h4">Contest</Typography>
                 <Typography variant="body2">Contest configuration</Typography>
@@ -62,10 +69,7 @@ export const CreateContest: React.FC = () => {
                         <SelectInput optionText="name" defaultValue={electionEventId} />
                     </ReferenceInput>
 
-                    <ReferenceInput
-                        source="election_id"
-                        reference="sequent_backend_election"
-                    >
+                    <ReferenceInput source="election_id" reference="sequent_backend_election">
                         <SelectInput optionText="name" defaultValue={electionId} />
                     </ReferenceInput>
 

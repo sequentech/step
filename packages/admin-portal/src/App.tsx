@@ -85,6 +85,8 @@ interface AppProps {
     apolloClient: ApolloClient<NormalizedCacheObject>
 }
 
+
+
 const App: React.FC<AppProps> = ({apolloClient}) => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
 

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import useTreeMenuHook from "@/components/menu/items/use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
 import React from "react"
@@ -26,8 +27,14 @@ export const CreateElection: React.FC = () => {
 
     const electionEventId = searchParams.get("electionEventId")
 
+    const {refetch} = useTreeMenuHook(false)
+
     return (
-        <Create>
+        <Create
+            mutationOptions={{
+                onSuccess: () => refetch(),
+            }}
+        >
             <SimpleForm>
                 <Typography variant="h4">Create Election</Typography>
                 <TextInput source="name" />
