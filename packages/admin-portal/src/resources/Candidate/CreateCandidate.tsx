@@ -1,9 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {useContestStore} from "@/providers/ContestContextProvider"
-import {useElectionStore} from "@/providers/ElectionContextProvider"
-import {useElectionEventStore} from "@/providers/ElectionEventContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
 import React from "react"
@@ -14,10 +11,9 @@ import {
     SelectInput,
     ReferenceInput,
     Create,
-    FormDataConsumer,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
-import { useSearchParams } from 'react-router-dom'
+import {useSearchParams} from "react-router-dom"
 
 const Hidden = styled(Box)`
     display: none;
@@ -26,7 +22,7 @@ const Hidden = styled(Box)`
 export const CreateCandidate: React.FC = () => {
     const [tenantId] = useTenantStore()
     const [searchParams] = useSearchParams()
-    
+
     const electionEventId = searchParams.get("electionEventId")
     const contestId = searchParams.get("contestId")
 
@@ -37,34 +33,27 @@ export const CreateCandidate: React.FC = () => {
                 <Typography variant="body2">Candidate creation</Typography>
                 <TextInput source="name" />
                 <TextInput source="description" />
-                {/* <Hidden> */}
+                <Hidden>
                 <TextInput source="type" />
                 <BooleanInput source="is_public" />
                 <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                     <SelectInput optionText="slug" defaultValue={tenantId} />
                 </ReferenceInput>
-                <FormDataConsumer>
-                    {({formData}) => (
-                        <ReferenceInput
-                            source="election_event_id"
-                            reference="sequent_backend_election_event"
-                            filter={{id: electionEventId}}
-                        >
-                            <SelectInput optionText="name" defaultValue={electionEventId} />
-                        </ReferenceInput>
-                    )}
-                </FormDataConsumer>
-                <FormDataConsumer>
-                    {({formData}) => (
-                        <ReferenceInput
-                            source="contest_id"
-                            reference="sequent_backend_contest"
-                            filter={{id: contestId}}
-                        >
-                            <SelectInput optionText="name" defaultValue={contestId} />
-                        </ReferenceInput>
-                    )}
-                </FormDataConsumer>
+
+                <ReferenceInput
+                    source="election_event_id"
+                    reference="sequent_backend_election_event"
+                >
+                    <SelectInput optionText="name" defaultValue={electionEventId} />
+                </ReferenceInput>
+
+                <ReferenceInput
+                    source="contest_id"
+                    reference="sequent_backend_contest"
+                >
+                    <SelectInput optionText="name" defaultValue={contestId} />
+                </ReferenceInput>
+
                 <JsonInput
                     source="labels"
                     jsonString={false}
@@ -95,7 +84,7 @@ export const CreateCandidate: React.FC = () => {
                         displayDataTypes: false,
                     }}
                 />
-                {/* </Hidden> */}
+                </Hidden>
             </SimpleForm>
         </Create>
     )
