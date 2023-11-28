@@ -5,7 +5,7 @@ import {gql} from "@apollo/client"
 
 export const GET_UPLOAD_URL = gql`
     mutation GetUploadUrl(
-        $name: String!
+        $name: String!  
         $media_type: String!
         $size: Int!
     ) {
