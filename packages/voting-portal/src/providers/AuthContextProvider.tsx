@@ -71,6 +71,8 @@ interface AuthContextValues {
      * Get Access Token
      */
     getAccessToken: () => string | undefined
+
+    login: (tenantId: string, eventId: string) => void
 }
 
 /**
@@ -80,6 +82,7 @@ const defaultAuthContextValues: AuthContextValues = {
     isAuthenticated: false,
     username: "",
     logout: () => {},
+    login: (tenantId: string, eventId: string) => {},
     hasRole: (role) => false,
     getAccessToken: () => undefined,
 }
@@ -97,8 +100,6 @@ interface AuthContextProviderProps {
      * The elements wrapped by the auth context.
      */
     children: JSX.Element;
-    tenantId: string | null;
-    eventId: string | null;
 }
 
 /**
@@ -106,13 +107,16 @@ interface AuthContextProviderProps {
  *
  * @param props
  */
-const AuthContextProvider = ({ children, tenantId, eventId }: AuthContextProviderProps) => {
-    console.log(`AuthContextProvider: tenantId=${tenantId}, eventId=${eventId}`)
+const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
 
     // Create the local state in which we will keep track if a user is authenticated
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
     // Local state that will contain the users name once it is loaded
     const [username, setUsername] = useState<string>("")
+
+    const [tenantId, setTenantId] = useState<string | null>(null)
+    const [eventId, setEventId] = useState<string | null>(null)
+
 
     // Effect used to initialize the Keycloak client. It has no dependencies so
     // it is only rendered when the app is (re-)loaded.
@@ -125,6 +129,9 @@ const AuthContextProvider = ({ children, tenantId, eventId }: AuthContextProvide
             console.log("initialize Keycloak")
             if (!tenantId || !eventId) {
                 console.log("Received empty tenant or event id, ignoring..")
+                return;
+            }
+            if (isAuthenticated) {
                 return;
             }
             try {
@@ -182,7 +189,7 @@ const AuthContextProvider = ({ children, tenantId, eventId }: AuthContextProvide
                 console.log("error trying to load the users profile")
             }
         }
-        console.log("isAuthenticated..");
+        console.log(`useEffect(): isAuthenticated=${isAuthenticated}`);
 
         // Only load the profile if a user is authenticated
         if (isAuthenticated) {
@@ -198,6 +205,11 @@ const AuthContextProvider = ({ children, tenantId, eventId }: AuthContextProvide
         keycloak.logout()
     }
 
+    const login = (tenantId: string, eventId: string) => {
+        setTenantId(tenantId)
+        setEventId(eventId)
+    }
+
     /**
      * Check if the user has the given role
      * @param role to be checked
@@ -211,7 +223,9 @@ const AuthContextProvider = ({ children, tenantId, eventId }: AuthContextProvide
 
     // Setup the context provider
     return (
-        <AuthContext.Provider value={{isAuthenticated, username, logout, hasRole, getAccessToken}}>
+        <AuthContext.Provider value={{
+            isAuthenticated, username, logout, login, hasRole, getAccessToken
+        }}>
             {children}
         </AuthContext.Provider>
     )

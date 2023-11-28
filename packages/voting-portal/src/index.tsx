@@ -61,7 +61,7 @@ const KeycloakProvider: React.FC<KeycloakProviderProps> =
     return disable ? (
         <>{children}</>
     ) : (
-        <AuthContextProvider tenantId={tenantId} eventId={eventId}>
+        <AuthContextProvider>
             <>{children}</>
         </AuthContextProvider>
     )
@@ -78,15 +78,14 @@ export const RouteParameterProvider: React.FC<{children: React.ReactNode}> =
             tenantId={tenantId ? tenantId : null}
             eventId={eventId ? eventId : null}
         >
-            <KeycloakProvider disable={DISABLE_AUTH}>
                 {children}
-            </KeycloakProvider>
         </TenantEventProvider>
     );
 };
 
 root.render(
     <React.StrictMode>
+        <KeycloakProvider disable={DISABLE_AUTH}>
             <Provider store={store}>
                 <BrowserRouter>
                     <ThemeProvider theme={theme}>
@@ -96,6 +95,7 @@ root.render(
                     </ThemeProvider>
                 </BrowserRouter>
             </Provider>
+        </KeycloakProvider>
     </React.StrictMode>
 )
 
