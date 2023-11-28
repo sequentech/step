@@ -38,23 +38,19 @@ const mapAddResource: Record<ResourceName, string> = {
 }
 
 function getNavLink(resource: DataTreeMenuType | undefined, resourceName: ResourceName): string {
-    console.log(
-        "LS -> src/components/menu/items/election-events/TreeMenu.tsx:38 -> resource: ",
-        resource
-    )
     const params: Record<string, string> = {}
 
     switch (resourceName) {
         case "sequent_backend_election":
-            params.electionEventId = (resource as ElectionType).election_event_id
+            params.electionEventId = (resource as ElectionType).id
             break
         case "sequent_backend_contest":
             params.electionEventId = (resource as ContestType).election_event_id
-            params.electionId = (resource as ContestType).election_id
+            params.electionId = (resource as ContestType).id
             break
         case "sequent_backend_candidate":
             params.electionEventId = (resource as CandidateType).election_event_id
-            params.contestId = (resource as CandidateType).contest_id
+            params.contestId = (resource as CandidateType).id
             break
     }
 
@@ -73,11 +69,17 @@ function getNavLink(resource: DataTreeMenuType | undefined, resourceName: Resour
 
 interface TreeLeavesProps {
     data: DynEntityType
+    parentData: DataTreeMenuType
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
 }
 
-function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLeavesProps) {
+function TreeLeaves({
+    data,
+    parentData,
+    treeResourceNames,
+    isArchivedElectionEvents,
+}: TreeLeavesProps) {
     const {t} = useTranslation()
 
     return (
@@ -89,6 +91,7 @@ function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLea
                             <TreeMenuItem
                                 key={resource.id}
                                 resource={resource}
+                                parentData={resource}
                                 id={resource.id}
                                 name={resource.name}
                                 treeResourceNames={treeResourceNames}
@@ -101,10 +104,7 @@ function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLea
                     <div className="inline-flex">
                         <NavLink
                             className="flex items-center shrink space-x-2 -ml-3 px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer"
-                            to={getNavLink(
-                                data?.[mapDataChildren(treeResourceNames[0])]?.[0],
-                                treeResourceNames[0]
-                            )}
+                            to={getNavLink(parentData, treeResourceNames[0])}
                         >
                             <AddIcon></AddIcon>
                             <span>{t(mapAddResource[treeResourceNames[0] as ResourceName])}</span>
@@ -118,6 +118,7 @@ function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLea
 
 interface TreeMenuItemProps {
     resource: DataTreeMenuType
+    parentData: DataTreeMenuType
     id: string
     name: string
     treeResourceNames: ResourceName[]
@@ -138,6 +139,7 @@ type ActionPayload = {
 
 function TreeMenuItem({
     resource,
+    parentData,
     id,
     name,
     treeResourceNames,
@@ -288,6 +290,7 @@ function TreeMenuItem({
                     {hasNext && (
                         <TreeLeaves
                             data={data}
+                            parentData={parentData}
                             treeResourceNames={subTreeResourceNames}
                             isArchivedElectionEvents={isArchivedElectionEvents}
                         />
@@ -339,6 +342,7 @@ export function TreeMenu({
             <div className="mx-5 py-2">
                 <TreeLeaves
                     data={data}
+                    parentData={data as DataTreeMenuType}
                     treeResourceNames={treeResourceNames}
                     isArchivedElectionEvents={isArchivedElectionEvents}
                 />
