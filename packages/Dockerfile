@@ -12,9 +12,9 @@ COPY . .
 ARG ENVIRONMENT=dev
 
 # Install dependencies & Build the application for production
-RUN if [ "$ENVIRONMENT" = "prod" ];then \
-    yarn --pure-lockfile --non-interactive \
-    yarn build:ui-essentials; \
+RUN if [ "$ENVIRONMENT" = "prod" ]; then \
+        yarn --pure-lockfile --non-interactive; \
+        yarn build:ui-essentials; \
     fi
 
 EXPOSE 3000
