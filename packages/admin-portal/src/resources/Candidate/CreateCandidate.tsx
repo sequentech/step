@@ -3,17 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
-import React from "react"
-import {
-    BooleanInput,
-    SimpleForm,
-    TextInput,
-    SelectInput,
-    ReferenceInput,
-    Create,
-} from "react-admin"
+import React, {useContext, useEffect} from "react"
+import {BooleanInput, SimpleForm, TextInput, SelectInput, ReferenceInput, Create} from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
+import useTreeMenuHook from "@/components/menu/items/use-tree-menu-hook"
 
 const Hidden = styled(Box)`
     display: none;
@@ -26,64 +20,73 @@ export const CreateCandidate: React.FC = () => {
     const electionEventId = searchParams.get("electionEventId")
     const contestId = searchParams.get("contestId")
 
+    const {refetch} = useTreeMenuHook(false)
+
     return (
-        <Create>
+        <Create
+            transform={(data: any) => {
+                console.log("LS -> src/resources/Candidate/CreateCandidate.tsx:38 -> data: ", data)
+
+                setTimeout(() => {
+                    refetch()
+                }, 1000)
+
+                return data
+            }}
+        >
             <SimpleForm>
                 <Typography variant="h4">Candidate</Typography>
                 <Typography variant="body2">Candidate creation</Typography>
                 <TextInput source="name" />
                 <TextInput source="description" />
                 <Hidden>
-                <TextInput source="type" />
-                <BooleanInput source="is_public" />
-                <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
-                    <SelectInput optionText="slug" defaultValue={tenantId} />
-                </ReferenceInput>
+                    <TextInput source="type" />
+                    <BooleanInput source="is_public" />
+                    <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
+                        <SelectInput optionText="slug" defaultValue={tenantId} />
+                    </ReferenceInput>
 
-                <ReferenceInput
-                    source="election_event_id"
-                    reference="sequent_backend_election_event"
-                >
-                    <SelectInput optionText="name" defaultValue={electionEventId} />
-                </ReferenceInput>
+                    <ReferenceInput
+                        source="election_event_id"
+                        reference="sequent_backend_election_event"
+                    >
+                        <SelectInput optionText="name" defaultValue={electionEventId} />
+                    </ReferenceInput>
 
-                <ReferenceInput
-                    source="contest_id"
-                    reference="sequent_backend_contest"
-                >
-                    <SelectInput optionText="name" defaultValue={contestId} />
-                </ReferenceInput>
+                    <ReferenceInput source="contest_id" reference="sequent_backend_contest">
+                        <SelectInput optionText="name" defaultValue={contestId} />
+                    </ReferenceInput>
 
-                <JsonInput
-                    source="labels"
-                    jsonString={false}
-                    reactJsonOptions={{
-                        name: null,
-                        collapsed: true,
-                        enableClipboard: true,
-                        displayDataTypes: false,
-                    }}
-                />
-                <JsonInput
-                    source="annotations"
-                    jsonString={false}
-                    reactJsonOptions={{
-                        name: null,
-                        collapsed: true,
-                        enableClipboard: true,
-                        displayDataTypes: false,
-                    }}
-                />
-                <JsonInput
-                    source="presentation"
-                    jsonString={false}
-                    reactJsonOptions={{
-                        name: null,
-                        collapsed: true,
-                        enableClipboard: true,
-                        displayDataTypes: false,
-                    }}
-                />
+                    <JsonInput
+                        source="labels"
+                        jsonString={false}
+                        reactJsonOptions={{
+                            name: null,
+                            collapsed: true,
+                            enableClipboard: true,
+                            displayDataTypes: false,
+                        }}
+                    />
+                    <JsonInput
+                        source="annotations"
+                        jsonString={false}
+                        reactJsonOptions={{
+                            name: null,
+                            collapsed: true,
+                            enableClipboard: true,
+                            displayDataTypes: false,
+                        }}
+                    />
+                    <JsonInput
+                        source="presentation"
+                        jsonString={false}
+                        reactJsonOptions={{
+                            name: null,
+                            collapsed: true,
+                            enableClipboard: true,
+                            displayDataTypes: false,
+                        }}
+                    />
                 </Hidden>
             </SimpleForm>
         </Create>
