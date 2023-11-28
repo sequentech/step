@@ -77,19 +77,26 @@ export interface ElectionEventsTree {
 
 type BaseType = {__typename: ResourceName; id: string; name: string}
 
-type CandidateType = BaseType & {__typename: "sequent_backend_candidate"}
+export type CandidateType = BaseType & {
+    __typename: "sequent_backend_candidate"
+    election_event_id: string
+    contest_id: string
+}
 
-type ContestType = BaseType & {
+export type ContestType = BaseType & {
     __typename: "sequent_backend_contest"
+    election_event_id: string
+    election_id: string
     candidates: Array<CandidateType>
 }
 
-type ElectionType = BaseType & {
+export type ElectionType = BaseType & {
     __typename: "sequent_backend_election"
+    election_event_id: string
     contests: Array<ContestType>
 }
 
-type ElectionEventType = BaseType & {
+export type ElectionEventType = BaseType & {
     __typename: "sequent_backend_election_event"
     is_archived: boolean
     elections: Array<ElectionType>
