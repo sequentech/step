@@ -2,9 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// hey
 import {NavLink, useNavigate} from "react-router-dom"
-import React, {useRef, useState} from "react"
+import React, {useRef, useState, useContext} from "react"
 import {useSidebarState} from "react-admin"
 import {Divider, ListItemIcon, MenuItem, MenuList, Popover} from "@mui/material"
 import {
@@ -20,7 +19,16 @@ import AddIcon from "@mui/icons-material/Add"
 import {adminTheme, Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
 import styled from "@emotion/styled"
-import {mapDataChildren, ResourceName, DataTreeMenuType, DynEntityType} from "../ElectionEvents"
+import {
+    mapDataChildren,
+    ResourceName,
+    DataTreeMenuType,
+    DynEntityType,
+    TreeMenuContext,
+    ElectionType,
+    ContestType,
+    CandidateType,
+} from "../ElectionEvents"
 import {useTranslation} from "react-i18next"
 
 const mapAddResource: Record<ResourceName, string> = {
@@ -30,19 +38,55 @@ const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_candidate: "sideMenu.addResource.addCandidate",
 }
 
+function getNavLink(resource: DataTreeMenuType | undefined, resourceName: ResourceName): string {
+    console.log(
+        "LS -> src/components/menu/items/election-events/TreeMenu.tsx:38 -> resource: ",
+        resource
+    )
+    const params: Record<string, string> = {}
+
+    switch (resourceName) {
+        case "sequent_backend_election":
+            params.electionEventId = (resource as ElectionType).election_event_id
+            break
+        case "sequent_backend_contest":
+            params.electionEventId = (resource as ContestType).election_event_id
+            params.electionId = (resource as ContestType).election_id
+            break
+        case "sequent_backend_candidate":
+            params.electionEventId = (resource as CandidateType).election_event_id
+            params.contestId = (resource as CandidateType).contest_id
+            break
+    }
+
+    const url = `/${resourceName}/create`
+
+    const urlObject = new URL(url, window.location.origin)
+
+    Object.entries(params).forEach(([key, value]) => {
+        urlObject.searchParams.append(key, value.toString())
+    })
+
+    const res = urlObject.pathname + urlObject.search
+
+    return res
+}
+
 interface TreeLeavesProps {
     data: DynEntityType
-    treeResourceNames: string[]
+    treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
 }
 
 function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLeavesProps) {
     const {t} = useTranslation()
 
+    const treeMenuContext = useContext(TreeMenuContext)
+
     return (
         <div className="bg-white">
             <div className="flex flex-col ml-3">
-                {data?.[mapDataChildren(treeResourceNames[0] as ResourceName)]?.map(
+                {data?.[mapDataChildren(treeResourceNames[0])]?.map(
                     (resource: DataTreeMenuType) => {
                         return (
                             <TreeMenuItem
@@ -60,7 +104,10 @@ function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLea
                     <div className="inline-flex">
                         <NavLink
                             className="flex items-center shrink space-x-2 -ml-3 px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer"
-                            to={`/${treeResourceNames[0]}/create`}
+                            to={getNavLink(
+                                data?.[mapDataChildren(treeResourceNames[0])]?.[0],
+                                treeResourceNames[0]
+                            )}
                         >
                             <AddIcon></AddIcon>
                             <span>{t(mapAddResource[treeResourceNames[0] as ResourceName])}</span>
@@ -76,7 +123,7 @@ interface TreeMenuItemProps {
     resource: DataTreeMenuType
     id: string
     name: string
-    treeResourceNames: string[]
+    treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
 }
 
@@ -261,7 +308,7 @@ export function TreeMenu({
     onArchiveElectionEventsSelect,
 }: {
     data: DynEntityType
-    treeResourceNames: string[]
+    treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
     onArchiveElectionEventsSelect: (val: number) => void
 }) {
