@@ -27,7 +27,7 @@ import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSl
 import {IElection, selectElectionById, setElection} from "../store/elections/electionsSlice"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {AppDispatch} from "../store/store"
-import {DISABLE_AUTH} from ".."
+import {DISABLE_AUTH} from "../Config"
 import {ELECTIONS_LIST} from "../fixtures/election"
 
 const StyledTitle = styled(Typography)`
