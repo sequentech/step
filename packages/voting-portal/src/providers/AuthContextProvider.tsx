@@ -4,32 +4,51 @@
 import React from "react"
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
+import {
+    DEFAULT_TENANT_ID,
+    DEFAULT_EVENT_ID,
+    KEYCLOAK_URL,
+    KEYCLOAK_CLIENT_ID
+} from "../Config"
 
 /**
  * KeycloakConfig configures the connection to the Keycloak server.
  */
-const keycloakConfig: KeycloakConfig = {
-    realm: "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559",
-    clientId: "voting-portal",
-    url: "http://127.0.0.1:8090/",
+const keycloakConfig: (
+    tenantId: string,
+    eventId: string,
+    keycloakUrl: string,
+    clientId: string
+) => KeycloakConfig = (tenantId, eventId, keycloakUrl, clientId) => {
+    return {
+        realm: `tenant-${tenantId}-event-${eventId}`,
+        url: keycloakUrl,
+        clientId: clientId,
+    };
 }
 
 /**
  * KeycloakInitOptions configures the Keycloak client.
  */
 const keycloakInitOptions: KeycloakInitOptions = {
-    // Configure that Keycloak will check if a user is already authenticated (when
-    // opening the app or reloading the page). If not authenticated the user will
-    // be send to the login form. If already authenticated the webapp will open.
+    // Configure that Keycloak will check if a user is already authenticated
+    // (when opening the app or reloading the page). If not authenticated the
+    // user will be send to the login form. If already authenticated the webapp
+    // will open.
     onLoad: "login-required",
     checkLoginIframe: false,
 }
 
 // Create the Keycloak client instance
-const keycloak = new Keycloak(keycloakConfig)
+var keycloak = new Keycloak(
+    keycloakConfig(
+        DEFAULT_TENANT_ID, DEFAULT_EVENT_ID, KEYCLOAK_URL, KEYCLOAK_CLIENT_ID
+    )
+)
 
 /**
- * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
+ * AuthContextValues defines the structure for the default values of the
+ * {@link AuthContext}.
  */
 interface AuthContextValues {
     /**
@@ -77,7 +96,9 @@ interface AuthContextProviderProps {
     /**
      * The elements wrapped by the auth context.
      */
-    children: JSX.Element
+    children: JSX.Element;
+    tenantId: string | null;
+    eventId: string | null;
 }
 
 /**
@@ -85,25 +106,44 @@ interface AuthContextProviderProps {
  *
  * @param props
  */
-const AuthContextProvider = (props: AuthContextProviderProps) => {
-    console.log("rendering AuthContextProvider")
+const AuthContextProvider = ({ children, tenantId, eventId }: AuthContextProviderProps) => {
+    console.log(`AuthContextProvider: tenantId=${tenantId}, eventId=${eventId}`)
 
     // Create the local state in which we will keep track if a user is authenticated
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
     // Local state that will contain the users name once it is loaded
     const [username, setUsername] = useState<string>("")
 
-    // Effect used to initialize the Keycloak client. It has no dependencies so it is only rendered when the app is (re-)loaded.
+    // Effect used to initialize the Keycloak client. It has no dependencies so
+    // it is only rendered when the app is (re-)loaded.
     useEffect(() => {
         /**
          * Initialize the Keycloak instance
          */
-        async function initializeKeycloak() {
+        async function initializeKeycloak()
+        {
             console.log("initialize Keycloak")
+            if (!tenantId || !eventId) {
+                console.log("Received empty tenant or event id, ignoring..")
+                return;
+            }
             try {
-                const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
+                // Create a new Keycloak instance with the updated configuration
+                keycloak = new Keycloak(
+                    keycloakConfig(
+                        tenantId,
+                        eventId,
+                        KEYCLOAK_URL,
+                        KEYCLOAK_CLIENT_ID
+                    )
+                )
 
-                // If the authentication was not successfull the user is send back to the Keycloak login form
+                const isAuthenticatedResponse = await keycloak.init(
+                    keycloakInitOptions
+                )
+
+                // If the authentication was not successfull the user is send
+                // back to the Keycloak login form
                 if (!isAuthenticatedResponse) {
                     console.log("user is not yet authenticated. forwarding user to login.")
                     await keycloak.login()
@@ -111,7 +151,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 if (isAuthenticatedResponse && keycloak.token) {
                     localStorage.setItem("token", keycloak.token)
                 }
-                // If we get here the user is authenticated and we can update the state accordingly
+                // If we get here the user is authenticated and we can update
+                // the state accordingly
                 console.log("user already authenticated")
                 setAuthenticated(isAuthenticatedResponse)
             } catch (error) {
@@ -122,7 +163,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
 
         initializeKeycloak()
-    }, [])
+    }, [tenantId, eventId])
 
     // This effect loads the users profile in order to extract the username
     useEffect(() => {
@@ -141,6 +182,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 console.log("error trying to load the users profile")
             }
         }
+        console.log("isAuthenticated..");
 
         // Only load the profile if a user is authenticated
         if (isAuthenticated) {
@@ -170,7 +212,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     // Setup the context provider
     return (
         <AuthContext.Provider value={{isAuthenticated, username, logout, hasRole, getAccessToken}}>
-            {props.children}
+            {children}
         </AuthContext.Provider>
     )
 }
