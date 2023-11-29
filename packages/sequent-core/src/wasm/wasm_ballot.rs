@@ -158,7 +158,6 @@ interface IBallotStyle {
     description?: string;
     public_key?: IPublicKeyConfig;
     area_id: string;
-    status?: IElectionStatus;
     contests: Array<IContest>;
 }
 "#;
