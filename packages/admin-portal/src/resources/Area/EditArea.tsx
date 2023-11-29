@@ -4,15 +4,19 @@
 import {Button, CircularProgress, Menu, MenuItem, Typography} from "@mui/material"
 import React, {useState} from "react"
 import {
+    BooleanInput,
     Edit,
     EditBase,
     Identifier,
+    ReferenceArrayInput,
     ReferenceField,
     ReferenceManyField,
     SaveButton,
     SimpleForm,
     TextField,
     TextInput,
+    WrapperField,
+    useGetList,
     useNotify,
     useRecordContext,
     useRedirect,
@@ -33,14 +37,31 @@ import {useTranslation} from "react-i18next"
 
 interface EditAreaProps {
     id?: Identifier | undefined
+    electionEventId: Identifier | undefined
     close?: () => void
 }
 
 export const EditArea: React.FC<EditAreaProps> = (props) => {
-    const {id, close} = props
+    const {id, close, electionEventId} = props
     const refresh = useRefresh()
     const notify = useNotify()
     const {t} = useTranslation()
+
+    const {data: contests} = useGetList("sequent_backend_contest", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {election_event_id: electionEventId},
+    })
+
+    const {data: areas} = useGetList("sequent_backend_area_contest", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {
+            election_event_id: electionEventId,
+            area_id: id,
+        },
+    })
+
+    console.log("contests", contests)
+    console.log("areas", areas)
 
     const onSuccess = async (res: any) => {
         refresh()
@@ -67,13 +88,33 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
             redirect={false}
         >
             <PageHeaderStyles.Wrapper>
+                <div>{id}</div>
+                <div>{electionEventId}</div>
                 <SimpleForm toolbar={<SaveButton />}>
-                    <PageHeaderStyles.Title>{t("areas.common.title")}</PageHeaderStyles.Title>
-                    <PageHeaderStyles.SubTitle>
-                        {t("areas.common.subTitle")}
-                    </PageHeaderStyles.SubTitle>
+                    <>
+                        <PageHeaderStyles.Title>{t("areas.common.title")}</PageHeaderStyles.Title>
+                        <PageHeaderStyles.SubTitle>
+                            {t("areas.common.subTitle")}
+                        </PageHeaderStyles.SubTitle>
+                        <TextInput source="name" />
 
-                    <TextInput source="name" />
+                        <Typography variant="h6" gutterBottom>
+                            {t("electionEventScreen.common.contest")}
+                        </Typography>
+
+                        <WrapperField source="area_contest_id">
+                            {contests &&
+                                contests.map((contest: any, index: number) => {
+                                    return (
+                                        <BooleanInput
+                                            key={index}
+                                            source={contest.id}
+                                            label={contest.name}
+                                        />
+                                    )
+                                })}
+                        </WrapperField>
+                    </>
                 </SimpleForm>
             </PageHeaderStyles.Wrapper>
         </Edit>

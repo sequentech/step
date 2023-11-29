@@ -139,6 +139,7 @@ const spanishTranslation: TranslationType = {
             common: {
                 title: "Evento Electoral",
                 subtitle: "Configuración del Evento de Elección.",
+                contest: "Contiendas    ",
             },
             edit: {
                 general: "General",

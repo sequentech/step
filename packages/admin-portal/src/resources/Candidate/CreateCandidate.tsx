@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
-import React, {useContext, useEffect} from "react"
+import React from "react"
 import {BooleanInput, SimpleForm, TextInput, SelectInput, ReferenceInput, Create, useRedirect} from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
