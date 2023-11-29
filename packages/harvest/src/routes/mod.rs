@@ -12,3 +12,4 @@ pub mod roles;
 pub mod scheduled_event;
 pub mod upload_document;
 pub mod users;
+pub mod get_private_key;

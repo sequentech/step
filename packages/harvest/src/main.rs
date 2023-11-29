@@ -39,6 +39,7 @@ fn rocket() -> _ {
                 routes::roles::get_roles,
                 routes::permissions::get_permissions,
                 routes::upload_document::upload_document,
+                routes::get_private_key::get_private_key,
             ],
         )
 }
