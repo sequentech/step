@@ -10,7 +10,7 @@ import {IPermission, IRole} from "sequent-core"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 import {IPermissions} from "../../types/keycloak"
-import { TextField } from "@mui/material"
+import {TextField} from "@mui/material"
 
 type EnumObject = {[key: string]: number | string}
 type EnumObjectEnum<E extends EnumObject> = E extends {[key: string]: infer ET | string}

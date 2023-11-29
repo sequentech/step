@@ -11,7 +11,11 @@ import {
     useRefresh,
 } from "react-admin"
 import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid, Button} from "@mui/material"
-import {CreateScheduledEventMutation, GetUploadUrlMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
+import {
+    CreateScheduledEventMutation,
+    GetUploadUrlMutation,
+    Sequent_Backend_Election_Event,
+} from "../../gql/graphql"
 import React, {useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
@@ -23,7 +27,7 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionHeaderStyles} from "../../components/styles/ElectionHeaderStyles"
 import {useTenantStore} from "../../providers/TenantContextProvider"
-import { GET_UPLOAD_URL } from '@/queries/GetUploadUrl'
+import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 
 export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()

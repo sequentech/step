@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useState } from "react"
-import { CreateScheduledEventMutation, Sequent_Backend_Election_Event } from "@/gql/graphql"
-import { useRecordContext, useRefresh } from "react-admin"
-import { Box, Button, CircularProgress } from "@mui/material"
-import { useMutation } from "@apollo/client"
-import { CREATE_SCHEDULED_EVENT } from "@/queries/CreateScheduledEvent"
-import { useTenantStore } from "@/providers/TenantContextProvider"
-import { ScheduledEventType } from "@/services/ScheduledEvent"
+import React, {useState} from "react"
+import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {useRecordContext, useRefresh} from "react-admin"
+import {Box, Button, CircularProgress} from "@mui/material"
+import {useMutation} from "@apollo/client"
+import {CREATE_SCHEDULED_EVENT} from "@/queries/CreateScheduledEvent"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {ScheduledEventType} from "@/services/ScheduledEvent"
 
 export const EditElectionEventPublish: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -16,7 +16,6 @@ export const EditElectionEventPublish: React.FC = () => {
     const refresh = useRefresh()
     const [showProgress, setShowProgress] = useState(false)
     const [tenantId] = useTenantStore()
-
 
     const createBallotStylesAction = async () => {
         setShowProgress(true)
@@ -41,9 +40,10 @@ export const EditElectionEventPublish: React.FC = () => {
         refresh()
     }
 
-    return <Box>
-         Actions {showProgress ? <CircularProgress /> : null}
-        <Button onClick={createBallotStylesAction}>Publish</Button>
-
-    </Box>
+    return (
+        <Box>
+            Actions {showProgress ? <CircularProgress /> : null}
+            <Button onClick={createBallotStylesAction}>Publish</Button>
+        </Box>
+    )
 }
