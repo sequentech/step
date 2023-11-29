@@ -140,7 +140,7 @@ enum Action {
 type ActionPayload = {
     id: string
     name: string
-    type: string
+    type: ResourceName
 }
 
 function TreeMenuItem({
@@ -175,12 +175,12 @@ function TreeMenuItem({
         setAnchorEl(menuItemRef.current)
     }
 
-    function handleAction(e: any, action: Action, payload: ActionPayload) {
+    function handleAction(action: Action, payload: ActionPayload) {
         // close the popover
         setAnchorEl(null)
 
         if (action === Action.Add) {
-            navigate(`/${payload.type}/create`)
+            navigate(getNavLinkCreate(parentData, payload.type))
         }
     }
 
@@ -248,8 +248,8 @@ function TreeMenuItem({
                     >
                         <MenuList dense>
                             <MenuItem
-                                onClick={(e) =>
-                                    handleAction(e, Action.Add, {
+                                onClick={() =>
+                                    handleAction(Action.Add, {
                                         id,
                                         name,
                                         type: treeResourceNames[0],
