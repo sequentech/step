@@ -1,6 +1,7 @@
 FROM node:20-alpine
 
 WORKDIR /usr/src/app/
+EXPOSE 3000
 
 # Install security updates and Yarn
 RUN apk update && \
@@ -17,8 +18,6 @@ RUN if [ "$ENVIRONMENT" = "prod" ]; then \
         yarn build:ui-essentials; \
     fi
 
-EXPOSE 3000
-USER node
 
 ENTRYPOINT [ "/usr/src/app/init.sh", "$ENVIRONMENT" ]
 

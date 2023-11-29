@@ -47,6 +47,8 @@ jobs:
         file: ${{ matrix.path | basename }}
         push: true
         tags: ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
+        build-args: |
+          ENVIRONMENT=prod
         cache-from: type=gha,scope=${{ matrix.service }}
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
