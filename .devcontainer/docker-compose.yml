@@ -243,8 +243,23 @@ services:
       retries: 25
       start_period: 5s
 
-  frontend:
-    profiles: ["dev"]
+  admin-portal:
+    #profiles: ["dev"]
+    build:
+      context: ../packages/
+      dockerfile: Dockerfile
+    #restart: always
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+      - 3002:3002
+    stdin_open: true
+    entrypoint: ["./init.sh", "start:admin"]
+    volumes:
+       - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+
+  voting-portal:
+    #profiles: ["dev"]
     build:
       context: ../packages/
       dockerfile: Dockerfile
@@ -254,6 +269,7 @@ services:
     ports:
       - 3000:3000
     stdin_open: true
+    entrypoint: ["./init.sh", "start"]
     volumes:
        - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
