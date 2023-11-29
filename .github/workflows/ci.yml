@@ -18,7 +18,7 @@ jobs:
             path: packages/harvest/Dockerfile
           - service: braid
             path: packages/braid/Dockerfile
-          - service: windmil
+          - service: windmill
             path: packages/windmill/Dockerfile
       fail-fast: false
 
