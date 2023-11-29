@@ -61,10 +61,10 @@ services:
     volumes:
       - minio_storage:/data
     environment:
-      MINIO_ROOT_USER: minio_user
-      MINIO_ROOT_PASSWORD: minio_pass
-      MINIO_ACCESS_KEY: LZAw7hwBziRjwAhfP6Xi
-      MINIO_ACCESS_SECRET: 4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_ACCESS_SECRET=${MINIO_ACCESS_SECRET}
     #entrypoint: sh
     #command: -c 'mc config host add minio http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD && mc admin user svcacct add --access-key "$MINIO_ACCESS_KEY" --secret-key "$MINIO_ACCESS_SECRET" minio $MINIO_ROOT_USER && server --console-address ":9001" /data'
     command: server --console-address ":9001" /data
@@ -83,13 +83,13 @@ services:
     depends_on:
       - minio
     environment:
-      MINIO_ROOT_USER: minio_user
-      MINIO_ROOT_PASSWORD: minio_pass
-      MINIO_ACCESS_KEY: LZAw7hwBziRjwAhfP6Xi
-      MINIO_ACCESS_SECRET: 4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct
-      MINIO_PRIVATE_URI: http://minio:9000
-      MINIO_PUBLIC_BUCKET: public
-      MINIO_BUCKET: election-event-documents
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_ACCESS_SECRET=${MINIO_ACCESS_SECRET}
+      - MINIO_PRIVATE_URI=${MINIO_PRIVATE_URI}
+      - MINIO_PUBLIC_BUCKET=${MINIO_PUBLIC_BUCKET}
+      - MINIO_BUCKET=${MINIO_BUCKET}
     entrypoint: /scripts/entrypoint.sh
 
   # hashicorp vault to store secrets
@@ -256,8 +256,6 @@ services:
     stdin_open: true
     volumes:
        - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
-    depends_on:
-      - graphql-engine
 
   immudb:
     #profiles: ["dev"]
@@ -281,10 +279,8 @@ services:
     build:
       context: ../packages/
       dockerfile: ./harvest/Dockerfile
-    environment:
-      - IMMUDB_SERVER_URL=http://immudb:3322
-      - IMMUDB_USERNAME=immudb
-      - IMMUDB_PASSWORD=immudb
+    env_file:
+      - .env
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
@@ -293,7 +289,7 @@ services:
     #  - graphql-engine
   
   trustee1:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     container_name: trustee1
     volumes:
@@ -311,7 +307,7 @@ services:
       - immudb
   
   trustee2:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     container_name: trustee2
     volumes:
@@ -375,19 +371,15 @@ services:
       - "15672:15672"
   
   windmill:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     volumes:
       - ./keycloak/import:/import
     build:
       context: ../packages/
       dockerfile: ./windmill/Dockerfile
-    environment:
-      - IMMUDB_SERVER_URL=http://immudb:3322
-      - IMMUDB_USERNAME=immudb
-      - IMMUDB_PASSWORD=immudb
-      - KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH=/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json
-      - KEYCLOAK_TENANT_REALM_CONFIG_PATH=/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
+    env_file:
+      - .env
 
 volumes:
   db_data:
