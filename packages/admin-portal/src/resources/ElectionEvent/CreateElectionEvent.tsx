@@ -23,6 +23,7 @@ import {isNull} from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {styled} from "@mui/material/styles"
+import useTreeMenuHook from "@/components/menu/items/use-tree-menu-hook"
 
 const Hidden = styled(Box)`
     display: none;
@@ -60,6 +61,8 @@ export const CreateElectionList: React.FC = () => {
         id: newId,
     })
 
+    const {refetch: refetchTreeMenu} = useTreeMenuHook(false)
+
     useEffect(() => {
         if (isNull(newId)) {
             return
@@ -94,6 +97,7 @@ export const CreateElectionList: React.FC = () => {
             setIsLoading(false)
         }
         refresh()
+        refetchTreeMenu()
     }
     return (
         <SimpleForm defaultValues={postDefaultValues} onSubmit={handleSubmit}>
@@ -104,9 +108,9 @@ export const CreateElectionList: React.FC = () => {
             <Hidden>
                 <SelectInput
                     source="encryption_protocol"
-                    choices={[{id: "RSA256", name: "RSA256"}]} 
+                    choices={[{id: "RSA256", name: "RSA256"}]}
                     defaultValue={"RSA256"}
-                    />
+                />
                 <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                     <SelectInput optionText="slug" defaultValue={tenantId} />
                 </ReferenceInput>
