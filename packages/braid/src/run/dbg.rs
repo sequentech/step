@@ -244,12 +244,12 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
 
     let trustee_pks: Vec<StrandSignaturePk> = trustees
         .iter()
-        .map(|t| StrandSignaturePk::from(&t.signing_key).unwrap())
+        .map(|t| StrandSignaturePk::from_sk(&t.signing_key).unwrap())
         .collect();
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from(&pm.signing_key).unwrap(),
+        StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
         trustee_pks.clone(),
         threshold.len(),
         PhantomData,

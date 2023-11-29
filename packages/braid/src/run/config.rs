@@ -6,7 +6,7 @@ use strand::signature::StrandSignaturePk;
 
 #[derive(Serialize, Deserialize)]
 pub struct TrusteeConfig {
-    // base64 encoding of a der encoded pkcs#8 v1 encoding
+    // base64 encoding of a der encoded pkcs#8 v1
     pub signing_key_sk: String,
     // base64 encoding of a der encoded spki
     pub signing_key_pk: String,
@@ -21,7 +21,7 @@ impl TrusteeConfig {
             .unwrap()
             .strand_serialize()
             .unwrap();*/
-        let pk_string = StrandSignaturePk::from(&trustee.signing_key).unwrap().to_der_b64_string().unwrap();
+        let pk_string = StrandSignaturePk::from_sk(&trustee.signing_key).unwrap().to_der_b64_string().unwrap();
 
         // Compatible with both aes and chacha20poly backends
         let ek_bytes = trustee.encryption_key.as_slice();

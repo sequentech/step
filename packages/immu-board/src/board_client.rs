@@ -14,7 +14,8 @@ pub struct BoardClient {
 pub struct BoardMessage {
     pub id: i64,
     pub created: i64,
-    pub signer_key: Vec<u8>,
+    // Base64 encoded spki der representation.
+    pub signer_key: String,
     pub statement_timestamp: i64,
     pub statement_kind: String,
     pub message: Vec<u8>,
@@ -51,7 +52,7 @@ impl TryFrom<&Row> for BoardMessage {
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         let mut id = 0;
         let mut created = 0;
-        let mut signer_key = vec![];
+        let mut signer_key = String::from("");
         let mut statement_timestamp = 0;
         let mut statement_kind = String::from("");
         let mut message = vec![];
@@ -60,7 +61,7 @@ impl TryFrom<&Row> for BoardMessage {
             match column.as_str() {
                 "(messages.id)" => assign_value!(Value::N, value, id),
                 "(messages.created)" => assign_value!(Value::Ts, value, created),
-                "(messages.signer_key)" => assign_value!(Value::Bs, value, signer_key),
+                "(messages.signer_key)" => assign_value!(Value::S, value, signer_key),
                 "(messages.statement_timestamp)" => {
                     assign_value!(Value::Ts, value, statement_timestamp)
                 }
@@ -150,6 +151,41 @@ impl BoardClient {
         Ok(messages)
     }
 
+
+    /// Get all messages whose id is bigger than `last_id`
+    pub async fn get_messages_from_kind(
+        &mut self,
+        board_db: &str,
+        kind: &str,
+        signer_key: &str
+    ) -> Result<Vec<BoardMessage>> {
+        self.client.open_session(board_db).await?;
+        let sql = format!(
+            r#"
+        SELECT
+            id,
+            created,
+            signer_key,
+            statement_timestamp,
+            statement_kind,
+            message
+        FROM messages
+        WHERE signer_key = {} and statement_kind = {}
+        "#,
+            signer_key,
+            kind,
+        );
+        let sql_query_response = self.client.sql_query(&sql, vec![]).await?;
+        let messages = sql_query_response
+            .get_ref()
+            .rows
+            .iter()
+            .map(BoardMessage::try_from)
+            .collect::<Result<Vec<BoardMessage>>>()?;
+        self.client.close_session().await?;
+        Ok(messages)
+    }
+
     pub async fn insert_messages(
         &mut self,
         board_db: &str,
@@ -185,7 +221,7 @@ impl BoardClient {
                 NamedParam {
                     name: String::from("signer_key"),
                     value: Some(SqlValue {
-                        value: Some(Value::Bs(message.signer_key.clone())),
+                        value: Some(Value::S(message.signer_key.clone())),
                     }),
                 },
                 NamedParam {
@@ -477,7 +513,7 @@ pub(crate) mod tests {
         let board_message = BoardMessage {
             id: 1,
             created: 0,
-            signer_key: vec![],
+            signer_key: "".to_string(),
             statement_timestamp: 0,
             statement_kind: "".to_string(),
             message: vec![],

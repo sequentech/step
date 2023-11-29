@@ -426,7 +426,7 @@ impl<C: Ctx> Trustee<C> {
     }
 
     pub fn get_pk(&self) -> Result<StrandSignaturePk> {
-        Ok(StrandSignaturePk::from(&self.signing_key)?)
+        Ok(StrandSignaturePk::from_sk(&self.signing_key)?)
     }
 
     cfg_if::cfg_if! {

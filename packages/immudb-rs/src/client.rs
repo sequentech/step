@@ -60,13 +60,13 @@ impl Client {
         })
     }
 
-    #[instrument(skip(password))]
+    #[instrument]
     pub async fn login(
-        &mut self, username: &str, password: &str
+        &mut self
     ) -> Result<()> {
         let login_request = Request::new(LoginRequest {
-            user: username.clone().into(),
-            password: password.clone().into()
+            user: self.username.clone().into(),
+            password: self.password.clone().into()
         });
         let response = self.client.login(login_request).await?;
         debug!("grpc-login-response={:?}", response);

@@ -46,7 +46,7 @@ impl<C: Ctx> std::fmt::Debug for ProtocolManager<C> {
 
 #[derive(Serialize, Deserialize)]
 pub struct ProtocolManagerConfig {
-    // base64 encoding of a StrandSignatureSk serialization
+    // base64 encoding of a der encoded pkcs#8 v1
     pub signing_key: String,
 }
 impl ProtocolManagerConfig {

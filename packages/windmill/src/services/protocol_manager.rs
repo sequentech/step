@@ -216,7 +216,7 @@ pub async fn get_board_client() -> Result<BoardClient> {
         env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
 
     let mut board_client = BoardClient::new(&server_url, &user, &password).await?;
-    board_client.login(&user, &password).await?;
+    board_client.login().await?;
 
     Ok(board_client)
 }

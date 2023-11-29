@@ -64,7 +64,7 @@ impl StrandSignature {
 pub struct StrandSignaturePk(VerifyingKey);
 impl StrandSignaturePk {
     /// Returns the verification key from this signing key.
-    pub fn from(
+    pub fn from_sk(
         sk: &StrandSignatureSk,
     ) -> Result<StrandSignaturePk, StrandError> {
         Ok(StrandSignaturePk(VerifyingKey::from(&sk.0)))
@@ -288,61 +288,6 @@ impl BorshDeserialize for StrandSignature {
         StrandSignature::from_bytes(bytes).map_err(|e| Error::new(ErrorKind::Other, e))
     }
 }
-/*
-impl TryFrom<String> for StrandSignaturePk {
-    type Error = StrandError;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
-        StrandSignaturePk::from_der(&bytes)
-    }
-}
-
-impl TryFrom<StrandSignaturePk> for String {
-    type Error = StrandError;
-
-    fn try_from(value: StrandSignaturePk) -> Result<Self, Self::Error> {
-        let bytes = value.to_der()?;
-        Ok(general_purpose::STANDARD.encode(bytes))
-    }
-}
-
-impl TryFrom<String> for StrandSignatureSk {
-    type Error = StrandError;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
-        StrandSignatureSk::from_der(&bytes)
-    }
-}
-
-impl TryFrom<StrandSignatureSk> for String {
-    type Error = StrandError;
-
-    fn try_from(value: StrandSignatureSk) -> Result<Self, Self::Error> {
-        let bytes = value.to_der()?;
-        Ok(general_purpose::STANDARD.encode(bytes))
-    }
-}
-
-impl TryFrom<String> for StrandSignature {
-    type Error = StrandError;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let bytes: Vec<u8> = general_purpose::STANDARD.decode(value)?;
-        let bytes = util::to_u8_array(&bytes)?;
-        StrandSignature::from_bytes(bytes)
-    }
-}
-
-impl TryFrom<StrandSignature> for String {
-    type Error = StrandError;
-
-    fn try_from(value: StrandSignature) -> Result<Self, Self::Error> {
-        let bytes = value.to_bytes();
-        Ok(general_purpose::STANDARD.encode(bytes))
-    }
-}*/
 
 #[cfg(test)]
 pub(crate) mod tests {
@@ -374,7 +319,7 @@ pub(crate) mod tests {
             let sig = sk_d.sign(msg);
 
             let sig_bytes = sig.unwrap().strand_serialize().unwrap();
-            let vk_bytes = StrandSignaturePk::from(&sk_d)
+            let vk_bytes = StrandSignaturePk::from_sk(&sk_d)
                 .unwrap()
                 .strand_serialize()
                 .unwrap();
@@ -405,7 +350,7 @@ pub(crate) mod tests {
             let sig = sk_d.sign(msg).unwrap();
 
             let sig_bytes = sig.strand_serialize().unwrap();
-            let vk_bytes = StrandSignaturePk::from(&sk_d)
+            let vk_bytes = StrandSignaturePk::from_sk(&sk_d)
                 .unwrap()
                 .to_der()
                 .unwrap();
@@ -439,7 +384,7 @@ pub(crate) mod tests {
 
             let signature_string: String = sig.unwrap().to_b64_string().unwrap();
             let public_key_string: String =
-                StrandSignaturePk::from(&signing_key_deserialized)
+                StrandSignaturePk::from_sk(&signing_key_deserialized)
                     .unwrap()
                     .to_der_b64_string().unwrap();
 

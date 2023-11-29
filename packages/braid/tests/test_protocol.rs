@@ -12,7 +12,7 @@ cfg_if::cfg_if! {
 }
 
 #[test]
-fn test_protocol() {
+fn test_protocol_memory() {
     init_log(true);
 
     let ctx = RistrettoCtx;
@@ -24,6 +24,20 @@ fn test_protocol() {
         }
     }
 }
+
+/*#[test]
+fn test_protocol_immudb() {
+    init_log(true);
+
+    let ctx = RistrettoCtx;
+    braid::test::protocol_test::run_immudb(1000, 1, ctx);
+    cfg_if::cfg_if! {
+        if #[cfg(unix)] {
+            let ctx = RugCtx::<RUGP2048>::default();
+            braid::test::protocol_test::run_immudb(100, 1, ctx);
+        }
+    }
+}*/
 
 pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     let layer = HierarchicalLayer::default()

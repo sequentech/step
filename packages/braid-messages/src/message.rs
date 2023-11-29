@@ -298,7 +298,7 @@ impl Message {
 
         if mix_no > configuration.trustees.len() {
             return Err(anyhow!(
-                "Received a message whose statement signature number is out of range"
+                "Received a message whose mix signature number is out of range"
             ));
         }
 
@@ -312,20 +312,18 @@ impl Message {
 
         let bytes = self.statement.strand_serialize()?;
         // Verify signature
-        let trustee_ = self
+        let verified = self
             .sender
             .pk
-            .verify(&self.signature, &bytes)
-            .map(|_| index)
-            .ok();
+            .verify(&self.signature, &bytes);
 
-        if trustee_.is_none() {
+        if verified.is_err() {
             return Err(anyhow!(
                 "Signature verification failed for message {:?}",
                 self
             ));
         }
-        let trustee = trustee_.expect("impossible");
+        let trustee = index;
 
         // The message must belong to the same context as the configuration
         let config_hash = strand::hash::hash(&configuration.strand_serialize()?)?;
@@ -428,7 +426,7 @@ impl TryFrom<Message> for BoardMessage {
             statement_timestamp: (message.statement.get_timestamp() * 1000) as i64,
             statement_kind: message.statement.get_kind().to_string(),
             message: message.strand_serialize()?,
-            signer_key: message.sender.pk.strand_serialize()?,
+            signer_key: message.sender.pk.to_der_b64_string()?,
         })
     }
 }
@@ -467,7 +465,7 @@ pub trait Signer {
         let sk = self.get_signing_key();
         let bytes = statement.strand_serialize()?;
         let signature: StrandSignature = sk.sign(&bytes)?;
-        let pk = StrandSignaturePk::from(sk)?;
+        let pk = StrandSignaturePk::from_sk(sk)?;
         let sender = Sender::new(self.get_name(), pk);
 
         Ok(Message {
