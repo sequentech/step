@@ -40,6 +40,7 @@ fn rocket() -> _ {
                 routes::permissions::get_permissions,
                 routes::upload_document::upload_document,
                 routes::get_private_key::get_private_key,
+                routes::check_private_key::check_private_key,
             ],
         )
 }
