@@ -10,6 +10,7 @@ import {
     SaveButton,
     SimpleForm,
     TextInput,
+    TransformData,
     useGetList,
     useNotify,
     useRefresh,
@@ -18,6 +19,7 @@ import {useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
+import { useTenantStore } from '@/providers/TenantContextProvider'
 
 interface EditAreaProps {
     id?: Identifier | undefined
@@ -30,6 +32,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
     const refresh = useRefresh()
     const notify = useNotify()
     const {t} = useTranslation()
+    const [tenantId] = useTenantStore()
 
     const [renderUI, setRenderUI] = useState(false)
 
@@ -60,15 +63,46 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
 
         return temp
     }
+    function shallowEqual(object1: any, object2: any) {
+        const keys1 = Object.keys(object1)
+        const keys2 = Object.keys(object2)
 
-    const transform = (data: any) => {
+        if (keys1.length !== keys2.length) {
+            return false
+        }
+
+        for (let key of keys1) {
+            if (object1[key] !== object2[key]) {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    const transform = (data: any, {previousData} : any) => {
         const temp = {...data}
 
-        
-        console.log("DATA RECEIVED :: ", data);
-        delete temp.area_contest_ids
-        console.log("DATA TO SAVE :: ", temp);
+        const area_contest_ids = temp.area_contest_ids
+        const election_event_id = temp.election_event_id
+        const area_id = temp.id
 
+        const area_contest_ids_to_save = area_contest_ids?.map((contest_id: any) => {
+            return {
+                area_id,
+                contest_id,
+                election_event_id,
+                tenent_id: tenantId ,
+            }
+        })
+
+        delete temp.area_contest_ids
+        console.log("DATA TO SAVE :: ", area_contest_ids_to_save)
+        
+        if (shallowEqual(temp, previousData)) {
+            console.log("NO CHANGES")
+            return {id: temp.id, last_updated_at: new Date().toISOString()}
+        }
         return temp
     }
 
@@ -116,6 +150,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                                         </PageHeaderStyles.SubTitle>
 
                                         <TextInput source="name" />
+                                        <TextInput source="description" />
 
                                         {contests ? (
                                             <CheckboxGroupInput

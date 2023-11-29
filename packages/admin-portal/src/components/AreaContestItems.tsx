@@ -25,6 +25,7 @@ export const AreaContestItems: React.FC<AreaContestItemsProps> = (props) => {
     const {data} = useQuery(GET_AREA_WITH_AREA_CONTESTS, {
         variables: {
             electionEventId: record.election_event_id,
+            areaId: record.id
         },
     })
 

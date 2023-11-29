@@ -5,8 +5,8 @@
 import {gql} from "@apollo/client"
 
 export const GET_AREA_WITH_AREA_CONTESTS = gql`
-    query get_area_with_area_contests($electionEventId: uuid!) {
-        sequent_backend_area_contest(where: {election_event_id: {_eq: $electionEventId}}) {
+    query get_area_with_area_contests($areaId: uuid!, $electionEventId: uuid!) {
+        sequent_backend_area_contest(where: {_and: {area_id: {_eq: $areaId}, election_event_id: {_eq: $electionEventId}}}) {
             contest {
                 name
             }
