@@ -81,18 +81,32 @@ export default function MenuAction({
 
         if (action === Action.Add) {
             navigate(getNavLinkCreate(parentData, payload.type))
-        } else if (action === Action.Archive && payload.type === "sequent_backend_election_event") {
-            console.log("1")
-            await update(payload.type, {
-                id: payload.id,
-                data: {is_archived: true},
-                previousData: {is_archived: false},
-            })
-            console.log("2")
+        } else if (payload.type === "sequent_backend_election_event") {
+            if (action === Action.Archive) {
+                console.log("1")
+                await update(payload.type, {
+                    id: payload.id,
+                    data: {is_archived: true},
+                    previousData: {is_archived: false},
+                })
+                console.log("2")
 
-            refetch()
+                refetch()
 
-            console.log("3")
+                console.log("3")
+            } else if (action === Action.Unarchive) {
+                console.log("1")
+                await update(payload.type, {
+                    id: payload.id,
+                    data: {is_archived: false},
+                    previousData: {is_archived: true},
+                })
+                console.log("2")
+
+                refetch()
+
+                console.log("3")
+            }
         } else if (action === Action.Remove) {
             setDeleteItem(payload)
             setOpenDeleteModal(true)
