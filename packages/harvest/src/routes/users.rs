@@ -16,6 +16,8 @@ use sequent_core::types::keycloak::User;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
+use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Deserialize, Debug)]
 pub struct GetUsersBody {
@@ -71,5 +73,51 @@ pub async fn get_users(
                 count: count as i64,
             },
         },
+    }))
+}
+
+#[derive(Deserialize, Debug)]
+pub struct EditUserBody {
+    tenant_id: String,
+    user_id: String,
+    enabled: Option<bool>,
+    election_event_id: Option<String>,
+    attributes: Option<HashMap<String, Value>>,
+    email: Option<String>,
+    first_name: Option<String>,
+    last_name: Option<String>,
+    groups: Option<Vec<String>>,
+    username: Option<String>,
+}
+
+#[instrument(skip(claims))]
+#[post("/edit-user", format = "json", data = "<body>")]
+pub async fn edit_user(
+    claims: jwt::JwtClaims,
+    body: Json<EditUserBody>,
+) -> Result<Json<User>, (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_WRITE
+    } else {
+        Permissions::USER_WRITE
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+
+    Ok(Json(User {
+        id: None,
+        attributes: None,
+        email: None,
+        email_verified: None,
+        enabled: None,
+        first_name: None,
+        groups: None,
+        last_name: None,
+        username: None,
     }))
 }
