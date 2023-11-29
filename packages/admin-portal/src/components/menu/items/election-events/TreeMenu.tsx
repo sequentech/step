@@ -288,8 +288,8 @@ function TreeMenuItem({
                             </MenuItem>
                             <Divider />
                             <MenuItem
-                                onClick={(e) =>
-                                    handleAction(e, Action.Remove, {
+                                onClick={() =>
+                                    handleAction(Action.Remove, {
                                         id,
                                         name,
                                         type: treeResourceNames[0],
