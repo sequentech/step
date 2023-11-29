@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState} from "react"
+import React, {useContext, useState} from "react"
 import {useNavigate, useParams} from "react-router-dom"
 //import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
@@ -36,6 +36,7 @@ import {InsertCastVoteMutation} from "../gql/graphql"
 import {v4 as uuidv4} from "uuid"
 import {CircularProgress} from "@mui/material"
 import {provideBallotService} from "../services/BallotService"
+import {TenantEventContext} from ".."
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -77,6 +78,7 @@ interface ActionButtonProps {
 
 const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallot}) => {
     const [insertCastVote] = useMutation<InsertCastVoteMutation>(INSERT_CAST_VOTE)
+    const {tenantId, eventId} = useContext(TenantEventContext)
     const {t} = useTranslation()
     const navigate = useNavigate()
     const [auditBallotHelp, setAuditBallotHelp] = useState(false)
@@ -84,7 +86,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
     const handleClose = (value: boolean) => {
         setAuditBallotHelp(false)
         if (value) {
-            navigate(`/election/${ballotStyle.election_id}/audit`)
+            navigate(
+                `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/audit`
+            )
         }
     }
 
@@ -101,7 +105,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
                     content: hashableBallot,
                 },
             })
-            navigate(`/election/${ballotStyle.election_id}/confirmation`)
+            navigate(
+                `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/confirmation`
+            )
         } catch (error) {
             console.log(`error casting vote: ${error}`)
         }
@@ -129,7 +135,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, auditableBallo
             </Dialog>
             <ActionsContainer>
                 <StyledLink
-                    to={`/election/${ballotStyle.election_id}/vote`}
+                    to={`/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote`}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
                     <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>

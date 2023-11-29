@@ -2,7 +2,7 @@ import React from "react"
 import {TabbedShowLayout, useRecordContext} from "react-admin"
 import {Sequent_Backend_Contest} from "../../gql/graphql"
 import ElectionHeader from "../../components/ElectionHeader"
-import { EditContestData } from './EditContestData'
+import {EditContestData} from "./EditContestData"
 
 export const ContestTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()
