@@ -32,10 +32,18 @@ impl KeycloakAdminClient {
     ) -> Result<(Vec<Role>, usize)> {
         let group_representations: Vec<GroupRepresentation> = self
             .client
-            .realm_groups_get(realm.clone(), Some(false), None, None, None, None, search.clone())
+            .realm_groups_get(
+                realm.clone(),
+                Some(false),
+                None,
+                None,
+                None,
+                None,
+                search.clone(),
+            )
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
-        
+
         let count = group_representations.len();
         let start = offset.unwrap_or(0);
         let end = match limit {
