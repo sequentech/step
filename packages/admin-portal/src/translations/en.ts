@@ -137,6 +137,7 @@ const englishTranslation = {
             common: {
                 title: "Election Event",
                 subtitle: "Election event configuration.",
+                contest: "Contests",
             },
             edit: {
                 general: "General",

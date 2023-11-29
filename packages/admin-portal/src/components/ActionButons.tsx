@@ -20,6 +20,7 @@ export interface Action {
 }
 
 interface ActionsColumnProps {
+    label?: string
     actions: Array<{icon: React.ReactNode; action: (id: Identifier) => void}>
 }
 
