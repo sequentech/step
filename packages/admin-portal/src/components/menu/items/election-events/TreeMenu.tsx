@@ -14,6 +14,8 @@ import {
     faTrash,
     faArchive,
 } from "@fortawesome/free-solid-svg-icons"
+import ExpandLessIcon from "@mui/icons-material/ExpandLess"
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import AddIcon from "@mui/icons-material/Add"
 import {adminTheme, Icon} from "@sequentech/ui-essentials"
@@ -37,7 +39,10 @@ const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_candidate: "sideMenu.addResource.addCandidate",
 }
 
-function getNavLink(resource: DataTreeMenuType | undefined, resourceName: ResourceName): string {
+function getNavLinkCreate(
+    resource: DataTreeMenuType | undefined,
+    resourceName: ResourceName
+): string {
     const params: Record<string, string> = {}
 
     switch (resourceName) {
@@ -101,14 +106,15 @@ function TreeLeaves({
                     }
                 )}
                 {!isArchivedElectionEvents && (
-                    <div className="inline-flex">
+                    <div className="flex items-center space-x-2 text-secondary">
+                        <AddIcon className="flex-none"></AddIcon>
                         <NavLink
-                            className="flex items-center shrink space-x-2 -ml-3 px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer"
-                            to={getNavLink(parentData, treeResourceNames[0])}
+                            className="grow py-1.5 border-b-2 border-white hover:border-secondary truncate cursor-pointer"
+                            to={getNavLinkCreate(parentData, treeResourceNames[0])}
                         >
-                            <AddIcon></AddIcon>
-                            <span>{t(mapAddResource[treeResourceNames[0] as ResourceName])}</span>
+                            {t(mapAddResource[treeResourceNames[0] as ResourceName])}
                         </NavLink>
+                        <div className="flex-none w-6 h-6 invisible"></div>
                     </div>
                 )}
             </div>
@@ -193,8 +199,11 @@ function TreeMenuItem({
         <div className="bg-white">
             <div ref={menuItemRef} className="group flex text-left space-x-2 items-center">
                 {hasNext ? (
-                    <div className="flex-none w-6 h-6 cursor-pointer" onClick={onClick}>
-                        <Icon icon={open ? faAngleDown : faAngleRight} />
+                    <div
+                        className="flex-none w-6 h-6 cursor-pointer text-customGrey-dark"
+                        onClick={onClick}
+                    >
+                        {open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                     </div>
                 ) : (
                     <div className="flex-none w-6 h-6"></div>
@@ -204,7 +213,7 @@ function TreeMenuItem({
                         title={name}
                         className={({isActive}) =>
                             cn(
-                                "grow pl-0 pr-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
+                                "grow py-1.5 text-black border-b-2 border-white hover:border-brand-color truncate cursor-pointer",
                                 isActive && "border-b-2 border-brand-color"
                             )
                         }
@@ -212,7 +221,7 @@ function TreeMenuItem({
                     >
                         {treeResourceNames[0] === "sequent_backend_election_event" ? (
                             <p className="flex items-center space-x-2">
-                                <HowToVoteIcon />
+                                <HowToVoteIcon className="text-brand-color" />
                                 <span>{name}</span>
                             </p>
                         ) : (
@@ -221,7 +230,10 @@ function TreeMenuItem({
                     </NavLink>
                 )}
                 <div className="invisible group-hover:visible">
-                    <p className="text-right px-1 cursor-pointer" onClick={handleOpenItemActions}>
+                    <p
+                        className="flex-none w-6 h-6 text-right px-1 cursor-pointer"
+                        onClick={handleOpenItemActions}
+                    >
                         <Icon icon={faEllipsisH} />
                     </p>
                     <Popover
