@@ -2,25 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {NavLink, useNavigate} from "react-router-dom"
 import React, {useRef, useState} from "react"
-import {useDelete, useNotify, useSidebarState} from "react-admin"
-import {Divider, ListItemIcon, MenuItem, MenuList, Popover} from "@mui/material"
-import {
-    faAngleRight,
-    faAngleDown,
-    faEllipsisH,
-    faCirclePlus,
-    faTrash,
-    faArchive,
-} from "@fortawesome/free-solid-svg-icons"
+import {NavLink} from "react-router-dom"
+import {useSidebarState} from "react-admin"
 import ExpandLessIcon from "@mui/icons-material/ExpandLess"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import AddIcon from "@mui/icons-material/Add"
-import {adminTheme, Dialog, Icon} from "@sequentech/ui-essentials"
-import {cn} from "../../../../lib/utils"
-import styled from "@emotion/styled"
+import {cn} from "@/lib/utils"
+
 import {
     mapDataChildren,
     ResourceName,
@@ -30,17 +20,19 @@ import {
     ContestType,
     CandidateType,
 } from "../ElectionEvents"
-import {useTranslation} from "react-i18next"
-import useTreeMenuHook from "../use-tree-menu-hook"
 
-const mapAddResource: Record<ResourceName, string> = {
+import {useTranslation} from "react-i18next"
+
+import MenuActions from "./MenuActions"
+
+export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.addResource.addElectionEvent",
     sequent_backend_election: "sideMenu.addResource.addElection",
     sequent_backend_contest: "sideMenu.addResource.addContest",
     sequent_backend_candidate: "sideMenu.addResource.addCandidate",
 }
 
-function getNavLinkCreate(
+export function getNavLinkCreate(
     resource: DataTreeMenuType | undefined,
     resourceName: ResourceName
 ): string {
@@ -132,18 +124,6 @@ interface TreeMenuItemProps {
     isArchivedElectionEvents: boolean
 }
 
-enum Action {
-    Add,
-    Remove,
-    Archive,
-}
-
-type ActionPayload = {
-    id: string
-    name: string
-    type: ResourceName
-}
-
 function TreeMenuItem({
     resource,
     parentData,
@@ -153,10 +133,7 @@ function TreeMenuItem({
     isArchivedElectionEvents,
 }: TreeMenuItemProps) {
     const {t} = useTranslation()
-    const navigate = useNavigate()
     const [isOpenSidebar] = useSidebarState()
-    const {refetch} = useTreeMenuHook(false)
-    const notify = useNotify()
 
     const [open, setOpen] = useState(false)
     const onClick = () => setOpen(!open)
@@ -165,60 +142,13 @@ function TreeMenuItem({
     const nextResourceName = subTreeResourceNames[0] ?? null
     const hasNext = !!nextResourceName
 
-    const [deleteOne] = useDelete()
-    const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
-    const [deleteItem, setDeleteItem] = React.useState<any | undefined>()
-
     let data: DynEntityType = {}
     if (hasNext) {
         const key = mapDataChildren(subTreeResourceNames[0] as ResourceName)
         data[key] = (resource as any)[key]
     }
 
-    const menuItemRef = useRef(null)
-    const [anchorEl, setAnchorEl] = React.useState<HTMLParagraphElement | null>(null)
-
-    function handleOpenItemActions(): void {
-        setAnchorEl(menuItemRef.current)
-    }
-
-    function handleAction(action: Action, payload: ActionPayload) {
-        // close the popover
-        setAnchorEl(null)
-
-        if (action === Action.Add) {
-            navigate(getNavLinkCreate(parentData, payload.type))
-        } else if (action === Action.Remove) {
-            setDeleteItem(payload)
-            setOpenDeleteModal(true)
-        }
-    }
-
-    const handleCloseActionMenu = () => {
-        setAnchorEl(null)
-    }
-
-    const onSuccess = async (res: any) => {
-        refetch()
-        setDeleteItem(undefined)
-        notify(`${deleteItem.type} removed.`, {type: "success"})
-    }
-
-    const onError = async (res: any) => {
-        setDeleteItem(undefined)
-        notify(`Error removing ${deleteItem.type}`, {type: "error"})
-    }
-
-    const confirmDeleteAction = () => {
-        deleteOne(deleteItem.type, {id: deleteItem.id}, {onSuccess, onError})
-    }
-
-    const openActionMenu = Boolean(anchorEl)
-    const idActionMenu = openActionMenu ? "action-menu" : undefined
-
-    const StyledIcon = styled(Icon)`
-        color: ${adminTheme.palette.brandColor};
-    `
+    const menuItemRef = useRef<HTMLDivElement | null>(null)
 
     return (
         <div className="bg-white">
@@ -255,71 +185,13 @@ function TreeMenuItem({
                     </NavLink>
                 )}
                 <div className="invisible group-hover:visible">
-                    <p
-                        className="flex-none w-6 h-6 text-right px-1 cursor-pointer"
-                        onClick={handleOpenItemActions}
-                    >
-                        <Icon icon={faEllipsisH} />
-                    </p>
-                    <Popover
-                        id={idActionMenu}
-                        open={openActionMenu}
-                        anchorEl={anchorEl}
-                        onClose={handleCloseActionMenu}
-                        anchorOrigin={{
-                            vertical: "bottom",
-                            horizontal: "right",
-                        }}
-                    >
-                        <MenuList dense>
-                            <MenuItem
-                                onClick={() =>
-                                    handleAction(Action.Add, {
-                                        id,
-                                        name,
-                                        type: treeResourceNames[0],
-                                    })
-                                }
-                            >
-                                <ListItemIcon>
-                                    <StyledIcon icon={faCirclePlus} />
-                                </ListItemIcon>
-                                {t(mapAddResource[treeResourceNames[0] as ResourceName])}
-                            </MenuItem>
-                            <Divider />
-                            <MenuItem
-                                onClick={() =>
-                                    handleAction(Action.Remove, {
-                                        id,
-                                        name,
-                                        type: treeResourceNames[0],
-                                    })
-                                }
-                            >
-                                <ListItemIcon>
-                                    <StyledIcon icon={faTrash} />
-                                </ListItemIcon>
-                                Remove
-                            </MenuItem>
-                            {
-                                // <Divider />
-                                // <MenuItem
-                                //     onClick={() =>
-                                //         handleAction(Action.Archive, {
-                                //             id,
-                                //             name,
-                                //             type: treeResourceNames[0],
-                                //         })
-                                //     }
-                                // >
-                                //     <ListItemIcon>
-                                //         <StyledIcon icon={faArchive} />
-                                //     </ListItemIcon>
-                                //     Archive
-                                // </MenuItem>
-                            }
-                        </MenuList>
-                    </Popover>
+                    <MenuActions
+                        resourceId={id}
+                        resourceName={name}
+                        resourceType={treeResourceNames[0]}
+                        parentData={parentData}
+                        menuItemRef={menuItemRef}
+                    ></MenuActions>
                 </div>
             </div>
             {open && (
@@ -334,22 +206,6 @@ function TreeMenuItem({
                     )}
                 </div>
             )}
-
-            <Dialog
-                variant="warning"
-                open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmDeleteAction()
-                    }
-                    setOpenDeleteModal(false)
-                }}
-            >
-                {t("common.message.delete")}
-            </Dialog>
         </div>
     )
 }
