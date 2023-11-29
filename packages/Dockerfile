@@ -22,6 +22,8 @@ RUN if [ "$ENVIRONMENT" = "prod" ]; then \
 ENTRYPOINT [ "/usr/src/app/init.sh", "$ENVIRONMENT" ]
 
 # # === Runtime Stage === #
+# TODO: Make this service multi staged, 
+#       The problem is that it's hard to copy the dists directory of each package since there are a lot of packages and we don't want to duplicate the COPY command
 # FROM node:20-alpine
 
 # WORKDIR /usr/src/app
