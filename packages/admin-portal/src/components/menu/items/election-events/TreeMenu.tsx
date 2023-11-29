@@ -26,10 +26,10 @@ import {useTranslation} from "react-i18next"
 import MenuActions from "./MenuActions"
 
 export const mapAddResource: Record<ResourceName, string> = {
-    sequent_backend_election_event: "sideMenu.addResource.addElectionEvent",
-    sequent_backend_election: "sideMenu.addResource.addElection",
-    sequent_backend_contest: "sideMenu.addResource.addContest",
-    sequent_backend_candidate: "sideMenu.addResource.addCandidate",
+    sequent_backend_election_event: "sideMenu.addResource.electionEvent",
+    sequent_backend_election: "sideMenu.addResource.election",
+    sequent_backend_contest: "sideMenu.addResource.contest",
+    sequent_backend_candidate: "sideMenu.addResource.candidate",
 }
 
 export function getNavLinkCreate(
@@ -186,6 +186,7 @@ function TreeMenuItem({
                 )}
                 <div className="invisible group-hover:visible">
                     <MenuActions
+                        isArchivedTab={isArchivedElectionEvents}
                         resourceId={id}
                         resourceName={name}
                         resourceType={treeResourceNames[0]}

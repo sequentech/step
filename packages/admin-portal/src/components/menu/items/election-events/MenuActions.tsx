@@ -16,10 +16,18 @@ import {getNavLinkCreate, mapAddResource} from "./TreeMenu"
 import useTreeMenuHook from "../use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
 
+const mapRemoveResource: Record<ResourceName, string> = {
+    sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
+    sequent_backend_election: "sideMenu.addResourmenuActions.remove.election",
+    sequent_backend_contest: "sideMenu.menuActions.remove.contest",
+    sequent_backend_candidate: "sideMenu.menuActions.remove.candidate",
+}
+
 enum Action {
     Add,
     Remove,
     Archive,
+    Unarchive,
 }
 
 type ActionPayload = {
@@ -29,6 +37,7 @@ type ActionPayload = {
 }
 
 interface Props {
+    isArchivedTab: boolean
     resourceId: string
     resourceName: string
     resourceType: ResourceName
@@ -37,6 +46,7 @@ interface Props {
 }
 
 export default function MenuAction({
+    isArchivedTab,
     resourceId,
     resourceName,
     resourceType,
@@ -72,13 +82,17 @@ export default function MenuAction({
         if (action === Action.Add) {
             navigate(getNavLinkCreate(parentData, payload.type))
         } else if (action === Action.Archive && payload.type === "sequent_backend_election_event") {
+            console.log("1")
             await update(payload.type, {
                 id: payload.id,
                 data: {is_archived: true},
                 previousData: {is_archived: false},
             })
+            console.log("2")
 
             refetch()
+
+            console.log("3")
         } else if (action === Action.Remove) {
             setDeleteItem(payload)
             setOpenDeleteModal(true)
@@ -123,26 +137,29 @@ export default function MenuAction({
                 }}
             >
                 <MenuList dense>
-                    <MenuItem
-                        onClick={() =>
-                            handleAction(Action.Add, {
-                                id: resourceId,
-                                name: resourceName,
-                                type: resourceType,
-                            })
-                        }
-                    >
-                        <ListItemIcon>
-                            <AddCircleIcon className="text-brand-color" />
-                        </ListItemIcon>
-                        {t(mapAddResource[resourceType])}
-                    </MenuItem>
+                    {!isArchivedTab && (
+                        <MenuItem
+                            onClick={() =>
+                                handleAction(Action.Add, {
+                                    id: resourceId,
+                                    name: resourceName,
+                                    type: resourceType,
+                                })
+                            }
+                        >
+                            <ListItemIcon>
+                                <AddCircleIcon className="text-brand-color" />
+                            </ListItemIcon>
+                            {t(mapAddResource[resourceType])}
+                        </MenuItem>
+                    )}
 
-                    {isItemElectionEventType && <Divider />}
+                    {isItemElectionEventType && !isArchivedTab && <Divider />}
+
                     {isItemElectionEventType && (
                         <MenuItem
                             onClick={() =>
-                                handleAction(Action.Archive, {
+                                handleAction(isArchivedTab ? Action.Unarchive : Action.Archive, {
                                     id: resourceId,
                                     name: resourceName,
                                     type: resourceType,
@@ -152,25 +169,31 @@ export default function MenuAction({
                             <ListItemIcon>
                                 <InventoryIcon className="text-brand-color" />
                             </ListItemIcon>
-                            Archive
+                            {isArchivedTab
+                                ? t("sideMenu.menuActions.unarchive.electionEvent")
+                                : t("sideMenu.menuActions.archive.electionEvent")}
                         </MenuItem>
                     )}
 
-                    <Divider />
-                    <MenuItem
-                        onClick={() =>
-                            handleAction(Action.Remove, {
-                                id: resourceId,
-                                name: resourceName,
-                                type: resourceType,
-                            })
-                        }
-                    >
-                        <ListItemIcon>
-                            <DeleteIcon className="text-brand-color" />
-                        </ListItemIcon>
-                        Remove
-                    </MenuItem>
+                    {!isArchivedTab && <Divider />}
+
+                    {!isArchivedTab && (
+                        <MenuItem
+                            onClick={() =>
+                                handleAction(Action.Remove, {
+                                    id: resourceId,
+                                    name: resourceName,
+                                    type: resourceType,
+                                })
+                            }
+                        >
+                            <ListItemIcon>
+                                <DeleteIcon className="text-brand-color" />
+                            </ListItemIcon>
+
+                            {t(mapRemoveResource[resourceType])}
+                        </MenuItem>
+                    )}
                 </MenuList>
             </Popover>
 

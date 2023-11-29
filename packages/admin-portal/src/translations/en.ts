@@ -311,10 +311,24 @@ const englishTranslation = {
             active: "Active",
             archived: "Archived",
             addResource: {
-                addElectionEvent: "Add an Election Event",
-                addElection: "Add an Election",
-                addContest: "Add a Contest",
-                addCandidate: "Add a Candidate",
+                electionEvent: "Add an Election Event",
+                election: "Add an Election",
+                contest: "Add a Contest",
+                candidate: "Add a Candidate",
+            },
+            menuActions: {
+                archive: {
+                    electionEvent: "Archive an Election Event",
+                },
+                unarchive: {
+                    electionEvent: "Unarchive an Election Event",
+                },
+                remove: {
+                    electionEvent: "Remove an Election Event",
+                    election: "Remove an Election",
+                    contest: "Remove a Contest",
+                    candidate: "Remove a Candidate",
+                },
             },
         },
         candidateScreen: {

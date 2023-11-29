@@ -313,10 +313,24 @@ const spanishTranslation: TranslationType = {
             active: "Activos",
             archived: "Archivados",
             addResource: {
-                addElectionEvent: "Agregar un Evento Electoral",
-                addElection: "Agregar una Elección",
-                addContest: "Agregar un Concurso",
-                addCandidate: "Agregar un Candidato",
+                electionEvent: "Agregar un Evento Electoral",
+                election: "Agregar una Elección",
+                contest: "Agregar un Concurso",
+                candidate: "Agregar un Candidato",
+            },
+            menuActions: {
+                archive: {
+                    electionEvent: "Archivar un Evento Electoral",
+                },
+                unarchive: {
+                    electionEvent: "Desarchivar un Evento Electoral",
+                },
+                remove: {
+                    electionEvent: "Eliminar un Evento Electoral",
+                    election: "Eliminar una Elección",
+                    contest: "Eliminar un Concurso",
+                    candidate: "Eliminar un Candidato",
+                },
             },
         },
         candidateScreen: {
