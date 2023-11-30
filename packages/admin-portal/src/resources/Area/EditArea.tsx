@@ -29,9 +29,20 @@ interface EditAreaProps {
 }
 
 export const EditArea: React.FC<EditAreaProps> = (props) => {
-    const [delete_sequent_backend_area_contest] = useMutation(DELETE_AREA_CONTESTS)
-    const [insert_sequent_backend_area_contest] = useMutation(INSERT_AREA_CONTESTS)
     const {id, close, electionEventId} = props
+
+    const [delete_sequent_backend_area_contest] = useMutation(DELETE_AREA_CONTESTS)
+    const [insert_sequent_backend_area_contest] = useMutation(INSERT_AREA_CONTESTS, {
+        refetchQueries: [
+            {
+                query: GET_AREAS_EXTENDED,
+                variables: {
+                    electionEventId,
+                    areaId: id,
+                },
+            },
+        ],
+    })
     const refresh = useRefresh()
     const notify = useNotify()
     const {t} = useTranslation()
@@ -132,24 +143,30 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
             console.log("NO CHANGES")
             return {id: temp.id, last_updated_at: new Date().toISOString()}
         }
-        return temp
+        return {...temp, last_updated_at: new Date().toISOString()}
     }
 
     const onSuccess = async (res: any) => {
+        console.log("onSuccess :>> ", res)
+
         refresh()
         notify("Area updated", {type: "success"})
         if (close) {
-            close()
+            setTimeout(() => {
+                close()
+            }, 400)
         }
     }
 
     const onError = async (res: any) => {
-        console.log("res :>> ", res)
+        console.log("onError :>> ", res)
 
         refresh()
         notify("Could not update Area", {type: "error"})
         if (close) {
-            close()
+            setTimeout(() => {
+                close()
+            }, 400)
         }
     }
 

@@ -127,7 +127,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     <TextField source="id" />
                     <TextField source="name" />
                     <TextField source="description" />
-                    <TextField source="type" />
 
                     <FunctionField
                         label={t("areas.sequent_backend_area_contest")}
