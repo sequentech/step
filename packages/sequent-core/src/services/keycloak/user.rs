@@ -99,7 +99,7 @@ impl KeycloakAdminClient {
             Some(val) => {
                 let mut new_attributes =
                     current_user.attributes.unwrap_or(HashMap::new());
-                for (key, value) in attributes {
+                for (key, value) in val.iter() {
                     new_attributes.insert(key.clone(), value.clone());
                 }
                 Some(new_attributes)
