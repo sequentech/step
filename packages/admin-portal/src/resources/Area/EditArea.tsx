@@ -10,16 +10,17 @@ import {
     SaveButton,
     SimpleForm,
     TextInput,
-    TransformData,
     useGetList,
     useNotify,
     useRefresh,
 } from "react-admin"
-import {useQuery} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
-import { useTenantStore } from '@/providers/TenantContextProvider'
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
+import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 
 interface EditAreaProps {
     id?: Identifier | undefined
@@ -28,6 +29,8 @@ interface EditAreaProps {
 }
 
 export const EditArea: React.FC<EditAreaProps> = (props) => {
+    const [delete_sequent_backend_area_contest] = useMutation(DELETE_AREA_CONTESTS)
+    const [insert_sequent_backend_area_contest] = useMutation(INSERT_AREA_CONTESTS)
     const {id, close, electionEventId} = props
     const refresh = useRefresh()
     const notify = useNotify()
@@ -80,25 +83,51 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
         return true
     }
 
-    const transform = (data: any, {previousData} : any) => {
+    const transform = async (data: any, {previousData}: any) => {
         const temp = {...data}
 
         const area_contest_ids = temp.area_contest_ids
         const election_event_id = temp.election_event_id
         const area_id = temp.id
 
+        // delete area contest first
+        let {errors: deleteAreasErrors} = await delete_sequent_backend_area_contest({
+            variables: {
+                area: temp.id,
+            },
+        })
+
+        if (deleteAreasErrors) {
+            console.log("deleteAreasErrors :>> ", deleteAreasErrors)
+            notify("Could not update Area", {type: "error"})
+            return
+        }
+
         const area_contest_ids_to_save = area_contest_ids?.map((contest_id: any) => {
             return {
                 area_id,
                 contest_id,
                 election_event_id,
-                tenent_id: tenantId ,
+                tenent_id: tenantId,
             }
         })
 
+        // delete area contest first
+        let {errors: insertAreasErrors} = await insert_sequent_backend_area_contest({
+            variables: {
+                areas: area_contest_ids_to_save,
+            },
+        })
+
+        if (insertAreasErrors) {
+            console.log("insertAreasErrors :>> ", insertAreasErrors)
+            notify("Could not update Area", {type: "error"})
+            return
+        }
+
         delete temp.area_contest_ids
         console.log("DATA TO SAVE :: ", area_contest_ids_to_save)
-        
+
         if (shallowEqual(temp, previousData)) {
             console.log("NO CHANGES")
             return {id: temp.id, last_updated_at: new Date().toISOString()}
@@ -115,8 +144,8 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
     }
 
     const onError = async (res: any) => {
-        console.log("res :>> ", res);
-        
+        console.log("res :>> ", res)
+
         refresh()
         notify("Could not update Area", {type: "error"})
         if (close) {
