@@ -282,6 +282,7 @@ const englishTranslation = {
                 create: "Create",
                 delete: "Delete",
                 archive: "Archive",
+                unarchive: "Unarchive",
                 cancel: "Cancel",
                 edit: "Edit",
                 save: "Save",
@@ -290,10 +291,6 @@ const englishTranslation = {
                 next: "Next",
                 warning: "Warning",
                 json: "Preview",
-            },
-            message: {
-                archive: "Are you sure to archive this item?",
-                delete: "Are you sure to delete this item?",
             },
             language: {
                 es: "Spanish",
@@ -324,12 +321,34 @@ const englishTranslation = {
                 },
                 unarchive: {
                     electionEvent: "Unarchive an Election Event",
+                    election: "Desarchivar una Elección",
+                    contest: "Desarchivar un Concurso",
+                    candidate: "Desarchivar un Candidato",
                 },
                 remove: {
                     electionEvent: "Remove an Election Event",
                     election: "Remove an Election",
                     contest: "Remove a Contest",
                     candidate: "Remove a Candidate",
+                },
+                messages: {
+                    confirm: {
+                        archive: "Are you sure to archive this item?",
+                        unarchive: "Are you sure to unarchive this item?",
+                        delete: "Are you sure to delete this item?",
+                    },
+                    notification: {
+                        success: {
+                            archive: "The item has been archived",
+                            unarchive: "The item has been unarchived",
+                            delete: "The item has been deleted",
+                        },
+                        error: {
+                            archive: "Error while trying to archive this item",
+                            unarchive: "Error while trying to unarchive this item",
+                            delete: "Error while trying to delete this item",
+                        },
+                    },
                 },
             },
         },

@@ -284,6 +284,7 @@ const spanishTranslation: TranslationType = {
                 create: "Crear",
                 delete: "Borrar",
                 archive: "Archivar",
+                unarchive: "Desarchivar",
                 cancel: "Cancelar",
                 edit: "Editar",
                 save: "Guardar",
@@ -292,10 +293,6 @@ const spanishTranslation: TranslationType = {
                 next: "Siguiente",
                 warning: "Aviso",
                 json: "Vista previa",
-            },
-            message: {
-                archive: "¿Estás seguro de archivar este elemento?",
-                delete: "¿Estás seguro de eliminar este elemento?",
             },
             language: {
                 es: "Español",
@@ -326,12 +323,34 @@ const spanishTranslation: TranslationType = {
                 },
                 unarchive: {
                     electionEvent: "Desarchivar un Evento Electoral",
+                    election: "Desarchivar una Elección",
+                    contest: "Desarchivar un Concurso",
+                    candidate: "Desarchivar un Candidato",
                 },
                 remove: {
                     electionEvent: "Eliminar un Evento Electoral",
                     election: "Eliminar una Elección",
                     contest: "Eliminar un Concurso",
                     candidate: "Eliminar un Candidato",
+                },
+                messages: {
+                    confirm: {
+                        archive: "¿Está seguro de que desea archivar este elemento?",
+                        unarchive: "¿Está seguro de que desea desarchivar este elemento?",
+                        delete: "¿Está seguro de que desea eliminar este elemento?",
+                    },
+                    notification: {
+                        success: {
+                            archive: "El elemento ha sido archivado",
+                            unarchive: "El elemento ha sido desarchivado",
+                            delete: "El elemento ha sido eliminado",
+                        },
+                        error: {
+                            archive: "Error al intentar archivar este elemento",
+                            unarchive: "Error al intentar desarchivar este elemento",
+                            delete: "Error al intentar eliminar este elemento",
+                        },
+                    },
                 },
             },
         },

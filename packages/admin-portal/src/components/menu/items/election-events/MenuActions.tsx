@@ -120,29 +120,50 @@ export default function MenuAction({
         const {action, payload} = selectedActionModal
 
         if (action === Action.Archive) {
-            console.log("1")
-            await update(payload.type, {
-                id: payload.id,
-                data: {is_archived: true},
-                previousData: {is_archived: false},
-            })
-            console.log("2")
-
-            refetch()
-
-            console.log("3")
+            update(
+                payload.type,
+                {
+                    id: payload.id,
+                    data: {is_archived: true},
+                    previousData: {is_archived: false},
+                },
+                {
+                    onSuccess() {
+                        refetch()
+                        notify(t("sideMenu.menuActions.messages.notification.success.archive"), {
+                            type: "success",
+                        })
+                    },
+                    onError() {
+                        notify(t("sideMenu.menuActions.messages.notification.error.archive"), {
+                            type: "error",
+                        })
+                    },
+                }
+            )
         } else if (action === Action.Unarchive) {
-            console.log("1")
-            await update(payload.type, {
-                id: payload.id,
-                data: {is_archived: false},
-                previousData: {is_archived: true},
-            })
-            console.log("2")
+            await update(
+                payload.type,
+                {
+                    id: payload.id,
+                    data: {is_archived: false},
+                    previousData: {is_archived: true},
+                },
 
-            refetch()
-
-            console.log("3")
+                {
+                    onSuccess() {
+                        refetch()
+                        notify(t("sideMenu.menuActions.messages.notification.success.unarchive"), {
+                            type: "success",
+                        })
+                    },
+                    onError() {
+                        notify(t("sideMenu.menuActions.messages.notification.error.unarchive"), {
+                            type: "error",
+                        })
+                    },
+                }
+            )
         }
     }
 
@@ -159,10 +180,14 @@ export default function MenuAction({
             {
                 onSuccess: () => {
                     refetch()
-                    notify(`${payload.type} removed.`, {type: "success"})
+                    notify(t("sideMenu.menuActions.messages.notification.success.delete"), {
+                        type: "success",
+                    })
                 },
                 onError: () => {
-                    notify(`Error removing ${payload.type}`, {type: "error"})
+                    notify(t("sideMenu.menuActions.messages.notification.error.delete"), {
+                        type: "error",
+                    })
                 },
                 onSettled: () => {
                     setSelectedActionModal(null)
@@ -258,7 +283,11 @@ export default function MenuAction({
             <Dialog
                 variant="warning"
                 open={openArchiveModal}
-                ok={t("common.label.archive")}
+                ok={
+                    selectedActionModal?.action === Action.Archive
+                        ? t("common.label.archive")
+                        : t("common.label.unarchive")
+                }
                 cancel={t("common.label.cancel")}
                 title={t("common.label.warning")}
                 handleClose={(result: boolean) => {
@@ -268,7 +297,9 @@ export default function MenuAction({
                     setOpenArchiveModal(false)
                 }}
             >
-                {t("common.message.archive")}
+                {selectedActionModal?.action === Action.Archive
+                    ? t("sideMenu.menuActions.messages.confirm.archive")
+                    : t("sideMenu.menuActions.messages.confirm.unarchive")}
             </Dialog>
 
             <Dialog
@@ -284,7 +315,7 @@ export default function MenuAction({
                     setOpenDeleteModal(false)
                 }}
             >
-                {t("common.message.delete")}
+                {t("sideMenu.menuActions.messages.confirm.delete")}
             </Dialog>
         </>
     )
