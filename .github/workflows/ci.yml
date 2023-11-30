@@ -17,13 +17,13 @@ jobs:
             context: packages
             file: packages/Dockerfile
           - service: harvest
-            context: packages/harvest
+            context: packages
             file: Dockerfile
           - service: braid
-            context: packages/braid
+            context: packages
             file: packages/braid/Dockerfile
           - service: windmill
-            context: packages/windmill
+            context: packages
             file: packages/windmill/Dockerfile
       fail-fast: false
 
