@@ -108,7 +108,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
                 area_id,
                 contest_id,
                 election_event_id,
-                tenent_id: tenantId,
+                tenant_id: tenantId,
             }
         })
 
