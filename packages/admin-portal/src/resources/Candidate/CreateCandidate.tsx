@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
-import React, {useContext, useEffect} from "react"
+import React from "react"
 import {
     BooleanInput,
     SimpleForm,

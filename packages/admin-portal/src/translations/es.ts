@@ -131,6 +131,7 @@ const spanishTranslation: TranslationType = {
             },
             createAreaSuccess: "Área creadas",
             createAreaError: "Error creando área",
+            sequent_backend_area_contest: "Area de Contiendas",
         },
         electionEventScreen: {
             new: {

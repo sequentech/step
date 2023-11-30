@@ -15,6 +15,7 @@ import {
     useDelete,
     WrapperField,
     Datagrid,
+    FunctionField,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Drawer} from "@mui/material"
@@ -29,6 +30,7 @@ import {Action, ActionsColumn} from "../../components/ActionButons"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import { useParams } from 'react-router'
+import { AreaContestItems } from '@/components/AreaContestItems'
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -125,20 +127,13 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     <TextField source="id" />
                     <TextField source="name" />
                     <TextField source="description" />
-                    <TextField source="type" />
-                    
-                    <ReferenceManyField
-                        label="Area Contests"
-                        reference="sequent_backend_area_contest"
-                        target="area_id"
-                    >
-                        <ChipList
-                            source="sequent_backend_area_contest"
-                            filterFields={["election_event_id", "area_id"]}
-                        />
-                    </ReferenceManyField>
 
-                    <WrapperField source="actions" label="actions">
+                    <FunctionField
+                        label={t("areas.sequent_backend_area_contest")}
+                        render={(record: any) => <AreaContestItems record={record} />}
+                    />
+
+                    <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />
                     </WrapperField>
                 </DatagridConfigurable>
