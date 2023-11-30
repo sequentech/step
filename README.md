@@ -259,10 +259,10 @@ and open it in VS Code Desktop (not from the web). Then, in your local machine
 ensure that the `graphql-engine` server name is aliased to `127.0.0.1` in 
 `/etc/hosts`, or else this won't work.
 
-Also clone this github project on your local machine (so this is apart from running
-it on Codespaces), and from the `backend-services/hasura` folder, run this:
+Then run the following commands to run the console in port `9695`:
 
 ```bash
+cd /workspaces/backend-services/hasura/
 hasura console --endpoint "http://graphql-engine:8080" --admin-secret "admin"
 ```
 
