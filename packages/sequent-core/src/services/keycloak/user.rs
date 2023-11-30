@@ -132,6 +132,11 @@ impl KeycloakAdminClient {
             None => current_user.username,
         };
 
+        self.client
+            .realm_users_with_id_put(realm, user_id, current_user.clone())
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+
         Ok(current_user.into())
     }
 }
