@@ -172,6 +172,13 @@ const englishTranslation = {
                     scheduled: "Scheduled",
                 },
             },
+            keys: {
+                breadCrumbs: {
+                    configure: "Configure",
+                    ceremony: "Ceremony",
+                    created: "Created",
+                },
+            },
         },
         electionScreen: {
             common: {
@@ -371,6 +378,10 @@ const englishTranslation = {
             error: {},
             createContestSuccess: "Contest created",
             createContestError: "Error creating candidate",
+        },
+        keysGenerationStep: {
+            onCreate: "Create Keys",
+            title: "Create Election Event Keys",
         },
     },
 }

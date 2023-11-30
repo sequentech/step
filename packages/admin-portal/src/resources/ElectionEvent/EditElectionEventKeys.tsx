@@ -4,10 +4,11 @@
 
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import { Sequent_Backend_Election_Event } from "@/gql/graphql"
-import { IElectionEventStatus, getStatus } from "@/services/ElectionEventStatus"
+import { IElectionEventStatus, IKeyCeremony, IKeyCeremonyStatus, getStatus } from "@/services/ElectionEventStatus"
 import { Box, Button } from "@mui/material"
-import React, { useState } from "react"
+import React, { useState, useMemo } from "react"
 import { useRecordContext } from "react-admin"
+import { KeysGenerationStep } from "@/components/KeysGenerationStep"
 
 const getSelected = (electionEvent: Sequent_Backend_Election_Event) => {
     const status: IElectionEventStatus = getStatus(electionEvent.status)
@@ -20,27 +21,69 @@ const getSelected = (electionEvent: Sequent_Backend_Election_Event) => {
 export const EditElectionEventKeys: React.FC = () => {
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const status: IElectionEventStatus = getStatus(electionEvent.status)
+    const noCeremonies = (
+        !status.keys_ceremony || status.keys_ceremony.length == 0
+    )
     
-    // const [showCreateKeysDialog, setShowCreateKeysDialog] = useState(false)
-    //const openKeysDialog = () => {
-    //    console.log("opening...")
-    //    setShowCreateKeysDialog(true)
-    //}
+    const [showSteps, setShowSteps] = useState(noCeremonies)
+    // This is the index of the current key ceremony
+    const [currentCeremonyIndex, setCurrentCeremonyIndex] = useState(0)
+    const currentCeremony: IKeyCeremony | null = useMemo(
+        () => {
+            if (
+                status &&
+                status.keys_ceremony &&
+                status.keys_ceremony.length > currentCeremonyIndex
+            ) {
+                return status.keys_ceremony[currentCeremonyIndex]
+            } else {
+                return null
+            }
+        },
+        [currentCeremonyIndex]
+    )
+    const currentStep: number = useMemo(
+        () => {
+            if (!currentCeremony) {
+                return -1;
+            }
+            if (currentCeremony.status == IKeyCeremonyStatus.NOT_STARTED) {
+                return 1;
+            } else if (currentCeremony.status == IKeyCeremonyStatus.IN_PROCESS) {
+                return 2;
+            } else {
+                return 3;
+            }
+        },
+        []
+    )
+    const onCreate = (index: number) => {
+        setCurrentCeremonyIndex(index)
+    }
 
     return (
         <>
-            <Box sx={{width: 1024, marginX: "auto"}}>
-                <BreadCrumbSteps
-                    labels={[
-                        "electionEventResource.keysTab.breadCrumbs.configure",
-                        "electionEventResource.keysTab.breadCrumbs.ceremony",
-                        "electionEventResource.keysTab.breadCrumbs.created",
-                    ]}
-                    selected={1}
-                    variant={BreadCrumbStepsVariant.Circle}
-                    colorPreviousSteps={true}
-                />
-            </Box>
+            {showSteps
+                ? <Box sx={{width: 1024, marginX: "auto"}}>
+                    <BreadCrumbSteps
+                        labels={[
+                            "electionEventScreen.keys.breadCrumbs.configure",
+                            "electionEventScreen.keys.breadCrumbs.ceremony",
+                            "electionEventScreen.keys.breadCrumbs.created",
+                        ]}
+                        selected={currentStep}
+                        variant={BreadCrumbStepsVariant.Circle}
+                        colorPreviousSteps={true}
+                    />
+                    {currentStep == 1 &&
+                        <KeysGenerationStep
+                            onCreate={onCreate}
+                            electionEvent={electionEvent}
+                        />
+                    }
+                </Box>
+                : <span>TODO: show list</span>
+            }
         </>
     )
 /*

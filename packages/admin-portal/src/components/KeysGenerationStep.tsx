@@ -2,10 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-import {Dialog} from "@sequentech/ui-essentials"
 import {
     Box,
-    CircularProgress,
+    Button,
     MenuItem,
     Select,
     SelectChangeEvent,
@@ -25,6 +24,7 @@ import {styled} from "@mui/material/styles"
 import {useMutation} from "@apollo/client"
 import {CREATE_SCHEDULED_EVENT} from "../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../services/ScheduledEvent"
+import { useTranslation } from "react-i18next"
 
 const Horizontal = styled(Box)`
     display: flex;
@@ -32,38 +32,38 @@ const Horizontal = styled(Box)`
     gap: 8px;
 `
 
-export interface KeysGenerationDialogProps {
-    show: boolean
-    handleClose: (val: boolean) => void
+export interface KeysGenerationStepProps {
+    onCreate: (index: number) => void
     electionEvent: Sequent_Backend_Election_Event
 }
 
-export const KeysGenerationDialog: React.FC<KeysGenerationDialogProps> = ({
-    show,
-    handleClose,
+export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
+    onCreate: onCreate,
     electionEvent,
 }) => {
+    const {t} = useTranslation()
     const [selectedTrustees, setSelectedTrustees] = useState<Array<Sequent_Backend_Trustee>>([])
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
-    const [showProgress, setShowProgress] = useState(false)
     const [threshold, setThreshold] = useState(2)
+    const [createError, setCreateError] = useState("")
     const [trustee, setTrustee] = useState<Sequent_Backend_Trustee | null>(null)
     const refresh = useRefresh()
-    const {data, total, isLoading, error} = useGetList("sequent_backend_trustee", {
-        pagination: {page: 1, perPage: 10},
-        sort: {field: "last_updated_at", order: "DESC"},
-        filter: {
-            tenant_id: electionEvent.tenant_id,
-        },
-    })
+    const {data, total, isLoading, error} = useGetList(
+        "sequent_backend_trustee",
+        {
+            pagination: {page: 1, perPage: 10},
+            sort: {field: "last_updated_at", order: "DESC"},
+            filter: {
+                tenant_id: electionEvent.tenant_id,
+            },
+        }
+    )
 
     if (isLoading || error) {
         return null
     }
 
     const generateKeys = async () => {
-        setShowProgress(true)
-
         const {data, errors} = await createScheduledEvent({
             variables: {
                 tenantId: electionEvent.tenant_id,
@@ -83,23 +83,15 @@ export const KeysGenerationDialog: React.FC<KeysGenerationDialogProps> = ({
         if (data) {
             console.log(data)
         }
-        setShowProgress(false)
         refresh()
     }
 
-    const clickHandler = async (val: boolean) => {
-        if (val) {
-            try {
-                await generateKeys()
-                setShowProgress(false)
-                handleClose(true)
-            } catch (error) {
-                console.log(`Error trying to create keys: ${error}`)
-                setShowProgress(false)
-                handleClose(false)
-            }
-        } else {
-            handleClose(false)
+    const onCreateHandler = async () => {
+        try {
+            await generateKeys()
+            onCreate(0)
+        } catch (error) {
+            console.log(`Error trying to create keys: ${error}`)
         }
     }
 
@@ -133,15 +125,10 @@ export const KeysGenerationDialog: React.FC<KeysGenerationDialogProps> = ({
     }
 
     return (
-        <Dialog
-            handleClose={clickHandler}
-            open={show}
-            title="Key Generation Dialog"
-            ok="OK"
-            cancel="Cancel"
-            variant="info"
-        >
-            <Typography variant="body1">Generate Keys for Event</Typography>
+        <>
+            <Typography variant="body1">
+                {t("keysGenerationStep.title")}
+            </Typography>
             <TextField
                 value={threshold}
                 error={!isValidThreshold(threshold)}
@@ -175,7 +162,9 @@ export const KeysGenerationDialog: React.FC<KeysGenerationDialogProps> = ({
                 </Select>
                 <IconButton icon={faPlusCircle} onClick={onAddTrustee} fontSize="24px" />
             </Horizontal>
-            {showProgress ? <CircularProgress /> : null}
-        </Dialog>
+            <Button onClick={onCreateHandler}>
+                {t("keysGenerationStep.onCreate")}
+            </Button>
+        </>
     )
 }

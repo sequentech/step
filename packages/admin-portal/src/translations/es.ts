@@ -138,7 +138,7 @@ const spanishTranslation: TranslationType = {
             },
             common: {
                 title: "Evento Electoral",
-                subtitle: "Configuración del Evento de Elección.",
+                subtitle: "Configuración del Evento Electoral.",
             },
             edit: {
                 general: "General",
@@ -161,8 +161,8 @@ const spanishTranslation: TranslationType = {
             voters: {
                 title: "Votantes",
             },
-            createElectionEventSuccess: "Evento de Elección creado",
-            createElectionEventError: "Error creando Evento de Elección",
+            createElectionEventSuccess: "Evento Electoral creado",
+            createElectionEventError: "Error creando Evento Electoral",
             stats: {
                 elegibleVoters: "Votantes elegibles",
                 elections: "Elecciones",
@@ -172,6 +172,13 @@ const spanishTranslation: TranslationType = {
                 calendar: {
                     title: "Calendario",
                     scheduled: "Programado",
+                },
+            },
+            keys: {
+                breadCrumbs: {
+                    configure: "Configurar",
+                    ceremony: "Ceremonia",
+                    created: "Creadas",
                 },
             },
         },
@@ -373,6 +380,10 @@ const spanishTranslation: TranslationType = {
             error: {},
             createContestSuccess: "Contienda creado",
             createContestError: "Error creating contienda",
+        },
+        keysGenerationStep: {
+            onCreate: "Crear Claves",
+            title: "Crear Claves del Evento Electoral",
         },
     },
 }
