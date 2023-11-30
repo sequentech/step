@@ -49,7 +49,7 @@ impl KeycloakAdminClient {
         let replaced_ids_config = replace_uuids(json_realm_config);
         let mut realm: RealmRepresentation =
             serde_json::from_str(&replaced_ids_config).unwrap();
-        
+
         // set realm name
         realm.realm = Some(board_name.into());
 

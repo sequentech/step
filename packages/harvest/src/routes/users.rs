@@ -15,9 +15,9 @@ use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::User;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
 use serde_json::Value;
 use std::collections::HashMap;
+use tracing::{event, instrument, Level};
 
 #[derive(Deserialize, Debug)]
 pub struct GetUsersBody {
@@ -108,16 +108,29 @@ pub async fn edit_user(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let user = client
+        .edit_user(
+            &realm,
+            &input.user_id,
+            input.enabled.clone(),
+            input.attributes.clone(),
+            input.email.clone(),
+            input.first_name.clone(),
+            input.last_name.clone(),
+            input.groups.clone(),
+            input.username.clone(),
+        )
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    Ok(Json(User {
-        id: None,
-        attributes: None,
-        email: None,
-        email_verified: None,
-        enabled: None,
-        first_name: None,
-        groups: None,
-        last_name: None,
-        username: None,
-    }))
+    Ok(Json(user))
 }
