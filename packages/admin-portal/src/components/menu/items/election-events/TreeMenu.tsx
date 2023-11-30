@@ -24,6 +24,7 @@ import {
 import {useTranslation} from "react-i18next"
 
 import MenuActions from "./MenuActions"
+import {useActionPermissions} from "../use-tree-menu-hook"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.addResource.electionEvent",
@@ -80,6 +81,8 @@ function TreeLeaves({
 }: TreeLeavesProps) {
     const {t} = useTranslation()
 
+    const {canCreateElectionEvent} = useActionPermissions()
+
     return (
         <div className="bg-white">
             <div className="flex flex-col ml-3">
@@ -98,7 +101,7 @@ function TreeLeaves({
                         )
                     }
                 )}
-                {!isArchivedElectionEvents && (
+                {!isArchivedElectionEvents && canCreateElectionEvent && (
                     <div className="flex items-center space-x-2 text-secondary">
                         <AddIcon className="flex-none"></AddIcon>
                         <NavLink

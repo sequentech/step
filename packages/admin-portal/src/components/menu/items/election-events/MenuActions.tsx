@@ -13,7 +13,7 @@ import {Divider, ListItemIcon, MenuItem, MenuList, Popover} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {DataTreeMenuType, ResourceName} from "../ElectionEvents"
 import {getNavLinkCreate, mapAddResource} from "./TreeMenu"
-import {useTreeMenuData} from "../use-tree-menu-hook"
+import {useActionPermissions, useTreeMenuData} from "../use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
 
 const mapRemoveResource: Record<ResourceName, string> = {
@@ -63,6 +63,7 @@ export default function MenuAction({
     const notify = useNotify()
 
     const {refetch} = useTreeMenuData(false)
+    const {canCreateElectionEvent, canEditElectionEvent} = useActionPermissions()
 
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteItem, setDeleteItem] = React.useState<any | undefined>()
@@ -151,7 +152,7 @@ export default function MenuAction({
                 }}
             >
                 <MenuList dense>
-                    {!isArchivedTab && (
+                    {!isArchivedTab && canCreateElectionEvent && (
                         <MenuItem
                             onClick={() =>
                                 handleAction(Action.Add, {
@@ -168,9 +169,11 @@ export default function MenuAction({
                         </MenuItem>
                     )}
 
-                    {isItemElectionEventType && !isArchivedTab && <Divider />}
+                    {isItemElectionEventType && !isArchivedTab && canEditElectionEvent && (
+                        <Divider />
+                    )}
 
-                    {isItemElectionEventType && (
+                    {isItemElectionEventType && canEditElectionEvent && (
                         <MenuItem
                             onClick={() =>
                                 handleAction(isArchivedTab ? Action.Unarchive : Action.Archive, {
@@ -189,9 +192,9 @@ export default function MenuAction({
                         </MenuItem>
                     )}
 
-                    {!isArchivedTab && <Divider />}
+                    {!isArchivedTab && canEditElectionEvent && <Divider />}
 
-                    {!isArchivedTab && (
+                    {!isArchivedTab && canEditElectionEvent && (
                         <MenuItem
                             onClick={() =>
                                 handleAction(Action.Remove, {
