@@ -11,15 +11,20 @@ jobs:
       matrix:
         include:
           - service: keycloak
-            path: packages/Dockerfile.keycloak
+            context: packages
+            file: Dockerfile.keycloak
           - service: frontend
-            path: packages/Dockerfile
+            context: packages
+            file: Dockerfile
           - service: harvest
-            path: packages/harvest/Dockerfile
+            context: packages/harvest
+            file: Dockerfile
           - service: braid
-            path: packages/braid/Dockerfile
+            context: packages/braid
+            file: Dockerfile
           - service: windmill
-            path: packages/windmill/Dockerfile
+            context: packages/windmill
+            file: Dockerfile
       fail-fast: false
 
     steps:
@@ -43,8 +48,8 @@ jobs:
     - name: Build & Push to ECR
       uses: docker/build-push-action@v5
       with:
-        context: ${{ github.workspace }}/${{ matrix.path | dirname }}
-        file: ${{ matrix.path | basename }}
+        context: ${{ github.workspace }}/${{ matrix.context }}
+        file: ${{ matrix.file }}
         push: true
         tags: ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
         build-args: |
