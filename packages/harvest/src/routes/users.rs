@@ -15,9 +15,9 @@ use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::User;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
 use serde_json::Value;
 use std::collections::HashMap;
+use tracing::{event, instrument, Level};
 
 #[derive(Deserialize, Debug)]
 pub struct GetUsersBody {
