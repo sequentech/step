@@ -2,7 +2,7 @@ name: Build and Push to ECR
 
 on:
   push:
-    branches: [ 'main' ]
+    branches: [ 'feat/meta-358/main' ]
 
 jobs:
   build-and-push:
