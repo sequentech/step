@@ -7,7 +7,7 @@ import React from "react"
 import {BooleanInput, SimpleForm, TextInput, SelectInput, ReferenceInput, Create, useRedirect} from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
-import useTreeMenuHook from "@/components/menu/items/use-tree-menu-hook"
+import useTreeMenuDataHook from "@/components/menu/items/use-tree-menu-hook"
 
 const Hidden = styled(Box)`
     display: none;
@@ -21,7 +21,7 @@ export const CreateCandidate: React.FC = () => {
     const electionEventId = searchParams.get("electionEventId")
     const contestId = searchParams.get("contestId")
 
-    const {refetch} = useTreeMenuHook(false)
+    const {refetch} = useTreeMenuDataHook(false)
 
     return (
         <Create

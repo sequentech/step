@@ -19,7 +19,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
-import useTreeMenuHook from "./use-tree-menu-hook"
+import useTreeMenuDataHook from "./use-tree-menu-hook"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -158,7 +158,7 @@ export default function ElectionEvents() {
         (route) => location.pathname.search(route) > -1
     )
 
-    const {data, loading} = useTreeMenuHook(isArchivedElectionEvents)
+    const {data, loading} = useTreeMenuDataHook(isArchivedElectionEvents)
 
     let resultData = data
     if (!loading && data && data.sequent_backend_election_event) {
@@ -189,7 +189,6 @@ export default function ElectionEvents() {
                     {showAddElectionEvent ? (
                         <Link to="/sequent_backend_election_event/create">
                             <StyledIconButton icon={faPlusCircle} size="xs" />
-              
                         </Link>
                     ) : null}
                 </HorizontalBox>

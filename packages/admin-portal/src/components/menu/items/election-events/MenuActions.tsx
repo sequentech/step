@@ -13,7 +13,7 @@ import {Divider, ListItemIcon, MenuItem, MenuList, Popover} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {DataTreeMenuType, ResourceName} from "../ElectionEvents"
 import {getNavLinkCreate, mapAddResource} from "./TreeMenu"
-import useTreeMenuHook from "../use-tree-menu-hook"
+import useTreeMenuDataHook from "../use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
 
 const mapRemoveResource: Record<ResourceName, string> = {
@@ -62,7 +62,7 @@ export default function MenuAction({
 
     const notify = useNotify()
 
-    const {refetch} = useTreeMenuHook(false)
+    const {refetch} = useTreeMenuDataHook(false)
 
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteItem, setDeleteItem] = React.useState<any | undefined>()
