@@ -6,10 +6,11 @@ import React, {useContext, useState} from "react"
 import {useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
+import SearchIcon from "@mui/icons-material/Search"
 import {CircularProgress, TextField} from "@mui/material"
 import {Menu, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
-import {faSearch, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import WebIcon from "@mui/icons-material/Web"
 import {cn} from "../../../lib/utils"
 import {HorizontalBox} from "../../HorizontalBox"
@@ -188,19 +189,20 @@ export default function ElectionEvents() {
                     {showAddElectionEvent ? (
                         <Link to="/sequent_backend_election_event/create">
                             <StyledIconButton icon={faPlusCircle} size="xs" />
+              
                         </Link>
                     ) : null}
                 </HorizontalBox>
                 {isOpenSidebar && isElectionEventActive && (
                     <>
-                        <div className="flex bg-white px-4">
+                        <div className="flex items-center space-x-4 bg-white px-4">
                             <TextField
                                 label={t("sideMenu.search")}
                                 size="small"
                                 value={searchInput}
                                 onChange={(e) => handleSearchChange(e.target.value)}
                             />
-                            <IconButton icon={faSearch} fontSize="18px" sx={{margin: "0 12px"}} />
+                            <SearchIcon />
                         </div>
 
                         {treeMenu}
