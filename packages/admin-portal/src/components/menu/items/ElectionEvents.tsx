@@ -19,7 +19,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
-import useTreeMenuDataHook from "./use-tree-menu-hook"
+import {useTreeMenuData} from "./use-tree-menu-hook"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -158,7 +158,7 @@ export default function ElectionEvents() {
         (route) => location.pathname.search(route) > -1
     )
 
-    const {data, loading} = useTreeMenuDataHook(isArchivedElectionEvents)
+    const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
 
     let resultData = data
     if (!loading && data && data.sequent_backend_election_event) {

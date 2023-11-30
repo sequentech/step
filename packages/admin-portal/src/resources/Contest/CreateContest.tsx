@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import useTreeMenuDataHook from "@/components/menu/items/use-tree-menu-hook"
+import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
 import {
@@ -30,7 +30,7 @@ export const CreateContest: React.FC = () => {
     const electionEventId = searchParams.get("electionEventId")
     const electionId = searchParams.get("electionId")
 
-    const {refetch} = useTreeMenuDataHook(false)
+    const {refetch} = useTreeMenuData(false)
 
     return (
         <Create

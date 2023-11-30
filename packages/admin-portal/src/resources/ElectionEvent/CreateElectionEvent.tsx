@@ -23,7 +23,7 @@ import {isNull} from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {styled} from "@mui/material/styles"
-import useTreeMenuDataHook from "@/components/menu/items/use-tree-menu-hook"
+import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 
 const Hidden = styled(Box)`
     display: none;
@@ -61,7 +61,7 @@ export const CreateElectionList: React.FC = () => {
         id: newId,
     })
 
-    const {refetch: refetchTreeMenu} = useTreeMenuDataHook(false)
+    const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
     useEffect(() => {
         if (isNull(newId)) {
