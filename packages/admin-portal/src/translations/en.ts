@@ -129,6 +129,7 @@ const englishTranslation = {
             },
             createAreaSuccess: "Area created",
             createAreaError: "Could not create Area",
+            sequent_backend_area_contest: "Contests",
         },
         electionEventScreen: {
             new: {
@@ -137,6 +138,7 @@ const englishTranslation = {
             common: {
                 title: "Election Event",
                 subtitle: "Election event configuration.",
+                contest: "Contests",
             },
             edit: {
                 general: "General",

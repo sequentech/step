@@ -131,6 +131,7 @@ const spanishTranslation: TranslationType = {
             },
             createAreaSuccess: "Área creadas",
             createAreaError: "Error creando área",
+            sequent_backend_area_contest: "Area de Contiendas",
         },
         electionEventScreen: {
             new: {
@@ -139,6 +140,7 @@ const spanishTranslation: TranslationType = {
             common: {
                 title: "Evento Electoral",
                 subtitle: "Configuración del Evento de Elección.",
+                contest: "Contiendas    ",
             },
             edit: {
                 general: "General",
