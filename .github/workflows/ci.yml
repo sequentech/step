@@ -12,19 +12,19 @@ jobs:
         include:
           - service: keycloak
             context: packages
-            file: Dockerfile.keycloak
+            file: packages/Dockerfile.keycloak
           - service: frontend
             context: packages
-            file: Dockerfile
+            file: packages/Dockerfile
           - service: harvest
             context: packages/harvest
             file: Dockerfile
           - service: braid
             context: packages/braid
-            file: Dockerfile
+            file: packages/braid/Dockerfile
           - service: windmill
             context: packages/windmill
-            file: Dockerfile
+            file: packages/windmill/Dockerfile
       fail-fast: false
 
     steps:
