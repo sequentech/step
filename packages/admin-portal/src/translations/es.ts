@@ -283,6 +283,7 @@ const spanishTranslation: TranslationType = {
                 add: "Añadir",
                 create: "Crear",
                 delete: "Borrar",
+                archive: "Archivar",
                 cancel: "Cancelar",
                 edit: "Editar",
                 save: "Guardar",
@@ -293,7 +294,8 @@ const spanishTranslation: TranslationType = {
                 json: "Vista previa",
             },
             message: {
-                delete: "¿Estás seguro de que quieres eliminar este elemento?",
+                archive: "¿Estás seguro de archivar este elemento?",
+                delete: "¿Estás seguro de eliminar este elemento?",
             },
             language: {
                 es: "Español",

@@ -65,8 +65,12 @@ export default function MenuAction({
     const {refetch} = useTreeMenuData(false)
     const {canCreateElectionEvent, canEditElectionEvent} = useActionPermissions()
 
+    const [openArchiveModal, setOpenArchiveModal] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
-    const [deleteItem, setDeleteItem] = React.useState<any | undefined>()
+    const [selectedActionModal, setSelectedActionModal] = React.useState<{
+        action: Action
+        payload: ActionPayload
+    } | null>(null)
 
     const [anchorEl, setAnchorEl] = React.useState<HTMLParagraphElement | null>(null)
 
@@ -77,60 +81,94 @@ export default function MenuAction({
     }
 
     async function handleAction(action: Action, payload: ActionPayload) {
+        console.log(
+            "LS -> src/components/menu/items/election-events/MenuActions.tsx:83 -> action: ",
+            action
+        )
+
         // close the popover
         setAnchorEl(null)
 
         if (action === Action.Add) {
             navigate(getNavLinkCreate(parentData, payload.type))
-        } else if (payload.type === "sequent_backend_election_event") {
-            if (action === Action.Archive) {
-                console.log("1")
-                await update(payload.type, {
-                    id: payload.id,
-                    data: {is_archived: true},
-                    previousData: {is_archived: false},
-                })
-                console.log("2")
-
-                refetch()
-
-                console.log("3")
-            } else if (action === Action.Unarchive) {
-                console.log("1")
-                await update(payload.type, {
-                    id: payload.id,
-                    data: {is_archived: false},
-                    previousData: {is_archived: true},
-                })
-                console.log("2")
-
-                refetch()
-
-                console.log("3")
-            }
+        } else if (
+            payload.type === "sequent_backend_election_event" &&
+            (action === Action.Archive || action === Action.Unarchive)
+        ) {
+            setSelectedActionModal({action, payload})
+            setOpenArchiveModal(true)
         } else if (action === Action.Remove) {
-            setDeleteItem(payload)
+            console.log(
+                "LS -> src/components/menu/items/election-events/MenuActions.tsx:92 -> action: ",
+                action
+            )
+
+            setSelectedActionModal({action, payload})
             setOpenDeleteModal(true)
         }
     }
 
-    const handleCloseActionMenu = () => {
+    function handleCloseActionMenu() {
         setAnchorEl(null)
     }
 
-    const onSuccess = async () => {
-        refetch()
-        setDeleteItem(undefined)
-        notify(`${deleteItem.type} removed.`, {type: "success"})
+    async function confirmArchiveAction() {
+        if (!selectedActionModal) {
+            return
+        }
+
+        const {action, payload} = selectedActionModal
+
+        if (action === Action.Archive) {
+            console.log("1")
+            await update(payload.type, {
+                id: payload.id,
+                data: {is_archived: true},
+                previousData: {is_archived: false},
+            })
+            console.log("2")
+
+            refetch()
+
+            console.log("3")
+        } else if (action === Action.Unarchive) {
+            console.log("1")
+            await update(payload.type, {
+                id: payload.id,
+                data: {is_archived: false},
+                previousData: {is_archived: true},
+            })
+            console.log("2")
+
+            refetch()
+
+            console.log("3")
+        }
     }
 
-    const onError = async () => {
-        setDeleteItem(undefined)
-        notify(`Error removing ${deleteItem.type}`, {type: "error"})
-    }
+    function confirmDeleteAction() {
+        const payload = selectedActionModal?.payload ?? null
 
-    const confirmDeleteAction = () => {
-        deleteOne(deleteItem.type, {id: deleteItem.id}, {onSuccess, onError})
+        if (!payload) {
+            return
+        }
+
+        deleteOne(
+            payload.type,
+            {id: payload.id},
+            {
+                onSuccess: () => {
+                    refetch()
+                    notify(`${payload.type} removed.`, {type: "success"})
+                },
+                onError: () => {
+                    notify(`Error removing ${payload.type}`, {type: "error"})
+                },
+                onSettled: () => {
+                    setSelectedActionModal(null)
+                },
+            }
+        )
     }
 
     const openActionMenu = Boolean(anchorEl)
@@ -154,6 +192,7 @@ export default function MenuAction({
                 <MenuList dense>
                     {!isArchivedTab && canCreateElectionEvent && (
                         <MenuItem
+                            key={Action.Add}
                             onClick={() =>
                                 handleAction(Action.Add, {
                                     id: resourceId,
@@ -170,11 +209,12 @@ export default function MenuAction({
                     )}
 
                     {isItemElectionEventType && !isArchivedTab && canEditElectionEvent && (
-                        <Divider />
+                        <Divider key="divider1" />
                     )}
 
                     {isItemElectionEventType && canEditElectionEvent && (
                         <MenuItem
+                            key={Action.Archive}
                             onClick={() =>
                                 handleAction(isArchivedTab ? Action.Unarchive : Action.Archive, {
                                     id: resourceId,
@@ -192,10 +232,11 @@ export default function MenuAction({
                         </MenuItem>
                     )}
 
-                    {!isArchivedTab && canEditElectionEvent && <Divider />}
+                    {!isArchivedTab && canEditElectionEvent && <Divider key="divider2" />}
 
                     {!isArchivedTab && canEditElectionEvent && (
                         <MenuItem
+                            key={Action.Remove}
                             onClick={() =>
                                 handleAction(Action.Remove, {
                                     id: resourceId,
@@ -213,6 +254,22 @@ export default function MenuAction({
                     )}
                 </MenuList>
             </Popover>
+
+            <Dialog
+                variant="warning"
+                open={openArchiveModal}
+                ok={t("common.label.archive")}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.warning")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmArchiveAction()
+                    }
+                    setOpenArchiveModal(false)
+                }}
+            >
+                {t("common.message.archive")}
+            </Dialog>
 
             <Dialog
                 variant="warning"

@@ -281,6 +281,7 @@ const englishTranslation = {
                 add: "Add",
                 create: "Create",
                 delete: "Delete",
+                archive: "Archive",
                 cancel: "Cancel",
                 edit: "Edit",
                 save: "Save",
@@ -291,7 +292,8 @@ const englishTranslation = {
                 json: "Preview",
             },
             message: {
-                delete: "Are you sure you want to delete this item?",
+                archive: "Are you sure to archive this item?",
+                delete: "Are you sure to delete this item?",
             },
             language: {
                 es: "Spanish",
