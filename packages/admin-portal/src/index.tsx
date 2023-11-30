@@ -12,6 +12,10 @@ import SequentCoreLibInit, {set_hooks} from "sequent-core"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {TenantContextProvider} from "./providers/TenantContextProvider"
+import {ElectionEventContextProvider} from "./providers/ElectionEventContextProvider"
+import {ElectionContextProvider} from "./providers/ElectionContextProvider"
+import {ContestContextProvider} from "./providers/ContestContextProvider"
+import {CandidateContextProvider} from "./providers/CandidateContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -21,9 +25,17 @@ root.render(
     <React.StrictMode>
         <AuthContextProvider>
             <TenantContextProvider>
-                <ThemeProvider theme={fullAdminTheme}>
-                    <AppWrapper />
-                </ThemeProvider>
+                <ElectionEventContextProvider>
+                    <ElectionContextProvider>
+                        <ContestContextProvider>
+                            <CandidateContextProvider>
+                                <ThemeProvider theme={fullAdminTheme}>
+                                    <AppWrapper />
+                                </ThemeProvider>
+                            </CandidateContextProvider>
+                        </ContestContextProvider>
+                    </ElectionContextProvider>
+                </ElectionEventContextProvider>
             </TenantContextProvider>
         </AuthContextProvider>
     </React.StrictMode>

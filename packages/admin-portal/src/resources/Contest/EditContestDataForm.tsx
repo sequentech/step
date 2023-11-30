@@ -65,7 +65,7 @@ export const ContestDataForm: React.FC = () => {
     }, [candidates])
 
     const buildLanguageSettings = () => {
-        const tempSettings = data?.presentation?.language_conf?.enabled_language_codes
+        const tempSettings = data?.presentation?.language_conf?.enabled_language_codes || []
         const temp = []
         for (const item of tempSettings) {
             const enabled_item: any = {}
@@ -118,6 +118,12 @@ export const ContestDataForm: React.FC = () => {
             }
         }
 
+        // set english first lang always
+        const en = {en: temp.enabled_languages["en"]}
+        delete temp.enabled_languages.en
+        const rest = temp.enabled_languages
+        temp.enabled_languages = {...en, ...rest}
+
         // voting channels
         const all_channels = {...incoming?.voting_channels}
         delete incoming.voting_channels
@@ -128,6 +134,15 @@ export const ContestDataForm: React.FC = () => {
                 setting in all_channels ? all_channels[setting] : votingSettings[setting]
             temp.voting_channels = {...temp.voting_channels, ...enabled_item}
         }
+
+        // name, alias and description fields
+        if (!temp.presentation || !temp.presentation?.i18n) {
+            temp.presentation = {i18n: {en: {}}}
+        }
+        console.log("temp.presentation :>> ", temp.presentation)
+        temp.presentation.i18n.en.name = temp.name
+        temp.presentation.i18n.en.alias = temp.alias
+        temp.presentation.i18n.en.description = temp.description
 
         return temp
     }

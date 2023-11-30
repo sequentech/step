@@ -1,6 +1,6 @@
 import React from "react"
 import {EditBase} from "react-admin"
-import { ContestDataForm } from './EditContestDataForm'
+import {ContestDataForm} from "./EditContestDataForm"
 
 export const EditContestData: React.FC = () => {
     const transform = (data: any) => {

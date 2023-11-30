@@ -113,6 +113,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,
+                    election_event_id: record?.id || undefined,
                 }}
                 filters={Filters}
             >

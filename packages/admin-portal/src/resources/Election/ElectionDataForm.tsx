@@ -14,9 +14,14 @@ import {
     RadioButtonGroupInput,
     Toolbar,
     SaveButton,
+    useNotify,
 } from "react-admin"
 import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid} from "@mui/material"
-import {CreateScheduledEventMutation, Sequent_Backend_Election} from "../../gql/graphql"
+import {
+    CreateScheduledEventMutation,
+    GetUploadUrlMutation,
+    Sequent_Backend_Election,
+} from "../../gql/graphql"
 import React, {useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
@@ -28,9 +33,9 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {DropFile} from "@sequentech/ui-essentials"
-import {useForm} from "react-hook-form"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import FileJsonInput from "../../components/FileJsonInput"
+import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 
 export const ElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -38,7 +43,8 @@ export const ElectionDataForm: React.FC = () => {
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const refresh = useRefresh()
     const {t} = useTranslation()
-    const form = useForm()
+    const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
+    const notify = useNotify()
 
     const [showMenu, setShowMenu] = useState(false)
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
@@ -114,6 +120,12 @@ export const ElectionDataForm: React.FC = () => {
             }
         }
 
+        // set english first lang always
+        const en = {en: temp.enabled_languages["en"]}
+        delete temp.enabled_languages.en
+        const rest = temp.enabled_languages
+        temp.enabled_languages = {...en, ...rest}
+
         // voting channels
         const all_channels = {...incoming?.voting_channels}
         delete incoming.voting_channels
@@ -124,6 +136,15 @@ export const ElectionDataForm: React.FC = () => {
                 setting in all_channels ? all_channels[setting] : votingSettings[setting]
             temp.voting_channels = {...temp.voting_channels, ...enabled_item}
         }
+
+        // name, alias and description fields
+        if (!temp.presentation || !temp.presentation?.i18n) {
+            temp.presentation = {i18n: {en: {}}}
+        }
+        console.log("temp.presentation :>> ", temp.presentation)
+        temp.presentation.i18n.en.name = temp.name
+        temp.presentation.i18n.en.alias = temp.alias
+        temp.presentation.i18n.en.description = temp.description
 
         return temp
     }
@@ -266,8 +287,6 @@ export const ElectionDataForm: React.FC = () => {
         return channelNodes
     }
 
-    // const getJsonText = (json: any) => {
-
     const renderTabs = (parsedValue: any) => {
         let tabNodes = []
         for (const lang in parsedValue?.enabled_languages) {
@@ -313,6 +332,41 @@ export const ElectionDataForm: React.FC = () => {
             }
         }
         return tabNodes
+    }
+
+    const handleFiles = async (files: FileList | null, parsedValues: any) => {
+        console.log("files :>> ", files?.[0].name)
+
+        const theFile = files?.[0]
+
+        if (theFile) {
+            let {data, errors} = await getUploadUrl({
+                variables: {
+                    name: theFile.name,
+                    media_type: theFile.type,
+                    size: theFile.size,
+                },
+            })
+            if (data?.get_upload_url?.document_id) {
+                console.log("upload :>> ", data)
+                let formdata = new FormData()
+                if (theFile) {
+                    formdata.append("archivo", theFile, theFile.name)
+                }
+                try {
+                    await fetch(data.get_upload_url.url, {
+                        method: "PUT",
+                        body: formdata,
+                    })
+                } catch (e) {
+                    console.log("error :>> ", e)
+                    notify(t("electionScreen.error.fileError"), {type: "error"})
+                }
+            } else {
+                console.log("error :>> ", errors)
+                notify(t("electionScreen.error.fileError"), {type: "error"})
+            }
+        }
     }
 
     return data ? (
@@ -514,9 +568,7 @@ export const ElectionDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <DropFile
-                                    handleFiles={function (files: FileList): void | Promise<void> {
-                                        throw new Error("Function not implemented.")
-                                    }}
+                                    handleFiles={(files) => handleFiles(files, parsedValue)}
                                 />
                             </AccordionDetails>
                         </Accordion>

@@ -19,7 +19,15 @@ import AddIcon from "@mui/icons-material/Add"
 import {adminTheme, Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
 import styled from "@emotion/styled"
-import {mapDataChildren, ResourceName, DataTreeMenuType, DynEntityType} from "../ElectionEvents"
+import {
+    mapDataChildren,
+    ResourceName,
+    DataTreeMenuType,
+    DynEntityType,
+    ElectionType,
+    ContestType,
+    CandidateType,
+} from "../ElectionEvents"
 import {useTranslation} from "react-i18next"
 
 const mapAddResource: Record<ResourceName, string> = {
@@ -29,24 +37,61 @@ const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_candidate: "sideMenu.addResource.addCandidate",
 }
 
+function getNavLink(resource: DataTreeMenuType | undefined, resourceName: ResourceName): string {
+    const params: Record<string, string> = {}
+
+    switch (resourceName) {
+        case "sequent_backend_election":
+            params.electionEventId = (resource as ElectionType).id
+            break
+        case "sequent_backend_contest":
+            params.electionEventId = (resource as ContestType).election_event_id
+            params.electionId = (resource as ContestType).id
+            break
+        case "sequent_backend_candidate":
+            params.electionEventId = (resource as CandidateType).election_event_id
+            params.contestId = (resource as CandidateType).id
+            break
+    }
+
+    const url = `/${resourceName}/create`
+
+    const urlObject = new URL(url, window.location.origin)
+
+    Object.entries(params).forEach(([key, value]) => {
+        urlObject.searchParams.append(key, value.toString())
+    })
+
+    const res = urlObject.pathname + urlObject.search
+
+    return res
+}
+
 interface TreeLeavesProps {
     data: DynEntityType
-    treeResourceNames: string[]
+    parentData: DataTreeMenuType
+    treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
 }
 
-function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLeavesProps) {
+function TreeLeaves({
+    data,
+    parentData,
+    treeResourceNames,
+    isArchivedElectionEvents,
+}: TreeLeavesProps) {
     const {t} = useTranslation()
 
     return (
         <div className="bg-white">
             <div className="flex flex-col ml-3">
-                {data?.[mapDataChildren(treeResourceNames[0] as ResourceName)]?.map(
+                {data?.[mapDataChildren(treeResourceNames[0])]?.map(
                     (resource: DataTreeMenuType) => {
                         return (
                             <TreeMenuItem
                                 key={resource.id}
                                 resource={resource}
+                                parentData={resource}
                                 id={resource.id}
                                 name={resource.name}
                                 treeResourceNames={treeResourceNames}
@@ -59,7 +104,7 @@ function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLea
                     <div className="inline-flex">
                         <NavLink
                             className="flex items-center shrink space-x-2 -ml-3 px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer"
-                            to={`/${treeResourceNames[0]}/create`}
+                            to={getNavLink(parentData, treeResourceNames[0])}
                         >
                             <AddIcon></AddIcon>
                             <span>{t(mapAddResource[treeResourceNames[0] as ResourceName])}</span>
@@ -73,9 +118,10 @@ function TreeLeaves({data, treeResourceNames, isArchivedElectionEvents}: TreeLea
 
 interface TreeMenuItemProps {
     resource: DataTreeMenuType
+    parentData: DataTreeMenuType
     id: string
     name: string
-    treeResourceNames: string[]
+    treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
 }
 
@@ -93,6 +139,7 @@ type ActionPayload = {
 
 function TreeMenuItem({
     resource,
+    parentData,
     id,
     name,
     treeResourceNames,
@@ -243,6 +290,7 @@ function TreeMenuItem({
                     {hasNext && (
                         <TreeLeaves
                             data={data}
+                            parentData={parentData}
                             treeResourceNames={subTreeResourceNames}
                             isArchivedElectionEvents={isArchivedElectionEvents}
                         />
@@ -260,7 +308,7 @@ export function TreeMenu({
     onArchiveElectionEventsSelect,
 }: {
     data: DynEntityType
-    treeResourceNames: string[]
+    treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
     onArchiveElectionEventsSelect: (val: number) => void
 }) {
@@ -294,6 +342,7 @@ export function TreeMenu({
             <div className="mx-5 py-2">
                 <TreeLeaves
                     data={data}
+                    parentData={data as DataTreeMenuType}
                     treeResourceNames={treeResourceNames}
                     isArchivedElectionEvents={isArchivedElectionEvents}
                 />

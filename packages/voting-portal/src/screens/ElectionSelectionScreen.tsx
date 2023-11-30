@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     BreadCrumbSteps,
@@ -27,8 +27,9 @@ import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSl
 import {IElection, selectElectionById, setElection} from "../store/elections/electionsSlice"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {AppDispatch} from "../store/store"
-import {DISABLE_AUTH} from ".."
+import {DISABLE_AUTH} from "../Config"
 import {ELECTIONS_LIST} from "../fixtures/election"
+import {TenantEventContext} from ".."
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -55,10 +56,11 @@ interface ElectionWrapperProps {
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     const election = useAppSelector(selectElectionById(electionId))
+    const {tenantId, eventId} = useContext(TenantEventContext)
     const navigate = useNavigate()
 
     const onClickToVote = () => {
-        navigate(`/election/${electionId}/start`)
+        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/start`)
     }
 
     const formatDate = (dateStr: string): string => {

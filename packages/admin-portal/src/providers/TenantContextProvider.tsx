@@ -4,17 +4,17 @@
 import React, {createContext, useContext, useState} from "react"
 import {DEFAULT_TENANT} from "./AuthContextProvider"
 
-interface TenantContext {
+interface TenantContextProps {
     tenantId: string | null
     setTenantId: (tenantId: string | null) => void
 }
 
-const defaultTenantContext: TenantContext = {
+const defaultTenantContext: TenantContextProps = {
     tenantId: DEFAULT_TENANT,
     setTenantId: () => undefined,
 }
 
-export const TenantContext = createContext<TenantContext>(defaultTenantContext)
+export const TenantContext = createContext<TenantContextProps>(defaultTenantContext)
 
 interface TenantContextProviderProps {
     /**
