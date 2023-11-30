@@ -7,7 +7,6 @@ import {
     SelectInput,
     TextInput,
     useRecordContext,
-    useRefresh,
     SimpleForm,
     useGetOne,
     RecordContext,
@@ -15,47 +14,47 @@ import {
     Toolbar,
     SaveButton,
     useNotify,
+    useRefresh,
 } from "react-admin"
-import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid} from "@mui/material"
 import {
-    CreateScheduledEventMutation,
-    GetUploadUrlMutation,
-    Sequent_Backend_Election,
-} from "../../gql/graphql"
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Tabs,
+    Tab,
+    Grid,
+    styled,
+    Box,
+} from "@mui/material"
+import {GetUploadUrlMutation, Sequent_Backend_Election} from "../../gql/graphql"
+
 import React, {useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
-import {ScheduledEventType} from "../../services/ScheduledEvent"
-import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {DropFile} from "@sequentech/ui-essentials"
-import {useTenantStore} from "../../providers/TenantContextProvider"
 import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
+import {UPDATE_ELECTION_IMAGE} from "@/queries/UpdateElectionImage"
+
+const Hidden = styled(Box)`
+    display: none;
+`
 
 export const ElectionDataForm: React.FC = () => {
+    const [update_election_image] = useMutation(UPDATE_ELECTION_IMAGE)
     const record = useRecordContext<Sequent_Backend_Election>()
-    const [tenantId] = useTenantStore()
-    const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
-    const refresh = useRefresh()
     const {t} = useTranslation()
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
-
-    const [showMenu, setShowMenu] = useState(false)
-    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
-    const [showProgress, setShowProgress] = useState(false)
-    const [showCreateKeysDialog, setShowCreateKeysDialog] = useState(false)
-    const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)
+    const refresh = useRefresh()
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-data-general")
     const [defaultLangValue, setDefaultLangValue] = useState<string>("")
-    const [jsonConfiguration, setJsonConfiguration] = useState<any>({})
 
     const {data} = useGetOne("sequent_backend_election_event", {
         id: record.election_event_id,
@@ -141,7 +140,6 @@ export const ElectionDataForm: React.FC = () => {
         if (!temp.presentation || !temp.presentation?.i18n) {
             temp.presentation = {i18n: {en: {}}}
         }
-        console.log("temp.presentation :>> ", temp.presentation)
         temp.presentation.i18n.en.name = temp.name
         temp.presentation.i18n.en.alias = temp.alias
         temp.presentation.i18n.en.description = temp.description
@@ -149,98 +147,9 @@ export const ElectionDataForm: React.FC = () => {
         return temp
     }
 
-    const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
-        setAnchorEl(event.currentTarget)
-        setShowMenu(true)
-    }
-
-    const createBulletinBoardAction = async () => {
-        setShowMenu(false)
-        setShowProgress(true)
-
-        const {data, errors} = await createScheduledEvent({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: record.id,
-                eventProcessor: ScheduledEventType.CREATE_BOARD,
-                cronConfig: undefined,
-                eventPayload: {},
-                createdBy: "admin",
-            },
-        })
-        if (errors) {
-            console.log(errors)
-        }
-        if (data) {
-            console.log(data)
-        }
-        setShowProgress(false)
-        refresh()
-    }
-
-    const setPublicKeysAction = async () => {
-        setShowMenu(false)
-        setShowProgress(true)
-
-        const {data, errors} = await createScheduledEvent({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: record.id,
-                eventProcessor: ScheduledEventType.SET_PUBLIC_KEY,
-                cronConfig: undefined,
-                eventPayload: {},
-                createdBy: "admin",
-            },
-        })
-        if (errors) {
-            console.log(errors)
-        }
-        if (data) {
-            console.log(data)
-        }
-        setShowProgress(false)
-        refresh()
-    }
-
-    const openKeysDialog = () => {
-        console.log("opening...")
-        setShowCreateKeysDialog(true)
-    }
-
-    const openStartTallyDialog = () => {
-        console.log("opening...")
-        setShowStartTallyDialog(true)
-    }
-
-    const createBallotStylesAction = async () => {
-        setShowMenu(false)
-        setShowProgress(true)
-
-        const {data, errors} = await createScheduledEvent({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: record.id,
-                eventProcessor: ScheduledEventType.CREATE_ELECTION_EVENT_BALLOT_STYLES,
-                cronConfig: undefined,
-                eventPayload: {},
-                createdBy: "admin",
-            },
-        })
-        if (errors) {
-            console.log(errors)
-        }
-        if (data) {
-            console.log(data)
-        }
-        setShowProgress(false)
-        refresh()
-    }
-
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
     }
-
-    let configCreatedStatus = getConfigCreatedStatus(record.status)
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
@@ -334,10 +243,12 @@ export const ElectionDataForm: React.FC = () => {
         return tabNodes
     }
 
-    const handleFiles = async (files: FileList | null, parsedValues: any) => {
-        console.log("files :>> ", files?.[0].name)
+    const handleFiles = async (files: FileList | null) => {
+        // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
 
         const theFile = files?.[0]
+        const fileLink = URL.createObjectURL(theFile as any)
+        console.log("fileLink :>> ", fileLink)
 
         if (theFile) {
             let {data, errors} = await getUploadUrl({
@@ -349,15 +260,28 @@ export const ElectionDataForm: React.FC = () => {
             })
             if (data?.get_upload_url?.document_id) {
                 console.log("upload :>> ", data)
-                let formdata = new FormData()
-                if (theFile) {
-                    formdata.append("archivo", theFile, theFile.name)
-                }
+
                 try {
                     await fetch(data.get_upload_url.url, {
                         method: "PUT",
-                        body: formdata,
+                        headers: {
+                            "Content-Type": "image/*",
+                        },
+                        body: theFile,
                     })
+                    notify(t("electionScreen.error.fileLoaded"), {type: "success"})
+                    let {errors: updateImageErrors} = await update_election_image({
+                        variables: {
+                            id: record.id,
+                            image: data.get_upload_url.document_id,
+                        },
+                    })
+                    if (updateImageErrors) {
+                        console.log("insertAreasErrors :>> ", updateImageErrors)
+                        notify("Could not update Area", {type: "error"})
+                        return
+                    }
+
                 } catch (e) {
                     console.log("error :>> ", e)
                     notify(t("electionScreen.error.fileError"), {type: "error"})
@@ -373,7 +297,7 @@ export const ElectionDataForm: React.FC = () => {
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(incoming)
-                // console.log("parsedValue :>> ", parsedValue)
+                console.log("parsedValue :>> ", parsedValue)
                 return (
                     <SimpleForm
                         validate={formValidator}
@@ -567,9 +491,7 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <DropFile
-                                    handleFiles={(files) => handleFiles(files, parsedValue)}
-                                />
+                                <DropFile handleFiles={async (files) => handleFiles(files)} />
                             </AccordionDetails>
                         </Accordion>
 

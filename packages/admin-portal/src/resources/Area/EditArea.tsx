@@ -104,6 +104,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
         // delete area contest first
         let {errors: deleteAreasErrors} = await delete_sequent_backend_area_contest({
             variables: {
+                tenantId,
                 area: temp.id,
             },
         })
@@ -200,6 +201,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
 
                                         {contests ? (
                                             <CheckboxGroupInput
+                                                label={t("areas.sequent_backend_area_contest")}
                                                 source="area_contest_ids"
                                                 choices={contests}
                                                 optionText="name"
