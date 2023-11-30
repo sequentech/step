@@ -16,6 +16,18 @@ actions:
   permissions:
   - role: admin-user
   comment: create scheduled event
+- name: edit_user
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/edit-user
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.body}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
 - name: fetchDocument
   definition:
     kind: ""
@@ -167,6 +179,7 @@ custom_types:
   - name: GetUsersInput
   - name: GetPermissionsInput
   - name: GetRolesInput
+  - name: EditUsersInput
   objects:
   - name: TemplateOutput
   - name: FetchDocumentOutput

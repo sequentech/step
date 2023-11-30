@@ -4,12 +4,7 @@
 import React from "react"
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
-import {
-    DEFAULT_TENANT_ID,
-    DEFAULT_EVENT_ID,
-    KEYCLOAK_URL,
-    KEYCLOAK_CLIENT_ID
-} from "../Config"
+import {DEFAULT_TENANT_ID, DEFAULT_EVENT_ID, KEYCLOAK_URL, KEYCLOAK_CLIENT_ID} from "../Config"
 
 /**
  * KeycloakConfig configures the connection to the Keycloak server.
@@ -24,7 +19,7 @@ const keycloakConfig: (
         realm: `tenant-${tenantId}-event-${eventId}`,
         url: keycloakUrl,
         clientId: clientId,
-    };
+    }
 }
 
 /**
@@ -41,9 +36,7 @@ const keycloakInitOptions: KeycloakInitOptions = {
 
 // Create the Keycloak client instance
 var keycloak = new Keycloak(
-    keycloakConfig(
-        DEFAULT_TENANT_ID, DEFAULT_EVENT_ID, KEYCLOAK_URL, KEYCLOAK_CLIENT_ID
-    )
+    keycloakConfig(DEFAULT_TENANT_ID, DEFAULT_EVENT_ID, KEYCLOAK_URL, KEYCLOAK_CLIENT_ID)
 )
 
 /**
@@ -99,7 +92,7 @@ interface AuthContextProviderProps {
     /**
      * The elements wrapped by the auth context.
      */
-    children: JSX.Element;
+    children: JSX.Element
 }
 
 /**
@@ -107,8 +100,7 @@ interface AuthContextProviderProps {
  *
  * @param props
  */
-const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
-
+const AuthContextProvider = ({children}: AuthContextProviderProps) => {
     // Create the local state in which we will keep track if a user is authenticated
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
     // Local state that will contain the users name once it is loaded
@@ -117,37 +109,28 @@ const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
     const [tenantId, setTenantId] = useState<string | null>(null)
     const [eventId, setEventId] = useState<string | null>(null)
 
-
     // Effect used to initialize the Keycloak client. It has no dependencies so
     // it is only rendered when the app is (re-)loaded.
     useEffect(() => {
         /**
          * Initialize the Keycloak instance
          */
-        async function initializeKeycloak()
-        {
+        async function initializeKeycloak() {
             console.log("initialize Keycloak")
             if (!tenantId || !eventId) {
                 console.log("Received empty tenant or event id, ignoring..")
-                return;
+                return
             }
             if (isAuthenticated) {
-                return;
+                return
             }
             try {
                 // Create a new Keycloak instance with the updated configuration
                 keycloak = new Keycloak(
-                    keycloakConfig(
-                        tenantId,
-                        eventId,
-                        KEYCLOAK_URL,
-                        KEYCLOAK_CLIENT_ID
-                    )
+                    keycloakConfig(tenantId, eventId, KEYCLOAK_URL, KEYCLOAK_CLIENT_ID)
                 )
 
-                const isAuthenticatedResponse = await keycloak.init(
-                    keycloakInitOptions
-                )
+                const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
 
                 // If the authentication was not successfull the user is send
                 // back to the Keycloak login form
@@ -189,7 +172,7 @@ const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
                 console.log("error trying to load the users profile")
             }
         }
-        console.log(`useEffect(): isAuthenticated=${isAuthenticated}`);
+        console.log(`useEffect(): isAuthenticated=${isAuthenticated}`)
 
         // Only load the profile if a user is authenticated
         if (isAuthenticated) {
@@ -223,9 +206,16 @@ const AuthContextProvider = ({ children }: AuthContextProviderProps) => {
 
     // Setup the context provider
     return (
-        <AuthContext.Provider value={{
-            isAuthenticated, username, logout, login, hasRole, getAccessToken
-        }}>
+        <AuthContext.Provider
+            value={{
+                isAuthenticated,
+                username,
+                logout,
+                login,
+                hasRole,
+                getAccessToken,
+            }}
+        >
             {children}
         </AuthContext.Provider>
     )

@@ -8,4 +8,4 @@ WORKDIR /usr/src/app/
 
 EXPOSE 3000
 
-#CMD ["./init.sh", "start"]
+ENTRYPOINT ["./init.sh", "start"]
