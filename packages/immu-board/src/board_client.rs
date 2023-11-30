@@ -111,12 +111,9 @@ impl BoardClient {
         username: &str,
         password: &str,
     ) -> Result<BoardClient> {
-        let client = Client::new(&server_url, username, password).await?;
+        let mut client = Client::new(&server_url, username, password).await?;
+        client.login().await?;
         Ok(BoardClient { client: client })
-    }
-
-    pub async fn login(&mut self) -> Result<()> {
-        self.client.login().await
     }
 
     /// Get all messages whose id is bigger than `last_id`
@@ -125,7 +122,7 @@ impl BoardClient {
         board_db: &str,
         last_id: i64,
     ) -> Result<Vec<BoardMessage>> {
-        self.client.open_session(board_db).await?;
+        self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
         SELECT
@@ -147,7 +144,7 @@ impl BoardClient {
             .iter()
             .map(BoardMessage::try_from)
             .collect::<Result<Vec<BoardMessage>>>()?;
-        self.client.close_session().await?;
+        
         Ok(messages)
     }
 
@@ -159,7 +156,7 @@ impl BoardClient {
         kind: &str,
         signer_key: &str
     ) -> Result<Vec<BoardMessage>> {
-        self.client.open_session(board_db).await?;
+        self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
         SELECT
@@ -170,19 +167,32 @@ impl BoardClient {
             statement_kind,
             message
         FROM messages
-        WHERE signer_key = {} and statement_kind = {}
+        WHERE signer_key = @signer_key AND statement_kind = @statement_kind;
         "#,
-            signer_key,
-            kind,
         );
-        let sql_query_response = self.client.sql_query(&sql, vec![]).await?;
+        let params = vec![
+            NamedParam {
+                name: String::from("signer_key"),
+                value: Some(SqlValue {
+                    value: Some(Value::S(signer_key.to_string())),
+                }),
+            },
+            NamedParam {
+                name: String::from("statement_kind"),
+                value: Some(SqlValue {
+                    value: Some(Value::S(kind.to_string())),
+                }),
+            },
+        ];
+
+        let sql_query_response = self.client.sql_query(&sql, params).await?;
         let messages = sql_query_response
             .get_ref()
             .rows
             .iter()
             .map(BoardMessage::try_from)
             .collect::<Result<Vec<BoardMessage>>>()?;
-        self.client.close_session().await?;
+    
         Ok(messages)
     }
 
@@ -195,6 +205,7 @@ impl BoardClient {
         self.client.open_session(board_db).await?;
         // Start a new transaction
         let transaction_id = self.client.new_tx(TxMode::ReadWrite).await?;
+        let mut sql_results = vec![];
         for message in messages {
             let message_sql = r#"
                 INSERT INTO messages(
@@ -243,17 +254,26 @@ impl BoardClient {
                     }),
                 },
             ];
-            self.client
+            let result = self.client
                 .tx_sql_exec(&message_sql, &transaction_id, params)
-                .await?;
+                .await;
+            sql_results.push(result);
         }
-        self.client.commit(&transaction_id).await?;
+        
+        let commit = self.client.commit(&transaction_id).await;
         self.client.close_session().await?;
+        
+        // We defer checking on these results until after closing the session
+        for result in sql_results {
+            result?;
+        }
+        commit?;
+        
         Ok(())
     }
 
     pub async fn get_boards(&mut self, index_db: &str) -> Result<Vec<Board>> {
-        self.client.open_session(index_db).await?;
+        self.client.use_database(index_db).await?;
         let sql = format!(
             r#"
         SELECT
@@ -272,7 +292,7 @@ impl BoardClient {
             .iter()
             .map(Board::try_from)
             .collect::<Result<Vec<Board>>>()?;
-        self.client.close_session().await?;
+
         Ok(boards)
     }
 
@@ -471,7 +491,6 @@ pub(crate) mod tests {
     async fn set_up() -> BoardClient {
         let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb").await.unwrap();
         
-        b.login().await.unwrap();
         // In case the previous test did not clean up properly
         b.delete_database(INDEX_DB).await.unwrap();
         b.delete_database(BOARD_DB).await.unwrap();

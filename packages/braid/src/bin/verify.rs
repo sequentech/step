@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
         IMMUDB_USER,
         IMMUDB_PW,
         args.board,
-        store_root.clone(),
+        Some(store_root.clone()),
     )
     .await?;
     let mut session = Verifier::new(trustee, board);

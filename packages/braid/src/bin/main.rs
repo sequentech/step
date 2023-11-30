@@ -98,7 +98,7 @@ async fn main() -> Result<()> {
                 IMMUDB_USER,
                 IMMUDB_PW,
                 board_name.clone(),
-                store_root.clone(),
+                Some(store_root.clone()),
             )
             .await;
             let board = match board_result {
