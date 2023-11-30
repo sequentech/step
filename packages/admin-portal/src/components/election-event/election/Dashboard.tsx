@@ -7,6 +7,8 @@ import {Box} from "@mui/material"
 
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import styled from "@emotion/styled"
+import Stats from "../dashboard/Stats"
+import {VotesByChannel, VotesByDay} from "../dashboard/Charts"
 
 const Container = styled(Box)`
     display: flex;
@@ -18,21 +20,14 @@ export default function DashboardElection() {
     return (
         <>
             <Box sx={{width: 1024, marginX: "auto"}}>
-                <BreadCrumbSteps
-                    labels={[
-                        "electionEventBreadcrumbSteps.created",
-                        "electionEventBreadcrumbSteps.keys",
-                        "electionEventBreadcrumbSteps.publish",
-                        "electionEventBreadcrumbSteps.started",
-                        "electionEventBreadcrumbSteps.ended",
-                        "electionEventBreadcrumbSteps.results",
-                    ]}
-                    selected={1}
-                    variant={BreadCrumbStepsVariant.Circle}
-                    colorPreviousSteps={true}
-                />
+                <Box>
+                    <Stats />
 
-                <Box>huhu</Box>
+                    <Container>
+                        <VotesByDay />
+                        <VotesByChannel />
+                    </Container>
+                </Box>
             </Box>
         </>
     )
