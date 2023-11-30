@@ -38,7 +38,7 @@ impl KeycloakAdminClient {
             .client
             .realm_users_get(
                 realm.clone(),
-                None,
+                Some(false),
                 email.clone(),
                 None,
                 None,

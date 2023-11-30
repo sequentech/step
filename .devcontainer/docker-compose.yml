@@ -252,9 +252,9 @@ services:
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-      - 3002:3002
+      - 3002:3000
     stdin_open: true
-    entrypoint: ["./init.sh", "start:admin"]
+    entrypoint: ["./init.sh", "start:admin:container"]
     volumes:
        - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
