@@ -6,8 +6,6 @@ import React from "react"
 import {Box} from "@mui/material"
 
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
-import Stats from "./Stats"
-import {VotesByDay, VotesByChannel} from "./Charts"
 import styled from "@emotion/styled"
 
 const Container = styled(Box)`
@@ -16,7 +14,7 @@ const Container = styled(Box)`
     justify-content: space-between;
 `
 
-export default function DashboardElectionEvent() {
+export default function DashboardElection() {
     return (
         <>
             <Box sx={{width: 1024, marginX: "auto"}}>
@@ -34,14 +32,7 @@ export default function DashboardElectionEvent() {
                     colorPreviousSteps={true}
                 />
 
-                <Box>
-                    <Stats />
-
-                    <Container>
-                        <VotesByDay />
-                        <VotesByChannel />
-                    </Container>
-                </Box>
+                <Box>huhu</Box>
             </Box>
         </>
     )
