@@ -3,22 +3,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useState} from "react"
-import {useQuery} from "@apollo/client"
 import {useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {CircularProgress, TextField} from "@mui/material"
 import {Menu, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
-import {faThLarge, faSearch, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import {faSearch, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import WebIcon from "@mui/icons-material/Web"
 import {cn} from "../../../lib/utils"
 import {HorizontalBox} from "../../HorizontalBox"
 import {Link} from "react-router-dom"
-import {FETCH_ELECTION_EVENTS_TREE} from "../../../queries/GetElectionEventsTree"
-import {useTenantStore} from "../../../providers/TenantContextProvider"
-import {AuthContext} from "../../../providers/AuthContextProvider"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
+import useTreeMenuHook from "./use-tree-menu-hook"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -76,19 +76,26 @@ export interface ElectionEventsTree {
 
 type BaseType = {__typename: ResourceName; id: string; name: string}
 
-type CandidateType = BaseType & {__typename: "sequent_backend_candidate"}
+export type CandidateType = BaseType & {
+    __typename: "sequent_backend_candidate"
+    election_event_id: string
+    contest_id: string
+}
 
-type ContestType = BaseType & {
+export type ContestType = BaseType & {
     __typename: "sequent_backend_contest"
+    election_event_id: string
+    election_id: string
     candidates: Array<CandidateType>
 }
 
-type ElectionType = BaseType & {
+export type ElectionType = BaseType & {
     __typename: "sequent_backend_election"
+    election_event_id: string
     contests: Array<ContestType>
 }
 
-type ElectionEventType = BaseType & {
+export type ElectionEventType = BaseType & {
     __typename: "sequent_backend_election_event"
     is_archived: boolean
     elections: Array<ElectionType>
@@ -150,12 +157,7 @@ export default function ElectionEvents() {
         (route) => location.pathname.search(route) > -1
     )
 
-    const {data, loading} = useQuery(FETCH_ELECTION_EVENTS_TREE, {
-        variables: {
-            tenantId: tenantId,
-            isArchived: isArchivedElectionEvents,
-        },
-    })
+    const {data, loading} = useTreeMenuHook(isArchivedElectionEvents)
 
     let resultData = data
     if (!loading && data && data.sequent_backend_election_event) {
@@ -180,7 +182,7 @@ export default function ElectionEvents() {
                     <MenuItem
                         to="/sequent_backend_election_event"
                         primaryText={isOpenSidebar && t("sideMenu.electionEvents")}
-                        leftIcon={<IconButton icon={faThLarge} fontSize="24px" />}
+                        leftIcon={<WebIcon sx={{color: adminTheme.palette.brandColor}} />}
                         sx={{flexGrow: 2}}
                     />
                     {showAddElectionEvent ? (

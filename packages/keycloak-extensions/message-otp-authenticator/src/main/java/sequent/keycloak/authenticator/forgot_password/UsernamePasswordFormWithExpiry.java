@@ -110,7 +110,7 @@ public class UsernamePasswordFormWithExpiry
                 Utils.RECAPTCHA_G_RESPONSE
             );
             if (!Validation.isBlank(captchaResponse)) {
-                recaptchaValidated = validateRecaptcha(
+                recaptchaValidated = Utils.validateRecaptcha(
                     context,
                     recaptchaValidated,
                     captchaResponse,
@@ -201,74 +201,6 @@ public class UsernamePasswordFormWithExpiry
         }
 
         return true;
-    }
-
-    protected boolean validateRecaptcha(
-        AuthenticationFlowContext context,
-        boolean success,
-        String captcha,
-        String secret,
-        Double minScore
-    ) {
-        log.info("validateRecaptcha()");
-        HttpClient httpClient = context
-            .getSession()
-            .getProvider(HttpClientProvider.class)
-            .getHttpClient();
-        HttpPost post = new HttpPost(Utils.SITE_VERIFY_URL);
-        List<NameValuePair> formparams = new LinkedList<>();
-        formparams.add(new BasicNameValuePair("secret", secret));
-        formparams.add(new BasicNameValuePair("response", captcha));
-        formparams.add(
-            new BasicNameValuePair("remoteip",
-            context.getConnection().getRemoteAddr())
-        );
-        log.infov(
-            "validateRecaptcha(): secret={0},  captcha={1}",
-            secret,
-            captcha
-        );
-        try {
-            UrlEncodedFormEntity form = new UrlEncodedFormEntity(
-                formparams, 
-                "UTF-8"
-            );
-            post.setEntity(form);
-            HttpResponse response = httpClient.execute(post);
-            InputStream content = response.getEntity().getContent();
-            InputStreamReader isr = new InputStreamReader(content);
-            BufferedReader br = new BufferedReader(isr);
-            StringBuilder result = new StringBuilder();
-            String line;
-            while ((line = br.readLine()) != null) {
-                result.append(line);
-            }
-            log.infov("recaptcha result = {0}", result.toString());
-            try {
-                Object scoreObj = JsonSerialization
-                    .readValue(result.toString(), Map.class)
-                    .get("score");
-                Double userScore = Double.parseDouble(
-                    (scoreObj != null) ? scoreObj.toString() : "0"
-                );
-                log.infov(
-                    "validateRecaptcha() userScore[{0}] > minScore[{1}] = [{2}]",
-                    userScore,
-                    minScore,
-                    (userScore > minScore)
-                );
-                if (userScore > minScore) {
-                    success = true;
-                } else {
-                    success = false;
-                }
-            } finally {
-                content.close();
-            }
-        } catch (Exception error) {
-            log.infov("validateRecaptcha(): error {0}", error);
-        }
-        return success;
     }
 
     private UserModel getUser(
@@ -364,43 +296,8 @@ public class UsernamePasswordFormWithExpiry
         AuthenticationFlowContext context,
         MultivaluedMap<String, String> formData
     ) {
-        AuthenticatorConfigModel authConfig = context.getAuthenticatorConfig();
-        boolean recaptchaEnabled = Utils.getBoolean(
-            authConfig, Utils.RECAPTCHA_ENABLED_ATTRIBUTE, false
-        );
-
         LoginFormsProvider forms = context.form();
-        if (recaptchaEnabled) {
-            String recaptchaSiteKey = Utils
-                .getString(
-                    authConfig, Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE
-                )
-                .strip();
-            String recaptchaActionName = Utils
-                .getString(
-                    authConfig, Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE
-                )
-                .strip();
-            forms.setAttribute(Utils.RECAPTCHA_ENABLED_ATTRIBUTE, true);
-            forms.setAttribute(
-                Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE,
-                recaptchaActionName
-            );
-            forms.setAttribute(
-                Utils.RECAPTCHA_SITE_KEY_ATTRIBUTE,
-                recaptchaSiteKey
-            );
-            String userLanguageTag = context
-                .getSession()
-                .getContext()
-                .resolveLocale(context.getUser())
-                .toLanguageTag();
-            forms.addScript(
-                "https://www.google.com/recaptcha/api.js?hl=" +
-                userLanguageTag + "&render=" + recaptchaSiteKey + 
-                "&onload=onRecaptchaLoaded"
-            );
-        }
+        Utils.addRecaptchaChallenge(context, formData);
 
         if (formData.size() > 0) {
             forms.setFormData(formData);
@@ -514,7 +411,7 @@ public class UsernamePasswordFormWithExpiry
 				"reCAPTCHA v3 Action Name",
 				"",
                 ProviderConfigProperty.STRING_TYPE,
-				Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE
+				Utils.RECAPTCHA_ACTION_NAME_ATTRIBUTE_DEFAULT
 			),
             new ProviderConfigProperty(
 				Utils.RECAPTCHA_ENABLED_ATTRIBUTE,

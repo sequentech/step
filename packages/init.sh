@@ -1,12 +1,14 @@
 #!/bin/sh
 
-# First argument is the environment
-ENVIRONMENT=${1-:dev}
+# First argument is the yarn action
+ACTION=${1-:start}
+# Second argument is the environment
+ENVIRONMENT=${2-:dev}
 
 if [ "$ENVIRONMENT" = "prod" ];then
-    yarn start
+    yarn $ACTION
 else
     yarn --pure-lockfile --non-interactive
     yarn build:ui-essentials
-    yarn start
+    yarn $ACTION
 fi

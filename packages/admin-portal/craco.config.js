@@ -1,3 +1,5 @@
+const CracoAlias = require("craco-alias")
+
 module.exports = {
     devServer: {
         headers: {
@@ -15,4 +17,14 @@ module.exports = {
             "react/jsx-dev-runtime.js": "react/jsx-dev-runtime",
         },
     },
+    plugins: [
+        {
+            plugin: CracoAlias,
+            options: {
+                source: "tsconfig",
+                baseUrl: ".",
+                tsConfigPath: "./tsconfig.json",
+            },
+        },
+    ],
 }

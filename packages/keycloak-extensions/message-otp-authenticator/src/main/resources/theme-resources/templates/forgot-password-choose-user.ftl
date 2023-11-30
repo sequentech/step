@@ -77,6 +77,28 @@
                     </div>
                 </div>
 
+                <#if recaptchaEnabled??>
+                    <input
+                        type="hidden"
+                        id="g-recaptcha-response"
+                        name="g-recaptcha-response" />
+                    <script>
+                        var onRecaptchaLoaded = function()
+                        {
+                            grecaptcha
+                                .execute(
+                                    '${recaptchaSiteKey}',
+                                    { action:'${recaptchaActionName}' }
+                                )
+                                .then(function(token) {
+                                    document.getElementById(
+                                        'g-recaptcha-response'
+                                    ).value = token;
+                                });
+                        };
+                    </script>
+                </#if>
+
                 <div 
                     id="kc-form-buttons"
                     class="${properties.kcFormButtonsClass!}"

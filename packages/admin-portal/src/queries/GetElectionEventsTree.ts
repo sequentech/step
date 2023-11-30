@@ -15,12 +15,17 @@ export const FETCH_ELECTION_EVENTS_TREE = gql`
             elections {
                 id
                 name
+                election_event_id
                 contests {
                     id
                     name
+                    election_event_id
+                    election_id
                     candidates {
                         id
                         name
+                        contest_id
+                        election_event_id
                     }
                 }
             }

@@ -370,7 +370,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName", "totpAppGoogleName" ],
+  "otpSupportedApplications" : [ "totpAppFreeOTPName", "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -402,14 +402,14 @@
     "attributes" : {
       "sequent.read-only.mobile-number" : [ "+34666000111" ],
       "area-id" : [ "2f312a36-f39c-46e4-9670-1d1ce4625745" ],
-      "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ],
-      "sequent.read-only.expirationDate" : [ "1700939473" ]
+      "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
     },
     "credentials" : [ {
       "id" : "19f5adbc-93ef-4ecf-b3b5-fc6e016aa33e",
       "type" : "password",
-      "createdDate" : 1700932273686,
-      "secretData" : "{\"value\":\"fSGOdOmwz7gqeGNGbUH8hsqDGiFWQJYyF97kWGfp8b0=\",\"salt\":\"dbC1k3YCCOpsrGsEl0bW7Q==\",\"additionalParameters\":{}}",
+      "userLabel" : "My password",
+      "createdDate" : 1701013300288,
+      "secretData" : "{\"value\":\"IWVbCXtJNqzMp2drtcsvG5neVc1DUsHMwmx2s1Ut8II=\",\"salt\":\"TcRqjCUDCiklXQZqTXQxjg==\",\"additionalParameters\":{}}",
       "credentialData" : "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
     } ],
     "disableableCredentialTypes" : [ ],
@@ -1232,7 +1232,7 @@
       "subType" : "authenticated",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "saml-user-property-mapper", "oidc-address-mapper", "saml-role-list-mapper", "oidc-full-name-mapper", "oidc-usermodel-property-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-attribute-mapper", "saml-user-attribute-mapper" ]
+        "allowed-protocol-mapper-types" : [ "oidc-usermodel-property-mapper", "saml-user-attribute-mapper", "oidc-full-name-mapper", "saml-role-list-mapper", "saml-user-property-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-usermodel-attribute-mapper", "oidc-address-mapper" ]
       }
     }, {
       "id" : "a26aaeed-f109-40ab-ada2-c2cec32986bf",
@@ -1266,7 +1266,7 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : {
-        "allowed-protocol-mapper-types" : [ "oidc-full-name-mapper", "saml-user-property-mapper", "saml-user-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "oidc-address-mapper", "oidc-usermodel-property-mapper", "saml-role-list-mapper", "oidc-usermodel-attribute-mapper" ]
+        "allowed-protocol-mapper-types" : [ "saml-user-attribute-mapper", "oidc-sha256-pairwise-sub-mapper", "saml-user-property-mapper", "oidc-full-name-mapper", "oidc-address-mapper", "oidc-usermodel-property-mapper", "oidc-usermodel-attribute-mapper", "saml-role-list-mapper" ]
       }
     }, {
       "id" : "0d7794fa-2e22-499b-8aa6-7fde4d9c446d",
@@ -2020,6 +2020,7 @@
     "topLevel" : true,
     "builtIn" : false,
     "authenticationExecutions" : [ {
+      "authenticatorConfig" : "choose-user",
       "authenticator" : "forgot-password-choose-user",
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
@@ -2081,6 +2082,16 @@
     } ]
   } ],
   "authenticatorConfig" : [ {
+    "id" : "f9975884-d43b-458f-8863-c5b70947f555",
+    "alias" : "choose-user",
+    "config" : {
+      "recaptchaActionName" : "forgotpassword",
+      "recaptchaSiteKey" : "6LfJ_RspAAAAAAX_gikmCVVs1MP8DPWV71WYUKUK",
+      "siteSecret" : "6LfJ_RspAAAAAOAA1TlNmGRgzUANakib7MSQe1ae",
+      "recaptchaEnabled" : "true",
+      "recaptchaMinScore" : "0.5"
+    }
+  }, {
     "id" : "cc2db1e0-c516-4e7a-ac66-e6e5003754d6",
     "alias" : "create unique user config",
     "config" : {

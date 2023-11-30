@@ -25,6 +25,7 @@ insert_permissions:
     - election_event_id
     - eml
     - id
+    - image_document_id
     - is_consolidated_ballot_encoding
     - is_kiosk
     - labels
@@ -49,6 +50,7 @@ insert_permissions:
     - election_event_id
     - eml
     - id
+    - image_document_id
     - is_consolidated_ballot_encoding
     - is_kiosk
     - labels
@@ -74,6 +76,7 @@ select_permissions:
     - election_event_id
     - eml
     - id
+    - image_document_id
     - is_consolidated_ballot_encoding
     - is_kiosk
     - labels
@@ -99,6 +102,7 @@ select_permissions:
     - election_event_id
     - eml
     - id
+    - image_document_id
     - is_consolidated_ballot_encoding
     - is_kiosk
     - labels
@@ -123,6 +127,7 @@ select_permissions:
     - election_event_id
     - eml
     - id
+    - image_document_id
     - is_consolidated_ballot_encoding
     - is_kiosk
     - labels
@@ -151,6 +156,7 @@ update_permissions:
     - election_event_id
     - eml
     - id
+    - image_document_id
     - is_consolidated_ballot_encoding
     - is_kiosk
     - labels
@@ -176,6 +182,7 @@ update_permissions:
     - election_event_id
     - eml
     - id
+    - image_document_id
     - is_consolidated_ballot_encoding
     - is_kiosk
     - labels

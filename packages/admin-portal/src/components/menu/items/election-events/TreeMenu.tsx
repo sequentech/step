@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {NavLink} from "react-router-dom"
+import {NavLink, useNavigate} from "react-router-dom"
 import React, {useRef, useState} from "react"
 import {useSidebarState} from "react-admin"
 import {Divider, ListItemIcon, MenuItem, MenuList, Popover} from "@mui/material"
@@ -14,33 +14,102 @@ import {
     faTrash,
     faArchive,
 } from "@fortawesome/free-solid-svg-icons"
+import HowToVoteIcon from "@mui/icons-material/HowToVote"
+import AddIcon from "@mui/icons-material/Add"
 import {adminTheme, Icon} from "@sequentech/ui-essentials"
 import {cn} from "../../../../lib/utils"
 import styled from "@emotion/styled"
-import {mapDataChildren, ResourceName, DataTreeMenuType, DynEntityType} from "../ElectionEvents"
+import {
+    mapDataChildren,
+    ResourceName,
+    DataTreeMenuType,
+    DynEntityType,
+    ElectionType,
+    ContestType,
+    CandidateType,
+} from "../ElectionEvents"
 import {useTranslation} from "react-i18next"
+
+const mapAddResource: Record<ResourceName, string> = {
+    sequent_backend_election_event: "sideMenu.addResource.addElectionEvent",
+    sequent_backend_election: "sideMenu.addResource.addElection",
+    sequent_backend_contest: "sideMenu.addResource.addContest",
+    sequent_backend_candidate: "sideMenu.addResource.addCandidate",
+}
+
+function getNavLink(resource: DataTreeMenuType | undefined, resourceName: ResourceName): string {
+    const params: Record<string, string> = {}
+
+    switch (resourceName) {
+        case "sequent_backend_election":
+            params.electionEventId = (resource as ElectionType).id
+            break
+        case "sequent_backend_contest":
+            params.electionEventId = (resource as ContestType).election_event_id
+            params.electionId = (resource as ContestType).id
+            break
+        case "sequent_backend_candidate":
+            params.electionEventId = (resource as CandidateType).election_event_id
+            params.contestId = (resource as CandidateType).id
+            break
+    }
+
+    const url = `/${resourceName}/create`
+
+    const urlObject = new URL(url, window.location.origin)
+
+    Object.entries(params).forEach(([key, value]) => {
+        urlObject.searchParams.append(key, value.toString())
+    })
+
+    const res = urlObject.pathname + urlObject.search
+
+    return res
+}
 
 interface TreeLeavesProps {
     data: DynEntityType
-    treeResourceNames: string[]
+    parentData: DataTreeMenuType
+    treeResourceNames: ResourceName[]
+    isArchivedElectionEvents: boolean
 }
 
-function TreeLeaves({data, treeResourceNames}: TreeLeavesProps) {
+function TreeLeaves({
+    data,
+    parentData,
+    treeResourceNames,
+    isArchivedElectionEvents,
+}: TreeLeavesProps) {
+    const {t} = useTranslation()
+
     return (
         <div className="bg-white">
             <div className="flex flex-col ml-3">
-                {data?.[mapDataChildren(treeResourceNames[0] as ResourceName)]?.map(
+                {data?.[mapDataChildren(treeResourceNames[0])]?.map(
                     (resource: DataTreeMenuType) => {
                         return (
                             <TreeMenuItem
                                 key={resource.id}
                                 resource={resource}
+                                parentData={resource}
                                 id={resource.id}
                                 name={resource.name}
                                 treeResourceNames={treeResourceNames}
+                                isArchivedElectionEvents={isArchivedElectionEvents}
                             />
                         )
                     }
+                )}
+                {!isArchivedElectionEvents && (
+                    <div className="inline-flex">
+                        <NavLink
+                            className="flex items-center shrink space-x-2 -ml-3 px-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer"
+                            to={getNavLink(parentData, treeResourceNames[0])}
+                        >
+                            <AddIcon></AddIcon>
+                            <span>{t(mapAddResource[treeResourceNames[0] as ResourceName])}</span>
+                        </NavLink>
+                    </div>
                 )}
             </div>
         </div>
@@ -49,9 +118,11 @@ function TreeLeaves({data, treeResourceNames}: TreeLeavesProps) {
 
 interface TreeMenuItemProps {
     resource: DataTreeMenuType
+    parentData: DataTreeMenuType
     id: string
     name: string
-    treeResourceNames: string[]
+    treeResourceNames: ResourceName[]
+    isArchivedElectionEvents: boolean
 }
 
 enum Action {
@@ -66,7 +137,16 @@ type ActionPayload = {
     type: string
 }
 
-function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps) {
+function TreeMenuItem({
+    resource,
+    parentData,
+    id,
+    name,
+    treeResourceNames,
+    isArchivedElectionEvents,
+}: TreeMenuItemProps) {
+    const {t} = useTranslation()
+    const navigate = useNavigate()
     const [isOpenSidebar] = useSidebarState()
 
     const [open, setOpen] = useState(false)
@@ -89,8 +169,13 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
         setAnchorEl(menuItemRef.current)
     }
 
-    function handleAction(_action: Action, _payload: ActionPayload) {
-        // TODO
+    function handleAction(e: any, action: Action, payload: ActionPayload) {
+        // close the popover
+        setAnchorEl(null)
+
+        if (action === Action.Add) {
+            navigate(`/${payload.type}/create`)
+        }
     }
 
     const handleCloseActionMenu = () => {
@@ -106,7 +191,7 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
 
     return (
         <div className="bg-white">
-            <div ref={menuItemRef} className="group flex text-center space-x-2 items-center">
+            <div ref={menuItemRef} className="group flex text-left space-x-2 items-center">
                 {hasNext ? (
                     <div className="w-6 h-6 cursor-pointer" onClick={onClick}>
                         <Icon icon={open ? faAngleDown : faAngleRight} />
@@ -119,16 +204,23 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
                         title={name}
                         className={({isActive}) =>
                             cn(
-                                "px-4 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
+                                "grow pl-0 pr-3 py-1.5 text-secondary border-b-2 border-white hover:border-secondary truncate cursor-pointer",
                                 isActive && "border-b-2 border-brand-color"
                             )
                         }
                         to={`/${treeResourceNames[0]}/${id}`}
                     >
-                        {name}
+                        {treeResourceNames[0] === "sequent_backend_election_event" ? (
+                            <p className="flex items-center space-x-2">
+                                <HowToVoteIcon />
+                                <span>{name}</span>
+                            </p>
+                        ) : (
+                            <span>{name}</span>
+                        )}
                     </NavLink>
                 )}
-                <div className="grow hidden group-hover:block">
+                <div className="invisible group-hover:visible">
                     <p className="text-right px-1 cursor-pointer" onClick={handleOpenItemActions}>
                         <Icon icon={faEllipsisH} />
                     </p>
@@ -144,8 +236,8 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
                     >
                         <MenuList dense>
                             <MenuItem
-                                onClick={() =>
-                                    handleAction(Action.Add, {
+                                onClick={(e) =>
+                                    handleAction(e, Action.Add, {
                                         id,
                                         name,
                                         type: treeResourceNames[0],
@@ -155,45 +247,54 @@ function TreeMenuItem({resource, id, name, treeResourceNames}: TreeMenuItemProps
                                 <ListItemIcon>
                                     <StyledIcon icon={faCirclePlus} />
                                 </ListItemIcon>
-                                Add
+                                {t(mapAddResource[treeResourceNames[0] as ResourceName])}
                             </MenuItem>
-                            <Divider />
-                            <MenuItem
-                                onClick={() =>
-                                    handleAction(Action.Remove, {
-                                        id,
-                                        name,
-                                        type: treeResourceNames[0],
-                                    })
-                                }
-                            >
-                                <ListItemIcon>
-                                    <StyledIcon icon={faTrash} />
-                                </ListItemIcon>
-                                Remove
-                            </MenuItem>
-                            <Divider />
-                            <MenuItem
-                                onClick={() =>
-                                    handleAction(Action.Archive, {
-                                        id,
-                                        name,
-                                        type: treeResourceNames[0],
-                                    })
-                                }
-                            >
-                                <ListItemIcon>
-                                    <StyledIcon icon={faArchive} />
-                                </ListItemIcon>
-                                Archive
-                            </MenuItem>
+                            {
+                                // <Divider />
+                                // <MenuItem
+                                //     onClick={() =>
+                                //         handleAction(Action.Remove, {
+                                //             id,
+                                //             name,
+                                //             type: treeResourceNames[0],
+                                //         })
+                                //     }
+                                // >
+                                //     <ListItemIcon>
+                                //         <StyledIcon icon={faTrash} />
+                                //     </ListItemIcon>
+                                //     Remove
+                                // </MenuItem>
+                                // <Divider />
+                                // <MenuItem
+                                //     onClick={() =>
+                                //         handleAction(Action.Archive, {
+                                //             id,
+                                //             name,
+                                //             type: treeResourceNames[0],
+                                //         })
+                                //     }
+                                // >
+                                //     <ListItemIcon>
+                                //         <StyledIcon icon={faArchive} />
+                                //     </ListItemIcon>
+                                //     Archive
+                                // </MenuItem>
+                            }
                         </MenuList>
                     </Popover>
                 </div>
             </div>
             {open && (
                 <div className="">
-                    {hasNext && <TreeLeaves data={data} treeResourceNames={subTreeResourceNames} />}
+                    {hasNext && (
+                        <TreeLeaves
+                            data={data}
+                            parentData={parentData}
+                            treeResourceNames={subTreeResourceNames}
+                            isArchivedElectionEvents={isArchivedElectionEvents}
+                        />
+                    )}
                 </div>
             )}
         </div>
@@ -207,7 +308,7 @@ export function TreeMenu({
     onArchiveElectionEventsSelect,
 }: {
     data: DynEntityType
-    treeResourceNames: string[]
+    treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
     onArchiveElectionEventsSelect: (val: number) => void
 }) {
@@ -239,7 +340,12 @@ export function TreeMenu({
                 </li>
             </ul>
             <div className="mx-5 py-2">
-                <TreeLeaves data={data} treeResourceNames={treeResourceNames} />
+                <TreeLeaves
+                    data={data}
+                    parentData={data as DataTreeMenuType}
+                    treeResourceNames={treeResourceNames}
+                    isArchivedElectionEvents={isArchivedElectionEvents}
+                />
             </div>
         </>
     )

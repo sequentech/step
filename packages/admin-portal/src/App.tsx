@@ -50,8 +50,8 @@ import {CreateElection} from "./resources/Election/CreateElection"
 import {ElectionBaseTabs} from "./resources/ElectionEvent/ElectionBaseTabs"
 import {CandidateBaseTabs} from "./resources/Candidate/CandidateBaseTabs"
 import {CreateCandidateData} from "./resources/Candidate/CreateCandidateData"
-import { ContestBaseTabs } from './resources/Contest/ContestBaseTabs'
-import { CreateContestData } from './resources/Contest/CreateContestData'
+import {ContestBaseTabs} from "./resources/Contest/ContestBaseTabs"
+import {CreateContestData} from "./resources/Contest/CreateContestData"
 
 export const AppWrapper = () => {
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
@@ -117,7 +117,6 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
             {
                 // <Resource name="pgaudit" list={PgAuditList} options={{label: "PGAudit"}} />
             }
-            <Resource name="user" list={ListUsers} options={{label: "Users"}} />
             <Resource
                 name="sequent_backend_election_event"
                 list={ElectionEventList}
@@ -141,7 +140,7 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
             <Resource
                 name="sequent_backend_contest"
                 list={ListContest}
-                create={CreateContestData}
+                create={CreateContest}
                 edit={ContestBaseTabs}
                 show={ContestBaseTabs}
                 options={{
@@ -153,7 +152,7 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
             <Resource
                 name="sequent_backend_candidate"
                 list={ListCandidate}
-                create={CreateCandidateData}
+                create={CreateCandidate}
                 edit={CandidateBaseTabs}
                 show={CandidateBaseTabs}
                 options={{
@@ -204,6 +203,7 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
                 create={CreateTrustee}
                 options={{label: "Trustee"}}
             />
+            <Resource name="user" list={ListUsers} options={{label: "Users"}} />
         </Admin>
     )
 }

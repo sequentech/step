@@ -161,6 +161,17 @@ const englishTranslation = {
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
+            stats: {
+                elegibleVoters: "Elegible voters",
+                elections: "Elections",
+                areas: "Areas",
+                sentEmails: "Emails sent",
+                sentSMS: "SMS sent",
+                calendar: {
+                    title: "Calendar",
+                    scheduled: "Scheduled",
+                },
+            },
         },
         electionScreen: {
             common: {
@@ -187,6 +198,7 @@ const englishTranslation = {
             },
             error: {
                 endDate: "End date must be after start date",
+                fileError: "Error uploading file",
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
@@ -297,6 +309,12 @@ const englishTranslation = {
             communicationTemplates: "Communication Templates",
             active: "Active",
             archived: "Archived",
+            addResource: {
+                addElectionEvent: "Add an election event",
+                addElection: "Add an election",
+                addContest: "Add a contest",
+                addCandidate: "Add a candidate",
+            },
         },
         candidateScreen: {
             common: {

@@ -13,6 +13,14 @@ const spanishTranslation: TranslationType = {
             verify: "Verificar",
             finish: "Terminar",
         },
+        electionEventBreadcrumbSteps: {
+            created: "Creado",
+            keys: "Claves",
+            publish: "Publicar",
+            started: "Iniciado",
+            ended: "Finalizado",
+            results: "Resultados",
+        },
         candidate: {
             moreInformationLink: "Más información",
             writeInsPlaceholder: "Teclee aquí el candidato por escrito",

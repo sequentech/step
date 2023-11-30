@@ -10,19 +10,10 @@ import {
     useGetOne,
     RecordContext,
     Toolbar,
-    SaveButton
+    SaveButton,
 } from "react-admin"
-import {
-    Accordion,
-    AccordionDetails,
-    AccordionSummary,
-    Tabs,
-    Tab,
-} from "@mui/material"
-import {
-    CreateScheduledEventMutation,
-    Sequent_Backend_Candidate,
-} from "../../gql/graphql"
+import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab} from "@mui/material"
+import {CreateScheduledEventMutation, Sequent_Backend_Candidate} from "../../gql/graphql"
 import React, {useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
@@ -33,9 +24,9 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {DropFile} from "@sequentech/ui-essentials"
 import {useForm} from "react-hook-form"
-import { CandidateStyles } from '../../components/styles/CandidateStyles'
-import { useTenantStore } from '../../providers/TenantContextProvider'
-import { CANDIDATE_TYPES } from './constants'
+import {CandidateStyles} from "../../components/styles/CandidateStyles"
+import {useTenantStore} from "../../providers/TenantContextProvider"
+import {CANDIDATE_TYPES} from "./constants"
 
 export const CandidateDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Candidate>()
@@ -43,7 +34,6 @@ export const CandidateDataForm: React.FC = () => {
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const refresh = useRefresh()
     const {t} = useTranslation()
-
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("candidate-data-general")
@@ -54,7 +44,7 @@ export const CandidateDataForm: React.FC = () => {
     })
 
     const buildLanguageSettings = () => {
-        const tempSettings = data?.presentation?.language_conf?.enabled_language_codes
+        const tempSettings = data?.presentation?.language_conf?.enabled_language_codes || []
         const temp = []
         for (const item of tempSettings) {
             const enabled_item: any = {}
@@ -107,6 +97,12 @@ export const CandidateDataForm: React.FC = () => {
             }
         }
 
+        // set english first lang always
+        const en = {en: temp.enabled_languages["en"]}
+        delete temp.enabled_languages.en
+        const rest = temp.enabled_languages
+        temp.enabled_languages = {...en, ...rest}
+
         // voting channels
         const all_channels = {...incoming?.voting_channels}
         delete incoming.voting_channels
@@ -117,6 +113,15 @@ export const CandidateDataForm: React.FC = () => {
                 setting in all_channels ? all_channels[setting] : votingSettings[setting]
             temp.voting_channels = {...temp.voting_channels, ...enabled_item}
         }
+
+        // name, alias and description fields
+        if (!temp.presentation || !temp.presentation?.i18n) {
+            temp.presentation = {i18n: {en: {}}}
+        }
+        console.log("temp.presentation :>> ", temp.presentation)
+        temp.presentation.i18n.en.name = temp.name
+        temp.presentation.i18n.en.alias = temp.alias
+        temp.presentation.i18n.en.description = temp.description
 
         return temp
     }

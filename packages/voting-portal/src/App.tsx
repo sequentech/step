@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useContext} from "react"
-import {Routes, Route, useLocation} from "react-router-dom"
+import {Routes, Route, useLocation, Navigate} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
@@ -15,22 +15,15 @@ import {ElectionSelectionScreen} from "./screens/ElectionSelectionScreen"
 import {LoginScreen} from "./screens/LoginScreen"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
-import {DISABLE_AUTH} from "."
+import {RouteParameterProvider} from "."
+import {DISABLE_AUTH, DEFAULT_TENANT_ID, DEFAULT_EVENT_ID} from "./Config"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
 `
 
 const HeaderWithContext: React.FC = () => {
-    const location = useLocation()
-    const navigate = useNavigate()
     const authContext = useContext(AuthContext)
-
-    useEffect(() => {
-        if (location.pathname !== "/" && !authContext.isAuthenticated) {
-            navigate("/")
-        }
-    }, [location.pathname, authContext.isAuthenticated, navigate])
 
     return <Header logoutFn={authContext.isAuthenticated ? authContext.logout : undefined} />
 }
@@ -40,25 +33,80 @@ const App = () => {
 
     useEffect(() => {
         if (DISABLE_AUTH) {
-            navigate("/election-chooser")
+            navigate(`/tenant/${DEFAULT_TENANT_ID}/event/${DEFAULT_EVENT_ID}/election-chooser`)
         }
-    }, [])
+    }, [navigate])
 
     return (
         <StyledApp>
             {DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
             <PageBanner marginBottom="auto">
                 <Routes>
-                    <Route path="/" element={<LoginScreen />} />
-                    <Route path="/election-chooser" element={<ElectionSelectionScreen />} />
-                    <Route path="/election/:electionId/start" element={<StartScreen />} />
-                    <Route path="/election/:electionId/vote" element={<VotingScreen />} />
-                    <Route path="/election/:electionId/review" element={<ReviewScreen />} />
                     <Route
-                        path="/election/:electionId/confirmation"
-                        element={<ConfirmationScreen />}
+                        path="/"
+                        element={
+                            <Navigate
+                                replace
+                                to={`/tenant/${DEFAULT_TENANT_ID}/event/${DEFAULT_EVENT_ID}/login`}
+                            />
+                        }
                     />
-                    <Route path="/election/:electionId/audit" element={<AuditScreen />} />
+                    <Route
+                        path="/tenant/:tenantId/event/:eventId/login"
+                        element={
+                            <RouteParameterProvider>
+                                <LoginScreen />
+                            </RouteParameterProvider>
+                        }
+                    />
+                    <Route
+                        path="/tenant/:tenantId/event/:eventId/election-chooser"
+                        element={
+                            <RouteParameterProvider>
+                                <ElectionSelectionScreen />
+                            </RouteParameterProvider>
+                        }
+                    />
+                    <Route
+                        path="/tenant/:tenantId/event/:eventId/election/:electionId/start"
+                        element={
+                            <RouteParameterProvider>
+                                <StartScreen />
+                            </RouteParameterProvider>
+                        }
+                    />
+                    <Route
+                        path="/tenant/:tenantId/event/:eventId/election/:electionId/vote"
+                        element={
+                            <RouteParameterProvider>
+                                <VotingScreen />
+                            </RouteParameterProvider>
+                        }
+                    />
+                    <Route
+                        path="/tenant/:tenantId/event/:eventId/election/:electionId/review"
+                        element={
+                            <RouteParameterProvider>
+                                <ReviewScreen />
+                            </RouteParameterProvider>
+                        }
+                    />
+                    <Route
+                        path="/tenant/:tenantId/event/:eventId/election/:electionId/confirmation"
+                        element={
+                            <RouteParameterProvider>
+                                <ConfirmationScreen />
+                            </RouteParameterProvider>
+                        }
+                    />
+                    <Route
+                        path="/tenant/:tenantId/event/:eventId/election/:electionId/audit"
+                        element={
+                            <RouteParameterProvider>
+                                <AuditScreen />
+                            </RouteParameterProvider>
+                        }
+                    />
                 </Routes>
             </PageBanner>
             <Footer />

@@ -61,10 +61,10 @@ services:
     volumes:
       - minio_storage:/data
     environment:
-      MINIO_ROOT_USER: minio_user
-      MINIO_ROOT_PASSWORD: minio_pass
-      MINIO_ACCESS_KEY: LZAw7hwBziRjwAhfP6Xi
-      MINIO_ACCESS_SECRET: 4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_ACCESS_SECRET=${MINIO_ACCESS_SECRET}
     #entrypoint: sh
     #command: -c 'mc config host add minio http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD && mc admin user svcacct add --access-key "$MINIO_ACCESS_KEY" --secret-key "$MINIO_ACCESS_SECRET" minio $MINIO_ROOT_USER && server --console-address ":9001" /data'
     command: server --console-address ":9001" /data
@@ -83,18 +83,18 @@ services:
     depends_on:
       - minio
     environment:
-      MINIO_ROOT_USER: minio_user
-      MINIO_ROOT_PASSWORD: minio_pass
-      MINIO_ACCESS_KEY: LZAw7hwBziRjwAhfP6Xi
-      MINIO_ACCESS_SECRET: 4x8krlfXgEquxp9KhlCrCdkrECrszGQQlJa5nGct
-      MINIO_PRIVATE_URI: http://minio:9000
-      MINIO_PUBLIC_BUCKET: public
-      MINIO_BUCKET: election-event-documents
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_ACCESS_SECRET=${MINIO_ACCESS_SECRET}
+      - MINIO_PRIVATE_URI=${MINIO_PRIVATE_URI}
+      - MINIO_PUBLIC_BUCKET=${MINIO_PUBLIC_BUCKET}
+      - MINIO_BUCKET=${MINIO_BUCKET}
     entrypoint: /scripts/entrypoint.sh
 
   # hashicorp vault to store secrets
   vault:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     build:
       context: ./vault
       dockerfile: Dockerfile
@@ -108,13 +108,15 @@ services:
     environment:
       VAULT_API_ADDR: 'http://0.0.0.0:8200'
       VAULT_ADDR: 'http://0.0.0.0:8201'
+      VAULT_UNSEAL_KEY: ciWE5G/CT7/uo5mfaGeRvSyuGRnbtijzvLDg3ru/jv0=
+      VAULT_TOKEN: hvs.s0djsk0LLBI19K0DkW4Fajs7
     cap_add:
       - IPC_LOCK
     volumes:
       - vault-volume:/vault
     healthcheck:
       retries: 5
-    entrypoint: vault server -config /opt/vault/config.hcl
+    entrypoint: /opt/vault/entrypoint.sh
 
   graphql-engine:
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
@@ -212,7 +214,6 @@ services:
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       - ./keycloak/import:/opt/keycloak/data/import
-      - ./keycloak/quarkus.properties:/opt/keycloak/conf/quarkus.properties
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
@@ -242,8 +243,23 @@ services:
       retries: 25
       start_period: 5s
 
-  frontend:
-    profiles: ["dev"]
+  admin-portal:
+    #profiles: ["dev"]
+    build:
+      context: ../packages/
+      dockerfile: Dockerfile
+    #restart: always
+    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
+    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
+    ports:
+      - 3002:3002
+    stdin_open: true
+    entrypoint: ["./init.sh", "start:admin"]
+    volumes:
+       - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
+
+  voting-portal:
+    #profiles: ["dev"]
     build:
       context: ../packages/
       dockerfile: Dockerfile
@@ -253,10 +269,9 @@ services:
     ports:
       - 3000:3000
     stdin_open: true
+    entrypoint: ["./init.sh", "start"]
     volumes:
        - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
-    depends_on:
-      - graphql-engine
 
   immudb:
     #profiles: ["dev"]
@@ -280,10 +295,8 @@ services:
     build:
       context: ../packages/
       dockerfile: ./harvest/Dockerfile
-    environment:
-      - IMMUDB_SERVER_URL=http://immudb:3322
-      - IMMUDB_USERNAME=immudb
-      - IMMUDB_PASSWORD=immudb
+    env_file:
+      - .env
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
@@ -292,7 +305,7 @@ services:
     #  - graphql-engine
   
   trustee1:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     container_name: trustee1
     volumes:
@@ -310,7 +323,7 @@ services:
       - immudb
   
   trustee2:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     container_name: trustee2
     volumes:
@@ -374,19 +387,15 @@ services:
       - "15672:15672"
   
   windmill:
-    profiles: ["dev"]
+    #profiles: ["dev"]
     stdin_open: true
     volumes:
       - ./keycloak/import:/import
     build:
       context: ../packages/
       dockerfile: ./windmill/Dockerfile
-    environment:
-      - IMMUDB_SERVER_URL=http://immudb:3322
-      - IMMUDB_USERNAME=immudb
-      - IMMUDB_PASSWORD=immudb
-      - KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH=/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json
-      - KEYCLOAK_TENANT_REALM_CONFIG_PATH=/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
+    env_file:
+      - .env
 
 volumes:
   db_data:

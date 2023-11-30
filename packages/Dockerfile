@@ -19,7 +19,7 @@ RUN if [ "$ENVIRONMENT" = "prod" ]; then \
     fi
 
 
-ENTRYPOINT [ "/usr/src/app/init.sh", "$ENVIRONMENT" ]
+ENTRYPOINT [ "/usr/src/app/init.sh", "start", "$ENVIRONMENT" ]
 
 # # === Runtime Stage === #
 # TODO: Make this service multi staged, 

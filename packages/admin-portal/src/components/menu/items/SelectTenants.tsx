@@ -12,6 +12,7 @@ import {cn} from "../../../lib/utils"
 import {AuthContext} from "../../../providers/AuthContextProvider"
 import {useTenantStore} from "../../../providers/TenantContextProvider"
 import {IPermissions} from "../../../types/keycloak"
+import AccountCircleIcon from "@mui/icons-material/AccountCircle"
 
 const SelectTenants: React.FC = () => {
     const refresh = useRefresh()
@@ -30,7 +31,10 @@ const SelectTenants: React.FC = () => {
         if (!tenantId && authContext.tenantId) {
             setTenantId(authContext.tenantId)
         }
-    }, [tenantId, authContext.tenantId, setTenantId])
+        if (data?.length === 1) {
+            setTenantId(data[0].id)
+        }
+    }, [data, tenantId, authContext.tenantId, setTenantId])
 
     const hasSingle = total === 1
 
@@ -42,7 +46,7 @@ const SelectTenants: React.FC = () => {
 
     return (
         <div className={cn("flex items-center px-4 space-x-4", hasSingle ? "py-1.5" : "py-1")}>
-            <IconButton icon={faThLarge} />
+            <AccountCircleIcon />
             {!!data && (
                 <>
                     {hasSingle ? (

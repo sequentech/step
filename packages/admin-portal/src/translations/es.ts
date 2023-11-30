@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
 
-
 const spanishTranslation: TranslationType = {
     translations: {
         breadcrumbSteps: {
@@ -164,6 +163,17 @@ const spanishTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Evento de Elección creado",
             createElectionEventError: "Error creando Evento de Elección",
+            stats: {
+                elegibleVoters: "Votantes elegibles",
+                elections: "Elecciones",
+                areas: "Áreas",
+                sentEmails: "Emails enviados",
+                sentSMS: "SMS enviados",
+                calendar: {
+                    title: "Calendario",
+                    scheduled: "Programado",
+                },
+            },
         },
         electionScreen: {
             common: {
@@ -190,6 +200,7 @@ const spanishTranslation: TranslationType = {
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
+                fileError: "Error al cargar el archivo",
             },
             createElectionEventSuccess: "Creada la elección",
             createElectionEventError: "Error Creando la elección",
@@ -300,6 +311,12 @@ const spanishTranslation: TranslationType = {
             communicationTemplates: "Plantillas de Comunicación",
             active: "Activos",
             archived: "Archivados",
+            addResource: {
+                addElectionEvent: "Agregar un evento electoral",
+                addElection: "Agregar una elección",
+                addContest: "Agregar un concurso",
+                addCandidate: "Agregar un candidato",
+            },
         },
         candidateScreen: {
             common: {
