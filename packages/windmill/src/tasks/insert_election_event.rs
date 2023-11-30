@@ -48,7 +48,7 @@ pub async fn upsert_keycloak_realm(tenant_id: &str, election_event_id: &str) -> 
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
     client
-        .upsert_realm(realm_name.as_str(), &realm_config)
+        .upsert_realm(realm_name.as_str(), &realm_config, tenant_id)
         .await?;
     upsert_realm_jwks(realm_name.as_str()).await?;
     Ok(())
