@@ -52,6 +52,7 @@ import {CandidateBaseTabs} from "./resources/Candidate/CandidateBaseTabs"
 import {CreateCandidateData} from "./resources/Candidate/CreateCandidateData"
 import { ContestBaseTabs } from './resources/Contest/ContestBaseTabs'
 import { CreateContestData } from './resources/Contest/CreateContestData'
+import { SettingsElectionsTypesCreate } from './resources/Settings/SettingsElectionsTypesCreate'
 
 export const AppWrapper = () => {
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
@@ -114,9 +115,11 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
                 <Route path="/messages" element={<Messages />} />
                 <Route path="/settings" element={<SettingsScreen />} />
             </CustomRoutes>
+
             {
                 // <Resource name="pgaudit" list={PgAuditList} options={{label: "PGAudit"}} />
             }
+            
             <Resource
                 name="sequent_backend_election_event"
                 list={ElectionEventList}
@@ -124,6 +127,14 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
                 edit={ElectionEventBaseTabs}
                 show={ElectionEventBaseTabs}
                 options={{label: "Election Events", isMenuParent: true}}
+            />
+
+            <Resource
+                name="sequent_backend_election_type"
+                create={SettingsElectionsTypesCreate}
+                edit={SettingsScreen}
+                show={SettingsScreen}
+                options={{label: "Election Type", isMenuParent: true}}
             />
 
             <Resource
@@ -138,6 +149,7 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
                     foreignKeyFrom: "election_event_id",
                 }}
             />
+
             <Resource
                 name="sequent_backend_contest"
                 list={ListContest}

@@ -60,6 +60,10 @@ export type CreateElectionEventInput = {
   voting_channels?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
+export type CreateElectionTypeInput = {
+  name?: InputMaybe<Scalars['String']>;
+}
+
 export type CreateElectionEventOutput = {
   __typename?: 'CreateElectionEventOutput';
   id: Scalars['String']['output'];
@@ -844,6 +848,10 @@ export type Mutation_RootGet_Upload_UrlArgs = {
 export type Mutation_RootInsertElectionEventArgs = {
   object: CreateElectionEventInput;
 };
+
+export type Mutation_RootInsertElectionTypeArgs = {
+  object: CreateElectionTypeInput;
+}
 
 
 /** mutation root */
@@ -9833,7 +9841,10 @@ export type CreateElectionEventMutationVariables = Exact<{
 }>;
 
 
-export type CreateElectionEventMutation = { __typename?: 'mutation_root', insertElectionEvent?: { __typename?: 'CreateElectionEventOutput', id: string } | null };
+export type CreateElectionEventMutation = { 
+  __typename?: 'mutation_root', 
+  insertElectionEvent?: { __typename?: 'CreateElectionEventOutput', id: string } | null 
+};
 
 export type InsertTenantMutationVariables = Exact<{
   slug: Scalars['String']['input'];

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import { TranslationType } from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
@@ -131,6 +131,12 @@ const spanishTranslation: TranslationType = {
             },
             createAreaSuccess: "Área creadas",
             createAreaError: "Error creando área",
+        },
+        electionTypeScreen: {
+            common: {
+                title: 'Tipo Electoral',
+                subtitle: 'Configuraion del Tipo de Elección'
+            }
         },
         electionEventScreen: {
             new: {

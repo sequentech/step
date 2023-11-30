@@ -130,6 +130,12 @@ const englishTranslation = {
             createAreaSuccess: "Area created",
             createAreaError: "Could not create Area",
         },
+        electionTypeScreen: {
+            common: {
+                title: 'Election Type',
+                subtitle: 'Election type configuration'
+            }
+        },
         electionEventScreen: {
             new: {
                 subtitle: "Create Election Event",
