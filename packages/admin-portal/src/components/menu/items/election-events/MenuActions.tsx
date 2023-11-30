@@ -18,7 +18,7 @@ import {useTranslation} from "react-i18next"
 
 const mapRemoveResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "sideMenu.menuActions.remove.electionEvent",
-    sequent_backend_election: "sideMenu.addResourmenuActions.remove.election",
+    sequent_backend_election: "sideMenu.menuActions.remove.election",
     sequent_backend_contest: "sideMenu.menuActions.remove.contest",
     sequent_backend_candidate: "sideMenu.menuActions.remove.candidate",
 }
@@ -62,7 +62,9 @@ export default function MenuAction({
 
     const notify = useNotify()
 
+    // TODO : need to change this use query
     const {refetch} = useTreeMenuData(false)
+
     const {canCreateElectionEvent, canEditElectionEvent} = useActionPermissions()
 
     const [openArchiveModal, setOpenArchiveModal] = React.useState(false)
