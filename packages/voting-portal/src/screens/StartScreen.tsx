@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React from "react"
+import React, {useContext} from "react"
 import {useTranslation} from "react-i18next"
 import {BreadCrumbSteps, PageLimit, theme, stringToHtml} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
@@ -11,6 +11,7 @@ import Button from "@mui/material/Button"
 import {useAppSelector} from "../store/hooks"
 import {IElection, selectElectionById} from "../store/elections/electionsSlice"
 import {CircularProgress} from "@mui/material"
+import {TenantEventContext} from ".."
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -53,10 +54,14 @@ interface ActionButtonsProps {
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
     const {t} = useTranslation()
+    const {tenantId, eventId} = useContext(TenantEventContext)
 
     return (
         <ActionsContainer>
-            <StyledLink to={`/election/${election.id}/vote`} sx={{margin: "auto 0", width: "100%"}}>
+            <StyledLink
+                to={`/tenant/${tenantId}/event/${eventId}/election/${election.id}/vote`}
+                sx={{margin: "auto 0", width: "100%"}}
+            >
                 <StyledButton sx={{width: "100%"}}>{t("startScreen.startButton")}</StyledButton>
             </StyledLink>
         </ActionsContainer>

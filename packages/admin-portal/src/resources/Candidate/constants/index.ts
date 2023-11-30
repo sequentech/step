@@ -1,4 +1,4 @@
-type Option  = {
+type Option = {
     id: string
     name: string
 }

@@ -6,7 +6,7 @@ import React, {useContext, useEffect} from "react"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useNavigate} from "react-router-dom"
 import {CircularProgress} from "@mui/material"
-import { TenantEventContext } from ".."
+import {TenantEventContext} from ".."
 
 export const LoginScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -15,7 +15,9 @@ export const LoginScreen: React.FC = () => {
 
     useEffect(() => {
         if (!authContext.isAuthenticated && tenantId && eventId) {
-            console.log(`login: not authenticated, calling login with tenantId=${tenantId}, eventId=${eventId}`)
+            console.log(
+                `login: not authenticated, calling login with tenantId=${tenantId}, eventId=${eventId}`
+            )
             authContext.login(tenantId, eventId)
         }
     }, [authContext.isAuthenticated, tenantId, eventId])

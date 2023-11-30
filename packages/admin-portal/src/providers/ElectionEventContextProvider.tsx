@@ -13,7 +13,9 @@ const defaultElectionEventContext: ElectionEventContextProps = {
     setElectionEventId: () => undefined,
 }
 
-export const ElectionEventContext = createContext<ElectionEventContextProps>(defaultElectionEventContext)
+export const ElectionEventContext = createContext<ElectionEventContextProps>(
+    defaultElectionEventContext
+)
 
 interface ElectionEventContextProviderProps {
     /**
@@ -45,7 +47,10 @@ export const ElectionEventContextProvider = (props: ElectionEventContextProvider
     )
 }
 
-export const useElectionEventStore: () => [string | null, (ElectionEventId: string | null) => void] = () => {
+export const useElectionEventStore: () => [
+    string | null,
+    (ElectionEventId: string | null) => void
+] = () => {
     const {ElectionEventId, setElectionEventId} = useContext(ElectionEventContext)
 
     return [ElectionEventId, setElectionEventId]

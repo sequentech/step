@@ -16,7 +16,7 @@ import {
     useRedirect,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
-import { useSearchParams } from 'react-router-dom'
+import {useSearchParams} from "react-router-dom"
 
 const Hidden = styled(Box)`
     display: none;

@@ -4,7 +4,15 @@
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
 import React from "react"
-import {BooleanInput, SimpleForm, TextInput, SelectInput, ReferenceInput, Create, useRedirect} from "react-admin"
+import {
+    BooleanInput,
+    SimpleForm,
+    TextInput,
+    SelectInput,
+    ReferenceInput,
+    Create,
+    useRedirect,
+} from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
 import useTreeMenuHook from "@/components/menu/items/use-tree-menu-hook"

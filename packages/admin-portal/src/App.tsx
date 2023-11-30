@@ -50,8 +50,8 @@ import {CreateElection} from "./resources/Election/CreateElection"
 import {ElectionBaseTabs} from "./resources/ElectionEvent/ElectionBaseTabs"
 import {CandidateBaseTabs} from "./resources/Candidate/CandidateBaseTabs"
 import {CreateCandidateData} from "./resources/Candidate/CreateCandidateData"
-import { ContestBaseTabs } from './resources/Contest/ContestBaseTabs'
-import { CreateContestData } from './resources/Contest/CreateContestData'
+import {ContestBaseTabs} from "./resources/Contest/ContestBaseTabs"
+import {CreateContestData} from "./resources/Contest/CreateContestData"
 
 export const AppWrapper = () => {
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
@@ -84,8 +84,6 @@ export const AppWrapper = () => {
 interface AppProps {
     apolloClient: ApolloClient<NormalizedCacheObject>
 }
-
-
 
 const App: React.FC<AppProps> = ({apolloClient}) => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
@@ -205,11 +203,7 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
                 create={CreateTrustee}
                 options={{label: "Trustee"}}
             />
-            <Resource
-                name="user"
-                list={ListUsers}
-                options={{label: "Users"}}
-            />
+            <Resource name="user" list={ListUsers} options={{label: "Users"}} />
         </Admin>
     )
 }
