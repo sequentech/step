@@ -119,36 +119,6 @@ extern "C" {
 }
 
 #[wasm_bindgen(typescript_custom_section)]
-const IELECTION_EVENT_STATUS: &'static str = r#"
-interface IElectionEventStatus {
-    config_created?: boolean;
-    stopped?: boolean;
-}
-"#;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(typescript_type = "IElectionEventStatus")]
-    pub type IElectionEventStatus;
-}
-
-#[wasm_bindgen(typescript_custom_section)]
-const IVOTING_STATUS: &'static str = r#"
-enum IVotingStatus {
-    NOT_STARTED = "NOT_STARTED",
-    OPEN = "OPEN",
-    PAUSED = "PAUSED",
-    CLOSED = "CLOSED",
-}
-"#;
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(typescript_type = "IVotingStatus")]
-    pub type IVotingStatus;
-}
-
-#[wasm_bindgen(typescript_custom_section)]
 const IBALLOT_STYLE: &'static str = r#"
 interface IBallotStyle {
     id: string;
