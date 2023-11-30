@@ -4,7 +4,7 @@ use anyhow::Result;
 use strand::context::Ctx;
 use tracing::info;
 
-pub struct Session<C: Ctx> {
+pub struct Session<C: Ctx + 'static> {
     trustee: Trustee<C>,
     board: ImmudbBoard,
     dry_run: bool,
@@ -29,13 +29,13 @@ impl<C: Ctx> Session<C> {
         }
     }
 
-    pub async fn step(&mut self) -> Result<()> {
+    pub async fn step(mut self) -> Result<Self> {
         let messages = self.board.get_messages(self.last_message_id).await?;
 
         if 0 == messages.len() {
             info!("No messages in board, no action taken");
 
-            return Ok(())
+            return Ok(self)
         }
 
         let (send_messages, _actions) = self.trustee.step(messages)?;
@@ -43,6 +43,6 @@ impl<C: Ctx> Session<C> {
             self.board.insert_messages(send_messages).await?;
         }
 
-        Ok(())
+        Ok(self)
     }
 }

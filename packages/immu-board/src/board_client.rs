@@ -325,7 +325,7 @@ impl BoardClient {
             CREATE TABLE IF NOT EXISTS messages (
                 id INTEGER AUTO_INCREMENT,
                 created TIMESTAMP,
-                signer_key BLOB,
+                signer_key VARCHAR,
                 statement_timestamp TIMESTAMP,
                 statement_kind VARCHAR,
                 message BLOB,
@@ -418,7 +418,7 @@ impl BoardClient {
             CREATE TABLE IF NOT EXISTS messages (
                 id INTEGER AUTO_INCREMENT,
                 created TIMESTAMP,
-                signer_key BLOB,
+                signer_key VARCHAR,
                 statement_timestamp TIMESTAMP,
                 statement_kind VARCHAR,
                 message BLOB,

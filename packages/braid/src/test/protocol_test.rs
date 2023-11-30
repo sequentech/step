@@ -54,7 +54,7 @@ pub fn run<C: Ctx>(ciphertexts: u32, batches: usize, ctx: C) {
     );
 }
 
-/*pub async fn run_immudb<C: Ctx>(ciphertexts: u32, batches: usize, ctx: C) {
+pub async fn run_immudb<C: Ctx>(ciphertexts: u32, batches: usize, ctx: C) {
     let n_trustees = rand::thread_rng().gen_range(2..13);
     let n_threshold = rand::thread_rng().gen_range(2..=n_trustees);
     // To test all trustees participating
@@ -80,7 +80,7 @@ pub fn run<C: Ctx>(ciphertexts: u32, batches: usize, ctx: C) {
         time,
         ((ciphertexts as f64 * batches as f64) / time),
     );
-}*/
+}
 
 fn run_protocol_test<C: Ctx>(
     test: ProtocolTest<C>,
@@ -253,6 +253,7 @@ const SERVER_URL: &str = "http://immudb:3322";
 const BOARD_DB: &str = "protocoltestdb";
 const INDEX_DB: &str = "protocoltestindexdb";
 const STORE_ROOT: &str = "message_store";
+use braid_messages::statement::StatementType;
 
 pub struct ProtocolTestImmudb<C: Ctx> {
     pub ctx: C,
@@ -261,7 +262,7 @@ pub struct ProtocolTestImmudb<C: Ctx> {
     pub trustees: Vec<Trustee<C>>,
 }
 
-/*
+
 async fn run_protocol_test_immudb<C: Ctx>(
     test: ProtocolTestImmudb<C>,
     ciphertexts: u32,
@@ -274,18 +275,25 @@ async fn run_protocol_test_immudb<C: Ctx>(
     let mut sessions = vec![];
     let store_root = std::env::current_dir().unwrap().join(STORE_ROOT);
 
+    let pk_strings: Vec<String> = test.trustees.iter().map(|t| {
+        t.get_pk().unwrap().to_der_b64_string().unwrap()
+    })
+    .collect();
+    
     for t in test.trustees.into_iter() {
         let board = ImmudbBoard::new(
             SERVER_URL,
             IMMUDB_USER,
             IMMUDB_PW,
             BOARD_DB.to_string(),
-            store_root,
+            store_root.clone(),
         ).await.unwrap();
         sessions.push(Session::new(t, board));
     }
 
-    let mut dkg_pk = None;
+    let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb").await.unwrap();
+
+    // let mut dkg_pk = None;
     let count = ciphertexts;
 
     let mut selected_trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
@@ -294,17 +302,26 @@ async fn run_protocol_test_immudb<C: Ctx>(
     for i in 0..30 {
         info!("Cycle {}", i);
 
-        sessions.par_iter_mut().for_each(|t| {
-            t.step();
-        });
+        let handles: Vec<_> = sessions.into_iter().map(|s| tokio::spawn(async {
+            s.step().await
+        }))
+        .collect();
+        sessions = vec![];
+        for h in handles {
+            sessions.push(h.await.unwrap().unwrap());
+        }
         
-        let dkg_pk_ = sessions[0].get_dkg_public_key_nohash();
-        if dkg_pk_.is_some() {
+        
+        let dkg_pk_ = 
+        b.get_messages_from_kind(BOARD_DB, &StatementType::PublicKey.to_string(), &pk_strings[0])
+        .await
+        .unwrap();
+        /* if dkg_pk_.is_some() {
             dkg_pk = dkg_pk_;
             break;
-        }
+        }*/
     }
-
+/*
     let dkgpk = dkg_pk.unwrap();
 
     let pk_bytes = dkgpk.strand_serialize()?;
@@ -316,7 +333,7 @@ async fn run_protocol_test_immudb<C: Ctx>(
     let mut plaintexts_in = vec![];
     let mut rng = ctx.get_rng();
     
-    let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb").await.unwrap();
+    
     
     for i in 0..batches {
         info!("Generating {} plaintexts..", count);
@@ -383,7 +400,7 @@ async fn run_protocol_test_immudb<C: Ctx>(
     info!("* Threshold = {}", threshold.len());
     info!("* Ciphertexts = {}", count);
     info!("***************************************************************");
-
+*/
     Ok(())
 }
 
@@ -425,7 +442,6 @@ pub async fn create_protocol_test_immudb<C: Ctx>(
     b.delete_database(BOARD_DB).await.unwrap();
         
     b.upsert_index_db(INDEX_DB).await.unwrap();
-    b.upsert_board_db(BOARD_DB).await.unwrap();
     b.create_board(INDEX_DB, BOARD_DB).await.unwrap();
     
     let message = Message::bootstrap_msg(&cfg, &pm)?;
@@ -439,4 +455,4 @@ pub async fn create_protocol_test_immudb<C: Ctx>(
         protocol_manager: pm,
         trustees,
     })
-}*/
+}

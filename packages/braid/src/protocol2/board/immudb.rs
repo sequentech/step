@@ -35,7 +35,7 @@ impl ImmudbBoard {
     }
 
     pub async fn get_messages(&mut self, last_id: i64) -> Result<Vec<Message>> {
-        let connection = self.get_store()?;
+        /*let connection = self.get_store()?;
         let mut channels = self.update_store(&connection).await?;
         let mut messages = self.get_store_messages(&connection, last_id)?;
         connection
@@ -44,7 +44,20 @@ impl ImmudbBoard {
         // Allows for Channel deletion
         // messages.append(&mut channels);
 
+        Ok(messages)*/
+
+        let messages = self
+            .board_client
+            .get_messages(&self.board_dbname, last_id)
+            .await?;
+
+        let messages = messages.iter().map(|m| {
+            Message::strand_deserialize(&m.message).unwrap()
+        })
+        .collect();
+
         Ok(messages)
+
     }
 
     pub async fn insert_messages(&mut self, messages: Vec<Message>) -> Result<()> {
