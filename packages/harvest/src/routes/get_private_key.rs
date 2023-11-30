@@ -20,7 +20,7 @@ pub struct GetPrivateKeyInput {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetPrivateKeyOutput {
-    private_key: Vec<u8>,
+    private_key_base64: String,
 }
 
 // The main function to get the private key
@@ -42,9 +42,9 @@ pub async fn get_private_key(
         .preferred_username
         .ok_or((Status::Unauthorized, "Empty username".to_string()))?;
 
-    let private_key = Vec::new();
+    let private_key_base64 = "".into();
     /* TODO:
-    let private_key = your_service::retrieve_private_key(&input.election_event_id, &input.trustee_name)
+    let private_key_base64 = your_service::retrieve_private_key(&input.election_event_id, &input.trustee_name)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     */
@@ -55,5 +55,5 @@ pub async fn get_private_key(
         input.election_event_id,
         trustee_name
     );
-    Ok(Json(GetPrivateKeyOutput { private_key }))
+    Ok(Json(GetPrivateKeyOutput { private_key_base64 }))
 }

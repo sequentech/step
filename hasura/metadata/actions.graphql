@@ -49,6 +49,18 @@ type Mutation {
   ): CreateElectionEventOutput
 }
 
+type Query {
+  get_private_key (
+    object: GetPrivateKeyInput!
+  ): GetPrivateKeyOutput
+}
+
+type Query {
+  check_private_key (
+    object: CheckPrivateKeyInput!
+  ): CheckPrivateKeyOutput
+}
+
 type Mutation {
   insertTenant (
     slug: String!
@@ -119,6 +131,23 @@ input GetUsersInput {
   email : String
   limit : Int
   offset : Int
+}
+
+input GetPrivateKeyInput {
+  election_event_id : String!
+}
+
+input CheckPrivateKeyInput {
+  election_event_id : String!
+  private_key_base64 : String!
+}
+
+type GetPrivateKeyOutput {
+  private_key_base64 : String!
+}
+
+type CheckPrivateKeyOutput {
+  is_valid : Boolean!
 }
 
 input GetPermissionsInput {

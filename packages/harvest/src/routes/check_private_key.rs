@@ -16,12 +16,12 @@ use tracing::{event, instrument, Level};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CheckPrivateKeyInput {
     election_event_id: String,
-    private_key: Vec<u8>,
+    private_key_base64: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CheckPrivateKeyOutput {
-    private_key: Vec<u8>,
+    is_valid: bool,
 }
 
 // The main function to get the private key
@@ -30,7 +30,7 @@ pub struct CheckPrivateKeyOutput {
 pub async fn check_private_key(
     body: Json<CheckPrivateKeyInput>,
     claims: JwtClaims,
-) -> Result<(), (Status, String)> {
+) -> Result<Json<CheckPrivateKeyOutput>, (Status, String)> {
     authorize(
         &claims,
         true,
@@ -43,13 +43,13 @@ pub async fn check_private_key(
         .preferred_username
         .ok_or((Status::Unauthorized, "Empty username".to_string()))?;
 
-    let private_key: Vec<u8> = Vec::new();
+    let private_key_base64: Vec<u8> = "".into();
     /* TODO:
     let private_key = your_service::check_private_key(&input.election_event_id, &input.trustee_name, &input.private_key)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     */
-    let result = private_key == input.private_key;
+    let result = private_key_base64 == input.private_key_base64;
     event!(
         Level::INFO,
         "Checking given private key, electionEventId={}, trusteeName={}, result={}",
@@ -57,8 +57,5 @@ pub async fn check_private_key(
         trustee_name,
         result,
     );
-    match result {
-        true => Ok(()),
-        false => Err((Status::BadRequest, "Invalid private key".to_string())),
-    }
+    Ok(Json(CheckPrivateKeyOutput { result })),
 }
