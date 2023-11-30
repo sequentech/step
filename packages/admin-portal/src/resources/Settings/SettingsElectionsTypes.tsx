@@ -1,46 +1,35 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useEffect} from "react"
-
-import {
-    BooleanField,
-    DatagridConfigurable,
-    Identifier,
-    List,
-    ReferenceManyField,
-    TextField,
-    TextInput,
-    useDelete,
-    useRecordContext,
-} from "react-admin"
 
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 
-import {Link, useNavigate} from "react-router-dom"
-import {Button, Drawer} from "@mui/material"
-
-import {ListActions} from "../../components/ListActions"
-
-import {ChipList} from "../../components/ChipList"
-import {IconButton} from "@sequentech/ui-essentials"
-import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
-
-import {SettingsElectionsTypesCreate} from "./SettingsElectionsTypesCreate"
-import { useTenantStore } from '@/providers/TenantContextProvider'
+import {Drawer} from "@mui/material"
 import { useTranslation } from 'react-i18next'
-import { ActionsColumn } from '@/components/ActionButons'
-import { EditArea } from '../Area/EditArea'
 import {Dialog} from "@sequentech/ui-essentials"
+
+import {
+    List,
+    TextField,
+    TextInput,
+    useDelete,
+    Identifier,
+    DatagridConfigurable,
+} from "react-admin"
+
+import {ListActions} from "@/components/ListActions"
+import { ActionsColumn } from '@/components/ActionButons'
 import { SettingselectionsTypesEdit } from './SettingsElectionsTypesEdit'
+import {SettingsElectionsTypesCreate} from "./SettingsElectionsTypesCreate"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 const Filters: Array<ReactElement> = [<TextInput label="Name" source="name" key={0} />]
 
 export const SettingsElectionsTypes: React.FC<void> = () => {
     const {t} = useTranslation()
-    const record = useRecordContext<any>()
-
-    const [tenantId] = useTenantStore()
-    const [deleteOne, {isLoading, error}] = useDelete()
+    const [deleteOne] = useDelete()
 
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
@@ -72,7 +61,6 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
     }
 
     const deleteAction = (id: Identifier) => {
-        // deleteOne("sequent_backend_area", {id})
         setOpenDeleteModal(true)
         setDeleteId(id)
     }

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react"
+
 import styled from "@emotion/styled"
 
 import {Switch} from "@mui/material"
-import { useEditController, Loading, Error } from 'react-admin';
+import { useEditController } from 'react-admin';
 import { useTenantStore } from '@/providers/TenantContextProvider';
 
 
@@ -22,11 +23,9 @@ const SettingsVotingChannelsStyles = {
     `,
 }
 
-export const SettingsVotingChannels: React.FC<any> = () => {
+export const SettingsVotingChannels: React.FC<void> = () => {
     const [tenantId] = useTenantStore()
     const { record, save, isLoading } = useEditController({ resource: 'sequent_backend_tenant', id: tenantId, redirect: false, undoable: false });
-
-    console.log('record', record);
 
     const [voting, setVoting] = useState<any>({
         online: record?.votting_channels?.online || false,

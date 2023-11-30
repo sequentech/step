@@ -1,13 +1,15 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Typography} from "@mui/material"
 import React from "react"
+
+import {Box} from "@mui/material"
+import {Typography} from "@mui/material"
+import {styled} from "@mui/material/styles"
+import { useTranslation } from 'react-i18next'
+
 import {
-    BooleanInput,
     Create,
-    FormDataConsumer,
-    NumberInput,
     ReferenceInput,
     SelectInput,
     SimpleForm,
@@ -15,11 +17,8 @@ import {
     useRefresh,
     useNotify,
 } from "react-admin"
-import {styled} from "@mui/material/styles"
-import {Box} from "@mui/material"
+
 import { useTenantStore } from '@/providers/TenantContextProvider'
-import { useTranslation } from 'react-i18next'
-import { Sequent_Backend_Election_Type } from '@/gql/graphql'
 
 const Hidden = styled(Box)`
     display: none;
@@ -32,14 +31,10 @@ interface CreateProps {
 export const SettingsElectionsTypesCreate: React.FC<CreateProps> = (props) => {
     const {close} = props
     const refresh = useRefresh()
-    const notify = useNotify()
     const [tenantId] = useTenantStore()
-    const {t} = useTranslation()
-
 
     const onSuccess = () => {
         refresh()
-        notify(t("areas.createAreaSuccess"), {type: "success"})
         if (close) {
             close()
         }
@@ -47,7 +42,6 @@ export const SettingsElectionsTypesCreate: React.FC<CreateProps> = (props) => {
 
     const onError = async (res: any) => {
         refresh()
-        notify("areas.createAreaError", {type: "error"})
         if (close) {
             close()
         }
