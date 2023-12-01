@@ -4,11 +4,11 @@
 
 import React from "react"
 import {Box} from "@mui/material"
-
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import Stats from "./Stats"
-import {VotesByDay, VotesByChannel} from "./Charts"
 import styled from "@emotion/styled"
+import VotesByDay from "./charts/VoteByDay"
+import VotesByChannel from "./charts/VoteByChannels"
 
 const Container = styled(Box)`
     display: flex;
@@ -17,6 +17,8 @@ const Container = styled(Box)`
 `
 
 export default function DashboardElectionEvent() {
+    const cardWidth = 470
+
     return (
         <>
             <Box sx={{width: 1024, marginX: "auto"}}>
@@ -38,8 +40,8 @@ export default function DashboardElectionEvent() {
                     <Stats />
 
                     <Container>
-                        <VotesByDay />
-                        <VotesByChannel />
+                        <VotesByDay width={cardWidth} />
+                        <VotesByChannel width={cardWidth} />
                     </Container>
                 </Box>
             </Box>
