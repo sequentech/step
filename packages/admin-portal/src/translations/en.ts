@@ -136,7 +136,10 @@ const englishTranslation = {
                 title: 'Election Type',
                 subtitle: 'Election type configuration',
                 onlineVoting: 'Online Voting',
-                kioskVoting: 'Kiosk Voting'
+                kioskVoting: 'Kiosk Voting',
+                settingTitle: 'Settings',
+                settingSubtitle: 'General Configuration'
+
             },
             create: {
                 title: 'Create Election Type'

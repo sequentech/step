@@ -138,7 +138,9 @@ const spanishTranslation: TranslationType = {
                 title: 'Tipo de Elección',
                 subtitle: 'Configuración del Tipo de Elección',
                 onlineVoting: 'Votación en Línea',
-                kioskVoting: 'Votación en Quiosco'
+                kioskVoting: 'Votación en Quiosco',
+                settingTitle: 'Configuración',
+                settingSubtitle: 'Ajustes generales'
             },
             create: {
                 title: 'Crear Tipo de Elección'
