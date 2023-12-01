@@ -3,28 +3,23 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {
-    CheckboxGroupInput,
-    EditBase,
     Identifier,
-    List,
-    RecordContext,
     SaveButton,
     SimpleForm,
-    TextInput,
     useGetList,
     useListContext,
     useNotify,
     useRefresh,
 } from "react-admin"
-import {useMutation, useQuery} from "@apollo/client"
+import {useMutation} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
-import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
-import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
+import {EDIT_USER} from "../../queries/EditUser"
 import {IUser} from "sequent-core"
-import { TextField } from '@mui/material'
+import {FormControl, FormLabel, MenuItem, Select, SelectChangeEvent, TextField} from "@mui/material"
+import {EditUsersInput} from "@/gql/graphql"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 
 interface EditUserFormProps {
     id?: Identifier | undefined
@@ -36,152 +31,147 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
     const {id, close, electionEventId} = props
 
     const {data, isLoading} = useListContext()
-    let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
-    const [user, setUser] = useState<IUser | undefined>(userOriginal)
-
-    console.log("DATA :: ", data)
-    console.log("USER :: ", user)
+    const [user, setUser] = useState<any | undefined>()
 
     const refresh = useRefresh()
     const notify = useNotify()
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
 
-    const [renderUI, setRenderUI] = useState(true)
+    const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
 
-    const {data: contests} = useGetList("sequent_backend_contest", {
+    const {data: areas} = useGetList("sequent_backend_area", {
         pagination: {page: 1, perPage: 9999},
-        filter: {election_event_id: electionEventId},
+        filter: {election_event_id: electionEventId, tenant_id: tenantId},
     })
 
+    console.log("areas :>> ", areas)
+
     useEffect(() => {
-        if (isLoading && data) {
-            setRenderUI(true)
+        if (!isLoading && data) {
+            let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
+            console.log(
+                "USER :: ",
+                JSON.parse(JSON.stringify(userOriginal?.attributes?.["area-id"]))[0] ?? "---"
+            )
+            console.log("TENANT :: ", tenantId)
+            setUser(userOriginal)
         }
-    }, [isLoading, data])
+    }, [isLoading, data, id])
 
-    const parseValues = (incoming: any) => {
-        const temp = {...incoming}
-
-        // temp.area_contest_ids = areas?.sequent_backend_area_contest?.map(
-        //     (area: any) => area.contest.id
-        // )
-
-        return temp
-    }
-
-    const transform = async (data: any, {previousData}: any) => {
-        const temp = {...data}
-        return temp
-
-        // const area_contest_ids = temp.area_contest_ids
-        // const election_event_id = temp.election_event_id
-        // const area_id = temp.id
-
-        // // delete area contest first
-        // let {errors: deleteAreasErrors} = await delete_sequent_backend_area_contest({
-        //     variables: {
-        //         tenantId,
-        //         area: temp.id,
-        //     },
-        // })
-
-        // if (deleteAreasErrors) {
-        //     console.log("deleteAreasErrors :>> ", deleteAreasErrors)
-        //     notify("Could not update Area", {type: "error"})
-        //     return
-        // }
-
-        // const area_contest_ids_to_save = area_contest_ids?.map((contest_id: any) => {
-        //     return {
-        //         area_id,
-        //         contest_id,
-        //         election_event_id,
-        //         tenant_id: tenantId,
-        //     }
-        // })
-
-        // // delete area contest first
-        // let {errors: insertAreasErrors} = await insert_sequent_backend_area_contest({
-        //     variables: {
-        //         areas: area_contest_ids_to_save,
-        //     },
-        // })
-
-        // if (insertAreasErrors) {
-        //     console.log("insertAreasErrors :>> ", insertAreasErrors)
-        //     notify("Could not update Area", {type: "error"})
-        //     return
-        // }
-
-        // delete temp.area_contest_ids
-        // console.log("DATA TO SAVE :: ", area_contest_ids_to_save)
-
-        // if (shallowEqual(temp, previousData)) {
-        //     console.log("NO CHANGES")
-        //     return {id: temp.id, last_updated_at: new Date().toISOString()}
-        // }
-        // return {...temp, last_updated_at: new Date().toISOString()}
-    }
-
-    const onSuccess = async (res: any) => {
-        console.log("onSuccess :>> ", res)
-
-        refresh()
-        notify("User updated", {type: "success"})
-        if (close) {
-            setTimeout(() => {
-                close()
-            }, 400)
+    const onSubmit = async () => {
+        /*
+          tenant_id: String!
+                user_id: String!
+                enabled: Boolean
+                election_event_id: String
+                attributes: jsonb
+                email: String
+                first_name: String
+                groups: [String!]
+                username: String
+            */
+        console.log("onSubmit :>> ", user)
+        try {
+            let {data, errors} = await edit_user({
+                variables: {
+                    body: {
+                        user_id: user?.id,
+                        tenant_id: tenantId,
+                        first_name: user?.first_name,
+                        email: user?.email,
+                        attributes: {
+                            "area-id": [user?.area],
+                        },
+                    },
+                },
+            })
+            console.log("data after SAVE :>> ", data)
+            console.log("errors after SAVE :>> ", errors)
+        } catch (error) {
+            console.log("error :>> ", error)
         }
     }
 
-    const onError = async (res: any) => {
-        console.log("onError :>> ", res)
-
-        refresh()
-        notify("Could not update User", {type: "error"})
-        if (close) {
-            setTimeout(() => {
-                close()
-            }, 400)
-        }
-    }
-
-    const onSubmit = async (data: any, redirect: any) => {
-        console.log("onSubmit :>> ", data);
-    }
-        
-
-    const handleChange = (e: any) => {
+    const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const {name, value} = e.target
         setUser({...user, [name]: value})
     }
 
+    const handleSelectChange = async (e: SelectChangeEvent) => {
+        const {name, value} = e.target
+        setUser({...user, [name]: value})
+    }
+
+    const renderAreas = (areas: any) => {
+        return areas.map((area: any) => {
+            return (
+                <MenuItem key={area.id} value={area.id}>
+                    {area.name}
+                </MenuItem>
+            )
+        })
+    }
+
     if (user) {
         return (
-            <SimpleForm toolbar={<SaveButton />}>
+            <SimpleForm
+                toolbar={<SaveButton alwaysEnable />}
+                onSubmit={onSubmit}
+                sanitizeEmptyValues
+            >
                 <>
-                    <PageHeaderStyles.Title>{t("areas.common.title")}</PageHeaderStyles.Title>
+                    <PageHeaderStyles.Title>
+                        {t("usersAndRolesScreen.voters.title")}
+                    </PageHeaderStyles.Title>
                     <PageHeaderStyles.SubTitle>
-                        {t("areas.common.subTitle")}
+                        {t("usersAndRolesScreen.voters.subtitle")}
                     </PageHeaderStyles.SubTitle>
 
-                    <TextField value={user.first_name} onChange={handleChange} />
-                    <TextField value={user.last_name} onChange={handleChange} />
-                    <TextField value={user.email} onChange={handleChange} />
-                    <TextField value={user.username} onChange={handleChange} />
-                    {/* 
-                                        {contests ? (
-                                            <CheckboxGroupInput
-                                                label={t("areas.sequent_backend_area_contest")}
-                                                source="area_contest_ids"
-                                                choices={contests}
-                                                optionText="name"
-                                                optionValue="id"
-                                                row={false}
-                                            />
-                                        ) : null} */}
+                    <TextField
+                        variant="outlined"
+                        label={t("usersAndRolesScreen.users.fields.first_name")}
+                        value={user.first_name || ""}
+                        name={"first_name"}
+                        onChange={handleChange}
+                    />
+                    <TextField
+                        variant="outlined"
+                        label={t("usersAndRolesScreen.users.fields.last_name")}
+                        value={user.last_name || ""}
+                        name={"last_name"}
+                        onChange={handleChange}
+                    />
+                    <TextField
+                        variant="outlined"
+                        label={t("usersAndRolesScreen.users.fields.email")}
+                        value={user.email || ""}
+                        name={"email"}
+                        onChange={handleChange}
+                    />
+                    <TextField
+                        variant="outlined"
+                        label={t("usersAndRolesScreen.users.fields.username")}
+                        value={user.username || ""}
+                        name={"username"}
+                        onChange={handleChange}
+                    />
+
+                    <FormControl sx={{width: "100%"}}>
+                        <ElectionHeaderStyles.Title>
+                            {t("usersAndRolesScreen.users.fields.area")}
+                        </ElectionHeaderStyles.Title>
+
+                        <Select
+                            name="area"
+                            defaultValue={
+                                JSON.parse(JSON.stringify(user?.attributes?.["area-id"]))[0] || null
+                            }
+                            onChange={handleSelectChange}
+                        >
+                            {areas ? renderAreas(areas) : null}
+                        </Select>
+                    </FormControl>
                 </>
             </SimpleForm>
         )
