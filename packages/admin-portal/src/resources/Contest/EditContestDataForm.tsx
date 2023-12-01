@@ -143,7 +143,7 @@ export const ContestDataForm: React.FC = () => {
         temp.presentation.i18n.en.name = temp.name
         temp.presentation.i18n.en.alias = temp.alias
         temp.presentation.i18n.en.description = temp.description
-        
+
         return temp
     }
 

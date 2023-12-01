@@ -6,7 +6,7 @@
 	"name": "backend-services",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "devcontainer",
-	"forwardPorts": [9001, 9000, 8090, 8080, 8000, 8400, 8200, 8201, 6379, 3000, 3322, 3323, 3324, 3325, 5672, 15672],
+	"forwardPorts": [9001, 9000, 8090, 8080, 8000, 8400, 8200, 8201, 6379, 3000, 3002, 3322, 3323, 3324, 3325, 5672, 15672],
 
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
 	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
@@ -24,8 +24,8 @@
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": false,
 
-	"onCreateCommand": "direnv allow && devenv shell bash -c 'cd /workspaces/backend-services/packages/ && cargo build && yarn && yarn build:ui-essentials' || true",
-	"updateContentCommand": "direnv allow && devenv shell bash -c 'cd /workspaces/backend-services/packages/ && cargo build && yarn && yarn build:ui-essentials' || true",
+	"onCreateCommand": "direnv allow && devenv shell bash -c 'cd /workspaces/backend-services/packages/ && cargo build && yarn && yarn build:ui-essentials && sudo chown vscode:vscode node_modules/ */node_modules/' || true",
+	"updateContentCommand": "direnv allow && devenv shell bash -c 'cd /workspaces/backend-services/packages/ && cargo build' || true",
 
 	"features": {
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},

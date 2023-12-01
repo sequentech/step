@@ -89,14 +89,15 @@ pub async fn get_upload_url(
         size as i64,
         true,
     )
-        .await?
-        .data
-        .expect("expected data".into())
-        .insert_sequent_backend_document
-        .unwrap()
-        .returning[0];
-    let path = s3::get_public_document_key(tenant_id.to_string(), document.id.clone(), name.to_string());
-    let url = s3::get_upload_url(name.to_string()).await?;
+    .await?
+    .data
+    .expect("expected data".into())
+    .insert_sequent_backend_document
+    .unwrap()
+    .returning[0];
+    let path =
+        s3::get_public_document_key(tenant_id.to_string(), document.id.clone(), name.to_string());
+    let url = s3::get_upload_url(path.to_string()).await?;
 
     let ret_document = Document {
         id: document.id.clone(),
@@ -119,4 +120,3 @@ pub async fn get_upload_url(
     };
     Ok((ret_document, url))
 }
-

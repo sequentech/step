@@ -23,7 +23,9 @@ pub async fn upsert_keycloak_realm(tenant_id: &str) -> Result<()> {
         .expect(&format!("Should have been able to read the configuration file at KEYCLOAK_TENANT_REALM_CONFIG_PATH={realm_config_path}"));
     let client = KeycloakAdminClient::new().await?;
     let realm = get_tenant_realm(tenant_id);
-    client.upsert_realm(realm.as_str(), &realm_config).await?;
+    client
+        .upsert_realm(realm.as_str(), &realm_config, tenant_id)
+        .await?;
     upsert_realm_jwks(realm.as_str()).await?;
     Ok(())
 }

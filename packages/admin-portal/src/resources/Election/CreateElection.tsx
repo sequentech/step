@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import React from "react"
 import useTreeMenuHook from "@/components/menu/items/use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
-import React from "react"
 import {
     BooleanInput,
     Create,
@@ -16,7 +16,7 @@ import {
     useRedirect,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
-import { useSearchParams } from 'react-router-dom'
+import {useSearchParams} from "react-router-dom"
 
 const Hidden = styled(Box)`
     display: none;

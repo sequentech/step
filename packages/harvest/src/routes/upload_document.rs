@@ -5,14 +5,14 @@ use crate::services::authorization::authorize;
 use rocket::http::Status;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
+use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::keycloak;
+use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-use windmill::services::s3;
-use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::permissions::Permissions;
 use windmill::services::documents;
-use sequent_core::services::keycloak;
+use windmill::services::s3;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UploadDocumentInput {
@@ -39,12 +39,20 @@ pub async fn upload_document(
         vec![Permissions::DOCUMENT_UPLOAD],
     )?;
     let inner = body.into_inner();
-    let auth_headers = keycloak::get_client_credentials().await.map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let (document, url) = documents::get_upload_url(auth_headers, &inner.name, &inner.media_type, inner.size, &claims.hasura_claims.tenant_id)
+    let auth_headers = keycloak::get_client_credentials()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let (document, url) = documents::get_upload_url(
+        auth_headers,
+        &inner.name,
+        &inner.media_type,
+        inner.size,
+        &claims.hasura_claims.tenant_id,
+    )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(Json(UploadDocumentOutput {
         document_id: document.id,
-        url: url
+        url: url,
     }))
 }

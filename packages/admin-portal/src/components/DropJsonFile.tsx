@@ -6,16 +6,16 @@ import Paper from "@mui/material/Paper"
 import {faCloudArrowUp} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import {Box, Typography} from "@mui/material"
-import { useInput } from 'react-admin'
-import { CustomDropFile, Icon, theme } from '@sequentech/ui-essentials'
+import {useInput} from "react-admin"
+import {CustomDropFile, Icon, theme} from "@sequentech/ui-essentials"
 
 interface DropJsonFileProps {
-    handleFiles: (files: FileList) => void | Promise<void>,
+    handleFiles: (files: FileList) => void | Promise<void>
 }
 
-const DropJsonFile: React.FC<DropJsonFileProps> = ({handleFiles, }) => {
+const DropJsonFile: React.FC<DropJsonFileProps> = ({handleFiles}) => {
     const {t} = useTranslation()
-    
+
     const inputRef = useRef<HTMLInputElement | null>(null)
 
     // triggers the input when the button is clicked

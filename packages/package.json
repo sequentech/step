@@ -16,7 +16,7 @@
       "start:test-app": "yarn --cwd ./test-app start",
       "start": "yarn --cwd ./voting-portal start",
       "start:admin": "yarn --cwd ./admin-portal start",
-      "start:admin2": "yarn --cwd ./admin-portal2 start",
+      "start:admin:container": "yarn --cwd ./admin-portal start:container",
       "start:verifier": "yarn --cwd ./ballot-verifier start",
       "storybook:ui-essentials": "yarn --cwd ./ui-essentials storybook",
       "build": "yarn workspaces run build",

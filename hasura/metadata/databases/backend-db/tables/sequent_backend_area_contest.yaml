@@ -133,4 +133,8 @@ delete_permissions:
 - comment: ""
   permission:
     filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    filter: {}
   role: service-account

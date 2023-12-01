@@ -129,8 +129,9 @@ const spanishTranslation: TranslationType = {
                 title: "Áreas",
                 subTitle: "Configuración de Área.",
             },
-            createAreaSuccess: "Área creadas",
+            createAreaSuccess: "Área creada",
             createAreaError: "Error creando área",
+            sequent_backend_area_contest: "Preguntas del Área",
         },
         electionEventScreen: {
             new: {
@@ -139,6 +140,7 @@ const spanishTranslation: TranslationType = {
             common: {
                 title: "Evento Electoral",
                 subtitle: "Configuración del Evento Electoral.",
+                contest: "Concurso",
             },
             edit: {
                 general: "General",
@@ -355,7 +357,7 @@ const spanishTranslation: TranslationType = {
         },
         contestScreen: {
             common: {
-                subtitle: "Configuración de contienda.",
+                subtitle: "Configuración de pregunta.",
             },
             edit: {
                 general: "General",
@@ -378,8 +380,8 @@ const spanishTranslation: TranslationType = {
                 "alphabetical": "Alfabético",
             },
             error: {},
-            createContestSuccess: "Contienda creado",
-            createContestError: "Error creating contienda",
+            createContestSuccess: "Pregunta creado",
+            createContestError: "Error creando pregunta",
         },
         keysGenerationStep: {
             onCreate: "Crear Claves",
