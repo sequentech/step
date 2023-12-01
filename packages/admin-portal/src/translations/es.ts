@@ -244,6 +244,10 @@ const spanishTranslation: TranslationType = {
             voters: {
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                errors: {
+                    editError: "Error editando votante",
+                    editSuccess: "Votante editado",
+                },
             },
             roles: {
                 title: "Roles",

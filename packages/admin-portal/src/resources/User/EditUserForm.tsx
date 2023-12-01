@@ -78,18 +78,24 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
                     body: {
                         user_id: user?.id,
                         tenant_id: tenantId,
+                        election_event_id: electionEventId,
                         first_name: user?.first_name,
                         email: user?.email,
                         attributes: {
-                            "area-id": [user?.area],
+                            "area-id": [user?.area || user.attributes["area-id"][0]],
                         },
                     },
                 },
             })
-            console.log("data after SAVE :>> ", data)
-            console.log("errors after SAVE :>> ", errors)
+            notify(t("usersAndRolesScreen.voters.errors.EditSuccess"), {type: "success"})
+            if (close) {
+                close()
+            }
         } catch (error) {
-            console.log("error :>> ", error)
+            notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
+            if (close) {
+                close()
+            }
         }
     }
 
