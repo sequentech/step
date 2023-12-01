@@ -178,6 +178,7 @@ const englishTranslation = {
             common: {
                 title: "Election",
                 subtitle: "Election configuration.",
+                fileLoaded: "File loaded",
             },
             edit: {
                 general: "General",
