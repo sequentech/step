@@ -6,9 +6,9 @@ import React from "react"
 import {Box} from "@mui/material"
 
 import styled from "@emotion/styled"
-import Stats from "../dashboard/Stats"
-import VotesByDay from "../dashboard/charts/VoteByDay"
-import VotesByChannel from "../dashboard/charts/VoteByChannels"
+import Stats from "../Stats"
+import VotesByDay from "../charts/VoteByDay"
+import VotesByChannel from "../charts/VoteByChannels"
 
 const Container = styled(Box)`
     display: flex;

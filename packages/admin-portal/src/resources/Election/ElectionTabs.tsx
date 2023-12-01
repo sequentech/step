@@ -3,7 +3,7 @@ import {TabbedShowLayout, useRecordContext} from "react-admin"
 import {Sequent_Backend_Election} from "../../gql/graphql"
 import ElectionHeader from "../../components/ElectionHeader"
 import {EditElectionData} from "./ElectionData"
-import DashboardElection from "@/components/election-event/election/Dashboard"
+import DashboardElection from "@/components/dashboard/election/Dashboard"
 
 export const ElectionTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()

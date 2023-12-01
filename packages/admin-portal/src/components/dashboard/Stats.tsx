@@ -13,10 +13,10 @@ import SmsOutlinedIcon from "@mui/icons-material/SmsOutlined"
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
-import StatItem from "@/components/election-event/dashboard/StatItem"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
+import StatItem from "./StatItem"
 
 const CardList = styled(Box)`
     display: flex;
