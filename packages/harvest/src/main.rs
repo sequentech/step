@@ -42,6 +42,8 @@ fn rocket() -> _ {
                 routes::roles::delete_user_role,
                 routes::roles::get_roles,
                 routes::permissions::get_permissions,
+                routes::permissions::set_role_permission,
+                routes::permissions::delete_role_permission,
                 routes::upload_document::upload_document,
             ],
         )

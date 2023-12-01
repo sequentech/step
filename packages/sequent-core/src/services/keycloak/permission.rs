@@ -20,6 +20,21 @@ impl From<RoleRepresentation> for Permission {
     }
 }
 
+impl From<Permission> for RoleRepresentation {
+    fn from(item: Permission) -> Self {
+        RoleRepresentation {
+            attributes: item.attributes.clone(),
+            client_role: Some(false),
+            composite: Some(false),
+            composites: None,
+            container_id: item.container_id.clone(),
+            description: item.description.clone(),
+            id: item.id.clone(),
+            name: item.name.clone(),
+        }
+    }
+}
+
 impl KeycloakAdminClient {
     #[instrument(skip(self))]
     pub async fn list_permissions(
@@ -46,5 +61,43 @@ impl KeycloakAdminClient {
             .map(|role| role.clone().into())
             .collect();
         Ok((permissions, count))
+    }
+
+    #[instrument(skip(self))]
+    pub async fn set_role_permission(
+        self,
+        realm: &str,
+        role_id: &str,
+        permission: &Permission,
+    ) -> Result<()> {
+        let role_representations = permission.clone().into();
+        self.client
+            .realm_groups_with_id_role_mappings_realm_post(
+                realm,
+                role_id,
+                vec![role_representations],
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn delete_role_permission(
+        self,
+        realm: &str,
+        role_id: &str,
+        permission: &Permission,
+    ) -> Result<()> {
+        let role_representations = permission.clone().into();
+        self.client
+            .realm_groups_with_id_role_mappings_realm_delete(
+                realm,
+                role_id,
+                vec![role_representations],
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
     }
 }
