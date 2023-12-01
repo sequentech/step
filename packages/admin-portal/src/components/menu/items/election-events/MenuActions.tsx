@@ -251,7 +251,7 @@ export default function MenuAction({
                             }
                         >
                             <ListItemIcon>
-                                <InventoryIcon className="text-brand-color" />
+                                <InventoryIcon color="error" />
                             </ListItemIcon>
                             {isArchivedTab
                                 ? t("sideMenu.menuActions.unarchive.electionEvent")
@@ -273,7 +273,7 @@ export default function MenuAction({
                             }
                         >
                             <ListItemIcon>
-                                <DeleteIcon className="text-brand-color" />
+                                <DeleteIcon color="error" />
                             </ListItemIcon>
 
                             {t(mapRemoveResource[resourceType])}
