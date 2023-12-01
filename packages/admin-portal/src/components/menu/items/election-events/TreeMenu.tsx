@@ -27,10 +27,10 @@ import MenuActions from "./MenuActions"
 import {useActionPermissions} from "../use-tree-menu-hook"
 
 export const mapAddResource: Record<ResourceName, string> = {
-    sequent_backend_election_event: "sideMenu.addResource.electionEvent",
-    sequent_backend_election: "sideMenu.addResource.election",
-    sequent_backend_contest: "sideMenu.addResource.contest",
-    sequent_backend_candidate: "sideMenu.addResource.candidate",
+    sequent_backend_election_event: "createResource.electionEvent",
+    sequent_backend_election: "createResource.election",
+    sequent_backend_contest: "createResource.contest",
+    sequent_backend_candidate: "createResource.candidate",
 }
 
 export function getNavLinkCreate(

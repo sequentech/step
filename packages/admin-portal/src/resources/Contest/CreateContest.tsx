@@ -17,12 +17,15 @@ import {
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
+import {useTranslation} from "react-i18next"
 
 const Hidden = styled(Box)`
     display: none;
 `
 
 export const CreateContest: React.FC = () => {
+    const {t} = useTranslation()
+
     const [tenantId] = useTenantStore()
     const [searchParams] = useSearchParams()
     const redirect = useRedirect()
@@ -42,8 +45,8 @@ export const CreateContest: React.FC = () => {
             }}
         >
             <SimpleForm>
-                <Typography variant="h4">Contest</Typography>
-                <Typography variant="body2">Contest configuration</Typography>
+                <Typography variant="h4">{t("common.resources.contest")}</Typography>
+                <Typography variant="body2">{t("createResource.contest")}</Typography>
                 <TextInput source="name" />
                 <TextInput source="description" />
 

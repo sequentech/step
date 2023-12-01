@@ -83,11 +83,6 @@ export default function MenuAction({
     }
 
     async function handleAction(action: Action, payload: ActionPayload) {
-        console.log(
-            "LS -> src/components/menu/items/election-events/MenuActions.tsx:83 -> action: ",
-            action
-        )
-
         // close the popover
         setAnchorEl(null)
 
@@ -100,11 +95,6 @@ export default function MenuAction({
             setSelectedActionModal({action, payload})
             setOpenArchiveModal(true)
         } else if (action === Action.Remove) {
-            console.log(
-                "LS -> src/components/menu/items/election-events/MenuActions.tsx:92 -> action: ",
-                action
-            )
-
             setSelectedActionModal({action, payload})
             setOpenDeleteModal(true)
         }

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 import React from "react"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -17,12 +18,15 @@ import {
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
+import {useTranslation} from "react-i18next"
 
 const Hidden = styled(Box)`
     display: none;
 `
 
 export const CreateElection: React.FC = () => {
+    const {t} = useTranslation()
+
     const [tenantId] = useTenantStore()
     const [searchParams] = useSearchParams()
     const redirect = useRedirect()
@@ -41,7 +45,8 @@ export const CreateElection: React.FC = () => {
             }}
         >
             <SimpleForm>
-                <Typography variant="h4">Create Election</Typography>
+                <Typography variant="h4">{t("common.resources.election")}</Typography>
+                <Typography variant="body2">{t("createResource.election")}</Typography>
                 <TextInput source="name" />
                 <TextInput source="description" />
                 <Hidden>

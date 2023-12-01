@@ -134,13 +134,8 @@ const spanishTranslation: TranslationType = {
             sequent_backend_area_contest: "Area de Contiendas",
         },
         electionEventScreen: {
-            new: {
-                subtitle: "Crear Evento Electoral",
-            },
             common: {
-                title: "Evento Electoral",
                 subtitle: "Configuración del Evento de Elección.",
-                contest: "Contiendas    ",
             },
             edit: {
                 general: "General",
@@ -179,6 +174,7 @@ const spanishTranslation: TranslationType = {
         },
         electionScreen: {
             common: {
+                title: "Elección",
                 subtitle: "Configuración de la elección.",
             },
             edit: {
@@ -280,6 +276,12 @@ const spanishTranslation: TranslationType = {
             },
         },
         common: {
+            resources: {
+                electionEvent: "Evento Electoral",
+                election: "Elección",
+                contest: "Concurso",
+                candidate: "Candidato",
+            },
             label: {
                 add: "Añadir",
                 create: "Crear",
@@ -303,6 +305,12 @@ const spanishTranslation: TranslationType = {
                 online: "En línea",
                 kiosk: "Kiosco",
             },
+        },
+        createResource: {
+            electionEvent: "Crear un Evento Electoral",
+            election: "Crear una Elección",
+            contest: "Crear un Concurso",
+            candidate: "Crear un Candidato",
         },
         sideMenu: {
             electionEvents: "Procesos Electorales",

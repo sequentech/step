@@ -132,13 +132,8 @@ const englishTranslation = {
             sequent_backend_area_contest: "Contests",
         },
         electionEventScreen: {
-            new: {
-                subtitle: "Create Election Event",
-            },
             common: {
-                title: "Election Event",
                 subtitle: "Election event configuration.",
-                contest: "Contests",
             },
             edit: {
                 general: "General",
@@ -177,6 +172,7 @@ const englishTranslation = {
         },
         electionScreen: {
             common: {
+                title: "Election",
                 subtitle: "Election configuration.",
             },
             edit: {
@@ -278,6 +274,12 @@ const englishTranslation = {
             },
         },
         common: {
+            resources: {
+                electionEvent: "Election Event",
+                election: "Election",
+                contest: "Contest",
+                candidate: "Candidate",
+            },
             label: {
                 add: "Add",
                 create: "Create",
@@ -301,6 +303,12 @@ const englishTranslation = {
                 online: "Online",
                 kiosk: "Kiosk",
             },
+        },
+        createResource: {
+            electionEvent: "Create an Election Event",
+            election: "Create an Election",
+            contest: "Create a Contest",
+            candidate: "Create a Candidate",
         },
         sideMenu: {
             electionEvents: "Election Events",
