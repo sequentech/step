@@ -384,8 +384,12 @@ const spanishTranslation: TranslationType = {
             createContestError: "Error creando pregunta",
         },
         keysGenerationStep: {
-            onCreate: "Crear Claves",
+            create: "Crear Claves",
             title: "Crear Claves del Evento Electoral",
+            trusteeList: "Autoridades",
+            threshold: "Umbral",
+            errorMinTrustees: "Seleccionaste sólo {{selected}} autoridades, pero debe seleccionar al menos {{threshold}}.",
+            errorThreshold: "Seleccionaste un umbral de {{selected}} pero debe estar entre {{min}} y {{max}}.",
         },
     },
 }

@@ -5,10 +5,14 @@
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import { Sequent_Backend_Election_Event } from "@/gql/graphql"
 import { IElectionEventStatus, IKeyCeremony, IKeyCeremonyStatus, getStatus } from "@/services/ElectionEventStatus"
-import { Box, Button } from "@mui/material"
+import {styled} from "@mui/material/styles"
+import { Box } from "@mui/material"
 import React, { useState, useMemo } from "react"
 import { useRecordContext } from "react-admin"
 import { KeysGenerationStep } from "@/components/KeysGenerationStep"
+
+const StyledBox = styled(Box)`
+`
 
 const getSelected = (electionEvent: Sequent_Backend_Election_Event) => {
     const status: IElectionEventStatus = getStatus(electionEvent.status)
@@ -66,7 +70,7 @@ export const EditElectionEventKeys: React.FC = () => {
     return (
         <>
             {showSteps
-                ? <Box sx={{width: 1024, marginX: "auto"}}>
+                ? <StyledBox>
                     <BreadCrumbSteps
                         labels={[
                             "electionEventScreen.keys.breadCrumbs.configure",
@@ -83,7 +87,7 @@ export const EditElectionEventKeys: React.FC = () => {
                             electionEvent={electionEvent}
                         />
                     }
-                </Box>
+                </StyledBox>
                 : <span>TODO: show list</span>
             }
         </>

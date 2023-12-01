@@ -4,11 +4,7 @@
 import React, {useState} from "react"
 import {
     Box,
-    Button,
-    MenuItem,
-    Select,
     SelectChangeEvent,
-    TextField,
     Typography,
 } from "@mui/material"
 import {
@@ -16,21 +12,33 @@ import {
     Sequent_Backend_Trustee,
     CreateScheduledEventMutation,
 } from "../gql/graphql"
-import {useGetList, useRefresh} from "react-admin"
-import {StyledChip} from "./StyledChip"
-import {IconButton} from "@sequentech/ui-essentials"
-import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import {
+    useGetList,
+    useRefresh,
+    SimpleForm,
+    TextInput,
+    Toolbar,
+    SaveButton,
+    CheckboxGroupInput,
+} from "react-admin"
 import {styled} from "@mui/material/styles"
 import {useMutation} from "@apollo/client"
 import {CREATE_SCHEDULED_EVENT} from "../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../services/ScheduledEvent"
 import { useTranslation } from "react-i18next"
+import { isNumber } from "lodash"
 
 const Horizontal = styled(Box)`
     display: flex;
     flex-direction: row;
     gap: 8px;
 `
+
+const StyledToolbar = styled(Toolbar)`
+    flex-direction: row-reverse;
+`
+
+const CreateButton = styled(SaveButton)``
 
 export interface KeysGenerationStepProps {
     onCreate: (index: number) => void
@@ -45,10 +53,9 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
     const [selectedTrustees, setSelectedTrustees] = useState<Array<Sequent_Backend_Trustee>>([])
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const [threshold, setThreshold] = useState(2)
-    const [createError, setCreateError] = useState("")
     const [trustee, setTrustee] = useState<Sequent_Backend_Trustee | null>(null)
     const refresh = useRefresh()
-    const {data, total, isLoading, error} = useGetList(
+    const {data: trusteeList, total, isLoading, error} = useGetList(
         "sequent_backend_trustee",
         {
             pagination: {page: 1, perPage: 10},
@@ -95,76 +102,79 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
         }
     }
 
-    const handleTrusteeChange = (event: SelectChangeEvent<Sequent_Backend_Trustee | null>) => {
-        let id = event.target.value
-        let trustee: Sequent_Backend_Trustee | undefined = (
-            data as Array<Sequent_Backend_Trustee> | undefined
-        )?.find((t) => t.id === id)
-        if (trustee) {
-            setTrustee(trustee)
+    const getDefaultValues = () => ({
+        threshold: 2
+    })
+
+    const thresholdValidator = (value: any): any => {
+        const max = (trusteeList) ? trusteeList.length : 0
+        var intValue: number | null = null
+        try {
+            intValue = parseInt(value)
+        } catch {
+            intValue = null
         }
-    }
-
-    const onAddTrustee = () => {
-        if (!trustee) {
-            return
+        if (
+            !isNumber(intValue) ||
+            isNaN(intValue) ||
+            intValue < 2 ||
+            intValue > max
+        ) {
+            console.log(`thresholdValidator: error, intValue=${intValue}`)
+            return t(
+                "keysGenerationStep.errorThreshold",
+                {selected: intValue, min: 0, max: max}
+            )
         }
-        setSelectedTrustees([...selectedTrustees, trustee])
-        setTrustee(null)
+        console.log(`thresholdValidator: NO error, intValue=${intValue}`)
     }
 
-    const isValidThreshold = (value: number): boolean => {
-        return !isNaN(value) && value > 2 && value <= selectedTrustees.length
-    }
-
-    const handleThresholdChange: React.ChangeEventHandler<
-        HTMLInputElement | HTMLTextAreaElement
-    > = (event) => {
-        let value = Number(event.target.value)
-        setThreshold(value)
+    const trusteeListValidator = (values: any): any => {
+        const length = (values && values.length) ? values.length : 0
+        if (length < threshold) {
+            return t(
+                "keysGenerationStep.errorMinTrustees",
+                {selected: length, threshold: threshold}
+            )
+        }
     }
 
     return (
-        <>
-            <Typography variant="body1">
+        <SimpleForm
+            defaultValues={getDefaultValues}
+            onSubmit={onCreateHandler}
+            toolbar={
+                <StyledToolbar>
+                    <CreateButton label={t("keysGenerationStep.create")} />
+                </StyledToolbar>
+            }
+        >
+            <Typography variant="h4">
                 {t("keysGenerationStep.title")}
             </Typography>
-            <TextField
+            <TextInput
+                source="threshold"
                 value={threshold}
-                error={!isValidThreshold(threshold)}
+                label={t("keysGenerationStep.threshold")}
+                validate={thresholdValidator}
                 type="number"
                 InputLabelProps={{
                     shrink: true,
                 }}
                 variant="filled"
-                onChange={handleThresholdChange}
             />
-            <Box>
-                {selectedTrustees.map((trustee) => (
-                    <StyledChip label={trustee.name} key={trustee.id} />
-                ))}
-            </Box>
-            <Horizontal>
-                <Select
-                    labelId="trustee-select-label"
-                    id="trustee-select"
-                    value={trustee}
-                    renderValue={(value) => value?.name}
-                    onChange={handleTrusteeChange}
-                >
-                    {data
-                        ?.filter((trustee) => !selectedTrustees.find((t) => t.id === trustee.id))
-                        .map((trustee) => (
-                            <MenuItem key={trustee.id} value={trustee.id}>
-                                {trustee.name}
-                            </MenuItem>
-                        ))}
-                </Select>
-                <IconButton icon={faPlusCircle} onClick={onAddTrustee} fontSize="24px" />
-            </Horizontal>
-            <Button onClick={onCreateHandler}>
-                {t("keysGenerationStep.onCreate")}
-            </Button>
-        </>
+            {trusteeList ? (
+                <CheckboxGroupInput
+                    validate={trusteeListValidator}
+                    label={t("keysGenerationStep.trusteeList")}
+                    source="selectedTrustees"
+                    choices={trusteeList}
+                    translateChoice={false}
+                    optionText="name"
+                    optionValue="id"
+                    row={false}
+                />
+            ) : null}
+        </SimpleForm>
     )
 }

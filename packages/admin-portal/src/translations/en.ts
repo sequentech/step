@@ -382,8 +382,12 @@ const englishTranslation = {
             createContestError: "Error creating candidate",
         },
         keysGenerationStep: {
-            onCreate: "Create Keys",
+            create: "Create Keys",
             title: "Create Election Event Keys",
+            threshold: "Threshold",
+            trusteeList: "Trustees",
+            errorMinTrustees: "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
+            errorThreshold: "You selected threshold {{selected}} but it must be between {{min}} and {{max}}.",
         },
     },
 }
