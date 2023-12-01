@@ -14,7 +14,6 @@ import {
     SaveButton,
     FormDataConsumer,
     useGetList,
-    TextField,
     useUpdate,
     useNotify,
     useRefresh,
@@ -251,8 +250,6 @@ export const ContestDataForm: React.FC = () => {
         // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
 
         const theFile = files?.[0]
-        const fileLink = URL.createObjectURL(theFile as any)
-        console.log("fileLink :>> ", fileLink)
 
         if (theFile) {
             let {data, errors} = await getUploadUrl({
@@ -263,8 +260,6 @@ export const ContestDataForm: React.FC = () => {
                 },
             })
             if (data?.get_upload_url?.document_id) {
-                console.log("upload :>> ", data)
-
                 try {
                     await fetch(data.get_upload_url.url, {
                         method: "PUT",
@@ -285,11 +280,9 @@ export const ContestDataForm: React.FC = () => {
                     refetchImage()
                     refresh()
                 } catch (e) {
-                    console.log("error :>> ", e)
                     notify(t("electionScreen.error.fileError"), {type: "error"})
                 }
             } else {
-                console.log("error :>> ", errors)
                 notify(t("electionScreen.error.fileError"), {type: "error"})
             }
         }

@@ -46,6 +46,7 @@ const Hidden = styled(Box)`
 
 export const ElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
+
     const {t} = useTranslation()
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
@@ -59,12 +60,12 @@ export const ElectionDataForm: React.FC = () => {
         id: record.election_event_id,
     })
 
-    const {data: imageData, refetch} = useGetOne("sequent_backend_document", {
+    const {data: imageData, refetch: refetchImage} = useGetOne("sequent_backend_document", {
         id: record.image_document_id,
         meta: {tenant_id: record.tenant_id},
     })
 
-    const [update, {data: updatedData}] = useUpdate()
+    const [updateImage] = useUpdate()
 
     const buildLanguageSettings = () => {
         const tempSettings = data?.presentation?.language_conf?.enabled_language_codes
@@ -253,8 +254,6 @@ export const ElectionDataForm: React.FC = () => {
         // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
 
         const theFile = files?.[0]
-        const fileLink = URL.createObjectURL(theFile as any)
-        console.log("fileLink :>> ", fileLink)
 
         if (theFile) {
             let {data, errors} = await getUploadUrl({
@@ -265,8 +264,6 @@ export const ElectionDataForm: React.FC = () => {
                 },
             })
             if (data?.get_upload_url?.document_id) {
-                console.log("upload :>> ", data)
-
                 try {
                     await fetch(data.get_upload_url.url, {
                         method: "PUT",
@@ -277,14 +274,14 @@ export const ElectionDataForm: React.FC = () => {
                     })
                     notify(t("electionScreen.error.fileLoaded"), {type: "success"})
 
-                    update("sequent_backend_election", {
+                    updateImage("sequent_backend_election", {
                         id: record.id,
                         data: {
                             image_document_id: data.get_upload_url.document_id,
                         },
                     })
 
-                    refetch()
+                    refetchImage()
                     refresh()
 
                 } catch (e) {
