@@ -1,10 +1,10 @@
+import React from "react"
 import {Typography} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
-import React from "react"
 import Chart, {Props} from "react-apexcharts"
-import {Separator, StyledPaper} from "../Charts"
+import {Separator, StyledPaper} from "./Charts"
 
-export default function VotesByChannel({width}: {width: number}) {
+export default function VotesByChannel({width, height}: {width: number; height: number}) {
     const state: Props = {
         options: {
             labels: ["Online", "Paper", "IVR", "Postal"],
@@ -19,10 +19,14 @@ export default function VotesByChannel({width}: {width: number}) {
                 series={state.series}
                 type="donut"
                 width={width}
-                height={250}
+                height={height}
             />
             <Separator />
-            <Typography fontSize="16px" color={theme.palette.customGrey.main}>
+            <Typography
+                fontSize="16px"
+                sx={{marginBottom: 0}}
+                color={theme.palette.customGrey.main}
+            >
                 Votes by Channel
             </Typography>
         </StyledPaper>

@@ -6,11 +6,11 @@ import {theme} from "@sequentech/ui-essentials"
 import {useRecordContext} from "react-admin"
 import {GetCastVotesQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {GET_CAST_VOTES} from "@/queries/GetCastVotes"
-import {aggregateByDay, daysBefore, getWeekLegend, Separator, StyledPaper} from "../Charts"
+import {aggregateByDay, daysBefore, getWeekLegend, Separator, StyledPaper} from "./Charts"
 
 const now = new Date()
 
-export default function VotesByDay({width}: {width:number}) {
+export default function VotesByDay({width, height}: {width: number; height: number}) {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const {loading, error, data} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
@@ -50,12 +50,16 @@ export default function VotesByDay({width}: {width:number}) {
                 series={state.series}
                 type="bar"
                 width={width}
-                height={250}
+                height={height}
             />
 
             <Separator />
 
-            <Typography fontSize="16px" color={theme.palette.customGrey.main}>
+            <Typography
+                fontSize="16px"
+                sx={{marginBottom: 0}}
+                color={theme.palette.customGrey.main}
+            >
                 Votes by day
             </Typography>
         </StyledPaper>

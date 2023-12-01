@@ -18,6 +18,8 @@ const Container = styled(Box)`
 
 export default function DashboardElection() {
     const cardWidth = 470
+    const cardHeight = 250
+
     return (
         <>
             <Box sx={{width: 1024, marginX: "auto"}}>
@@ -25,8 +27,8 @@ export default function DashboardElection() {
                     <Stats />
 
                     <Container>
-                        <VotesByDay width={cardWidth} />
-                        <VotesByChannel width={cardWidth} />
+                        <VotesByDay width={cardWidth} height={cardHeight} />
+                        <VotesByChannel width={cardWidth} height={cardHeight} />
                     </Container>
                 </Box>
             </Box>
