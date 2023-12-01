@@ -57,4 +57,22 @@ impl KeycloakAdminClient {
             .collect();
         Ok((roles, count))
     }
+
+    #[instrument(skip(self))]
+    pub async fn list_user_roles(
+        self,
+        realm: &str,
+        user_id: &str,
+    ) -> Result<Vec<Role>> {
+        let groups: Vec<GroupRepresentation> = self
+            .client
+            .realm_users_with_id_groups_get(realm, user_id, Some(false), None, None, None)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        let roles = groups
+            .into_iter()
+            .map(|group| group.into())
+            .collect();
+        Ok(roles)
+    }
 }

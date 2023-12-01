@@ -37,6 +37,7 @@ fn rocket() -> _ {
                 routes::insert_tenant::insert_tenant,
                 routes::users::get_users,
                 routes::users::edit_user,
+                routes::roles::list_user_roles,
                 routes::roles::get_roles,
                 routes::permissions::get_permissions,
                 routes::upload_document::upload_document,

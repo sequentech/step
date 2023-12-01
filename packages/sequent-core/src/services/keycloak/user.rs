@@ -19,7 +19,6 @@ impl From<UserRepresentation> for User {
             email_verified: item.email_verified.clone(),
             enabled: item.enabled.clone(),
             first_name: item.first_name.clone(),
-            groups: item.groups.clone(),
             last_name: item.last_name.clone(),
             username: item.username.clone(),
         }
@@ -81,7 +80,6 @@ impl KeycloakAdminClient {
         email: Option<String>,
         first_name: Option<String>,
         last_name: Option<String>,
-        groups: Option<Vec<String>>,
         username: Option<String>,
     ) -> Result<User> {
         let mut current_user: UserRepresentation = self
@@ -120,11 +118,6 @@ impl KeycloakAdminClient {
         current_user.last_name = match last_name {
             Some(val) => Some(val),
             None => current_user.last_name,
-        };
-
-        current_user.groups = match groups {
-            Some(val) => Some(val),
-            None => current_user.groups,
         };
 
         current_user.username = match username {

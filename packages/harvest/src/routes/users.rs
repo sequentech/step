@@ -86,7 +86,6 @@ pub struct EditUserBody {
     email: Option<String>,
     first_name: Option<String>,
     last_name: Option<String>,
-    groups: Option<Vec<String>>,
     username: Option<String>,
 }
 
@@ -126,7 +125,6 @@ pub async fn edit_user(
             input.email.clone(),
             input.first_name.clone(),
             input.last_name.clone(),
-            input.groups.clone(),
             input.username.clone(),
         )
         .await
