@@ -14,7 +14,6 @@ pub struct User {
     pub email_verified: Option<bool>,
     pub enabled: Option<bool>,
     pub first_name: Option<String>,
-    pub groups: Option<Vec<String>>,
     pub last_name: Option<String>,
     pub username: Option<String>,
 }

@@ -20,6 +20,47 @@ use std::collections::HashMap;
 use tracing::{event, instrument, Level};
 
 #[derive(Deserialize, Debug)]
+pub struct DeleteUserBody {
+    tenant_id: String,
+    election_event_id: Option<String>,
+    user_id: String,
+}
+
+#[instrument(skip(claims))]
+#[post("/delete-user", format = "json", data = "<body>")]
+pub async fn delete_user(
+    claims: jwt::JwtClaims,
+    body: Json<DeleteUserBody>,
+) -> Result<(), (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_WRITE
+    } else {
+        Permissions::USER_WRITE
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    client
+        .delete_user(&realm, &input.user_id)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    Ok(())
+}
+
+#[derive(Deserialize, Debug)]
 pub struct GetUsersBody {
     tenant_id: String,
     election_event_id: Option<String>,
@@ -77,6 +118,48 @@ pub async fn get_users(
 }
 
 #[derive(Deserialize, Debug)]
+pub struct CreateUserBody {
+    tenant_id: String,
+    election_event_id: Option<String>,
+    user: User,
+}
+
+#[instrument(skip(claims))]
+#[post("/create-user", format = "json", data = "<body>")]
+pub async fn create_user(
+    claims: jwt::JwtClaims,
+    body: Json<CreateUserBody>,
+) -> Result<Json<User>, (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_CREATE
+    } else {
+        Permissions::USER_CREATE
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let user = client
+        .create_user(&realm, &input.user)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    Ok(Json(user))
+}
+
+#[derive(Deserialize, Debug)]
 pub struct EditUserBody {
     tenant_id: String,
     user_id: String,
@@ -86,7 +169,6 @@ pub struct EditUserBody {
     email: Option<String>,
     first_name: Option<String>,
     last_name: Option<String>,
-    groups: Option<Vec<String>>,
     username: Option<String>,
 }
 
@@ -126,7 +208,6 @@ pub async fn edit_user(
             input.email.clone(),
             input.first_name.clone(),
             input.last_name.clone(),
-            input.groups.clone(),
             input.username.clone(),
         )
         .await

@@ -19,8 +19,37 @@ impl From<UserRepresentation> for User {
             email_verified: item.email_verified.clone(),
             enabled: item.enabled.clone(),
             first_name: item.first_name.clone(),
-            groups: item.groups.clone(),
             last_name: item.last_name.clone(),
+            username: item.username.clone(),
+        }
+    }
+}
+
+impl From<User> for UserRepresentation {
+    fn from(item: User) -> Self {
+        UserRepresentation {
+            access: None,
+            attributes: item.attributes.clone(),
+            client_consents: None,
+            client_roles: None,
+            created_timestamp: None,
+            credentials: None,
+            disableable_credential_types: None,
+            email: item.email.clone(),
+            email_verified: item.email_verified.clone(),
+            enabled: item.enabled.clone(),
+            federated_identities: None,
+            federation_link: None,
+            first_name: item.first_name.clone(),
+            groups: None,
+            id: item.id.clone(),
+            last_name: item.last_name.clone(),
+            not_before: None,
+            origin: None,
+            realm_roles: None,
+            required_actions: None,
+            self_: None,
+            service_account_client_id: None,
             username: item.username.clone(),
         }
     }
@@ -81,7 +110,6 @@ impl KeycloakAdminClient {
         email: Option<String>,
         first_name: Option<String>,
         last_name: Option<String>,
-        groups: Option<Vec<String>>,
         username: Option<String>,
     ) -> Result<User> {
         let mut current_user: UserRepresentation = self
@@ -122,11 +150,6 @@ impl KeycloakAdminClient {
             None => current_user.last_name,
         };
 
-        current_user.groups = match groups {
-            Some(val) => Some(val),
-            None => current_user.groups,
-        };
-
         current_user.username = match username {
             Some(val) => Some(val),
             None => current_user.username,
@@ -139,4 +162,29 @@ impl KeycloakAdminClient {
 
         Ok(current_user.into())
     }
+
+    #[instrument(skip(self))]
+    pub async fn delete_user(self, realm: &str, user_id: &str) -> Result<()> {
+        self.client
+            .realm_users_with_id_delete(realm, user_id)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn create_user(self, realm: &str, user: &User) -> Result<User> {
+        self.client
+            .realm_users_post(realm, user.clone().into())
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        let new_user: UserRepresentation = self
+            .client
+            .realm_users_with_id_get(realm, &user.id.clone().unwrap())
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(new_user.into())
+    }
+
+
 }
