@@ -15,7 +15,10 @@ export const SettingsScreen: React.FC = () => {
 
     return (
         <Box>
-            <HeaderTitle title={t("electionTypeScreen.common.title")} subtitle={t("electionTypeScreen.tabs.electionTypes")} />
+            <HeaderTitle
+                title={t("electionTypeScreen.common.settingTitle")}
+                subtitle={t("electionTypeScreen.common.settingSubtitle")}
+            />
 
             <Tabs
                 elements={[
