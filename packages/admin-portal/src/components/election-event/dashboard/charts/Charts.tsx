@@ -6,7 +6,6 @@ import React from "react"
 import {styled} from "@mui/material/styles"
 import {Box, Paper, Typography} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
-import {GetCastVotesQuery} from "@/gql/graphql"
 
 const now = new Date()
 
@@ -14,26 +13,6 @@ export function daysBefore(date: Date, days: number): Date {
     let before = new Date(date)
     before.setDate(before.getDate() - days)
     return before
-}
-
-export function aggregateByDay(
-    votes: GetCastVotesQuery["sequent_backend_cast_vote"]
-): Array<number> {
-    let values: Array<number> = []
-
-    for (let i = 0; i < 7; i++) {
-        let endDate = daysBefore(now, i)
-        let startDate = daysBefore(now, i + 1)
-
-        const filteredVotes = votes.filter((vote) => {
-            let createdAt = new Date(vote.created_at)
-            return createdAt < endDate && createdAt >= startDate
-        })
-
-        values.push(filteredVotes.length)
-    }
-
-    return values.reverse()
 }
 
 export function getWeekLegend(): Array<string> {
