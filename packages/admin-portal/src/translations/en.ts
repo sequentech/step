@@ -133,7 +133,15 @@ const englishTranslation = {
         electionTypeScreen: {
             common: {
                 title: 'Election Type',
-                subtitle: 'Election type configuration'
+                subtitle: 'Election type configuration',
+                onlineVoting: 'Online Voting',
+                kioskVoting: 'Kiosk Voting'
+            },
+            create: {
+                title: 'Create Election Type'
+            },
+            edit: {
+                title: 'Edit Election Type'
             }
         },
         electionEventScreen: {

@@ -5,6 +5,7 @@ import styled from "@emotion/styled"
 import {Switch} from "@mui/material"
 import { useEditController } from 'react-admin';
 import { useTenantStore } from '@/providers/TenantContextProvider';
+import { useTranslation } from 'react-i18next';
 
 
 const SettingsVotingChannelsStyles = {
@@ -25,13 +26,14 @@ const SettingsVotingChannelsStyles = {
 
 export const SettingsVotingChannels: React.FC<void> = () => {
     const [tenantId] = useTenantStore()
+    const {t} = useTranslation()
     const { record, save, isLoading } = useEditController({ resource: 'sequent_backend_tenant', id: tenantId, redirect: false, undoable: false });
 
     const [voting, setVoting] = useState<any>({
         online: record?.votting_channels?.online || false,
         kiosk: record?.votting_channels?.kiosk || false,
-        telephone: record?.votting_channels?.telephone || false,
-        paper: record?.votting_channels?.paper || false,
+        // telephone: record?.votting_channels?.telephone || false,
+        // paper: record?.votting_channels?.paper || false,
     });
 
     const handleToggle = (method: any) => {
@@ -67,7 +69,7 @@ export const SettingsVotingChannels: React.FC<void> = () => {
             {Object.keys(voting).map((method: string) => (
                 <SettingsVotingChannelsStyles.Content key={method}>
                     <SettingsVotingChannelsStyles.Text>
-                        {method} Voting
+                        {t(`${method}Voting`)}
                     </SettingsVotingChannelsStyles.Text>
 
                     <Switch 

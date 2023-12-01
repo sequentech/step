@@ -32,6 +32,7 @@ export const SettingsElectionsTypesCreate: React.FC<CreateProps> = (props) => {
     const {close} = props
     const refresh = useRefresh()
     const [tenantId] = useTenantStore()
+    const {t} = useTranslation();
 
     const onSuccess = () => {
         refresh()
@@ -53,7 +54,7 @@ export const SettingsElectionsTypesCreate: React.FC<CreateProps> = (props) => {
             redirect={close ? false : (resource: any, id: any, data: any): string => 'settings'}
         >
             <SimpleForm>
-                <Typography variant="h4">Create Election</Typography>
+                <Typography variant="h4">{t('electionTypeScreen.create.title')}</Typography>
                 <TextInput source="name" />
 
 

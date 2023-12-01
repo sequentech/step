@@ -25,10 +25,5 @@
     "prettify:fix": "yarn --cwd ./voting-portal prettify:fix",
     "generate": "yarn --cwd ./voting-portal generate",
     "generate:admin": "yarn --cwd ./admin-portal generate"
-  },
-  "dependencies": {
-    "@mui/styles": "^5.14.18",
-    "@mui/utils": "^5.14.18",
-    "tailwind-merge": "^2.0.0"
   }
 }
