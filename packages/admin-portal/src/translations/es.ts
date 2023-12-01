@@ -180,6 +180,7 @@ const spanishTranslation: TranslationType = {
         electionScreen: {
             common: {
                 subtitle: "Configuración de la elección.",
+                fileLoaded: "Archivo cargado",
             },
             edit: {
                 general: "General",

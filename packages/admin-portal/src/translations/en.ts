@@ -178,6 +178,7 @@ const englishTranslation = {
         electionScreen: {
             common: {
                 subtitle: "Election configuration.",
+                fileLoaded: "File loaded",
             },
             edit: {
                 general: "General",

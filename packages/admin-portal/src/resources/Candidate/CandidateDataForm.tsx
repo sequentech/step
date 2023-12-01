@@ -195,9 +195,9 @@ export const CandidateDataForm: React.FC = () => {
                         },
                         body: theFile,
                     })
-                    notify(t("electionScreen.error.fileLoaded"), {type: "success"})
+                    notify(t("electionScreen.common.fileLoaded"), {type: "success"})
 
-                    updateImage("sequent_backend_contest", {
+                    updateImage("sequent_backend_candidate", {
                         id: record.id,
                         data: {
                             image_document_id: data.get_upload_url.document_id,
