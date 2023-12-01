@@ -61,7 +61,7 @@ pub async fn get_permissions(
 pub struct SetOrDeleteRolePermissionsBody {
     tenant_id: String,
     role_id: String,
-    permission: Permission,
+    permission_name: String,
 }
 
 #[instrument(skip(claims))]
@@ -82,7 +82,7 @@ pub async fn set_role_permission(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     client
-        .set_role_permission(&realm, &input.role_id, &input.permission)
+        .set_role_permission(&realm, &input.role_id, &input.permission_name)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(())
@@ -106,7 +106,36 @@ pub async fn delete_role_permission(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     client
-        .delete_role_permission(&realm, &input.role_id, &input.permission)
+        .delete_role_permission(&realm, &input.role_id, &input.permission_name)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    Ok(())
+}
+#[derive(Deserialize, Debug)]
+pub struct DeletePermissionBody {
+    tenant_id: String,
+    permission_name: String,
+}
+
+#[instrument(skip(claims))]
+#[post("/delete-permission", format = "json", data = "<body>")]
+pub async fn delete_permission(
+    claims: jwt::JwtClaims,
+    body: Json<DeletePermissionBody>,
+) -> Result<(), (Status, String)> {
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::USER_PERMISSION_WRITE],
+    )?;
+    let realm = get_tenant_realm(&input.tenant_id);
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    client
+        .delete_permission(&realm, &input.permission_name)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(())

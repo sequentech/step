@@ -132,4 +132,18 @@ impl KeycloakAdminClient {
 
         Ok(current_user.into())
     }
+
+    #[instrument(skip(self))]
+    pub async fn delete_user(
+        self,
+        realm: &str,
+        user_id: &str,
+    ) -> Result<()> {
+        self
+            .client
+            .realm_users_with_id_delete(realm, user_id)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
 }
