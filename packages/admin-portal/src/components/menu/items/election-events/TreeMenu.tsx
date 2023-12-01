@@ -135,7 +135,6 @@ function TreeMenuItem({
     treeResourceNames,
     isArchivedElectionEvents,
 }: TreeMenuItemProps) {
-    const {t} = useTranslation()
     const [isOpenSidebar] = useSidebarState()
 
     const [open, setOpen] = useState(false)
@@ -149,6 +148,10 @@ function TreeMenuItem({
     if (hasNext) {
         const key = mapDataChildren(subTreeResourceNames[0] as ResourceName)
         data[key] = (resource as any)[key]
+
+        if (data[key]?.length === 0) {
+            setOpen(true)
+        }
     }
 
     const menuItemRef = useRef<HTMLDivElement | null>(null)
