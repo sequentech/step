@@ -152,6 +152,10 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
             <Typography variant="h4">
                 {t("keysGenerationStep.title")}
             </Typography>
+            <Typography variant="body2">
+                {t("keysGenerationStep.subtitle")}
+            </Typography>
+
             <TextInput
                 source="threshold"
                 value={threshold}

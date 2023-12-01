@@ -384,6 +384,7 @@ const englishTranslation = {
         keysGenerationStep: {
             create: "Create Keys",
             title: "Create Election Event Keys",
+            subtitle: "In this ceremony each trustee will generate and download their part of the private keys for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is trhe minimum number of trustees required to tally.",
             threshold: "Threshold",
             trusteeList: "Trustees",
             errorMinTrustees: "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",

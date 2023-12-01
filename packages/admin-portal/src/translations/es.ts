@@ -386,6 +386,7 @@ const spanishTranslation: TranslationType = {
         keysGenerationStep: {
             create: "Crear Claves",
             title: "Crear Claves del Evento Electoral",
+            subtitle: "En esta ceremonia cada autoridad generará y descargará su parte de las claves privadas para el Evento Electoral. Para continuar, elija los autoridades que participarán en la ceremonia y el umbral, que es el número mínimo de autoridades necesarios para contar.",
             trusteeList: "Autoridades",
             threshold: "Umbral",
             errorMinTrustees: "Seleccionaste sólo {{selected}} autoridades, pero debe seleccionar al menos {{threshold}}.",
