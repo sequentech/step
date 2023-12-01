@@ -52,7 +52,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
             let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
             console.log(
                 "USER :: ",
-                JSON.parse(JSON.stringify(userOriginal?.attributes?.["area-id"]))[0] ?? "---"
+                userOriginal?.attributes?.["area-id"]?.[0] || "---"
             )
             console.log("TENANT :: ", tenantId)
             setUser(userOriginal)
@@ -82,7 +82,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
                         first_name: user?.first_name,
                         email: user?.email,
                         attributes: {
-                            "area-id": [user?.area || user.attributes["area-id"][0]],
+                            "area-id": [user?.area || user.attributes?.["area-id"]?.[0]],
                         },
                     },
                 },
@@ -118,6 +118,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
             )
         })
     }
+
+    let areaIdAttribute = user?.attributes?.["area-id"] as Array<string> | undefined
+    let defaultAreaId = areaIdAttribute?.[0] ?? undefined
 
     if (user) {
         return (
@@ -170,9 +173,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
 
                         <Select
                             name="area"
-                            defaultValue={
-                                JSON.parse(JSON.stringify(user?.attributes?.["area-id"]))[0] || null
-                            }
+                            defaultValue={defaultAreaId}
                             onChange={handleSelectChange}
                         >
                             {areas ? renderAreas(areas) : null}
