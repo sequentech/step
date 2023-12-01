@@ -398,7 +398,7 @@ services:
       - .env
   
   beat:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     stdin_open: true
     volumes:
       - ./keycloak/import:/import
