@@ -149,7 +149,7 @@ input EditUsersInput {
   attributes : jsonb
   email : String
   first_name : String
-  groups : [String!]!
+  groups : [String!]
   username : String
 }
 

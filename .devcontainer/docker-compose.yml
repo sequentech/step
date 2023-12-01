@@ -396,6 +396,18 @@ services:
       dockerfile: ./windmill/Dockerfile
     env_file:
       - .env
+  
+  beat:
+    #profiles: ["dev"]
+    stdin_open: true
+    volumes:
+      - ./keycloak/import:/import
+    build:
+      context: ../packages/
+      dockerfile: ./windmill/Dockerfile
+    env_file:
+      - .env
+    entrypoint:  ["cargo", "run", "--bin", "beat"]
 
 volumes:
   db_data:

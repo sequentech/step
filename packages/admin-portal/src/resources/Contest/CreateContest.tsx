@@ -1,12 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import React from "react"
 import useTreeMenuHook from "@/components/menu/items/use-tree-menu-hook"
-import {useElectionStore} from "@/providers/ElectionContextProvider"
-import {useElectionEventStore} from "@/providers/ElectionEventContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
-import React from "react"
 import {
     BooleanInput,
     SimpleForm,
