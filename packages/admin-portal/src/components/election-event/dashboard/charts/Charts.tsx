@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import React from "react"
 import {styled} from "@mui/material/styles"
-import {Box, Paper} from "@mui/material"
+import {Box, Paper, Typography} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 import {GetCastVotesQuery} from "@/gql/graphql"
 
@@ -43,7 +44,7 @@ export function getWeekLegend(): Array<string> {
 }
 
 export const StyledPaper = styled(Paper)`
-    padding: 16px 16px 25px 16px;
+    padding: 16px;
 `
 
 export const Separator = styled(Box)`
@@ -51,3 +52,18 @@ export const Separator = styled(Box)`
     margin: 16px 0;
 `
 
+export default function CardChart({title, children}: {title: string; children: React.ReactNode}) {
+    return (
+        <StyledPaper>
+            <Typography
+                fontSize="16px"
+                sx={{marginBottom: 0}}
+                color={theme.palette.customGrey.main}
+            >
+                {title}
+            </Typography>
+            <Separator />
+            {children}
+        </StyledPaper>
+    )
+}
