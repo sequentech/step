@@ -214,7 +214,7 @@ pub async fn list_pgaudit(
     let input = body.into_inner();
 
     let mut client = Client::new(&server_url, &username, &password).await?;
-    client.login(&username, &password).await?;
+    client.login().await?;
 
     client.open_session(&input.election_event_id).await?;
     let limit: i64 = input.limit.unwrap_or(10);

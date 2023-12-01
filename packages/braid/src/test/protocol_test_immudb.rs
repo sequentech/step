@@ -58,6 +58,7 @@ pub async fn run_immudb<C: Ctx>(ciphertexts: u32, batches: usize, ctx: C) {
         ((ciphertexts as f64 * batches as f64) / time),
     );
 }
+
 pub struct ProtocolTestImmudb<C: Ctx> {
     pub ctx: C,
     pub cfg: Configuration<C>,
@@ -172,6 +173,7 @@ async fn run_protocol_test_immudb<C: Ctx>(
             s.step().await
         }))
         .collect();
+    
         sessions = vec![];
         for h in handles {
             let session = h.await.unwrap().unwrap();
