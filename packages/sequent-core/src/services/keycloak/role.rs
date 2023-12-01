@@ -21,6 +21,21 @@ impl From<GroupRepresentation> for Role {
     }
 }
 
+impl From<Role> for GroupRepresentation {
+    fn from(item: Role) -> Self {
+        GroupRepresentation {
+            access: item.access.clone(),
+            attributes: item.attributes.clone(),
+            client_roles: item.client_roles.clone(),
+            id: item.id.clone(),
+            name: item.name.clone(),
+            path: None,
+            realm_roles: item.permissions.clone(),
+            sub_groups: None,
+        }
+    }
+}
+
 impl KeycloakAdminClient {
     #[instrument(skip(self))]
     pub async fn list_roles(
@@ -56,5 +71,82 @@ impl KeycloakAdminClient {
             .map(|role| role.clone().into())
             .collect();
         Ok((roles, count))
+    }
+
+    #[instrument(skip(self))]
+    pub async fn list_user_roles(
+        self,
+        realm: &str,
+        user_id: &str,
+    ) -> Result<Vec<Role>> {
+        let groups: Vec<GroupRepresentation> = self
+            .client
+            .realm_users_with_id_groups_get(
+                realm,
+                user_id,
+                Some(false),
+                None,
+                None,
+                None,
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        let roles = groups.into_iter().map(|group| group.into()).collect();
+        Ok(roles)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn set_user_role(
+        self,
+        realm: &str,
+        user_id: &str,
+        role_id: &str,
+    ) -> Result<()> {
+        self.client
+            .realm_users_with_id_groups_with_group_id_put(
+                realm, user_id, role_id,
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn delete_user_role(
+        self,
+        realm: &str,
+        user_id: &str,
+        role_id: &str,
+    ) -> Result<()> {
+        self.client
+            .realm_users_with_id_groups_with_group_id_delete(
+                realm, user_id, role_id,
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn delete_role(self, realm: &str, role_id: &str) -> Result<()> {
+        self.client
+            .realm_groups_with_id_delete(realm, role_id)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn create_role(self, realm: &str, role: &Role) -> Result<Role> {
+        let role_id = role.id.clone().unwrap();
+        self.client
+            .realm_groups_with_id_put(realm, &role_id, role.clone().into())
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        let group_representation = self.client
+                .realm_groups_with_id_get(realm, &role_id)
+                .await
+                .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(group_representation.into())
     }
 }
