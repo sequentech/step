@@ -62,7 +62,7 @@ export default function VotesByDay({width, height}: {width: number; height: numb
     }
 
     return (
-        <CardChart title={t("voteByDay")}>
+        <CardChart title={t("dashboard.voteByDay")}>
             <Chart
                 options={state.options}
                 series={state.series}

@@ -131,6 +131,10 @@ const englishTranslation = {
             createAreaError: "Could not create Area",
             sequent_backend_area_contest: "Contests",
         },
+        dashboard: {
+            voteByDay: "Vote by day",
+            voteByChannels: "Vote by channels",
+        },
         electionEventScreen: {
             common: {
                 subtitle: "Election event configuration.",

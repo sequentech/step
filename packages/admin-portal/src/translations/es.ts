@@ -133,6 +133,10 @@ const spanishTranslation: TranslationType = {
             createAreaError: "Error creando área",
             sequent_backend_area_contest: "Area de Contiendas",
         },
+        dashboard: {
+            voteByDay: "Voto por día",
+            voteByChannels: "Voto por canales",
+        },
         electionEventScreen: {
             common: {
                 subtitle: "Configuración del Evento de Elección.",

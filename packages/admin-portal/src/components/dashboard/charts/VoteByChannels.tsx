@@ -14,7 +14,7 @@ export default function VotesByChannel({width, height}: {width: number; height: 
     }
 
     return (
-        <CardChart title={t("voteByChannel")}>
+        <CardChart title={t("dashboard.voteByChannels")}>
             <Chart
                 options={state.options}
                 series={state.series}
