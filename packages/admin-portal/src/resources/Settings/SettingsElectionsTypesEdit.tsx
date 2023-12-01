@@ -53,10 +53,9 @@ export const SettingselectionsTypesEdit: React.FC<EditProps> = (props) => {
         >
             <PageHeaderStyles.Wrapper>
                 <SimpleForm toolbar={<SaveButton />}>
-                    <PageHeaderStyles.Title>{t("electionTypeScreen.edit.title")}</PageHeaderStyles.Title>
-                    <PageHeaderStyles.SubTitle>
-                        {t("electionTypeScreen.common.subTitle")}
-                    </PageHeaderStyles.SubTitle>
+                    <PageHeaderStyles.Title>
+                        {t("electionTypeScreen.edit.title")}
+                    </PageHeaderStyles.Title>
 
                     <TextInput source="name" />
                 </SimpleForm>

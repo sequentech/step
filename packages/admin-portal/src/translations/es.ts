@@ -136,15 +136,21 @@ const spanishTranslation: TranslationType = {
         electionTypeScreen: {
             common: {
                 title: 'Tipo de Elección',
-                subtitle: 'Configuración del tipo de elección',
+                subtitle: 'Configuración del Tipo de Elección',
                 onlineVoting: 'Votación en Línea',
-                kioskVoting: 'Votación en Kiosco'
+                kioskVoting: 'Votación en Quiosco'
             },
             create: {
                 title: 'Crear Tipo de Elección'
             },
             edit: {
                 title: 'Editar Tipo de Elección'
+            },
+            tabs: {
+                votingChannels: 'CANALES DE VOTACIÓN',
+                electionTypes: 'TIPOS DE ELECCIÓN',
+                communications: 'COMUNICACIÓN',
+                languages: 'IDIOMAS'
             }
         },
         electionEventScreen: {

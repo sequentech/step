@@ -5,11 +5,14 @@ import {Resource} from "react-admin"
 import {Tabs} from "../components/Tabs"
 import {HeaderTitle} from "../components/HeaderTitle"
 import {SettingsElectionsTypes} from "../resources/Settings/SettingsElectionsTypes"
-import { SettingsElectionsTypesCreate } from '@/resources/Settings/SettingsElectionsTypesCreate'
+import {SettingsElectionsTypesCreate} from "@/resources/Settings/SettingsElectionsTypesCreate"
 
 import {SettingsVotingChannels} from "../resources/Settings/SettingsVotingChannel"
+import {useTranslation} from "react-i18next"
 
 export const SettingsScreen: React.FC = () => {
+    const {t} = useTranslation()
+
     return (
         <Box>
             <HeaderTitle title="Settings" subtitle="General Configuration" />
@@ -17,7 +20,7 @@ export const SettingsScreen: React.FC = () => {
             <Tabs
                 elements={[
                     {
-                        label: "Election types",
+                        label: t("electionTypeScreen.tabs.electionTypes"),
                         component: () => (
                             <Resource
                                 name="sequent_backend_election_type"
@@ -29,16 +32,13 @@ export const SettingsScreen: React.FC = () => {
                         ),
                     },
                     {
-                        label: "VOTING CHANNELS",
+                        label: t("electionTypeScreen.tabs.votingChannels"),
                         component: () => (
-                            <Resource
-                                name="sequent_backend_tenant"
-                                list={SettingsVotingChannels}
-                            />
+                            <Resource name="sequent_backend_tenant" list={SettingsVotingChannels} />
                         ),
                     },
-                    {label: "COMMUNICATION", component: () => <></>},
-                    {label: "LANGUAGES", component: () => <></>},
+                    {label: t("electionTypeScreen.tabs.communications"), component: () => <></>},
+                    {label: t("electionTypeScreen.tabs.languages"), component: () => <></>},
                 ]}
             />
         </Box>

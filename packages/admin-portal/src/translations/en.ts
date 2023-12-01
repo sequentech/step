@@ -143,6 +143,12 @@ const englishTranslation = {
             },
             edit: {
                 title: 'Edit Election Type'
+            },
+            tabs: {
+                votingChannels: 'VOTING CHANELS',
+                electionTypes: 'ELECTION TYPES',
+                communications: 'COMMUNICATION',
+                languages: 'LANGUAGES'
             }
         },
         electionEventScreen: {
