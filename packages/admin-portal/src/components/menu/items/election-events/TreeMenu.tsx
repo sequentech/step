@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useRef, useState} from "react"
+import React, {useEffect, useMemo, useRef, useState} from "react"
 import {NavLink} from "react-router-dom"
 import {useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -93,6 +93,7 @@ function TreeLeaves({
                                 key={resource.id}
                                 resource={resource}
                                 parentData={resource}
+                                superParentData={parentData}
                                 id={resource.id}
                                 name={resource.name}
                                 treeResourceNames={treeResourceNames}
@@ -121,6 +122,7 @@ function TreeLeaves({
 interface TreeMenuItemProps {
     resource: DataTreeMenuType
     parentData: DataTreeMenuType
+    superParentData: DataTreeMenuType
     id: string
     name: string
     treeResourceNames: ResourceName[]
@@ -130,6 +132,7 @@ interface TreeMenuItemProps {
 function TreeMenuItem({
     resource,
     parentData,
+    superParentData,
     id,
     name,
     treeResourceNames,
@@ -146,8 +149,8 @@ function TreeMenuItem({
     const nextResourceName = subTreeResourceNames[0] ?? null
     const hasNext = !!nextResourceName
 
-    let data: DynEntityType = {}
     const key = mapDataChildren(subTreeResourceNames[0] as ResourceName)
+    const data: DynEntityType = useMemo(() => ({}), [])
 
     if (hasNext) {
         data[key] = (resource as any)[key]
@@ -199,7 +202,7 @@ function TreeMenuItem({
                         resourceId={id}
                         resourceName={name}
                         resourceType={treeResourceNames[0]}
-                        parentData={parentData}
+                        parentData={superParentData}
                         menuItemRef={menuItemRef}
                     ></MenuActions>
                 </div>
