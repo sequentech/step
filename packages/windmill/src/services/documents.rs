@@ -97,7 +97,7 @@ pub async fn get_upload_url(
     .returning[0];
     let path =
         s3::get_public_document_key(tenant_id.to_string(), document.id.clone(), name.to_string());
-    let url = s3::get_upload_url(name.to_string()).await?;
+    let url = s3::get_upload_url(path.to_string()).await?;
 
     let ret_document = Document {
         id: document.id.clone(),
