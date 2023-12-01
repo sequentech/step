@@ -27,6 +27,8 @@ actions:
         template: '{{$body.input.body}}'
       template_engine: Kriti
       version: 2
+  permissions:
+  - role: admin-user
 - name: create_role
   definition:
     kind: synchronous
@@ -38,6 +40,8 @@ actions:
         template: '{{$body.input}}'
       template_engine: Kriti
       version: 2
+  permissions:
+  - role: admin-user
 - name: create_user
   definition:
     kind: synchronous
@@ -49,6 +53,8 @@ actions:
         template: '{{$body.input}}'
       template_engine: Kriti
       version: 2
+  permissions:
+  - role: admin-user
 - name: delete_permission
   definition:
     kind: synchronous
@@ -60,6 +66,8 @@ actions:
         template: '{{$body.input}}'
       template_engine: Kriti
       version: 2
+  permissions:
+  - role: admin-user
 - name: delete_role
   definition:
     kind: synchronous
@@ -71,6 +79,8 @@ actions:
         template: '{{$body.input}}'
       template_engine: Kriti
       version: 2
+  permissions:
+  - role: admin-user
 - name: delete_role_permission
   definition:
     kind: synchronous
@@ -82,6 +92,8 @@ actions:
         template: '{{$body.input}}'
       template_engine: Kriti
       version: 2
+  permissions:
+  - role: admin-user
 - name: delete_user
   definition:
     kind: synchronous
@@ -93,6 +105,8 @@ actions:
         template: '{{$body.input}}'
       template_engine: Kriti
       version: 2
+  permissions:
+  - role: admin-user
 - name: delete_user_role
   definition:
     kind: synchronous
@@ -104,6 +118,8 @@ actions:
         template: '{{$body.input}}'
       template_engine: Kriti
       version: 2
+  permissions:
+  - role: admin-user
 - name: edit_user
   definition:
     kind: synchronous
@@ -261,6 +277,8 @@ actions:
         template: '{{$body.input}}'
       template_engine: Kriti
       version: 2
+  permissions:
+  - role: admin-user
 - name: set_role_permission
   definition:
     kind: synchronous
@@ -272,6 +290,8 @@ actions:
         template: '{{$body.input}}'
       template_engine: Kriti
       version: 2
+  permissions:
+  - role: admin-user
 - name: set_user_role
   definition:
     kind: synchronous
@@ -283,6 +303,8 @@ actions:
         template: '{{$body.input}}'
       template_engine: Kriti
       version: 2
+  permissions:
+  - role: admin-user
 custom_types:
   enums:
   - name: OrderDirection
