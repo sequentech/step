@@ -244,7 +244,7 @@ services:
       start_period: 5s
 
   admin-portal:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     build:
       context: ../packages/
       dockerfile: Dockerfile
@@ -259,7 +259,7 @@ services:
        - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
   voting-portal:
-    #profiles: ["dev"]
+    profiles: ["dev"]
     build:
       context: ../packages/
       dockerfile: Dockerfile
