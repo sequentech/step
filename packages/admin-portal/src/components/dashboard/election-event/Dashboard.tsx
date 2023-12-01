@@ -38,7 +38,7 @@ export default function DashboardElectionEvent() {
                 />
 
                 <Box>
-                    <Stats />
+                    <Stats forElection={true} />
 
                     <Container>
                         <VotesByDay width={cardWidth} height={cardHeight} />

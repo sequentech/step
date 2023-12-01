@@ -25,7 +25,7 @@ const CardList = styled(Box)`
     margin: 20px 0;
 `
 
-export default function Stats() {
+export default function Stats({forElection = false}: {forElection?: boolean}) {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
 
@@ -62,11 +62,14 @@ export default function Stats() {
                 count={totalUsers ?? 0}
                 label={t("electionEventScreen.stats.elegibleVoters")}
             ></StatItem>
-            <StatItem
-                icon={<GroupIcon sx={{fontSize: iconSize}} />}
-                count={res.elections}
-                label={t("electionEventScreen.stats.elections")}
-            ></StatItem>
+
+            {forElection && (
+                <StatItem
+                    icon={<GroupIcon sx={{fontSize: iconSize}} />}
+                    count={res.elections}
+                    label={t("electionEventScreen.stats.elections")}
+                ></StatItem>
+            )}
             <StatItem
                 icon={<FenceIcon sx={{fontSize: iconSize}} />}
                 count={res.areas}
