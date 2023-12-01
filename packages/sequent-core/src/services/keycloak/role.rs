@@ -111,4 +111,13 @@ impl KeycloakAdminClient {
             .map_err(|err| anyhow!("{:?}", err))?;
         Ok(())
     }
+
+    #[instrument(skip(self))]
+    pub async fn delete_role(self, realm: &str, role_id: &str) -> Result<()> {
+        self.client
+            .realm_groups_with_id_delete(realm, role_id)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
 }

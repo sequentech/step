@@ -55,11 +55,9 @@ impl KeycloakAdminClient {
         role_id: &str,
         permission_name: &str,
     ) -> Result<()> {
-        let role_representation = self.client
-            .realm_roles_with_role_name_get(
-                realm,
-                permission_name,
-            )
+        let role_representation = self
+            .client
+            .realm_roles_with_role_name_get(realm, permission_name)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         self.client
@@ -80,11 +78,9 @@ impl KeycloakAdminClient {
         role_id: &str,
         permission_name: &str,
     ) -> Result<()> {
-        let role_representation = self.client
-            .realm_roles_with_role_name_get(
-                realm,
-                permission_name,
-            )
+        let role_representation = self
+            .client
+            .realm_roles_with_role_name_get(realm, permission_name)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         self.client
@@ -105,10 +101,7 @@ impl KeycloakAdminClient {
         permission_name: &str,
     ) -> Result<()> {
         self.client
-            .realm_roles_with_role_name_delete(
-                realm,
-                permission_name,
-            )
+            .realm_roles_with_role_name_delete(realm, permission_name)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         Ok(())

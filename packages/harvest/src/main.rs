@@ -41,6 +41,7 @@ fn rocket() -> _ {
                 routes::roles::list_user_roles,
                 routes::roles::set_user_role,
                 routes::roles::delete_user_role,
+                routes::roles::delete_role,
                 routes::roles::get_roles,
                 routes::permissions::delete_permission,
                 routes::permissions::get_permissions,

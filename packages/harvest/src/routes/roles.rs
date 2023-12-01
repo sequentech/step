@@ -152,3 +152,33 @@ pub async fn delete_user_role(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(())
 }
+
+#[derive(Deserialize, Debug)]
+pub struct DeleteRoleBody {
+    tenant_id: String,
+    role_id: String,
+}
+
+#[instrument(skip(claims))]
+#[post("/delete-role", format = "json", data = "<body>")]
+pub async fn delete_role(
+    claims: jwt::JwtClaims,
+    body: Json<DeleteRoleBody>,
+) -> Result<(), (Status, String)> {
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::ROLE_WRITE],
+    )?;
+    let realm = get_tenant_realm(&input.tenant_id);
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    client
+        .delete_role(&realm, &input.role_id)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    Ok(())
+}

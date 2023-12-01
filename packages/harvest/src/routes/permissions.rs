@@ -111,6 +111,7 @@ pub async fn delete_role_permission(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(())
 }
+
 #[derive(Deserialize, Debug)]
 pub struct DeletePermissionBody {
     tenant_id: String,
