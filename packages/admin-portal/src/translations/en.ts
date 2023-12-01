@@ -311,26 +311,26 @@ const englishTranslation = {
             active: "Active",
             archived: "Archived",
             addResource: {
-                electionEvent: "Add an Election Event",
-                election: "Add an Election",
-                contest: "Add a Contest",
-                candidate: "Add a Candidate",
+                electionEvent: "Create an Election Event",
+                election: "Create an Election",
+                contest: "Create a Contest",
+                candidate: "Create a Candidate",
             },
             menuActions: {
                 archive: {
-                    electionEvent: "Archive an Election Event",
+                    electionEvent: "Archive this Election Event",
                 },
                 unarchive: {
-                    electionEvent: "Unarchive an Election Event",
-                    election: "Desarchivar una Elección",
-                    contest: "Desarchivar un Concurso",
-                    candidate: "Desarchivar un Candidato",
+                    electionEvent: "Unarchive thus Election Event",
+                    election: "Unarchive this election",
+                    contest: "Unarchive this Contest",
+                    candidate: "Unarchive this Candidate",
                 },
                 remove: {
-                    electionEvent: "Remove an Election Event",
-                    election: "Remove an Election",
-                    contest: "Remove a Contest",
-                    candidate: "Remove a Candidate",
+                    electionEvent: "Remove this Election Event",
+                    election: "Remove this Election",
+                    contest: "Remove this Contest",
+                    candidate: "Remove this Candidate",
                 },
                 messages: {
                     confirm: {
