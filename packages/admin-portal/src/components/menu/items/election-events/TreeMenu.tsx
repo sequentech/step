@@ -5,8 +5,8 @@
 import React, {useRef, useState} from "react"
 import {NavLink} from "react-router-dom"
 import {useSidebarState} from "react-admin"
-import ExpandLessIcon from "@mui/icons-material/ExpandLess"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import HowToVoteIcon from "@mui/icons-material/HowToVote"
 import AddIcon from "@mui/icons-material/Add"
 import {cn} from "@/lib/utils"
@@ -161,7 +161,7 @@ function TreeMenuItem({
                         className="flex-none w-6 h-6 cursor-pointer text-customGrey-dark"
                         onClick={onClick}
                     >
-                        {open ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                        {open ? <ExpandMoreIcon /> : <ChevronRightIcon />}
                     </div>
                 ) : (
                     <div className="flex-none w-6 h-6"></div>
