@@ -51,14 +51,14 @@ export const EditElectionEventKeys: React.FC = () => {
     const currentStep: number = useMemo(
         () => {
             if (!currentCeremony) {
-                return 1;
+                return 0;
             }
             if (currentCeremony.status == IKeyCeremonyStatus.NOT_STARTED) {
-                return 1;
+                return 0;
             } else if (currentCeremony.status == IKeyCeremonyStatus.IN_PROCESS) {
-                return 2;
+                return 1;
             } else {
-                return 3;
+                return 2;
             }
         },
         []
@@ -81,7 +81,7 @@ export const EditElectionEventKeys: React.FC = () => {
                         variant={BreadCrumbStepsVariant.Circle}
                         colorPreviousSteps={true}
                     />
-                    {currentStep == 1 &&
+                    {currentStep == 0 &&
                         <KeysGenerationStep
                             onCreate={onCreate}
                             electionEvent={electionEvent}
