@@ -144,7 +144,7 @@ impl<C: Ctx> Status<C> {
             let data2: Vec<String> = b
                 .artifacts
                 .keys()
-                .map(|k| format!("{}-{}", k.artifact_type, k.statement_entry.signer_position))
+                .map(|k| format!("{}-{}", k.statement_entry.kind, k.statement_entry.signer_position))
                 .collect();
             let mut data3 = vec![format!("{:?}", b.configuration)];
 

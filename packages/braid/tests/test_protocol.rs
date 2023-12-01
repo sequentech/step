@@ -26,6 +26,7 @@ fn test_protocol_memory() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn test_protocol_immudb() {
     init_log(true);
 

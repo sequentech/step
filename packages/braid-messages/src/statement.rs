@@ -263,7 +263,7 @@ impl Statement {
     }
 
     pub fn get_timestamp(&self) -> Timestamp {
-        self.get_data().5
+        self.get_data().4
     }
 
     pub fn get_data(
@@ -273,7 +273,6 @@ impl Statement {
         Hash,
         BatchNumber,
         MixNumber,
-        Option<ArtifactType>,
         Timestamp,
     ) {
         let kind: StatementType;
@@ -281,14 +280,12 @@ impl Statement {
         let cfg: [u8; 64];
         let mut batch = 0;
         let mut mix_number = 0;
-        let mut artifact_type = None;
 
         match self {
             Self::Configuration(ts_, cfg_h) => {
                 ts = *ts_;
                 kind = StatementType::Configuration;
                 cfg = cfg_h.0;
-                artifact_type = Some(ArtifactType::Configuration);
             }
             Self::ConfigurationSigned(ts_, cfg_h) => {
                 ts = *ts_;
@@ -299,7 +296,6 @@ impl Statement {
                 ts = *ts_;
                 kind = StatementType::Channel;
                 cfg = cfg_h.0;
-                artifact_type = Some(ArtifactType::Channel);
             }
             Self::ChannelsAllSigned(ts_, cfg_h, _) => {
                 ts = *ts_;
@@ -310,13 +306,11 @@ impl Statement {
                 ts = *ts_;
                 kind = StatementType::Shares;
                 cfg = cfg_h.0;
-                artifact_type = Some(ArtifactType::Shares);
             }
             Self::PublicKey(ts_, cfg_h, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::PublicKey;
                 cfg = cfg_h.0;
-                artifact_type = Some(ArtifactType::PublicKey);
             }
             Self::PublicKeySigned(ts_, cfg_h, _, _, _) => {
                 ts = *ts_;
@@ -328,14 +322,12 @@ impl Statement {
                 kind = StatementType::Ballots;
                 cfg = cfg_h.0;
                 batch = bch.clone();
-                artifact_type = Some(ArtifactType::Ballots);
             }
             Self::Mix(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::Mix;
                 cfg = cfg_h.0;
                 batch = bch.clone();
-                artifact_type = Some(ArtifactType::Mix);
             }
             Self::MixSigned(ts_, cfg_h, bch, mix_no, _, _) => {
                 ts = *ts_;
@@ -349,14 +341,12 @@ impl Statement {
                 kind = StatementType::DecryptionFactors;
                 cfg = cfg_h.0;
                 batch = bch.clone();
-                artifact_type = Some(ArtifactType::DecryptionFactors);
             }
             Self::Plaintexts(ts_, cfg_h, bch, _, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::Plaintexts;
                 cfg = cfg_h.0;
                 batch = bch.clone();
-                artifact_type = Some(ArtifactType::Plaintexts);
             }
             Self::PlaintextsSigned(ts_, cfg_h, bch, _, _, _, _) => {
                 ts = *ts_;
@@ -366,7 +356,7 @@ impl Statement {
             }
         }
 
-        (kind, cfg, batch, mix_number, artifact_type, ts)
+        (kind, cfg, batch, mix_number, ts)
     }
 }
 
@@ -394,6 +384,7 @@ pub enum StatementType {
     PlaintextsSigned = 12,
 }
 
+/*
 #[derive(Clone, Debug, core::hash::Hash, PartialEq, Eq, PartialOrd, Ord, Display)]
 pub enum ArtifactType {
     Configuration,
@@ -404,7 +395,7 @@ pub enum ArtifactType {
     Mix,
     DecryptionFactors,
     Plaintexts,
-}
+}*/
 
 ///////////////////////////////////////////////////////////////////////////
 // Manual serialization necessary as [u8; 64] does not implement Default

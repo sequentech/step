@@ -8,7 +8,7 @@ use strand::serialization::{StrandDeserialize, StrandSerialize};
 
 use braid_messages::artifact::*;
 use braid_messages::message::VerifiedMessage;
-use braid_messages::statement::{ArtifactType, Statement, StatementType};
+use braid_messages::statement::{Statement, StatementType};
 
 use braid_messages::newtypes::*;
 use strand::hash::Hash;
@@ -85,8 +85,7 @@ impl<C: Ctx> LocalBoard<C> {
         if self.configuration.is_none() {
             let artifact_bytes = &message
                 .artifact
-                .ok_or(anyhow!("Missing artifact in configuration message"))?
-                .1;
+                .ok_or(anyhow!("Missing artifact in configuration message"))?;
             let configuration = Configuration::<C>::strand_deserialize(artifact_bytes);
 
             if let Ok(configuration) = configuration {
@@ -150,9 +149,9 @@ impl<C: Ctx> LocalBoard<C> {
             );
 
             // The statement is new, we check the artifact
-            if let Some((artifact_type, artifact)) = message.artifact {
+            if let Some(artifact) = message.artifact {
                 let artifact_identifier =
-                    self.get_artifact_entry_identifier(&statement_identifier, &artifact_type);
+                    self.get_artifact_entry_identifier(&statement_identifier);
                 let artifact_hash = strand::hash::hash_to_array(&artifact)?;
 
                 let artifact_entry = self.artifacts.get(&artifact_identifier);
@@ -256,7 +255,6 @@ impl<C: Ctx> LocalBoard<C> {
             signer_position,
             0,
             0,
-            &ArtifactType::Channel,
         );
         let entry = self.artifacts.get(&aei)?;
         if commitments_h.0 != entry.0 {
@@ -277,7 +275,6 @@ impl<C: Ctx> LocalBoard<C> {
             signer_position,
             0,
             0,
-            &ArtifactType::Shares,
         );
         let entry = self.artifacts.get(&aei)?;
         if shares_h.0 != entry.0 {
@@ -298,7 +295,6 @@ impl<C: Ctx> LocalBoard<C> {
             signer_position,
             0,
             0,
-            &ArtifactType::PublicKey,
         );
         let entry = self.artifacts.get(&aei)?;
         if pk_h.0 != entry.0 {
@@ -320,7 +316,6 @@ impl<C: Ctx> LocalBoard<C> {
             signer_position,
             batch,
             0,
-            &ArtifactType::Ballots,
         );
         let entry = self.artifacts.get(&aei)?;
         if b_h.0 != entry.0 {
@@ -342,7 +337,6 @@ impl<C: Ctx> LocalBoard<C> {
             signer_position,
             batch,
             0,
-            &ArtifactType::Mix,
         );
         let entry = self.artifacts.get(&aei)?;
         if m_h.0 != entry.0 {
@@ -364,7 +358,6 @@ impl<C: Ctx> LocalBoard<C> {
             signer_position,
             batch,
             0,
-            &ArtifactType::DecryptionFactors,
         );
         let entry = self.artifacts.get(&aei)?;
         if m_h.0 != entry.0 {
@@ -386,7 +379,6 @@ impl<C: Ctx> LocalBoard<C> {
             signer_position,
             batch,
             0,
-            &ArtifactType::Plaintexts,
         );
         let entry = self.artifacts.get(&aei)?;
         if m_h.0 != entry.0 {
@@ -408,7 +400,6 @@ impl<C: Ctx> LocalBoard<C> {
             signer_position,
             0,
             0,
-            &ArtifactType::PublicKey,
         );
         let entry = self.artifacts.get(&aei)?;
         DkgPublicKey::<C>::strand_deserialize(&entry.1).ok()
@@ -426,7 +417,6 @@ impl<C: Ctx> LocalBoard<C> {
             signer_position,
             batch,
             0,
-            &ArtifactType::Plaintexts,
         );
         let entry = self.artifacts.get(&aei)?;
 
@@ -442,7 +432,7 @@ impl<C: Ctx> LocalBoard<C> {
         statement: &Statement,
         signer_position: usize,
     ) -> StatementEntryIdentifier {
-        let (kind, _, batch, mix_number, _, _) = statement.get_data();
+        let (kind, _, batch, mix_number, _) = statement.get_data();
 
         StatementEntryIdentifier {
             kind,
@@ -454,14 +444,12 @@ impl<C: Ctx> LocalBoard<C> {
     pub(crate) fn get_artifact_entry_identifier(
         &self,
         statement_entry: &StatementEntryIdentifier,
-        artifact_type: &ArtifactType,
     ) -> ArtifactEntryIdentifier {
         self.get_artifact_entry_identifier_ext(
             statement_entry.kind.clone(),
             statement_entry.signer_position,
             statement_entry.batch,
             statement_entry.mix_number,
-            &artifact_type.clone(),
         )
     }
 
@@ -471,7 +459,6 @@ impl<C: Ctx> LocalBoard<C> {
         signer_position: usize,
         batch: BatchNumber,
         mix_number: MixNumber,
-        artifact_type: &ArtifactType,
     ) -> ArtifactEntryIdentifier {
         let sti = StatementEntryIdentifier {
             kind: statement_type,
@@ -481,7 +468,6 @@ impl<C: Ctx> LocalBoard<C> {
         };
         ArtifactEntryIdentifier {
             statement_entry: sti,
-            artifact_type: artifact_type.clone(),
         }
     }
 }
@@ -514,5 +500,5 @@ pub struct StatementEntryIdentifier {
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct ArtifactEntryIdentifier {
     pub statement_entry: StatementEntryIdentifier,
-    pub artifact_type: ArtifactType,
+    // pub artifact_type: ArtifactType,
 }
