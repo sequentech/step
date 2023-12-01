@@ -66,13 +66,49 @@ impl KeycloakAdminClient {
     ) -> Result<Vec<Role>> {
         let groups: Vec<GroupRepresentation> = self
             .client
-            .realm_users_with_id_groups_get(realm, user_id, Some(false), None, None, None)
+            .realm_users_with_id_groups_get(
+                realm,
+                user_id,
+                Some(false),
+                None,
+                None,
+                None,
+            )
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
-        let roles = groups
-            .into_iter()
-            .map(|group| group.into())
-            .collect();
+        let roles = groups.into_iter().map(|group| group.into()).collect();
         Ok(roles)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn set_user_role(
+        self,
+        realm: &str,
+        user_id: &str,
+        role_id: &str,
+    ) -> Result<()> {
+        self.client
+            .realm_users_with_id_groups_with_group_id_put(
+                realm, user_id, role_id,
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn delete_user_role(
+        self,
+        realm: &str,
+        user_id: &str,
+        role_id: &str,
+    ) -> Result<()> {
+        self.client
+            .realm_users_with_id_groups_with_group_id_delete(
+                realm, user_id, role_id,
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
     }
 }

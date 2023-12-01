@@ -97,3 +97,79 @@ pub async fn list_user_roles(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(Json(roles))
 }
+
+#[derive(Deserialize, Debug)]
+pub struct SetOrDeleteUserRoleBody {
+    tenant_id: String,
+    user_id: String,
+    role_id: String,
+    election_event_id: Option<String>,
+}
+
+#[instrument(skip(claims))]
+#[post("/set-user-role", format = "json", data = "<body>")]
+pub async fn set_user_role(
+    claims: jwt::JwtClaims,
+    body: Json<SetOrDeleteUserRoleBody>,
+) -> Result<(), (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_WRITE
+    } else {
+        Permissions::USER_WRITE
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm, Permissions::ROLE_WRITE],
+    )?;
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    client
+        .set_user_role(&realm, &input.user_id, &input.role_id)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    Ok(())
+}
+
+#[instrument(skip(claims))]
+#[post("/delete-user-role", format = "json", data = "<body>")]
+pub async fn delete_user_role(
+    claims: jwt::JwtClaims,
+    body: Json<SetOrDeleteUserRoleBody>,
+) -> Result<(), (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_WRITE
+    } else {
+        Permissions::USER_WRITE
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm, Permissions::ROLE_WRITE],
+    )?;
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    client
+        .delete_user_role(&realm, &input.user_id, &input.role_id)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    Ok(())
+}
