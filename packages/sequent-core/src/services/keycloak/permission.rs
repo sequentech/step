@@ -20,6 +20,21 @@ impl From<RoleRepresentation> for Permission {
     }
 }
 
+impl From<Permission> for RoleRepresentation {
+    fn from(item: Permission) -> Self {
+        RoleRepresentation {
+            attributes: item.attributes.clone(),
+            client_role: None,
+            composite: None,
+            composites: None,
+            container_id: item.container_id.clone(),
+            description: item.description.clone(),
+            id: item.id.clone(),
+            name: item.name.clone(),
+        }
+    }
+}
+
 impl KeycloakAdminClient {
     #[instrument(skip(self))]
     pub async fn list_permissions(
@@ -46,5 +61,83 @@ impl KeycloakAdminClient {
             .map(|role| role.clone().into())
             .collect();
         Ok((permissions, count))
+    }
+
+    #[instrument(skip(self))]
+    pub async fn set_role_permission(
+        self,
+        realm: &str,
+        role_id: &str,
+        permission_name: &str,
+    ) -> Result<()> {
+        let role_representation = self
+            .client
+            .realm_roles_with_role_name_get(realm, permission_name)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        self.client
+            .realm_groups_with_id_role_mappings_realm_post(
+                realm,
+                role_id,
+                vec![role_representation],
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn delete_role_permission(
+        self,
+        realm: &str,
+        role_id: &str,
+        permission_name: &str,
+    ) -> Result<()> {
+        let role_representation = self
+            .client
+            .realm_roles_with_role_name_get(realm, permission_name)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        self.client
+            .realm_groups_with_id_role_mappings_realm_delete(
+                realm,
+                role_id,
+                vec![role_representation],
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn delete_permission(
+        self,
+        realm: &str,
+        permission_name: &str,
+    ) -> Result<()> {
+        self.client
+            .realm_roles_with_role_name_delete(realm, permission_name)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn create_permission(
+        self,
+        realm: &str,
+        permission: &Permission,
+    ) -> Result<Permission> {
+        self.client
+            .realm_roles_post(realm, permission.clone().into())
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        let role_representation = self.client
+            .realm_roles_with_role_name_get(realm, &permission.name.clone().unwrap())
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+
+            
+        Ok(role_representation.into())
     }
 }
