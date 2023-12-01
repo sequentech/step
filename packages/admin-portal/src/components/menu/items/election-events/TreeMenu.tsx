@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useRef, useState} from "react"
+import React, {useEffect, useRef, useState} from "react"
 import {NavLink} from "react-router-dom"
 import {useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -138,6 +138,8 @@ function TreeMenuItem({
     const [isOpenSidebar] = useSidebarState()
 
     const [open, setOpen] = useState(false)
+    const [isFirstLoad, setIsFirstLoad] = useState(true)
+
     const onClick = () => setOpen(!open)
 
     const subTreeResourceNames = treeResourceNames.slice(1)
@@ -145,14 +147,18 @@ function TreeMenuItem({
     const hasNext = !!nextResourceName
 
     let data: DynEntityType = {}
-    if (hasNext) {
-        const key = mapDataChildren(subTreeResourceNames[0] as ResourceName)
-        data[key] = (resource as any)[key]
+    const key = mapDataChildren(subTreeResourceNames[0] as ResourceName)
 
-        if (data[key]?.length === 0) {
-            setOpen(true)
-        }
+    if (hasNext) {
+        data[key] = (resource as any)[key]
     }
+
+    useEffect(() => {
+        if (data[key]?.length === 0 && isFirstLoad) {
+            setOpen(true)
+            setIsFirstLoad(false)
+        }
+    }, [data, key, isFirstLoad])
 
     const menuItemRef = useRef<HTMLDivElement | null>(null)
 
@@ -160,10 +166,7 @@ function TreeMenuItem({
         <div className="bg-white">
             <div ref={menuItemRef} className="group flex text-left space-x-2 items-center">
                 {hasNext ? (
-                    <div
-                        className="flex-none w-6 h-6 cursor-pointer text-black"
-                        onClick={onClick}
-                    >
+                    <div className="flex-none w-6 h-6 cursor-pointer text-black" onClick={onClick}>
                         {open ? <ExpandMoreIcon /> : <ChevronRightIcon />}
                     </div>
                 ) : (
