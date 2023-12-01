@@ -329,7 +329,7 @@ const englishTranslation = {
                     electionEvent: "Archive this Election Event",
                 },
                 unarchive: {
-                    electionEvent: "Unarchive thus Election Event",
+                    electionEvent: "Unarchive this Election Event",
                     election: "Unarchive this election",
                     contest: "Unarchive this Contest",
                     candidate: "Unarchive this Candidate",
