@@ -20,6 +20,21 @@ impl From<RoleRepresentation> for Permission {
     }
 }
 
+impl From<Permission> for RoleRepresentation {
+    fn from(item: Permission) -> Self {
+        RoleRepresentation {
+            attributes: item.attributes.clone(),
+            client_role: None,
+            composite: None,
+            composites: None,
+            container_id: item.container_id.clone(),
+            description: item.description.clone(),
+            id: item.id.clone(),
+            name: item.name.clone(),
+        }
+    }
+}
+
 impl KeycloakAdminClient {
     #[instrument(skip(self))]
     pub async fn list_permissions(
@@ -105,5 +120,24 @@ impl KeycloakAdminClient {
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn create_permission(
+        self,
+        realm: &str,
+        permission: &Permission,
+    ) -> Result<Permission> {
+        self.client
+            .realm_roles_post(realm, permission.clone().into())
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        let role_representation = self.client
+            .realm_roles_with_role_name_get(realm, &permission.name.clone().unwrap())
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+
+            
+        Ok(role_representation.into())
     }
 }

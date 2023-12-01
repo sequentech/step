@@ -19,6 +19,36 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 
 #[derive(Deserialize, Debug)]
+pub struct CreateRoleBody {
+    tenant_id: String,
+    role: Role,
+}
+
+#[instrument(skip(claims))]
+#[post("/create-role", format = "json", data = "<body>")]
+pub async fn create_role(
+    claims: jwt::JwtClaims,
+    body: Json<CreateRoleBody>,
+) -> Result<Json<Role>, (Status, String)> {
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::ROLE_READ],
+    )?;
+    let realm = get_tenant_realm(&input.tenant_id);
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let role = client
+        .create_role(&realm, &input.role)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    Ok(Json(role))
+}
+
+#[derive(Deserialize, Debug)]
 pub struct GetRolesBody {
     tenant_id: String,
     search: Option<String>,

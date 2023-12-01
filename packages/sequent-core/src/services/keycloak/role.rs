@@ -21,6 +21,21 @@ impl From<GroupRepresentation> for Role {
     }
 }
 
+impl From<Role> for GroupRepresentation {
+    fn from(item: Role) -> Self {
+        GroupRepresentation {
+            access: item.access.clone(),
+            attributes: item.attributes.clone(),
+            client_roles: item.client_roles.clone(),
+            id: item.id.clone(),
+            name: item.name.clone(),
+            path: None,
+            realm_roles: item.permissions.clone(),
+            sub_groups: None,
+        }
+    }
+}
+
 impl KeycloakAdminClient {
     #[instrument(skip(self))]
     pub async fn list_roles(
@@ -119,5 +134,19 @@ impl KeycloakAdminClient {
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn create_role(self, realm: &str, role: &Role) -> Result<Role> {
+        let role_id = role.id.clone().unwrap();
+        self.client
+            .realm_groups_with_id_put(realm, &role_id, role.clone().into())
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        let group_representation = self.client
+                .realm_groups_with_id_get(realm, &role_id)
+                .await
+                .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(group_representation.into())
     }
 }

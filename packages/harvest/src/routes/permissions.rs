@@ -58,6 +58,36 @@ pub async fn get_permissions(
 }
 
 #[derive(Deserialize, Debug)]
+pub struct CreatePermissionsBody {
+    tenant_id: String,
+    permission: Permission,
+}
+
+#[instrument(skip(claims))]
+#[post("/create-permission", format = "json", data = "<body>")]
+pub async fn create_permission(
+    claims: jwt::JwtClaims,
+    body: Json<CreatePermissionsBody>,
+) -> Result<Json<Permission>, (Status, String)> {
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::USER_PERMISSION_CREATE],
+    )?;
+    let realm = get_tenant_realm(&input.tenant_id);
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let permission = client
+        .create_permission(&realm, &input.permission)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    Ok(Json(permission))
+}
+
+#[derive(Deserialize, Debug)]
 pub struct SetOrDeleteRolePermissionsBody {
     tenant_id: String,
     role_id: String,

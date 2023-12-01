@@ -117,7 +117,6 @@ pub async fn get_users(
     }))
 }
 
-
 #[derive(Deserialize, Debug)]
 pub struct CreateUserBody {
     tenant_id: String,
@@ -153,10 +152,7 @@ pub async fn create_user(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let user = client
-        .create_user(
-            &realm,
-            &input.user,
-        )
+        .create_user(&realm, &input.user)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
