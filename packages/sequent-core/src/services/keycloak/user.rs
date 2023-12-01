@@ -25,6 +25,36 @@ impl From<UserRepresentation> for User {
     }
 }
 
+impl From<User> for UserRepresentation {
+    fn from(item: User) -> Self {
+        UserRepresentation {
+            access: None,
+            attributes: item.attributes.clone(),
+            client_consents: None,
+            client_roles: None,
+            created_timestamp: None,
+            credentials: None,
+            disableable_credential_types: None,
+            email: item.email.clone(),
+            email_verified: item.email_verified.clone(),
+            enabled: item.enabled.clone(),
+            federated_identities: None,
+            federation_link: None,
+            first_name: item.first_name.clone(),
+            groups: None,
+            id: item.id.clone(),
+            last_name: item.last_name.clone(),
+            not_before: None,
+            origin: None,
+            realm_roles: None,
+            required_actions: None,
+            self_: None,
+            service_account_client_id: None,
+            username: item.username.clone(),
+        }
+    }
+}
+
 impl KeycloakAdminClient {
     #[instrument(skip(self))]
     pub async fn list_users(
@@ -141,4 +171,20 @@ impl KeycloakAdminClient {
             .map_err(|err| anyhow!("{:?}", err))?;
         Ok(())
     }
+
+    #[instrument(skip(self))]
+    pub async fn create_user(self, realm: &str, user: &User) -> Result<User> {
+        self.client
+            .realm_users_post(realm, user.clone().into())
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        let new_user: UserRepresentation = self
+            .client
+            .realm_users_with_id_get(realm, &user.id.clone().unwrap())
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(new_user.into())
+    }
+
+
 }

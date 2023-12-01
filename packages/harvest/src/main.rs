@@ -35,6 +35,7 @@ fn rocket() -> _ {
                 routes::immudb_log_audit::list_pgaudit,
                 routes::insert_election_event::insert_election_event_f,
                 routes::insert_tenant::insert_tenant,
+                routes::users::create_user,
                 routes::users::delete_user,
                 routes::users::get_users,
                 routes::users::edit_user,
