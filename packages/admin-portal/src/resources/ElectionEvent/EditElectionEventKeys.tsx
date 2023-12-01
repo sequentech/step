@@ -22,7 +22,9 @@ export const EditElectionEventKeys: React.FC = () => {
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const status: IElectionEventStatus = getStatus(electionEvent.status)
     const noCeremonies = (
-        !status.keys_ceremony || status.keys_ceremony.length == 0
+        !status ||
+        !status.keys_ceremony ||
+        status.keys_ceremony.length == 0
     )
     
     const [showSteps, setShowSteps] = useState(noCeremonies)
@@ -45,7 +47,7 @@ export const EditElectionEventKeys: React.FC = () => {
     const currentStep: number = useMemo(
         () => {
             if (!currentCeremony) {
-                return -1;
+                return 1;
             }
             if (currentCeremony.status == IKeyCeremonyStatus.NOT_STARTED) {
                 return 1;
