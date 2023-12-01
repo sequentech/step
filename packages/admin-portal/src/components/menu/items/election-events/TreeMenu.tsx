@@ -4,7 +4,7 @@
 
 import React, {useEffect, useMemo, useRef, useState} from "react"
 import {NavLink} from "react-router-dom"
-import {useSidebarState} from "react-admin"
+import {useGetOne, useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import HowToVoteIcon from "@mui/icons-material/HowToVote"
@@ -25,6 +25,7 @@ import {useTranslation} from "react-i18next"
 
 import MenuActions from "./MenuActions"
 import {useActionPermissions} from "../use-tree-menu-hook"
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -165,6 +166,39 @@ function TreeMenuItem({
 
     const menuItemRef = useRef<HTMLDivElement | null>(null)
 
+    const [tenantId] = useTenantStore()
+
+    let imageDocumentId = (resource as ElectionType).image_document_id ?? null
+
+    const {data: imageData} = useGetOne("sequent_backend_document", {
+        id: imageDocumentId,
+        meta: {tenant_id: tenantId},
+    })
+
+    let item: React.ReactNode
+    if (treeResourceNames[0] === "sequent_backend_election_event") {
+        item = (
+            <p className="flex items-center space-x-2">
+                <HowToVoteIcon className="text-brand-color" />
+                <span>{name}</span>
+            </p>
+        )
+    } else if (imageData) {
+        item = (
+            <p className="flex items-center space-x-2">
+                <img
+                    width={24}
+                    height={24}
+                    src={`http://localhost:9000/public/tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
+                    alt={`tenant-${tenantId}/document-${imageDocumentId}/${imageData?.name}`}
+                />
+                <span>{name}</span>
+            </p>
+        )
+    } else {
+        item = <p>{name}</p>
+    }
+
     return (
         <div className="bg-white">
             <div ref={menuItemRef} className="group flex text-left space-x-2 items-center">
@@ -186,14 +220,7 @@ function TreeMenuItem({
                         }
                         to={`/${treeResourceNames[0]}/${id}`}
                     >
-                        {treeResourceNames[0] === "sequent_backend_election_event" ? (
-                            <p className="flex items-center space-x-2">
-                                <HowToVoteIcon className="text-brand-color" />
-                                <span>{name}</span>
-                            </p>
-                        ) : (
-                            <span>{name}</span>
-                        )}
+                        {item}
                     </NavLink>
                 )}
                 <div className="invisible group-hover:visible">

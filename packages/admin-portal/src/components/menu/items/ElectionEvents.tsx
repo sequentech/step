@@ -53,28 +53,6 @@ const ENTITY_FIELD_NAMES: Array<EntityFieldName> = [
     "candidates",
 ]
 
-export interface CandidatesTree {
-    id: string
-    name: string
-}
-export interface ContestTree {
-    id: string
-    name: string
-    candidates: Array<CandidatesTree>
-}
-export interface ElectionTree {
-    id: string
-    name: string
-    contests: Array<ContestTree>
-}
-
-export interface ElectionEventsTree {
-    id: string
-    name: string
-    is_archived: boolean
-    elections: Array<ElectionTree>
-}
-
 type BaseType = {__typename: ResourceName; id: string; name: string}
 
 export type CandidateType = BaseType & {
@@ -93,6 +71,8 @@ export type ContestType = BaseType & {
 export type ElectionType = BaseType & {
     __typename: "sequent_backend_election"
     election_event_id: string
+    image_document_id: string
+
     contests: Array<ContestType>
 }
 
