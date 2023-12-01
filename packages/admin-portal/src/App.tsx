@@ -203,7 +203,7 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
                 create={CreateTrustee}
                 options={{label: "Trustee"}}
             />
-            <Resource name="user" list={ListUsers} options={{label: "Users"}} />
+            <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
         </Admin>
     )
 }
