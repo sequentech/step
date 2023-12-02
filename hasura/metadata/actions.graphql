@@ -10,6 +10,65 @@ type Mutation {
 }
 
 type Mutation {
+  create_permission (
+    body: CreatePermissionInput!
+  ): KeycloakPermission
+}
+
+type Mutation {
+  create_role (
+    tenant_id: String!
+    role: KeycloakRole2!
+  ): KeycloakRole!
+}
+
+type Mutation {
+  create_user (
+    tenant_id: String!
+    election_event_id: String
+    user: KeycloakUser2!
+  ): KeycloakUser!
+}
+
+type Mutation {
+  delete_permission (
+    tenant_id: String!
+    permission_name: String!
+  ): SetRolePermissionOutput
+}
+
+type Mutation {
+  delete_role (
+    tenant_id: String!
+    role_id: String!
+  ): SetUserRoleOutput
+}
+
+type Mutation {
+  delete_role_permission (
+    tenant_id: String!
+    role_id: String!
+    permission_name: String!
+  ): SetRolePermissionOutput
+}
+
+type Mutation {
+  delete_user (
+    tenant_id: String!
+    election_event_id: String
+    user_id: String!
+  ): DeleteUserOutput
+}
+
+type Mutation {
+  delete_user_role (
+    tenant_id: String!
+    user_id: String!
+    role_id: String!
+  ): SetUserRoleOutput
+}
+
+type Mutation {
   edit_user (
     body: EditUsersInput!
   ): KeycloakUser!
@@ -79,6 +138,30 @@ type Query {
     offset: Int
     order_by: PgAuditOrderBy
   ): DataListPgAudit
+}
+
+type Mutation {
+  list_user_roles (
+    tenant_id: String!
+    user_id: String!
+    election_event_id: String
+  ): [KeycloakRole!]!
+}
+
+type Mutation {
+  set_role_permission (
+    tenant_id: String!
+    role_id: String!
+    permission_name: String!
+  ): SetRolePermissionOutput
+}
+
+type Mutation {
+  set_user_role (
+    tenant_id: String!
+    user_id: String!
+    role_id: String!
+  ): SetUserRoleOutput
 }
 
 enum OrderDirection {
@@ -180,6 +263,52 @@ input EditUsersInput {
   first_name : String
   groups : [String!]
   username : String
+}
+
+input DeleteUserInput {
+  tenant_id : String!
+  election_event_id : String
+  user_id : String!
+}
+
+input KeycloakUser2 {
+  id : String
+  attributes : jsonb
+  email : String
+  email_verified : Boolean
+  enabled : Boolean
+  first_name : String
+  groups : [String!]
+  last_name : String
+  username : String
+}
+
+input CreateUserInput {
+  tenant_id : String!
+  election_event_id : String
+  user : KeycloakUser2!
+}
+
+input KeycloakPermission2 {
+  id : String
+  attributes : jsonb
+  container_id : String
+  description : String
+  name : String
+}
+
+input CreatePermissionInput {
+  tenant_id : String!
+  permission : KeycloakPermission2!
+}
+
+input KeycloakRole2 {
+  id : String
+  name : String
+  permissions : jsonb
+  access : jsonb
+  attributes : jsonb
+  client_roles : jsonb
 }
 
 type TemplateOutput {
@@ -302,5 +431,21 @@ type KeycloakRole {
 type GetUploadUrlOutput {
   url : String!
   document_id : String!
+}
+
+type DeleteUserOutput {
+  id : String
+}
+
+type CreateUserOutput {
+  id : String
+}
+
+type SetRolePermissionOutput {
+  id : String
+}
+
+type SetUserRoleOutput {
+  id : String
 }
 
