@@ -1,7 +1,7 @@
 # This is an image that builds all our crates at once. Makes it more efficient
 # for the devcontainer prebuilds. However, each package has its own Dockerfile,
 # for example packages/windmill/Dockerfile, packages/harvest/Dockerfile, etc.
- 
+
 FROM rust:1.70.0
 
 WORKDIR /app
@@ -13,6 +13,7 @@ COPY ./sequent-core ./sequent-core
 COPY ./windmill ./windmill
 COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
+COPY ./Cargo.toml ./Cargo.toml
 
 RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev
 RUN rustup default nightly
