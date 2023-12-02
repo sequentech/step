@@ -116,6 +116,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                         Component={<CreateArea record={record} close={handleCloseCreateDrawer} />}
                     />
                 }
+                empty={false}
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,

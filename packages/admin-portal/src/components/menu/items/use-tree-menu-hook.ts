@@ -1,8 +1,11 @@
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {FETCH_ELECTION_EVENTS_TREE} from "@/queries/GetElectionEventsTree"
 import {useQuery} from "@apollo/client"
+import {useContext} from "react"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
 
-export default function useTreeMenuHook(isArchivedElectionEvents: boolean) {
+export function useTreeMenuData(isArchivedElectionEvents: boolean) {
     const [tenantId] = useTenantStore()
 
     return useQuery(FETCH_ELECTION_EVENTS_TREE, {
@@ -11,4 +14,25 @@ export default function useTreeMenuHook(isArchivedElectionEvents: boolean) {
             isArchived: isArchivedElectionEvents,
         },
     })
+}
+
+export function useActionPermissions() {
+    const [tenantId] = useTenantStore()
+    const authContext = useContext(AuthContext)
+
+    const canCreateElectionEvent = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.ELECTION_EVENT_CREATE
+    )
+    const canEditElectionEvent = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.ELECTION_EVENT_WRITE
+    )
+
+    return {
+        canCreateElectionEvent,
+        canEditElectionEvent,
+    }
 }

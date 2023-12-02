@@ -24,7 +24,6 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import { useParams } from 'react-router'
 import { EditUser } from './EditUser'
 
-
 const OMIT_FIELDS: Array<string> = []
 
 const Filters: Array<ReactElement> = [
@@ -96,6 +95,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         <>
             <List
                 resource="user"
+                empty={false}
                 actions={
                     <ListActions
                         withImport={false}

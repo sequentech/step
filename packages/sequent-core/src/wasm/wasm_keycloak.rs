@@ -7,12 +7,11 @@ use wasm_bindgen::prelude::*;
 const IUSER: &'static str = r#"
 interface IUser {
     id?: string;
-    attributes?: {[key: string]: object};
+    attributes?: {[key: string]: any};
     email?: string;
     email_verified?: boolean;
     enabled?: boolean;
     first_name?: string;
-    groups?: Array<string>;
     last_name?: string;
     username?: string;
 }

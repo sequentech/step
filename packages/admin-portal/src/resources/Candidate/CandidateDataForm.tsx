@@ -173,6 +173,11 @@ export const CandidateDataForm: React.FC = () => {
         // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
 
         const theFile = files?.[0]
+<<<<<<< HEAD
+=======
+        const fileLink = URL.createObjectURL(theFile as any)
+        console.log("fileLink :>> ", fileLink)
+>>>>>>> main
 
         if (theFile) {
             let {data, errors} = await getUploadUrl({

@@ -3,35 +3,47 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {
+    CheckboxGroupInput,
+    EditBase,
     Identifier,
+    List,
+    RecordContext,
     SaveButton,
     SimpleForm,
+    TextInput,
     useGetList,
     useListContext,
     useNotify,
     useRefresh,
 } from "react-admin"
-import {useMutation} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
+import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {EDIT_USER} from "../../queries/EditUser"
+import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
+import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 import {IUser} from "sequent-core"
-import {FormControl, FormLabel, MenuItem, Select, SelectChangeEvent, TextField} from "@mui/material"
-import {EditUsersInput} from "@/gql/graphql"
-import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
+import { FormControl, MenuItem, Select, SelectChangeEvent, TextField } from '@mui/material'
+import { ElectionHeaderStyles } from "@/components/styles/ElectionHeaderStyles"
+import { EditUsersInput, Sequent_Backend_Area } from "@/gql/graphql"
+import { EDIT_USER } from "@/queries/EditUser"
 
 interface EditUserFormProps {
-    id?: Identifier | undefined
-    electionEventId: Identifier | undefined
+    id?: Identifier
+    electionEventId?: Identifier
     close?: () => void
 }
 
 export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
     const {id, close, electionEventId} = props
 
-    const {data, isLoading} = useListContext()
-    const [user, setUser] = useState<any | undefined>()
+    const {data, isLoading} = useListContext<IUser & {id: string}>()
+    let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
+    const [user, setUser] = useState<IUser | undefined>(userOriginal)
+
+    console.log("DATA :: ", data)
+    console.log("USER :: ", user)
 
     const refresh = useRefresh()
     const notify = useNotify()
@@ -40,7 +52,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
 
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
 
-    const {data: areas} = useGetList("sequent_backend_area", {
+    const {data: areas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
         pagination: {page: 1, perPage: 9999},
         filter: {election_event_id: electionEventId, tenant_id: tenantId},
     })
@@ -82,20 +94,16 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
                         first_name: user?.first_name,
                         email: user?.email,
                         attributes: {
-                            "area-id": [user?.area || user.attributes?.["area-id"]?.[0]],
+                            "area-id": [user?.attributes?.["area-id"]?.[0]],
                         },
                     },
                 },
             })
-            notify(t("usersAndRolesScreen.voters.errors.EditSuccess"), {type: "success"})
-            if (close) {
-                close()
-            }
+            notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
+            close?.()
         } catch (error) {
             notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
-            if (close) {
-                close()
-            }
+            close?.()
         }
     }
 
@@ -104,85 +112,85 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
         setUser({...user, [name]: value})
     }
 
-    const handleSelectChange = async (e: SelectChangeEvent) => {
-        const {name, value} = e.target
-        setUser({...user, [name]: value})
-    }
-
-    const renderAreas = (areas: any) => {
-        return areas.map((area: any) => {
-            return (
-                <MenuItem key={area.id} value={area.id}>
-                    {area.name}
-                </MenuItem>
-            )
-        })
+    if (!user) {
+        return null
     }
 
     let areaIdAttribute = user?.attributes?.["area-id"] as Array<string> | undefined
     let defaultAreaId = areaIdAttribute?.[0] ?? undefined
 
-    if (user) {
-        return (
-            <SimpleForm
-                toolbar={<SaveButton alwaysEnable />}
-                onSubmit={onSubmit}
-                sanitizeEmptyValues
-            >
-                <>
-                    <PageHeaderStyles.Title>
-                        {t("usersAndRolesScreen.voters.title")}
-                    </PageHeaderStyles.Title>
-                    <PageHeaderStyles.SubTitle>
-                        {t("usersAndRolesScreen.voters.subtitle")}
-                    </PageHeaderStyles.SubTitle>
-
-                    <TextField
-                        variant="outlined"
-                        label={t("usersAndRolesScreen.users.fields.first_name")}
-                        value={user.first_name || ""}
-                        name={"first_name"}
-                        onChange={handleChange}
-                    />
-                    <TextField
-                        variant="outlined"
-                        label={t("usersAndRolesScreen.users.fields.last_name")}
-                        value={user.last_name || ""}
-                        name={"last_name"}
-                        onChange={handleChange}
-                    />
-                    <TextField
-                        variant="outlined"
-                        label={t("usersAndRolesScreen.users.fields.email")}
-                        value={user.email || ""}
-                        name={"email"}
-                        onChange={handleChange}
-                    />
-                    <TextField
-                        variant="outlined"
-                        label={t("usersAndRolesScreen.users.fields.username")}
-                        value={user.username || ""}
-                        name={"username"}
-                        onChange={handleChange}
-                    />
-
-                    <FormControl sx={{width: "100%"}}>
-                        <ElectionHeaderStyles.Title>
-                            {t("usersAndRolesScreen.users.fields.area")}
-                        </ElectionHeaderStyles.Title>
-
-                        <Select
-                            name="area"
-                            defaultValue={defaultAreaId}
-                            onChange={handleSelectChange}
-                        >
-                            {areas ? renderAreas(areas) : null}
-                        </Select>
-                    </FormControl>
-                </>
-            </SimpleForm>
-        )
-    } else {
-        return null
+    const handleSelectArea = async (e: SelectChangeEvent) => {
+        setUser({
+            ...user,
+            attributes: {
+                ...user.attributes,
+                "area-id": [e.target.value]
+            }
+        })
     }
+
+    return (
+        <SimpleForm
+            toolbar={<SaveButton alwaysEnable />}
+            onSubmit={onSubmit}
+            sanitizeEmptyValues
+        >
+            <>
+                <PageHeaderStyles.Title>
+                    {t(`usersAndRolesScreen.${electionEventId? "voters" : "users"}.title`)}
+                </PageHeaderStyles.Title>
+                <PageHeaderStyles.SubTitle>
+                    {t(`usersAndRolesScreen.${electionEventId? "voters" : "users"}.subtitle`)}
+                </PageHeaderStyles.SubTitle>
+
+                <TextField
+                    variant="outlined"
+                    label={t("usersAndRolesScreen.users.fields.first_name")}
+                    value={user.first_name || ""}
+                    name={"first_name"}
+                    onChange={handleChange}
+                />
+                <TextField
+                    variant="outlined"
+                    label={t("usersAndRolesScreen.users.fields.last_name")}
+                    value={user.last_name || ""}
+                    name={"last_name"}
+                    onChange={handleChange}
+                />
+                <TextField
+                    variant="outlined"
+                    label={t("usersAndRolesScreen.users.fields.email")}
+                    value={user.email || ""}
+                    name={"email"}
+                    onChange={handleChange}
+                />
+                <TextField
+                    variant="outlined"
+                    label={t("usersAndRolesScreen.users.fields.username")}
+                    value={user.username || ""}
+                    name={"username"}
+                    onChange={handleChange}
+                />
+
+                <FormControl fullWidth>
+                    <ElectionHeaderStyles.Title>
+                        {t("usersAndRolesScreen.users.fields.area")}
+                    </ElectionHeaderStyles.Title>
+
+                    <Select
+                        name="area"
+                        defaultValue={defaultAreaId}
+                        value={defaultAreaId}
+                        onChange={handleSelectArea}
+                    >
+                        {areas?.map((area: Sequent_Backend_Area) =>
+                            <MenuItem key={area.id} value={area.id}>
+                                {area.name}
+                            </MenuItem>
+                        )}
+                    </Select>
+                </FormControl>
+            </>
+        </SimpleForm>
+    )
 }

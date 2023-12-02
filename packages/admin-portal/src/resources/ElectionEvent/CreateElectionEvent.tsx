@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 import {useMutation} from "@apollo/client"
 import React, {useEffect, useState} from "react"
-import {CreateElectionEventMutation} from "../../gql/graphql"
+import {CreateElectionEventMutation} from "@/gql/graphql"
 import {v4} from "uuid"
 import {
     BooleanInput,
@@ -23,6 +24,7 @@ import {isNull} from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {styled} from "@mui/material/styles"
+import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 
 const Hidden = styled(Box)`
     display: none;
@@ -60,6 +62,8 @@ export const CreateElectionList: React.FC = () => {
         id: newId,
     })
 
+    const {refetch: refetchTreeMenu} = useTreeMenuData(false)
+
     useEffect(() => {
         if (isNull(newId)) {
             return
@@ -94,11 +98,12 @@ export const CreateElectionList: React.FC = () => {
             setIsLoading(false)
         }
         refresh()
+        refetchTreeMenu()
     }
     return (
         <SimpleForm defaultValues={postDefaultValues} onSubmit={handleSubmit}>
-            <Typography variant="h4">{t("electionEventScreen.common.title")}</Typography>
-            <Typography variant="body2">{t("electionEventScreen.new.subtitle")}</Typography>
+            <Typography variant="h4">{t("common.resources.electionEvent")}</Typography>
+            <Typography variant="body2">{t("createResource.electionEvent")}</Typography>
             <TextInput source="name" />
             <TextInput source="description" />
             <Hidden>
