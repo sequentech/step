@@ -309,7 +309,7 @@ services:
     build:
       context: ../packages/
       dockerfile: ./Dockerfile.cargo-packages
-    working_directory: /app/harvest
+    working_dir: /app/harvest
     entrypoint: ["cargo", "run"]
     env_file:
       - .env
@@ -418,7 +418,7 @@ services:
     # that we can reuse it:
     depends_on:
       - harvest
-    working_directory: /app/windmill
+    working_dir: /app/windmill
     entrypoint: ["cargo", "run", "--bin", "main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat" ]
     volumes:
       - ./keycloak/import:/import
@@ -435,7 +435,7 @@ services:
     # that we can reuse it:
     depends_on:
       - harvest
-    working_directory: /app/windmill
+    working_dir: /app/windmill
     entrypoint:  ["cargo", "run", "--bin", "beat"]
     volumes:
       - ./keycloak/import:/import
