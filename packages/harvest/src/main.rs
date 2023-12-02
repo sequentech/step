@@ -51,8 +51,9 @@ fn rocket() -> _ {
                 routes::permissions::set_role_permission,
                 routes::permissions::delete_role_permission,
                 routes::upload_document::upload_document,
-                routes::get_private_key::get_private_key,
-                routes::check_private_key::check_private_key,
+                routes::key_ceremony::create_key_ceremony,
+                routes::key_ceremony::get_private_key,
+                routes::key_ceremony::check_private_key,
             ],
         )
 }
