@@ -244,7 +244,7 @@ services:
       postgres_keycloak:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8090/realms/electoral-process/protocol/openid-connect/certs"]
+      test: ["CMD", "curl", "-f", "http://localhost:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5/protocol/openid-connect/certs"]
       interval: 5s
       timeout: 10s
       retries: 25
