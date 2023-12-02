@@ -18,8 +18,20 @@ import {
     useNotify,
     useRefresh,
 } from "react-admin"
-import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Typography, Grid} from "@mui/material"
-import {GetUploadUrlMutation, Sequent_Backend_Candidate, Sequent_Backend_Contest} from "../../gql/graphql"
+import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Tabs,
+    Tab,
+    Typography,
+    Grid,
+} from "@mui/material"
+import {
+    GetUploadUrlMutation,
+    Sequent_Backend_Candidate,
+    Sequent_Backend_Contest,
+} from "../../gql/graphql"
 import React, {useCallback, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import styled from "@emotion/styled"
@@ -33,9 +45,9 @@ import FileJsonInput from "../../components/FileJsonInput"
 import {DndProvider} from "react-dnd"
 import {HTML5Backend} from "react-dnd-html5-backend"
 import {CandidateRowItem} from "../../components/CandateRowItem"
-import { useMutation } from '@apollo/client'
-import { GET_UPLOAD_URL } from '@/queries/GetUploadUrl'
-import { CandidateStyles } from '@/components/styles/CandidateStyles'
+import {useMutation} from "@apollo/client"
+import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
+import {CandidateStyles} from "@/components/styles/CandidateStyles"
 
 export const ContestDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()

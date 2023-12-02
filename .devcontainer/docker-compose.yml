@@ -316,7 +316,7 @@ services:
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-     - 8400:8400
+     - 8400:8000
 
   trustee1:
     profiles: ["full"]

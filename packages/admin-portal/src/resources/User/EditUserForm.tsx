@@ -24,10 +24,10 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
 import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 import {IUser} from "sequent-core"
-import { FormControl, MenuItem, Select, SelectChangeEvent, TextField } from '@mui/material'
-import { ElectionHeaderStyles } from "@/components/styles/ElectionHeaderStyles"
-import { EditUsersInput, Sequent_Backend_Area } from "@/gql/graphql"
-import { EDIT_USER } from "@/queries/EditUser"
+import {FormControl, MenuItem, Select, SelectChangeEvent, TextField} from "@mui/material"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
+import {EditUsersInput, Sequent_Backend_Area} from "@/gql/graphql"
+import {EDIT_USER} from "@/queries/EditUser"
 
 interface EditUserFormProps {
     id?: Identifier
@@ -62,10 +62,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
     useEffect(() => {
         if (!isLoading && data) {
             let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
-            console.log(
-                "USER :: ",
-                userOriginal?.attributes?.["area-id"]?.[0] || "---"
-            )
+            console.log("USER :: ", userOriginal?.attributes?.["area-id"]?.[0] || "---")
             console.log("TENANT :: ", tenantId)
             setUser(userOriginal)
         }
@@ -124,23 +121,19 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
             ...user,
             attributes: {
                 ...user.attributes,
-                "area-id": [e.target.value]
-            }
+                "area-id": [e.target.value],
+            },
         })
     }
 
     return (
-        <SimpleForm
-            toolbar={<SaveButton alwaysEnable />}
-            onSubmit={onSubmit}
-            sanitizeEmptyValues
-        >
+        <SimpleForm toolbar={<SaveButton alwaysEnable />} onSubmit={onSubmit} sanitizeEmptyValues>
             <>
                 <PageHeaderStyles.Title>
-                    {t(`usersAndRolesScreen.${electionEventId? "voters" : "users"}.title`)}
+                    {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.title`)}
                 </PageHeaderStyles.Title>
                 <PageHeaderStyles.SubTitle>
-                    {t(`usersAndRolesScreen.${electionEventId? "voters" : "users"}.subtitle`)}
+                    {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.subtitle`)}
                 </PageHeaderStyles.SubTitle>
 
                 <TextField
@@ -183,11 +176,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
                         value={defaultAreaId}
                         onChange={handleSelectArea}
                     >
-                        {areas?.map((area: Sequent_Backend_Area) =>
+                        {areas?.map((area: Sequent_Backend_Area) => (
                             <MenuItem key={area.id} value={area.id}>
                                 {area.name}
                             </MenuItem>
-                        )}
+                        ))}
                     </Select>
                 </FormControl>
             </>
