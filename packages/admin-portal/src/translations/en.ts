@@ -241,7 +241,7 @@ const englishTranslation = {
             },
             voters: {
                 title: "Voters",
-                subtitle: "View and edit voter data ",
+                subtitle: "View and edit voter data",
                 errors: {
                     editError: "Error editing voter",
                     editSuccess: "Voter edited",
