@@ -4,6 +4,9 @@
 
 FROM rust:1.70.0
 
+RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev
+RUN rustup default nightly
+
 WORKDIR /app
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
@@ -17,10 +20,4 @@ COPY ./velvet ./velvet
 COPY ./braid ./braid
 COPY ./Cargo.toml ./Cargo.toml
 
-RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev
-RUN rustup default nightly
-
-WORKDIR /app/
 RUN cargo build
-
-CMD ["cargo", "run", "--bin", "main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat" ]
