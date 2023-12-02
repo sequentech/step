@@ -1,3 +1,9 @@
+type Query {
+  check_private_key (
+    object: CheckPrivateKeyInput!
+  ): CheckPrivateKeyOutput
+}
+
 type Mutation {
   createScheduledEvent (
     tenant_id: String!
@@ -89,6 +95,12 @@ type Query {
 }
 
 type Query {
+  get_private_key (
+    object: GetPrivateKeyInput!
+  ): GetPrivateKeyOutput
+}
+
+type Query {
   get_roles (
     body: GetRolesInput!
   ): GetRolesOutput!
@@ -112,18 +124,6 @@ type Mutation {
   insertElectionEvent (
     object: CreateElectionEventInput!
   ): CreateElectionEventOutput
-}
-
-type Query {
-  get_private_key (
-    object: GetPrivateKeyInput!
-  ): GetPrivateKeyOutput
-}
-
-type Query {
-  check_private_key (
-    object: CheckPrivateKeyInput!
-  ): CheckPrivateKeyOutput
 }
 
 type Mutation {
@@ -231,14 +231,6 @@ input CheckPrivateKeyInput {
   private_key_base64 : String!
 }
 
-type GetPrivateKeyOutput {
-  private_key_base64 : String!
-}
-
-type CheckPrivateKeyOutput {
-  is_valid : Boolean!
-}
-
 input GetPermissionsInput {
   tenant_id : String!
   search : String
@@ -309,6 +301,14 @@ input KeycloakRole2 {
   access : jsonb
   attributes : jsonb
   client_roles : jsonb
+}
+
+type GetPrivateKeyOutput {
+  private_key_base64 : String!
+}
+
+type CheckPrivateKeyOutput {
+  is_valid : Boolean!
 }
 
 type TemplateOutput {

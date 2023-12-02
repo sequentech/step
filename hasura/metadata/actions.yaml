@@ -1,4 +1,21 @@
 actions:
+- name: check_private_key
+  definition:
+    kind: ""
+    handler: http://harvest:8400/check-private-key
+    forward_client_headers: true
+    headers:
+    - name: X-Hasura-Admin-Secret
+      value_from_env: ACTIONS_ADMIN_SECRET
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.object}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: trustee-read
+  comment: check private key
 - name: createScheduledEvent
   definition:
     kind: synchronous
@@ -169,6 +186,23 @@ actions:
   permissions:
   - role: admin-user
   comment: list permissions
+- name: get_private_key
+  definition:
+    kind: ""
+    handler: http://harvest:8400/get-private-key
+    forward_client_headers: true
+    headers:
+    - name: X-Hasura-Admin-Secret
+      value_from_env: ACTIONS_ADMIN_SECRET
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.object}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: trustee-read
+  comment: get private key
 - name: get_roles
   definition:
     kind: ""
@@ -224,40 +258,6 @@ actions:
       version: 2
   permissions:
   - role: admin-user
-- name: get_private_key
-  definition:
-    kind: synchronous
-    handler: http://harvest:8400/get-private-key
-    forward_client_headers: true
-    headers:
-    - name: X-Hasura-Admin-Secret
-      value_from_env: ACTIONS_ADMIN_SECRET
-    request_transform:
-      body:
-        action: transform
-        template: '{{$body.input.object}}'
-      template_engine: Kriti
-      version: 2
-  permissions:
-  - role: trustee-read
-  comment: get private key
-- name: check_private_key
-  definition:
-    kind: synchronous
-    handler: http://harvest:8400/check-private-key
-    forward_client_headers: true
-    headers:
-    - name: X-Hasura-Admin-Secret
-      value_from_env: ACTIONS_ADMIN_SECRET
-    request_transform:
-      body:
-        action: transform
-        template: '{{$body.input.object}}'
-      template_engine: Kriti
-      version: 2
-  permissions:
-  - role: trustee-read
-  comment: check private key
 - name: insertTenant
   definition:
     kind: synchronous
@@ -355,6 +355,8 @@ custom_types:
   - name: SampleInput
   - name: CreateElectionEventInput
   - name: GetUsersInput
+  - name: GetPrivateKeyInput
+  - name: CheckPrivateKeyInput
   - name: GetPermissionsInput
   - name: GetRolesInput
   - name: EditUsersInput
@@ -365,6 +367,8 @@ custom_types:
   - name: CreatePermissionInput
   - name: KeycloakRole2
   objects:
+  - name: GetPrivateKeyOutput
+  - name: CheckPrivateKeyOutput
   - name: TemplateOutput
   - name: FetchDocumentOutput
   - name: ScheduledEventOutput
