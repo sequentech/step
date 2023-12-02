@@ -1,0 +1,23 @@
+# This is an image that builds all our crates at once. Makes it more efficient
+# for the devcontainer prebuilds. However, each package has its own Dockerfile,
+# for example packages/windmill/Dockerfile, packages/harvest/Dockerfile, etc.
+ 
+FROM rust:1.70.0
+
+WORKDIR /app
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
+COPY ./strand ./strand
+COPY ./braid-messages ./braid-messages
+COPY ./sequent-core ./sequent-core
+COPY ./windmill ./windmill
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./velvet ./velvet
+
+RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev
+RUN rustup default nightly
+
+WORKDIR /app/
+RUN cargo build
+
+CMD ["cargo", "run", "--bin", "main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat" ]
