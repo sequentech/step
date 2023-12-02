@@ -2974,7 +2974,7 @@
     "alias" : "message-otp-ra",
     "name" : "Reset Message OTP",
     "providerId" : "message-otp-ra",
-    "enabled" : false,
+    "enabled" : true,
     "defaultAction" : false,
     "priority" : 1003,
     "config" : { }

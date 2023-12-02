@@ -3,23 +3,31 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {
+    CheckboxGroupInput,
+    EditBase,
     Identifier,
+    List,
+    RecordContext,
     SaveButton,
     SimpleForm,
+    TextInput,
     useGetList,
     useListContext,
     useNotify,
     useRefresh,
 } from "react-admin"
-import {useMutation} from "@apollo/client"
+import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
+import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {EDIT_USER} from "../../queries/EditUser"
+import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
+import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 import {IUser} from "sequent-core"
-import {FormControl, FormLabel, MenuItem, Select, SelectChangeEvent, TextField} from "@mui/material"
-import {EditUsersInput, Sequent_Backend_Area} from "@/gql/graphql"
-import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
+import { FormControl, MenuItem, Select, SelectChangeEvent, TextField } from '@mui/material'
+import { ElectionHeaderStyles } from "@/components/styles/ElectionHeaderStyles"
+import { EditUsersInput, Sequent_Backend_Area } from "@/gql/graphql"
+import { EDIT_USER } from "@/queries/EditUser"
 
 interface EditUserFormProps {
     id?: Identifier
@@ -31,7 +39,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
     const {id, close, electionEventId} = props
 
     const {data, isLoading} = useListContext<IUser & {id: string}>()
-    const [user, setUser] = useState<IUser | undefined>()
+    let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
+    const [user, setUser] = useState<IUser | undefined>(userOriginal)
+
+    console.log("DATA :: ", data)
+    console.log("USER :: ", user)
 
     const refresh = useRefresh()
     const notify = useNotify()

@@ -23,6 +23,11 @@ code {
 }
 
 .MuiScopedCssBaseline-root {
-    margin-block-start: 0 !important;
-    margin-block-end: 0 !important;
+  margin-block-start: 0 !important;
+  margin-block-end: 0 !important;
+}
+
+.RaSidebar-fixed .MuiList-root {
+  overflow-y: auto !important;
+  padding-bottom: 0 !important;
 }

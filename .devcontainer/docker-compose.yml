@@ -252,6 +252,8 @@ services:
 
   admin-portal:
     profiles: ["full"]
+    image: sequentech.local/frontend
+    container_name: admin-portal
     build:
       context: ../packages/
       dockerfile: Dockerfile
@@ -267,9 +269,12 @@ services:
 
   voting-portal:
     profiles: ["full"]
-    build:
-      context: ../packages/
-      dockerfile: Dockerfile
+    image: sequentech.local/frontend
+    # depending on the `admin-portal` container to ensure that the
+    # `sequentech.local/frontend` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - admin-portal
     #restart: always
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -299,24 +304,28 @@ services:
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: harvest
     build:
       context: ../packages/
-      dockerfile: ./harvest/Dockerfile
+      dockerfile: ./Dockerfile.cargo-packages
+    working_dir: /app/harvest
+    entrypoint: ["cargo", "run"]
     env_file:
       - .env
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
      - 8400:8400
-    #depends_on:
-    #  - graphql-engine
-  
+
   trustee1:
     profiles: ["full"]
     stdin_open: true
     container_name: trustee1
+    image: sequentech.local/braid
     volumes:
       - trustee1_data:/opt/braid
+    # TODO: be able to reuse the `sequentech.local/cargo-packages` image
     build:
       context: ../packages/
       dockerfile: ./braid/Dockerfile
@@ -332,24 +341,28 @@ services:
   trustee2:
     profiles: ["full"]
     stdin_open: true
+    image: sequentech.local/braid
     container_name: trustee2
     volumes:
       - trustee2_data:/opt/braid
-    build:
-      context: ../packages/
-      dockerfile: ./braid/Dockerfile
+    # depending on the `trustee1` container to ensure that the
+    # `sequentech.local/braid` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - trustee1
+      - immudb
     environment:
         IMMUDB_USER: immudb
         IMMUDB_PASSWORD: immudb
         IMMUDB_URL: http://immudb:3322
         IMMUDB_INDEX_DB: indexdb
         TRUSTEE_CONFIG: /opt/braid/trustee2.toml
-    depends_on:
-      - immudb
 
   # Create collection in immudb
   immudb-log-audit-init:
     profiles: ["full", "base"]
+    image: sequentech.local/immudb-log-audit
+    container_name: immudb-log-audit-init
     build:
       context: ../vendor/immudb-log-audit
       dockerfile: Dockerfile.immudb
@@ -365,9 +378,7 @@ services:
   # Send audit logs to immudb
   immudb-log-audit:
     profiles: ["full", "base"]
-    build:
-      context: ../vendor/immudb-log-audit
-      dockerfile: Dockerfile.immudb
+    image: sequentech.local/immudb-log-audit
     command: >
       tail file pgaudit "/logs/*.json"
       --follow
@@ -378,6 +389,9 @@ services:
     volumes: 
       - 'immudb_log_audit_data:/data'
       - 'db_logs:/logs'
+    # make sure to depend on the `immudb-log-audit-init` container to ensure
+    # that the `sequentech.local/immudb-log-audit` image is locally build, so
+    # that we can reuse it:
     depends_on:
       - postgres
       - immudb
@@ -397,25 +411,36 @@ services:
   windmill:
     profiles: ["full", "base"]
     stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: windmill
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
+    depends_on:
+      - harvest
+    working_dir: /app/windmill
+    entrypoint: ["cargo", "run", "--bin", "main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat" ]
     volumes:
       - ./keycloak/import:/import
-    build:
-      context: ../packages/
-      dockerfile: ./windmill/Dockerfile
     env_file:
       - .env
   
   beat:
     profiles: ["full"]
     stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: beat
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
+    depends_on:
+      - harvest
+    working_dir: /app/windmill
+    entrypoint:  ["cargo", "run", "--bin", "beat"]
     volumes:
       - ./keycloak/import:/import
-    build:
-      context: ../packages/
-      dockerfile: ./windmill/Dockerfile
     env_file:
       - .env
-    entrypoint:  ["cargo", "run", "--bin", "beat"]
 
 volumes:
   db_data:
