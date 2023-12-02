@@ -19,18 +19,18 @@ import {
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Drawer} from "@mui/material"
-import EditIcon from "@mui/icons-material/Edit"
-import DeleteIcon from "@mui/icons-material/Delete"
 import {ChipList} from "../../components/ChipList"
 import {EditArea} from "./EditArea"
 import {CreateArea} from "./CreateArea"
 import {Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
+import EditIcon from "@mui/icons-material/Edit"
+import DeleteIcon from "@mui/icons-material/Delete"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
-import { useParams } from 'react-router'
-import { AreaContestItems } from '@/components/AreaContestItems'
+import {useParams} from "react-router"
+import {AreaContestItems} from "@/components/AreaContestItems"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -49,7 +49,7 @@ export interface ListAreaProps {
 export const ListArea: React.FC<ListAreaProps> = (props) => {
     const {t} = useTranslation()
     const {id} = useParams()
-    
+
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const [tenantId] = useTenantStore()

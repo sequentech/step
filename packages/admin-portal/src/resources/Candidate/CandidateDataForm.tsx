@@ -11,9 +11,15 @@ import {
     RecordContext,
     Toolbar,
     SaveButton,
+    useUpdate,
+    useNotify,
 } from "react-admin"
-import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab} from "@mui/material"
-import {CreateScheduledEventMutation, Sequent_Backend_Candidate} from "../../gql/graphql"
+import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid} from "@mui/material"
+import {
+    CreateScheduledEventMutation,
+    GetUploadUrlMutation,
+    Sequent_Backend_Candidate,
+} from "../../gql/graphql"
 import React, {useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
@@ -27,13 +33,15 @@ import {useForm} from "react-hook-form"
 import {CandidateStyles} from "../../components/styles/CandidateStyles"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {CANDIDATE_TYPES} from "./constants"
+import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 
 export const CandidateDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Candidate>()
-    const [tenantId] = useTenantStore()
-    const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
-    const refresh = useRefresh()
+
     const {t} = useTranslation()
+    const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
+    const notify = useNotify()
+    const refresh = useRefresh()
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("candidate-data-general")
@@ -42,6 +50,13 @@ export const CandidateDataForm: React.FC = () => {
     const {data} = useGetOne("sequent_backend_election_event", {
         id: record.election_event_id,
     })
+
+    const {data: imageData, refetch: refetchImage} = useGetOne("sequent_backend_document", {
+        id: record.image_document_id,
+        meta: {tenant_id: record.tenant_id},
+    })
+
+    const [updateImage] = useUpdate()
 
     const buildLanguageSettings = () => {
         const tempSettings = data?.presentation?.language_conf?.enabled_language_codes || []
@@ -154,6 +169,52 @@ export const CandidateDataForm: React.FC = () => {
         return tabNodes
     }
 
+    const handleFiles = async (files: FileList | null) => {
+        // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
+
+        const theFile = files?.[0]
+
+        if (theFile) {
+            let {data, errors} = await getUploadUrl({
+                variables: {
+                    name: theFile.name,
+                    media_type: theFile.type,
+                    size: theFile.size,
+                },
+            })
+            if (data?.get_upload_url?.document_id) {
+                console.log("upload :>> ", data)
+
+                try {
+                    await fetch(data.get_upload_url.url, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "image/*",
+                        },
+                        body: theFile,
+                    })
+                    notify(t("electionScreen.common.fileLoaded"), {type: "success"})
+
+                    updateImage("sequent_backend_candidate", {
+                        id: record.id,
+                        data: {
+                            image_document_id: data.get_upload_url.document_id,
+                        },
+                    })
+
+                    refetchImage()
+                    refresh()
+                } catch (e) {
+                    console.log("error :>> ", e)
+                    notify(t("electionScreen.error.fileError"), {type: "error"})
+                }
+            } else {
+                console.log("error :>> ", errors)
+                notify(t("electionScreen.error.fileError"), {type: "error"})
+            }
+        }
+    }
+
     const renderTabContent = (parsedValue: any) => {
         let tabNodes = []
         let index = 0
@@ -241,24 +302,37 @@ export const CandidateDataForm: React.FC = () => {
 
                         <Accordion
                             sx={{width: "100%"}}
-                            expanded={expanded === "candidate-data-image"}
-                            onChange={() => setExpanded("candidate-data-image")}
+                            expanded={expanded === "election-data-image"}
+                            onChange={() => setExpanded("election-data-image")}
                         >
                             <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="candidate-data-image" />}
+                                expandIcon={<ExpandMoreIcon id="election-data-image" />}
                             >
                                 <CandidateStyles.Wrapper>
                                     <CandidateStyles.Title>
-                                        {t("candidateScreen.edit.image")}
+                                        {t("electionScreen.edit.image")}
                                     </CandidateStyles.Title>
                                 </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <DropFile
-                                    handleFiles={function (files: FileList): void | Promise<void> {
-                                        throw new Error("Function not implemented.")
-                                    }}
-                                />
+                                <Grid container spacing={1}>
+                                    <Grid item xs={2}>
+                                        {parsedValue.image_document_id &&
+                                        parsedValue.image_document_id !== "" ? (
+                                            <img
+                                                width={200}
+                                                height={200}
+                                                src={`http://localhost:9000/public/tenant-${parsedValue.tenant_id}/document-${parsedValue.image_document_id}/${imageData?.name}`}
+                                                alt={`tenant-${parsedValue.tenant_id}/document-${parsedValue.image_document_id}/${imageData?.name}`}
+                                            />
+                                        ) : null}
+                                    </Grid>
+                                    <Grid item xs={10}>
+                                        <DropFile
+                                            handleFiles={async (files) => handleFiles(files)}
+                                        />
+                                    </Grid>
+                                </Grid>
                             </AccordionDetails>
                         </Accordion>
                     </SimpleForm>

@@ -14,11 +14,12 @@ import {
     SaveButton,
     FormDataConsumer,
     useGetList,
-    TextField,
     useUpdate,
+    useNotify,
+    useRefresh,
 } from "react-admin"
-import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Typography} from "@mui/material"
-import {Sequent_Backend_Candidate, Sequent_Backend_Contest} from "../../gql/graphql"
+import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Typography, Grid} from "@mui/material"
+import {GetUploadUrlMutation, Sequent_Backend_Candidate, Sequent_Backend_Contest} from "../../gql/graphql"
 import React, {useCallback, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import styled from "@emotion/styled"
@@ -32,11 +33,17 @@ import FileJsonInput from "../../components/FileJsonInput"
 import {DndProvider} from "react-dnd"
 import {HTML5Backend} from "react-dnd-html5-backend"
 import {CandidateRowItem} from "../../components/CandateRowItem"
+import { useMutation } from '@apollo/client'
+import { GET_UPLOAD_URL } from '@/queries/GetUploadUrl'
+import { CandidateStyles } from '@/components/styles/CandidateStyles'
 
 export const ContestDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()
 
     const {t} = useTranslation()
+    const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
+    const notify = useNotify()
+    const refresh = useRefresh()
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("contest-data-general")
@@ -46,6 +53,13 @@ export const ContestDataForm: React.FC = () => {
     const {data} = useGetOne("sequent_backend_election_event", {
         id: record.election_event_id,
     })
+
+    const {data: imageData, refetch: refetchImage} = useGetOne("sequent_backend_document", {
+        id: record.image_document_id,
+        meta: {tenant_id: record.tenant_id},
+    })
+
+    const [updateImage] = useUpdate()
 
     const {data: candidates, refetch} = useGetList("sequent_backend_candidate", {
         filter: {contest_id: record.id},
@@ -232,6 +246,48 @@ export const ContestDataForm: React.FC = () => {
         }
     }, [candidate])
 
+    const handleFiles = async (files: FileList | null) => {
+        // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
+
+        const theFile = files?.[0]
+
+        if (theFile) {
+            let {data, errors} = await getUploadUrl({
+                variables: {
+                    name: theFile.name,
+                    media_type: theFile.type,
+                    size: theFile.size,
+                },
+            })
+            if (data?.get_upload_url?.document_id) {
+                try {
+                    await fetch(data.get_upload_url.url, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "image/*",
+                        },
+                        body: theFile,
+                    })
+                    notify(t("electionScreen.error.fileLoaded"), {type: "success"})
+
+                    updateImage("sequent_backend_contest", {
+                        id: record.id,
+                        data: {
+                            image_document_id: data.get_upload_url.document_id,
+                        },
+                    })
+
+                    refetchImage()
+                    refresh()
+                } catch (e) {
+                    notify(t("electionScreen.error.fileError"), {type: "error"})
+                }
+            } else {
+                notify(t("electionScreen.error.fileError"), {type: "error"})
+            }
+        }
+    }
+
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
@@ -358,18 +414,31 @@ export const ContestDataForm: React.FC = () => {
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="election-data-image" />}
                             >
-                                <ContestStyles.Wrapper>
-                                    <ContestStyles.Title>
+                                <CandidateStyles.Wrapper>
+                                    <CandidateStyles.Title>
                                         {t("electionScreen.edit.image")}
-                                    </ContestStyles.Title>
-                                </ContestStyles.Wrapper>
+                                    </CandidateStyles.Title>
+                                </CandidateStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <DropFile
-                                    handleFiles={function (files: FileList): void | Promise<void> {
-                                        throw new Error("Function not implemented.")
-                                    }}
-                                />
+                                <Grid container spacing={1}>
+                                    <Grid item xs={2}>
+                                        {parsedValue.image_document_id &&
+                                        parsedValue.image_document_id !== "" ? (
+                                            <img
+                                                width={200}
+                                                height={200}
+                                                src={`http://localhost:9000/public/tenant-${parsedValue.tenant_id}/document-${parsedValue.image_document_id}/${imageData?.name}`}
+                                                alt={`tenant-${parsedValue.tenant_id}/document-${parsedValue.image_document_id}/${imageData?.name}`}
+                                            />
+                                        ) : null}
+                                    </Grid>
+                                    <Grid item xs={10}>
+                                        <DropFile
+                                            handleFiles={async (files) => handleFiles(files)}
+                                        />
+                                    </Grid>
+                                </Grid>
                             </AccordionDetails>
                         </Accordion>
 
@@ -400,4 +469,9 @@ export const ContestDataForm: React.FC = () => {
             }}
         </RecordContext.Consumer>
     ) : null
+}
+function getUploadUrl(arg0: {
+    variables: {name: string; media_type: string; size: number}
+}): {data: any; errors: any} | PromiseLike<{data: any; errors: any}> {
+    throw new Error("Function not implemented.")
 }
