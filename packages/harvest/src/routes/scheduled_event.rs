@@ -36,9 +36,9 @@ pub async fn create_scheduled_event(
 ) -> Result<Json<CreateEventOutput>, Debug<anyhow::Error>> {
     let input = body.into_inner();
 
-    services::worker::process_scheduled_event(input.clone()).await?;
+    let element_id = services::worker::process_scheduled_event(input.clone()).await?;
 
     Ok(Json(CreateEventOutput {
-        id: input.tenant_id,
+        id: element_id,
     }))
 }
