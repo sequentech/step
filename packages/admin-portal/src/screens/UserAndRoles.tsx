@@ -1,14 +1,12 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box} from "@mui/material"
 import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
 import React, {useContext, useState} from "react"
 import {ListUsers} from "../resources/User/ListUsers"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {useTenantStore} from "../providers/TenantContextProvider"
-import {TabbedShowLayout} from "react-admin"
 import {CustomTabPanel} from "../components/CustomTabPanel"
 import ElectionHeader from "../components/ElectionHeader"
 import {useTranslation} from "react-i18next"

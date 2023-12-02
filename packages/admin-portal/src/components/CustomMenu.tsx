@@ -41,6 +41,9 @@ const StyledMenu = styled(Menu)`
 `
 
 const DrawerContainer = styled(Box)`
+    position: sticky;
+    bottom: 0;
+    background-color: ${adminTheme.palette.white};
     padding: 8px 16px;
     justify-content: right;
     border-top: 2px solid ${adminTheme.palette.customGrey.light};

@@ -6,10 +6,11 @@ import React, {useContext, useState} from "react"
 import {useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
+import SearchIcon from "@mui/icons-material/Search"
 import {CircularProgress, TextField} from "@mui/material"
 import {Menu, useSidebarState} from "react-admin"
 import {TreeMenu} from "./election-events/TreeMenu"
-import {faSearch, faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import WebIcon from "@mui/icons-material/Web"
 import {cn} from "../../../lib/utils"
 import {HorizontalBox} from "../../HorizontalBox"
@@ -18,7 +19,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../../../types/keycloak"
-import useTreeMenuHook from "./use-tree-menu-hook"
+import {useTreeMenuData} from "./use-tree-menu-hook"
 
 export type ResourceName =
     | "sequent_backend_election_event"
@@ -52,28 +53,6 @@ const ENTITY_FIELD_NAMES: Array<EntityFieldName> = [
     "candidates",
 ]
 
-export interface CandidatesTree {
-    id: string
-    name: string
-}
-export interface ContestTree {
-    id: string
-    name: string
-    candidates: Array<CandidatesTree>
-}
-export interface ElectionTree {
-    id: string
-    name: string
-    contests: Array<ContestTree>
-}
-
-export interface ElectionEventsTree {
-    id: string
-    name: string
-    is_archived: boolean
-    elections: Array<ElectionTree>
-}
-
 type BaseType = {__typename: ResourceName; id: string; name: string}
 
 export type CandidateType = BaseType & {
@@ -92,6 +71,8 @@ export type ContestType = BaseType & {
 export type ElectionType = BaseType & {
     __typename: "sequent_backend_election"
     election_event_id: string
+    image_document_id: string
+
     contests: Array<ContestType>
 }
 
@@ -157,7 +138,7 @@ export default function ElectionEvents() {
         (route) => location.pathname.search(route) > -1
     )
 
-    const {data, loading} = useTreeMenuHook(isArchivedElectionEvents)
+    const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
 
     let resultData = data
     if (!loading && data && data.sequent_backend_election_event) {
@@ -193,14 +174,14 @@ export default function ElectionEvents() {
                 </HorizontalBox>
                 {isOpenSidebar && isElectionEventActive && (
                     <>
-                        <div className="flex bg-white px-4">
+                        <div className="flex items-center space-x-4 bg-white px-4">
                             <TextField
                                 label={t("sideMenu.search")}
                                 size="small"
                                 value={searchInput}
                                 onChange={(e) => handleSearchChange(e.target.value)}
                             />
-                            <IconButton icon={faSearch} fontSize="18px" sx={{margin: "0 12px"}} />
+                            <SearchIcon />
                         </div>
 
                         {treeMenu}
