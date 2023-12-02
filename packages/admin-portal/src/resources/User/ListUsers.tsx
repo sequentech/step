@@ -17,12 +17,12 @@ import {useTenantStore} from "../../providers/TenantContextProvider"
 import {ListActions} from "../../components/ListActions"
 import {Drawer} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
-import { useTranslation } from 'react-i18next'
+import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
-import { useParams } from 'react-router'
-import { EditUser } from './EditUser'
+import {useParams} from "react-router"
+import {EditUser} from "./EditUser"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -67,7 +67,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         if (recordId) {
             setTimeout(() => {
                 setOpen(true)
-            }, 400);
+            }, 400)
         }
     }, [recordId])
 
@@ -86,10 +86,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         setDeleteId(undefined)
     }
 
-        const actions: Action[] = [
-            {icon: <EditIcon />, action: editAction},
-            {icon: <DeleteIcon />, action: deleteAction},
-        ]
+    const actions: Action[] = [
+        {icon: <EditIcon />, action: editAction},
+        {icon: <DeleteIcon />, action: deleteAction},
+    ]
 
     return (
         <>
