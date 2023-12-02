@@ -225,29 +225,6 @@ const spanishTranslation: TranslationType = {
             },
             users: {
                 title: "Usuarios",
-                edit: {
-                    title: "Información de Usuario",
-                    subtitle: "Ver y editar Usuario",
-                },
-                fields: {
-                    username: "Nombre de Usuario",
-                    first_name: "Nombre",
-                    last_name: "Apellido",
-                    email: "Email",
-                    enabled: "Habilitado",
-                    emailVerified: "Email Verificado",
-                    groups: "Grupos",
-                    attributes: "Atributos",
-                    area: "Área",
-                },
-            },
-            voters: {
-                title: "Votantes",
-                subtitle: "Ver y editar datos del votante",
-                errors: {
-                    editError: "Error editando votante",
-                    editSuccess: "Votante editado",
-                },
             },
             roles: {
                 title: "Roles",
