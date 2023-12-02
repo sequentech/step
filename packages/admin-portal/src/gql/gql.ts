@@ -13,6 +13,7 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  * Therefore it is highly recommended to use the babel or swc plugin for production.
  */
 const documents = {
+    "\n    mutation CreateKeyCeremony(\n        $electionEventId: String!\n        $threshold: Int!\n        $trusteeNames: [String!]\n    ) {\n        create_key_ceremony(\n            object: {\n                election_event_id: $electionEventId\n                threshold: $threshold\n                trustee_names: $trusteeNames\n            }\n        ) {\n            key_ceremony_id\n        }\n    }\n": types.CreateKeyCeremonyDocument,
     "\n    mutation CreateScheduledEvent(\n        $tenantId: String!\n        $electionEventId: String!\n        $eventProcessor: String!\n        $cronConfig: String\n        $eventPayload: jsonb!\n        $createdBy: String!\n    ) {\n        createScheduledEvent(\n            tenant_id: $tenantId\n            election_event_id: $electionEventId\n            event_processor: $eventProcessor\n            cron_config: $cronConfig\n            event_payload: $eventPayload\n            created_by: $createdBy\n        ) {\n            id\n        }\n    }\n": types.CreateScheduledEventDocument,
     "\n    mutation delete_area_contests($tenantId: uuid!, $area: uuid!) {\n        delete_sequent_backend_area_contest(where: {_and: {area_id: {_eq: $area}, tenant_id: {_eq: $tenantId}}}) {\n            returning {\n                id\n            }\n        }\n    }\n": types.Delete_Area_ContestsDocument,
     "\n    query FetchDocument($tenantId: String!, $electionEventId: String!, $documentId: String!) {\n        fetchDocument(\n            tenant_id: $tenantId\n            election_event_id: $electionEventId\n            document_id: $documentId\n        ) {\n            url\n        }\n    }\n": types.FetchDocumentDocument,
@@ -48,6 +49,10 @@ const documents = {
  */
 export function graphql(source: string): unknown;
 
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    mutation CreateKeyCeremony(\n        $electionEventId: String!\n        $threshold: Int!\n        $trusteeNames: [String!]\n    ) {\n        create_key_ceremony(\n            object: {\n                election_event_id: $electionEventId\n                threshold: $threshold\n                trustee_names: $trusteeNames\n            }\n        ) {\n            key_ceremony_id\n        }\n    }\n"): (typeof documents)["\n    mutation CreateKeyCeremony(\n        $electionEventId: String!\n        $threshold: Int!\n        $trusteeNames: [String!]\n    ) {\n        create_key_ceremony(\n            object: {\n                election_event_id: $electionEventId\n                threshold: $threshold\n                trustee_names: $trusteeNames\n            }\n        ) {\n            key_ceremony_id\n        }\n    }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

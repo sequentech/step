@@ -437,6 +437,8 @@ const englishTranslation = {
             trusteeList: "Trustees",
             errorMinTrustees: "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
             errorThreshold: "You selected threshold {{selected}} but it must be between {{min}} and {{max}}.",
+            errorCreatingCeremony: "Error creating key ceremony: {{error}}",
+            createCeremonySuccess: "Key ceremony created",
         },
     },
 }

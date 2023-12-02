@@ -439,6 +439,8 @@ const spanishTranslation: TranslationType = {
             threshold: "Umbral",
             errorMinTrustees: "Seleccionaste sólo {{selected}} autoridades, pero debe seleccionar al menos {{threshold}}.",
             errorThreshold: "Seleccionaste un umbral de {{selected}} pero debe estar entre {{min}} y {{max}}.",
+            errorCreatingCeremony: "Error creando ceremonia de claves: {{error}}",
+            createCeremonySuccess: "Ceremonia de claves creada",
         },
     },
 }
