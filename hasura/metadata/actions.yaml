@@ -1,7 +1,7 @@
 actions:
 - name: check_private_key
   definition:
-    kind: ""
+    kind: synchronous
     handler: http://harvest:8400/check-private-key
     forward_client_headers: true
     headers:
@@ -16,6 +16,23 @@ actions:
   permissions:
   - role: trustee-read
   comment: check private key
+- name: create_key_ceremony
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/create-key-ceremony
+    forward_client_headers: true
+    headers:
+    - name: X-Hasura-Admin-Secret
+      value_from_env: ACTIONS_ADMIN_SECRET
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.object}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-ceremony
+  comment: create key ceremony
 - name: createScheduledEvent
   definition:
     kind: synchronous
@@ -188,7 +205,7 @@ actions:
   comment: list permissions
 - name: get_private_key
   definition:
-    kind: ""
+    kind: synchronous
     handler: http://harvest:8400/get-private-key
     forward_client_headers: true
     headers:

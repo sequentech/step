@@ -1,4 +1,4 @@
-type Query {
+type Mutation {
   check_private_key (
     object: CheckPrivateKeyInput!
   ): CheckPrivateKeyOutput
@@ -94,10 +94,16 @@ type Query {
   ): GetPermissionsOutput!
 }
 
-type Query {
+type Mutation {
   get_private_key (
     object: GetPrivateKeyInput!
   ): GetPrivateKeyOutput
+}
+
+type Mutation {
+  create_key_ceremony (
+    object: CreateKeyCeremonyInput!
+  ): CreateKeyCeremonyOutput
 }
 
 type Query {
@@ -222,12 +228,19 @@ input GetUsersInput {
   offset : Int
 }
 
+input CreateKeyCeremonyInput {
+  election_event_id : String!
+  threshold : Int!
+  trustee_names : [String!]
+}
+
 input GetPrivateKeyInput {
   election_event_id : String!
 }
 
 input CheckPrivateKeyInput {
   election_event_id : String!
+  keys_ceremony_id : String!
   private_key_base64 : String!
 }
 
@@ -301,6 +314,10 @@ input KeycloakRole2 {
   access : jsonb
   attributes : jsonb
   client_roles : jsonb
+}
+
+type CreateKeyCeremonyOutput {
+  key_ceremony_id : String!
 }
 
 type GetPrivateKeyOutput {
