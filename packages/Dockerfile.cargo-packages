@@ -21,4 +21,6 @@ COPY ./velvet ./velvet
 COPY ./braid ./braid
 COPY ./Cargo.toml ./Cargo.toml
 
-RUN cargo build
+# Run cargo build and then remove things we don't want to be in the image,
+# because makes copying it slower
+RUN cargo build && rm -rf ./target/debug/{incremental,deps,build}
