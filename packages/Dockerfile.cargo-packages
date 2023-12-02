@@ -9,6 +9,7 @@ RUN rustup default nightly
 
 WORKDIR /app
 COPY ./immu-board ./immu-board
+COPY ./harvest ./harvest
 COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
 COPY ./braid-messages ./braid-messages
