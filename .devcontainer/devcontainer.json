@@ -27,6 +27,13 @@
 	"onCreateCommand": "direnv allow",
 	"updateContentCommand": "direnv allow",
 
+	// Adding host requirements so that there is no need to manually select the
+	// machine to run on all the time
+	"hostRequirements": {
+		"storage": "60gb",
+		"cpus": 4
+	},
+
 	"features": {
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
 		"ghcr.io/devcontainers/features/sshd:1": {
