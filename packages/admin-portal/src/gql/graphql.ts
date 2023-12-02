@@ -38,6 +38,16 @@ export type Boolean_Comparison_Exp = {
   _nin?: InputMaybe<Array<Scalars['Boolean']['input']>>;
 };
 
+export type CheckPrivateKeyInput = {
+  election_event_id: Scalars['String']['input'];
+  private_key_base64: Scalars['String']['input'];
+};
+
+export type CheckPrivateKeyOutput = {
+  __typename?: 'CheckPrivateKeyOutput';
+  is_valid: Scalars['Boolean']['output'];
+};
+
 export type CreateElectionEventInput = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   audit_election_event_id?: InputMaybe<Scalars['String']['input']>;
@@ -109,6 +119,15 @@ export type GetPermissionsOutput = {
   __typename?: 'GetPermissionsOutput';
   items: Array<KeycloakPermission>;
   total: TotalAggregate;
+};
+
+export type GetPrivateKeyInput = {
+  election_event_id: Scalars['String']['input'];
+};
+
+export type GetPrivateKeyOutput = {
+  __typename?: 'GetPrivateKeyOutput';
+  private_key_base64: Scalars['String']['output'];
 };
 
 export type GetRolesInput = {
@@ -416,6 +435,10 @@ export type Mutation_Root = {
   delete_sequent_backend_event_execution?: Maybe<Sequent_Backend_Event_Execution_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.event_execution" */
   delete_sequent_backend_event_execution_by_pk?: Maybe<Sequent_Backend_Event_Execution>;
+  /** delete data from the table: "sequent_backend.keys_ceremony" */
+  delete_sequent_backend_keys_ceremony?: Maybe<Sequent_Backend_Keys_Ceremony_Mutation_Response>;
+  /** delete single row from the table: "sequent_backend.keys_ceremony" */
+  delete_sequent_backend_keys_ceremony_by_pk?: Maybe<Sequent_Backend_Keys_Ceremony>;
   /** delete data from the table: "sequent_backend.lock" */
   delete_sequent_backend_lock?: Maybe<Sequent_Backend_Lock_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.lock" */
@@ -499,6 +522,10 @@ export type Mutation_Root = {
   insert_sequent_backend_event_execution?: Maybe<Sequent_Backend_Event_Execution_Mutation_Response>;
   /** insert a single row into the table: "sequent_backend.event_execution" */
   insert_sequent_backend_event_execution_one?: Maybe<Sequent_Backend_Event_Execution>;
+  /** insert data into the table: "sequent_backend.keys_ceremony" */
+  insert_sequent_backend_keys_ceremony?: Maybe<Sequent_Backend_Keys_Ceremony_Mutation_Response>;
+  /** insert a single row into the table: "sequent_backend.keys_ceremony" */
+  insert_sequent_backend_keys_ceremony_one?: Maybe<Sequent_Backend_Keys_Ceremony>;
   /** insert data into the table: "sequent_backend.lock" */
   insert_sequent_backend_lock?: Maybe<Sequent_Backend_Lock_Mutation_Response>;
   /** insert a single row into the table: "sequent_backend.lock" */
@@ -602,6 +629,12 @@ export type Mutation_Root = {
   update_sequent_backend_event_execution_by_pk?: Maybe<Sequent_Backend_Event_Execution>;
   /** update multiples rows of table: "sequent_backend.event_execution" */
   update_sequent_backend_event_execution_many?: Maybe<Array<Maybe<Sequent_Backend_Event_Execution_Mutation_Response>>>;
+  /** update data of the table: "sequent_backend.keys_ceremony" */
+  update_sequent_backend_keys_ceremony?: Maybe<Sequent_Backend_Keys_Ceremony_Mutation_Response>;
+  /** update single row of the table: "sequent_backend.keys_ceremony" */
+  update_sequent_backend_keys_ceremony_by_pk?: Maybe<Sequent_Backend_Keys_Ceremony>;
+  /** update multiples rows of table: "sequent_backend.keys_ceremony" */
+  update_sequent_backend_keys_ceremony_many?: Maybe<Array<Maybe<Sequent_Backend_Keys_Ceremony_Mutation_Response>>>;
   /** update data of the table: "sequent_backend.lock" */
   update_sequent_backend_lock?: Maybe<Sequent_Backend_Lock_Mutation_Response>;
   /** update single row of the table: "sequent_backend.lock" */
@@ -855,6 +888,20 @@ export type Mutation_RootDelete_Sequent_Backend_Event_ExecutionArgs = {
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Event_Execution_By_PkArgs = {
   id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Keys_CeremonyArgs = {
+  where: Sequent_Backend_Keys_Ceremony_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Keys_Ceremony_By_PkArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  id: Scalars['uuid']['input'];
+  tenant_id: Scalars['uuid']['input'];
 };
 
 
@@ -1155,6 +1202,20 @@ export type Mutation_RootInsert_Sequent_Backend_Event_ExecutionArgs = {
 export type Mutation_RootInsert_Sequent_Backend_Event_Execution_OneArgs = {
   object: Sequent_Backend_Event_Execution_Insert_Input;
   on_conflict?: InputMaybe<Sequent_Backend_Event_Execution_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Keys_CeremonyArgs = {
+  objects: Array<Sequent_Backend_Keys_Ceremony_Insert_Input>;
+  on_conflict?: InputMaybe<Sequent_Backend_Keys_Ceremony_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Keys_Ceremony_OneArgs = {
+  object: Sequent_Backend_Keys_Ceremony_Insert_Input;
+  on_conflict?: InputMaybe<Sequent_Backend_Keys_Ceremony_On_Conflict>;
 };
 
 
@@ -1647,6 +1708,36 @@ export type Mutation_RootUpdate_Sequent_Backend_Event_Execution_ManyArgs = {
 
 
 /** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Keys_CeremonyArgs = {
+  _append?: InputMaybe<Sequent_Backend_Keys_Ceremony_Append_Input>;
+  _delete_at_path?: InputMaybe<Sequent_Backend_Keys_Ceremony_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<Sequent_Backend_Keys_Ceremony_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<Sequent_Backend_Keys_Ceremony_Delete_Key_Input>;
+  _prepend?: InputMaybe<Sequent_Backend_Keys_Ceremony_Prepend_Input>;
+  _set?: InputMaybe<Sequent_Backend_Keys_Ceremony_Set_Input>;
+  where: Sequent_Backend_Keys_Ceremony_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Keys_Ceremony_By_PkArgs = {
+  _append?: InputMaybe<Sequent_Backend_Keys_Ceremony_Append_Input>;
+  _delete_at_path?: InputMaybe<Sequent_Backend_Keys_Ceremony_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<Sequent_Backend_Keys_Ceremony_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<Sequent_Backend_Keys_Ceremony_Delete_Key_Input>;
+  _prepend?: InputMaybe<Sequent_Backend_Keys_Ceremony_Prepend_Input>;
+  _set?: InputMaybe<Sequent_Backend_Keys_Ceremony_Set_Input>;
+  pk_columns: Sequent_Backend_Keys_Ceremony_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Keys_Ceremony_ManyArgs = {
+  updates: Array<Sequent_Backend_Keys_Ceremony_Updates>;
+};
+
+
+/** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_LockArgs = {
   _set?: InputMaybe<Sequent_Backend_Lock_Set_Input>;
   where: Sequent_Backend_Lock_Bool_Exp;
@@ -1867,10 +1958,14 @@ export enum Order_By {
 
 export type Query_Root = {
   __typename?: 'query_root';
+  /** check private key */
+  check_private_key?: Maybe<CheckPrivateKeyOutput>;
   /** fetch document */
   fetchDocument?: Maybe<FetchDocumentOutput>;
   /** list permissions */
   get_permissions: GetPermissionsOutput;
+  /** get private key */
+  get_private_key?: Maybe<GetPrivateKeyOutput>;
   get_roles: GetRolesOutput;
   get_users: GetUsersOutput;
   /** List PostgreSQL audit logs */
@@ -1947,6 +2042,12 @@ export type Query_Root = {
   sequent_backend_event_execution_aggregate: Sequent_Backend_Event_Execution_Aggregate;
   /** fetch data from the table: "sequent_backend.event_execution" using primary key columns */
   sequent_backend_event_execution_by_pk?: Maybe<Sequent_Backend_Event_Execution>;
+  /** fetch data from the table: "sequent_backend.keys_ceremony" */
+  sequent_backend_keys_ceremony: Array<Sequent_Backend_Keys_Ceremony>;
+  /** fetch aggregated fields from the table: "sequent_backend.keys_ceremony" */
+  sequent_backend_keys_ceremony_aggregate: Sequent_Backend_Keys_Ceremony_Aggregate;
+  /** fetch data from the table: "sequent_backend.keys_ceremony" using primary key columns */
+  sequent_backend_keys_ceremony_by_pk?: Maybe<Sequent_Backend_Keys_Ceremony>;
   /** fetch data from the table: "sequent_backend.lock" */
   sequent_backend_lock: Array<Sequent_Backend_Lock>;
   /** fetch aggregated fields from the table: "sequent_backend.lock" */
@@ -1992,6 +2093,11 @@ export type Query_Root = {
 };
 
 
+export type Query_RootCheck_Private_KeyArgs = {
+  object: CheckPrivateKeyInput;
+};
+
+
 export type Query_RootFetchDocumentArgs = {
   document_id: Scalars['String']['input'];
   election_event_id: Scalars['String']['input'];
@@ -2001,6 +2107,11 @@ export type Query_RootFetchDocumentArgs = {
 
 export type Query_RootGet_PermissionsArgs = {
   body: GetPermissionsInput;
+};
+
+
+export type Query_RootGet_Private_KeyArgs = {
+  object: GetPrivateKeyInput;
 };
 
 
@@ -2307,6 +2418,31 @@ export type Query_RootSequent_Backend_Event_Execution_AggregateArgs = {
 
 export type Query_RootSequent_Backend_Event_Execution_By_PkArgs = {
   id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSequent_Backend_Keys_CeremonyArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Keys_Ceremony_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Keys_Ceremony_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Keys_Ceremony_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Keys_Ceremony_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Keys_Ceremony_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Keys_Ceremony_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Keys_Ceremony_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Keys_Ceremony_By_PkArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  id: Scalars['uuid']['input'];
+  tenant_id: Scalars['uuid']['input'];
 };
 
 
@@ -7159,6 +7295,295 @@ export type Sequent_Backend_Event_Execution_Updates = {
   where: Sequent_Backend_Event_Execution_Bool_Exp;
 };
 
+/** columns and relationships of "sequent_backend.keys_ceremony" */
+export type Sequent_Backend_Keys_Ceremony = {
+  __typename?: 'sequent_backend_keys_ceremony';
+  annotations?: Maybe<Scalars['jsonb']['output']>;
+  created_at: Scalars['timestamptz']['output'];
+  election_event_id: Scalars['uuid']['output'];
+  execution_status?: Maybe<Scalars['String']['output']>;
+  id: Scalars['uuid']['output'];
+  labels?: Maybe<Scalars['jsonb']['output']>;
+  last_updated_at: Scalars['timestamptz']['output'];
+  status?: Maybe<Scalars['jsonb']['output']>;
+  tenant_id: Scalars['uuid']['output'];
+  trustee_ids: Array<Scalars['uuid']['output']>;
+};
+
+
+/** columns and relationships of "sequent_backend.keys_ceremony" */
+export type Sequent_Backend_Keys_CeremonyAnnotationsArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.keys_ceremony" */
+export type Sequent_Backend_Keys_CeremonyLabelsArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.keys_ceremony" */
+export type Sequent_Backend_Keys_CeremonyStatusArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregated selection of "sequent_backend.keys_ceremony" */
+export type Sequent_Backend_Keys_Ceremony_Aggregate = {
+  __typename?: 'sequent_backend_keys_ceremony_aggregate';
+  aggregate?: Maybe<Sequent_Backend_Keys_Ceremony_Aggregate_Fields>;
+  nodes: Array<Sequent_Backend_Keys_Ceremony>;
+};
+
+/** aggregate fields of "sequent_backend.keys_ceremony" */
+export type Sequent_Backend_Keys_Ceremony_Aggregate_Fields = {
+  __typename?: 'sequent_backend_keys_ceremony_aggregate_fields';
+  count: Scalars['Int']['output'];
+  max?: Maybe<Sequent_Backend_Keys_Ceremony_Max_Fields>;
+  min?: Maybe<Sequent_Backend_Keys_Ceremony_Min_Fields>;
+};
+
+
+/** aggregate fields of "sequent_backend.keys_ceremony" */
+export type Sequent_Backend_Keys_Ceremony_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Sequent_Backend_Keys_Ceremony_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Keys_Ceremony_Append_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  status?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** Boolean expression to filter rows from the table "sequent_backend.keys_ceremony". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Keys_Ceremony_Bool_Exp = {
+  _and?: InputMaybe<Array<Sequent_Backend_Keys_Ceremony_Bool_Exp>>;
+  _not?: InputMaybe<Sequent_Backend_Keys_Ceremony_Bool_Exp>;
+  _or?: InputMaybe<Array<Sequent_Backend_Keys_Ceremony_Bool_Exp>>;
+  annotations?: InputMaybe<Jsonb_Comparison_Exp>;
+  created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  execution_status?: InputMaybe<String_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  labels?: InputMaybe<Jsonb_Comparison_Exp>;
+  last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  status?: InputMaybe<Jsonb_Comparison_Exp>;
+  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+  trustee_ids?: InputMaybe<Uuid_Array_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "sequent_backend.keys_ceremony" */
+export enum Sequent_Backend_Keys_Ceremony_Constraint {
+  /** unique or primary key constraint on columns "id", "tenant_id", "election_event_id" */
+  KeysCeremonyPkey = 'keys_ceremony_pkey'
+}
+
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type Sequent_Backend_Keys_Ceremony_Delete_At_Path_Input = {
+  annotations?: InputMaybe<Array<Scalars['String']['input']>>;
+  labels?: InputMaybe<Array<Scalars['String']['input']>>;
+  status?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type Sequent_Backend_Keys_Ceremony_Delete_Elem_Input = {
+  annotations?: InputMaybe<Scalars['Int']['input']>;
+  labels?: InputMaybe<Scalars['Int']['input']>;
+  status?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type Sequent_Backend_Keys_Ceremony_Delete_Key_Input = {
+  annotations?: InputMaybe<Scalars['String']['input']>;
+  labels?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** input type for inserting data into table "sequent_backend.keys_ceremony" */
+export type Sequent_Backend_Keys_Ceremony_Insert_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  execution_status?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  status?: InputMaybe<Scalars['jsonb']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  trustee_ids?: InputMaybe<Array<Scalars['uuid']['input']>>;
+};
+
+/** aggregate max on columns */
+export type Sequent_Backend_Keys_Ceremony_Max_Fields = {
+  __typename?: 'sequent_backend_keys_ceremony_max_fields';
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  execution_status?: Maybe<Scalars['String']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  trustee_ids?: Maybe<Array<Scalars['uuid']['output']>>;
+};
+
+/** aggregate min on columns */
+export type Sequent_Backend_Keys_Ceremony_Min_Fields = {
+  __typename?: 'sequent_backend_keys_ceremony_min_fields';
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  execution_status?: Maybe<Scalars['String']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  trustee_ids?: Maybe<Array<Scalars['uuid']['output']>>;
+};
+
+/** response of any mutation on the table "sequent_backend.keys_ceremony" */
+export type Sequent_Backend_Keys_Ceremony_Mutation_Response = {
+  __typename?: 'sequent_backend_keys_ceremony_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Sequent_Backend_Keys_Ceremony>;
+};
+
+/** on_conflict condition type for table "sequent_backend.keys_ceremony" */
+export type Sequent_Backend_Keys_Ceremony_On_Conflict = {
+  constraint: Sequent_Backend_Keys_Ceremony_Constraint;
+  update_columns?: Array<Sequent_Backend_Keys_Ceremony_Update_Column>;
+  where?: InputMaybe<Sequent_Backend_Keys_Ceremony_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "sequent_backend.keys_ceremony". */
+export type Sequent_Backend_Keys_Ceremony_Order_By = {
+  annotations?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  execution_status?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  labels?: InputMaybe<Order_By>;
+  last_updated_at?: InputMaybe<Order_By>;
+  status?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+  trustee_ids?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: sequent_backend.keys_ceremony */
+export type Sequent_Backend_Keys_Ceremony_Pk_Columns_Input = {
+  election_event_id: Scalars['uuid']['input'];
+  id: Scalars['uuid']['input'];
+  tenant_id: Scalars['uuid']['input'];
+};
+
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Keys_Ceremony_Prepend_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  status?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** select columns of table "sequent_backend.keys_ceremony" */
+export enum Sequent_Backend_Keys_Ceremony_Select_Column {
+  /** column name */
+  Annotations = 'annotations',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  ExecutionStatus = 'execution_status',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Labels = 'labels',
+  /** column name */
+  LastUpdatedAt = 'last_updated_at',
+  /** column name */
+  Status = 'status',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  TrusteeIds = 'trustee_ids'
+}
+
+/** input type for updating data in table "sequent_backend.keys_ceremony" */
+export type Sequent_Backend_Keys_Ceremony_Set_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  execution_status?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  status?: InputMaybe<Scalars['jsonb']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  trustee_ids?: InputMaybe<Array<Scalars['uuid']['input']>>;
+};
+
+/** Streaming cursor of the table "sequent_backend_keys_ceremony" */
+export type Sequent_Backend_Keys_Ceremony_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Sequent_Backend_Keys_Ceremony_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Keys_Ceremony_Stream_Cursor_Value_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  execution_status?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  status?: InputMaybe<Scalars['jsonb']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  trustee_ids?: InputMaybe<Array<Scalars['uuid']['input']>>;
+};
+
+/** update columns of table "sequent_backend.keys_ceremony" */
+export enum Sequent_Backend_Keys_Ceremony_Update_Column {
+  /** column name */
+  Annotations = 'annotations',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  ExecutionStatus = 'execution_status',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Labels = 'labels',
+  /** column name */
+  LastUpdatedAt = 'last_updated_at',
+  /** column name */
+  Status = 'status',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  TrusteeIds = 'trustee_ids'
+}
+
+export type Sequent_Backend_Keys_Ceremony_Updates = {
+  /** append existing jsonb value of filtered columns with new jsonb value */
+  _append?: InputMaybe<Sequent_Backend_Keys_Ceremony_Append_Input>;
+  /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+  _delete_at_path?: InputMaybe<Sequent_Backend_Keys_Ceremony_Delete_At_Path_Input>;
+  /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+  _delete_elem?: InputMaybe<Sequent_Backend_Keys_Ceremony_Delete_Elem_Input>;
+  /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+  _delete_key?: InputMaybe<Sequent_Backend_Keys_Ceremony_Delete_Key_Input>;
+  /** prepend existing jsonb value of filtered columns with new jsonb value */
+  _prepend?: InputMaybe<Sequent_Backend_Keys_Ceremony_Prepend_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Sequent_Backend_Keys_Ceremony_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Sequent_Backend_Keys_Ceremony_Bool_Exp;
+};
+
 /** columns and relationships of "sequent_backend.lock" */
 export type Sequent_Backend_Lock = {
   __typename?: 'sequent_backend_lock';
@@ -9243,6 +9668,14 @@ export type Subscription_Root = {
   sequent_backend_event_execution_by_pk?: Maybe<Sequent_Backend_Event_Execution>;
   /** fetch data from the table in a streaming manner: "sequent_backend.event_execution" */
   sequent_backend_event_execution_stream: Array<Sequent_Backend_Event_Execution>;
+  /** fetch data from the table: "sequent_backend.keys_ceremony" */
+  sequent_backend_keys_ceremony: Array<Sequent_Backend_Keys_Ceremony>;
+  /** fetch aggregated fields from the table: "sequent_backend.keys_ceremony" */
+  sequent_backend_keys_ceremony_aggregate: Sequent_Backend_Keys_Ceremony_Aggregate;
+  /** fetch data from the table: "sequent_backend.keys_ceremony" using primary key columns */
+  sequent_backend_keys_ceremony_by_pk?: Maybe<Sequent_Backend_Keys_Ceremony>;
+  /** fetch data from the table in a streaming manner: "sequent_backend.keys_ceremony" */
+  sequent_backend_keys_ceremony_stream: Array<Sequent_Backend_Keys_Ceremony>;
   /** fetch data from the table: "sequent_backend.lock" */
   sequent_backend_lock: Array<Sequent_Backend_Lock>;
   /** fetch aggregated fields from the table: "sequent_backend.lock" */
@@ -9672,6 +10105,38 @@ export type Subscription_RootSequent_Backend_Event_Execution_StreamArgs = {
   batch_size: Scalars['Int']['input'];
   cursor: Array<InputMaybe<Sequent_Backend_Event_Execution_Stream_Cursor_Input>>;
   where?: InputMaybe<Sequent_Backend_Event_Execution_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Keys_CeremonyArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Keys_Ceremony_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Keys_Ceremony_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Keys_Ceremony_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Keys_Ceremony_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Keys_Ceremony_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Keys_Ceremony_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Keys_Ceremony_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Keys_Ceremony_By_PkArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  id: Scalars['uuid']['input'];
+  tenant_id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Keys_Ceremony_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Sequent_Backend_Keys_Ceremony_Stream_Cursor_Input>>;
+  where?: InputMaybe<Sequent_Backend_Keys_Ceremony_Bool_Exp>;
 };
 
 
