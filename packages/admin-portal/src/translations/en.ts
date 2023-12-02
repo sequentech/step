@@ -223,6 +223,29 @@ const englishTranslation = {
             },
             users: {
                 title: "Users",
+                edit: {
+                    title: "User Data",
+                    subtitle: "View and edit user",
+                },
+                fields: {
+                    username: "Username",
+                    first_name: "First Name",
+                    last_name: "Last Name",
+                    email: "Email",
+                    enabled: "Enabled",
+                    emailVerified: "Email Verified",
+                    groups: "Groups",
+                    attributes: "Attributes",
+                    area: "Area",
+                },
+            },
+            voters: {
+                title: "Voters",
+                subtitle: "View and edit voter data",
+                errors: {
+                    editError: "Error editing voter",
+                    editSuccess: "Voter edited",
+                }
             },
             roles: {
                 title: "Roles",

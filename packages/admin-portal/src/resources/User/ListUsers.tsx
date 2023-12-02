@@ -95,6 +95,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         <>
             <List
                 resource="user"
+                empty={false}
                 actions={
                     <ListActions
                         withImport={false}

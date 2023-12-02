@@ -133,7 +133,7 @@ export const EditArea: React.FC<EditAreaProps> = (props) => {
 
         if (insertAreasErrors) {
             console.log("insertAreasErrors :>> ", insertAreasErrors)
-            notify("Could not update Area", {type: "error"})
+            notify("Could not update Area")
             return
         }
 
