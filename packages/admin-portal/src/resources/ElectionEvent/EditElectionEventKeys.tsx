@@ -10,14 +10,14 @@ import {
     DatagridConfigurable,
     List,
     TextField,
-    ExportButton,
-    SelectColumnsButton,
     TopToolbar,
     useGetList,
     useRecordContext,
-    Link,
     DateField,
     Identifier,
+    ReferenceArrayField,
+    SingleFieldList,
+    ChipField,
 } from "react-admin"
 import {Box, Button, Typography} from "@mui/material"
 import {IconButton} from "@sequentech/ui-essentials"
@@ -150,8 +150,17 @@ export const EditElectionEventKeys: React.FC = () => {
                         bulkActionButtons={<></>}
                     >
                         <TextField source="id" />
-                        <DateField source="created_at" />
+                        <DateField source="created_at" showTime={true} />
                         <TextField source="execution_status" />
+                        <ReferenceArrayField
+                            perPage={10}
+                            reference="sequent_backend_trustee"
+                            source="trustee_ids"
+                        >
+                            <SingleFieldList linkType={false}>
+                                <ChipField source="name" />
+                            </SingleFieldList>
+                        </ReferenceArrayField>
                         <ActionsColumn actions={actions} />
                     </DatagridConfigurable>
                 </List>

@@ -3,13 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
-import { Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony } from "@/gql/graphql"
+import {
+    Sequent_Backend_Election_Event,
+    Sequent_Backend_Keys_Ceremony
+} from "@/gql/graphql"
 import {styled} from "@mui/material/styles"
 import { Box } from "@mui/material"
 import React, { useState } from "react"
 import { ConfigureStep } from "@/components/keys-ceremony/ConfigureStep"
 import { CeremonyStep } from "@/components/keys-ceremony/CeremonyStep"
-import { IKeysCeremonyExecutionStatus } from "@/services/KeyCeremony"
+import { IKeysCeremonyExecutionStatus as EStatus } from "@/services/KeyCeremony"
 
 const StyledBox = styled(Box)`
 `
@@ -25,20 +28,21 @@ interface WizardProps {
 
 export const Wizard: React.FC<WizardProps> = ({
     electionEvent,
-    currentCeremony: keysCeremony,
+    currentCeremony,
     setCurrentCeremony,
     goBack,
 }) => {
     const calculateCurrentStep: () => number = () => {
-        if (!keysCeremony) {
+        if (!currentCeremony) {
             return 0 // configure
         } else {
-            if (keysCeremony.execution_status == IKeysCeremonyExecutionStatus.NOT_STARTED) {
-                return 1 // ceremony
-            } else if (keysCeremony.execution_status == IKeysCeremonyExecutionStatus.IN_PROCESS) {
-                return 1 // ceremony
+            if (
+                currentCeremony.execution_status == EStatus.NOT_STARTED ||
+                currentCeremony.execution_status == EStatus.IN_PROCESS
+            ) {
+                return 1 // ceremony, created
             } else {
-                return 2 // created
+                return 2 // final state
             }
         }
     }
@@ -62,16 +66,16 @@ export const Wizard: React.FC<WizardProps> = ({
             />
             {currentStep == 0 &&
                 <ConfigureStep
-                    currentCeremony={keysCeremony}
+                    currentCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}
                     electionEvent={electionEvent}
                     openCeremonyStep={openCeremonyStep}
                     goBack={goBack}
                 />
             }
-            {currentStep == 1 &&
+            {currentStep > 0 &&
                 <CeremonyStep
-                    currentCeremony={keysCeremony}
+                    currentCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}
                     electionEvent={electionEvent}
                     goBack={goBack}

@@ -1,6 +1,16 @@
 table:
   name: keys_ceremony
   schema: sequent_backend
+array_relationships:
+- name: keys_ceremony_trustee_ids
+  using:
+    manual_configuration:
+      column_mapping:
+        trustee_ids: id
+      insertion_order: null
+      remote_table:
+        name: trustee
+        schema: sequent_backend
 insert_permissions:
 - comment: ""
   permission:
