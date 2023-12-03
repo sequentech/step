@@ -22,7 +22,6 @@ interface KeyCeremonyWizardProps {
     setCurrentCeremony: (keyCeremony: Sequent_Backend_Keys_Ceremony) => void
 
     forceNew: boolean
-    showCancel: boolean
 }
 
 export const KeyCeremonyWizard: React.FC<KeyCeremonyWizardProps> = ({
@@ -30,7 +29,6 @@ export const KeyCeremonyWizard: React.FC<KeyCeremonyWizardProps> = ({
     keyCeremony,
     setCurrentCeremony,
     forceNew,
-    showCancel,
 }) => {
     const calculateCurrentStep: (forceNew: boolean) => number = (forceNew) => {
         if (forceNew || !keyCeremony) {

@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {
-    Box,
     CircularProgress,
     Typography,
 } from "@mui/material"
@@ -23,6 +22,9 @@ import {
     useGetOne,
     useNotify,
 } from "react-admin"
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
+import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
+import Button from "@mui/material/Button"
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import {styled} from "@mui/material/styles"
 import {useMutation} from "@apollo/client"
@@ -37,10 +39,19 @@ const Error = styled(Typography)`
 `
 
 const StyledToolbar = styled(Toolbar)`
-    flex-direction: row-reverse;
+    flex-direction: row;
+    justify-content: space-between;
 `
 
-const CreateButton = styled(SaveButton)``
+const BackButton = styled(Button)`
+    margin-right: auto;
+    background-color: ${({theme}) => theme.palette.grey[100]};
+    color:  ${({theme}) => theme.palette.brandColor};
+`
+const CreateButton = styled(SaveButton)`
+    margin-left: auto;
+    flex-direction: row-reverse;
+`
 
 export interface KeysGenerationStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
@@ -212,7 +223,14 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
             onSubmit={onSubmit}
             toolbar={
                 <StyledToolbar>
-                    <CreateButton label={t("keysGenerationStep.create")} />
+                    <BackButton color="info">
+                        <ArrowBackIosIcon />
+                        {t("common.label.back")}
+                    </BackButton>
+                    <CreateButton
+                        icon={<ArrowForwardIosIcon />}
+                        label={t("keysGenerationStep.create")}
+                    />
                 </StyledToolbar>
             }
         >

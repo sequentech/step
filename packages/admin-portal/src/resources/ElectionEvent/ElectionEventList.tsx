@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {useGetList} from "react-admin"
-import {useTranslation} from "react-i18next"
-import React, {ReactElement, useContext, useEffect} from "react"
+import React, {ReactElement, useEffect} from "react"
 
 import {useNavigate} from "react-router-dom"
-import {CircularProgress, Typography} from "@mui/material"
+import {CircularProgress} from "@mui/material"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 
 export interface ElectionEventListProps {
@@ -17,7 +16,6 @@ export interface ElectionEventListProps {
 export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => {
     const navigate = useNavigate()
     const [tenantId] = useTenantStore()
-    const {t} = useTranslation()
 
     const {data} = useGetList("sequent_backend_election_event", {
         sort: {field: "created_at", order: "DESC"},

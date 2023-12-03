@@ -5,10 +5,25 @@
 
 import { Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony } from "@/gql/graphql"
 import React, { useState } from "react"
-import { useGetList, useRecordContext } from "react-admin"
+import {
+    DatagridConfigurable,
+    List,
+    TextField,
+    ExportButton,
+    SelectColumnsButton,
+    TopToolbar,
+    useGetList,
+    useRecordContext,
+    Link,
+} from "react-admin"
+import {Button} from "@mui/material"
+import {IconButton} from "@sequentech/ui-essentials"
 import { KeyCeremonyWizard } from "@/components/key-ceremony/KeyCeremonyWizard"
+import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
 import { useTenantStore } from "@/providers/TenantContextProvider"
+import { Action, ActionsColumn } from "@/components/ActionButons"
 
+const OMIT_FIELDS: Array<string> = []
 
 export const EditElectionEventKeys: React.FC = () => {
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
@@ -29,15 +44,18 @@ export const EditElectionEventKeys: React.FC = () => {
     const [currentCeremony, setCurrentCeremony] = 
         useState<Sequent_Backend_Keys_Ceremony | null>(null)
 
+    const [showCeremony, setShowCeremony] = useState(false)
+
     const empty = (
-        <KeyCeremonyWizard
-            electionEvent={electionEvent}
-            keyCeremony={currentCeremony}
-            setCurrentCeremony={setCurrentCeremony}
-            forceNew={true}
-            showCancel={false}
-        />
+            <Button onClick={() => setShowCeremony(true)}>
+                <IconButton icon={faPlusCircle} fontSize="24px" />
+                Create new election event key ceremony
+            </Button>
     )
+
+    const actions: Action[] = [
+        // view, edit
+    ]
 
     if (!keyCeremonies || keyCeremonies.length == 0) {
         return empty
@@ -45,15 +63,32 @@ export const EditElectionEventKeys: React.FC = () => {
 
     return (
         <>
-            {currentCeremony
+            {showCeremony
                 ? <KeyCeremonyWizard
                     electionEvent={electionEvent}
                     keyCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}
                     forceNew={false}
-                    showCancel={true}
                 />
-                : <span>TODO: show list</span>
+                : <List
+                    resource="role"
+                    actions={
+                        <TopToolbar>
+                            <SelectColumnsButton />
+                            <ExportButton />
+                        </TopToolbar>
+                    }
+                    filter={{tenant_id: tenantId}}
+                >
+                    <DatagridConfigurable 
+                        omit={OMIT_FIELDS}
+                        bulkActionButtons={<></>}
+                    >
+                        <TextField source="name" />
+                        <TextField source="id" />
+                        <ActionsColumn actions={actions} />
+                    </DatagridConfigurable>
+                </List>
             }
         </>
     )
