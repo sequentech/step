@@ -9,6 +9,7 @@ use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
+use crate::hasura::trustee::get_trustees_by_name;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
@@ -156,6 +157,16 @@ pub async fn create_key_ceremony(
         vec![Permissions::ADMIN_CEREMONY],
     )?;
     let input = body.into_inner();
+
+    let trustees = get_trustees_by_name(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        body.trustee_names.clone(),
+    )
+    .await?
+    .data
+    .with_context(|| "can't find trustees")?
+    .sequent_backend_trustee;
 
     let key_ceremony_id: String = Uuid::new_v4().to_string();
     /* TODO:

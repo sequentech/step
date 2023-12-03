@@ -6,10 +6,8 @@ import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials
 import { Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony } from "@/gql/graphql"
 import {styled} from "@mui/material/styles"
 import { Box } from "@mui/material"
-import React, { useState, useMemo } from "react"
-import { Identifier, useGetList, useRecordContext } from "react-admin"
+import React, { useState } from "react"
 import { KeysGenerationStep } from "@/components/key-ceremony/KeysGenerationStep"
-import { useTenantStore } from "@/providers/TenantContextProvider"
 import { IKeyCeremonyStatusStatus } from "@/services/KeyCeremony"
 
 const StyledBox = styled(Box)`
@@ -21,7 +19,6 @@ interface KeyCeremonyWizardProps {
     keyCeremony: Sequent_Backend_Keys_Ceremony | null
     setCurrentCeremony: (keyCeremony: Sequent_Backend_Keys_Ceremony) => void
 
-    forceNew: boolean
     goBack: () => void
 }
 
@@ -30,10 +27,9 @@ export const KeyCeremonyWizard: React.FC<KeyCeremonyWizardProps> = ({
     keyCeremony,
     setCurrentCeremony,
     goBack,
-    forceNew,
 }) => {
-    const calculateCurrentStep: (forceNew: boolean) => number = (forceNew) => {
-        if (forceNew || !keyCeremony) {
+    const calculateCurrentStep: () => number = () => {
+        if (!keyCeremony) {
             return 0 // configure
         } else {
             if (keyCeremony.execution_status == IKeyCeremonyStatusStatus.NOT_STARTED) {
@@ -47,7 +43,7 @@ export const KeyCeremonyWizard: React.FC<KeyCeremonyWizardProps> = ({
     }
 
     const [currentStep, setCurrentStep] = useState<number>(
-        calculateCurrentStep(forceNew)
+        calculateCurrentStep()
     )
 
     return (

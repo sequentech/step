@@ -127,7 +127,6 @@ export const EditElectionEventKeys: React.FC = () => {
                     keyCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}
                     goBack={goBack}
-                    forceNew={false}
                 />
                 : <List
                     resource="keys_ceremony"

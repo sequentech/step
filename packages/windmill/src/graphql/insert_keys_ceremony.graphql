@@ -1,0 +1,33 @@
+mutation InsertKeysCeremony(
+  $id: uuid!,
+  $tenantId: uuid!,
+  $electionEventId: uuid!,
+  $trusteeIds: [uuid!],
+  $status: String,
+  $executionStatus: jsonb
+) {
+  insert_sequent_backend_keys_ceremony(
+    objects:
+    {
+      id: $id,
+      tenant_id: $tenantId,
+      election_event_id: $electionEventId,
+      trustee_ids: $trusteeIds,
+      status: $status,
+      execution_status: $executionStatus,
+    }
+  ) {
+    returning {
+      id
+      tenant_id
+      election_event_id
+      trusteeIds
+      status
+      executionStatus
+      labels
+      annotations
+      created_at
+      last_updated_at
+    }
+  }
+}

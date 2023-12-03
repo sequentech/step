@@ -132,14 +132,17 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
     }
 
     const createKeyCeremony:
-        (input: {threshold: number, trusteeList: string[]}) => Promise<string | null> =
-        async ({threshold, trusteeList}) =>
+        (input: {
+            threshold: number,
+            trusteeNames: string[]
+        }) => Promise<string | null> =
+        async ({threshold, trusteeNames}) =>
     {
         const {data, errors} = await createKeyCeremonyMutation({
             variables: {
                 electionEventId: electionEvent.id,
                 threshold: threshold,
-                trusteeNames: trusteeList,
+                trusteeNames: trusteeNames,
             },
         })
         if (errors) {
@@ -157,7 +160,7 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
 
     const onSubmit: SubmitHandler<FieldValues> = async ({
         threshold,
-        trusteeList,
+        trusteeNames,
 
     }) => {
         if (isLoading) {
@@ -167,7 +170,7 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
         setIsLoading(true)
         try {
             const keyCeremonyId = await createKeyCeremony({
-                threshold, trusteeList
+                threshold, trusteeNames
             })
             if (keyCeremonyId) {
                 setNewId(keyCeremonyId)
@@ -261,7 +264,7 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
                 <CheckboxGroupInput
                     validate={trusteeListValidator}
                     label={t("keysGenerationStep.trusteeList")}
-                    source="selectedTrustees"
+                    source="trusteeNames"
                     choices={trusteeList}
                     translateChoice={false}
                     optionText="name"
