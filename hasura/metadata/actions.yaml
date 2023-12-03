@@ -14,25 +14,9 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: admin-user
   - role: trustee-read
   comment: check private key
-- name: create_keys_ceremony
-  definition:
-    kind: synchronous
-    handler: http://harvest:8400/create-keys-ceremony
-    forward_client_headers: true
-    headers:
-    - name: X-Hasura-Admin-Secret
-      value_from_env: ACTIONS_ADMIN_SECRET
-    request_transform:
-      body:
-        action: transform
-        template: '{{$body.input.object}}'
-      template_engine: Kriti
-      version: 2
-  permissions:
-  - role: admin-ceremony
-  comment: create keys ceremony
 - name: createScheduledEvent
   definition:
     kind: synchronous
@@ -50,6 +34,24 @@ actions:
   permissions:
   - role: admin-user
   comment: create scheduled event
+- name: create_keys_ceremony
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/create-keys-ceremony
+    forward_client_headers: true
+    headers:
+    - name: X-Hasura-Admin-Secret
+      value_from_env: ACTIONS_ADMIN_SECRET
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.object}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  - role: admin-ceremony
+  comment: create keys ceremony
 - name: create_permission
   definition:
     kind: synchronous
@@ -218,6 +220,7 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: admin-user
   - role: trustee-read
   comment: get private key
 - name: get_roles
@@ -372,6 +375,7 @@ custom_types:
   - name: SampleInput
   - name: CreateElectionEventInput
   - name: GetUsersInput
+  - name: CreateKeysCeremonyInput
   - name: GetPrivateKeyInput
   - name: CheckPrivateKeyInput
   - name: GetPermissionsInput
@@ -384,6 +388,7 @@ custom_types:
   - name: CreatePermissionInput
   - name: KeycloakRole2
   objects:
+  - name: CreateKeysCeremonyOutput
   - name: GetPrivateKeyOutput
   - name: CheckPrivateKeyOutput
   - name: TemplateOutput

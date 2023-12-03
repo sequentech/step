@@ -16,6 +16,12 @@ type Mutation {
 }
 
 type Mutation {
+  create_keys_ceremony (
+    object: CreateKeysCeremonyInput!
+  ): CreateKeysCeremonyOutput
+}
+
+type Mutation {
   create_permission (
     body: CreatePermissionInput!
   ): KeycloakPermission
@@ -98,12 +104,6 @@ type Mutation {
   get_private_key (
     object: GetPrivateKeyInput!
   ): GetPrivateKeyOutput
-}
-
-type Mutation {
-  create_keys_ceremony (
-    object: CreateKeysCeremonyInput!
-  ): CreateKeysCeremonyOutput
 }
 
 type Query {
