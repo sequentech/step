@@ -454,6 +454,7 @@ const englishTranslation = {
                 cancel: "Cancel Keys Ceremony",
                 progressHeader: "Keys Ceremony Progress",
                 description: "This screen shows the progress and logs of the Election Event's Keys Ceremony. In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event.",
+                executionStatus: "Status: {{status}}",
                 confirmdDialog: {
                     ok: "Yes, Cancel Create Keys Ceremony",
                     cancel: "Go back to Keys Ceremony",
@@ -466,6 +467,12 @@ const englishTranslation = {
                     downloaded: "Private Key Fragment Downloaded",
                     checked: "Private Key Fragment Checked",
                 },
+                logsHeader: {
+                    title: "Logs",
+                    date: "Date",
+                    entry: "Entry",
+                },
+                emptyLogs: "No logs yet.",
             },
         }
     },

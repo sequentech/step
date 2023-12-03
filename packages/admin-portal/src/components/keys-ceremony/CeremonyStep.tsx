@@ -28,7 +28,7 @@ import DoneOutlineIcon from '@mui/icons-material/DoneOutline'
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 import Button from "@mui/material/Button"
 import {styled} from "@mui/material/styles"
-import {Accordion, AccordionDetails, AccordionSummary, Box, Typography} from "@mui/material"
+import {Accordion, AccordionDetails, AccordionSummary, Box, Chip, Typography} from "@mui/material"
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
@@ -39,6 +39,13 @@ import Paper from '@mui/material/Paper'
 
 const CancelButton = styled(Button)`
     margin-left: auto;
+    background-color: ${({theme}) => theme.palette.grey[100]};
+    color: ${({theme}) => theme.palette.errorColor};
+    border-color: ${({theme}) => theme.palette.errorColor};
+
+    &:hover {
+        background-color: ${({theme}) => theme.palette.errorColor};
+    }
 `
 
 const StyledToolbar = styled(Toolbar)`
@@ -61,6 +68,23 @@ const DoneIcon = styled(DoneOutlineIcon)`
     color: ${({theme}) => theme.palette.brandSuccess};
 `
 
+const AccordionTitle = styled(ElectionHeaderStyles.Title)`
+    margin-bottom: 0 !important;
+`
+
+const AccordionDetails2 = styled(AccordionDetails)`
+    padding-top: 0;
+    margin-top: -10px;
+`
+
+
+const CeremonyStatus = styled(Chip)`
+    margin-top: 6px;
+    margin-left: auto;
+    margin-right: 10px;
+    font-weight: bold;
+`
+
 export interface CeremonyStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
     electionEvent: Sequent_Backend_Election_Event
@@ -76,6 +100,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     const {t} = useTranslation()
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [progressExpanded, setProgressExpanded] = useState(true)
+    const [logsExpanded, setLogsExpanded] = useState(true)
 
     const confirmCancelCeremony = () => {}
     const cancellable = () => {
@@ -96,15 +121,20 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                     onChange={() => setProgressExpanded(!progressExpanded)}
                 >
                     <AccordionSummary
-                        expandIcon={<ExpandMoreIcon id="election-event-data-general" />}
+                        expandIcon={<ExpandMoreIcon />}
                     >
-                        <ElectionHeaderStyles.Wrapper>
-                            <ElectionHeaderStyles.Title>
-                                {t("keysGeneration.ceremonyStep.progressHeader")}
-                            </ElectionHeaderStyles.Title>
-                        </ElectionHeaderStyles.Wrapper>
+                        <AccordionTitle>
+                            {t("keysGeneration.ceremonyStep.progressHeader")}
+                        </AccordionTitle>
+                        <CeremonyStatus
+                            color="primary"
+                            label={t(
+                                "keysGeneration.ceremonyStep.executionStatus",
+                                {status: currentCeremony?.execution_status}
+                            )}
+                        />
                     </AccordionSummary>
-                    <AccordionDetails>
+                    <AccordionDetails2>
                         <Typography variant="body2">
                             {t("keysGeneration.ceremonyStep.description")}
                         </Typography>
@@ -165,7 +195,62 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                 </TableBody>
                             </Table>
                         </TableContainer>
-                    </AccordionDetails>
+                    </AccordionDetails2>
+                </Accordion>
+
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={logsExpanded}
+                    onChange={() => setLogsExpanded(!logsExpanded)}
+                >
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon />}
+                    >
+                        <AccordionTitle>
+                            {t("keysGeneration.ceremonyStep.logsHeader.title")}
+                        </AccordionTitle>
+                        
+                    </AccordionSummary>
+                    <AccordionDetails2>
+                        {status?.logs.length > 0
+                            ? <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+                                <TableContainer>
+                                    ? <Table sx={{ maxHeight: 450 }} aria-label="simple table">
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell>
+                                                    {t("keysGeneration.ceremonyStep.logsHeader.date")}
+                                                </TableCell>
+                                                <TableCell align="left">
+                                                    {t("keysGeneration.ceremonyStep.logsHeader.entry")}
+                                                </TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {status.logs.map((log) => (
+                                                <TableRow
+                                                    key={log?.created_date as any}
+                                                    sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                                                >
+                                                    <TableCell component="th" scope="row">
+                                                        {log?.created_date}
+                                                    </TableCell>
+                                                    <TableCell align="left">
+                                                        {log?.log_text}
+                                                    </TableCell>
+                                                </TableRow>
+                                            )) ?? null}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                            </Paper>
+                            : <Box>
+                                <Typography variant="body2">
+                                    {t("keysGeneration.ceremonyStep.emptyLogs")}
+                                </Typography>
+                            </Box>
+                        }
+                    </AccordionDetails2>
                 </Accordion>
             </StyledBox>
             <StyledToolbar>

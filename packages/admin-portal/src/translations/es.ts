@@ -456,6 +456,7 @@ const spanishTranslation: TranslationType = {
                 cancel: "Cancelar Ceremonia de Claves",
                 progressHeader: "Progreso de Ceremonia de Claves",
                 description: "Esta pantalla muestra el progreso y los registros de la Ceremonia de Claves del Evento Electoral. En la Ceremonia de Claves, cada autoridad generará y descargará su fragmento de la clave privada para el Evento Electoral.",
+                executionStatus: "Estado: {{status}}",
                 confirmdDialog: {
                     ok: "Sí, Cancelar Creación de Ceremonia de Claves",
                     cancel: "Volver a la Ceremonia de Claves",
@@ -468,6 +469,12 @@ const spanishTranslation: TranslationType = {
                     downloaded: "Fragmento Privado de Clave Descargado",
                     checked: "Fragmento Privado de Clave Comprobado",
                 },
+                logsHeader: {
+                    title: "Logs",
+                    date: "Fecha",
+                    entry: "Entrada",
+                },
+                emptyLogs: "Sin logs aún.",
             },
         },
     },
