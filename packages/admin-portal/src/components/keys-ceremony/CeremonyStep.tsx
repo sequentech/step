@@ -62,6 +62,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     electionEvent,
     goBack,
 }) => {
+    console.log(`ceremony step with currentCeremony.id=${currentCeremony?.id ?? null}`)
     const {t} = useTranslation()
 
     return (

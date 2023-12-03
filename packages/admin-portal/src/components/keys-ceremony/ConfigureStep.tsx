@@ -57,6 +57,7 @@ export interface ConfigureStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
     setCurrentCeremony: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
     electionEvent: Sequent_Backend_Election_Event
+    openCeremonyStep: () => void
     goBack: () => void
 }
 
@@ -64,6 +65,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     currentCeremony,
     setCurrentCeremony,
     electionEvent,
+    openCeremonyStep,
     goBack,
 }) => {
     const {t} = useTranslation()
@@ -117,9 +119,16 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
             refresh()
             return
         }
-        if (isLoading && !error && !isOneLoading && !currentCeremony && keysCeremony) {
+        if (
+            isLoading &&
+            !error &&
+            !isOneLoading &&
+            !currentCeremony &&
+            keysCeremony
+        ) {
             setIsLoading(false)
             setCurrentCeremony(keysCeremony)
+            openCeremonyStep()
             notify(
                 t("keysGeneration.configureStep.createCeremonySuccess"),
                 {type: "success"}
@@ -290,7 +299,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         choices={trusteeList}
                         translateChoice={false}
                         optionText="name"
-                        optionValue="id"
+                        optionValue="name"
                         row={false}
                     />
                 ) : null}

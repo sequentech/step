@@ -131,7 +131,7 @@ export const EditElectionEventKeys: React.FC = () => {
             {showCeremony
                 ? <Wizard
                     electionEvent={electionEvent}
-                    keysCeremony={currentCeremony}
+                    currentCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}
                     goBack={goBack}
                 />

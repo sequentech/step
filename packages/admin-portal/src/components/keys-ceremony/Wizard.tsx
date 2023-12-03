@@ -17,7 +17,7 @@ const StyledBox = styled(Box)`
 interface WizardProps {
     electionEvent: Sequent_Backend_Election_Event
 
-    keysCeremony: Sequent_Backend_Keys_Ceremony | null
+    currentCeremony: Sequent_Backend_Keys_Ceremony | null
     setCurrentCeremony: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
 
     goBack: () => void
@@ -25,7 +25,7 @@ interface WizardProps {
 
 export const Wizard: React.FC<WizardProps> = ({
     electionEvent,
-    keysCeremony,
+    currentCeremony: keysCeremony,
     setCurrentCeremony,
     goBack,
 }) => {
@@ -46,35 +46,37 @@ export const Wizard: React.FC<WizardProps> = ({
     const [currentStep, setCurrentStep] = useState<number>(
         calculateCurrentStep()
     )
+    const openCeremonyStep = () => { setCurrentStep(1) }
 
     return (
         <StyledBox>
-                    <BreadCrumbSteps
-                        labels={[
-                            "electionEventScreen.keys.breadCrumbs.configure",
-                            "electionEventScreen.keys.breadCrumbs.ceremony",
-                            "electionEventScreen.keys.breadCrumbs.created",
-                        ]}
-                        selected={currentStep}
-                        variant={BreadCrumbStepsVariant.Circle}
-                        colorPreviousSteps={true}
-                    />
-                    {currentStep == 0 &&
-                        <ConfigureStep
-                            currentCeremony={keysCeremony}
-                            setCurrentCeremony={setCurrentCeremony}
-                            electionEvent={electionEvent}
-                            goBack={goBack}
-                        />
-                    }
-                    {currentStep == 1 &&
-                        <CeremonyStep
-                            currentCeremony={keysCeremony}
-                            setCurrentCeremony={setCurrentCeremony}
-                            electionEvent={electionEvent}
-                            goBack={goBack}
-                        />
-                    }
-                </StyledBox>
+            <BreadCrumbSteps
+                labels={[
+                    "electionEventScreen.keys.breadCrumbs.configure",
+                    "electionEventScreen.keys.breadCrumbs.ceremony",
+                    "electionEventScreen.keys.breadCrumbs.created",
+                ]}
+                selected={currentStep}
+                variant={BreadCrumbStepsVariant.Circle}
+                colorPreviousSteps={true}
+            />
+            {currentStep == 0 &&
+                <ConfigureStep
+                    currentCeremony={keysCeremony}
+                    setCurrentCeremony={setCurrentCeremony}
+                    electionEvent={electionEvent}
+                    openCeremonyStep={openCeremonyStep}
+                    goBack={goBack}
+                />
+            }
+            {currentStep == 1 &&
+                <CeremonyStep
+                    currentCeremony={keysCeremony}
+                    setCurrentCeremony={setCurrentCeremony}
+                    electionEvent={electionEvent}
+                    goBack={goBack}
+                />
+            }
+        </StyledBox>
     )
 }
