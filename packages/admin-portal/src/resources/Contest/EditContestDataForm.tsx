@@ -8,7 +8,6 @@ import {
     useRecordContext,
     SimpleForm,
     useGetOne,
-    RecordContext,
     NumberInput,
     Toolbar,
     SaveButton,
@@ -17,6 +16,8 @@ import {
     useUpdate,
     useNotify,
     useRefresh,
+    RaRecord,
+    Identifier,
 } from "react-admin"
 import {
     Accordion,
@@ -31,6 +32,8 @@ import {
     GetUploadUrlMutation,
     Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
+    Sequent_Backend_Document,
+    Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
 import React, {useCallback, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -38,7 +41,7 @@ import styled from "@emotion/styled"
 
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
-import {DropFile, theme} from "@sequentech/ui-essentials"
+import {DropFile} from "@sequentech/ui-essentials"
 import {COUNTING_ALGORITHMS, ORDER_ANSWERS, VOTING_TYPES} from "./constants"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -62,14 +65,17 @@ export const ContestDataForm: React.FC = () => {
     const [candidate, setCandidate] = useState<any>(null)
     const [candidatesList, setCandidatesList] = useState<Sequent_Backend_Candidate[] | undefined>()
 
-    const {data} = useGetOne("sequent_backend_election_event", {
+    const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
         id: record.election_event_id,
     })
 
-    const {data: imageData, refetch: refetchImage} = useGetOne("sequent_backend_document", {
-        id: record.image_document_id,
-        meta: {tenant_id: record.tenant_id},
-    })
+    const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
+        "sequent_backend_document",
+        {
+            id: record.image_document_id || record.tenant_id,
+            meta: {tenant_id: record.tenant_id},
+        }
+    )
 
     const [updateImage] = useUpdate()
 
@@ -100,6 +106,18 @@ export const ContestDataForm: React.FC = () => {
         }
         return temp
     }
+
+    type Sequent_Backend_Contest_Extended = RaRecord<Identifier> & {
+        enabled_languages?: {[key: string]: boolean}
+        defaultLanguage?: string
+    }
+
+    const [parsedValue, setParsedValue] = useState<Sequent_Backend_Contest_Extended | undefined>()
+
+    useEffect(() => {
+        const parsedValue = parseValues(record)
+        setParsedValue(parsedValue)
+    }, [record])
 
     const parseValues = (incoming: any) => {
         const temp = {...incoming}
@@ -301,189 +319,158 @@ export const ContestDataForm: React.FC = () => {
     }
 
     return data ? (
-        <RecordContext.Consumer>
-            {(incoming) => {
-                const parsedValue = parseValues(incoming)
-                // console.log("parsedValue :>> ", parsedValue)
-                return (
-                    <SimpleForm
-                        validate={formValidator}
-                        record={parsedValue}
-                        toolbar={
-                            <Toolbar>
-                                <SaveButton />
-                            </Toolbar>
-                        }
-                    >
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expanded === "contest-data-general"}
-                            onChange={() => setExpanded("contest-data-general")}
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="contest-data-general" />}
-                            >
-                                <ContestStyles.Wrapper>
-                                    <ContestStyles.Title>
-                                        {t("contestScreen.edit.general")}
-                                    </ContestStyles.Title>
-                                </ContestStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <Tabs value={value} onChange={handleChange}>
-                                    {renderTabs(parsedValue)}
-                                </Tabs>
-                                {renderTabContent(parsedValue)}
-                            </AccordionDetails>
-                        </Accordion>
+        <SimpleForm
+            validate={formValidator}
+            record={parsedValue}
+            toolbar={
+                <Toolbar>
+                    <SaveButton />
+                </Toolbar>
+            }
+        >
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "contest-data-general"}
+                onChange={() => setExpanded("contest-data-general")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="contest-data-general" />}>
+                    <ContestStyles.Wrapper>
+                        <ContestStyles.Title>{t("contestScreen.edit.general")}</ContestStyles.Title>
+                    </ContestStyles.Wrapper>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <Tabs value={value} onChange={handleChange}>
+                        {renderTabs(parsedValue)}
+                    </Tabs>
+                    {renderTabContent(parsedValue)}
+                </AccordionDetails>
+            </Accordion>
 
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expanded === "contest-data-system"}
-                            onChange={() => setExpanded("contest-data-system")}
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="contest-data-system" />}
-                            >
-                                <ContestStyles.Wrapper>
-                                    <ContestStyles.Title>
-                                        {t("contestScreen.edit.system")}
-                                    </ContestStyles.Title>
-                                </ContestStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <SelectInput source="voting_type" choices={VOTING_TYPES(t)} />
-                                <SelectInput
-                                    source="counting_algorithm"
-                                    choices={COUNTING_ALGORITHMS(t)}
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "contest-data-system"}
+                onChange={() => setExpanded("contest-data-system")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="contest-data-system" />}>
+                    <ContestStyles.Wrapper>
+                        <ContestStyles.Title>{t("contestScreen.edit.system")}</ContestStyles.Title>
+                    </ContestStyles.Wrapper>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <SelectInput source="voting_type" choices={VOTING_TYPES(t)} />
+                    <SelectInput source="counting_algorithm" choices={COUNTING_ALGORITHMS(t)} />
+                </AccordionDetails>
+            </Accordion>
+
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "contest-data-design"}
+                onChange={() => setExpanded("contest-data-design")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="contest-data-design" />}>
+                    <ContestStyles.Wrapper>
+                        <ContestStyles.Title>{t("contestScreen.edit.design")}</ContestStyles.Title>
+                    </ContestStyles.Wrapper>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <BooleanInput source="is_acclaimed" />
+                    <NumberInput source="min_votes" min={0} />
+                    <NumberInput source="max_votes" min={0} />
+                    <NumberInput source="winning_candidates_num" min={0} />
+                    <SelectInput source="order_answers" choices={ORDER_ANSWERS(t)} />
+                    <FormDataConsumer>
+                        {({formData, ...rest}) => {
+                            return formData?.order_answers === "custom" ? (
+                                <CandidateRows>
+                                    <Typography
+                                        variant="body1"
+                                        component="span"
+                                        sx={{
+                                            padding: "0.5rem 1rem",
+                                            fontWeight: "bold",
+                                            margin: 0,
+                                            display: {xs: "none", sm: "block"},
+                                        }}
+                                    >
+                                        {t("contestScreen.edit.reorder")}
+                                    </Typography>
+                                    <DndProvider backend={HTML5Backend}>
+                                        {candidatesList?.map((candidate: any, index: number) => {
+                                            return (
+                                                <CandidateRowItem
+                                                    key={candidate.id}
+                                                    index={index}
+                                                    id={candidate.id}
+                                                    candidate={candidate}
+                                                    moveCard={moveCard}
+                                                />
+                                            )
+                                        })}
+                                    </DndProvider>
+                                </CandidateRows>
+                            ) : null
+                        }}
+                    </FormDataConsumer>
+                </AccordionDetails>
+            </Accordion>
+
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "election-data-image"}
+                onChange={() => setExpanded("election-data-image")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-data-image" />}>
+                    <CandidateStyles.Wrapper>
+                        <CandidateStyles.Title>
+                            {t("electionScreen.edit.image")}
+                        </CandidateStyles.Title>
+                    </CandidateStyles.Wrapper>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <Grid container spacing={1}>
+                        <Grid item xs={2}>
+                            {parsedValue?.image_document_id &&
+                            parsedValue?.image_document_id !== "" ? (
+                                <img
+                                    width={200}
+                                    height={200}
+                                    src={`http://localhost:9000/public/tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                    alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
                                 />
-                            </AccordionDetails>
-                        </Accordion>
+                            ) : null}
+                        </Grid>
+                        <Grid item xs={10}>
+                            <DropFile handleFiles={async (files) => handleFiles(files)} />
+                        </Grid>
+                    </Grid>
+                </AccordionDetails>
+            </Accordion>
 
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expanded === "contest-data-design"}
-                            onChange={() => setExpanded("contest-data-design")}
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="contest-data-design" />}
-                            >
-                                <ContestStyles.Wrapper>
-                                    <ContestStyles.Title>
-                                        {t("contestScreen.edit.design")}
-                                    </ContestStyles.Title>
-                                </ContestStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <BooleanInput source="is_acclaimed" />
-                                <NumberInput source="min_votes" min={0} />
-                                <NumberInput source="max_votes" min={0} />
-                                <NumberInput source="winning_candidates_num" min={0} />
-                                <SelectInput source="order_answers" choices={ORDER_ANSWERS(t)} />
-                                <FormDataConsumer>
-                                    {({formData, ...rest}) => {
-                                        return formData?.order_answers === "custom" ? (
-                                            <CandidateRows>
-                                                <Typography
-                                                    variant="body1"
-                                                    component="span"
-                                                    sx={{
-                                                        padding: "0.5rem 1rem",
-                                                        fontWeight: "bold",
-                                                        margin: 0,
-                                                        display: {xs: "none", sm: "block"},
-                                                    }}
-                                                >
-                                                    {t("contestScreen.edit.reorder")}
-                                                </Typography>
-                                                <DndProvider backend={HTML5Backend}>
-                                                    {candidatesList?.map(
-                                                        (candidate: any, index: number) => {
-                                                            return (
-                                                                <CandidateRowItem
-                                                                    key={candidate.id}
-                                                                    index={index}
-                                                                    id={candidate.id}
-                                                                    candidate={candidate}
-                                                                    moveCard={moveCard}
-                                                                />
-                                                            )
-                                                        }
-                                                    )}
-                                                </DndProvider>
-                                            </CandidateRows>
-                                        ) : null
-                                    }}
-                                </FormDataConsumer>
-                            </AccordionDetails>
-                        </Accordion>
-
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expanded === "election-data-image"}
-                            onChange={() => setExpanded("election-data-image")}
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="election-data-image" />}
-                            >
-                                <CandidateStyles.Wrapper>
-                                    <CandidateStyles.Title>
-                                        {t("electionScreen.edit.image")}
-                                    </CandidateStyles.Title>
-                                </CandidateStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <Grid container spacing={1}>
-                                    <Grid item xs={2}>
-                                        {parsedValue.image_document_id &&
-                                        parsedValue.image_document_id !== "" ? (
-                                            <img
-                                                width={200}
-                                                height={200}
-                                                src={`http://localhost:9000/public/tenant-${parsedValue.tenant_id}/document-${parsedValue.image_document_id}/${imageData?.name}`}
-                                                alt={`tenant-${parsedValue.tenant_id}/document-${parsedValue.image_document_id}/${imageData?.name}`}
-                                            />
-                                        ) : null}
-                                    </Grid>
-                                    <Grid item xs={10}>
-                                        <DropFile
-                                            handleFiles={async (files) => handleFiles(files)}
-                                        />
-                                    </Grid>
-                                </Grid>
-                            </AccordionDetails>
-                        </Accordion>
-
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expanded === "election-data-advanced"}
-                            onChange={() => setExpanded("election-data-advanced")}
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="election-data-advanced" />}
-                            >
-                                <ContestStyles.Wrapper>
-                                    <ContestStyles.Title>
-                                        {t("electionScreen.edit.advanced")}
-                                    </ContestStyles.Title>
-                                </ContestStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <FileJsonInput
-                                    parsedValue={parsedValue}
-                                    fileSource="configuration"
-                                    jsonSource="presentation"
-                                />
-                            </AccordionDetails>
-                        </Accordion>
-                    </SimpleForm>
-                )
-            }}
-        </RecordContext.Consumer>
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "election-data-advanced"}
+                onChange={() => setExpanded("election-data-advanced")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-data-advanced" />}>
+                    <ContestStyles.Wrapper>
+                        <ContestStyles.Title>
+                            {t("electionScreen.edit.advanced")}
+                        </ContestStyles.Title>
+                    </ContestStyles.Wrapper>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <FileJsonInput
+                        parsedValue={parsedValue}
+                        fileSource="configuration"
+                        jsonSource="presentation"
+                    />
+                </AccordionDetails>
+            </Accordion>
+        </SimpleForm>
     ) : null
 }
-function getUploadUrl(arg0: {
-    variables: {name: string; media_type: string; size: number}
-}): {data: any; errors: any} | PromiseLike<{data: any; errors: any}> {
-    throw new Error("Function not implemented.")
-}
+// function getUploadUrl(arg0: {
+//     variables: {name: string; media_type: string; size: number}
+// }): {data: any; errors: any} | PromiseLike<{data: any; errors: any}> {
+//     throw new Error("Function not implemented.")
+// }
