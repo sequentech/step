@@ -185,12 +185,14 @@ pub async fn create_keys_ceremony(
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
     .sequent_backend_trustee;
 
+    // obtain trustee ids list
     let trustee_ids = trustees
         .clone()
         .into_iter()
         .map(|trustee| trustee.id)
         .collect();
 
+    // generate default values
     let keys_ceremony_id: String = Uuid::new_v4().to_string();
     let status: String = StatusStatus::NOT_STARTED.to_string();
     let execution_status: Value = serde_json::to_value(ExecutionStatus {
@@ -209,6 +211,7 @@ pub async fn create_keys_ceremony(
     })
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     
+    // insert keys-ceremony into the database using graphql
     insert_keys_ceremony(
         auth_headers.clone(),
         keys_ceremony_id.clone(),
@@ -217,7 +220,6 @@ pub async fn create_keys_ceremony(
         trustee_ids,
         /*status*/ Some(status),
         /*execution_status*/ None,
-    
     )
         .await
         .with_context(|| "couldn't insert keys ceremony")
