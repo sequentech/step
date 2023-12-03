@@ -34,7 +34,7 @@ FROM debian:bullseye as prod
 RUN apt-get update && apt-get install -y libssl1.1 && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binary from the builder stage
-COPY --from=builder /app/windmill/target/release/main /usr/local/bin/main
+COPY --from=windmill-builder /app/windmill/target/release/main /usr/local/bin/main
 
 WORKDIR /usr/local/bin
 CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat"]
