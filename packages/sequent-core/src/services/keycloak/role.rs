@@ -7,6 +7,7 @@ use anyhow::{anyhow, Result};
 use keycloak::types::GroupRepresentation;
 use std::convert::From;
 use tracing::{event, instrument, Level};
+use uuid::Uuid;
 
 impl From<GroupRepresentation> for Role {
     fn from(item: GroupRepresentation) -> Self {
@@ -138,15 +139,18 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self))]
     pub async fn create_role(self, realm: &str, role: &Role) -> Result<Role> {
-        let role_id = role.id.clone().unwrap();
+        let mut new_role = role.clone();
+        let role_id = new_role.id.clone().unwrap_or(Uuid::new_v4().to_string());
+        new_role.id = Some(role_id.clone());
         self.client
-            .realm_groups_with_id_put(realm, &role_id, role.clone().into())
+            .realm_groups_post(realm, new_role.clone().into())
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
-        let group_representation = self.client
-                .realm_groups_with_id_get(realm, &role_id)
-                .await
-                .map_err(|err| anyhow!("{:?}", err))?;
+        let group_representation = self
+            .client
+            .realm_groups_with_id_get(realm, &role_id)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
         Ok(group_representation.into())
     }
 }
