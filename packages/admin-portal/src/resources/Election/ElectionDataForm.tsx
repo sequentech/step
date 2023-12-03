@@ -51,6 +51,10 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 const Hidden = styled(Box)`
     display: none;
 `
+export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
+    enabled_languages?: {[key: string]: boolean}
+    defaultLanguage?: string
+}
 
 export const ElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -69,12 +73,9 @@ export const ElectionDataForm: React.FC = () => {
         id: record.election_event_id,
     })
 
-    const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>(
-        "sequent_backend_tenant",
-        {
-            id: record.tenant_id || tenantId,
-        }
-    )
+    const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>("sequent_backend_tenant", {
+        id: record.tenant_id || tenantId,
+    })
 
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
@@ -99,11 +100,6 @@ export const ElectionDataForm: React.FC = () => {
         }
 
         return temp
-    }
-
-    type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
-        enabled_languages?: {[key: string]: boolean}
-        defaultLanguage?: string
     }
 
     const [parsedValue, setParsedValue] = useState<Sequent_Backend_Election_Extended | undefined>()

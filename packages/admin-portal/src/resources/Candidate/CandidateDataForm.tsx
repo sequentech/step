@@ -33,6 +33,11 @@ import {CandidateStyles} from "../../components/styles/CandidateStyles"
 import {CANDIDATE_TYPES} from "./constants"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 
+export type Sequent_Backend_Candidate_Extended = RaRecord<Identifier> & {
+    enabled_languages?: {[key: string]: boolean}
+    defaultLanguage?: string
+}
+
 export const CandidateDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Candidate>()
 
@@ -68,11 +73,6 @@ export const CandidateDataForm: React.FC = () => {
             temp.push(enabled_item)
         }
         return temp
-    }
-
-    type Sequent_Backend_Candidate_Extended = RaRecord<Identifier> & {
-        enabled_languages?: {[key: string]: boolean}
-        defaultLanguage?: string
     }
 
     const [parsedValue, setParsedValue] = useState<Sequent_Backend_Candidate_Extended | undefined>()

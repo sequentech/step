@@ -52,6 +52,11 @@ import {useMutation} from "@apollo/client"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
 import {CandidateStyles} from "@/components/styles/CandidateStyles"
 
+export type Sequent_Backend_Contest_Extended = RaRecord<Identifier> & {
+    enabled_languages?: {[key: string]: boolean}
+    defaultLanguage?: string
+}
+
 export const ContestDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Contest>()
 
@@ -105,11 +110,6 @@ export const ContestDataForm: React.FC = () => {
             temp.push(enabled_item)
         }
         return temp
-    }
-
-    type Sequent_Backend_Contest_Extended = RaRecord<Identifier> & {
-        enabled_languages?: {[key: string]: boolean}
-        defaultLanguage?: string
     }
 
     const [parsedValue, setParsedValue] = useState<Sequent_Backend_Contest_Extended | undefined>()
