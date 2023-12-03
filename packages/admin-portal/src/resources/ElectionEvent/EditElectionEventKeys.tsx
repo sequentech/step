@@ -25,6 +25,9 @@ import { faPlus } from "@fortawesome/free-solid-svg-icons"
 import { useTenantStore } from "@/providers/TenantContextProvider"
 import { Action, ActionsColumn } from "@/components/ActionButons"
 import { useTranslation } from "react-i18next"
+import {useContext} from "react"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -34,6 +37,26 @@ const EmptyBox = styled(Box)`
     text-align: center;
 `
 
+export function useActionPermissions() {
+    const [tenantId] = useTenantStore()
+    const authContext = useContext(AuthContext)
+
+    const canAdminCeremony = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.ADMIN_CEREMONY
+    )
+    const canReadTrustee = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.TRUSTEE_READ
+    )
+
+    return {
+        canAdminCeremony,
+        canReadTrustee,
+    }
+}
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -58,19 +81,26 @@ export const EditElectionEventKeys: React.FC = () => {
         useState<Sequent_Backend_Keys_Ceremony | null>(null)
 
     const [showCeremony, setShowCeremony] = useState(false)
+    const {canAdminCeremony, canReadTrustee} = useActionPermissions()
+
+    const CreateButton = () => (
+        <Button onClick={() => setShowCeremony(true)}>
+            <IconButton icon={faPlus} fontSize="24px" />
+            {t("electionEventScreen.keys.createNew")}
+        </Button>
+    )
 
     const Empty = () => (
         <EmptyBox m={1}>
             <Typography variant="h4" paragraph>
                 {t("electionEventScreen.keys.emptyHeader")}
             </Typography>
-            <Typography variant="body1" paragraph>
-            {t("electionEventScreen.keys.emptyBody")}
-            </Typography>
-            <Button onClick={() => setShowCeremony(true)}>
-                <IconButton icon={faPlus} fontSize="24px" />
-                {t("electionEventScreen.keys.createNew")}
-            </Button>
+            {canAdminCeremony ? <>
+                <Typography variant="body1" paragraph>
+                {t("electionEventScreen.keys.emptyBody")}
+                </Typography>
+                <CreateButton />
+            </> : null}
         </EmptyBox>
     )
 
@@ -79,9 +109,11 @@ export const EditElectionEventKeys: React.FC = () => {
         setCurrentCeremony(null)
     }
 
-    const actions: Action[] = [
-        // access
-    ]
+    const actions: Action[] = (canAdminCeremony)
+        ? [
+            // access
+        ]
+        : []
 
     if (!showCeremony) {
         return <Empty />
@@ -101,8 +133,7 @@ export const EditElectionEventKeys: React.FC = () => {
                     resource="keys_ceremony"
                     actions={
                         <TopToolbar>
-                            <SelectColumnsButton />
-                            <ExportButton />
+                            { canAdminCeremony ? <CreateButton /> : null }
                         </TopToolbar>
                     }
                     filter={{tenant_id: tenantId}}
