@@ -8,6 +8,7 @@ import {styled} from "@mui/material/styles"
 import { Box } from "@mui/material"
 import React, { useState } from "react"
 import { ConfigureStep } from "@/components/keys-ceremony/ConfigureStep"
+import { CeremonyStep } from "@/components/keys-ceremony/CeremonyStep"
 import { IKeysCeremonyExecutionStatus } from "@/services/KeyCeremony"
 
 const StyledBox = styled(Box)`
@@ -33,7 +34,7 @@ export const Wizard: React.FC<WizardProps> = ({
             return 0 // configure
         } else {
             if (keysCeremony.execution_status == IKeysCeremonyExecutionStatus.NOT_STARTED) {
-                return 0 // configure
+                return 1 // ceremony
             } else if (keysCeremony.execution_status == IKeysCeremonyExecutionStatus.IN_PROCESS) {
                 return 1 // ceremony
             } else {
@@ -60,6 +61,14 @@ export const Wizard: React.FC<WizardProps> = ({
                     />
                     {currentStep == 0 &&
                         <ConfigureStep
+                            currentCeremony={keysCeremony}
+                            setCurrentCeremony={setCurrentCeremony}
+                            electionEvent={electionEvent}
+                            goBack={goBack}
+                        />
+                    }
+                    {currentStep == 1 &&
+                        <CeremonyStep
                             currentCeremony={keysCeremony}
                             setCurrentCeremony={setCurrentCeremony}
                             electionEvent={electionEvent}

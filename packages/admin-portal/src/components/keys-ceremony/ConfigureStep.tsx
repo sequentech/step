@@ -61,7 +61,7 @@ export interface ConfigureStepProps {
 }
 
 export const ConfigureStep: React.FC<ConfigureStepProps> = ({
-    currentCeremony: currentCeremony,
+    currentCeremony,
     setCurrentCeremony,
     electionEvent,
     goBack,
