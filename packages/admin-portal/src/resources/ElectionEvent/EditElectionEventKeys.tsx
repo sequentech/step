@@ -115,6 +115,7 @@ export const EditElectionEventKeys: React.FC = () => {
         const ceremony: Sequent_Backend_Keys_Ceremony | undefined = 
             keyCeremonies?.find((element) => element.id === id)
         if (!ceremony) {
+            return
         } else {
             setCurrentCeremony(ceremony)
             setShowCeremony(true)
