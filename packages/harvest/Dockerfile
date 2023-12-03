@@ -3,8 +3,6 @@ ARG ENVIRONMENT=dev
 FROM rust:1.70.0 as harvest-builder
 
 ARG ENVIRONMENT=${ENVIRONMENT}
-ENV ROCKET_ADDRESS=0.0.0.0
-ENV ROCKET_PORT=8400
 
 WORKDIR /app
 
@@ -62,3 +60,5 @@ CMD ["harvest"]
 
 # Final stage based on the environment
 FROM ${ENVIRONMENT} as final
+ENV ROCKET_ADDRESS=0.0.0.0
+ENV ROCKET_PORT=8400

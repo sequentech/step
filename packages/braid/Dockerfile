@@ -1,4 +1,10 @@
-FROM rust:1.72.0
+ARG ENVIRONMENT=dev
+
+FROM rust:1.72.0 as braid-builder
+
+ARG ENVIRONMENT=${ENVIRONMENT}
+RUN apt-get update && apt-get install -y protobuf-compiler libprotobuf-dev
+RUN rustup default nightly
 
 # copy projects
 WORKDIR /app
@@ -11,13 +17,12 @@ COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
 COPY ./wrap-map-err ./wrap-map-err
 
-RUN apt-get update && apt-get install -y protobuf-compiler libprotobuf-dev
-RUN rustup default nightly
 
 # build projects
 WORKDIR /app/immu-board
 RUN cargo build --release
 RUN cp /app/target/release/bb_helper /usr/bin
+
 WORKDIR /app/braid
 RUN cargo build --release
 RUN cp /app/target/release/main /usr/bin/trustee
