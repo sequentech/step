@@ -9,7 +9,6 @@ import {
     useRecordContext,
     SimpleForm,
     useGetOne,
-    RecordContext,
     RadioButtonGroupInput,
     Toolbar,
     SaveButton,
@@ -73,7 +72,7 @@ export const ElectionDataForm: React.FC = () => {
     const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>(
         "sequent_backend_tenant",
         {
-            id: record.tenant_id,
+            id: record.tenant_id || tenantId,
         }
     )
 

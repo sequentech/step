@@ -12,6 +12,11 @@ import {
     Identifier,
     useDelete,
     WrapperField,
+    FunctionField,
+    useGetOne,
+    ListBase,
+    useList,
+    ListContextProvider,
 } from "react-admin"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {ListActions} from "../../components/ListActions"
@@ -23,6 +28,14 @@ import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {useParams} from "react-router"
 import {EditUser} from "./EditUser"
+import {
+    GetUsersOutput,
+    Sequent_Backend_Area,
+    Sequent_Backend_Trustee_Insert_Input,
+} from "@/gql/graphql"
+import {IUser} from "sequent-core"
+import {useQuery} from "@apollo/client"
+import {getUsers} from "@/queries/GetUsers"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -50,11 +63,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [closeDrawer, setCloseDrawer] = React.useState("")
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
-
-    const handleCloseCreateDrawer = () => {
-        setRecordId(undefined)
-        setCloseDrawer(new Date().toISOString())
-    }
+    const [users, setUsers] = React.useState<any>([])
 
     const handleCloseEditDrawer = () => {
         setOpen(false)
@@ -103,12 +112,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                         // Component={<CreateArea record={record} close={handleCloseCreateDrawer} />}
                     />
                 }
-                // actions={
-                //     <TopToolbar>
-                //         <SelectColumnsButton />
-                //         <ExportButton />
-                //     </TopToolbar>
-                // }
                 filter={{tenant_id: tenantId, election_event_id: electionEventId}}
                 aside={aside}
                 filters={Filters}
@@ -121,6 +124,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     <TextField source="first_name" />
                     <TextField source="last_name" />
                     <TextField source="username" />
+                    <FunctionField
+                        label={t("usersAndRolesScreen.users.fields.area")}
+                        render={(record: IUser) => record?.attributes?.["area-id"][0]}
+                    />
 
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />

@@ -82,7 +82,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
             */
         console.log("onSubmit :>> ", user)
         try {
-            let {data, errors} = await edit_user({
+            let {data} = await edit_user({
                 variables: {
                     body: {
                         user_id: user?.id,
@@ -97,6 +97,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
                 },
             })
             notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
+            refresh()
             close?.()
         } catch (error) {
             notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
