@@ -454,6 +454,8 @@ const spanishTranslation: TranslationType = {
             },
             ceremonyStep: {
                 cancel: "Cancelar Ceremonia de Claves",
+                progressHeader: "Progreso de Ceremonia de Claves",
+                description: "This screen shows the progress and logs of the Election Event's Keys Ceremony. In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event.",
                 confirmdDialog: {
                     ok: "Sí, Cancelar Creación de Ceremonia de Claves",
                     cancel: "Volver a la Ceremonia de Claves",
@@ -462,9 +464,9 @@ const spanishTranslation: TranslationType = {
                 },
                 header: {
                     trusteeName: "Nombre de Autoridad",
-                    fragment: "Clave Generada",
-                    downloaded: "Clave Descargada",
-                    checked: "Clave Comprobada",
+                    fragment: "Fragmento de Clave Generado",
+                    downloaded: "Fragmento Privado de Clave Descargado",
+                    checked: "Fragmento Privado de Clave Comprobado",
                 },
             },
         },

@@ -436,7 +436,7 @@ const englishTranslation = {
             configureStep: {
                 create: "Create Keys Ceremony",
                 title: "Create Election Event Keys Ceremony",
-                subtitle: "In the Keys Ceremony each trustee will generate and download their part of the private keys for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
+                subtitle: "In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
                 threshold: "Threshold",
                 trusteeList: "Trustees",
                 errorMinTrustees: "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
@@ -452,6 +452,8 @@ const englishTranslation = {
             },
             ceremonyStep: {
                 cancel: "Cancel Keys Ceremony",
+                progressHeader: "Keys Ceremony Progress",
+                description: "This screen shows the progress and logs of the Election Event's Keys Ceremony. In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event.",
                 confirmdDialog: {
                     ok: "Yes, Cancel Create Keys Ceremony",
                     cancel: "Go back to Keys Ceremony",
@@ -460,9 +462,9 @@ const englishTranslation = {
                 },
                 header: {
                     trusteeName: "Trustee Name",
-                    fragment: "Key Generated",
-                    downloaded: "Key Downloaded",
-                    checked: "Key Checked",
+                    fragment: "Key Fragment Generated",
+                    downloaded: "Private Key Fragment Downloaded",
+                    checked: "Private Key Fragment Checked",
                 },
             },
         }

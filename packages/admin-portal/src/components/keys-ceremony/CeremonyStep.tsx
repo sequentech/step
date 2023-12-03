@@ -18,14 +18,17 @@ import {
     IKeysCeremonyTrusteeStatus as TStatus,
     IExecutionStatus
 } from "@/services/KeyCeremony"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 
+
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import CloseIcon from "@mui/icons-material/Close"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
-import CheckIcon from '@mui/icons-material/Check'
+import DoneOutlineIcon from '@mui/icons-material/DoneOutline'
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty'
 import Button from "@mui/material/Button"
 import {styled} from "@mui/material/styles"
-import {Box} from "@mui/material"
+import {Accordion, AccordionDetails, AccordionSummary, Box, Typography} from "@mui/material"
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
@@ -54,7 +57,7 @@ const StyledBox = styled(Box)`
     margin-bottom: 30px;
 `
 
-const DoneIcon = styled(CheckIcon)`
+const DoneIcon = styled(DoneOutlineIcon)`
     color: ${({theme}) => theme.palette.brandSuccess};
 `
 
@@ -72,6 +75,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     console.log(`ceremony step with currentCeremony.id=${currentCeremony?.id ?? null}`)
     const {t} = useTranslation()
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
+    const [progressExpanded, setProgressExpanded] = useState(true)
 
     const confirmCancelCeremony = () => {}
     const cancellable = () => {
@@ -85,63 +89,84 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     return (
         <>
             <StyledBox>
-                <TableContainer component={Paper}>
-                    <Table sx={{ minWidth: 650 }} aria-label="simple table">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>
-                                    {t("keysGeneration.ceremonyStep.header.trusteeName")}
-                                </TableCell>
-                                <TableCell align="center">
-                                    {t("keysGeneration.ceremonyStep.header.fragment")}
-                                </TableCell>
-                                <TableCell align="center">
-                                    {t("keysGeneration.ceremonyStep.header.downloaded")}
-                                </TableCell>
-                                <TableCell align="center">
-                                    {t("keysGeneration.ceremonyStep.header.checked")}
-                                </TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {status.trustees.map((trustee) => (
-                                <TableRow
-                                    key={trustee.name as any}
-                                    sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-                                >
-                                    <TableCell component="th" scope="row">
-                                        {trustee.name}
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        {trustee.status != TStatus.WAITING
-                                            ? <HourglassEmptyIcon />
-                                            : <DoneIcon />
-                                        }
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        {(
-                                            trustee.status == TStatus.WAITING ||
-                                            trustee.status == TStatus.KEY_GENERATED
-                                        )
-                                            ? <HourglassEmptyIcon />
-                                            : <DoneIcon />
-                                        }
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        {(
-                                            trustee.status == TStatus.WAITING ||
-                                            trustee.status == TStatus.KEY_GENERATED ||
-                                            trustee.status == TStatus.KEY_RETRIEVED
-                                        )
-                                            ? <HourglassEmptyIcon />
-                                            : <DoneIcon />
-                                        }
-                                    </TableCell>
-                                </TableRow>
-                            )) ?? null}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={progressExpanded}
+                    onChange={() => setProgressExpanded(!progressExpanded)}
+                >
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon id="election-event-data-general" />}
+                    >
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("keysGeneration.ceremonyStep.progressHeader")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <Typography variant="body2">
+                            {t("keysGeneration.ceremonyStep.description")}
+                        </Typography>
+                        <TableContainer component={Paper}>
+                            <Table sx={{ minWidth: 650 }} aria-label="simple table">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>
+                                            {t("keysGeneration.ceremonyStep.header.trusteeName")}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            {t("keysGeneration.ceremonyStep.header.fragment")}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            {t("keysGeneration.ceremonyStep.header.downloaded")}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            {t("keysGeneration.ceremonyStep.header.checked")}
+                                        </TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {status.trustees.map((trustee) => (
+                                        <TableRow
+                                            key={trustee.name as any}
+                                            sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                                        >
+                                            <TableCell component="th" scope="row">
+                                                {trustee.name}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                {trustee.status != TStatus.WAITING
+                                                    ? <HourglassEmptyIcon />
+                                                    : <DoneIcon />
+                                                }
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                {(
+                                                    trustee.status == TStatus.WAITING ||
+                                                    trustee.status == TStatus.KEY_GENERATED
+                                                )
+                                                    ? <HourglassEmptyIcon />
+                                                    : <DoneIcon />
+                                                }
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                {(
+                                                    trustee.status == TStatus.WAITING ||
+                                                    trustee.status == TStatus.KEY_GENERATED ||
+                                                    trustee.status == TStatus.KEY_RETRIEVED
+                                                )
+                                                    ? <HourglassEmptyIcon />
+                                                    : <DoneIcon />
+                                                }
+                                            </TableCell>
+                                        </TableRow>
+                                    )) ?? null}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    </AccordionDetails>
+                </Accordion>
             </StyledBox>
             <StyledToolbar>
                 <BackButton
