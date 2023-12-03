@@ -3,13 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::Result;
+use anyhow::{Result, Context};
 use rocket::http::Status;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
+use sequent_core::services::keycloak;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
-use crate::hasura::trustee::get_trustees_by_name;
+use windmill::hasura::trustee::get_trustees_by_name;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
@@ -157,15 +158,21 @@ pub async fn create_keys_ceremony(
         vec![Permissions::ADMIN_CEREMONY],
     )?;
     let input = body.into_inner();
+    let auth_headers = keycloak::get_client_credentials()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
 
     let trustees = get_trustees_by_name(
         auth_headers.clone(),
         tenant_id.clone(),
-        body.trustee_names.clone(),
+        input.trustee_names.clone(),
     )
-    .await?
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
     .data
-    .with_context(|| "can't find trustees")?
+    .with_context(|| "can't find trustees")
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
     .sequent_backend_trustee;
 
     let keys_ceremony_id: String = Uuid::new_v4().to_string();
