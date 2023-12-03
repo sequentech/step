@@ -131,6 +131,29 @@ const englishTranslation = {
             createAreaError: "Could not create Area",
             sequent_backend_area_contest: "Contests",
         },
+        electionTypeScreen: {
+            common: {
+                title: 'Election Type',
+                subtitle: 'Election type configuration',
+                onlineVoting: 'Online Voting',
+                kioskVoting: 'Kiosk Voting',
+                settingTitle: 'Settings',
+                settingSubtitle: 'General Configuration'
+
+            },
+            create: {
+                title: 'Create Election Type'
+            },
+            edit: {
+                title: 'Edit Election Type'
+            },
+            tabs: {
+                votingChannels: 'VOTING CHANELS',
+                electionTypes: 'ELECTION TYPES',
+                communications: 'COMMUNICATION',
+                languages: 'LANGUAGES'
+            }
+        },
         dashboard: {
             voteByDay: "Vote by day",
             voteByChannels: "Vote by channels",

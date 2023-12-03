@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import { TranslationType } from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
@@ -132,6 +132,28 @@ const spanishTranslation: TranslationType = {
             createAreaSuccess: "Área creadas",
             createAreaError: "Error creando área",
             sequent_backend_area_contest: "Area de Contiendas",
+        },
+        electionTypeScreen: {
+            common: {
+                title: 'Tipo de Elección',
+                subtitle: 'Configuración del Tipo de Elección',
+                onlineVoting: 'Votación en Línea',
+                kioskVoting: 'Votación en Quiosco',
+                settingTitle: 'Configuración',
+                settingSubtitle: 'Ajustes generales'
+            },
+            create: {
+                title: 'Crear Tipo de Elección'
+            },
+            edit: {
+                title: 'Editar Tipo de Elección'
+            },
+            tabs: {
+                votingChannels: 'CANALES DE VOTACIÓN',
+                electionTypes: 'TIPOS DE ELECCIÓN',
+                communications: 'COMUNICACIÓN',
+                languages: 'IDIOMAS'
+            }
         },
         dashboard: {
             voteByDay: "Voto por día",
