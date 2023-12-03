@@ -45,6 +45,7 @@ CMD ["cargo", "run"]
 # Second stage for production environment
 FROM debian:bullseye as prod
 
+# Some shared libraries (extra-runtime-dependencies) may need to be installed:
 RUN apt-get update && apt-get install -y libssl1.1 && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binary from the builder stage
