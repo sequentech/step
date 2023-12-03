@@ -19,6 +19,7 @@ import {
     CreateScheduledEventMutation,
     GetUploadUrlMutation,
     Sequent_Backend_Candidate,
+    Sequent_Backend_Document,
 } from "../../gql/graphql"
 import React, {useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -51,8 +52,8 @@ export const CandidateDataForm: React.FC = () => {
         id: record.election_event_id,
     })
 
-    const {data: imageData, refetch: refetchImage} = useGetOne("sequent_backend_document", {
-        id: record.image_document_id,
+    const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>("sequent_backend_document", {
+        id: record.image_document_id || record.tenant_id,
         meta: {tenant_id: record.tenant_id},
     })
 
@@ -173,11 +174,6 @@ export const CandidateDataForm: React.FC = () => {
         // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
 
         const theFile = files?.[0]
-<<<<<<< HEAD
-=======
-        const fileLink = URL.createObjectURL(theFile as any)
-        console.log("fileLink :>> ", fileLink)
->>>>>>> main
 
         if (theFile) {
             let {data, errors} = await getUploadUrl({
