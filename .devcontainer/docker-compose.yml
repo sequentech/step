@@ -230,6 +230,7 @@ services:
     entrypoint: >
       /opt/keycloak/bin/kc.sh start-dev
       --features=preview
+      --health-enabled=true
       --spi-user-profile-declarative-user-profile-read-only-attributes=sequent.read-only.*
       --spi-user-profile-declarative-user-profile-admin-read-only-attributes=sequent.admin-read-only.*
       -Dkeycloak.profile.feature.upload_scripts=enabled
@@ -244,7 +245,7 @@ services:
       postgres_keycloak:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5/protocol/openid-connect/certs"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8090/health/live"]
       interval: 5s
       timeout: 10s
       retries: 25
