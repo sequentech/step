@@ -161,7 +161,10 @@ export const EditElectionEventKeys: React.FC = () => {
                                 <ChipField source="name" />
                             </SingleFieldList>
                         </ReferenceArrayField>
-                        <ActionsColumn actions={actions} />
+                        <ActionsColumn
+                            actions={actions}
+                            label={t("common.label.actions")}
+                        />
                     </DatagridConfigurable>
                 </List>
             }

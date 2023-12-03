@@ -297,6 +297,7 @@ const englishTranslation = {
             },
             label: {
                 add: "Add",
+                actions: "Actions",
                 create: "Create",
                 delete: "Delete",
                 archive: "Archive",

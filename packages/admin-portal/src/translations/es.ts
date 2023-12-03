@@ -299,6 +299,7 @@ const spanishTranslation: TranslationType = {
             },
             label: {
                 add: "Añadir",
+                actions: "Acciones",
                 create: "Crear",
                 delete: "Borrar",
                 archive: "Archivar",
