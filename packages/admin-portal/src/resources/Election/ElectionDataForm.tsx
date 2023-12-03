@@ -34,6 +34,7 @@ import {
     Sequent_Backend_Document,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
+    Sequent_Backend_Tenant,
 } from "../../gql/graphql"
 
 import React, {useEffect, useState} from "react"
@@ -68,6 +69,13 @@ export const ElectionDataForm: React.FC = () => {
     const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
         id: record.election_event_id,
     })
+
+    const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>(
+        "sequent_backend_tenant",
+        {
+            id: record.tenant_id,
+        }
+    )
 
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
@@ -112,7 +120,7 @@ export const ElectionDataForm: React.FC = () => {
         }
 
         const languageSettings = buildLanguageSettings()
-        const votingSettings = data?.voting_channels
+        const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
         // languages
         // temp.configuration = {...jsonConfiguration}
