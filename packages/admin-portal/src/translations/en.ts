@@ -249,7 +249,7 @@ const englishTranslation = {
                 errors: {
                     editError: "Error editing voter",
                     editSuccess: "Voter edited",
-                }
+                },
             },
             roles: {
                 title: "Roles",

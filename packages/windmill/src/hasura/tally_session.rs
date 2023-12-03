@@ -70,6 +70,7 @@ pub async fn insert_tally_session(
     election_ids: Vec<String>,
     trustee_ids: Vec<String>,
     area_ids: Vec<String>,
+    tally_session_id: String,
 ) -> Result<Response<insert_tally_session::ResponseData>> {
     let variables = insert_tally_session::Variables {
         tenant_id: tenant_id,
@@ -77,6 +78,7 @@ pub async fn insert_tally_session(
         election_ids: election_ids,
         trustee_ids: trustee_ids,
         area_ids: area_ids,
+        tally_session_id: tally_session_id,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

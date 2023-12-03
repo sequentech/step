@@ -30,6 +30,7 @@ pub async fn tally_election_event(
     body: TallyElectionBody,
     tenant_id: String,
     election_event_id: String,
+    tally_session_id: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
 
@@ -83,6 +84,7 @@ pub async fn tally_election_event(
         body.election_ids.clone(),
         body.trustee_ids.clone(),
         area_ids.clone(),
+        tally_session_id.clone(),
     )
     .await?
     .data

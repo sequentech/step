@@ -283,7 +283,6 @@ export const ElectionDataForm: React.FC = () => {
 
                     refetchImage()
                     refresh()
-
                 } catch (e) {
                     console.log("error :>> ", e)
                     notify(t("electionScreen.error.fileError"), {type: "error"})
