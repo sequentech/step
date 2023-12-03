@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony } from "@/gql/graphql"
+import {styled} from "@mui/material/styles"
 import React, { useState } from "react"
 import {
     DatagridConfigurable,
@@ -15,17 +16,29 @@ import {
     useGetList,
     useRecordContext,
     Link,
+    DateField,
 } from "react-admin"
-import {Button} from "@mui/material"
+import {Box, Button, Typography} from "@mui/material"
 import {IconButton} from "@sequentech/ui-essentials"
 import { KeyCeremonyWizard } from "@/components/key-ceremony/KeyCeremonyWizard"
-import {faPlusCircle} from "@fortawesome/free-solid-svg-icons"
+import { faPlus } from "@fortawesome/free-solid-svg-icons"
 import { useTenantStore } from "@/providers/TenantContextProvider"
 import { Action, ActionsColumn } from "@/components/ActionButons"
+import { useTranslation } from "react-i18next"
+
+const EmptyBox = styled(Box)`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+`
+
 
 const OMIT_FIELDS: Array<string> = []
 
 export const EditElectionEventKeys: React.FC = () => {
+    const {t} = useTranslation()
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [tenantId] = useTenantStore()
 
@@ -46,19 +59,32 @@ export const EditElectionEventKeys: React.FC = () => {
 
     const [showCeremony, setShowCeremony] = useState(false)
 
-    const empty = (
+    const Empty = () => (
+        <EmptyBox m={1}>
+            <Typography variant="h4" paragraph>
+                {t("electionEventScreen.keys.emptyHeader")}
+            </Typography>
+            <Typography variant="body1" paragraph>
+            {t("electionEventScreen.keys.emptyBody")}
+            </Typography>
             <Button onClick={() => setShowCeremony(true)}>
-                <IconButton icon={faPlusCircle} fontSize="24px" />
-                Create new election event key ceremony
+                <IconButton icon={faPlus} fontSize="24px" />
+                {t("electionEventScreen.keys.createNew")}
             </Button>
+        </EmptyBox>
     )
 
+    const goBack = () => {
+        setShowCeremony(false)
+        setCurrentCeremony(null)
+    }
+
     const actions: Action[] = [
-        // view, edit
+        // access
     ]
 
-    if (!keyCeremonies || keyCeremonies.length == 0) {
-        return empty
+    if (!showCeremony) {
+        return <Empty />
     }
 
     return (
@@ -68,10 +94,11 @@ export const EditElectionEventKeys: React.FC = () => {
                     electionEvent={electionEvent}
                     keyCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}
+                    goBack={goBack}
                     forceNew={false}
                 />
                 : <List
-                    resource="role"
+                    resource="keys_ceremony"
                     actions={
                         <TopToolbar>
                             <SelectColumnsButton />
@@ -79,13 +106,15 @@ export const EditElectionEventKeys: React.FC = () => {
                         </TopToolbar>
                     }
                     filter={{tenant_id: tenantId}}
+                    empty={<Empty />}
                 >
                     <DatagridConfigurable 
                         omit={OMIT_FIELDS}
                         bulkActionButtons={<></>}
                     >
-                        <TextField source="name" />
                         <TextField source="id" />
+                        <DateField source="created_at" />
+                        <TextField source="status" />
                         <ActionsColumn actions={actions} />
                     </DatagridConfigurable>
                 </List>

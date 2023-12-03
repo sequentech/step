@@ -57,12 +57,14 @@ export interface KeysGenerationStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
     setCurrentCeremony: (keyCeremony: Sequent_Backend_Keys_Ceremony) => void
     electionEvent: Sequent_Backend_Election_Event
+    goBack: () => void
 }
 
 export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
     currentCeremony: currentCeremony,
     setCurrentCeremony,
     electionEvent,
+    goBack,
 }) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
@@ -223,7 +225,10 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
             onSubmit={onSubmit}
             toolbar={
                 <StyledToolbar>
-                    <BackButton color="info">
+                    <BackButton
+                        color="info"
+                        onClick={goBack}
+                    >
                         <ArrowBackIosIcon />
                         {t("common.label.back")}
                     </BackButton>

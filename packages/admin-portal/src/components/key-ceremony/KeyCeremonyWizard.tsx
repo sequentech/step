@@ -22,12 +22,14 @@ interface KeyCeremonyWizardProps {
     setCurrentCeremony: (keyCeremony: Sequent_Backend_Keys_Ceremony) => void
 
     forceNew: boolean
+    goBack: () => void
 }
 
 export const KeyCeremonyWizard: React.FC<KeyCeremonyWizardProps> = ({
     electionEvent,
     keyCeremony,
     setCurrentCeremony,
+    goBack,
     forceNew,
 }) => {
     const calculateCurrentStep: (forceNew: boolean) => number = (forceNew) => {
@@ -65,6 +67,7 @@ export const KeyCeremonyWizard: React.FC<KeyCeremonyWizardProps> = ({
                             currentCeremony={keyCeremony}
                             setCurrentCeremony={setCurrentCeremony}
                             electionEvent={electionEvent}
+                            goBack={goBack}
                         />
                     }
                 </StyledBox>
