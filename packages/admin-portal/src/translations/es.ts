@@ -182,7 +182,7 @@ const spanishTranslation: TranslationType = {
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Ceremonia",
-                    created: "Creadas",
+                    created: "Finished",
                 },
             },
         },
@@ -450,6 +450,21 @@ const spanishTranslation: TranslationType = {
                     cancel: "Cancelar",
                     title: "¿Estás seguro de que quieres Crear una Ceremonia de Claves?",
                     description: "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a los Fiduciarios para participar en la creación y distribución de las Claves del Evento Electoral.",
+                },
+            },
+            ceremonyStep: {
+                cancel: "Cancelar Ceremonia de Claves",
+                confirmdDialog: {
+                    ok: "Sí, Cancelar Creación de Ceremonia de Claves",
+                    cancel: "Volver a la Ceremonia de Claves",
+                    title: "¿Estás seguro de que quieres Cancelar la Ceremonia de Claves?",
+                    description: "Estás a punto de Cancelar la Ceremonia de Claves. Después de realizar esta acción, para tener una Ceremonia de Claves exitosa tendrás que Crear una nueva.",
+                },
+                header: {
+                    trusteeName: "Nombre de Autoridad",
+                    fragment: "Clave Generada",
+                    downloaded: "Clave Descargada",
+                    checked: "Clave Comprobada",
                 },
             },
         },

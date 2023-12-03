@@ -180,7 +180,7 @@ const englishTranslation = {
                 breadCrumbs: {
                     configure: "Configure",
                     ceremony: "Ceremony",
-                    created: "Created",
+                    created: "Finished",
                 },
             },
         },
@@ -446,8 +446,23 @@ const englishTranslation = {
                 confirmdDialog: {
                     ok: "Yes, Create Keys Ceremony",
                     cancel: "Cancel",
-                    title: "Are you sure you want to Create a Keys Ceremony?",
-                    description: "You are about to Create a Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
+                    title: "Are you sure you want to Create Keys Ceremony?",
+                    description: "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
+                },
+            },
+            ceremonyStep: {
+                cancel: "Cancel Keys Ceremony",
+                confirmdDialog: {
+                    ok: "Yes, Cancel Create Keys Ceremony",
+                    cancel: "Go back to Keys Ceremony",
+                    title: "Are you sure you want to Cancel Keys Ceremony?",
+                    description: "You are about to Cancel Keys Ceremony. After performing this action, to have a succcessful Keys Ceremony you will have to Create a new one.",
+                },
+                header: {
+                    trusteeName: "Trustee Name",
+                    fragment: "Key Generated",
+                    downloaded: "Key Downloaded",
+                    checked: "Key Checked",
                 },
             },
         }

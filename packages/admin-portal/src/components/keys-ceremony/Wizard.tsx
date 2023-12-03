@@ -76,7 +76,6 @@ export const Wizard: React.FC<WizardProps> = ({
             {currentStep > 0 &&
                 <CeremonyStep
                     currentCeremony={currentCeremony}
-                    setCurrentCeremony={setCurrentCeremony}
                     electionEvent={electionEvent}
                     goBack={goBack}
                 />
