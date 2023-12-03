@@ -32,7 +32,7 @@ import { useTranslation } from "react-i18next"
 import { isNumber } from "lodash"
 import { CREATE_KEYS_CEREMONY } from "@/queries/CreateKeysCeremony"
 import { useTenantStore } from "@/providers/TenantContextProvider"
-import { isNull } from "@sequentech/ui-essentials"
+import { isNull, Dialog} from "@sequentech/ui-essentials"
 
 const Error = styled(Typography)`
     color:  ${({theme}) => theme.palette.errorColor};
@@ -53,14 +53,14 @@ const CreateButton = styled(SaveButton)`
     flex-direction: row-reverse;
 `
 
-export interface KeysGenerationStepProps {
+export interface ConfigureStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
     setCurrentCeremony: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
     electionEvent: Sequent_Backend_Election_Event
     goBack: () => void
 }
 
-export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
+export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     currentCeremony: currentCeremony,
     setCurrentCeremony,
     electionEvent,
@@ -71,9 +71,11 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
     const notify = useNotify()
     const [newId, setNewId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
+    const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [createKeysCeremonyMutation] = useMutation<CreateKeysCeremonyMutation>(CREATE_KEYS_CEREMONY)
     const [errors, setErrors] = useState<String | null>(null)
-    const [threshold, __] = useState<number>(2)
+    const [threshold, setThreshold] = useState<number>(2)
+    const [trusteeNames, setTrusteeNames] = useState<string[]>([])
     const refresh = useRefresh()
     const {data: trusteeList, total, isLoading: _, error} = useGetList(
         "sequent_backend_trustee",
@@ -107,7 +109,7 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
             setIsLoading(false)
             notify(
                 t(
-                    "keysGenerationStep.errorCreatingCeremony",
+                    "keysGeneration.configureStep.errorCreatingCeremony",
                     {error: error + ""}
                 ),
                 {type: "error"}
@@ -119,7 +121,7 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
             setIsLoading(false)
             setCurrentCeremony(keysCeremony)
             notify(
-                t("keysGenerationStep.createCeremonySuccess"),
+                t("keysGeneration.configureStep.createCeremonySuccess"),
                 {type: "success"}
             )
             refresh()
@@ -131,6 +133,7 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
         return null
     }
 
+    // called by confirmCreateKeysCeremony() to create the Keys Ceremony
     const createKeysCeremony:
         (input: {
             threshold: number,
@@ -147,7 +150,7 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
         })
         if (errors) {
             setErrors(t(
-                "keysGenerationStep.errorCreatingCeremony",
+                "keysGeneration.configureStep.errorCreatingCeremony",
                 {code: error + ""}
             ))
             return null
@@ -158,11 +161,8 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
         return data?.create_keys_ceremony?.keys_ceremony_id ?? null
     }
 
-    const onSubmit: SubmitHandler<FieldValues> = async ({
-        threshold,
-        trusteeNames,
-
-    }) => {
+    // Called by the confirmation dialog to create the Keys Ceremony
+    const confirmCreateKeysCeremony = async () => {
         if (isLoading) {
             return
         }
@@ -177,7 +177,7 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
             } else {
                 notify(
                     t(
-                        "keysGenerationStep.errorCreatingCeremony",
+                        "keysGeneration.configureStep.errorCreatingCeremony",
                         {error: "error"}
                     ),
                     {type: "error"}
@@ -186,17 +186,31 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
             }
         } catch (error) {
             setErrors(t(
-                "keysGenerationStep.errorCreatingCeremony",
+                "keysGeneration.configureStep.errorCreatingCeremony",
                 {error: error + ""}
             ))
             setIsLoading(false)
         }
     }
 
+    // Called by the form. Saves the information and shows the confirmation
+    // dialog
+    const onSubmit: SubmitHandler<FieldValues> = async ({
+        threshold,
+        trusteeNames,
+
+    }) => {
+        setThreshold(threshold)
+        setTrusteeNames(trusteeNames)
+        setOpenConfirmationModal(true)
+    }
+
+    // Default values
     const getDefaultValues = () => ({
         threshold: 2
     })
 
+    // validates threshold is within the limits
     const thresholdValidator = (value: any): any => {
         const max = (trusteeList) ? trusteeList.length : 0
         var intValue: number | null = null
@@ -212,74 +226,92 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
             intValue > max
         ) {
             return t(
-                "keysGenerationStep.errorThreshold",
+                "keysGeneration.configureStep.errorThreshold",
                 {selected: intValue, min: 0, max: max}
             )
         }
     }
 
+    // validates selected trustees
     const trusteeListValidator = (values: any): any => {
         const length = (values && values.length) ? values.length : 0
         if (length < threshold) {
             return t(
-                "keysGenerationStep.errorMinTrustees",
+                "keysGeneration.configureStep.errorMinTrustees",
                 {selected: length, threshold: threshold}
             )
         }
     }
 
     return (
-        <SimpleForm
-            defaultValues={getDefaultValues}
-            onSubmit={onSubmit}
-            toolbar={
-                <StyledToolbar>
-                    <BackButton
-                        color="info"
-                        onClick={goBack}
-                    >
-                        <ArrowBackIosIcon />
-                        {t("common.label.back")}
-                    </BackButton>
-                    <CreateButton
-                        icon={<ArrowForwardIosIcon />}
-                        label={t("keysGenerationStep.create")}
-                    />
-                </StyledToolbar>
-            }
-        >
-            <Typography variant="h4">
-                {t("keysGenerationStep.title")}
-            </Typography>
-            <Typography variant="body2">
-                {t("keysGenerationStep.subtitle")}
-            </Typography>
+        <>
+            <SimpleForm
+                defaultValues={getDefaultValues}
+                onSubmit={onSubmit}
+                toolbar={
+                    <StyledToolbar>
+                        <BackButton
+                            color="info"
+                            onClick={goBack}
+                        >
+                            <ArrowBackIosIcon />
+                            {t("common.label.back")}
+                        </BackButton>
+                        <CreateButton
+                            icon={<ArrowForwardIosIcon />}
+                            label={t("keysGeneration.configureStep.create")}
+                        />
+                    </StyledToolbar>
+                }
+            >
+                <Typography variant="h4">
+                    {t("keysGeneration.configureStep.title")}
+                </Typography>
+                <Typography variant="body2">
+                    {t("keysGeneration.configureStep.subtitle")}
+                </Typography>
 
-            <TextInput
-                source="threshold"
-                label={t("keysGenerationStep.threshold")}
-                value={threshold}
-                validate={thresholdValidator}
-                type="number"
-                InputLabelProps={{
-                    shrink: true,
-                }}
-                variant="filled"
-            />
-            {trusteeList ? (
-                <CheckboxGroupInput
-                    validate={trusteeListValidator}
-                    label={t("keysGenerationStep.trusteeList")}
-                    source="trusteeNames"
-                    choices={trusteeList}
-                    translateChoice={false}
-                    optionText="name"
-                    optionValue="id"
-                    row={false}
+                <TextInput
+                    source="threshold"
+                    label={t("keysGeneration.configureStep.threshold")}
+                    value={threshold}
+                    validate={thresholdValidator}
+                    type="number"
+                    InputLabelProps={{
+                        shrink: true,
+                    }}
+                    variant="filled"
                 />
-            ) : null}
-            {errors ? <Error variant="body2">{errors}</Error> : null}
-            {isLoading ? <CircularProgress /> : null}
-        </SimpleForm>
+                {trusteeList ? (
+                    <CheckboxGroupInput
+                        validate={trusteeListValidator}
+                        label={t("keysGeneration.configureStep.trusteeList")}
+                        source="trusteeNames"
+                        choices={trusteeList}
+                        translateChoice={false}
+                        optionText="name"
+                        optionValue="id"
+                        row={false}
+                    />
+                ) : null}
+                {errors ? <Error variant="body2">{errors}</Error> : null}
+                {isLoading ? <CircularProgress /> : null}
+            </SimpleForm>
+            <Dialog
+                variant="warning"
+                open={openConfirmationModal}
+                ok={t("keysGeneration.configureStep.confirmdDialog.ok")}
+                cancel={t("keysGeneration.configureStep.confirmdDialog.cancel")}
+                title={t("keysGeneration.configureStep.confirmdDialog.title")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmCreateKeysCeremony()
+                    }
+                    setOpenConfirmationModal(false)
+                }}
+            >
+                {t("keysGeneration.configureStep.confirmdDialog.description")}
+            </Dialog>
+        </>
     )
 }

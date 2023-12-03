@@ -7,13 +7,13 @@ import { Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony } from "@
 import {styled} from "@mui/material/styles"
 import { Box } from "@mui/material"
 import React, { useState } from "react"
-import { KeysGenerationStep } from "@/components/keys-ceremony/KeysGenerationStep"
+import { ConfigureStep } from "@/components/keys-ceremony/ConfigureStep"
 import { IKeysCeremonyExecutionStatus } from "@/services/KeyCeremony"
 
 const StyledBox = styled(Box)`
 `
 
-interface KeysCeremonyWizardProps {
+interface WizardProps {
     electionEvent: Sequent_Backend_Election_Event
 
     keysCeremony: Sequent_Backend_Keys_Ceremony | null
@@ -22,7 +22,7 @@ interface KeysCeremonyWizardProps {
     goBack: () => void
 }
 
-export const KeysCeremonyWizard: React.FC<KeysCeremonyWizardProps> = ({
+export const Wizard: React.FC<WizardProps> = ({
     electionEvent,
     keysCeremony,
     setCurrentCeremony,
@@ -59,7 +59,7 @@ export const KeysCeremonyWizard: React.FC<KeysCeremonyWizardProps> = ({
                         colorPreviousSteps={true}
                     />
                     {currentStep == 0 &&
-                        <KeysGenerationStep
+                        <ConfigureStep
                             currentCeremony={keysCeremony}
                             setCurrentCeremony={setCurrentCeremony}
                             electionEvent={electionEvent}

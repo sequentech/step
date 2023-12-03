@@ -432,17 +432,25 @@ const englishTranslation = {
             createContestSuccess: "Contest created",
             createContestError: "Error creating candidate",
         },
-        keysGenerationStep: {
-            create: "Create Keys",
-            title: "Create Election Event Keys",
-            subtitle: "In this ceremony each trustee will generate and download their part of the private keys for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
-            threshold: "Threshold",
-            trusteeList: "Trustees",
-            errorMinTrustees: "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
-            errorThreshold: "You selected threshold {{selected}} but it must be between {{min}} and {{max}}.",
-            errorCreatingCeremony: "Error creating key ceremony: {{error}}",
-            createCeremonySuccess: "Key ceremony created",
-        },
+        keysGeneration: {
+            configureStep: {
+                create: "Create Keys Ceremony",
+                title: "Create Election Event Keys Ceremony",
+                subtitle: "In the Keys Ceremony each trustee will generate and download their part of the private keys for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
+                threshold: "Threshold",
+                trusteeList: "Trustees",
+                errorMinTrustees: "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
+                errorThreshold: "You selected threshold {{selected}} but it must be between {{min}} and {{max}}.",
+                errorCreatingCeremony: "Error creating Keys Ceremony: {{error}}",
+                createCeremonySuccess: "Keys Ceremony created",
+                confirmdDialog: {
+                    ok: "Yes, Create Keys Ceremony",
+                    cancel: "Cancel",
+                    title: "Are you sure you want to Create a Keys Ceremony?",
+                    description: "You are about to Create a Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
+                },
+            },
+        }
     },
 }
 
