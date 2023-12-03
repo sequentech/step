@@ -449,13 +449,13 @@ const spanishTranslation: TranslationType = {
                     ok: "Sí, Crear Ceremonia de Claves",
                     cancel: "Cancelar",
                     title: "¿Estás seguro de que quieres Crear una Ceremonia de Claves?",
-                    description: "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a los Fiduciarios para participar en la creación y distribución de las Claves del Evento Electoral.",
+                    description: "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
                 },
             },
             ceremonyStep: {
                 cancel: "Cancelar Ceremonia de Claves",
                 progressHeader: "Progreso de Ceremonia de Claves",
-                description: "This screen shows the progress and logs of the Election Event's Keys Ceremony. In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event.",
+                description: "Esta pantalla muestra el progreso y los registros de la Ceremonia de Claves del Evento Electoral. En la Ceremonia de Claves, cada autoridad generará y descargará su fragmento de la clave privada para el Evento Electoral.",
                 confirmdDialog: {
                     ok: "Sí, Cancelar Creación de Ceremonia de Claves",
                     cancel: "Volver a la Ceremonia de Claves",
