@@ -132,15 +132,7 @@ impl KeycloakAdminClient {
             .realm_roles_post(realm, permission.clone().into())
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
-        let role_representation = self
-            .client
-            .realm_roles_with_role_name_get(
-                realm,
-                &permission.name.clone().unwrap(),
-            )
-            .await
-            .map_err(|err| anyhow!("{:?}", err))?;
 
-        Ok(role_representation.into())
+        Ok(permission.clone())
     }
 }

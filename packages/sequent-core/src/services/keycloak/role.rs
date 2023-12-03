@@ -146,11 +146,6 @@ impl KeycloakAdminClient {
             .realm_groups_post(realm, new_role.clone().into())
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
-        let group_representation = self
-            .client
-            .realm_groups_with_id_get(realm, &role_id)
-            .await
-            .map_err(|err| anyhow!("{:?}", err))?;
-        Ok(group_representation.into())
+        Ok(new_role)
     }
 }

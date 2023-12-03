@@ -21,7 +21,7 @@ interface CreateUserProps {
 export const CreateUser: React.FC<CreateUserProps> = ({electionEventId, close}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
-    const [user, setUser] = useState<IUser>({})
+    const [user, setUser] = useState<IUser>({ enabled: true })
     const [createUser] = useMutation<CreateUserMutationVariables>(CREATE_USER)
     const notify = useNotify()
     const refresh = useRefresh()
@@ -37,15 +37,15 @@ export const CreateUser: React.FC<CreateUserProps> = ({electionEventId, close}) 
                 },
             })
             if (errors) {
-                notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
+                notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
                 console.log(`Error creating user: ${errors}`)
             } else {
-                notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
+                notify(t("usersAndRolesScreen.voters.errors.createSuccess"), {type: "success"})
                 refresh()
             }
             close?.()
         } catch (error) {
-            notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
+            notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
             console.log(`Error creating user: ${error}`)
             close?.()
         }

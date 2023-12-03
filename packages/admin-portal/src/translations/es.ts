@@ -197,6 +197,16 @@ const spanishTranslation: TranslationType = {
                     scheduled: "Programado",
                 },
             },
+            tabs: {
+                dashboard: "Panel de Control",
+                data: "Datos",
+                voters: "Votantes",
+                areas: "Áreas",
+                keys: "Claves",
+                tally: "Recuento",
+                publish: "Publicar",
+                logs: "Logs",
+            },
         },
         electionScreen: {
             common: {
@@ -269,6 +279,8 @@ const spanishTranslation: TranslationType = {
                 errors: {
                     editError: "Error editando votante",
                     editSuccess: "Votante editado",
+                    createError: "Error creando votante",
+                    createSuccess: "Votante creado",
                 },
             },
             roles: {
