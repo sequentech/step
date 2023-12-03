@@ -176,7 +176,7 @@ const spanishTranslation: TranslationType = {
                 },
             },
             keys: {
-                createNew: "Create Nueva Ceremonia de Claves",
+                createNew: "Create Ceremonia de Claves",
                 emptyHeader: "Ninguna Ceremonia de Claves aún.",
                 emptyBody: "¿Quieres crear una?",
                 breadCrumbs: {
