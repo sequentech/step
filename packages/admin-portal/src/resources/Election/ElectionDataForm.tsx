@@ -15,6 +15,7 @@ import {
     SaveButton,
     useNotify,
     useRefresh,
+    useUpdate,
 } from "react-admin"
 import {
     Accordion,
@@ -38,15 +39,14 @@ import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
-import {UPDATE_ELECTION_IMAGE} from "@/queries/UpdateElectionImage"
 
 const Hidden = styled(Box)`
     display: none;
 `
 
 export const ElectionDataForm: React.FC = () => {
-    const [update_election_image] = useMutation(UPDATE_ELECTION_IMAGE)
     const record = useRecordContext<Sequent_Backend_Election>()
+
     const {t} = useTranslation()
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
@@ -59,6 +59,13 @@ export const ElectionDataForm: React.FC = () => {
     const {data} = useGetOne("sequent_backend_election_event", {
         id: record.election_event_id,
     })
+
+    const {data: imageData, refetch: refetchImage} = useGetOne("sequent_backend_document", {
+        id: record.image_document_id,
+        meta: {tenant_id: record.tenant_id},
+    })
+
+    const [updateImage] = useUpdate()
 
     const buildLanguageSettings = () => {
         const tempSettings = data?.presentation?.language_conf?.enabled_language_codes
@@ -247,8 +254,6 @@ export const ElectionDataForm: React.FC = () => {
         // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
 
         const theFile = files?.[0]
-        const fileLink = URL.createObjectURL(theFile as any)
-        console.log("fileLink :>> ", fileLink)
 
         if (theFile) {
             let {data, errors} = await getUploadUrl({
@@ -259,8 +264,6 @@ export const ElectionDataForm: React.FC = () => {
                 },
             })
             if (data?.get_upload_url?.document_id) {
-                console.log("upload :>> ", data)
-
                 try {
                     await fetch(data.get_upload_url.url, {
                         method: "PUT",
@@ -270,18 +273,16 @@ export const ElectionDataForm: React.FC = () => {
                         body: theFile,
                     })
                     notify(t("electionScreen.error.fileLoaded"), {type: "success"})
-                    let {errors: updateImageErrors} = await update_election_image({
-                        variables: {
-                            id: record.id,
-                            image: data.get_upload_url.document_id,
+
+                    updateImage("sequent_backend_election", {
+                        id: record.id,
+                        data: {
+                            image_document_id: data.get_upload_url.document_id,
                         },
                     })
-                    if (updateImageErrors) {
-                        console.log("insertAreasErrors :>> ", updateImageErrors)
-                        notify("Could not update Area", {type: "error"})
-                        return
-                    }
 
+                    refetchImage()
+                    refresh()
                 } catch (e) {
                     console.log("error :>> ", e)
                     notify(t("electionScreen.error.fileError"), {type: "error"})
@@ -491,7 +492,24 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <DropFile handleFiles={async (files) => handleFiles(files)} />
+                                <Grid container spacing={1}>
+                                    <Grid item xs={2}>
+                                        {parsedValue.image_document_id &&
+                                        parsedValue.image_document_id !== "" ? (
+                                            <img
+                                                width={200}
+                                                height={200}
+                                                src={`http://localhost:9000/public/tenant-${parsedValue.tenant_id}/document-${parsedValue.image_document_id}/${imageData?.name}`}
+                                                alt={`tenant-${parsedValue.tenant_id}/document-${parsedValue.image_document_id}/${imageData?.name}`}
+                                            />
+                                        ) : null}
+                                    </Grid>
+                                    <Grid item xs={10}>
+                                        <DropFile
+                                            handleFiles={async (files) => handleFiles(files)}
+                                        />
+                                    </Grid>
+                                </Grid>
                             </AccordionDetails>
                         </Accordion>
 

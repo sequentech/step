@@ -154,14 +154,13 @@ const englishTranslation = {
                 languages: 'LANGUAGES'
             }
         },
+        dashboard: {
+            voteByDay: "Vote by day",
+            voteByChannels: "Vote by channels",
+        },
         electionEventScreen: {
-            new: {
-                subtitle: "Create Election Event",
-            },
             common: {
-                title: "Election Event",
                 subtitle: "Election event configuration.",
-                contest: "Contests",
             },
             edit: {
                 general: "General",
@@ -200,7 +199,9 @@ const englishTranslation = {
         },
         electionScreen: {
             common: {
+                title: "Election",
                 subtitle: "Election configuration.",
+                fileLoaded: "File loaded",
             },
             edit: {
                 general: "General",
@@ -245,6 +246,29 @@ const englishTranslation = {
             },
             users: {
                 title: "Users",
+                edit: {
+                    title: "User Data",
+                    subtitle: "View and edit user",
+                },
+                fields: {
+                    username: "Username",
+                    first_name: "First Name",
+                    last_name: "Last Name",
+                    email: "Email",
+                    enabled: "Enabled",
+                    emailVerified: "Email Verified",
+                    groups: "Groups",
+                    attributes: "Attributes",
+                    area: "Area",
+                },
+            },
+            voters: {
+                title: "Voters",
+                subtitle: "View and edit voter data",
+                errors: {
+                    editError: "Error editing voter",
+                    editSuccess: "Voter edited",
+                },
             },
             roles: {
                 title: "Roles",
@@ -301,10 +325,18 @@ const englishTranslation = {
             },
         },
         common: {
+            resources: {
+                electionEvent: "Election Event",
+                election: "Election",
+                contest: "Contest",
+                candidate: "Candidate",
+            },
             label: {
                 add: "Add",
                 create: "Create",
                 delete: "Delete",
+                archive: "Archive",
+                unarchive: "Unarchive",
                 cancel: "Cancel",
                 edit: "Edit",
                 save: "Save",
@@ -313,9 +345,6 @@ const englishTranslation = {
                 next: "Next",
                 warning: "Warning",
                 json: "Preview",
-            },
-            message: {
-                delete: "Are you sure you want to delete this item?",
             },
             language: {
                 es: "Spanish",
@@ -326,6 +355,12 @@ const englishTranslation = {
                 kiosk: "Kiosk",
             },
         },
+        createResource: {
+            electionEvent: "Create an Election Event",
+            election: "Create an Election",
+            contest: "Create a Contest",
+            candidate: "Create a Candidate",
+        },
         sideMenu: {
             electionEvents: "Election Events",
             search: "Search",
@@ -335,10 +370,46 @@ const englishTranslation = {
             active: "Active",
             archived: "Archived",
             addResource: {
-                addElectionEvent: "Add an election event",
-                addElection: "Add an election",
-                addContest: "Add a contest",
-                addCandidate: "Add a candidate",
+                electionEvent: "Create an Election Event",
+                election: "Create an Election",
+                contest: "Create a Contest",
+                candidate: "Create a Candidate",
+            },
+            menuActions: {
+                archive: {
+                    electionEvent: "Archive this Election Event",
+                },
+                unarchive: {
+                    electionEvent: "Unarchive this Election Event",
+                    election: "Unarchive this election",
+                    contest: "Unarchive this Contest",
+                    candidate: "Unarchive this Candidate",
+                },
+                remove: {
+                    electionEvent: "Remove this Election Event",
+                    election: "Remove this Election",
+                    contest: "Remove this Contest",
+                    candidate: "Remove this Candidate",
+                },
+                messages: {
+                    confirm: {
+                        archive: "Are you sure to archive this item?",
+                        unarchive: "Are you sure to unarchive this item?",
+                        delete: "Are you sure to delete this item?",
+                    },
+                    notification: {
+                        success: {
+                            archive: "The item has been archived",
+                            unarchive: "The item has been unarchived",
+                            delete: "The item has been deleted",
+                        },
+                        error: {
+                            archive: "Error while trying to archive this item",
+                            unarchive: "Error while trying to unarchive this item",
+                            delete: "Error while trying to delete this item",
+                        },
+                    },
+                },
             },
         },
         candidateScreen: {

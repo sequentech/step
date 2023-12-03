@@ -298,7 +298,7 @@ Afterwards, you need to regenerate the typescript auto-generated types using
 
 ```bash
 cd /workspaces/backend-services/packages/
-yarn generate
+yarn generate:admin
 ```
 
 Additionally, the same graphql schema file is needed in `windmill` to generate 

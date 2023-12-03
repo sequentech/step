@@ -3,7 +3,7 @@ import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
 import {Chip, IconButton} from "@mui/material"
 import {adminTheme} from "@sequentech/ui-essentials"
-import React, { useEffect } from "react"
+import React, {useEffect} from "react"
 import {Identifier, useGetList, useRecordContext} from "react-admin"
 
 /*  
@@ -25,7 +25,7 @@ export const AreaContestItems: React.FC<AreaContestItemsProps> = (props) => {
     const {data} = useQuery(GET_AREA_WITH_AREA_CONTESTS, {
         variables: {
             electionEventId: record.election_event_id,
-            areaId: record.id
+            areaId: record.id,
         },
     })
 

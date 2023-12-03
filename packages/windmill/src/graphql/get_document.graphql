@@ -20,5 +20,6 @@ query GetDocument(
     annotations
     created_at
     last_updated_at
+    is_public
   }
 }

@@ -1,10 +1,10 @@
+// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import React from "react"
 import {Box, styled, SvgIconTypeMap, Typography, Icon} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
-import {IconDefinition} from "@fortawesome/free-solid-svg-icons"
-import {OverridableComponent} from "@mui/material/OverridableComponent"
-import FenceIcon from "@mui/icons-material/Fence"
-import DeleteIcon from "@mui/icons-material/Delete"
 
 const CardContainer = styled(Box)<{selected?: boolean}>`
     display: flex;
