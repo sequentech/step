@@ -27,11 +27,9 @@ export interface IKeysCeremonyTrustee {
     status: IKeysCeremonyTrusteeStatus
 }
 
-export interface IKeysCeremonyStatus {
-    start_date: String
-    stop_date: String
-    threshold: number
-    public_key: String
+export interface IExecutionStatus {
+    stop_date?: String
+    public_key?: String
     logs: IKeysCeremonyLog[]
     trustees: IKeysCeremonyTrustee[]
 }

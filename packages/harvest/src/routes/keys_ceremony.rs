@@ -4,6 +4,7 @@
 
 use crate::services::authorization::authorize;
 use anyhow::{Result, Context};
+use anyhow::anyhow;
 use rocket::http::Status;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
@@ -12,8 +13,15 @@ use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use windmill::hasura::trustee::get_trustees_by_name;
 use windmill::hasura::keys_ceremony::insert_keys_ceremony;
+use windmill::types::keys_ceremony::{
+    StatusStatus,
+    ExecutionStatus,
+    Trustee,
+    TrusteeStatus,
+};
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
@@ -165,7 +173,7 @@ pub async fn create_keys_ceremony(
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
     // verify trustee names and fetch their objects to get their ids
-    let trustee_ids = get_trustees_by_name(
+    let trustees = get_trustees_by_name(
         auth_headers.clone(),
         tenant_id.clone(),
         input.trustee_names.clone(),
@@ -175,24 +183,46 @@ pub async fn create_keys_ceremony(
     .data
     .with_context(|| "can't find trustees")
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
-    .sequent_backend_trustee
-    .into_iter()
-    .map(|trustee| trustee.id);
+    .sequent_backend_trustee;
+
+    let trustee_ids = trustees
+        .clone()
+        .into_iter()
+        .map(|trustee| trustee.id)
+        .collect();
 
     let keys_ceremony_id: String = Uuid::new_v4().to_string();
-    /*
-    create_keys_ceremony(
+    let status: String = StatusStatus::NOT_STARTED.to_string();
+    let execution_status: Value = serde_json::to_value(ExecutionStatus {
+        stop_date: None,
+        public_key: None,
+        logs: vec![],
+        trustees: trustees
+            .clone()
+            .into_iter()
+            .map(|trustee| Ok(Trustee {
+                name: trustee.name.ok_or(anyhow!("empty trustee name"))?,
+                status: TrusteeStatus::WAITING,
+            }))
+            .collect::<Result<Vec<Trustee>>>()
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+    })
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    
+    insert_keys_ceremony(
         auth_headers.clone(),
+        keys_ceremony_id.clone(),
         tenant_id.clone(),
         input.election_event_id.clone(),
         trustee_ids,
-        /*status*/Some(),
-        execution_status: Option<Value>,
+        /*status*/ Some(status),
+        /*execution_status*/ None,
     
     )
         .await
+        .with_context(|| "couldn't insert keys ceremony")
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    */
+
     event!(
         Level::INFO,
         "Creating Keys Ceremony, electionEventId={}, keysCeremonyId={}",
