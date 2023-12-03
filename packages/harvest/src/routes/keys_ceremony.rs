@@ -128,28 +128,28 @@ pub async fn get_private_key(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Endpoint: /create-key-ceremony
+/// Endpoint: /create-keys-ceremony
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CreateKeyCeremonyInput {
+pub struct CreateKeysCeremonyInput {
     election_event_id: String,
     threshold: String,
     trustee_names: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct CreateKeyCeremonyOutput {
-    key_ceremony_id: String,
+pub struct CreateKeysCeremonyOutput {
+    keys_ceremony_id: String,
 }
 
 // The main function to start a key ceremony
 #[instrument(skip(claims))]
-#[post("/create-key-ceremony", format = "json", data = "<body>")]
-pub async fn create_key_ceremony(
-    body: Json<CreateKeyCeremonyInput>,
+#[post("/create-keys-ceremony", format = "json", data = "<body>")]
+pub async fn create_keys_ceremony(
+    body: Json<CreateKeysCeremonyInput>,
     claims: JwtClaims,
-) -> Result<Json<CreateKeyCeremonyOutput>, (Status, String)> {
+) -> Result<Json<CreateKeysCeremonyOutput>, (Status, String)> {
     authorize(
         &claims,
         true,
@@ -168,9 +168,9 @@ pub async fn create_key_ceremony(
     .with_context(|| "can't find trustees")?
     .sequent_backend_trustee;
 
-    let key_ceremony_id: String = Uuid::new_v4().to_string();
+    let keys_ceremony_id: String = Uuid::new_v4().to_string();
     /* TODO:
-    let key_ceremony_id = your_service::create_key_ceremony(
+    let keys_ceremony_id = your_service::create_keys_ceremony(
         &input.election_event_id
     )
         .await
@@ -178,9 +178,9 @@ pub async fn create_key_ceremony(
     */
     event!(
         Level::INFO,
-        "Creating Key Ceremony, electionEventId={}, keysCeremonyId={}",
+        "Creating Keys Ceremony, electionEventId={}, keysCeremonyId={}",
         input.election_event_id,
-        key_ceremony_id,
+        keys_ceremony_id,
     );
-    Ok(Json(CreateKeyCeremonyOutput { key_ceremony_id }))
+    Ok(Json(CreateKeysCeremonyOutput { keys_ceremony_id }))
 }

@@ -20,7 +20,7 @@ import {
 } from "react-admin"
 import {Box, Button, Typography} from "@mui/material"
 import {IconButton} from "@sequentech/ui-essentials"
-import { KeyCeremonyWizard } from "@/components/key-ceremony/KeyCeremonyWizard"
+import { KeysCeremonyWizard } from "@/components/keys-ceremony/KeysCeremonyWizard"
 import { faPlus } from "@fortawesome/free-solid-svg-icons"
 import { useTenantStore } from "@/providers/TenantContextProvider"
 import { Action, ActionsColumn } from "@/components/ActionButons"
@@ -122,9 +122,9 @@ export const EditElectionEventKeys: React.FC = () => {
     return (
         <>
             {showCeremony
-                ? <KeyCeremonyWizard
+                ? <KeysCeremonyWizard
                     electionEvent={electionEvent}
-                    keyCeremony={currentCeremony}
+                    keysCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}
                     goBack={goBack}
                 />

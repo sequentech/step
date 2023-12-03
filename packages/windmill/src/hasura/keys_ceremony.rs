@@ -24,22 +24,24 @@ pub struct InsertKeysCeremony;
 #[instrument(skip(auth_headers))]
 pub async fn insert_keys_ceremony(
     auth_headers: connection::AuthHeaders,
+    id: String,
     tenant_id: String,
     election_event_id: String,
     trustee_ids: Vec<String>,
-    status: String,
-    execution_status: Value,
+    status: Option<String>,
+    execution_status: Option<Value>,
 ) -> Result<Response<insert_keys_ceremony::ResponseData>> {
     let variables = insert_keys_ceremony::Variables {
+        id: id,
         tenant_id: tenant_id,
         election_event_id: election_event_id,
-        trustee_ids: trustee_ids,
+        trustee_ids: Some(trustee_ids),
         status: status,
         execution_status: execution_status,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
-    let request_body = InsertTallySession::build_query(variables);
+    let request_body = InsertKeysCeremony::build_query(variables);
 
     let client = reqwest::Client::new();
     let res = client

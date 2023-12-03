@@ -21,9 +21,9 @@ mutation InsertKeysCeremony(
       id
       tenant_id
       election_event_id
-      trusteeIds
+      trustee_ids
       status
-      executionStatus
+      execution_status
       labels
       annotations
       created_at

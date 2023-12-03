@@ -101,9 +101,9 @@ type Mutation {
 }
 
 type Mutation {
-  create_key_ceremony (
-    object: CreateKeyCeremonyInput!
-  ): CreateKeyCeremonyOutput
+  create_keys_ceremony (
+    object: CreateKeysCeremonyInput!
+  ): CreateKeysCeremonyOutput
 }
 
 type Query {
@@ -228,7 +228,7 @@ input GetUsersInput {
   offset : Int
 }
 
-input CreateKeyCeremonyInput {
+input CreateKeysCeremonyInput {
   election_event_id : String!
   threshold : Int!
   trustee_names : [String!]
@@ -316,8 +316,8 @@ input KeycloakRole2 {
   client_roles : jsonb
 }
 
-type CreateKeyCeremonyOutput {
-  key_ceremony_id : String!
+type CreateKeysCeremonyOutput {
+  keys_ceremony_id : String!
 }
 
 type GetPrivateKeyOutput {

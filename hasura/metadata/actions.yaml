@@ -16,10 +16,10 @@ actions:
   permissions:
   - role: trustee-read
   comment: check private key
-- name: create_key_ceremony
+- name: create_keys_ceremony
   definition:
     kind: synchronous
-    handler: http://harvest:8400/create-key-ceremony
+    handler: http://harvest:8400/create-keys-ceremony
     forward_client_headers: true
     headers:
     - name: X-Hasura-Admin-Secret
@@ -32,7 +32,7 @@ actions:
       version: 2
   permissions:
   - role: admin-ceremony
-  comment: create key ceremony
+  comment: create keys ceremony
 - name: createScheduledEvent
   definition:
     kind: synchronous

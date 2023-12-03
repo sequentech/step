@@ -7,7 +7,7 @@ import {
     Typography,
 } from "@mui/material"
 import {
-    CreateKeyCeremonyMutation,
+    CreateKeysCeremonyMutation,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
 } from "@/gql/graphql"
@@ -30,7 +30,7 @@ import {styled} from "@mui/material/styles"
 import {useMutation} from "@apollo/client"
 import { useTranslation } from "react-i18next"
 import { isNumber } from "lodash"
-import { CREATE_KEY_CEREMONY } from "@/queries/CreateKeyCeremony"
+import { CREATE_KEYS_CEREMONY } from "@/queries/CreateKeysCeremony"
 import { useTenantStore } from "@/providers/TenantContextProvider"
 import { isNull } from "@sequentech/ui-essentials"
 
@@ -55,7 +55,7 @@ const CreateButton = styled(SaveButton)`
 
 export interface KeysGenerationStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
-    setCurrentCeremony: (keyCeremony: Sequent_Backend_Keys_Ceremony) => void
+    setCurrentCeremony: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
     electionEvent: Sequent_Backend_Election_Event
     goBack: () => void
 }
@@ -71,7 +71,7 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
     const notify = useNotify()
     const [newId, setNewId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
-    const [createKeyCeremonyMutation] = useMutation<CreateKeyCeremonyMutation>(CREATE_KEY_CEREMONY)
+    const [createKeysCeremonyMutation] = useMutation<CreateKeysCeremonyMutation>(CREATE_KEYS_CEREMONY)
     const [errors, setErrors] = useState<String | null>(null)
     const [threshold, __] = useState<number>(2)
     const refresh = useRefresh()
@@ -86,7 +86,7 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
         }
     )
     const {
-        data: keyCeremony,
+        data: keysCeremony,
         isLoading: isOneLoading,
     } = useGetOne<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
@@ -115,9 +115,9 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
             refresh()
             return
         }
-        if (isLoading && !error && !isOneLoading && !currentCeremony && keyCeremony) {
+        if (isLoading && !error && !isOneLoading && !currentCeremony && keysCeremony) {
             setIsLoading(false)
-            setCurrentCeremony(keyCeremony)
+            setCurrentCeremony(keysCeremony)
             notify(
                 t("keysGenerationStep.createCeremonySuccess"),
                 {type: "success"}
@@ -125,20 +125,20 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
             refresh()
             return
         }
-    }, [isLoading, keyCeremony, isOneLoading, error])
+    }, [isLoading, keysCeremony, isOneLoading, error])
 
     if (isLoading || error) {
         return null
     }
 
-    const createKeyCeremony:
+    const createKeysCeremony:
         (input: {
             threshold: number,
             trusteeNames: string[]
         }) => Promise<string | null> =
         async ({threshold, trusteeNames}) =>
     {
-        const {data, errors} = await createKeyCeremonyMutation({
+        const {data, errors} = await createKeysCeremonyMutation({
             variables: {
                 electionEventId: electionEvent.id,
                 threshold: threshold,
@@ -155,7 +155,7 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
         if (data) {
             console.log(data)
         }
-        return data?.create_key_ceremony?.key_ceremony_id ?? null
+        return data?.create_keys_ceremony?.keys_ceremony_id ?? null
     }
 
     const onSubmit: SubmitHandler<FieldValues> = async ({
@@ -169,13 +169,19 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
         setErrors(null)
         setIsLoading(true)
         try {
-            const keyCeremonyId = await createKeyCeremony({
+            const keysCeremonyId = await createKeysCeremony({
                 threshold, trusteeNames
             })
-            if (keyCeremonyId) {
-                setNewId(keyCeremonyId)
+            if (keysCeremonyId) {
+                setNewId(keysCeremonyId)
             } else {
-                notify(t("tenantScreen.createError"), {type: "error"})
+                notify(
+                    t(
+                        "keysGenerationStep.errorCreatingCeremony",
+                        {code: "error"}
+                    ),
+                    {type: "error"}
+                )
                 setIsLoading(false)
             }
         } catch (error) {

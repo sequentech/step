@@ -3,20 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
 
-export const CREATE_KEY_CEREMONY = gql`
-    mutation CreateKeyCeremony(
+export const CREATE_KEYS_CEREMONY = gql`
+    mutation CreateKeysCeremony(
         $electionEventId: String!
         $threshold: Int!
         $trusteeNames: [String!]
     ) {
-        create_key_ceremony(
+        create_keys_ceremony(
             object: {
                 election_event_id: $electionEventId
                 threshold: $threshold
                 trustee_names: $trusteeNames
             }
         ) {
-            key_ceremony_id
+            keys_ceremony_id
         }
     }
 `

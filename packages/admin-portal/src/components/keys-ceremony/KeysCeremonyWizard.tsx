@@ -7,34 +7,34 @@ import { Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony } from "@
 import {styled} from "@mui/material/styles"
 import { Box } from "@mui/material"
 import React, { useState } from "react"
-import { KeysGenerationStep } from "@/components/key-ceremony/KeysGenerationStep"
+import { KeysGenerationStep } from "@/components/keys-ceremony/KeysGenerationStep"
 import { IKeyCeremonyStatusStatus } from "@/services/KeyCeremony"
 
 const StyledBox = styled(Box)`
 `
 
-interface KeyCeremonyWizardProps {
+interface KeysCeremonyWizardProps {
     electionEvent: Sequent_Backend_Election_Event
 
-    keyCeremony: Sequent_Backend_Keys_Ceremony | null
-    setCurrentCeremony: (keyCeremony: Sequent_Backend_Keys_Ceremony) => void
+    keysCeremony: Sequent_Backend_Keys_Ceremony | null
+    setCurrentCeremony: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
 
     goBack: () => void
 }
 
-export const KeyCeremonyWizard: React.FC<KeyCeremonyWizardProps> = ({
+export const KeysCeremonyWizard: React.FC<KeysCeremonyWizardProps> = ({
     electionEvent,
-    keyCeremony,
+    keysCeremony,
     setCurrentCeremony,
     goBack,
 }) => {
     const calculateCurrentStep: () => number = () => {
-        if (!keyCeremony) {
+        if (!keysCeremony) {
             return 0 // configure
         } else {
-            if (keyCeremony.execution_status == IKeyCeremonyStatusStatus.NOT_STARTED) {
+            if (keysCeremony.execution_status == IKeyCeremonyStatusStatus.NOT_STARTED) {
                 return 0 // configure
-            } else if (keyCeremony.execution_status == IKeyCeremonyStatusStatus.IN_PROCESS) {
+            } else if (keysCeremony.execution_status == IKeyCeremonyStatusStatus.IN_PROCESS) {
                 return 1 // ceremony
             } else {
                 return 2 // created
@@ -60,7 +60,7 @@ export const KeyCeremonyWizard: React.FC<KeyCeremonyWizardProps> = ({
                     />
                     {currentStep == 0 &&
                         <KeysGenerationStep
-                            currentCeremony={keyCeremony}
+                            currentCeremony={keysCeremony}
                             setCurrentCeremony={setCurrentCeremony}
                             electionEvent={electionEvent}
                             goBack={goBack}

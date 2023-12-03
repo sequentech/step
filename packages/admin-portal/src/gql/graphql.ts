@@ -76,15 +76,15 @@ export type CreateElectionEventOutput = {
   id: Scalars['String']['output'];
 };
 
-export type CreateKeyCeremonyInput = {
+export type CreateKeysCeremonyInput = {
   election_event_id: Scalars['String']['input'];
   threshold: Scalars['Int']['input'];
   trustee_names?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
-export type CreateKeyCeremonyOutput = {
-  __typename?: 'CreateKeyCeremonyOutput';
-  key_ceremony_id: Scalars['String']['output'];
+export type CreateKeysCeremonyOutput = {
+  __typename?: 'CreateKeysCeremonyOutput';
+  keys_ceremony_id: Scalars['String']['output'];
 };
 
 export type CreatePermissionInput = {
@@ -395,8 +395,8 @@ export type Mutation_Root = {
   check_private_key?: Maybe<CheckPrivateKeyOutput>;
   /** create scheduled event */
   createScheduledEvent?: Maybe<ScheduledEventOutput3>;
-  /** create key ceremony */
-  create_key_ceremony?: Maybe<CreateKeyCeremonyOutput>;
+  /** create keys ceremony */
+  create_keys_ceremony?: Maybe<CreateKeysCeremonyOutput>;
   create_permission?: Maybe<KeycloakPermission>;
   create_role: KeycloakRole;
   create_user: KeycloakUser;
@@ -716,8 +716,8 @@ export type Mutation_RootCreateScheduledEventArgs = {
 
 
 /** mutation root */
-export type Mutation_RootCreate_Key_CeremonyArgs = {
-  object: CreateKeyCeremonyInput;
+export type Mutation_RootCreate_Keys_CeremonyArgs = {
+  object: CreateKeysCeremonyInput;
 };
 
 
@@ -10420,14 +10420,14 @@ export type Uuid_Comparison_Exp = {
   _nin?: InputMaybe<Array<Scalars['uuid']['input']>>;
 };
 
-export type CreateKeyCeremonyMutationVariables = Exact<{
+export type CreateKeysCeremonyMutationVariables = Exact<{
   electionEventId: Scalars['String']['input'];
   threshold: Scalars['Int']['input'];
   trusteeNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
 }>;
 
 
-export type CreateKeyCeremonyMutation = { __typename?: 'mutation_root', create_key_ceremony?: { __typename?: 'CreateKeyCeremonyOutput', key_ceremony_id: string } | null };
+export type CreateKeysCeremonyMutation = { __typename?: 'mutation_root', create_keys_ceremony?: { __typename?: 'CreateKeysCeremonyOutput', keys_ceremony_id: string } | null };
 
 export type CreateScheduledEventMutationVariables = Exact<{
   tenantId: Scalars['String']['input'];
@@ -10583,7 +10583,7 @@ export type ListPgauditQueryVariables = Exact<{
 export type ListPgauditQuery = { __typename?: 'query_root', listPgaudit?: { __typename?: 'DataListPgAudit', items: Array<{ __typename?: 'PgAuditRow', id: number, audit_type: string, class: string, command: string, dbname: string, server_timestamp: number, session_id: string, statement: string, user: string } | null>, total: { __typename?: 'TotalAggregate', aggregate: { __typename?: 'Aggregate', count: number } } } | null };
 
 
-export const CreateKeyCeremonyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateKeyCeremony"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"threshold"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"trusteeNames"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create_key_ceremony"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"threshold"},"value":{"kind":"Variable","name":{"kind":"Name","value":"threshold"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"trustee_names"},"value":{"kind":"Variable","name":{"kind":"Name","value":"trusteeNames"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"key_ceremony_id"}}]}}]}}]} as unknown as DocumentNode<CreateKeyCeremonyMutation, CreateKeyCeremonyMutationVariables>;
+export const CreateKeysCeremonyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateKeysCeremony"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"threshold"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"trusteeNames"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create_keys_ceremony"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"threshold"},"value":{"kind":"Variable","name":{"kind":"Name","value":"threshold"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"trustee_names"},"value":{"kind":"Variable","name":{"kind":"Name","value":"trusteeNames"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"keys_ceremony_id"}}]}}]}}]} as unknown as DocumentNode<CreateKeysCeremonyMutation, CreateKeysCeremonyMutationVariables>;
 export const CreateScheduledEventDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateScheduledEvent"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"eventProcessor"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"cronConfig"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"eventPayload"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"jsonb"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"createdBy"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createScheduledEvent"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"event_processor"},"value":{"kind":"Variable","name":{"kind":"Name","value":"eventProcessor"}}},{"kind":"Argument","name":{"kind":"Name","value":"cron_config"},"value":{"kind":"Variable","name":{"kind":"Name","value":"cronConfig"}}},{"kind":"Argument","name":{"kind":"Name","value":"event_payload"},"value":{"kind":"Variable","name":{"kind":"Name","value":"eventPayload"}}},{"kind":"Argument","name":{"kind":"Name","value":"created_by"},"value":{"kind":"Variable","name":{"kind":"Name","value":"createdBy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<CreateScheduledEventMutation, CreateScheduledEventMutationVariables>;
 export const Delete_Area_ContestsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"delete_area_contests"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"area"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"delete_sequent_backend_area_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"area_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"area"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"returning"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]} as unknown as DocumentNode<Delete_Area_ContestsMutation, Delete_Area_ContestsMutationVariables>;
 export const FetchDocumentDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"FetchDocument"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fetchDocument"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"document_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]}}]} as unknown as DocumentNode<FetchDocumentQuery, FetchDocumentQueryVariables>;

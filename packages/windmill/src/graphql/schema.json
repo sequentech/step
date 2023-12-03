@@ -185,6 +185,20 @@
             "defaultValue": null
           },
           {
+            "name": "keys_ceremony_id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          },
+          {
             "name": "private_key_base64",
             "description": null,
             "type": {
@@ -446,6 +460,90 @@
         "fields": [
           {
             "name": "id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "CreateKeysCeremonyInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "election_event_id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "threshold",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "trustee_names",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "CreateKeysCeremonyOutput",
+        "description": null,
+        "fields": [
+          {
+            "name": "keys_ceremony_id",
             "description": null,
             "args": [],
             "type": {
@@ -3467,6 +3565,33 @@
         "description": "mutation root",
         "fields": [
           {
+            "name": "check_private_key",
+            "description": "check private key",
+            "args": [
+              {
+                "name": "object",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "CheckPrivateKeyInput",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "CheckPrivateKeyOutput",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "createScheduledEvent",
             "description": "create scheduled event",
             "args": [
@@ -3554,6 +3679,33 @@
             "type": {
               "kind": "OBJECT",
               "name": "ScheduledEventOutput3",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "create_keys_ceremony",
+            "description": "create keys ceremony",
+            "args": [
+              {
+                "name": "object",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "CreateKeysCeremonyInput",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "CreateKeysCeremonyOutput",
               "ofType": null
             },
             "isDeprecated": false,
@@ -5330,6 +5482,33 @@
                 "name": "KeycloakUser",
                 "ofType": null
               }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "get_private_key",
+            "description": "get private key",
+            "args": [
+              {
+                "name": "object",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "GetPrivateKeyInput",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "GetPrivateKeyOutput",
+              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -11575,33 +11754,6 @@
         "description": null,
         "fields": [
           {
-            "name": "check_private_key",
-            "description": "check private key",
-            "args": [
-              {
-                "name": "object",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "CheckPrivateKeyInput",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "CheckPrivateKeyOutput",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "fetchDocument",
             "description": "fetch document",
             "args": [
@@ -11683,33 +11835,6 @@
                 "name": "GetPermissionsOutput",
                 "ofType": null
               }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "get_private_key",
-            "description": "get private key",
-            "args": [
-              {
-                "name": "object",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "GetPrivateKeyInput",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null
-              }
-            ],
-            "type": {
-              "kind": "OBJECT",
-              "name": "GetPrivateKeyOutput",
-              "ofType": null
             },
             "isDeprecated": false,
             "deprecationReason": null

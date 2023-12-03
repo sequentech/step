@@ -544,7 +544,7 @@
       },
       {
         "kind": "INPUT_OBJECT",
-        "name": "CreateKeyCeremonyInput",
+        "name": "CreateKeysCeremonyInput",
         "description": null,
         "fields": null,
         "inputFields": [
@@ -607,11 +607,11 @@
       },
       {
         "kind": "OBJECT",
-        "name": "CreateKeyCeremonyOutput",
+        "name": "CreateKeysCeremonyOutput",
         "description": null,
         "fields": [
           {
-            "name": "key_ceremony_id",
+            "name": "keys_ceremony_id",
             "description": null,
             "args": [],
             "type": {
@@ -4259,8 +4259,8 @@
             "deprecationReason": null
           },
           {
-            "name": "create_key_ceremony",
-            "description": "create key ceremony",
+            "name": "create_keys_ceremony",
+            "description": "create keys ceremony",
             "args": [
               {
                 "name": "object",
@@ -4270,7 +4270,7 @@
                   "name": null,
                   "ofType": {
                     "kind": "INPUT_OBJECT",
-                    "name": "CreateKeyCeremonyInput",
+                    "name": "CreateKeysCeremonyInput",
                     "ofType": null
                   }
                 },
@@ -4281,7 +4281,7 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "CreateKeyCeremonyOutput",
+              "name": "CreateKeysCeremonyOutput",
               "ofType": null
             },
             "isDeprecated": false,
