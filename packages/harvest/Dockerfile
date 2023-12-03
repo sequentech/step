@@ -1,9 +1,16 @@
-FROM rust:1.70.0
+ARG ENVIRONMENT=dev
 
+FROM rust:1.70.0 as harvest-builder
+
+ARG ENVIRONMENT=${ENVIRONMENT}
 ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=8400
 
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev
+RUN rustup default nightly
+
 COPY ./harvest ./harvest
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
@@ -14,10 +21,43 @@ COPY ./windmill ./windmill
 COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
 
-RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev
-RUN rustup default nightly
 
 WORKDIR /app/harvest
-RUN cargo build
+RUN if [ "$ENVIRONMENT" = "prod" ]; then \
+        cargo build --release; \
+    else \
+        cargo build; \
+    fi
 
+
+# Second stage for development environment
+FROM harvest-builder as dev
+
+WORKDIR /app/harvest
+
+# Expose the application port
+EXPOSE 8400
+
+# Run the application using Cargo
 CMD ["cargo", "run"]
+
+
+# Second stage for production environment
+FROM debian:bullseye as prod
+
+RUN apt-get update && apt-get install -y libssl1.1 && rm -rf /var/lib/apt/lists/*
+
+# Copy the compiled binary from the builder stage
+COPY --from=harvest-builder /app/harvest/target/release/harvest /usr/local/bin/harvest
+
+WORKDIR /usr/local/bin
+
+# Expose the application port
+EXPOSE 8400
+
+# Run the application
+CMD ["harvest"]
+
+
+# Final stage based on the environment
+FROM ${ENVIRONMENT} as final
