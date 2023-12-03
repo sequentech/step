@@ -3,35 +3,35 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-export enum IKeyCeremonyStatusStatus {
+export enum IKeysCeremonyStatusStatus {
     NOT_STARTED = "NOT_STARTED",
     IN_PROCESS = "IN_PROCESS",
     SUCCESS = "SUCCESS",
     CANCELLED = "CANCELLED",
 }
 
-export interface IKeyCeremonyLog {
+export interface IKeysCeremonyLog {
     created_date: String
     log_text: String
 }
 
-export enum IKeyCeremonyTrusteeStatus {
+export enum IKeysCeremonyTrusteeStatus {
     WAITING = "WAITING",
     KEY_GENERATED = "KEY_GENERATED",
     KEY_RETRIEVED = "KEY_RETRIEVED",
     KEY_CHECKED = "KEY_CHECKED",
 }
 
-export interface IKeyCeremonyTrustee {
+export interface IKeysCeremonyTrustee {
     name: String
-    status: IKeyCeremonyTrusteeStatus
+    status: IKeysCeremonyTrusteeStatus
 }
 
-export interface IKeyCeremonyStatus {
+export interface IKeysCeremonyStatus {
     start_date: String
     stop_date: String
     threshold: number
     public_key: String
-    logs: IKeyCeremonyLog[]
-    trustees: IKeyCeremonyTrustee[]
+    logs: IKeysCeremonyLog[]
+    trustees: IKeysCeremonyTrustee[]
 }

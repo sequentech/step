@@ -11,6 +11,7 @@ use sequent_core::services::keycloak;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use windmill::hasura::trustee::get_trustees_by_name;
+use windmill::hasura::keys_ceremony::insert_keys_ceremony;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
@@ -163,7 +164,8 @@ pub async fn create_keys_ceremony(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
-    let trustees = get_trustees_by_name(
+    // verify trustee names and fetch their objects to get their ids
+    let trustee_ids = get_trustees_by_name(
         auth_headers.clone(),
         tenant_id.clone(),
         input.trustee_names.clone(),
@@ -173,12 +175,20 @@ pub async fn create_keys_ceremony(
     .data
     .with_context(|| "can't find trustees")
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
-    .sequent_backend_trustee;
+    .sequent_backend_trustee
+    .into_iter()
+    .map(|trustee| trustee.id);
 
     let keys_ceremony_id: String = Uuid::new_v4().to_string();
-    /* TODO:
-    let keys_ceremony_id = your_service::create_keys_ceremony(
-        &input.election_event_id
+    /*
+    create_keys_ceremony(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        input.election_event_id.clone(),
+        trustee_ids,
+        /*status*/Some(),
+        execution_status: Option<Value>,
+    
     )
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
