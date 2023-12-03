@@ -196,6 +196,16 @@ const englishTranslation = {
                     scheduled: "Scheduled",
                 },
             },
+            tabs: {
+                dashboard: "Dashboard",
+                data: "Data",
+                voters: "Voters",
+                areas: "Areas",
+                keys: "Keys",
+                tally: "Tally",
+                publish: "Publish",
+                logs: "Logs",
+            },
         },
         electionScreen: {
             common: {
@@ -268,6 +278,8 @@ const englishTranslation = {
                 errors: {
                     editError: "Error editing voter",
                     editSuccess: "Voter edited",
+                    createError: "Error creating voter",
+                    createSuccess: "Voter created",
                 },
             },
             roles: {
