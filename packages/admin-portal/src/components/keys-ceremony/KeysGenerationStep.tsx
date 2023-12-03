@@ -108,7 +108,7 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
             notify(
                 t(
                     "keysGenerationStep.errorCreatingCeremony",
-                    {code: error + ""}
+                    {error: error + ""}
                 ),
                 {type: "error"}
             )
@@ -178,7 +178,7 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
                 notify(
                     t(
                         "keysGenerationStep.errorCreatingCeremony",
-                        {code: "error"}
+                        {error: "error"}
                     ),
                     {type: "error"}
                 )
@@ -187,7 +187,7 @@ export const KeysGenerationStep: React.FC<KeysGenerationStepProps> = ({
         } catch (error) {
             setErrors(t(
                 "keysGenerationStep.errorCreatingCeremony",
-                {code: error + ""}
+                {error: error + ""}
             ))
             setIsLoading(false)
         }

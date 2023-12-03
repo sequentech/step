@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-export enum IKeysCeremonyStatusStatus {
+export enum IKeysCeremonyExecutionStatus {
     NOT_STARTED = "NOT_STARTED",
     IN_PROCESS = "IN_PROCESS",
     SUCCESS = "SUCCESS",

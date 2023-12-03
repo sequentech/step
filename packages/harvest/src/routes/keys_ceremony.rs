@@ -14,7 +14,7 @@ use sequent_core::services::jwt::JwtClaims;
 use windmill::hasura::trustee::get_trustees_by_name;
 use windmill::hasura::keys_ceremony::insert_keys_ceremony;
 use windmill::types::keys_ceremony::{
-    StatusStatus,
+    CeremonyStatus,
     ExecutionStatus,
     Trustee,
     TrusteeStatus,
@@ -144,7 +144,7 @@ pub async fn get_private_key(
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateKeysCeremonyInput {
     election_event_id: String,
-    threshold: String,
+    threshold: u8,
     trustee_names: Vec<String>,
 }
 
@@ -191,11 +191,12 @@ pub async fn create_keys_ceremony(
         .into_iter()
         .map(|trustee| trustee.id)
         .collect();
+    event!(Level::INFO, "trustee_ids={:?}", trustee_ids);
 
     // generate default values
     let keys_ceremony_id: String = Uuid::new_v4().to_string();
-    let status: String = StatusStatus::NOT_STARTED.to_string();
-    let execution_status: Value = serde_json::to_value(ExecutionStatus {
+    let execution_status: String = ExecutionStatus::NOT_STARTED.to_string();
+    let status: Value = serde_json::to_value(CeremonyStatus {
         stop_date: None,
         public_key: None,
         logs: vec![],
@@ -219,7 +220,7 @@ pub async fn create_keys_ceremony(
         input.election_event_id.clone(),
         trustee_ids,
         /*status*/ Some(status),
-        /*execution_status*/ None,
+        /*execution_status*/ Some(execution_status),
     )
         .await
         .with_context(|| "couldn't insert keys ceremony")

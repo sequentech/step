@@ -8,7 +8,7 @@ import {styled} from "@mui/material/styles"
 import { Box } from "@mui/material"
 import React, { useState } from "react"
 import { KeysGenerationStep } from "@/components/keys-ceremony/KeysGenerationStep"
-import { IKeysCeremonyStatusStatus } from "@/services/KeyCeremony"
+import { IKeysCeremonyExecutionStatus } from "@/services/KeyCeremony"
 
 const StyledBox = styled(Box)`
 `
@@ -32,9 +32,9 @@ export const KeysCeremonyWizard: React.FC<KeysCeremonyWizardProps> = ({
         if (!keysCeremony) {
             return 0 // configure
         } else {
-            if (keysCeremony.execution_status == IKeysCeremonyStatusStatus.NOT_STARTED) {
+            if (keysCeremony.execution_status == IKeysCeremonyExecutionStatus.NOT_STARTED) {
                 return 0 // configure
-            } else if (keysCeremony.execution_status == IKeysCeremonyStatusStatus.IN_PROCESS) {
+            } else if (keysCeremony.execution_status == IKeysCeremonyExecutionStatus.IN_PROCESS) {
                 return 1 // ceremony
             } else {
                 return 2 // created

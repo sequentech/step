@@ -9,7 +9,7 @@ use strum_macros::Display;
 use strum_macros::EnumString;
 
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
-pub enum StatusStatus {
+pub enum ExecutionStatus {
     NOT_STARTED,
     IN_PROCESS,
     SUCCESS,
@@ -37,7 +37,7 @@ pub struct Trustee {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ExecutionStatus {
+pub struct CeremonyStatus {
     pub stop_date: Option<String>,
     pub public_key: Option<String>,
     pub logs: Vec<Log>,

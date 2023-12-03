@@ -28,8 +28,8 @@ pub async fn insert_keys_ceremony(
     tenant_id: String,
     election_event_id: String,
     trustee_ids: Vec<String>,
-    status: Option<String>,
-    execution_status: Option<Value>,
+    status: Option<Value>,
+    execution_status: Option<String>,
 ) -> Result<Response<insert_keys_ceremony::ResponseData>> {
     let variables = insert_keys_ceremony::Variables {
         id: id,
