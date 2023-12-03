@@ -174,8 +174,8 @@ const englishTranslation = {
                 },
             },
             keys: {
-                createNew: "Create New Key Ceremony",
-                emptyHeader: "No Key Ceremony yet.",
+                createNew: "Create New Keys Ceremony",
+                emptyHeader: "No Keys Ceremony yet.",
                 emptyBody: "Do you want to create one?",
                 breadCrumbs: {
                     configure: "Configure",
