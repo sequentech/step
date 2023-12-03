@@ -17,6 +17,7 @@ import {
     useRecordContext,
     Link,
     DateField,
+    Identifier,
 } from "react-admin"
 import {Box, Button, Typography} from "@mui/material"
 import {IconButton} from "@sequentech/ui-essentials"
@@ -28,6 +29,7 @@ import { useTranslation } from "react-i18next"
 import {useContext} from "react"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import FileOpenIcon from '@mui/icons-material/FileOpen'
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -109,15 +111,19 @@ export const EditElectionEventKeys: React.FC = () => {
         setCurrentCeremony(null)
     }
 
-    const actions: Action[] = (canAdminCeremony)
-        ? [
-            // access
-        ]
-        : []
-
-    if (!showCeremony) {
-        return <Empty />
+    const viewAction = (id: Identifier) => {
+        const ceremony: Sequent_Backend_Keys_Ceremony | undefined = 
+            keyCeremonies?.find((element) => element.id === id)
+        if (!ceremony) {
+        } else {
+            setCurrentCeremony(ceremony)
+            setShowCeremony(true)
+        }
     }
+
+    const actions: Action[] = [
+        {icon: <FileOpenIcon />, action: viewAction},
+    ]
 
     return (
         <>
@@ -129,7 +135,7 @@ export const EditElectionEventKeys: React.FC = () => {
                     goBack={goBack}
                 />
                 : <List
-                    resource="keys_ceremony"
+                    resource="sequent_backend_keys_ceremony"
                     actions={
                         <TopToolbar>
                             { canAdminCeremony ? <CreateButton /> : null }
@@ -144,7 +150,7 @@ export const EditElectionEventKeys: React.FC = () => {
                     >
                         <TextField source="id" />
                         <DateField source="created_at" />
-                        <TextField source="status" />
+                        <TextField source="execution_status" />
                         <ActionsColumn actions={actions} />
                     </DatagridConfigurable>
                 </List>

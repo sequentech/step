@@ -184,6 +184,7 @@ pub async fn create_keys_ceremony(
     .with_context(|| "can't find trustees")
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
     .sequent_backend_trustee;
+    event!(Level::INFO, "trustees={:?}, trustees.len()={}", trustees, trustees.len());
 
     // obtain trustee ids list
     let trustee_ids = trustees
