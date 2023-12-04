@@ -146,7 +146,10 @@ export const EditElectionEventKeys: React.FC = () => {
                             { canAdminCeremony ? <CreateButton /> : null }
                         </TopToolbar>
                     }
-                    filter={{tenant_id: tenantId}}
+                    filter={{
+                        tenant_id: tenantId || undefined,
+                        election_event_id: electionEvent?.id || undefined,
+                    }}
                     empty={<Empty />}
                 >
                     <DatagridConfigurable 
