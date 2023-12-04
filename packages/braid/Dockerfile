@@ -34,7 +34,7 @@ WORKDIR /app
 FROM debian:bookworm as prod
 
 # Some shared libraries (extra-runtime-dependencies) may need to be installed:
-RUN apt-get update && apt-get install -y libssl1.1 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y libssl3 && rm -rf /var/lib/apt/lists/*
 #--------------------------#
 
 #====Final=================#
