@@ -2088,7 +2088,7 @@
       "recaptchaActionName" : "forgotpassword",
       "recaptchaSiteKey" : "6LfJ_RspAAAAAAX_gikmCVVs1MP8DPWV71WYUKUK",
       "siteSecret" : "6LfJ_RspAAAAAOAA1TlNmGRgzUANakib7MSQe1ae",
-      "recaptchaEnabled" : "true",
+      "recaptchaEnabled" : "false",
       "recaptchaMinScore" : "0.5"
     }
   }, {
@@ -2212,7 +2212,7 @@
       "recaptchaActionName" : "login",
       "siteSecret" : "6LfJ_RspAAAAAOAA1TlNmGRgzUANakib7MSQe1ae",
       "passwordExpirationUserAttribute" : "sequent.read-only.expirationDate",
-      "recaptchaEnabled" : "true",
+      "recaptchaEnabled" : "false",
       "recaptchaMinScore" : "0.5"
     }
   }, {
