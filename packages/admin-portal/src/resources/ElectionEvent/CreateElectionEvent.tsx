@@ -98,7 +98,9 @@ export const CreateElectionList: React.FC = () => {
             setIsLoading(false)
         }
         refresh()
-        refetchTreeMenu()
+        setTimeout(() => {
+            refetchTreeMenu()
+        }, 3000)
     }
     return (
         <SimpleForm defaultValues={postDefaultValues} onSubmit={handleSubmit}>
