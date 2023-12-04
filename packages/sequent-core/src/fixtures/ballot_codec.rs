@@ -197,9 +197,6 @@ pub fn get_writein_ballot_style() -> BallotStyle {
             is_demo: false,
         }),
         area_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-        status: Some(ElectionStatus {
-            voting_status: VotingStatus::OPEN,
-        }),
         contests: vec![Contest {
             id: "1c1500ac-173e-4e78-a59d-91bfa3678c5a".into(),
             tenant_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),

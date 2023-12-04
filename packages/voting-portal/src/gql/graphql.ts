@@ -65,10 +65,20 @@ export type CreateElectionEventOutput = {
   id: Scalars['String']['output'];
 };
 
+export type CreatePermissionInput = {
+  permission: KeycloakPermission2;
+  tenant_id: Scalars['String']['input'];
+};
+
 export type DataListPgAudit = {
   __typename?: 'DataListPgAudit';
   items: Array<Maybe<PgAuditRow>>;
   total: TotalAggregate;
+};
+
+export type DeleteUserOutput = {
+  __typename?: 'DeleteUserOutput';
+  id?: Maybe<Scalars['String']['output']>;
 };
 
 export type EditUsersInput = {
@@ -77,7 +87,7 @@ export type EditUsersInput = {
   email?: InputMaybe<Scalars['String']['input']>;
   enabled?: InputMaybe<Scalars['Boolean']['input']>;
   first_name?: InputMaybe<Scalars['String']['input']>;
-  groups: Array<Scalars['String']['input']>;
+  groups?: InputMaybe<Array<Scalars['String']['input']>>;
   tenant_id: Scalars['String']['input'];
   user_id: Scalars['String']['input'];
   username?: InputMaybe<Scalars['String']['input']>;
@@ -163,6 +173,14 @@ export type KeycloakPermission = {
   name?: Maybe<Scalars['String']['output']>;
 };
 
+export type KeycloakPermission2 = {
+  attributes?: InputMaybe<Scalars['jsonb']['input']>;
+  container_id?: InputMaybe<Scalars['String']['input']>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type KeycloakRole = {
   __typename?: 'KeycloakRole';
   access?: Maybe<Scalars['jsonb']['output']>;
@@ -171,6 +189,15 @@ export type KeycloakRole = {
   id?: Maybe<Scalars['String']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   permissions?: Maybe<Scalars['jsonb']['output']>;
+};
+
+export type KeycloakRole2 = {
+  access?: InputMaybe<Scalars['jsonb']['input']>;
+  attributes?: InputMaybe<Scalars['jsonb']['input']>;
+  client_roles?: InputMaybe<Scalars['jsonb']['input']>;
+  id?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  permissions?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
 export type KeycloakUser = {
@@ -184,6 +211,18 @@ export type KeycloakUser = {
   id?: Maybe<Scalars['String']['output']>;
   last_name?: Maybe<Scalars['String']['output']>;
   username?: Maybe<Scalars['String']['output']>;
+};
+
+export type KeycloakUser2 = {
+  attributes?: InputMaybe<Scalars['jsonb']['input']>;
+  email?: InputMaybe<Scalars['String']['input']>;
+  email_verified?: InputMaybe<Scalars['Boolean']['input']>;
+  enabled?: InputMaybe<Scalars['Boolean']['input']>;
+  first_name?: InputMaybe<Scalars['String']['input']>;
+  groups?: InputMaybe<Array<Scalars['String']['input']>>;
+  id?: InputMaybe<Scalars['String']['input']>;
+  last_name?: InputMaybe<Scalars['String']['input']>;
+  username?: InputMaybe<Scalars['String']['input']>;
 };
 
 export enum OrderDirection {
@@ -218,6 +257,16 @@ export type PgAuditRow = {
 
 export type ScheduledEventOutput3 = {
   __typename?: 'ScheduledEventOutput3';
+  id?: Maybe<Scalars['String']['output']>;
+};
+
+export type SetRolePermissionOutput = {
+  __typename?: 'SetRolePermissionOutput';
+  id?: Maybe<Scalars['String']['output']>;
+};
+
+export type SetUserRoleOutput = {
+  __typename?: 'SetUserRoleOutput';
   id?: Maybe<Scalars['String']['output']>;
 };
 
@@ -313,6 +362,12 @@ export type Mutation_Root = {
   __typename?: 'mutation_root';
   /** create scheduled event */
   createScheduledEvent?: Maybe<ScheduledEventOutput3>;
+  create_permission?: Maybe<KeycloakPermission>;
+  create_role: KeycloakRole;
+  create_user: KeycloakUser;
+  delete_permission?: Maybe<SetRolePermissionOutput>;
+  delete_role?: Maybe<SetUserRoleOutput>;
+  delete_role_permission?: Maybe<SetRolePermissionOutput>;
   /** delete data from the table: "sequent_backend.area" */
   delete_sequent_backend_area?: Maybe<Sequent_Backend_Area_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.area" */
@@ -389,6 +444,8 @@ export type Mutation_Root = {
   delete_sequent_backend_trustee?: Maybe<Sequent_Backend_Trustee_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.trustee" */
   delete_sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>;
+  delete_user?: Maybe<DeleteUserOutput>;
+  delete_user_role?: Maybe<SetUserRoleOutput>;
   edit_user: KeycloakUser;
   get_upload_url?: Maybe<GetUploadUrlOutput>;
   insertElectionEvent?: Maybe<CreateElectionEventOutput>;
@@ -470,6 +527,9 @@ export type Mutation_Root = {
   insert_sequent_backend_trustee?: Maybe<Sequent_Backend_Trustee_Mutation_Response>;
   /** insert a single row into the table: "sequent_backend.trustee" */
   insert_sequent_backend_trustee_one?: Maybe<Sequent_Backend_Trustee>;
+  list_user_roles: Array<KeycloakRole>;
+  set_role_permission?: Maybe<SetRolePermissionOutput>;
+  set_user_role?: Maybe<SetUserRoleOutput>;
   /** update data of the table: "sequent_backend.area" */
   update_sequent_backend_area?: Maybe<Sequent_Backend_Area_Mutation_Response>;
   /** update single row of the table: "sequent_backend.area" */
@@ -594,6 +654,49 @@ export type Mutation_RootCreateScheduledEventArgs = {
   election_event_id: Scalars['String']['input'];
   event_payload: Scalars['jsonb']['input'];
   event_processor: Scalars['String']['input'];
+  tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootCreate_PermissionArgs = {
+  body: CreatePermissionInput;
+};
+
+
+/** mutation root */
+export type Mutation_RootCreate_RoleArgs = {
+  role: KeycloakRole2;
+  tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootCreate_UserArgs = {
+  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  tenant_id: Scalars['String']['input'];
+  user: KeycloakUser2;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_PermissionArgs = {
+  permission_name: Scalars['String']['input'];
+  tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_RoleArgs = {
+  role_id: Scalars['String']['input'];
+  tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Role_PermissionArgs = {
+  permission_name: Scalars['String']['input'];
+  role_id: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
 };
 
@@ -842,6 +945,22 @@ export type Mutation_RootDelete_Sequent_Backend_TrusteeArgs = {
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Trustee_By_PkArgs = {
   id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_UserArgs = {
+  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  tenant_id: Scalars['String']['input'];
+  user_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_User_RoleArgs = {
+  role_id: Scalars['String']['input'];
+  tenant_id: Scalars['String']['input'];
+  user_id: Scalars['String']['input'];
 };
 
 
@@ -1134,6 +1253,30 @@ export type Mutation_RootInsert_Sequent_Backend_TrusteeArgs = {
 export type Mutation_RootInsert_Sequent_Backend_Trustee_OneArgs = {
   object: Sequent_Backend_Trustee_Insert_Input;
   on_conflict?: InputMaybe<Sequent_Backend_Trustee_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootList_User_RolesArgs = {
+  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  tenant_id: Scalars['String']['input'];
+  user_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSet_Role_PermissionArgs = {
+  permission_name: Scalars['String']['input'];
+  role_id: Scalars['String']['input'];
+  tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSet_User_RoleArgs = {
+  role_id: Scalars['String']['input'];
+  tenant_id: Scalars['String']['input'];
+  user_id: Scalars['String']['input'];
 };
 
 
