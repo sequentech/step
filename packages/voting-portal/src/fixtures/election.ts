@@ -14,9 +14,6 @@ export const ELECTION_CATEGORIES: IBallotStyle = {
         public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
         is_demo: true,
     },
-    status: {
-        voting_status: "OPEN",
-    },
     contests: [
         {
             id: "0879c2ff-1212-4c9d-a415-907c47a9e28f",
@@ -171,9 +168,6 @@ export const SIMPLE_ELECTION_PLURALITY: IBallotStyle = {
         public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
         is_demo: false,
     },
-    status: {
-        voting_status: "OPEN",
-    },
     contests: [
         {
             id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46",
@@ -278,9 +272,6 @@ export const ELECTION_WRITEINS_SIMPLE: IBallotStyle = {
     public_key: {
         public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
         is_demo: false,
-    },
-    status: {
-        voting_status: "OPEN",
     },
     contests: [
         {
@@ -390,9 +381,6 @@ export const ELECTION_WITH_INVALID: IBallotStyle = {
     public_key: {
         public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
         is_demo: false,
-    },
-    status: {
-        voting_status: "OPEN",
     },
     contests: [
         {

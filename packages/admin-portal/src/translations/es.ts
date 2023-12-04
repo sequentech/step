@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import { TranslationType } from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
@@ -129,9 +129,31 @@ const spanishTranslation: TranslationType = {
                 title: "Áreas",
                 subTitle: "Configuración de Área.",
             },
-            createAreaSuccess: "Área creadas",
+            createAreaSuccess: "Área creada",
             createAreaError: "Error creando área",
-            sequent_backend_area_contest: "Area de Contiendas",
+            sequent_backend_area_contest: "Preguntas del Área",
+        },
+        electionTypeScreen: {
+            common: {
+                title: 'Tipo de Elección',
+                subtitle: 'Configuración del Tipo de Elección',
+                onlineVoting: 'Votación en Línea',
+                kioskVoting: 'Votación en Quiosco',
+                settingTitle: 'Configuración',
+                settingSubtitle: 'Ajustes generales'
+            },
+            create: {
+                title: 'Crear Tipo de Elección'
+            },
+            edit: {
+                title: 'Editar Tipo de Elección'
+            },
+            tabs: {
+                votingChannels: 'CANALES DE VOTACIÓN',
+                electionTypes: 'TIPOS DE ELECCIÓN',
+                communications: 'COMUNICACIÓN',
+                languages: 'IDIOMAS'
+            }
         },
         dashboard: {
             voteByDay: "Voto por día",
@@ -139,7 +161,7 @@ const spanishTranslation: TranslationType = {
         },
         electionEventScreen: {
             common: {
-                subtitle: "Configuración del Evento de Elección.",
+                subtitle: "Configuración del Evento Electoral.",
             },
             edit: {
                 general: "General",
@@ -162,8 +184,8 @@ const spanishTranslation: TranslationType = {
             voters: {
                 title: "Votantes",
             },
-            createElectionEventSuccess: "Evento de Elección creado",
-            createElectionEventError: "Error creando Evento de Elección",
+            createElectionEventSuccess: "Evento Electoral creado",
+            createElectionEventError: "Error creando Evento Electoral",
             stats: {
                 elegibleVoters: "Votantes elegibles",
                 elections: "Elecciones",
@@ -174,6 +196,26 @@ const spanishTranslation: TranslationType = {
                     title: "Calendario",
                     scheduled: "Programado",
                 },
+            },
+            keys: {
+                createNew: "Crear Ceremonia de Claves",
+                emptyHeader: "Ninguna Ceremonia de Claves aún.",
+                emptyBody: "¿Quieres crear una?",
+                breadCrumbs: {
+                    configure: "Configurar",
+                    ceremony: "Ceremonia",
+                    created: "Finished",
+                },
+            },
+            tabs: {
+                dashboard: "Panel de Control",
+                data: "Datos",
+                voters: "Votantes",
+                areas: "Áreas",
+                keys: "Claves",
+                tally: "Recuento",
+                publish: "Publicar",
+                logs: "Logs",
             },
         },
         electionScreen: {
@@ -247,6 +289,8 @@ const spanishTranslation: TranslationType = {
                 errors: {
                     editError: "Error editando votante",
                     editSuccess: "Votante editado",
+                    createError: "Error creando votante",
+                    createSuccess: "Votante creado",
                 },
             },
             roles: {
@@ -312,6 +356,7 @@ const spanishTranslation: TranslationType = {
             },
             label: {
                 add: "Añadir",
+                actions: "Acciones",
                 create: "Crear",
                 delete: "Borrar",
                 archive: "Archivar",
@@ -421,7 +466,7 @@ const spanishTranslation: TranslationType = {
         },
         contestScreen: {
             common: {
-                subtitle: "Configuración de contienda.",
+                subtitle: "Configuración de pregunta.",
             },
             edit: {
                 general: "General",
@@ -444,8 +489,51 @@ const spanishTranslation: TranslationType = {
                 "alphabetical": "Alfabético",
             },
             error: {},
-            createContestSuccess: "Contienda creado",
-            createContestError: "Error creating contienda",
+            createContestSuccess: "Pregunta creado",
+            createContestError: "Error creando pregunta",
+        },
+        keysGeneration: {
+            configureStep: {
+                create: "Crear Ceremonia de Claves",
+                title: "Crear Ceremonia de Claves del Evento Electoral",
+                subtitle: "En esta ceremonia cada autoridad generará y descargará su parte de las claves privadas para el Evento Electoral. Para continuar, elija los autoridades que participarán en la ceremonia y el umbral, que es el número mínimo de autoridades necesarios para contar.",
+                trusteeList: "Autoridades",
+                threshold: "Umbral",
+                errorMinTrustees: "Seleccionaste sólo {{selected}} autoridades, pero debe seleccionar al menos {{threshold}}.",
+                errorThreshold: "Seleccionaste un umbral de {{selected}} pero debe estar entre {{min}} y {{max}}.",
+                errorCreatingCeremony: "Error creando Ceremonia de Claves: {{error}}",
+                createCeremonySuccess: "Ceremonia de Claves creada",
+                confirmdDialog: {
+                    ok: "Sí, Crear Ceremonia de Claves",
+                    cancel: "Cancelar",
+                    title: "¿Estás seguro de que quieres Crear una Ceremonia de Claves?",
+                    description: "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
+                },
+            },
+            ceremonyStep: {
+                cancel: "Cancelar Ceremonia de Claves",
+                progressHeader: "Progreso de Ceremonia de Claves",
+                description: "Esta pantalla muestra el progreso y los registros de la Ceremonia de Claves del Evento Electoral. En la Ceremonia de Claves, cada autoridad generará y descargará su fragmento de la clave privada para el Evento Electoral.",
+                executionStatus: "Estado: {{status}}",
+                confirmdDialog: {
+                    ok: "Sí, Cancelar Creación de Ceremonia de Claves",
+                    cancel: "Volver a la Ceremonia de Claves",
+                    title: "¿Estás seguro de que quieres Cancelar la Ceremonia de Claves?",
+                    description: "Estás a punto de Cancelar la Ceremonia de Claves. Después de realizar esta acción, para tener una Ceremonia de Claves exitosa tendrás que Crear una nueva.",
+                },
+                header: {
+                    trusteeName: "Nombre de Autoridad",
+                    fragment: "Fragmento de Clave Generado",
+                    downloaded: "Fragmento Privado de Clave Descargado",
+                    checked: "Fragmento Privado de Clave Comprobado",
+                },
+                logsHeader: {
+                    title: "Logs",
+                    date: "Fecha",
+                    entry: "Entrada",
+                },
+                emptyLogs: "Sin logs aún.",
+            },
         },
     },
 }

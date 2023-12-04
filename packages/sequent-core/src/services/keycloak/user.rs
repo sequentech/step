@@ -9,6 +9,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
 use tracing::{event, instrument, Level};
+use uuid::Uuid;
 
 impl From<UserRepresentation> for User {
     fn from(item: UserRepresentation) -> Self {
@@ -174,17 +175,13 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self))]
     pub async fn create_user(self, realm: &str, user: &User) -> Result<User> {
+        let mut new_user = user.clone();
+        let new_user_id = new_user.id.clone().unwrap_or(Uuid::new_v4().to_string());
+        new_user.id =Some(new_user_id.clone());
         self.client
-            .realm_users_post(realm, user.clone().into())
+            .realm_users_post(realm, new_user.clone().into())
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
-        let new_user: UserRepresentation = self
-            .client
-            .realm_users_with_id_get(realm, &user.id.clone().unwrap())
-            .await
-            .map_err(|err| anyhow!("{:?}", err))?;
-        Ok(new_user.into())
+        Ok(new_user.clone())
     }
-
-
 }
