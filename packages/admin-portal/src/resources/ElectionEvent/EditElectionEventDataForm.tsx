@@ -83,6 +83,12 @@ export const EditElectionEventDataForm: React.FC = () => {
             }
         }
 
+        // set english first lang always
+        const en = {en: temp.enabled_languages["en"]}
+        delete temp.enabled_languages.en
+        const rest = temp.enabled_languages
+        temp.enabled_languages = {...en, ...rest}
+
         // voting channels
         const all_channels = {...incoming?.voting_channels}
         delete incoming.voting_channels
