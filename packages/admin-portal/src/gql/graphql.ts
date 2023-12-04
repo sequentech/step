@@ -183,6 +183,23 @@ export type InsertTenantOutput = {
 };
 
 /** Boolean expression to compare columns of type "Int". All fields are combined with logical 'AND'. */
+export type Int_Array_Comparison_Exp = {
+  /** is the array contained in the given array value */
+  _contained_in?: InputMaybe<Array<Scalars['Int']['input']>>;
+  /** does the array contain the given value */
+  _contains?: InputMaybe<Array<Scalars['Int']['input']>>;
+  _eq?: InputMaybe<Array<Scalars['Int']['input']>>;
+  _gt?: InputMaybe<Array<Scalars['Int']['input']>>;
+  _gte?: InputMaybe<Array<Scalars['Int']['input']>>;
+  _in?: InputMaybe<Array<Array<Scalars['Int']['input']>>>;
+  _is_null?: InputMaybe<Scalars['Boolean']['input']>;
+  _lt?: InputMaybe<Array<Scalars['Int']['input']>>;
+  _lte?: InputMaybe<Array<Scalars['Int']['input']>>;
+  _neq?: InputMaybe<Array<Scalars['Int']['input']>>;
+  _nin?: InputMaybe<Array<Array<Scalars['Int']['input']>>>;
+};
+
+/** Boolean expression to compare columns of type "Int". All fields are combined with logical 'AND'. */
 export type Int_Comparison_Exp = {
   _eq?: InputMaybe<Scalars['Int']['input']>;
   _gt?: InputMaybe<Scalars['Int']['input']>;
@@ -8579,6 +8596,7 @@ export type Sequent_Backend_Tally_Session_Execution = {
   id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  session_ids?: Maybe<Array<Scalars['Int']['output']>>;
   tally_session_id: Scalars['uuid']['output'];
   tenant_id: Scalars['uuid']['output'];
 };
@@ -8650,6 +8668,7 @@ export type Sequent_Backend_Tally_Session_Execution_Bool_Exp = {
   id?: InputMaybe<Uuid_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  session_ids?: InputMaybe<Int_Array_Comparison_Exp>;
   tally_session_id?: InputMaybe<Uuid_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
 };
@@ -8693,6 +8712,7 @@ export type Sequent_Backend_Tally_Session_Execution_Insert_Input = {
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  session_ids?: InputMaybe<Array<Scalars['Int']['input']>>;
   tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
@@ -8706,6 +8726,7 @@ export type Sequent_Backend_Tally_Session_Execution_Max_Fields = {
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  session_ids?: Maybe<Array<Scalars['Int']['output']>>;
   tally_session_id?: Maybe<Scalars['uuid']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
@@ -8719,6 +8740,7 @@ export type Sequent_Backend_Tally_Session_Execution_Min_Fields = {
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  session_ids?: Maybe<Array<Scalars['Int']['output']>>;
   tally_session_id?: Maybe<Scalars['uuid']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
@@ -8749,6 +8771,7 @@ export type Sequent_Backend_Tally_Session_Execution_Order_By = {
   id?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
+  session_ids?: InputMaybe<Order_By>;
   tally_session_id?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
 };
@@ -8785,6 +8808,8 @@ export enum Sequent_Backend_Tally_Session_Execution_Select_Column {
   /** column name */
   LastUpdatedAt = 'last_updated_at',
   /** column name */
+  SessionIds = 'session_ids',
+  /** column name */
   TallySessionId = 'tally_session_id',
   /** column name */
   TenantId = 'tenant_id'
@@ -8800,6 +8825,7 @@ export type Sequent_Backend_Tally_Session_Execution_Set_Input = {
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  session_ids?: InputMaybe<Array<Scalars['Int']['input']>>;
   tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
@@ -8840,6 +8866,7 @@ export type Sequent_Backend_Tally_Session_Execution_Stream_Cursor_Value_Input = 
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  session_ids?: InputMaybe<Array<Scalars['Int']['input']>>;
   tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
@@ -8868,6 +8895,8 @@ export enum Sequent_Backend_Tally_Session_Execution_Update_Column {
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
+  /** column name */
+  SessionIds = 'session_ids',
   /** column name */
   TallySessionId = 'tally_session_id',
   /** column name */
