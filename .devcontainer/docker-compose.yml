@@ -26,6 +26,7 @@ services:
   postgres-volume-init:
     profiles: ["full", "base"]
     image: alpine
+    container_name: postgres-volume-init
     volumes: 
       - db_logs:/logs
     user: root
@@ -35,6 +36,7 @@ services:
 
   postgres:
     profiles: ["full", "base"]
+    container_name: postgres
     build:
       context: ./postgresql
       dockerfile: Dockerfile
@@ -56,6 +58,7 @@ services:
 
   minio:
     profiles: ["full", "base"]
+    container_name: minio
     image: minio/minio
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -80,6 +83,7 @@ services:
   
   configure-minio:
     profiles: ["full", "base"]
+    container_name: configure-minio
     build:
       context: ./minio
       dockerfile: Dockerfile
@@ -99,6 +103,7 @@ services:
   # hashicorp vault to store secrets
   vault:
     profiles: ["full", "base"]
+    container_name: vault
     build:
       context: ./vault
       dockerfile: Dockerfile
@@ -162,11 +167,12 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-      postgres_keycloak:
+      postgres-keycloak:
         condition: service_healthy
 
   data-connector-agent:
     profiles: ["full", "base"]
+    container_name: data-connector-agent
     image: hasura/graphql-data-connector:v2.31.0
     restart: always
     ports:
@@ -183,9 +189,10 @@ services:
       retries: 25
       start_period: 5s
 
-  postgres_keycloak:
+  postgres-keycloak:
     profiles: ["full", "base"]
     image: postgres:15
+    container_name: postgres-keycloak
     restart: unless-stopped
     volumes:
       - keycloak_db_data:/var/lib/postgresql/data
@@ -200,6 +207,7 @@ services:
 
   keycloak:
     profiles: ["full", "base"]
+    container_name: keycloak
     build:
       context: ../packages/
       dockerfile: Dockerfile.keycloak
@@ -217,7 +225,7 @@ services:
       KC_DB_USERNAME: postgres
       KC_DB_PASSWORD: postgrespassword
       KC_DB_SCHEMA: public
-      KC_DB_URL: jdbc:postgresql://postgres_keycloak:5432/postgres
+      KC_DB_URL: jdbc:postgresql://postgres-keycloak:5432/postgres
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
     volumes:
@@ -244,7 +252,7 @@ services:
       --spi-sms-sender-aws-enabled=false
       --import-realm
     depends_on:
-      postgres_keycloak:
+      postgres-keycloak:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8090/health/live"]
@@ -273,6 +281,7 @@ services:
   voting-portal:
     profiles: ["full"]
     image: sequentech.local/frontend
+    container_name: voting-portal
     # depending on the `admin-portal` container to ensure that the
     # `sequentech.local/frontend` image is locally build, so that we can reuse
     # it:
@@ -290,6 +299,7 @@ services:
 
   immudb:
     profiles: ["full", "base"]
+    container_name: immudb
     image: codenotary/immudb:1.5
     restart: always
     environment:
@@ -385,6 +395,7 @@ services:
   immudb-log-audit:
     profiles: ["full", "base"]
     image: sequentech.local/immudb-log-audit
+    container_name: immudb-log-audit
     command: >
       tail file pgaudit "/logs/*.json"
       --follow
