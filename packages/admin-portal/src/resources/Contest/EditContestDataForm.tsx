@@ -16,6 +16,7 @@ import {
     useUpdate,
     useNotify,
     useRefresh,
+    required,
     RaRecord,
     Identifier,
 } from "react-admin"
@@ -188,6 +189,14 @@ export const ContestDataForm: React.FC = () => {
         temp.presentation.i18n.en.alias = temp.alias
         temp.presentation.i18n.en.description = temp.description
 
+        // defaults
+        temp.voting_type = temp.voting_type || "no-preferential"
+        temp.counting_algorithm = temp.counting_algorithm || "plurality-at-large"
+        temp.min_votes = temp.min_votes || 0
+        temp.max_votes = temp.max_votes || 1
+        temp.winning_candidates_num = temp.winning_candidates_num || 1
+        temp.order_answers = temp.order_answers || "alphabetical"
+
         return temp
     }
 
@@ -346,73 +355,95 @@ export const ContestDataForm: React.FC = () => {
                 </AccordionDetails>
             </Accordion>
 
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "contest-data-system"}
-                onChange={() => setExpanded("contest-data-system")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="contest-data-system" />}>
-                    <ContestStyles.Wrapper>
-                        <ContestStyles.Title>{t("contestScreen.edit.system")}</ContestStyles.Title>
-                    </ContestStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <SelectInput source="voting_type" choices={VOTING_TYPES(t)} />
-                    <SelectInput source="counting_algorithm" choices={COUNTING_ALGORITHMS(t)} />
-                </AccordionDetails>
-            </Accordion>
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "contest-data-system"}
+                            onChange={() => setExpanded("contest-data-system")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="contest-data-system" />}
+                            >
+                                <ContestStyles.Wrapper>
+                                    <ContestStyles.Title>
+                                        {t("contestScreen.edit.system")}
+                                    </ContestStyles.Title>
+                                </ContestStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <SelectInput
+                                    source="voting_type"
+                                    choices={VOTING_TYPES(t)}
+                                    validate={required()}
+                                />
+                                <SelectInput
+                                    source="counting_algorithm"
+                                    choices={COUNTING_ALGORITHMS(t)}
+                                    validate={required()}
+                                />
+                            </AccordionDetails>
+                        </Accordion>
 
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "contest-data-design"}
-                onChange={() => setExpanded("contest-data-design")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="contest-data-design" />}>
-                    <ContestStyles.Wrapper>
-                        <ContestStyles.Title>{t("contestScreen.edit.design")}</ContestStyles.Title>
-                    </ContestStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <BooleanInput source="is_acclaimed" />
-                    <NumberInput source="min_votes" min={0} />
-                    <NumberInput source="max_votes" min={0} />
-                    <NumberInput source="winning_candidates_num" min={0} />
-                    <SelectInput source="order_answers" choices={ORDER_ANSWERS(t)} />
-                    <FormDataConsumer>
-                        {({formData, ...rest}) => {
-                            return formData?.order_answers === "custom" ? (
-                                <CandidateRows>
-                                    <Typography
-                                        variant="body1"
-                                        component="span"
-                                        sx={{
-                                            padding: "0.5rem 1rem",
-                                            fontWeight: "bold",
-                                            margin: 0,
-                                            display: {xs: "none", sm: "block"},
-                                        }}
-                                    >
-                                        {t("contestScreen.edit.reorder")}
-                                    </Typography>
-                                    <DndProvider backend={HTML5Backend}>
-                                        {candidatesList?.map((candidate: any, index: number) => {
-                                            return (
-                                                <CandidateRowItem
-                                                    key={candidate.id}
-                                                    index={index}
-                                                    id={candidate.id}
-                                                    candidate={candidate}
-                                                    moveCard={moveCard}
-                                                />
-                                            )
-                                        })}
-                                    </DndProvider>
-                                </CandidateRows>
-                            ) : null
-                        }}
-                    </FormDataConsumer>
-                </AccordionDetails>
-            </Accordion>
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "contest-data-design"}
+                            onChange={() => setExpanded("contest-data-design")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="contest-data-design" />}
+                            >
+                                <ContestStyles.Wrapper>
+                                    <ContestStyles.Title>
+                                        {t("contestScreen.edit.design")}
+                                    </ContestStyles.Title>
+                                </ContestStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <BooleanInput source="is_acclaimed" />
+                                <NumberInput source="min_votes" min={0} />
+                                <NumberInput source="max_votes" min={0} />
+                                <NumberInput source="winning_candidates_num" min={0} />
+                                <SelectInput
+                                    source="order_answers"
+                                    choices={ORDER_ANSWERS(t)}
+                                    validate={required()}
+                                />
+                                <FormDataConsumer>
+                                    {({formData, ...rest}) => {
+                                        return formData?.order_answers === "custom" ? (
+                                            <CandidateRows>
+                                                <Typography
+                                                    variant="body1"
+                                                    component="span"
+                                                    sx={{
+                                                        padding: "0.5rem 1rem",
+                                                        fontWeight: "bold",
+                                                        margin: 0,
+                                                        display: {xs: "none", sm: "block"},
+                                                    }}
+                                                >
+                                                    {t("contestScreen.edit.reorder")}
+                                                </Typography>
+                                                <DndProvider backend={HTML5Backend}>
+                                                    {candidatesList?.map(
+                                                        (candidate: any, index: number) => {
+                                                            return (
+                                                                <CandidateRowItem
+                                                                    key={candidate.id}
+                                                                    index={index}
+                                                                    id={candidate.id}
+                                                                    candidate={candidate}
+                                                                    moveCard={moveCard}
+                                                                />
+                                                            )
+                                                        }
+                                                    )}
+                                                </DndProvider>
+                                            </CandidateRows>
+                                        ) : null
+                                    }}
+                                </FormDataConsumer>
+                            </AccordionDetails>
+                        </Accordion>
 
             <Accordion
                 sx={{width: "100%"}}
