@@ -35,7 +35,7 @@ import {
 import {IUser} from "sequent-core"
 import {useQuery} from "@apollo/client"
 import {getUsers} from "@/queries/GetUsers"
-import { CreateUser } from "./CreateUser"
+import {CreateUser} from "./CreateUser"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -83,6 +83,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         setRecordId(id)
     }
 
+    const handleCloseCreateDrawer = () => {
+        setRecordId(undefined)
+        setCloseDrawer(new Date().toISOString())
+    }
+
     const deleteAction = (id: Identifier) => {
         // deleteOne("sequent_backend_area", {id})
         setOpenDeleteModal(true)
@@ -108,7 +113,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     <ListActions
                         withImport={false}
                         closeDrawer={closeDrawer}
-                        Component={<CreateUser electionEventId={electionEventId} close={handleCloseCreateDrawer} />}
+                        Component={
+                            <CreateUser
+                                electionEventId={electionEventId}
+                                close={handleCloseCreateDrawer}
+                            />
+                        }
                     />
                 }
                 filter={{tenant_id: tenantId, election_event_id: electionEventId}}
@@ -142,7 +152,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     sx: {width: "40%"},
                 }}
             >
-                <EditUser id={recordId} electionEventId={electionEventId} close={handleCloseEditDrawer} />
+                <EditUser
+                    id={recordId}
+                    electionEventId={electionEventId}
+                    close={handleCloseEditDrawer}
+                />
             </Drawer>
 
             <Dialog
