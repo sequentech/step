@@ -1,8 +1,7 @@
 use borsh::{BorshSerialize, BorshDeserialize};
 use strum::Display;
 
-use crate::electoral_log::newtypes::ContextHash;
-use crate::electoral_log::newtypes::Timestamp;
+use crate::electoral_log::newtypes::*;
 
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct Statement {
@@ -27,7 +26,7 @@ pub struct StatementHead {
 impl StatementHead {
     pub fn from_body(context: ContextHash, body: &StatementBody) -> Self {
         let kind = match body {
-            StatementBody::One => StatementType::One,
+            StatementBody::CastVote(_) => StatementType::CastVote,
         };
         let timestamp = instant::now() as u64;
 
@@ -39,12 +38,21 @@ impl StatementHead {
     }
 }
 
+/*
+• Emisión de voto (sólo como registro que el sistema almacenó correctamente el voto).
+• Errores en la emisión del voto.
+• Publicación, apertura y cierre de las elecciones.
+• Creación de llave criptográfica.
+• Ingreso de los fragmentos de la llave privada
+• Apertura y cierre de la bóveda de votos
+*/
+
 #[derive(BorshSerialize, BorshDeserialize)]
 pub enum StatementBody {
-    One
+    CastVote(PseudonymHash)
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display)]
 pub enum StatementType {
-    One
+    CastVote
 }

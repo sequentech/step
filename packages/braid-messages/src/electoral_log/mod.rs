@@ -23,8 +23,8 @@ pub(crate) mod tests {
     use immu_board::BoardMessage;
     use strand::signature::StrandSignatureSk;
 
-    use crate::electoral_log::message::Message;
-    use crate::electoral_log::newtypes::ContextHash;
+    use crate::electoral_log::message::{Message, SigningData};
+    use crate::electoral_log::newtypes::{ContextHash, PseudonymHash};
 
     const INDEX_DB: &'static str = "testindexdb";
     const BOARD_DB: &'static str = "testdb";
@@ -70,10 +70,13 @@ pub(crate) mod tests {
         let mut b = set_up().await;
         let board = b.get_board(INDEX_DB, BOARD_DB).await.unwrap();
         assert_eq!(board.database_name, BOARD_DB);
+        let sender_name = "test";
         let sender_sk = StrandSignatureSk::gen().unwrap();
         let system_sk = StrandSignatureSk::gen().unwrap();
+        let sd = SigningData::new(sender_sk, sender_name, system_sk);
         let ctx = ContextHash([0u8; 64]);
-        let message = Message::test_message(ctx, sender_sk, "hohoho", system_sk).unwrap();
+        let pseudonym = PseudonymHash([0u8; 64]);
+        let message = Message::test_message(ctx, pseudonym, &sd).unwrap();
         let mut board_message: BoardMessage = message.try_into().unwrap();
         // We do this so that the id matches the auto generated id in the db
         board_message.id = 1;
