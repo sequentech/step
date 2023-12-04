@@ -7325,6 +7325,10 @@ export type Sequent_Backend_Keys_Ceremony = {
   election_event_id: Scalars['uuid']['output'];
   execution_status?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
+  /** An array relationship */
+  keys_ceremony_trustee_ids: Array<Sequent_Backend_Trustee>;
+  /** An aggregate relationship */
+  keys_ceremony_trustee_ids_aggregate: Sequent_Backend_Trustee_Aggregate;
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at: Scalars['timestamptz']['output'];
   status?: Maybe<Scalars['jsonb']['output']>;
@@ -7336,6 +7340,26 @@ export type Sequent_Backend_Keys_Ceremony = {
 /** columns and relationships of "sequent_backend.keys_ceremony" */
 export type Sequent_Backend_Keys_CeremonyAnnotationsArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.keys_ceremony" */
+export type Sequent_Backend_Keys_CeremonyKeys_Ceremony_Trustee_IdsArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Trustee_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Trustee_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>;
+};
+
+
+/** columns and relationships of "sequent_backend.keys_ceremony" */
+export type Sequent_Backend_Keys_CeremonyKeys_Ceremony_Trustee_Ids_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Trustee_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Trustee_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>;
 };
 
 
@@ -7389,6 +7413,8 @@ export type Sequent_Backend_Keys_Ceremony_Bool_Exp = {
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   execution_status?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
+  keys_ceremony_trustee_ids?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>;
+  keys_ceremony_trustee_ids_aggregate?: InputMaybe<Sequent_Backend_Trustee_Aggregate_Bool_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   status?: InputMaybe<Jsonb_Comparison_Exp>;
@@ -7430,6 +7456,7 @@ export type Sequent_Backend_Keys_Ceremony_Insert_Input = {
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   execution_status?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
+  keys_ceremony_trustee_ids?: InputMaybe<Sequent_Backend_Trustee_Arr_Rel_Insert_Input>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
@@ -7484,6 +7511,7 @@ export type Sequent_Backend_Keys_Ceremony_Order_By = {
   election_event_id?: InputMaybe<Order_By>;
   execution_status?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
+  keys_ceremony_trustee_ids_aggregate?: InputMaybe<Sequent_Backend_Trustee_Aggregate_Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
   status?: InputMaybe<Order_By>;
@@ -9370,6 +9398,17 @@ export type Sequent_Backend_Trustee_Aggregate = {
   nodes: Array<Sequent_Backend_Trustee>;
 };
 
+export type Sequent_Backend_Trustee_Aggregate_Bool_Exp = {
+  count?: InputMaybe<Sequent_Backend_Trustee_Aggregate_Bool_Exp_Count>;
+};
+
+export type Sequent_Backend_Trustee_Aggregate_Bool_Exp_Count = {
+  arguments?: InputMaybe<Array<Sequent_Backend_Trustee_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+  filter?: InputMaybe<Sequent_Backend_Trustee_Bool_Exp>;
+  predicate: Int_Comparison_Exp;
+};
+
 /** aggregate fields of "sequent_backend.trustee" */
 export type Sequent_Backend_Trustee_Aggregate_Fields = {
   __typename?: 'sequent_backend_trustee_aggregate_fields';
@@ -9385,10 +9424,24 @@ export type Sequent_Backend_Trustee_Aggregate_FieldsCountArgs = {
   distinct?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
+/** order by aggregate values of table "sequent_backend.trustee" */
+export type Sequent_Backend_Trustee_Aggregate_Order_By = {
+  count?: InputMaybe<Order_By>;
+  max?: InputMaybe<Sequent_Backend_Trustee_Max_Order_By>;
+  min?: InputMaybe<Sequent_Backend_Trustee_Min_Order_By>;
+};
+
 /** append existing jsonb value of filtered columns with new jsonb value */
 export type Sequent_Backend_Trustee_Append_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** input type for inserting array relation for remote table "sequent_backend.trustee" */
+export type Sequent_Backend_Trustee_Arr_Rel_Insert_Input = {
+  data: Array<Sequent_Backend_Trustee_Insert_Input>;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Sequent_Backend_Trustee_On_Conflict>;
 };
 
 /** Boolean expression to filter rows from the table "sequent_backend.trustee". All fields are combined with a logical 'AND'. */
@@ -9453,6 +9506,16 @@ export type Sequent_Backend_Trustee_Max_Fields = {
   tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
 
+/** order by max() on columns of table "sequent_backend.trustee" */
+export type Sequent_Backend_Trustee_Max_Order_By = {
+  created_at?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  last_updated_at?: InputMaybe<Order_By>;
+  name?: InputMaybe<Order_By>;
+  public_key?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+};
+
 /** aggregate min on columns */
 export type Sequent_Backend_Trustee_Min_Fields = {
   __typename?: 'sequent_backend_trustee_min_fields';
@@ -9462,6 +9525,16 @@ export type Sequent_Backend_Trustee_Min_Fields = {
   name?: Maybe<Scalars['String']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** order by min() on columns of table "sequent_backend.trustee" */
+export type Sequent_Backend_Trustee_Min_Order_By = {
+  created_at?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  last_updated_at?: InputMaybe<Order_By>;
+  name?: InputMaybe<Order_By>;
+  public_key?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
 };
 
 /** response of any mutation on the table "sequent_backend.trustee" */
