@@ -556,6 +556,17 @@ const spanishTranslation: TranslationType = {
                 emptyLogs: "Sin logs aún.",
             },
         },
+        tally: {
+            electionTallyTitle: "Elecciones para el Recuento",
+            electionTallySubTitle: "Seleccione las elecciones para el recuento",
+            trusteeTallyTitle: "Trustee",
+            trusteeTallySubTitle: "Estado de importación del fragmento de clave",
+            breadcrumbSteps: {  
+                ceremony: "Ceremonia",
+                tally: "Recuento",
+                results: "Resultados",
+            }
+        },
     },
 }
 

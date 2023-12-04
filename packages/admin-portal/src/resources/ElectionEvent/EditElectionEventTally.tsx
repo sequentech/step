@@ -9,6 +9,7 @@ import React, {useState} from "react"
 import {useRecordContext} from "react-admin"
 import { ListTally } from '../Tally/ListTally'
 import { useElectionEventTallyStore } from '@/providers/ElectionEventTallyProvider'
+import { TallyCeremony } from '../Tally/TallyCeremony'
 
 export const EditElectionEventTally: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -31,7 +32,7 @@ export const EditElectionEventTally: React.FC = () => {
                 electionEvent={record}
             />
             <Button onClick={openStartTallyDialog}>Start tally</Button>
-            {tallyId ? <div>{tallyId}</div> : <ListTally record={record} />}
+            {tallyId ? <TallyCeremony /> : <ListTally record={record} />}
         </Box>
     )
 }

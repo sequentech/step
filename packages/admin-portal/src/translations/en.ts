@@ -554,6 +554,17 @@ const englishTranslation = {
                 emptyLogs: "No logs yet.",
             },
         },
+        tally: {
+            electionTallyTitle: "Elections to Tally",
+            electionTallySubTitle: "Choose the elections you want to tally",
+            trusteeTallyTitle: "Trustees",
+            trusteeTallySubTitle: "Key fragment import status",
+            breadcrumbSteps: {
+                ceremony: "Ceremony",
+                tally: "Tally",
+                results: "Results",
+            },
+        },
     },
 }
 

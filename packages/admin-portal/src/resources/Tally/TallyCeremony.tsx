@@ -3,65 +3,32 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useEffect} from "react"
 import {
-    DatagridConfigurable,
-    List,
-    TextField,
-    ReferenceField,
-    ReferenceManyField,
-    TextInput,
     Identifier,
     RaRecord,
     useRecordContext,
-    useDelete,
-    WrapperField,
     Datagrid,
-    FunctionField,
+    Button,
 } from "react-admin"
-import {ListActions} from "../../components/ListActions"
-import {Drawer} from "@mui/material"
-import {ChipList} from "../../components/ChipList"
-// import {EditArea} from "./EditArea"
-import {CreateTally} from "./CreateTally"
 import {Sequent_Backend_Election_Event} from "../../gql/graphql"
-import {Dialog} from "@sequentech/ui-essentials"
-import {Action, ActionsColumn} from "../../components/ActionButons"
+import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
+import {Action} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
+import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import DescriptionIcon from "@mui/icons-material/Description"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
-import {useParams} from "react-router"
-import {AreaContestItems} from "@/components/AreaContestItems"
-import ElectionHeader from '@/components/ElectionHeader'
-import { EditTally } from './EditTally'
-import { TrusteeItems } from '@/components/TrusteeItems'
-import { useElectionEventTallyStore } from '@/providers/ElectionEventTallyProvider'
+import ElectionHeader from "@/components/ElectionHeader"
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import styled from "@emotion/styled"
+import {GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
+import Checkbox from "@mui/material/Checkbox"
 
-const OMIT_FIELDS = ["id", "ballot_eml"]
-
-const Filters: Array<ReactElement> = [
-    <TextInput label="Name" source="name" key={0} />,
-    <TextInput label="Description" source="description" key={1} />,
-    <TextInput label="ID" source="id" key={2} />,
-    <TextInput label="Type" source="type" key={3} />,
-    <TextInput source="election_event_id" key={3} />,
-]
-
-export interface ListAreaProps {
-    record: Sequent_Backend_Election_Event
-    aside?: ReactElement
-}
-
-export const TallyCeremony: React.FC<ListAreaProps> = (props) => {
-    const {t} = useTranslation()
-    const {id} = useParams()
-    const [tenantId] = useTenantStore()
-    const [tallyId] = useElectionEventTallyStore()
-
+export const TallyCeremony: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
-
-    const [_, setTallyId] = useElectionEventTallyStore()
-    const [deleteOne, {isLoading, error}] = useDelete()
+    const {t} = useTranslation()
+    const [tenantId] = useTenantStore()
+    const [tallyId, setTallyId] = useElectionEventTallyStore()
 
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
@@ -69,11 +36,25 @@ export const TallyCeremony: React.FC<ListAreaProps> = (props) => {
     const [closeDrawer, setCloseDrawer] = React.useState("")
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
 
-    // const rowClickHandler = generateRowClickHandler(["election_event_id"])
-    const rowClickHandler = (id: Identifier, resource: string, record: RaRecord) => {
-        setRecordId(id)
-        return ""
-    }
+    
+
+    const columns: GridColDef[] = [
+        {
+            field: "name",
+            headerName: "Permission",
+            width: 350,
+            editable: false,
+        },
+        {
+            field: "active",
+            headerName: "Active",
+            width: 70,
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, boolean>) => (
+                <Checkbox checked={props.value} />
+            ),
+        },
+    ]
 
     useEffect(() => {
         if (recordId) {
@@ -94,7 +75,7 @@ export const TallyCeremony: React.FC<ListAreaProps> = (props) => {
     }
 
     const editAction = (id: Identifier) => {
-        console.log("edit action", id);
+        console.log("edit action", id)
         setRecordId(id)
     }
 
@@ -119,78 +100,55 @@ export const TallyCeremony: React.FC<ListAreaProps> = (props) => {
         {icon: <DescriptionIcon />, action: editDetail},
     ]
 
+    const StyledHeader = styled.div`
+        width: 100%;
+        display: flex;
+        padding: 2rem 0;
+    `
+
+    const StyledFooter = styled.div`
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        padding: 2rem 0;
+    `
+
     return (
         <>
-            <List
-                resource="sequent_backend_tally_session"
-                actions={
-                    <ListActions
-                        withColumns={false}
-                        withImport={false}
-                        withExport={false}
-                        // withFilter={false}
-                        closeDrawer={closeDrawer}
-                        Component={<CreateTally record={record} close={handleCloseCreateDrawer} />}
-                    />
-                }
-                empty={false}
-                sx={{flexGrow: 2}}
-                filter={{
-                    tenant_id: tenantId || undefined,
-                    election_event_id: record?.id || undefined,
-                }}
-                filters={Filters}
-            >
-                <ElectionHeader title={t("electionEventScreen.tally.title")} subtitle="" />
+            <StyledHeader>
+                <BreadCrumbSteps
+                    labels={[
+                        "tally.breadcrumbSteps.ceremony",
+                        "tally.breadcrumbSteps.tally",
+                        "tally.breadcrumbSteps.results",
+                    ]}
+                    selected={0}
+                    variant={BreadCrumbStepsVariant.Circle}
+                    colorPreviousSteps={true}
+                />
+            </StyledHeader>
 
-                <DatagridConfigurable omit={OMIT_FIELDS}>
-                    <TextField source="tenant_id" />
-                    <TextField source="election_event_id" />
+            <ElectionHeader
+                title={t("tally.electionTallyTitle")}
+                subtitle={t("tally.electionTallySubTitle")}
+            />
 
-                    <FunctionField
-                        label={t("electionEventScreen.tally.trustees")}
-                        render={(record: RaRecord<Identifier>) => <TrusteeItems record={record} />}
-                    />
+            <ElectionHeader
+                title={t("tally.trusteeTallyTitle")}
+                subtitle={t("tally.trusteeTallySubTitle")}
+            />
 
-                    <FunctionField
-                        label={t("electionEventScreen.tally.electionNumber")}
-                        render={(record: RaRecord<Identifier>) => record?.election_ids?.length || 0}
-                    />
-
-                    <TextField source="is_execution_completed" />
-
-                    <WrapperField source="actions" label="Actions">
-                        <ActionsColumn actions={actions} />
-                    </WrapperField>
-                </DatagridConfigurable>
-            </List>
-
-            <Drawer
-                anchor="right"
-                open={open}
-                onClose={handleCloseEditDrawer}
-                PaperProps={{
-                    sx: {width: "40%"},
-                }}
-            >
-                <EditTally id={recordId} electionEventId={id} close={handleCloseEditDrawer} />
-            </Drawer>
-
-            <Dialog
-                variant="warning"
-                open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmDeleteAction()
-                    }
-                    setOpenDeleteModal(false)
-                }}
-            >
-                {t("common.message.delete")}
-            </Dialog>
+            <StyledFooter>
+                <Button onClick={() => setTallyId(null)}>
+                    {t("electionEventScreen.tabs.tally.ceremony.start")}
+                </Button>
+                <Button color="primary" onClick={() => setOpen(true)}>
+                    <>
+                        {t("electionEventScreen.tabs.tally.ceremony.start")}
+                        <ChevronRightIcon />
+                    </>
+                </Button>
+            </StyledFooter>
         </>
     )
 }
