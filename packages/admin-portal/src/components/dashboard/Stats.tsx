@@ -13,10 +13,10 @@ import SmsOutlinedIcon from "@mui/icons-material/SmsOutlined"
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
-import StatItem from "@/components/election-event/dashboard/StatItem"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
+import StatItem from "./StatItem"
 
 const CardList = styled(Box)`
     display: flex;
@@ -25,7 +25,7 @@ const CardList = styled(Box)`
     margin: 20px 0;
 `
 
-export default function Stats() {
+export default function Stats({forElection = false}: {forElection?: boolean}) {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
 
@@ -62,11 +62,14 @@ export default function Stats() {
                 count={totalUsers ?? 0}
                 label={t("electionEventScreen.stats.elegibleVoters")}
             ></StatItem>
-            <StatItem
-                icon={<GroupIcon sx={{fontSize: iconSize}} />}
-                count={res.elections}
-                label={t("electionEventScreen.stats.elections")}
-            ></StatItem>
+
+            {forElection && (
+                <StatItem
+                    icon={<GroupIcon sx={{fontSize: iconSize}} />}
+                    count={res.elections}
+                    label={t("electionEventScreen.stats.elections")}
+                ></StatItem>
+            )}
             <StatItem
                 icon={<FenceIcon sx={{fontSize: iconSize}} />}
                 count={res.areas}

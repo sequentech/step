@@ -155,14 +155,13 @@ const spanishTranslation: TranslationType = {
                 languages: 'IDIOMAS'
             }
         },
+        dashboard: {
+            voteByDay: "Voto por día",
+            voteByChannels: "Voto por canales",
+        },
         electionEventScreen: {
-            new: {
-                subtitle: "Crear Evento Electoral",
-            },
             common: {
-                title: "Evento Electoral",
                 subtitle: "Configuración del Evento de Elección.",
-                contest: "Contiendas    ",
             },
             edit: {
                 general: "General",
@@ -201,7 +200,9 @@ const spanishTranslation: TranslationType = {
         },
         electionScreen: {
             common: {
+                title: "Elección",
                 subtitle: "Configuración de la elección.",
+                fileLoaded: "Archivo cargado",
             },
             edit: {
                 general: "General",
@@ -246,6 +247,29 @@ const spanishTranslation: TranslationType = {
             },
             users: {
                 title: "Usuarios",
+                edit: {
+                    title: "Información de Usuario",
+                    subtitle: "Ver y editar Usuario",
+                },
+                fields: {
+                    username: "Nombre de Usuario",
+                    first_name: "Nombre",
+                    last_name: "Apellido",
+                    email: "Email",
+                    enabled: "Habilitado",
+                    emailVerified: "Email Verificado",
+                    groups: "Grupos",
+                    attributes: "Atributos",
+                    area: "Área",
+                },
+            },
+            voters: {
+                title: "Votantes",
+                subtitle: "Ver y editar datos del votante",
+                errors: {
+                    editError: "Error editando votante",
+                    editSuccess: "Votante editado",
+                },
             },
             roles: {
                 title: "Roles",
@@ -302,10 +326,18 @@ const spanishTranslation: TranslationType = {
             },
         },
         common: {
+            resources: {
+                electionEvent: "Evento Electoral",
+                election: "Elección",
+                contest: "Concurso",
+                candidate: "Candidato",
+            },
             label: {
                 add: "Añadir",
                 create: "Crear",
                 delete: "Borrar",
+                archive: "Archivar",
+                unarchive: "Desarchivar",
                 cancel: "Cancelar",
                 edit: "Editar",
                 save: "Guardar",
@@ -314,9 +346,6 @@ const spanishTranslation: TranslationType = {
                 next: "Siguiente",
                 warning: "Aviso",
                 json: "Vista previa",
-            },
-            message: {
-                delete: "¿Estás seguro de que quieres eliminar este elemento?",
             },
             language: {
                 es: "Español",
@@ -327,6 +356,12 @@ const spanishTranslation: TranslationType = {
                 kiosk: "Kiosco",
             },
         },
+        createResource: {
+            electionEvent: "Crear un Evento Electoral",
+            election: "Crear una Elección",
+            contest: "Crear un Concurso",
+            candidate: "Crear un Candidato",
+        },
         sideMenu: {
             electionEvents: "Procesos Electorales",
             search: "Buscar",
@@ -336,10 +371,46 @@ const spanishTranslation: TranslationType = {
             active: "Activos",
             archived: "Archivados",
             addResource: {
-                addElectionEvent: "Agregar un evento electoral",
-                addElection: "Agregar una elección",
-                addContest: "Agregar un concurso",
-                addCandidate: "Agregar un candidato",
+                electionEvent: "Crear un Evento Electoral",
+                election: "Crear una Elección",
+                contest: "Crear un Concurso",
+                candidate: "Crear un Candidato",
+            },
+            menuActions: {
+                archive: {
+                    electionEvent: "Archivar este Evento Electoral",
+                },
+                unarchive: {
+                    electionEvent: "Desarchivar este Evento Electoral",
+                    election: "Desarchivar esta Elección",
+                    contest: "Desarchivar este Concurso",
+                    candidate: "Desarchivar este Candidato",
+                },
+                remove: {
+                    electionEvent: "Eliminar este Evento Electoral",
+                    election: "Eliminar esta Elección",
+                    contest: "Eliminar este Concurso",
+                    candidate: "Eliminar este Candidato",
+                },
+                messages: {
+                    confirm: {
+                        archive: "¿Está seguro de que desea archivar este elemento?",
+                        unarchive: "¿Está seguro de que desea desarchivar este elemento?",
+                        delete: "¿Está seguro de que desea eliminar este elemento?",
+                    },
+                    notification: {
+                        success: {
+                            archive: "El elemento ha sido archivado",
+                            unarchive: "El elemento ha sido desarchivado",
+                            delete: "El elemento ha sido eliminado",
+                        },
+                        error: {
+                            archive: "Error al intentar archivar este elemento",
+                            unarchive: "Error al intentar desarchivar este elemento",
+                            delete: "Error al intentar eliminar este elemento",
+                        },
+                    },
+                },
             },
         },
         candidateScreen: {

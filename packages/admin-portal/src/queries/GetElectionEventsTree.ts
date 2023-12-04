@@ -16,6 +16,7 @@ export const FETCH_ELECTION_EVENTS_TREE = gql`
                 id
                 name
                 election_event_id
+                image_document_id
                 contests {
                     id
                     name

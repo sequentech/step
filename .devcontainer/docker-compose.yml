@@ -5,6 +5,7 @@
 version: "3.6"
 services:
   devcontainer:
+    profiles: ["full", "base"]
     image: ghcr.io/cachix/devenv:latest
     volumes:
       - ../..:/workspaces:cached
@@ -22,6 +23,7 @@ services:
 
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
+    profiles: ["full", "base"]
     image: alpine
     volumes: 
       - db_logs:/logs
@@ -31,6 +33,7 @@ services:
     command: chown -R 999:999 /logs
 
   postgres:
+    profiles: ["full", "base"]
     build:
       context: ./postgresql
       dockerfile: Dockerfile
@@ -51,7 +54,7 @@ services:
       - postgres-volume-init
 
   minio:
-    #profiles: ["dev"]
+    profiles: ["full", "base"]
     image: minio/minio
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -75,11 +78,11 @@ services:
     #  - graphql-engine
   
   configure-minio:
+    profiles: ["full", "base"]
     build:
       context: ./minio
       dockerfile: Dockerfile
     #image: minio/mc
-    #profiles: ["dev"]
     depends_on:
       - minio
     environment:
@@ -94,7 +97,7 @@ services:
 
   # hashicorp vault to store secrets
   vault:
-    #profiles: ["dev"]
+    profiles: ["full", "base"]
     build:
       context: ./vault
       dockerfile: Dockerfile
@@ -119,6 +122,7 @@ services:
     entrypoint: /opt/vault/entrypoint.sh
 
   graphql-engine:
+    profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
     ports:
       - "8080:8080"
@@ -160,6 +164,7 @@ services:
         condition: service_healthy
 
   data-connector-agent:
+    profiles: ["full", "base"]
     image: hasura/graphql-data-connector:v2.31.0
     restart: always
     ports:
@@ -177,6 +182,7 @@ services:
       start_period: 5s
 
   postgres_keycloak:
+    profiles: ["full", "base"]
     image: postgres:15
     restart: unless-stopped
     volumes:
@@ -191,6 +197,7 @@ services:
       start_period: 5s
 
   keycloak:
+    profiles: ["full", "base"]
     build:
       context: ../packages/
       dockerfile: Dockerfile.keycloak
@@ -244,7 +251,9 @@ services:
       start_period: 5s
 
   admin-portal:
-    profiles: ["dev"]
+    profiles: ["full"]
+    image: sequentech.local/frontend
+    container_name: admin-portal
     build:
       context: ../packages/
       dockerfile: Dockerfile
@@ -259,10 +268,13 @@ services:
        - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
   voting-portal:
-    profiles: ["dev"]
-    build:
-      context: ../packages/
-      dockerfile: Dockerfile
+    profiles: ["full"]
+    image: sequentech.local/frontend
+    # depending on the `admin-portal` container to ensure that the
+    # `sequentech.local/frontend` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - admin-portal
     #restart: always
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -274,7 +286,7 @@ services:
        - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
   immudb:
-    #profiles: ["dev"]
+    profiles: ["full", "base"]
     image: codenotary/immudb:1.5
     restart: always
     environment:
@@ -290,26 +302,30 @@ services:
       - immudb_logs:/var/log/immudb
   
   harvest:
-    profiles: ["dev"]
+    profiles: ["full", "base"]
     stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: harvest
     build:
       context: ../packages/
-      dockerfile: ./harvest/Dockerfile
+      dockerfile: ./Dockerfile.cargo-packages
+    working_dir: /app/harvest
+    entrypoint: ["cargo", "run"]
     env_file:
       - .env
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-     - 8400:8400
-    #depends_on:
-    #  - graphql-engine
-  
+     - 8400:8000
+
   trustee1:
-    #profiles: ["dev"]
+    profiles: ["full"]
     stdin_open: true
     container_name: trustee1
+    image: sequentech.local/braid
     volumes:
       - trustee1_data:/opt/braid
+    # TODO: be able to reuse the `sequentech.local/cargo-packages` image
     build:
       context: ../packages/
       dockerfile: ./braid/Dockerfile
@@ -323,26 +339,30 @@ services:
       - immudb
   
   trustee2:
-    #profiles: ["dev"]
+    profiles: ["full"]
     stdin_open: true
+    image: sequentech.local/braid
     container_name: trustee2
     volumes:
       - trustee2_data:/opt/braid
-    build:
-      context: ../packages/
-      dockerfile: ./braid/Dockerfile
+    # depending on the `trustee1` container to ensure that the
+    # `sequentech.local/braid` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - trustee1
+      - immudb
     environment:
         IMMUDB_USER: immudb
         IMMUDB_PASSWORD: immudb
         IMMUDB_URL: http://immudb:3322
         IMMUDB_INDEX_DB: indexdb
         TRUSTEE_CONFIG: /opt/braid/trustee2.toml
-    depends_on:
-      - immudb
 
   # Create collection in immudb
   immudb-log-audit-init:
-    profiles: ["dev"]
+    profiles: ["full", "base"]
+    image: sequentech.local/immudb-log-audit
+    container_name: immudb-log-audit-init
     build:
       context: ../vendor/immudb-log-audit
       dockerfile: Dockerfile.immudb
@@ -357,10 +377,8 @@ services:
 
   # Send audit logs to immudb
   immudb-log-audit:
-    profiles: ["dev"]
-    build:
-      context: ../vendor/immudb-log-audit
-      dockerfile: Dockerfile.immudb
+    profiles: ["full", "base"]
+    image: sequentech.local/immudb-log-audit
     command: >
       tail file pgaudit "/logs/*.json"
       --follow
@@ -371,12 +389,16 @@ services:
     volumes: 
       - 'immudb_log_audit_data:/data'
       - 'db_logs:/logs'
+    # make sure to depend on the `immudb-log-audit-init` container to ensure
+    # that the `sequentech.local/immudb-log-audit` image is locally build, so
+    # that we can reuse it:
     depends_on:
       - postgres
       - immudb
       - immudb-log-audit-init
 
   rabbitmq:
+    profiles: ["full", "base"]
     image: rabbitmq:management
     container_name: rabbitmq
     environment:
@@ -387,27 +409,38 @@ services:
       - "15672:15672"
   
   windmill:
-    #profiles: ["dev"]
+    profiles: ["full", "base"]
     stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: windmill
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
+    depends_on:
+      - harvest
+    working_dir: /app/windmill
+    entrypoint: ["cargo", "run", "--bin", "main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat" ]
     volumes:
       - ./keycloak/import:/import
-    build:
-      context: ../packages/
-      dockerfile: ./windmill/Dockerfile
     env_file:
       - .env
   
   beat:
-    #profiles: ["dev"]
+    profiles: ["full"]
     stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: beat
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
+    depends_on:
+      - harvest
+    working_dir: /app/windmill
+    entrypoint:  ["cargo", "run", "--bin", "beat"]
     volumes:
       - ./keycloak/import:/import
-    build:
-      context: ../packages/
-      dockerfile: ./windmill/Dockerfile
     env_file:
       - .env
-    entrypoint:  ["cargo", "run", "--bin", "beat"]
 
 volumes:
   db_data:
