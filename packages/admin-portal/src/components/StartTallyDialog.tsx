@@ -171,9 +171,15 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
             tally_session_id: tallySessionId ?? tenantId,
         },
     })
-    const {data : tallySession} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
-        id: tallySessionId ?? tenantId,
-    })
+    const {data : tallySession} = useGetOne<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            id: tallySessionId ?? tenantId,
+        }, {
+            refetchIntervalInBackground: true,
+            refetchInterval: 1000,
+        }
+    )
 
     useEffect(() => {
         if (!documentId && tallySession?.is_execution_completed && tallySessionExecutions?.[0]?.document_id) {
