@@ -216,6 +216,18 @@ const englishTranslation = {
                 publish: "Publish",
                 logs: "Logs",
             },
+            tally: {
+                title: "Election Event Tally",
+                create: {
+                    title: "Create Tally",
+                    subtitle: "Create a new Tally for this Election Event",
+                    createButton: "Create Tally",
+                    error: {
+                        create: "Error creating Tally",
+                    },
+                    success: "Tally created",
+                },
+            }
         },
         electionScreen: {
             common: {

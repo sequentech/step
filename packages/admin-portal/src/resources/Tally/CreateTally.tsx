@@ -1,0 +1,80 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import {Typography} from "@mui/material"
+import React from "react"
+import {
+    SimpleForm,
+    TextInput,
+    SelectInput,
+    ReferenceInput,
+    Create,
+    FormDataConsumer,
+    ReferenceField,
+    useRecordContext,
+    useRefresh,
+    useNotify,
+} from "react-admin"
+import {JsonInput} from "react-admin-json-view"
+import {Sequent_Backend_Area, Sequent_Backend_Election_Event} from "../../gql/graphql"
+import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
+import {useTranslation} from "react-i18next"
+
+interface CreateTallyProps {
+    record: Sequent_Backend_Election_Event
+    close?: () => void
+}
+
+export const CreateTally: React.FC<CreateTallyProps> = (props) => {
+    const {record, close} = props
+    const refresh = useRefresh()
+    const notify = useNotify()
+    const {t} = useTranslation()
+
+    const onSuccess = () => {
+        refresh()
+        notify(t("areas.createAreaSuccess"), {type: "success"})
+        if (close) {
+            close()
+        }
+    }
+
+    const onError = async (res: any) => {
+        refresh()
+        notify("areas.createAreaError", {type: "error"})
+        if (close) {
+            close()
+        }
+    }
+
+    return (
+        <Create
+            resource="sequent_backend_tally_session"
+            mutationOptions={{onSuccess, onError}}
+            redirect={false}
+        >
+            <PageHeaderStyles.Wrapper>
+                <SimpleForm>
+                    <PageHeaderStyles.Title>{t("electionEventScreen.tally.create.title")}</PageHeaderStyles.Title>
+                    <PageHeaderStyles.SubTitle>
+                        {t("electionEventScreen.tally.create.subTitle")}
+                    </PageHeaderStyles.SubTitle>
+
+                    <TextInput source="name" />
+                    <TextInput
+                        label="Election Event"
+                        source="election_event_id"
+                        defaultValue={record?.id || ""} 
+                        style={{display: "none"}}
+                    />
+                    <TextInput
+                        label="Tenant"
+                        source="tenant_id"
+                        defaultValue={record?.tenant_id || ""}
+                        style={{display: "none"}}
+                    />
+                </SimpleForm>
+            </PageHeaderStyles.Wrapper>
+        </Create>
+    )
+}

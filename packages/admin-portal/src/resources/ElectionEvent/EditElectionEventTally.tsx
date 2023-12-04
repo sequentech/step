@@ -7,6 +7,7 @@ import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {Box, Button} from "@mui/material"
 import React, {useState} from "react"
 import {useRecordContext} from "react-admin"
+import { ListTally } from '../Tally/ListTally'
 
 export const EditElectionEventTally: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -25,6 +26,7 @@ export const EditElectionEventTally: React.FC = () => {
                 electionEvent={record}
             />
             <Button onClick={openStartTallyDialog}>Start tally</Button>
+            <ListTally />
         </Box>
     )
 }

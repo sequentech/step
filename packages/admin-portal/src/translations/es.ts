@@ -135,25 +135,25 @@ const spanishTranslation: TranslationType = {
         },
         electionTypeScreen: {
             common: {
-                title: 'Tipo de Elección',
-                subtitle: 'Configuración del Tipo de Elección',
-                onlineVoting: 'Votación en Línea',
-                kioskVoting: 'Votación en Quiosco',
-                settingTitle: 'Configuración',
-                settingSubtitle: 'Ajustes generales'
+                title: "Tipo de Elección",
+                subtitle: "Configuración del Tipo de Elección",
+                onlineVoting: "Votación en Línea",
+                kioskVoting: "Votación en Quiosco",
+                settingTitle: "Configuración",
+                settingSubtitle: "Ajustes generales",
             },
             create: {
-                title: 'Crear Tipo de Elección'
+                title: "Crear Tipo de Elección",
             },
             edit: {
-                title: 'Editar Tipo de Elección'
+                title: "Editar Tipo de Elección",
             },
             tabs: {
-                votingChannels: 'CANALES DE VOTACIÓN',
-                electionTypes: 'TIPOS DE ELECCIÓN',
-                communications: 'COMUNICACIÓN',
-                languages: 'IDIOMAS'
-            }
+                votingChannels: "CANALES DE VOTACIÓN",
+                electionTypes: "TIPOS DE ELECCIÓN",
+                communications: "COMUNICACIÓN",
+                languages: "IDIOMAS",
+            },
         },
         dashboard: {
             voteByDay: "Voto por día",
@@ -216,6 +216,18 @@ const spanishTranslation: TranslationType = {
                 tally: "Recuento",
                 publish: "Publicar",
                 logs: "Logs",
+            },
+            tally: {
+                title: "Tally del Evento Electoral",
+                create: {
+                    title: "Create Tally",
+                    subtitle: "Create a new Tally for this Election Event",
+                    createButton: "Create Tally",
+                    error: {
+                        create: "Error creating Tally",
+                    },
+                    success: "Tally created",
+                },
             },
         },
         electionScreen: {
@@ -496,30 +508,36 @@ const spanishTranslation: TranslationType = {
             configureStep: {
                 create: "Crear Ceremonia de Claves",
                 title: "Crear Ceremonia de Claves del Evento Electoral",
-                subtitle: "En esta ceremonia cada autoridad generará y descargará su parte de las claves privadas para el Evento Electoral. Para continuar, elija los autoridades que participarán en la ceremonia y el umbral, que es el número mínimo de autoridades necesarios para contar.",
+                subtitle:
+                    "En esta ceremonia cada autoridad generará y descargará su parte de las claves privadas para el Evento Electoral. Para continuar, elija los autoridades que participarán en la ceremonia y el umbral, que es el número mínimo de autoridades necesarios para contar.",
                 trusteeList: "Autoridades",
                 threshold: "Umbral",
-                errorMinTrustees: "Seleccionaste sólo {{selected}} autoridades, pero debe seleccionar al menos {{threshold}}.",
-                errorThreshold: "Seleccionaste un umbral de {{selected}} pero debe estar entre {{min}} y {{max}}.",
+                errorMinTrustees:
+                    "Seleccionaste sólo {{selected}} autoridades, pero debe seleccionar al menos {{threshold}}.",
+                errorThreshold:
+                    "Seleccionaste un umbral de {{selected}} pero debe estar entre {{min}} y {{max}}.",
                 errorCreatingCeremony: "Error creando Ceremonia de Claves: {{error}}",
                 createCeremonySuccess: "Ceremonia de Claves creada",
                 confirmdDialog: {
                     ok: "Sí, Crear Ceremonia de Claves",
                     cancel: "Cancelar",
                     title: "¿Estás seguro de que quieres Crear una Ceremonia de Claves?",
-                    description: "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
+                    description:
+                        "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
                 },
             },
             ceremonyStep: {
                 cancel: "Cancelar Ceremonia de Claves",
                 progressHeader: "Progreso de Ceremonia de Claves",
-                description: "Esta pantalla muestra el progreso y los registros de la Ceremonia de Claves del Evento Electoral. En la Ceremonia de Claves, cada autoridad generará y descargará su fragmento de la clave privada para el Evento Electoral.",
+                description:
+                    "Esta pantalla muestra el progreso y los registros de la Ceremonia de Claves del Evento Electoral. En la Ceremonia de Claves, cada autoridad generará y descargará su fragmento de la clave privada para el Evento Electoral.",
                 executionStatus: "Estado: {{status}}",
                 confirmdDialog: {
                     ok: "Sí, Cancelar Creación de Ceremonia de Claves",
                     cancel: "Volver a la Ceremonia de Claves",
                     title: "¿Estás seguro de que quieres Cancelar la Ceremonia de Claves?",
-                    description: "Estás a punto de Cancelar la Ceremonia de Claves. Después de realizar esta acción, para tener una Ceremonia de Claves exitosa tendrás que Crear una nueva.",
+                    description:
+                        "Estás a punto de Cancelar la Ceremonia de Claves. Después de realizar esta acción, para tener una Ceremonia de Claves exitosa tendrás que Crear una nueva.",
                 },
                 header: {
                     trusteeName: "Nombre de Autoridad",
