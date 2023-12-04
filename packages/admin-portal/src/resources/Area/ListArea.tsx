@@ -16,6 +16,7 @@ import {
     WrapperField,
     Datagrid,
     FunctionField,
+    useRefresh,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Drawer} from "@mui/material"
@@ -49,6 +50,7 @@ export interface ListAreaProps {
 export const ListArea: React.FC<ListAreaProps> = (props) => {
     const {t} = useTranslation()
     const {id} = useParams()
+    const refresh = useRefresh()
 
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
@@ -96,7 +98,15 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     }
 
     const confirmDeleteAction = () => {
-        deleteOne("sequent_backend_area", {id: deleteId})
+        deleteOne(
+            "sequent_backend_area",
+            {id: deleteId},
+            {
+                onSuccess() {
+                    refresh()
+                },
+            }
+        )
         setDeleteId(undefined)
     }
 
@@ -139,7 +149,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     </WrapperField>
                 </DatagridConfigurable>
             </List>
-
             <Drawer
                 anchor="right"
                 open={open}
@@ -150,7 +159,6 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
             >
                 <EditArea id={recordId} electionEventId={id} close={handleCloseEditDrawer} />
             </Drawer>
-
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
