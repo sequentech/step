@@ -249,6 +249,13 @@ const spanishTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Creada la elección",
             createElectionEventError: "Error Creando la elección",
+            tabs: {
+                dashboard: "Panel de Control",
+                data: "Datos",
+                voters: "Votantes",
+                publish: "Publicar",
+                logs: "Logs",
+            },
         },
         tenantScreen: {
             common: {
@@ -267,6 +274,7 @@ const spanishTranslation: TranslationType = {
             },
             users: {
                 title: "Usuarios",
+                subtitle: "Ver y editar datos del usuario",
                 edit: {
                     title: "Información de Usuario",
                     subtitle: "Ver y editar Usuario",

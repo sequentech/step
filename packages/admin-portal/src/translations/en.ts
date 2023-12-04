@@ -247,6 +247,13 @@ const englishTranslation = {
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
+            tabs: {
+                dashboard: "Dashboard",
+                data: "Data",
+                voters: "Voters",
+                publish: "Publish",
+                logs: "Logs",
+            },
         },
         tenantScreen: {
             common: {
@@ -265,6 +272,7 @@ const englishTranslation = {
             },
             users: {
                 title: "Users",
+                subtitle: "View and edit user data",
                 edit: {
                     title: "User Data",
                     subtitle: "View and edit user",

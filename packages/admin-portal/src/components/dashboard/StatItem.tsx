@@ -9,7 +9,7 @@ import {theme} from "@sequentech/ui-essentials"
 const CardContainer = styled(Box)<{selected?: boolean}>`
     display: flex;
     flex-direction: column;
-    padding: 16px;
+    padding: 8px;
     border-radius: 4px;
     border: 1px solid ${theme.palette.customGrey.light};
     color: ${({selected}) => (selected ? theme.palette.white : theme.palette.customGrey.main)};
@@ -23,8 +23,11 @@ const CardContainer = styled(Box)<{selected?: boolean}>`
 
 const StyledTypography1 = styled(Typography)<{uppercase?: string}>`
     text-align: center;
-    margin-top: 12px;
+    margin-top: 0 !important;
     margin-bottom: 0;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
     ${({uppercase}) => uppercase && "text-transform: uppercase;"}
 `
 
@@ -32,6 +35,8 @@ const StyledTypography2 = styled(Typography)<{uppercase?: string}>`
     text-align: center;
     margin-top: 0;
     margin-bottom: 0;
+    text-overflow: ellipsis;
+    overflow: hidden;
     ${({uppercase}) => uppercase && "text-transform: uppercase;"}
 `
 

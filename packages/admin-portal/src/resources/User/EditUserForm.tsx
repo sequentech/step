@@ -117,6 +117,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
     let defaultAreaId = areaIdAttribute?.[0] ?? undefined
 
     const handleSelectArea = async (e: SelectChangeEvent) => {
+        if (!electionEventId) {
+            return
+        }
+
         setUser({
             ...user,
             attributes: {
@@ -170,24 +174,26 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
                         onChange={handleChange}
                     />
 
-                    <FormControl fullWidth>
-                        <ElectionHeaderStyles.Title>
-                            {t("usersAndRolesScreen.users.fields.area")}
-                        </ElectionHeaderStyles.Title>
+                    {electionEventId ? (
+                        <FormControl fullWidth>
+                            <ElectionHeaderStyles.Title>
+                                {t("usersAndRolesScreen.users.fields.area")}
+                            </ElectionHeaderStyles.Title>
 
-                        <Select
-                            name="area"
-                            defaultValue={defaultAreaId}
-                            value={defaultAreaId}
-                            onChange={handleSelectArea}
-                        >
-                            {areas?.map((area: Sequent_Backend_Area) => (
-                                <MenuItem key={area.id} value={area.id}>
-                                    {area.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                            <Select
+                                name="area"
+                                defaultValue={defaultAreaId}
+                                value={defaultAreaId}
+                                onChange={handleSelectArea}
+                            >
+                                {areas?.map((area: Sequent_Backend_Area) => (
+                                    <MenuItem key={area.id} value={area.id}>
+                                        {area.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    ) : null}
                 </>
             </SimpleForm>
         </PageHeaderStyles.Wrapper>
