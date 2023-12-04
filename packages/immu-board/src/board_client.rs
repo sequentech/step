@@ -5,6 +5,20 @@ use tracing::{event, Level, instrument};
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
 
+enum Table {
+    BraidMessages,
+    ElectoralLogdMessages,
+}
+
+impl Table {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Table::BraidMessages => "braid_messages",
+            Table::ElectoralLogdMessages => "electoral_log_messages"
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct BoardClient {
     client: Client,
@@ -58,16 +72,19 @@ impl TryFrom<&Row> for BoardMessage {
         let mut message = vec![];
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             // FIXME for some reason columns names appear with parentheses
-            match column.as_str() {
-                "(messages.id)" => assign_value!(Value::N, value, id),
-                "(messages.created)" => assign_value!(Value::Ts, value, created),
-                "(messages.signer_key)" => assign_value!(Value::S, value, signer_key),
-                "(messages.statement_timestamp)" => {
+            let dot =  column.find('.').ok_or(anyhow!("invalid column found '{}'", column.as_str()))?;
+            let bare_column = &column[dot + 1..column.len() - 1];
+
+            match bare_column {
+                "id" => assign_value!(Value::N, value, id),
+                "created" => assign_value!(Value::Ts, value, created),
+                "signer_key" => assign_value!(Value::S, value, signer_key),
+                "statement_timestamp" => {
                     assign_value!(Value::Ts, value, statement_timestamp)
                 }
-                "(messages.statement_kind)" => assign_value!(Value::S, value, statement_kind),
-                "(messages.message)" => assign_value!(Value::Bs, value, message),
-                _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
+                "statement_kind" => assign_value!(Value::S, value, statement_kind),
+                "message" => assign_value!(Value::Bs, value, message),
+                _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
             }
         }
         Ok(BoardMessage {
@@ -116,10 +133,27 @@ impl BoardClient {
         Ok(BoardClient { client: client })
     }
 
-    /// Get all messages whose id is bigger than `last_id`
     pub async fn get_messages(
         &mut self,
         board_db: &str,
+        last_id: i64,
+    ) -> Result<Vec<BoardMessage>> {
+        self.get(board_db, Table::BraidMessages, last_id).await
+    }
+
+    pub async fn get_electoral_log_messages(
+        &mut self,
+        board_db: &str,
+        last_id: i64,
+    ) -> Result<Vec<BoardMessage>> {
+        self.get(board_db, Table::ElectoralLogdMessages, last_id).await
+    }
+    
+    /// Get all messages whose id is bigger than `last_id`
+    async fn get(
+        &mut self,
+        board_db: &str,
+        table: Table,
         last_id: i64,
     ) -> Result<Vec<BoardMessage>> {
         self.client.use_database(board_db).await?;
@@ -132,12 +166,22 @@ impl BoardClient {
             statement_timestamp,
             statement_kind,
             message
-        FROM messages
-        WHERE id > {}
+        FROM {}
+        WHERE id > @last_id
         "#,
-            last_id
+            table.as_str()
         );
-        let sql_query_response = self.client.sql_query(&sql, vec![]).await?;
+
+        let params = vec![
+            NamedParam {
+                name: String::from("last_id"),
+                value: Some(SqlValue {
+                    value: Some(Value::N(last_id))
+                }),
+            },
+        ];
+
+        let sql_query_response = self.client.sql_query(&sql, params).await?;
         let messages = sql_query_response
             .get_ref()
             .rows
@@ -148,11 +192,29 @@ impl BoardClient {
         Ok(messages)
     }
 
-
-    /// Get all messages whose id is bigger than `last_id`
     pub async fn get_messages_from_kind(
         &mut self,
         board_db: &str,
+        kind: &str,
+        signer_key: &str
+    ) -> Result<Vec<BoardMessage>> {
+        self.get_from_kind(board_db, Table::BraidMessages, kind, signer_key).await
+    }
+
+    pub async fn get_electoral_log_messages_from_kind(
+        &mut self,
+        board_db: &str,
+        kind: &str,
+        signer_key: &str
+    ) -> Result<Vec<BoardMessage>> {
+        self.get_from_kind(board_db, Table::ElectoralLogdMessages, kind, signer_key).await
+    }
+
+    /// Get all messages whose id is bigger than `last_id`
+    async fn get_from_kind(
+        &mut self,
+        board_db: &str,
+        table: Table,
         kind: &str,
         signer_key: &str
     ) -> Result<Vec<BoardMessage>> {
@@ -166,9 +228,10 @@ impl BoardClient {
             statement_timestamp,
             statement_kind,
             message
-        FROM messages
+        FROM {}
         WHERE signer_key = @signer_key AND statement_kind = @statement_kind;
         "#,
+        table.as_str()
         );
         let params = vec![
             NamedParam {
@@ -196,9 +259,27 @@ impl BoardClient {
         Ok(messages)
     }
 
+    
     pub async fn insert_messages(
         &mut self,
         board_db: &str,
+        messages: &Vec<BoardMessage>,
+    ) -> Result<()> {
+        self.insert(board_db, Table::BraidMessages, messages).await
+    }
+
+    pub async fn insert_electoral_log_messages(
+        &mut self,
+        board_db: &str,
+        messages: &Vec<BoardMessage>,
+    ) -> Result<()> {
+        self.insert(board_db, Table::ElectoralLogdMessages, messages).await
+    }
+    
+    async fn insert(
+        &mut self,
+        board_db: &str,
+        table: Table,
         messages: &Vec<BoardMessage>,
     ) -> Result<()> {
         info!("Insert {} messages..", messages.len());
@@ -207,8 +288,8 @@ impl BoardClient {
         let transaction_id = self.client.new_tx(TxMode::ReadWrite).await?;
         let mut sql_results = vec![];
         for message in messages {
-            let message_sql = r#"
-                INSERT INTO messages(
+            let message_sql = format!(r#"
+                INSERT INTO {} (
                     created,
                     signer_key,
                     statement_kind,
@@ -221,7 +302,8 @@ impl BoardClient {
                     @statement_timestamp,
                     @message
                 );
-            "#;
+            "#,
+            table.as_str());
             let params = vec![
                 NamedParam {
                     name: String::from("created"),
@@ -338,22 +420,7 @@ impl BoardClient {
 
     #[instrument(skip(self))]
     pub async fn create_board(&mut self, index_db: &str, board_db: &str) -> Result<Board> {
-        self.client.create_database(board_db).await?;
-        event!(Level::INFO, "Database created!");
-        self.client.use_database(board_db).await?;
-        let tables = r#"
-            CREATE TABLE IF NOT EXISTS messages (
-                id INTEGER AUTO_INCREMENT,
-                created TIMESTAMP,
-                signer_key VARCHAR,
-                statement_timestamp TIMESTAMP,
-                statement_kind VARCHAR,
-                message BLOB,
-                PRIMARY KEY id
-            );
-            "#;
-        self.client.sql_exec(&tables, vec![]).await?;
-        event!(Level::INFO, "Database tables created!");
+        self.upsert_board_db(board_db).await?;
         self.client.use_database(index_db).await?;
 
         let message_sql = r#"
@@ -387,7 +454,6 @@ impl BoardClient {
     #[instrument(skip(self))]
     pub async fn delete_board(&mut self, index_db: &str, board_db: &str) -> Result<()> {
         self.delete_database(board_db).await?;
-        event!(Level::INFO, "Database deleted!");
         self.client.use_database(index_db).await?;
 
         let message_sql = r#"
@@ -432,19 +498,33 @@ impl BoardClient {
     }
 
     pub async fn upsert_board_db(&mut self, board_dbname: &str) -> Result<()> {
-        self.upsert_database(
+        let sql = format!(r#"
+        CREATE TABLE IF NOT EXISTS {} (
+            id INTEGER AUTO_INCREMENT,
+            created TIMESTAMP,
+            signer_key VARCHAR,
+            statement_timestamp TIMESTAMP,
+            statement_kind VARCHAR,
+            message BLOB,
+            PRIMARY KEY id
+        );
+        CREATE TABLE IF NOT EXISTS {} (
+            id INTEGER AUTO_INCREMENT,
+            created TIMESTAMP,
+            signer_key VARCHAR,
+            statement_timestamp TIMESTAMP,
+            statement_kind VARCHAR,
+            message BLOB,
+            PRIMARY KEY id
+        );
+        "#,
+        Table::BraidMessages.as_str(),
+        Table::ElectoralLogdMessages.as_str()
+        );
+       self.upsert_database(
             board_dbname,
-            r#"
-            CREATE TABLE IF NOT EXISTS messages (
-                id INTEGER AUTO_INCREMENT,
-                created TIMESTAMP,
-                signer_key VARCHAR,
-                statement_timestamp TIMESTAMP,
-                statement_kind VARCHAR,
-                message BLOB,
-                PRIMARY KEY id
-            );
-            "#,
+            &sql,
+            
         )
         .await
     }
