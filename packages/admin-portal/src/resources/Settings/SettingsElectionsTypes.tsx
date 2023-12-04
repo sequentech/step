@@ -7,21 +7,14 @@ import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 
 import {Drawer} from "@mui/material"
-import { useTranslation } from 'react-i18next'
+import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
 
-import {
-    List,
-    TextField,
-    TextInput,
-    useDelete,
-    Identifier,
-    DatagridConfigurable,
-} from "react-admin"
+import {List, TextField, TextInput, useDelete, Identifier, DatagridConfigurable} from "react-admin"
 
 import {ListActions} from "@/components/ListActions"
-import { ActionsColumn } from '@/components/ActionButons'
-import { SettingselectionsTypesEdit } from './SettingsElectionsTypesEdit'
+import {ActionsColumn} from "@/components/ActionButons"
+import {SettingselectionsTypesEdit} from "./SettingsElectionsTypesEdit"
 import {SettingsElectionsTypesCreate} from "./SettingsElectionsTypesCreate"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
@@ -74,17 +67,19 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
         {icon: <EditIcon />, action: editAction},
         {icon: <DeleteIcon />, action: deleteAction},
     ]
-    
+
     return (
         <>
             <List
                 filters={Filters}
-                actions={<ListActions 
-                    custom 
-                    withFilter 
-                    closeDrawer={closeDrawer} 
-                    Component={<SettingsElectionsTypesCreate close={handleCloseCreateDrawer} />} 
-                />}
+                actions={
+                    <ListActions
+                        custom
+                        withFilter
+                        closeDrawer={closeDrawer}
+                        Component={<SettingsElectionsTypesCreate close={handleCloseCreateDrawer} />}
+                    />
+                }
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />

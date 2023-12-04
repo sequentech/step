@@ -22,7 +22,7 @@ import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {EditUser} from "./EditUser"
-import { CreateUser } from "./CreateUser"
+import {CreateUser} from "./CreateUser"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -99,7 +99,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     <ListActions
                         withImport={false}
                         closeDrawer={closeDrawer}
-                        Component={<CreateUser electionEventId={electionEventId} close={handleCloseCreateDrawer} />}
+                        Component={
+                            <CreateUser
+                                electionEventId={electionEventId}
+                                close={handleCloseCreateDrawer}
+                            />
+                        }
                     />
                 }
                 // actions={
@@ -135,7 +140,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     sx: {width: "40%"},
                 }}
             >
-                <EditUser id={recordId} electionEventId={electionEventId} close={handleCloseEditDrawer} />
+                <EditUser
+                    id={recordId}
+                    electionEventId={electionEventId}
+                    close={handleCloseEditDrawer}
+                />
             </Drawer>
 
             <Dialog

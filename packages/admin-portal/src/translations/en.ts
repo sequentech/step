@@ -133,26 +133,25 @@ const englishTranslation = {
         },
         electionTypeScreen: {
             common: {
-                title: 'Election Type',
-                subtitle: 'Election type configuration',
-                onlineVoting: 'Online Voting',
-                kioskVoting: 'Kiosk Voting',
-                settingTitle: 'Settings',
-                settingSubtitle: 'General Configuration'
-
+                title: "Election Type",
+                subtitle: "Election type configuration",
+                onlineVoting: "Online Voting",
+                kioskVoting: "Kiosk Voting",
+                settingTitle: "Settings",
+                settingSubtitle: "General Configuration",
             },
             create: {
-                title: 'Create Election Type'
+                title: "Create Election Type",
             },
             edit: {
-                title: 'Edit Election Type'
+                title: "Edit Election Type",
             },
             tabs: {
-                votingChannels: 'VOTING CHANELS',
-                electionTypes: 'ELECTION TYPES',
-                communications: 'COMMUNICATION',
-                languages: 'LANGUAGES'
-            }
+                votingChannels: "VOTING CHANELS",
+                electionTypes: "ELECTION TYPES",
+                communications: "COMMUNICATION",
+                languages: "LANGUAGES",
+            },
         },
         dashboard: {
             voteByDay: "Vote by day",
@@ -495,30 +494,36 @@ const englishTranslation = {
             configureStep: {
                 create: "Create Keys Ceremony",
                 title: "Create Election Event Keys Ceremony",
-                subtitle: "In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
+                subtitle:
+                    "In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
                 threshold: "Threshold",
                 trusteeList: "Trustees",
-                errorMinTrustees: "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
-                errorThreshold: "You selected threshold {{selected}} but it must be between {{min}} and {{max}}.",
+                errorMinTrustees:
+                    "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
+                errorThreshold:
+                    "You selected threshold {{selected}} but it must be between {{min}} and {{max}}.",
                 errorCreatingCeremony: "Error creating Keys Ceremony: {{error}}",
                 createCeremonySuccess: "Keys Ceremony created",
                 confirmdDialog: {
                     ok: "Yes, Create Keys Ceremony",
                     cancel: "Cancel",
                     title: "Are you sure you want to Create Keys Ceremony?",
-                    description: "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
+                    description:
+                        "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
                 },
             },
             ceremonyStep: {
                 cancel: "Cancel Keys Ceremony",
                 progressHeader: "Keys Ceremony Progress",
-                description: "This screen shows the progress and logs of the Election Event's Keys Ceremony. In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event.",
+                description:
+                    "This screen shows the progress and logs of the Election Event's Keys Ceremony. In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event.",
                 executionStatus: "Status: {{status}}",
                 confirmdDialog: {
                     ok: "Yes, Cancel Create Keys Ceremony",
                     cancel: "Go back to Keys Ceremony",
                     title: "Are you sure you want to Cancel Keys Ceremony?",
-                    description: "You are about to Cancel Keys Ceremony. After performing this action, to have a succcessful Keys Ceremony you will have to Create a new one.",
+                    description:
+                        "You are about to Cancel Keys Ceremony. After performing this action, to have a succcessful Keys Ceremony you will have to Create a new one.",
                 },
                 header: {
                     trusteeName: "Trustee Name",
