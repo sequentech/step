@@ -24,7 +24,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
 import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 import {IUser} from "sequent-core"
-import { EditUserForm } from './EditUserForm'
+import {EditUserForm} from "./EditUserForm"
 
 interface EditUserProps {
     id?: Identifier | undefined
@@ -146,7 +146,6 @@ export const EditUser: React.FC<EditUserProps> = (props) => {
             }, 400)
         }
     }
-    
 
     if (renderUI) {
         return (

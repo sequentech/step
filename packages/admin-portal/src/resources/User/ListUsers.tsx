@@ -17,12 +17,12 @@ import {useTenantStore} from "../../providers/TenantContextProvider"
 import {ListActions} from "../../components/ListActions"
 import {Drawer} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
-import { useTranslation } from 'react-i18next'
+import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
-import { useParams } from 'react-router'
-import { EditUser } from './EditUser'
+import {EditUser} from "./EditUser"
+import { CreateUser } from "./CreateUser"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -41,9 +41,8 @@ export interface ListUsersProps {
 
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) => {
     const {t} = useTranslation()
-    const {id} = useParams()
     const [tenantId] = useTenantStore()
-    const [deleteOne, {isLoading, error}] = useDelete()
+    const [deleteOne] = useDelete()
 
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
@@ -67,7 +66,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         if (recordId) {
             setTimeout(() => {
                 setOpen(true)
-            }, 400);
+            }, 400)
         }
     }, [recordId])
 
@@ -86,20 +85,21 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         setDeleteId(undefined)
     }
 
-        const actions: Action[] = [
-            {icon: <EditIcon />, action: editAction},
-            {icon: <DeleteIcon />, action: deleteAction},
-        ]
+    const actions: Action[] = [
+        {icon: <EditIcon />, action: editAction},
+        {icon: <DeleteIcon />, action: deleteAction},
+    ]
 
     return (
         <>
             <List
                 resource="user"
+                empty={false}
                 actions={
                     <ListActions
                         withImport={false}
                         closeDrawer={closeDrawer}
-                        // Component={<CreateArea record={record} close={handleCloseCreateDrawer} />}
+                        Component={<CreateUser electionEventId={electionEventId} close={handleCloseCreateDrawer} />}
                     />
                 }
                 // actions={
@@ -135,7 +135,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     sx: {width: "40%"},
                 }}
             >
-                <EditUser id={recordId} electionEventId={id} close={handleCloseEditDrawer} />
+                <EditUser id={recordId} electionEventId={electionEventId} close={handleCloseEditDrawer} />
             </Drawer>
 
             <Dialog

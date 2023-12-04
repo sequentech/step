@@ -322,7 +322,7 @@ services:
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-     - 8400:8400
+     - 8400:8000
 
   trustee1:
     profiles: ["full"]
@@ -422,8 +422,7 @@ services:
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
-    depends_on:
-      - harvest
+    restart: always
     working_dir: /app/windmill
     entrypoint: ["cargo", "run", "--bin", "main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat" ]
     volumes:

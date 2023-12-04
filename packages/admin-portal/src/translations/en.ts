@@ -131,6 +131,29 @@ const englishTranslation = {
             createAreaError: "Could not create Area",
             sequent_backend_area_contest: "Contests",
         },
+        electionTypeScreen: {
+            common: {
+                title: 'Election Type',
+                subtitle: 'Election type configuration',
+                onlineVoting: 'Online Voting',
+                kioskVoting: 'Kiosk Voting',
+                settingTitle: 'Settings',
+                settingSubtitle: 'General Configuration'
+
+            },
+            create: {
+                title: 'Create Election Type'
+            },
+            edit: {
+                title: 'Edit Election Type'
+            },
+            tabs: {
+                votingChannels: 'VOTING CHANELS',
+                electionTypes: 'ELECTION TYPES',
+                communications: 'COMMUNICATION',
+                languages: 'LANGUAGES'
+            }
+        },
         dashboard: {
             voteByDay: "Vote by day",
             voteByChannels: "Vote by channels",
@@ -183,6 +206,16 @@ const englishTranslation = {
                     created: "Finished",
                 },
             },
+            tabs: {
+                dashboard: "Dashboard",
+                data: "Data",
+                voters: "Voters",
+                areas: "Areas",
+                keys: "Keys",
+                tally: "Tally",
+                publish: "Publish",
+                logs: "Logs",
+            },
         },
         electionScreen: {
             common: {
@@ -233,6 +266,31 @@ const englishTranslation = {
             },
             users: {
                 title: "Users",
+                edit: {
+                    title: "User Data",
+                    subtitle: "View and edit user",
+                },
+                fields: {
+                    username: "Username",
+                    first_name: "First Name",
+                    last_name: "Last Name",
+                    email: "Email",
+                    enabled: "Enabled",
+                    emailVerified: "Email Verified",
+                    groups: "Groups",
+                    attributes: "Attributes",
+                    area: "Area",
+                },
+            },
+            voters: {
+                title: "Voters",
+                subtitle: "View and edit voter data",
+                errors: {
+                    editError: "Error editing voter",
+                    editSuccess: "Voter edited",
+                    createError: "Error creating voter",
+                    createSuccess: "Voter created",
+                },
             },
             roles: {
                 title: "Roles",
@@ -475,7 +533,7 @@ const englishTranslation = {
                 },
                 emptyLogs: "No logs yet.",
             },
-        }
+        },
     },
 }
 

@@ -10,7 +10,6 @@ use sequent_core::util::init_log::init_log;
 
 mod pdf;
 mod routes;
-mod s3;
 mod services;
 mod types;
 

@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {defaultTheme} from "react-admin"
-import {adminTheme} from "@sequentech/ui-essentials"
+import { defaultTheme } from "react-admin"
+import { adminTheme } from "@sequentech/ui-essentials"
 
 export const mixedAdminTheme = {
     ...defaultTheme,
@@ -22,15 +22,17 @@ export const fullAdminTheme = {
     },
     components: {
         ...mixedAdminTheme.components,
-        MuiButton: AdminMuiButton,
-        MuiTab: {
-            styleOverrides: {
+        MuiButton: {
+            ...AdminMuiButton,
+        },
+        MuiToolbar: {
+            styleOverride: {
                 root: {
-                    "& .MuiTab-textColorPrimary": {
-                        color: adminTheme.palette.brandColor,
-                    },
-                },
-            },
+                    "&:last-child": {
+                        borderRight: '1px solid #0F054C',
+                    }
+                }
+            }
         },
         MuiTextField: {
             styleOverrides: {
@@ -113,5 +115,60 @@ export const fullAdminTheme = {
                 },
             },
         },
-    },
+        MuiSwitch: {
+            styleOverrides: {
+                thumb: {},
+                track: {},
+                switchBase: {
+                    "& + .MuiSwitch-track": {
+                        backgroundColor: "rgba(0, 0, 0, 0.12)",
+                    },
+                    ".MuiSwitch-thumb": {
+                        color: "#fff",
+                    },
+                    "&.Mui-checked": {
+                        "& + .MuiSwitch-track": {
+                            backgroundColor: "#0F054C",
+                            opacity: 0.5,
+                        },
+                        ".MuiSwitch-thumb": {
+                            color: "#0F054C",
+                        },
+                    },
+                    "&.Mui-disabled + .MuiSwitch-track": {
+                        opacity: 0.5,
+                    },
+                },
+            },
+        },
+        MuiTabs: {
+            styleOverrides: {
+                indicator: {
+                    backgroundColor: "#43E3A1",
+                },
+            },
+        },
+        MuiTab: {
+            styleOverrides: {
+                root: {
+                    "textTransform": "uppercase",
+                    "fontWeight": "500",
+                    "fontSize": "14px",
+                    "fontFamily": "Roboto",
+                    "lineHeight": "24px",
+                    "color": "#000",
+                    "opacity": 0.4,
+                    "letter": "0.4",
+                    "cursor": "pointer",
+                    "&:hover": {
+                        opacity: 0.6,
+                    },
+                    "&.Mui-selected": {
+                        color: "#0F054C",
+                        opacity: 1,
+                    },
+                },
+            },
+        },
+    }
 }

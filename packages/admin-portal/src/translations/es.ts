@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import { TranslationType } from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
@@ -133,6 +133,29 @@ const spanishTranslation: TranslationType = {
             createAreaError: "Error creando área",
             sequent_backend_area_contest: "Preguntas del Área",
         },
+        electionTypeScreen: {
+            common: {
+                title: 'Tipo de Elección',
+                subtitle: 'Configuración del Tipo de Elección',
+                onlineVoting: 'Votación en Línea',
+                kioskVoting: 'Votación en Quiosco',
+                settingTitle: 'Configuración',
+                settingSubtitle: 'Ajustes generales'
+            },
+            create: {
+                title: 'Crear Tipo de Elección'
+            },
+            edit: {
+                title: 'Editar Tipo de Elección'
+            },
+        },
+            tabs: {
+                votingChannels: 'CANALES DE VOTACIÓN',
+                electionTypes: 'TIPOS DE ELECCIÓN',
+                communications: 'COMUNICACIÓN',
+                languages: 'IDIOMAS'
+            }
+        },
         dashboard: {
             voteByDay: "Voto por día",
             voteByChannels: "Voto por canales",
@@ -185,6 +208,16 @@ const spanishTranslation: TranslationType = {
                     created: "Finished",
                 },
             },
+            tabs: {
+                dashboard: "Panel de Control",
+                data: "Datos",
+                voters: "Votantes",
+                areas: "Áreas",
+                keys: "Claves",
+                tally: "Recuento",
+                publish: "Publicar",
+                logs: "Logs",
+            },
         },
         electionScreen: {
             common: {
@@ -235,6 +268,31 @@ const spanishTranslation: TranslationType = {
             },
             users: {
                 title: "Usuarios",
+                edit: {
+                    title: "Información de Usuario",
+                    subtitle: "Ver y editar Usuario",
+                },
+                fields: {
+                    username: "Nombre de Usuario",
+                    first_name: "Nombre",
+                    last_name: "Apellido",
+                    email: "Email",
+                    enabled: "Habilitado",
+                    emailVerified: "Email Verificado",
+                    groups: "Grupos",
+                    attributes: "Atributos",
+                    area: "Área",
+                },
+            },
+            voters: {
+                title: "Votantes",
+                subtitle: "Ver y editar datos del votante",
+                errors: {
+                    editError: "Error editando votante",
+                    editSuccess: "Votante editado",
+                    createError: "Error creando votante",
+                    createSuccess: "Votante creado",
+                },
             },
             roles: {
                 title: "Roles",
