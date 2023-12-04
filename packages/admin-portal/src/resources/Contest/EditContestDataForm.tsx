@@ -177,7 +177,7 @@ export const ContestDataForm: React.FC = () => {
         temp.min_votes = temp.min_votes || 0
         temp.max_votes = temp.max_votes || 1
         temp.winning_candidates_num = temp.winning_candidates_num || 1
-        temp.order_awnswers = temp.order_answers || "alphabetical"
+        temp.order_answers = temp.order_answers || "alphabetical"
 
         return temp
     }
