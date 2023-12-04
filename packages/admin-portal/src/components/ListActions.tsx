@@ -8,6 +8,7 @@ import {ImportButton, ImportConfig} from "react-admin-import-csv"
 import {Button, TopToolbar, ExportButton, FilterButton, SelectColumnsButton} from "react-admin"
 
 interface ListActionsProps {
+    withColumns?: boolean
     withImport?: boolean
     withExport?: boolean
     withFilter?: boolean
@@ -18,6 +19,7 @@ interface ListActionsProps {
 
 export const ListActions: React.FC<ListActionsProps> = (props) => {
     const {
+        withColumns = true,
         withImport = true,
         withExport = true,
         withFilter = true,
@@ -47,7 +49,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     display: "flex",
                 }}
             >
-                <SelectColumnsButton />
+                {withColumns ? <SelectColumnsButton /> : null}
 
                 {withFilter ? <FilterButton /> : null}
 

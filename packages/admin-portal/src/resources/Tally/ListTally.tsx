@@ -27,6 +27,7 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
+import DescriptionIcon from "@mui/icons-material/Description"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {useParams} from "react-router"
@@ -93,6 +94,10 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         setRecordId(id)
     }
 
+    const editDetail = (id: Identifier) => {
+        setRecordId(id)
+    }
+
     const deleteAction = (id: Identifier) => {
         // deleteOne("sequent_backend_area", {id})
         setOpenDeleteModal(true)
@@ -107,6 +112,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const actions: Action[] = [
         {icon: <EditIcon />, action: editAction},
         {icon: <DeleteIcon />, action: deleteAction},
+        {icon: <DescriptionIcon />, action: editDetail},
     ]
 
     return (
@@ -115,6 +121,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 resource="sequent_backend_tally_session"
                 actions={
                     <ListActions
+                        withColumns={false}
                         withImport={false}
                         withExport={false}
                         // withFilter={false}
@@ -145,6 +152,8 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         label={t("electionEventScreen.tally.electionNumber")}
                         render={(record: RaRecord<Identifier>) => record?.election_ids?.length || 0}
                     />
+
+                    <TextField source="is_execution_completed" />
 
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />
