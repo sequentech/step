@@ -37,6 +37,7 @@ const EmptyBox = styled(Box)`
     align-items: center;
     justify-content: center;
     text-align: center;
+    width: 100%;
 `
 
 export function useActionPermissions() {
