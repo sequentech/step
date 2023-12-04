@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use borsh::{BorshSerialize, BorshDeserialize};
 
-use immu_board::BoardMessage;
+// use immu_board::BoardMessage;
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
 use strand::serialization::StrandSerialize;
@@ -14,7 +14,7 @@ pub struct Message {
     pub statement: Statement,
     pub artifact: Option<Vec<u8>>,
 }
-
+/* 
 impl TryFrom<Message> for BoardMessage {
     type Error = anyhow::Error;
 
@@ -28,7 +28,7 @@ impl TryFrom<Message> for BoardMessage {
             signer_key: message.sender.pk.to_der_b64_string()?,
         })
     }
-}
+}*/
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct Sender {

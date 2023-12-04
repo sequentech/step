@@ -1,5 +1,8 @@
 {
-    "rust-analyzer.linkedProjects": [ "/workspaces/backend-services/packages/Cargo.toml" ],
+    "rust-analyzer.linkedProjects": [
+        "/workspaces/backend-services/packages/Cargo.toml",
+        "./packages/sequent-core/Cargo.toml"
+    ],
     "rust-analyzer.server.extraEnv": {
         // which cargo
         "PATH": "/nix/store/kpf8rygjg59wscsrzgd7sjm63300kbpj-devenv-profile/bin",
