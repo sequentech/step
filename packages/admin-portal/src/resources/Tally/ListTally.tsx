@@ -32,6 +32,8 @@ import {useTenantStore} from "../../providers/TenantContextProvider"
 import {useParams} from "react-router"
 import {AreaContestItems} from "@/components/AreaContestItems"
 import ElectionHeader from '@/components/ElectionHeader'
+import { EditTally } from './EditTally'
+import { TrusteeItems } from '@/components/TrusteeItems'
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -133,12 +135,15 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="tenant_id" />
                     <TextField source="election_event_id" />
-                    <TextField source="election_ids" />
-                    <TextField source="area_ids" />
 
                     <FunctionField
-                        label={t("areas.sequent_backend_area_contest")}
-                        render={(record: any) => <AreaContestItems record={record} />}
+                        label={t("electionEventScreen.tally.trustees")}
+                        render={(record: RaRecord<Identifier>) => <TrusteeItems record={record} />}
+                    />
+
+                    <FunctionField
+                        label={t("electionEventScreen.tally.electionNumber")}
+                        render={(record: RaRecord<Identifier>) => record?.election_ids?.length || 0}
                     />
 
                     <WrapperField source="actions" label="Actions">
@@ -155,7 +160,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     sx: {width: "40%"},
                 }}
             >
-                {/* <EditArea id={recordId} electionEventId={id} close={handleCloseEditDrawer} /> */}
+                <EditTally id={recordId} electionEventId={id} close={handleCloseEditDrawer} />
             </Drawer>
 
             <Dialog

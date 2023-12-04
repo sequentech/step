@@ -219,6 +219,9 @@ const spanishTranslation: TranslationType = {
             },
             tally: {
                 title: "Tally del Evento Electoral",
+                elections: "Elecciones",
+                electionNumber: "Número de Elecciones",
+                trustees: "Trustees",
                 create: {
                     title: "Create Tally",
                     subtitle: "Create a new Tally for this Election Event",

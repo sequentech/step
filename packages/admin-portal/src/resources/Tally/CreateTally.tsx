@@ -39,8 +39,6 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
         filter: {election_event_id: record?.id, tenant_id: record?.tenant_id},
     })
 
-    console.log("elections", elections)
-
     const onSuccess = () => {
         refresh()
         notify(t("areas.createAreaSuccess"), {type: "success"})
@@ -86,7 +84,7 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
                         // style={{display: "none"}}
                     />
 
-                    {/* {elections ? (
+                    {elections ? (
                         <CheckboxGroupInput
                             label={t("areas.sequent_backend_area_contest")}
                             source="election_ids"
@@ -95,7 +93,7 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
                             optionValue="id"
                             row={false}
                         />
-                    ) : null} */}
+                    ) : null}
                 </SimpleForm>
             </PageHeaderStyles.Wrapper>
         </Create>
