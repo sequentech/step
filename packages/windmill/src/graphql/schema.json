@@ -448,6 +448,123 @@
         "possibleTypes": null
       },
       {
+        "kind": "INPUT_OBJECT",
+        "name": "EditUsersInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "attributes",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "election_event_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "email",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "enabled",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "first_name",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "groups",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "tenant_id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "user_id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "username",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
         "kind": "OBJECT",
         "name": "FetchDocumentOutput",
         "description": null,
@@ -4263,6 +4380,37 @@
               "kind": "OBJECT",
               "name": "sequent_backend_trustee",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "edit_user",
+            "description": null,
+            "args": [
+              {
+                "name": "body",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "EditUsersInput",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "KeycloakUser",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -52792,6 +52940,29 @@
             "deprecationReason": null
           },
           {
+            "name": "settings",
+            "description": null,
+            "args": [
+              {
+                "name": "path",
+                "description": "JSON select path",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "slug",
             "description": null,
             "args": [],
@@ -53006,6 +53177,16 @@
             "defaultValue": null
           },
           {
+            "name": "settings",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "voting_channels",
             "description": null,
             "type": {
@@ -53123,6 +53304,16 @@
             "defaultValue": null
           },
           {
+            "name": "settings",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "jsonb_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "slug",
             "description": null,
             "type": {
@@ -53223,6 +53414,24 @@
             "defaultValue": null
           },
           {
+            "name": "settings",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null
+          },
+          {
             "name": "voting_channels",
             "description": null,
             "type": {
@@ -53272,6 +53481,16 @@
             "defaultValue": null
           },
           {
+            "name": "settings",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "voting_channels",
             "description": null,
             "type": {
@@ -53304,6 +53523,16 @@
           },
           {
             "name": "labels",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -53375,6 +53604,16 @@
           },
           {
             "name": "labels",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -53701,6 +53940,16 @@
             "defaultValue": null
           },
           {
+            "name": "settings",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "slug",
             "description": null,
             "type": {
@@ -53787,6 +54036,16 @@
             "defaultValue": null
           },
           {
+            "name": "settings",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "voting_channels",
             "description": null,
             "type": {
@@ -53835,6 +54094,12 @@
           },
           {
             "name": "labels",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "settings",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -53908,6 +54173,16 @@
           },
           {
             "name": "labels",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "settings",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -54043,6 +54318,16 @@
             "defaultValue": null
           },
           {
+            "name": "settings",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "jsonb",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "slug",
             "description": null,
             "type": {
@@ -54111,6 +54396,12 @@
           },
           {
             "name": "labels",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "settings",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
