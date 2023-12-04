@@ -166,9 +166,6 @@ pub fn get_election_config() -> BallotStyle {
             is_demo: false,
         }),
         area_id: "9570d82a-d92a-44d7-b483-d5a6c8c398a8".into(),
-        status: Some(ElectionStatus {
-            voting_status: VotingStatus::OPEN,
-        }),
         contests: vec![get_contest_config()],
     }
 }
