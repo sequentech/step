@@ -7,6 +7,7 @@ services:
   devcontainer:
     profiles: ["full", "base"]
     image: ghcr.io/cachix/devenv:latest
+    container_name: devcontainer
     volumes:
       - ../..:/workspaces:cached
     # support ptrace-based debuggers like C++, Go, and Rust
@@ -124,6 +125,7 @@ services:
   graphql-engine:
     profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
+    container_name: graphql-engine
     ports:
       - "8080:8080"
     restart: always
@@ -230,6 +232,7 @@ services:
     entrypoint: >
       /opt/keycloak/bin/kc.sh start-dev
       --features=preview
+      --health-enabled=true
       --spi-user-profile-declarative-user-profile-read-only-attributes=sequent.read-only.*
       --spi-user-profile-declarative-user-profile-admin-read-only-attributes=sequent.admin-read-only.*
       -Dkeycloak.profile.feature.upload_scripts=enabled
@@ -244,7 +247,7 @@ services:
       postgres_keycloak:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8090/realms/electoral-process/protocol/openid-connect/certs"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8090/health/live"]
       interval: 5s
       timeout: 10s
       retries: 25
@@ -313,6 +316,9 @@ services:
     entrypoint: ["cargo", "run"]
     env_file:
       - .env
+    environment:
+      ROCKET_ADDRESS: "0.0.0.0"
+      ROCKET_PORT: "8400"
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:

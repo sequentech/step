@@ -33,10 +33,6 @@ pub fn create_ballot_style(
                 }),
         ),
         area_id: area.id,
-        status: election
-            .status
-            .map(|status_js| serde_json::from_value(status_js).ok())
-            .flatten(),
         contests: contests
             .into_iter()
             .map(|contest| {

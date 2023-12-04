@@ -64,6 +64,9 @@
 				
                 // Toml support
         		"tamasfe.even-better-toml",
+
+				// SQL formatter, useful for .sql files in hasura
+				"adpyke.vscode-sql-formatter",
 				
                 // Debugging
         		"vadimcn.vscode-lldb",

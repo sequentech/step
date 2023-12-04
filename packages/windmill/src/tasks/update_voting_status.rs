@@ -27,19 +27,27 @@ pub async fn update_voting_status(
     election_event_id: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
-    let new_status = ElectionStatus {
-        voting_status: payload.status.clone(),
-    };
     let election_event_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
     )
-    .await?
-    .data
-    .with_context(|| "can't find election event")?;
-
+        .await?
+        .data
+        .with_context(|| "can't find election event")?;
     let election_event = &election_event_response.sequent_backend_election_event[0];
+    let old_status: ElectionStatus = match election_event.status.clone() {
+        Some(status) => serde_json::from_value(status)?,
+        None => ElectionStatus {
+            voting_status: payload.status.clone(),
+            keys_ceremony: vec![]
+        },
+    };
+    let new_status = ElectionStatus {
+        voting_status: payload.status.clone(),
+        keys_ceremony: old_status.keys_ceremony.clone(),
+    };
+
     if payload.status == VotingStatus::OPEN && election_event.public_key.is_none() {
         return Err(Error::String("Missing public key".into()));
     }
