@@ -201,6 +201,7 @@ const spanishTranslation: TranslationType = {
                 createNew: "Crear Ceremonia de Claves",
                 emptyHeader: "Ninguna Ceremonia de Claves aún.",
                 emptyBody: "¿Quieres crear una?",
+                statusLabel: "Estado",
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Ceremonia",

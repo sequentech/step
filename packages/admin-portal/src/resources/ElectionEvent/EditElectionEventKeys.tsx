@@ -18,9 +18,11 @@ import {
     ReferenceArrayField,
     SingleFieldList,
     ChipField,
+    FunctionField,
 } from "react-admin"
-import {Box, Button, Typography} from "@mui/material"
-import {IconButton} from "@sequentech/ui-essentials"
+import {Box, Button, Typography, Chip} from "@mui/material"
+import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
+import {theme,IconButton} from "@sequentech/ui-essentials"
 import { Wizard } from "@/components/keys-ceremony/Wizard"
 import { faPlus } from "@fortawesome/free-solid-svg-icons"
 import { useTenantStore } from "@/providers/TenantContextProvider"
@@ -39,6 +41,20 @@ const EmptyBox = styled(Box)`
     text-align: center;
     width: 100%;
 `
+
+const statusColor: (status: string) => string = (status) => {
+    if (status == EStatus.NOT_STARTED) {
+        return theme.palette.info.main
+    } else if (status == EStatus.IN_PROCESS) {
+        return theme.palette.brandColor
+    } else if (status == EStatus.SUCCESS) {
+        return theme.palette.brandSuccess
+    } else if (status == EStatus.CANCELLED) {
+        return theme.palette.errorColor
+    } else {
+        return theme.palette.errorColor
+    }
+}
 
 export function useActionPermissions() {
     const [tenantId] = useTenantStore()
@@ -59,6 +75,27 @@ export function useActionPermissions() {
         canAdminCeremony,
         canReadTrustee,
     }
+}
+
+interface StatusLabelProps {
+    record: any
+}
+
+const StatusChip: React.FC<StatusLabelProps> = (props) => {
+    const {record} = props
+    return (
+        <>
+            <Chip
+                sx={{
+                    backgroundColor: statusColor(
+                        record["execution_status"]
+                    ),
+                    color: theme.palette.background.default,
+                }}
+                label={record["execution_status"]}
+            />
+        </>
+    )
 }
 
 const OMIT_FIELDS: Array<string> = []
@@ -158,7 +195,12 @@ export const EditElectionEventKeys: React.FC = () => {
                     >
                         <TextField source="id" />
                         <DateField source="created_at" showTime={true} />
-                        <TextField source="execution_status" />
+
+                        <FunctionField
+                            label={t("electionEventScreen.keys.statusLabel")}
+                            render={(record: any) => <StatusChip record={record} />}
+                        />
+                        
                         <ReferenceArrayField
                             perPage={10}
                             reference="sequent_backend_trustee"
