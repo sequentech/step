@@ -24,6 +24,7 @@ import {Box, Button, Typography, Chip} from "@mui/material"
 import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
 import {theme,IconButton} from "@sequentech/ui-essentials"
 import { Wizard } from "@/components/keys-ceremony/Wizard"
+import { statusColor } from "@/components/keys-ceremony/CeremonyStep"
 import { faPlus } from "@fortawesome/free-solid-svg-icons"
 import { useTenantStore } from "@/providers/TenantContextProvider"
 import { Action, ActionsColumn } from "@/components/ActionButons"
@@ -41,20 +42,6 @@ const EmptyBox = styled(Box)`
     text-align: center;
     width: 100%;
 `
-
-const statusColor: (status: string) => string = (status) => {
-    if (status == EStatus.NOT_STARTED) {
-        return theme.palette.info.main
-    } else if (status == EStatus.IN_PROCESS) {
-        return theme.palette.brandColor
-    } else if (status == EStatus.SUCCESS) {
-        return theme.palette.brandSuccess
-    } else if (status == EStatus.CANCELLED) {
-        return theme.palette.errorColor
-    } else {
-        return theme.palette.errorColor
-    }
-}
 
 export function useActionPermissions() {
     const [tenantId] = useTenantStore()

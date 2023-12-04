@@ -12,7 +12,7 @@ import {
 } from "react-admin"
 import { useTranslation } from "react-i18next"
 
-import { Dialog } from "@sequentech/ui-essentials"
+import { theme, Dialog } from "@sequentech/ui-essentials"
 import {
     IKeysCeremonyExecutionStatus as EStatus,
     IKeysCeremonyTrusteeStatus as TStatus,
@@ -36,6 +36,20 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Paper from '@mui/material/Paper'
+
+export const statusColor: (status: string) => string = (status) => {
+    if (status == EStatus.NOT_STARTED) {
+        return theme.palette.warning.light
+    } else if (status == EStatus.IN_PROCESS) {
+        return theme.palette.info.main
+    } else if (status == EStatus.SUCCESS) {
+        return theme.palette.brandSuccess
+    } else if (status == EStatus.CANCELLED) {
+        return theme.palette.errorColor
+    } else {
+        return theme.palette.errorColor
+    }
+}
 
 const CancelButton = styled(Button)`
     margin-left: auto;
@@ -76,8 +90,6 @@ const AccordionDetails2 = styled(AccordionDetails)`
     padding-top: 0;
     margin-top: -10px;
 `
-
-
 const CeremonyStatus = styled(Chip)`
     margin-top: 6px;
     margin-left: auto;
@@ -127,7 +139,14 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                             {t("keysGeneration.ceremonyStep.progressHeader")}
                         </AccordionTitle>
                         <CeremonyStatus
-                            color="primary"
+
+                            sx={{
+                                backgroundColor: statusColor(
+                                    currentCeremony?.execution_status
+                                        ?? EStatus.NOT_STARTED
+                                ),
+                                color: theme.palette.background.default,
+                            }}
                             label={t(
                                 "keysGeneration.ceremonyStep.executionStatus",
                                 {status: electionEvent.public_key
