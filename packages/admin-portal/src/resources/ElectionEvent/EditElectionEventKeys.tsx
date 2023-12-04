@@ -86,7 +86,10 @@ export const EditElectionEventKeys: React.FC = () => {
     const {canAdminCeremony, canReadTrustee} = useActionPermissions()
 
     const CreateButton = () => (
-        <Button onClick={() => setShowCeremony(true)}>
+        <Button
+            onClick={() => setShowCeremony(true)}
+            disabled={!keyCeremonies || keyCeremonies?.length > 0}
+        >
             <IconButton icon={faPlus} fontSize="24px" />
             {t("electionEventScreen.keys.createNew")}
         </Button>

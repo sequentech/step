@@ -11,8 +11,12 @@ use rocket::serde::json::Json;
 use sequent_core::services::keycloak;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::ballot::ElectionEventStatus;
 use windmill::hasura::trustee::get_trustees_by_name;
+use windmill::hasura::election_event::get_election_event;
 use windmill::hasura::keys_ceremony::insert_keys_ceremony;
+use windmill::tasks::create_keys::{create_keys, CreateKeysBody};
+use windmill::services::celery_app::get_celery_app;
 use windmill::types::keys_ceremony::{
     CeremonyStatus,
     ExecutionStatus,
@@ -144,7 +148,7 @@ pub async fn get_private_key(
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateKeysCeremonyInput {
     election_event_id: String,
-    threshold: u8,
+    threshold: usize,
     trustee_names: Vec<String>,
 }
 
@@ -170,6 +174,7 @@ pub async fn create_keys_ceremony(
     let auth_headers = keycloak::get_client_credentials()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let celery_app = get_celery_app().await;
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
     // verify trustee names and fetch their objects to get their ids
@@ -191,6 +196,36 @@ pub async fn create_keys_ceremony(
         .into_iter()
         .map(|trustee| trustee.id)
         .collect();
+
+    // get the election event
+    let election_event = &get_election_event(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        input.election_event_id.clone(),
+    )
+    .await
+    .with_context(|| "can't get election event")
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+    .data
+    .ok_or((
+        Status::InternalServerError, "can't get election event".into()
+    ))?
+    .sequent_backend_election_event[0];
+
+    // check config is not already created
+    let event_status: Option<ElectionEventStatus> = match election_event.status.clone() {
+        Some(value) => serde_json::from_value(value)
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?,
+        None => None,
+    };
+    if event_status.map(|val| val.is_config_created()).unwrap_or(false) {
+        return Err((
+            Status::BadRequest,
+            "bulletin board config already created".into()
+        ));
+    }
+    // TODO cancel any previous ceremony or find if there's any and cancel this
+    // one
 
     // generate default values
     let keys_ceremony_id: String = Uuid::new_v4().to_string();
@@ -221,9 +256,30 @@ pub async fn create_keys_ceremony(
         /*status*/ Some(status),
         /*execution_status*/ Some(execution_status),
     )
-        .await
-        .with_context(|| "couldn't insert keys ceremony")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .await
+    .with_context(|| "couldn't insert keys ceremony")
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    // create the public keys in async task
+    let task = celery_app
+    .send_task(create_keys::new(
+        CreateKeysBody {
+            threshold: input.threshold,
+            trustee_pks: trustees
+                .clone()
+                .into_iter()
+                .map(|trustee| Ok(
+                    trustee.public_key.ok_or(anyhow!("empty trustee pub key"))?
+                ))
+                .collect::<Result<Vec<String>>>()
+                .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        },
+        tenant_id.clone(),
+        input.election_event_id.clone(),
+    ))
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    event!(Level::INFO, "Sent create_keys task {}", task.task_id);
 
     event!(
         Level::INFO,

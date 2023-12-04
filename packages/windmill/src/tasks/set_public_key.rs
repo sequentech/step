@@ -15,7 +15,9 @@ use crate::types::error::Result;
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 10)]
-pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Result<()> {
+pub async fn set_public_key(tenant_id: String, election_event_id: String) 
+    -> Result<()>
+{
     let auth_headers = keycloak::get_client_credentials().await?;
     let election_event_response = hasura::election_event::get_election_event(
         auth_headers.clone(),

@@ -166,7 +166,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                 {trustee.name}
                                             </TableCell>
                                             <TableCell align="center">
-                                                {trustee.status != TStatus.WAITING
+                                                {electionEvent.public_key
                                                     ? <HourglassEmptyIcon />
                                                     : <DoneIcon />
                                                 }
