@@ -8,10 +8,15 @@ import {Box, Button} from "@mui/material"
 import React, {useState} from "react"
 import {useRecordContext} from "react-admin"
 import { ListTally } from '../Tally/ListTally'
+import { useElectionEventTallyStore } from '@/providers/ElectionEventTallyProvider'
 
 export const EditElectionEventTally: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)
+    const [tallyId] = useElectionEventTallyStore()
+
+    console.log("EditElectionEventTally :: tallyId :: ", tallyId)
+    
 
     const openStartTallyDialog = () => {
         console.log("opening...")
@@ -26,7 +31,7 @@ export const EditElectionEventTally: React.FC = () => {
                 electionEvent={record}
             />
             <Button onClick={openStartTallyDialog}>Start tally</Button>
-            <ListTally record={record}/>
+            {tallyId ? <div>{tallyId}</div> : <ListTally record={record} />}
         </Box>
     )
 }

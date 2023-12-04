@@ -52,13 +52,14 @@ export interface ListAreaProps {
     aside?: ReactElement
 }
 
-export const ListTally: React.FC<ListAreaProps> = (props) => {
+export const TallyCeremony: React.FC<ListAreaProps> = (props) => {
     const {t} = useTranslation()
     const {id} = useParams()
+    const [tenantId] = useTenantStore()
+    const [tallyId] = useElectionEventTallyStore()
 
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
-    const [tenantId] = useTenantStore()
     const [_, setTallyId] = useElectionEventTallyStore()
     const [deleteOne, {isLoading, error}] = useDelete()
 

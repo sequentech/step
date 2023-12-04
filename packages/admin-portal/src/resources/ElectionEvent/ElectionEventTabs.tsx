@@ -11,7 +11,8 @@ import {IPermissions} from "../../types/keycloak"
 import {EditElectionEventKeys} from "./EditElectionEventKeys"
 import {EditElectionEventTally} from "./EditElectionEventTally"
 import {EditElectionEventPublish} from "./EditElectionEventPublish"
-import { useTranslation } from "react-i18next"
+import {useTranslation} from "react-i18next"
+import { ElectionEventTallyContextProvider } from '@/providers/ElectionEventTallyProvider'
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -41,12 +42,16 @@ export const ElectionEventTabs: React.FC = () => {
                     <EditElectionEventKeys />
                 </TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.tally")}>
-                    <EditElectionEventTally />
+                    <ElectionEventTallyContextProvider>
+                        <EditElectionEventTally />
+                    </ElectionEventTallyContextProvider>
                 </TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.publish")}>
                     <EditElectionEventPublish />
                 </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.logs")}>a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.logs")}>
+                    a
+                </TabbedShowLayout.Tab>
             </TabbedShowLayout>
         </>
     )
