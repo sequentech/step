@@ -175,6 +175,9 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
         "sequent_backend_tally_session",
         {
             id: tallySessionId ?? tenantId,
+            meta: {
+                tenant_id: tenantId,
+            }
         }, {
             refetchIntervalInBackground: true,
             refetchInterval: 1000,
