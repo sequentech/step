@@ -26,7 +26,7 @@ export const EditElectionEventTally: React.FC = () => {
                 electionEvent={record}
             />
             <Button onClick={openStartTallyDialog}>Start tally</Button>
-            <ListTally />
+            <ListTally record={record}/>
         </Box>
     )
 }

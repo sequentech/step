@@ -44,6 +44,7 @@ const Filters: Array<ReactElement> = [
 ]
 
 export interface ListAreaProps {
+    record: Sequent_Backend_Election_Event
     aside?: ReactElement
 }
 
@@ -130,9 +131,10 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 <ElectionHeader title={t("electionEventScreen.tally.title")} subtitle="" />
 
                 <DatagridConfigurable omit={OMIT_FIELDS}>
-                    <TextField source="id" />
-                    <TextField source="name" />
-                    <TextField source="description" />
+                    <TextField source="tenant_id" />
+                    <TextField source="election_event_id" />
+                    <TextField source="election_ids" />
+                    <TextField source="area_ids" />
 
                     <FunctionField
                         label={t("areas.sequent_backend_area_contest")}
