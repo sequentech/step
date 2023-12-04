@@ -148,7 +148,6 @@ const spanishTranslation: TranslationType = {
             edit: {
                 title: 'Editar Tipo de Elección'
             },
-        },
             tabs: {
                 votingChannels: 'CANALES DE VOTACIÓN',
                 electionTypes: 'TIPOS DE ELECCIÓN',
