@@ -44,7 +44,10 @@ pub async fn create_role(
     let role = client
         .create_role(&realm, &input.role)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| {
+            event!(Level::INFO, "Error {:?}", e);
+            (Status::InternalServerError, format!("{:?}", e))
+        })?;
     Ok(Json(role))
 }
 
