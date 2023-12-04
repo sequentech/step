@@ -45,3 +45,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 
+[dev-dependencies]
+serial_test = "2.0.0"
+tokio = { version = "1.31.0", features = ["rt-multi-thread"]}
+

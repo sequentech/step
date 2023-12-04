@@ -25,7 +25,7 @@ impl TryFrom<Message> for BoardMessage {
             statement_timestamp: (message.statement.get_timestamp() * 1000) as i64,
             statement_kind: message.statement.get_kind().to_string(),
             message: message.strand_serialize()?,
-            signer_key: message.sender.pk.to_der_b64_string()?,
+            sender_pk: message.sender.pk.to_der_b64_string()?,
         })
     }
 }*/

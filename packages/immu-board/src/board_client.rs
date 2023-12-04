@@ -29,7 +29,7 @@ pub struct BoardMessage {
     pub id: i64,
     pub created: i64,
     // Base64 encoded spki der representation.
-    pub signer_key: String,
+    pub sender_pk: String,
     pub statement_timestamp: i64,
     pub statement_kind: String,
     pub message: Vec<u8>,
@@ -66,7 +66,7 @@ impl TryFrom<&Row> for BoardMessage {
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         let mut id = 0;
         let mut created = 0;
-        let mut signer_key = String::from("");
+        let mut sender_pk = String::from("");
         let mut statement_timestamp = 0;
         let mut statement_kind = String::from("");
         let mut message = vec![];
@@ -78,7 +78,7 @@ impl TryFrom<&Row> for BoardMessage {
             match bare_column {
                 "id" => assign_value!(Value::N, value, id),
                 "created" => assign_value!(Value::Ts, value, created),
-                "signer_key" => assign_value!(Value::S, value, signer_key),
+                "sender_pk" => assign_value!(Value::S, value, sender_pk),
                 "statement_timestamp" => {
                     assign_value!(Value::Ts, value, statement_timestamp)
                 }
@@ -90,7 +90,7 @@ impl TryFrom<&Row> for BoardMessage {
         Ok(BoardMessage {
             id,
             created,
-            signer_key,
+            sender_pk,
             statement_timestamp,
             statement_kind,
             message,
@@ -144,9 +144,8 @@ impl BoardClient {
     pub async fn get_electoral_log_messages(
         &mut self,
         board_db: &str,
-        last_id: i64,
     ) -> Result<Vec<BoardMessage>> {
-        self.get(board_db, Table::ElectoralLogdMessages, last_id).await
+        self.get(board_db, Table::ElectoralLogdMessages, 0).await
     }
     
     /// Get all messages whose id is bigger than `last_id`
@@ -162,7 +161,7 @@ impl BoardClient {
         SELECT
             id,
             created,
-            signer_key,
+            sender_pk,
             statement_timestamp,
             statement_kind,
             message
@@ -196,18 +195,18 @@ impl BoardClient {
         &mut self,
         board_db: &str,
         kind: &str,
-        signer_key: &str
+        sender_pk: &str
     ) -> Result<Vec<BoardMessage>> {
-        self.get_from_kind(board_db, Table::BraidMessages, kind, signer_key).await
+        self.get_from_kind(board_db, Table::BraidMessages, kind, sender_pk).await
     }
 
     pub async fn get_electoral_log_messages_from_kind(
         &mut self,
         board_db: &str,
         kind: &str,
-        signer_key: &str
+        sender_pk: &str
     ) -> Result<Vec<BoardMessage>> {
-        self.get_from_kind(board_db, Table::ElectoralLogdMessages, kind, signer_key).await
+        self.get_from_kind(board_db, Table::ElectoralLogdMessages, kind, sender_pk).await
     }
 
     /// Get all messages whose id is bigger than `last_id`
@@ -216,7 +215,7 @@ impl BoardClient {
         board_db: &str,
         table: Table,
         kind: &str,
-        signer_key: &str
+        sender_pk: &str
     ) -> Result<Vec<BoardMessage>> {
         self.client.use_database(board_db).await?;
         let sql = format!(
@@ -224,20 +223,20 @@ impl BoardClient {
         SELECT
             id,
             created,
-            signer_key,
+            sender_pk,
             statement_timestamp,
             statement_kind,
             message
         FROM {}
-        WHERE signer_key = @signer_key AND statement_kind = @statement_kind;
+        WHERE sender_pk = @sender_pk AND statement_kind = @statement_kind;
         "#,
         table.as_str()
         );
         let params = vec![
             NamedParam {
-                name: String::from("signer_key"),
+                name: String::from("sender_pk"),
                 value: Some(SqlValue {
-                    value: Some(Value::S(signer_key.to_string())),
+                    value: Some(Value::S(sender_pk.to_string())),
                 }),
             },
             NamedParam {
@@ -296,13 +295,13 @@ impl BoardClient {
             let message_sql = format!(r#"
                 INSERT INTO {} (
                     created,
-                    signer_key,
+                    sender_pk,
                     statement_kind,
                     statement_timestamp,
                     message
                 ) VALUES (
                     @created,
-                    @signer_key,
+                    @sender_pk,
                     @statement_kind,
                     @statement_timestamp,
                     @message
@@ -317,9 +316,9 @@ impl BoardClient {
                     }),
                 },
                 NamedParam {
-                    name: String::from("signer_key"),
+                    name: String::from("sender_pk"),
                     value: Some(SqlValue {
-                        value: Some(Value::S(message.signer_key.clone())),
+                        value: Some(Value::S(message.sender_pk.clone())),
                     }),
                 },
                 NamedParam {
@@ -507,7 +506,7 @@ impl BoardClient {
         CREATE TABLE IF NOT EXISTS {} (
             id INTEGER AUTO_INCREMENT,
             created TIMESTAMP,
-            signer_key VARCHAR,
+            sender_pk VARCHAR,
             statement_timestamp TIMESTAMP,
             statement_kind VARCHAR,
             message BLOB,
@@ -516,7 +515,7 @@ impl BoardClient {
         CREATE TABLE IF NOT EXISTS {} (
             id INTEGER AUTO_INCREMENT,
             created TIMESTAMP,
-            signer_key VARCHAR,
+            sender_pk VARCHAR,
             statement_timestamp TIMESTAMP,
             statement_kind VARCHAR,
             message BLOB,
@@ -617,7 +616,7 @@ pub(crate) mod tests {
         let board_message = BoardMessage {
             id: 1,
             created: 0,
-            signer_key: "".to_string(),
+            sender_pk: "".to_string(),
             statement_timestamp: 0,
             statement_kind: "".to_string(),
             message: vec![],
