@@ -6,11 +6,26 @@ import {useTranslation} from "react-i18next"
 export default function VotesByChannel({width, height}: {width: number; height: number}) {
     const {t} = useTranslation()
 
+    const series = [65, 45, 34, 12]
+
     const state: Props = {
         options: {
             labels: ["Online", "Paper", "IVR", "Postal"],
+            plotOptions: {
+                pie: {
+                    donut: {
+                        labels: {
+                            show: true,
+                            total: {
+                                showAlways: true,
+                                show: true,
+                            },
+                        },
+                    },
+                },
+            },
         },
-        series: [65, 45, 34, 12],
+        series,
     }
 
     return (
