@@ -36,7 +36,7 @@ export const TallyCeremony: React.FC = () => {
     const [closeDrawer, setCloseDrawer] = React.useState("")
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
 
-    
+
 
     const columns: GridColDef[] = [
         {
@@ -87,11 +87,6 @@ export const TallyCeremony: React.FC = () => {
         // deleteOne("sequent_backend_area", {id})
         setOpenDeleteModal(true)
         setDeleteId(id)
-    }
-
-    const confirmDeleteAction = () => {
-        deleteOne("sequent_backend_area", {id: deleteId})
-        setDeleteId(undefined)
     }
 
     const actions: Action[] = [
