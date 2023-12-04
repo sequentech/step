@@ -47,12 +47,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [closeDrawer, setCloseDrawer] = React.useState("")
+    const [openDrawer, setOpenDrawer] = React.useState(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
 
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
-        setCloseDrawer(new Date().toISOString())
+        setOpenDrawer(false)
     }
 
     const handleCloseEditDrawer = () => {
@@ -98,7 +98,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                 actions={
                     <ListActions
                         withImport={false}
-                        closeDrawer={closeDrawer}
+                        open={openDrawer}
+                        setOpen={setOpenDrawer}
                         Component={
                             <CreateUser
                                 electionEventId={electionEventId}

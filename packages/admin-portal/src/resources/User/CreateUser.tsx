@@ -64,10 +64,10 @@ export const CreateUser: React.FC<CreateUserProps> = ({electionEventId, close}) 
                 sanitizeEmptyValues
             >
                 <PageHeaderStyles.Title>
-                    {t("usersAndRolesScreen.common.title")}
+                    {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.create.title`)}
                 </PageHeaderStyles.Title>
                 <PageHeaderStyles.SubTitle>
-                    {t("usersAndRolesScreen.common.subTitle")}
+                    {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.create.subtitle`)}
                 </PageHeaderStyles.SubTitle>
 
                 <TextField

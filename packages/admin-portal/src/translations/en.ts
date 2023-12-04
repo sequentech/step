@@ -277,6 +277,10 @@ const englishTranslation = {
                     title: "User Data",
                     subtitle: "View and edit user",
                 },
+                create: {
+                    title: "User",
+                    subtitle: "Create user",
+                },
                 fields: {
                     username: "Username",
                     first_name: "First Name",
@@ -292,6 +296,10 @@ const englishTranslation = {
             voters: {
                 title: "Voters",
                 subtitle: "View and edit voter data",
+                create: {
+                    title: "Voter",
+                    subtitle: "Create voter",
+                },
                 errors: {
                     editError: "Error editing voter",
                     editSuccess: "Voter edited",
@@ -304,6 +312,17 @@ const englishTranslation = {
                 edit: {
                     title: "Role Data",
                     subtitle: "View and edit role",
+                },
+                create: {
+                    title: "Role",
+                    subtitle: "Create role",
+                },
+                errors: {
+                    createError: "Error creating role",
+                    createSuccess: "Role created",
+                },
+                fields: {
+                    name: "Name",
                 },
             },
             permissions: {

@@ -20,12 +20,17 @@ export interface ListTrusteeProps {
 
 export const ListTrustee: React.FC<ListTrusteeProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
 
     return (
         <>
             <Typography variant="h5">Trustees</Typography>
             <List
-                actions={<ListActions withFilter={true} />}
+                actions={<ListActions
+                    open={openDrawer}
+                    setOpen={setOpenDrawer}
+                    withFilter={true} />
+                }
                 sx={{flexGrow: 2}}
                 aside={aside}
                 filter={{

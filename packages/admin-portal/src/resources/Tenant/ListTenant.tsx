@@ -26,11 +26,16 @@ export interface ListTenantProps {
 }
 
 export const ListTenant: React.FC<ListTenantProps> = ({aside}) => {
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     return (
         <>
             <Typography variant="h5">Customers</Typography>
             <List
-                actions={<ListActions withFilter={true} />}
+                actions={<ListActions
+                    open={openDrawer}
+                    setOpen={setOpenDrawer}
+                    withFilter={true}
+                />}
                 sx={{flexGrow: 2}}
                 aside={aside}
                 filters={Filters}

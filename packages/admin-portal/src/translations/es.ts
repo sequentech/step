@@ -279,6 +279,10 @@ const spanishTranslation: TranslationType = {
                     title: "Información de Usuario",
                     subtitle: "Ver y editar Usuario",
                 },
+                create: {
+                    title: "Usuario",
+                    subtitle: "Crear usuario",
+                },
                 fields: {
                     username: "Nombre de Usuario",
                     first_name: "Nombre",
@@ -294,6 +298,10 @@ const spanishTranslation: TranslationType = {
             voters: {
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                create: {
+                    title: "Votante",
+                    subtitle: "Crear votante",
+                },
                 errors: {
                     editError: "Error editando votante",
                     editSuccess: "Votante editado",
@@ -306,6 +314,17 @@ const spanishTranslation: TranslationType = {
                 edit: {
                     title: "Información de Rol",
                     subtitle: "Ver y editar Rol",
+                },
+                create: {
+                    title: "Rol",
+                    subtitle: "Crear rol",
+                },
+                errors: {
+                    createError: "Error creando rol",
+                    createSuccess: "Rol creado",
+                },
+                fields: {
+                    name: "Nombre",
                 },
             },
             permissions: {

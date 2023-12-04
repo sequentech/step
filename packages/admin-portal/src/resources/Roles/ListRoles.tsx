@@ -6,9 +6,6 @@ import {
     DatagridConfigurable,
     List,
     TextField,
-    ExportButton,
-    SelectColumnsButton,
-    TopToolbar,
     Identifier,
     useGetList,
 } from "react-admin"
@@ -19,6 +16,8 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import {Drawer} from "@mui/material"
 import {EditRole} from "./EditRole"
 import {IPermission} from "sequent-core"
+import { ListActions } from "@/components/ListActions"
+import { CreateRole } from "./CreateRole"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -30,6 +29,7 @@ export interface ListRolesProps {
 export const ListRoles: React.FC<ListRolesProps> = ({aside, electionEventId}) => {
     const [tenantId] = useTenantStore()
     const [open, setOpen] = React.useState(false)
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
     const {
         data: permissions,
@@ -40,6 +40,12 @@ export const ListRoles: React.FC<ListRolesProps> = ({aside, electionEventId}) =>
     } = useGetList<IPermission & {id: string}>("permission", {
         filter: {tenant_id: tenantId},
     })
+
+    const handleCloseCreateDrawer = () => {
+        setRecordId(undefined)
+        setOpenDrawer(false)
+    }
+
     const handleCloseEditDrawer = () => {
         setOpen(false)
         setTimeout(() => {
@@ -64,10 +70,16 @@ export const ListRoles: React.FC<ListRolesProps> = ({aside, electionEventId}) =>
             <List
                 resource="role"
                 actions={
-                    <TopToolbar>
-                        <SelectColumnsButton />
-                        <ExportButton />
-                    </TopToolbar>
+                    <ListActions
+                        withImport={false}
+                        withFilter={false}
+                        open={openDrawer}
+                        setOpen={setOpenDrawer}
+                        Component={
+                            <CreateRole close={handleCloseCreateDrawer}
+                            />
+                        }
+                    />
                 }
                 filter={{tenant_id: tenantId}}
                 aside={aside}

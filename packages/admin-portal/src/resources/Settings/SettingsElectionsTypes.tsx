@@ -27,7 +27,7 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [closeDrawer, setCloseDrawer] = React.useState("")
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
 
     useEffect(() => {
@@ -38,7 +38,7 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
 
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
-        setCloseDrawer(new Date().toISOString())
+        setOpenDrawer(false)
         setOpen(false)
     }
 
@@ -76,7 +76,8 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
                     <ListActions
                         custom
                         withFilter
-                        closeDrawer={closeDrawer}
+                        open={openDrawer}
+                        setOpen={setOpenDrawer}
                         Component={<SettingsElectionsTypesCreate close={handleCloseCreateDrawer} />}
                     />
                 }
