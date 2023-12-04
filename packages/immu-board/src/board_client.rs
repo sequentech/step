@@ -285,7 +285,12 @@ impl BoardClient {
         info!("Insert {} messages..", messages.len());
         self.client.open_session(board_db).await?;
         // Start a new transaction
-        let transaction_id = self.client.new_tx(TxMode::ReadWrite).await?;
+        let transaction_id = self.client.new_tx(TxMode::ReadWrite).await;
+        if transaction_id.is_err() {
+            self.client.close_session().await?;
+        }
+        let transaction_id = transaction_id?;
+
         let mut sql_results = vec![];
         for message in messages {
             let message_sql = format!(r#"
