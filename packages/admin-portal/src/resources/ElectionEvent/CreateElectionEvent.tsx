@@ -42,6 +42,19 @@ interface IElectionEventSubmit {
     encryption_protocol: string
     id: string
     tenant_id: string
+    presentation: {
+        i18n: {
+            [key: string]: {
+                name: string
+                alias: string
+                description: string
+            }
+        }
+        language_conf: {
+            enabled_language_codes: Array<string>
+            default_language_code: string
+        }
+    }
 }
 
 export const CreateElectionList: React.FC = () => {
@@ -83,7 +96,30 @@ export const CreateElectionList: React.FC = () => {
     }, [isLoading, newElectionEvent, isOneLoading, error])
 
     const handleSubmit = async (values: any) => {
-        const electionSubmit = values as IElectionEventSubmit
+        let electionSubmit = values as IElectionEventSubmit
+
+        // TODO: get enabled_language_codes from settings
+
+        electionSubmit = {
+            ...electionSubmit,
+            presentation: {
+                ...electionSubmit.presentation,
+                language_conf: {
+                    enabled_language_codes: ["es", "en"],
+                    default_language_code: "en",
+                },
+                i18n: {
+                    en: {
+                        name: electionSubmit.name,
+                        alias: "",
+                        description: electionSubmit.description || "",
+                    },
+                },
+            },
+        }
+
+        console.log("electionSubmit :: ", electionSubmit)
+
         let {data, errors} = await insertElectionEvent({
             variables: {
                 electionEvent: electionSubmit,
