@@ -140,7 +140,11 @@ const spanishTranslation: TranslationType = {
                 onlineVoting: 'Votación en Línea',
                 kioskVoting: 'Votación en Quiosco',
                 settingTitle: 'Configuración',
-                settingSubtitle: 'Ajustes generales'
+                settingSubtitle: 'Ajustes generales',
+                sms: "SMS",
+                mail: "Mails",
+                spanish: "Spanish",
+                english: "English"
             },
             create: {
                 title: 'Crear Tipo de Elección'

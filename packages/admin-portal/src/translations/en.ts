@@ -138,7 +138,11 @@ const englishTranslation = {
                 onlineVoting: 'Online Voting',
                 kioskVoting: 'Kiosk Voting',
                 settingTitle: 'Settings',
-                settingSubtitle: 'General Configuration'
+                settingSubtitle: 'General Configuration',
+                sms: "SMS",
+                mail: "Mails",
+                spanish: "Spanish",
+                english: "English"
 
             },
             create: {

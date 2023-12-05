@@ -49,6 +49,7 @@ export const SettingsComunications: React.FC<void> = () => {
         if (save) {
             save({
                 settings: {
+                    ...(record?.settings ? record.settings : {}),
                     sms: updatedSetting.sms,
                     mail: updatedSetting.mail,
                 },

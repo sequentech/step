@@ -49,6 +49,7 @@ export const SettingsLanguages: React.FC<void> = () => {
         if (save) {
             save({
                 settings: {
+                    ...(record?.settings ? record.settings : {}),
                     spanish: updatedSetting.spanish,
                     english: updatedSetting.english,
                 },
