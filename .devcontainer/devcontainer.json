@@ -24,13 +24,13 @@
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": false,
 
-	"onCreateCommand": "direnv allow",
-	"updateContentCommand": "direnv allow",
+	"onCreateCommand": "direnv allow && devenv shell bash -c 'echo devenv run'",
+	"updateContentCommand": "direnv allow && devenv shell bash -c 'echo devenv run'",
 
 	// Adding host requirements so that there is no need to manually select the
 	// machine to run on all the time
 	"hostRequirements": {
-		"storage": "60gb",
+		"storage": "32gb",
 		"cpus": 4
 	},
 
