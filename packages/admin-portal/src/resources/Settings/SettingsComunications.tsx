@@ -33,37 +33,34 @@ export const SettingsComunications: React.FC<void> = () => {
         undoable: false,
     })
 
-    const [voting, setVoting] = useState<any>({
-        online: record?.voting_channels?.online || false,
-        kiosk: record?.voting_channels?.kiosk || false,
+    const [setting, setSetting] = useState<any>({
+        sms: record?.settings?.sms || false,
+        mail: record?.settings?.mail || false,
     })
 
     const handleToggle = (method: any) => {
-        const updatedVoting = {
-            ...voting,
-            [method]: !voting[method],
+        const updatedSetting = {
+            ...setting,
+            [method]: !setting[method],
         }
 
-        console.log("Update Voting", updatedVoting, method)
-
-        setVoting(updatedVoting)
+        setSetting(updatedSetting)
 
         if (save) {
             save({
-                voting_channels: {
-                    online: updatedVoting.online,
-                    kiosk: updatedVoting.kiosk,
+                settings: {
+                    sms: updatedSetting.sms,
+                    mail: updatedSetting.mail,
                 },
             })
         }
     }
 
     useEffect(() => {
-        console.log(record)
-        if (record.voting_channels) {
-            setVoting({
-                online: record?.voting_channels?.online || false,
-                kiosk: record?.voting_channels?.kiosk || false,
+        if (record.settings) {
+            setSetting({
+                sms: record?.settings?.sms || false,
+                mail: record?.settings?.mail || false,
             })
         }
     }, [record])
@@ -72,14 +69,14 @@ export const SettingsComunications: React.FC<void> = () => {
 
     return (
         <SettingsCommunicationsStyles.Wrapper>
-            {Object.keys(voting).map((method: string) => (
+            {Object.keys(setting).map((method: string) => (
                 <SettingsCommunicationsStyles.Content key={method}>
                     <SettingsCommunicationsStyles.Text>
-                        {t(`electionTypeScreen.common.${method}Voting`)}
+                        {t(`electionTypeScreen.common.${method}`)}
                     </SettingsCommunicationsStyles.Text>
 
                     <Switch
-                        checked={voting?.[method] || false}
+                        checked={setting?.[method] || false}
                         onChange={() => handleToggle(method)}
                     />
                 </SettingsCommunicationsStyles.Content>

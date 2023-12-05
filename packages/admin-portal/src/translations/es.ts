@@ -155,28 +155,6 @@ const spanishTranslation: TranslationType = {
                 languages: 'IDIOMAS'
             }
         },
-        electionTypeScreen: {
-            common: {
-                title: 'Tipo de Elección',
-                subtitle: 'Configuración del Tipo de Elección',
-                onlineVoting: 'Votación en Línea',
-                kioskVoting: 'Votación en Quiosco',
-                settingTitle: 'Configuración',
-                settingSubtitle: 'Ajustes generales'
-            },
-            create: {
-                title: 'Crear Tipo de Elección'
-            },
-            edit: {
-                title: 'Editar Tipo de Elección'
-            },
-            tabs: {
-                votingChannels: 'CANALES DE VOTACIÓN',
-                electionTypes: 'TIPOS DE ELECCIÓN',
-                communications: 'COMUNICACIÓN',
-                languages: 'IDIOMAS'
-            }
-        },
         dashboard: {
             voteByDay: "Voto por día",
             voteByChannels: "Voto por canales",
