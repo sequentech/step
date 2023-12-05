@@ -312,8 +312,15 @@ services:
     build:
       context: ../packages/
       dockerfile: ./Dockerfile.cargo-packages
+    volumes:
+      - ../packages/:/app
     working_dir: /app/harvest
-    entrypoint: ["cargo", "run"]
+    entrypoint: [
+      "cargo",
+      "watch",
+      "-x",
+      "run"
+    ]
     env_file:
       - .env
     environment:
@@ -413,7 +420,7 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
-  
+
   windmill:
     profiles: ["full", "base"]
     stdin_open: true
@@ -424,9 +431,15 @@ services:
     # that we can reuse it:
     restart: always
     working_dir: /app/windmill
-    entrypoint: ["cargo", "run", "--bin", "main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat" ]
+    entrypoint: [
+      "cargo",
+      "watch",
+      "-x",
+      "run --bin main consume -q short_queue tally_queue beat reports_queue beat"
+    ]
     volumes:
       - ./keycloak/import:/import
+      - ../packages/:/app
     env_file:
       - .env
   
@@ -441,9 +454,15 @@ services:
     depends_on:
       - harvest
     working_dir: /app/windmill
-    entrypoint:  ["cargo", "run", "--bin", "beat"]
+    entrypoint: [
+      "cargo",
+      "watch",
+      "-x",
+      "run --bin beat"
+    ]
     volumes:
       - ./keycloak/import:/import
+      - ../packages/:/app
     env_file:
       - .env
 
