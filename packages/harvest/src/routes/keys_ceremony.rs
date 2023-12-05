@@ -64,16 +64,10 @@ pub async fn check_private_key(
         .preferred_username
         .ok_or((Status::Unauthorized, "Empty username".to_string()))?;
 
+    ////////////////////////////////////////////////////////////////////////////
+    // TODO JUST call get_private_key() below and check it against what we got
+    ////////////////////////////////////////////////////////////////////////////
     let private_key_base64: String = "".into();
-    /* TODO:
-    let private_key = your_service::check_private_key(
-        &input.election_event_id,
-        &input.keys_ceremony_id,
-        &input.trustee_name,
-        &input.private_key)
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    */
     let is_valid = private_key_base64 == input.private_key_base64;
     event!(
         Level::INFO,
@@ -175,9 +169,8 @@ pub async fn get_private_key(
         ));
     }
 
-
     let private_key_base64 = "".into();
-    /* TODO:
+    /* TODO OBTAIN PRIVATE KEY
     let private_key_base64 = your_service::retrieve_private_key(
         &input.election_event_id,
         &input.keys_ceremony_id,
