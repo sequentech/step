@@ -39,6 +39,7 @@ export default function Stats({forElection = false}: {forElection?: boolean}) {
                 electionEventId,
                 tenantId: record.tenant_id,
             },
+            pollInterval: 500,
         }
     )
 
