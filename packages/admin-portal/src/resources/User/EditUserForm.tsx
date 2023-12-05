@@ -17,23 +17,26 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IRole, IUser} from "sequent-core"
 import {FormControl, MenuItem, Select, SelectChangeEvent, TextField} from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
-import {EditUsersInput, ListUserRolesQuery, Sequent_Backend_Area} from "@/gql/graphql"
+import {DeleteUserRoleMutation, EditUsersInput, ListUserRolesQuery, Sequent_Backend_Area, SetUserRoleMutation} from "@/gql/graphql"
 import {EDIT_USER} from "@/queries/EditUser"
 import {LIST_USER_ROLES} from "@/queries/ListUserRoles"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {isUndefined} from "@sequentech/ui-essentials"
 import Checkbox from "@mui/material/Checkbox"
+import { DELETE_USER_ROLE } from "@/queries/DeleteUserRole"
+import { SET_USER_ROLE } from "@/queries/SetUserRole"
 
 interface ListUserRolesProps {
+    userId: string
     userRoles: ListUserRolesQuery
     rolesList: Array<IRole>
 }
 
-const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList}) => {
+const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList, userId}) => {
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
-    //const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
-    //const [setUserRole] = useMutation<SetUserRoleMutation>(SET_USER_ROLE)
+    const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
+    const [setUserRole] = useMutation<SetUserRoleMutation>(SET_USER_ROLE)
     const refresh = useRefresh()
     const notify = useNotify()
 
@@ -46,8 +49,8 @@ const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList}) => 
     }))
 
     const editRolePermission = (props: GridRenderCellParams<any, boolean>) => async () => {
-        /*const permission = (permissions || []).find((el) => el.id === props.row.id)
-        if (!permission?.name || !role) {
+        const role = (rolesList || []).find((el) => el.id === props.row.id)
+        if (!role?.name) {
             return
         }
 
@@ -56,7 +59,7 @@ const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList}) => 
             variables: {
                 tenantId: tenantId,
                 roleId: role.id,
-                permissionName: permission.name,
+                userId: userId,
             },
         })
         if (errors) {
@@ -65,7 +68,7 @@ const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList}) => 
             })
             console.log(`Error editing permission: ${errors}`)
             return
-        }*/
+        }
         notify(t(`usersAndRolesScreen.roles.notifications.permissionEditSuccess`), {
             type: "success",
         })
@@ -262,8 +265,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             </Select>
                         </FormControl>
                     ) : null}
-                    {isUndefined(electionEventId) && !isUndefined(userRoles) ? (
-                        <ListUserRoles userRoles={userRoles} rolesList={rolesList} />
+                    {isUndefined(electionEventId) && !isUndefined(userRoles) && !isUndefined(id) ? (
+                        <ListUserRoles userRoles={userRoles} rolesList={rolesList} userId={id}/>
                     ) : null}
                 </>
             </SimpleForm>
