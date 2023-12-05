@@ -133,26 +133,25 @@ const englishTranslation = {
         },
         electionTypeScreen: {
             common: {
-                title: 'Election Type',
-                subtitle: 'Election type configuration',
-                onlineVoting: 'Online Voting',
-                kioskVoting: 'Kiosk Voting',
-                settingTitle: 'Settings',
-                settingSubtitle: 'General Configuration'
-
+                title: "Election Type",
+                subtitle: "Election type configuration",
+                onlineVoting: "Online Voting",
+                kioskVoting: "Kiosk Voting",
+                settingTitle: "Settings",
+                settingSubtitle: "General Configuration",
             },
             create: {
-                title: 'Create Election Type'
+                title: "Create Election Type",
             },
             edit: {
-                title: 'Edit Election Type'
+                title: "Edit Election Type",
             },
             tabs: {
-                votingChannels: 'VOTING CHANELS',
-                electionTypes: 'ELECTION TYPES',
-                communications: 'COMMUNICATION',
-                languages: 'LANGUAGES'
-            }
+                votingChannels: "VOTING CHANELS",
+                electionTypes: "ELECTION TYPES",
+                communications: "COMMUNICATION",
+                languages: "LANGUAGES",
+            },
         },
         dashboard: {
             voteByDay: "Vote by day",
@@ -249,6 +248,13 @@ const englishTranslation = {
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
+            tabs: {
+                dashboard: "Dashboard",
+                data: "Data",
+                voters: "Voters",
+                publish: "Publish",
+                logs: "Logs",
+            },
         },
         tenantScreen: {
             common: {
@@ -267,9 +273,14 @@ const englishTranslation = {
             },
             users: {
                 title: "Users",
+                subtitle: "View and edit user data",
                 edit: {
                     title: "User Data",
                     subtitle: "View and edit user",
+                },
+                create: {
+                    title: "User",
+                    subtitle: "Create user",
                 },
                 fields: {
                     username: "Username",
@@ -282,15 +293,33 @@ const englishTranslation = {
                     attributes: "Attributes",
                     area: "Area",
                 },
+                delete: {
+                    body: "Are you sure you want to delete this user?",
+                },
+                notifications: {
+                    deleteError: "Error deleting user",
+                    deleteSuccess: "User deleted",
+                },
             },
             voters: {
                 title: "Voters",
                 subtitle: "View and edit voter data",
+                create: {
+                    title: "Voter",
+                    subtitle: "Create voter",
+                },
                 errors: {
                     editError: "Error editing voter",
                     editSuccess: "Voter edited",
                     createError: "Error creating voter",
                     createSuccess: "Voter created",
+                },
+                delete: {
+                    body: "Are you sure you want to delete this voter?",
+                },
+                notifications: {
+                    deleteError: "Error deleting voter",
+                    deleteSuccess: "Voter deleted",
                 },
             },
             roles: {
@@ -298,6 +327,26 @@ const englishTranslation = {
                 edit: {
                     title: "Role Data",
                     subtitle: "View and edit role",
+                },
+                create: {
+                    title: "Role",
+                    subtitle: "Create role",
+                },
+                errors: {
+                    createError: "Error creating role",
+                    createSuccess: "Role created",
+                },
+                fields: {
+                    name: "Name",
+                },
+                delete: {
+                    body: "Are you sure you want to delete this role?",
+                },
+                notifications: {
+                    deleteError: "Error deleting role",
+                    deleteSuccess: "Role deleted",
+                    permissionEditError: "Error editing permission",
+                    permissionEditSuccess: "Permission edited",
                 },
             },
             permissions: {
@@ -496,30 +545,36 @@ const englishTranslation = {
             configureStep: {
                 create: "Create Keys Ceremony",
                 title: "Create Election Event Keys Ceremony",
-                subtitle: "In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
+                subtitle:
+                    "In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
                 threshold: "Threshold",
                 trusteeList: "Trustees",
-                errorMinTrustees: "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
-                errorThreshold: "You selected threshold {{selected}} but it must be between {{min}} and {{max}}.",
+                errorMinTrustees:
+                    "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
+                errorThreshold:
+                    "You selected threshold {{selected}} but it must be between {{min}} and {{max}}.",
                 errorCreatingCeremony: "Error creating Keys Ceremony: {{error}}",
                 createCeremonySuccess: "Keys Ceremony created",
                 confirmdDialog: {
                     ok: "Yes, Create Keys Ceremony",
                     cancel: "Cancel",
                     title: "Are you sure you want to Create Keys Ceremony?",
-                    description: "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
+                    description:
+                        "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
                 },
             },
             ceremonyStep: {
                 cancel: "Cancel Keys Ceremony",
                 progressHeader: "Keys Ceremony Progress",
-                description: "This screen shows the progress and logs of the Election Event's Keys Ceremony. In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event.",
+                description:
+                    "This screen shows the progress and logs of the Election Event's Keys Ceremony. In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event.",
                 executionStatus: "Status: {{status}}",
                 confirmdDialog: {
                     ok: "Yes, Cancel Create Keys Ceremony",
                     cancel: "Go back to Keys Ceremony",
                     title: "Are you sure you want to Cancel Keys Ceremony?",
-                    description: "You are about to Cancel Keys Ceremony. After performing this action, to have a succcessful Keys Ceremony you will have to Create a new one.",
+                    description:
+                        "You are about to Cancel Keys Ceremony. After performing this action, to have a succcessful Keys Ceremony you will have to Create a new one.",
                 },
                 header: {
                     trusteeName: "Trustee Name",

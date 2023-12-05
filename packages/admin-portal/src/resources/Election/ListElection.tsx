@@ -32,6 +32,7 @@ export interface ListElectionProps {
 
 export const ListElection: React.FC<ListElectionProps & PropsWithChildren> = ({aside}) => {
     const [tenantId] = useTenantStore()
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
 
     const rowClickHandler = generateRowClickHandler(["election_event_id"])
 
@@ -39,7 +40,9 @@ export const ListElection: React.FC<ListElectionProps & PropsWithChildren> = ({a
         <>
             <Typography variant="h5">Elections</Typography>
             <List
-                actions={<ListActions withFilter={true} />}
+                actions={
+                    <ListActions open={openDrawer} setOpen={setOpenDrawer} withFilter={true} />
+                }
                 filter={{tenant_id: tenantId || undefined}}
                 aside={aside}
                 filters={Filters}

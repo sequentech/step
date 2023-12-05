@@ -140,8 +140,6 @@ impl KeycloakAdminClient {
     #[instrument(skip(self))]
     pub async fn create_role(self, realm: &str, role: &Role) -> Result<Role> {
         let mut new_role = role.clone();
-        let role_id = new_role.id.clone().unwrap_or(Uuid::new_v4().to_string());
-        new_role.id = Some(role_id.clone());
         self.client
             .realm_groups_post(realm, new_role.clone().into())
             .await

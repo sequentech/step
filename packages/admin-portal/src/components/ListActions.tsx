@@ -11,7 +11,8 @@ interface ListActionsProps {
     withImport?: boolean
     withExport?: boolean
     withFilter?: boolean
-    closeDrawer?: string
+    open: boolean
+    setOpen: (val: boolean) => void
     Component?: React.ReactNode
     custom?: boolean
 }
@@ -22,16 +23,12 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
         withExport = true,
         withFilter = true,
         Component,
-        closeDrawer = false,
+        open,
+        setOpen,
         custom = true,
     } = props
 
     const {t} = useTranslation()
-    const [open, setOpen] = useState<boolean>(false)
-
-    useEffect(() => {
-        setOpen(false)
-    }, [closeDrawer])
 
     const config: ImportConfig = {
         logging: true,
