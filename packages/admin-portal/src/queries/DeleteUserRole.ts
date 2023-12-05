@@ -5,11 +5,7 @@ import {gql} from "@apollo/client"
 
 export const DELETE_USER_ROLE = gql`
     mutation DeleteUserRole($tenantId: String!, $userId: String!, $roleId: String!) {
-        delete_user_role(
-            tenant_id: $tenantId
-            user_id: $userId
-            role_id: $roleId
-        ) {
+        delete_user_role(tenant_id: $tenantId, user_id: $userId, role_id: $roleId) {
             id
         }
     }

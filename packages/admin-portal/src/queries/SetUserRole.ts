@@ -5,11 +5,7 @@ import {gql} from "@apollo/client"
 
 export const SET_USER_ROLE = gql`
     mutation SetUserRole($tenantId: String!, $userId: String!, $roleId: String!) {
-        set_user_role(
-            tenant_id: $tenantId
-            user_id: $userId
-            role_id: $roleId
-        ) {
+        set_user_role(tenant_id: $tenantId, user_id: $userId, role_id: $roleId) {
             id
         }
     }

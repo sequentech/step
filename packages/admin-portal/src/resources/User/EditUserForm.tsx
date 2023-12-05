@@ -17,22 +17,29 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IRole, IUser} from "sequent-core"
 import {FormControl, MenuItem, Select, SelectChangeEvent, TextField} from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
-import {DeleteUserRoleMutation, EditUsersInput, ListUserRolesQuery, Sequent_Backend_Area, SetUserRoleMutation} from "@/gql/graphql"
+import {
+    DeleteUserRoleMutation,
+    EditUsersInput,
+    ListUserRolesQuery,
+    Sequent_Backend_Area,
+    SetUserRoleMutation,
+} from "@/gql/graphql"
 import {EDIT_USER} from "@/queries/EditUser"
 import {LIST_USER_ROLES} from "@/queries/ListUserRoles"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {isUndefined} from "@sequentech/ui-essentials"
 import Checkbox from "@mui/material/Checkbox"
-import { DELETE_USER_ROLE } from "@/queries/DeleteUserRole"
-import { SET_USER_ROLE } from "@/queries/SetUserRole"
+import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
+import {SET_USER_ROLE} from "@/queries/SetUserRole"
 
 interface ListUserRolesProps {
     userId: string
     userRoles: ListUserRolesQuery
     rolesList: Array<IRole>
+    refetch: () => void
 }
 
-const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList, userId}) => {
+const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList, userId, refetch}) => {
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
     const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
@@ -73,6 +80,7 @@ const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList, user
             type: "success",
         })
         refresh()
+        refetch()
     }
 
     const columns: GridColDef[] = [
@@ -132,7 +140,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const [tenantId] = useTenantStore()
 
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
-    const {data: userRoles} = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
+    const {data: userRoles, refetch} = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
         variables: {
             tenantId: tenantId,
             electionEventId: electionEventId,
@@ -266,7 +274,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         </FormControl>
                     ) : null}
                     {isUndefined(electionEventId) && !isUndefined(userRoles) && !isUndefined(id) ? (
-                        <ListUserRoles userRoles={userRoles} rolesList={rolesList} userId={id}/>
+                        <ListUserRoles
+                            userRoles={userRoles}
+                            rolesList={rolesList}
+                            userId={id}
+                            refetch={() => refetch()}
+                        />
                     ) : null}
                 </>
             </SimpleForm>
