@@ -322,7 +322,7 @@ actions:
   comment: List PostgreSQL audit logs
 - name: list_user_roles
   definition:
-    kind: synchronous
+    kind: ""
     handler: http://harvest:8400/list-user-roles
     forward_client_headers: true
     request_transform:

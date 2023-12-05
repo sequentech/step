@@ -3,14 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 import {
-    CheckboxGroupInput,
-    EditBase,
-    Identifier,
-    List,
-    RecordContext,
     SaveButton,
     SimpleForm,
-    TextInput,
     useGetList,
     useListContext,
     useNotify,
@@ -19,68 +13,110 @@ import {
 import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
-import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
-import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
-import {IUser} from "sequent-core"
+import {IRole, IUser} from "sequent-core"
 import {FormControl, MenuItem, Select, SelectChangeEvent, TextField} from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
-import {EditUsersInput, Sequent_Backend_Area} from "@/gql/graphql"
+import {EditUsersInput, ListUserRolesQuery, Sequent_Backend_Area} from "@/gql/graphql"
 import {EDIT_USER} from "@/queries/EditUser"
+import {LIST_USER_ROLES} from "@/queries/ListUserRoles"
+import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
+import {isUndefined} from "@sequentech/ui-essentials"
+import Checkbox from "@mui/material/Checkbox"
 
-interface EditUserFormProps {
-    id?: Identifier
-    electionEventId?: Identifier
-    close?: () => void
+interface ListUserRolesProps {
+    userRoles: ListUserRolesQuery
+    rolesList: Array<IRole>
 }
 
-export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
-    const {id, close, electionEventId} = props
+const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList}) => {
+    const activeRoleIds = userRoles.list_user_roles.map((role) => role.id || "")
 
+    let rows: Array<IRole & {id: string; active: boolean}> = rolesList.map((role) => ({
+        ...role,
+        id: role.id || "",
+        active: activeRoleIds.includes(role.id || ""),
+    }))
+
+    const columns: GridColDef[] = [
+        {
+            field: "name",
+            headerName: "Role",
+            width: 350,
+            editable: false,
+        },
+        {
+            field: "active",
+            headerName: "Active",
+            width: 70,
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, boolean>) => (
+                <Checkbox checked={props.value} />
+            ),
+        },
+    ]
+
+    return (
+        <>
+            <DataGrid
+                rows={rows}
+                columns={columns}
+                initialState={{
+                    pagination: {
+                        paginationModel: {
+                            pageSize: 10,
+                        },
+                    },
+                }}
+                pageSizeOptions={[10, 20, 50, 100]}
+            />
+        </>
+    )
+}
+
+interface EditUserFormProps {
+    id?: string
+    electionEventId?: string
+    close?: () => void
+    rolesList: Array<IRole>
+}
+
+export const EditUserForm: React.FC<EditUserFormProps> = ({
+    id,
+    close,
+    electionEventId,
+    rolesList,
+}) => {
     const {data, isLoading} = useListContext<IUser & {id: string}>()
     let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
     const [user, setUser] = useState<IUser | undefined>(userOriginal)
-
-    console.log("DATA :: ", data)
-    console.log("USER :: ", user)
-
     const refresh = useRefresh()
     const notify = useNotify()
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
 
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
+    const {data: userRoles} = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
+        variables: {
+            tenantId: tenantId,
+            electionEventId: electionEventId,
+            userId: id || tenantId,
+        },
+    })
 
     const {data: areas} = useGetList<Sequent_Backend_Area>("sequent_backend_area", {
         pagination: {page: 1, perPage: 9999},
         filter: {election_event_id: electionEventId, tenant_id: tenantId},
     })
 
-    console.log("areas :>> ", areas)
-
     useEffect(() => {
         if (!isLoading && data) {
             let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
-            console.log("USER :: ", userOriginal?.attributes?.["area-id"]?.[0] || "---")
-            console.log("TENANT :: ", tenantId)
             setUser(userOriginal)
         }
     }, [isLoading, data, id])
 
     const onSubmit = async () => {
-        /*
-          tenant_id: String!
-                user_id: String!
-                enabled: Boolean
-                election_event_id: String
-                attributes: jsonb
-                email: String
-                first_name: String
-                groups: [String!]
-                username: String
-            */
-        console.log("onSubmit :>> ", user)
         try {
             let {data, errors} = await edit_user({
                 variables: {
@@ -173,25 +209,29 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
                         name={"username"}
                         onChange={handleChange}
                     />
+                    {electionEventId ? (
+                        <FormControl fullWidth>
+                            <ElectionHeaderStyles.Title>
+                                {t("usersAndRolesScreen.users.fields.area")}
+                            </ElectionHeaderStyles.Title>
 
-                    <FormControl fullWidth>
-                        <ElectionHeaderStyles.Title>
-                            {t("usersAndRolesScreen.users.fields.area")}
-                        </ElectionHeaderStyles.Title>
-
-                        <Select
-                            name="area"
-                            defaultValue={defaultAreaId}
-                            value={defaultAreaId}
-                            onChange={handleSelectArea}
-                        >
-                            {areas?.map((area: Sequent_Backend_Area) => (
-                                <MenuItem key={area.id} value={area.id}>
-                                    {area.name}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                            <Select
+                                name="area"
+                                defaultValue={defaultAreaId}
+                                value={defaultAreaId}
+                                onChange={handleSelectArea}
+                            >
+                                {areas?.map((area: Sequent_Backend_Area) => (
+                                    <MenuItem key={area.id} value={area.id}>
+                                        {area.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    ) : null}
+                    {isUndefined(electionEventId) && !isUndefined(userRoles) ? (
+                        <ListUserRoles userRoles={userRoles} rolesList={rolesList} />
+                    ) : null}
                 </>
             </SimpleForm>
         </PageHeaderStyles.Wrapper>

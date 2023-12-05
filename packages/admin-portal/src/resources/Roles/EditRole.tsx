@@ -11,11 +11,11 @@ import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 import {IPermissions} from "../../types/keycloak"
 import {TextField} from "@mui/material"
-import { useMutation } from "@apollo/client"
-import { DELETE_ROLE_PERMISSION } from "@/queries/DeleteRolePermission"
-import { DeleteRolePermissionMutation, SetRolePermissionMutation } from "@/gql/graphql"
-import { useTenantStore } from "@/providers/TenantContextProvider"
-import { SET_ROLE_PERMISSION } from "@/queries/SetRolePermission"
+import {useMutation} from "@apollo/client"
+import {DELETE_ROLE_PERMISSION} from "@/queries/DeleteRolePermission"
+import {DeleteRolePermissionMutation, SetRolePermissionMutation} from "@/gql/graphql"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {SET_ROLE_PERMISSION} from "@/queries/SetRolePermission"
 
 type EnumObject = {[key: string]: number | string}
 type EnumObjectEnum<E extends EnumObject> = E extends {[key: string]: infer ET | string}
@@ -43,7 +43,6 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
     const notify = useNotify()
     const refresh = useRefresh()
 
-
     if (isLoading || !data) {
         return null
     }
@@ -65,25 +64,29 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
         }))
 
     const editRolePermission = (props: GridRenderCellParams<any, boolean>) => async () => {
-        const permission = (permissions || []).find(el => el.id === props.row.id)
+        const permission = (permissions || []).find((el) => el.id === props.row.id)
         if (!permission?.name || !role) {
             return
         }
 
         // remove/add permission to role
-        const {errors} = await (props.value? deleteRolePermission : setRolePermission)({
+        const {errors} = await (props.value ? deleteRolePermission : setRolePermission)({
             variables: {
                 tenantId: tenantId,
                 roleId: role.id,
                 permissionName: permission.name,
-            }
+            },
         })
         if (errors) {
-            notify(t(`usersAndRolesScreen.roles.notifications.permissionEditError`), {type: "error"})
+            notify(t(`usersAndRolesScreen.roles.notifications.permissionEditError`), {
+                type: "error",
+            })
             console.log(`Error editing permission: ${errors}`)
             return
         }
-        notify(t(`usersAndRolesScreen.roles.notifications.permissionEditSuccess`), {type: "success"})
+        notify(t(`usersAndRolesScreen.roles.notifications.permissionEditSuccess`), {
+            type: "success",
+        })
         refresh()
     }
 
@@ -119,7 +122,6 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
                     readOnly: true,
                 }}
             />
-            {role?.name}
             <DataGrid
                 rows={rows}
                 columns={columns}
@@ -131,7 +133,6 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
                     },
                 }}
                 pageSizeOptions={[10, 20, 50, 100]}
-                
             />
         </PageHeaderStyles.Wrapper>
     )
