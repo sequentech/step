@@ -22,7 +22,7 @@ import {Drawer} from "@mui/material"
 import {ChipList} from "../../components/ChipList"
 // import {EditArea} from "./EditArea"
 import {CreateTally} from "./CreateTally"
-import {Sequent_Backend_Election_Event} from "../../gql/graphql"
+import {Sequent_Backend_Election_Event, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
@@ -48,7 +48,7 @@ const Filters: Array<ReactElement> = [
 ]
 
 export interface ListAreaProps {
-    record: Sequent_Backend_Election_Event
+    record: Sequent_Backend_Tally_Session
     aside?: ReactElement
 }
 

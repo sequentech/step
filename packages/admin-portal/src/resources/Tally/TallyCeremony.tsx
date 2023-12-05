@@ -24,7 +24,13 @@ import {ElectionStyles} from "@/components/styles/ElectionStyles"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ListActions} from "@/components/ListActions"
 
-export const TallyCeremony: React.FC = () => {
+interface TallyCeremonyProps {
+    completed: boolean
+}
+
+export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
+    const {completed} = props
+
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
@@ -35,9 +41,23 @@ export const TallyCeremony: React.FC = () => {
     const [deleteId, setDeleteId] = useState<Identifier | undefined>()
     const [closeDrawer, setCloseDrawer] = useState("")
     const [recordId, setRecordId] = useState<Identifier | undefined>(undefined)
-    const [page, setPage] = useState<number>(0)
+    const [page, setPage] = useState<number>(completed ? 2 : 0)
     const [showTrustees, setShowTrustees] = useState(false)
-    const [expanded, setExpanded] = useState("tally-data-tally")
+
+    interface IExpanded {
+        [key: string]: boolean
+    }
+
+    const [expandedData, setExpandedData] = useState<IExpanded>({
+        "election-data-general": true,
+        "election-data-logs": true,
+        "election-data-results": true,
+    })
+
+    const [expandedResults, setExpandedResults] = useState<IExpanded>({
+        "election-data-logs": true,
+        "election-data-results": true,
+    })
 
     const columns: GridColDef[] = [
         {
@@ -184,8 +204,17 @@ export const TallyCeremony: React.FC = () => {
 
             {page === 1 && (
                 <>
-                    <Accordion sx={{width: "100%"}}>
-                        <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-tally" />}>
+                    <Accordion
+                        sx={{width: "100%"}}
+                        expanded={expandedData["election-data-general"]}
+                        onChange={() =>
+                            setExpandedData((prev: IExpanded) => ({
+                                ...prev,
+                                "election-data-general": !prev["election-data-general"],
+                            }))
+                        }
+                    >
+                        <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-general" />}>
                             <ElectionStyles.Wrapper>
                                 <ElectionHeader title={t("tally.tallyTitle")} subtitle="" />
                             </ElectionStyles.Wrapper>
@@ -198,7 +227,16 @@ export const TallyCeremony: React.FC = () => {
                         </AccordionDetails>
                     </Accordion>
 
-                    <Accordion sx={{width: "100%"}}>
+                    <Accordion
+                        sx={{width: "100%"}}
+                        expanded={expandedData["election-data-logs"]}
+                        onChange={() =>
+                            setExpandedData((prev: IExpanded) => ({
+                                ...prev,
+                                "election-data-logs": !prev["election-data-logs"],
+                            }))
+                        }
+                    >
                         <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-logs" />}>
                             <ElectionStyles.Wrapper>
                                 <ElectionHeader title={t("tally.logsTitle")} subtitle="" />
@@ -212,7 +250,16 @@ export const TallyCeremony: React.FC = () => {
                         </AccordionDetails>
                     </Accordion>
 
-                    <Accordion sx={{width: "100%"}}>
+                    <Accordion
+                        sx={{width: "100%"}}
+                        expanded={expandedData["election-data-results"]}
+                        onChange={() =>
+                            setExpandedData((prev: IExpanded) => ({
+                                ...prev,
+                                "election-data-results": !prev["election-data-results"],
+                            }))
+                        }
+                    >
                         <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-results" />}>
                             <ElectionStyles.Wrapper>
                                 <ElectionHeader title={t("tally.resultsTitle")} subtitle="" />
@@ -234,7 +281,16 @@ export const TallyCeremony: React.FC = () => {
                         <ListActions withImport={false} withColumns={false} withFilter={false} />
                     </StyledSpacing>
 
-                    <Accordion sx={{width: "100%"}}>
+                    <Accordion
+                        sx={{width: "100%"}}
+                        expanded={expandedResults["tally-results-logs"]}
+                        onChange={() =>
+                            setExpandedResults((prev: IExpanded) => ({
+                                ...prev,
+                                "tally-results-logs": !prev["tally-results-logs"],
+                            }))
+                        }
+                    >
                         <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-logs" />}>
                             <ElectionStyles.Wrapper>
                                 <ElectionHeader title={t("tally.generalInfoTitle")} subtitle="" />
@@ -248,7 +304,16 @@ export const TallyCeremony: React.FC = () => {
                         </AccordionDetails>
                     </Accordion>
 
-                    <Accordion sx={{width: "100%"}}>
+                    <Accordion
+                        sx={{width: "100%"}}
+                        expanded={expandedResults["tally-results-results"]}
+                        onChange={() =>
+                            setExpandedResults((prev: IExpanded) => ({
+                                ...prev,
+                                "tally-results-results": !prev["tally-results-results"],
+                            }))
+                        }
+                    >
                         <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-results" />}>
                             <ElectionStyles.Wrapper>
                                 <ElectionHeader title={t("tally.resultsTitle")} subtitle="" />
@@ -268,12 +333,14 @@ export const TallyCeremony: React.FC = () => {
                 <CancelButton className="list-actions" onClick={() => setTallyId(null)}>
                     {t("tally.common.cancel")}
                 </CancelButton>
-                <NextButton color="primary" onClick={handleNext}>
-                    <>
-                        {t("tally.common.next")}
-                        <ChevronRightIcon />
-                    </>
-                </NextButton>
+                {page < 2 && (
+                    <NextButton color="primary" onClick={handleNext}>
+                        <>
+                            {t("tally.common.next")}
+                            <ChevronRightIcon />
+                        </>
+                    </NextButton>
+                )}
             </StyledFooter>
 
             <Dialog
