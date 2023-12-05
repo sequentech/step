@@ -12,4 +12,5 @@ source .devcontainer/.env
 
 # perform the build in parallel, it's faster. Later it will be called again by
 # the devcontainer but then all images will have been built already
+cd .devcontainer/
 docker compose build --parallel
