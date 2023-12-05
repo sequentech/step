@@ -30,6 +30,13 @@ interface ListUserRolesProps {
 }
 
 const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList}) => {
+    const [tenantId] = useTenantStore()
+    const {t} = useTranslation()
+    //const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
+    //const [setUserRole] = useMutation<SetUserRoleMutation>(SET_USER_ROLE)
+    const refresh = useRefresh()
+    const notify = useNotify()
+
     const activeRoleIds = userRoles.list_user_roles.map((role) => role.id || "")
 
     let rows: Array<IRole & {id: string; active: boolean}> = rolesList.map((role) => ({
@@ -37,6 +44,33 @@ const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList}) => 
         id: role.id || "",
         active: activeRoleIds.includes(role.id || ""),
     }))
+
+    const editRolePermission = (props: GridRenderCellParams<any, boolean>) => async () => {
+        /*const permission = (permissions || []).find((el) => el.id === props.row.id)
+        if (!permission?.name || !role) {
+            return
+        }
+
+        // remove/add permission to role
+        const {errors} = await (props.value ? deleteUserRole : setUserRole)({
+            variables: {
+                tenantId: tenantId,
+                roleId: role.id,
+                permissionName: permission.name,
+            },
+        })
+        if (errors) {
+            notify(t(`usersAndRolesScreen.roles.notifications.permissionEditError`), {
+                type: "error",
+            })
+            console.log(`Error editing permission: ${errors}`)
+            return
+        }*/
+        notify(t(`usersAndRolesScreen.roles.notifications.permissionEditSuccess`), {
+            type: "success",
+        })
+        refresh()
+    }
 
     const columns: GridColDef[] = [
         {
@@ -51,7 +85,7 @@ const ListUserRoles: React.FC<ListUserRolesProps> = ({userRoles, rolesList}) => 
             width: 70,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
-                <Checkbox checked={props.value} />
+                <Checkbox checked={props.value} onClick={editRolePermission(props)} />
             ),
         },
     ]
@@ -90,7 +124,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const {data, isLoading} = useListContext<IUser & {id: string}>()
     let userOriginal: IUser | undefined = data?.find((element) => element.id === id)
     const [user, setUser] = useState<IUser | undefined>(userOriginal)
-    const refresh = useRefresh()
     const notify = useNotify()
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
