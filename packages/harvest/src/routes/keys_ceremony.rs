@@ -127,26 +127,54 @@ pub async fn get_private_key(
         .ok_or((Status::Unauthorized, "Empty username".to_string()))?;
 
     // get the keys ceremonies for this election event
-    let keys_ceremony = get_keys_ceremony(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        input.election_event_id.clone(),
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
-    .data
-    .with_context(|| "error listing existing keys ceremonies")
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
-    .sequent_backend_keys_ceremony
-    .into_iter()
-    .find(|ceremony| ceremony.id == input.keys_ceremony_id);
-
-    if let None = keys_ceremony {
-        return Err((
+    let keys_ceremony =
+        get_keys_ceremony(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            input.election_event_id.clone(),
+        )
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        .data
+        .with_context(|| "error listing existing keys ceremonies")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        .sequent_backend_keys_ceremony
+        .into_iter()
+        .find(|ceremony| ceremony.id == input.keys_ceremony_id)
+        .ok_or((
             Status::BadRequest,
             "Keys ceremony not found".into()
-        ))
+        ))?;
+    // check keys_ceremony has correct execution status
+    if (keys_ceremony.execution_status != Some(ExecutionStatus::IN_PROCESS.to_string())) {
+        return Err((
+            Status::BadRequest,
+            "Keys ceremony not in ExecutionStatus::IN_PROCESS".into()
+        ));
     }
+    // get ceremony status
+    let current_status: CeremonyStatus =
+        serde_json::from_value(
+            keys_ceremony
+                .status
+                .clone()
+                .ok_or(anyhow!("Empty keys ceremony status"))
+                .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        )
+        .with_context(|| "error parsing keys ceremony current status")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    // check the trustee is part of this ceremony
+    if let None = current_status.trustees
+        .clone()
+        .into_iter()
+        .find(|trustee| trustee.name == trustee_name)
+    {
+        return Err((
+            Status::BadRequest,
+            "Trustee not part of the keys ceremony".into()
+        ));
+    }
+
 
     let private_key_base64 = "".into();
     /* TODO:
