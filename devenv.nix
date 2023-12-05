@@ -60,6 +60,7 @@
     git --version
     export COMPOSE_PROJECT_NAME=backend-services_devcontainer
     export COMPOSE_PROFILES=base
+    export RUSTFLAGS="-Awarnings"
   '';
 
   # https://devenv.sh/languages/

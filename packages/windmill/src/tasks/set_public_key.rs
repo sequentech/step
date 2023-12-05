@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::collections::HashSet;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
@@ -10,6 +11,7 @@ use serde_json::Value;
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
+use crate::hasura::trustee::get_trustees_by_name;
 use crate::hasura::keys_ceremony::get_keys_ceremony;
 use crate::types::keys_ceremony::{
     CeremonyStatus,
@@ -62,7 +64,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String)
     )
     .await?;
 
-    // we should probably find a keys ceremony, and then update it
+    // find the keys ceremony, and then update it
     let keys_ceremonies = get_keys_ceremony(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -91,7 +93,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String)
             "Strange, keys ceremony in wrong execution_status={:?}",
             keys_ceremony.execution_status
         );
-
+        return Err("keys ceremony in wrong execution_status".into());
     }
     let current_status: CeremonyStatus = serde_json::from_value(
         keys_ceremony
@@ -100,6 +102,30 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String)
             .ok_or(anyhow!("Empty keys ceremony status"))?
     )
     .with_context(|| "error parsing keys ceremony current status")?;
+
+    // verify trustee names and fetch their objects to get their ids
+    let trustee_names = current_status.trustees
+        .clone()
+        .into_iter()
+        .map(|trustee| trustee.name)
+        .collect::<HashSet<String>>();
+    let trustees_by_name = get_trustees_by_name(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        trustee_names.clone().into_iter().collect::<Vec<_>>(),
+    )
+    .await?
+    .data
+    .with_context(|| "can't find trustees")?
+    .sequent_backend_trustee
+    .into_iter()
+    .filter_map(|trustee| trustee.name)
+    .collect::<HashSet<String>>();
+    // we should have a list with the same trustees
+    if trustee_names != trustees_by_name {
+        return Err("trustee_names don't correspond to trustees_by_name".into());
+    }
+
     let new_execution_status: String = ExecutionStatus::IN_PROCESS.to_string();
     let new_status: Value = serde_json::to_value(CeremonyStatus {
         stop_date: None,

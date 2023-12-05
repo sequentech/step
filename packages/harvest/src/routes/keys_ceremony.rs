@@ -115,10 +115,38 @@ pub async fn get_private_key(
         vec![Permissions::TRUSTEE_READ],
     )?;
     let input = body.into_inner();
+    let auth_headers = keycloak::get_client_credentials()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let celery_app = get_celery_app().await;
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+
     // The trustee name is simply the username of the user
     let trustee_name = claims
         .preferred_username
         .ok_or((Status::Unauthorized, "Empty username".to_string()))?;
+
+    // get the keys ceremonies for this election event
+    let keys_ceremony = get_keys_ceremony(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        input.election_event_id.clone(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+    .data
+    .with_context(|| "error listing existing keys ceremonies")
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+    .sequent_backend_keys_ceremony
+    .into_iter()
+    .find(|ceremony| ceremony.id == input.keys_ceremony_id);
+
+    if let None = keys_ceremony {
+        return Err((
+            Status::BadRequest,
+            "Keys ceremony not found".into()
+        ))
+    }
 
     let private_key_base64 = "".into();
     /* TODO:
