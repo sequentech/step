@@ -10,7 +10,6 @@ import {
     TextInput,
     BooleanField,
     Identifier,
-    useDelete,
     WrapperField,
     useRefresh,
     useNotify,
@@ -48,7 +47,6 @@ export interface ListUsersProps {
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
-    const [deleteOne] = useDelete()
 
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)

@@ -343,6 +343,10 @@ const spanishTranslation: TranslationType = {
                 delete: {
                     body: "¿Estás seguro que quieres borrar este rol?",
                 },
+                notifications: {
+                    deleteError: "Error borrando rol",
+                    deleteSuccess: "Rol borrado",
+                },
             },
             permissions: {
                 "tenant-create": "Create Tenant",

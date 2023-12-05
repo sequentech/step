@@ -341,6 +341,10 @@ const englishTranslation = {
                 delete: {
                     body: "Are you sure you want to delete this role?",
                 },
+                notifications: {
+                    deleteError: "Error deleting role",
+                    deleteSuccess: "Role deleted",
+                },
             },
             permissions: {
                 "tenant-create": "Create Tenant",
