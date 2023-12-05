@@ -38,10 +38,8 @@ export const ListDocument: React.FC<ListDocumentProps & PropsWithChildren> = ({a
         <>
             <Typography variant="h5">Documents</Typography>
             <List
-                actions={<ListActions
-                    open={openDrawer}
-                    setOpen={setOpenDrawer}
-                    withFilter={true} />
+                actions={
+                    <ListActions open={openDrawer} setOpen={setOpenDrawer} withFilter={true} />
                 }
                 filter={{tenant_id: tenantId || undefined}}
                 aside={aside || <div>hey</div>}

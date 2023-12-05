@@ -134,9 +134,9 @@ export const SelectElections: React.FC<SelectElectionsProps> = ({
 }
 
 export interface StartTallyDialogProps {
-    show: boolean,
-    handleClose: (val: boolean) => void,
-    electionEvent: Sequent_Backend_Election_Event,
+    show: boolean
+    handleClose: (val: boolean) => void
+    electionEvent: Sequent_Backend_Election_Event
 }
 
 export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
@@ -163,23 +163,27 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
             },
         }
     )
-    const {data : tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>("sequent_backend_tally_session_execution", {
-        pagination: {page: 1, perPage: 9999},
-        sort: {field: "created_at", order: "DESC"},
-        filter: {
-            tenant_id: electionEvent.tenant_id,
-            election_event_id: electionEvent.id,
-            tally_session_id: tallySessionId ?? tenantId,
-        },
-    })
-    const {data : tallySession} = useGetOne<Sequent_Backend_Tally_Session>(
+    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+        "sequent_backend_tally_session_execution",
+        {
+            pagination: {page: 1, perPage: 9999},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tenant_id: electionEvent.tenant_id,
+                election_event_id: electionEvent.id,
+                tally_session_id: tallySessionId ?? tenantId,
+            },
+        }
+    )
+    const {data: tallySession} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
         {
             id: tallySessionId ?? tenantId,
             meta: {
                 tenant_id: tenantId,
-            }
-        }, {
+            },
+        },
+        {
             refetchIntervalInBackground: true,
             refetchInterval: 1000,
         }

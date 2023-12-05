@@ -30,10 +30,7 @@ export const ListAreaContest: React.FC<ListAreaContestProps> = ({aside}) => {
         <>
             <Typography variant="h5">Area Contests</Typography>
             <List
-                actions={<ListActions 
-                    open={openDrawer}
-                    setOpen={setOpenDrawer}
-                />}
+                actions={<ListActions open={openDrawer} setOpen={setOpenDrawer} />}
                 sx={{flexGrow: 2}}
                 aside={aside}
                 filter={{

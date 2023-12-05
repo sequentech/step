@@ -346,6 +346,8 @@ const spanishTranslation: TranslationType = {
                 notifications: {
                     deleteError: "Error borrando rol",
                     deleteSuccess: "Rol borrado",
+                    permissionEditError: "Error editando permiso",
+                    permissionEditSuccess: "Permiso editado",
                 },
             },
             permissions: {

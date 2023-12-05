@@ -31,11 +31,9 @@ export const ListTenant: React.FC<ListTenantProps> = ({aside}) => {
         <>
             <Typography variant="h5">Customers</Typography>
             <List
-                actions={<ListActions
-                    open={openDrawer}
-                    setOpen={setOpenDrawer}
-                    withFilter={true}
-                />}
+                actions={
+                    <ListActions open={openDrawer} setOpen={setOpenDrawer} withFilter={true} />
+                }
                 sx={{flexGrow: 2}}
                 aside={aside}
                 filters={Filters}

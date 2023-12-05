@@ -67,7 +67,11 @@ export const CreateUser: React.FC<CreateUserProps> = ({electionEventId, close}) 
                     {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.create.title`)}
                 </PageHeaderStyles.Title>
                 <PageHeaderStyles.SubTitle>
-                    {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.create.subtitle`)}
+                    {t(
+                        `usersAndRolesScreen.${
+                            electionEventId ? "voters" : "users"
+                        }.create.subtitle`
+                    )}
                 </PageHeaderStyles.SubTitle>
 
                 <TextField

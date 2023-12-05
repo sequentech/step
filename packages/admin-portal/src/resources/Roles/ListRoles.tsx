@@ -18,13 +18,13 @@ import DeleteIcon from "@mui/icons-material/Delete"
 import {Drawer} from "@mui/material"
 import {EditRole} from "./EditRole"
 import {IPermission} from "sequent-core"
-import { ListActions } from "@/components/ListActions"
-import { CreateRole } from "./CreateRole"
+import {ListActions} from "@/components/ListActions"
+import {CreateRole} from "./CreateRole"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
-import { useMutation } from "@apollo/client"
-import { DELETE_ROLE } from "@/queries/DeleteRole"
-import { DeleteRoleMutation } from "@/gql/graphql"
+import {useMutation} from "@apollo/client"
+import {DELETE_ROLE} from "@/queries/DeleteRole"
+import {DeleteRoleMutation} from "@/gql/graphql"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -76,7 +76,7 @@ export const ListRoles: React.FC<ListRolesProps> = ({aside}) => {
     }
 
     const confirmDeleteAction = async () => {
-        const {errors} =  await deleteRole({
+        const {errors} = await deleteRole({
             variables: {
                 tenantId: tenantId,
                 roleId: deleteId,
@@ -84,7 +84,7 @@ export const ListRoles: React.FC<ListRolesProps> = ({aside}) => {
         })
         if (errors) {
             notify(t(`usersAndRolesScreen.roles.notifications.deleteError`), {type: "error"})
-            console.log(`Error creating user: ${errors}`)
+            console.log(`Error deleting role: ${errors}`)
             return
         }
         notify(t(`usersAndRolesScreen.roles.notifications.deleteSuccess`), {type: "success"})
@@ -107,10 +107,7 @@ export const ListRoles: React.FC<ListRolesProps> = ({aside}) => {
                         withFilter={false}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
-                        Component={
-                            <CreateRole close={handleCloseCreateDrawer}
-                            />
-                        }
+                        Component={<CreateRole close={handleCloseCreateDrawer} />}
                     />
                 }
                 filter={{tenant_id: tenantId}}

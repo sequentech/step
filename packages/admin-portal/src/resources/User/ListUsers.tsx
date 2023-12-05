@@ -24,10 +24,10 @@ import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {EditUser} from "./EditUser"
 import {CreateUser} from "./CreateUser"
-import { AuthContext } from "@/providers/AuthContextProvider"
-import { DeleteUserMutation } from "@/gql/graphql"
-import { DELETE_USER } from "@/queries/DeleteUser"
-import { useMutation } from "@apollo/client"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {DeleteUserMutation} from "@/gql/graphql"
+import {DELETE_USER} from "@/queries/DeleteUser"
+import {useMutation} from "@apollo/client"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -92,7 +92,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     }
 
     const confirmDeleteAction = async () => {
-        const {errors} =  await deleteUser({
+        const {errors} = await deleteUser({
             variables: {
                 tenantId: tenantId,
                 electionEventId: electionEventId,
@@ -100,11 +100,25 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
             },
         })
         if (errors) {
-            notify(t(`usersAndRolesScreen.${electionEventId? 'voters' : 'users'}.notifications.deleteError`), {type: "error"})
-            console.log(`Error creating user: ${errors}`)
+            notify(
+                t(
+                    `usersAndRolesScreen.${
+                        electionEventId ? "voters" : "users"
+                    }.notifications.deleteError`
+                ),
+                {type: "error"}
+            )
+            console.log(`Error deleting user: ${errors}`)
             return
         }
-        notify(t(`usersAndRolesScreen.${electionEventId? 'voters' : 'users'}.notifications.deleteSuccess`), {type: "success"})
+        notify(
+            t(
+                `usersAndRolesScreen.${
+                    electionEventId ? "voters" : "users"
+                }.notifications.deleteSuccess`
+            ),
+            {type: "success"}
+        )
         setDeleteId(undefined)
         refresh()
     }
@@ -185,7 +199,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     setOpenDeleteModal(false)
                 }}
             >
-                {t(`usersAndRolesScreen.${electionEventId? 'voters' : 'users'}.delete.body`)}
+                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.body`)}
             </Dialog>
         </>
     )

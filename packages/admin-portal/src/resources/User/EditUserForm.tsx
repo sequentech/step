@@ -132,7 +132,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
 
     return (
         <PageHeaderStyles.Wrapper>
-            <SimpleForm toolbar={<SaveButton alwaysEnable />} onSubmit={onSubmit} sanitizeEmptyValues>
+            <SimpleForm
+                toolbar={<SaveButton alwaysEnable />}
+                onSubmit={onSubmit}
+                sanitizeEmptyValues
+            >
                 <>
                     <PageHeaderStyles.Title>
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.title`)}

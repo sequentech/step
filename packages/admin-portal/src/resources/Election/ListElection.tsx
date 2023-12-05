@@ -40,10 +40,8 @@ export const ListElection: React.FC<ListElectionProps & PropsWithChildren> = ({a
         <>
             <Typography variant="h5">Elections</Typography>
             <List
-                actions={<ListActions
-                    open={openDrawer}
-                    setOpen={setOpenDrawer}
-                    withFilter={true} />
+                actions={
+                    <ListActions open={openDrawer} setOpen={setOpenDrawer} withFilter={true} />
                 }
                 filter={{tenant_id: tenantId || undefined}}
                 aside={aside}

@@ -344,6 +344,8 @@ const englishTranslation = {
                 notifications: {
                     deleteError: "Error deleting role",
                     deleteSuccess: "Role deleted",
+                    permissionEditError: "Error editing permission",
+                    permissionEditSuccess: "Permission edited",
                 },
             },
             permissions: {

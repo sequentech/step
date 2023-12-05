@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Identifier, useListContext} from "react-admin"
+import {Identifier, useListContext, useNotify, useRefresh} from "react-admin"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import ElectionHeader from "../../components/ElectionHeader"
 import {useTranslation} from "react-i18next"
@@ -11,6 +11,11 @@ import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 import {IPermissions} from "../../types/keycloak"
 import {TextField} from "@mui/material"
+import { useMutation } from "@apollo/client"
+import { DELETE_ROLE_PERMISSION } from "@/queries/DeleteRolePermission"
+import { DeleteRolePermissionMutation, SetRolePermissionMutation } from "@/gql/graphql"
+import { useTenantStore } from "@/providers/TenantContextProvider"
+import { SET_ROLE_PERMISSION } from "@/queries/SetRolePermission"
 
 type EnumObject = {[key: string]: number | string}
 type EnumObjectEnum<E extends EnumObject> = E extends {[key: string]: infer ET | string}
@@ -31,7 +36,14 @@ interface EditRoleProps {
 
 export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
     const {data, isLoading} = useListContext()
+    const [tenantId] = useTenantStore()
     const {t} = useTranslation()
+    const [deleteRolePermission] = useMutation<DeleteRolePermissionMutation>(DELETE_ROLE_PERMISSION)
+    const [setRolePermission] = useMutation<SetRolePermissionMutation>(SET_ROLE_PERMISSION)
+    const notify = useNotify()
+    const refresh = useRefresh()
+
+
     if (isLoading || !data) {
         return null
     }
@@ -52,6 +64,29 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
             active: (!!permission.name && rolePermissions.includes(permission.name)) || false,
         }))
 
+    const editRolePermission = (props: GridRenderCellParams<any, boolean>) => async () => {
+        const permission = (permissions || []).find(el => el.id === props.row.id)
+        if (!permission?.name || !role) {
+            return
+        }
+
+        // remove/add permission to role
+        const {errors} = await (props.value? deleteRolePermission : setRolePermission)({
+            variables: {
+                tenantId: tenantId,
+                roleId: role.id,
+                permissionName: permission.name,
+            }
+        })
+        if (errors) {
+            notify(t(`usersAndRolesScreen.roles.notifications.permissionEditError`), {type: "error"})
+            console.log(`Error editing permission: ${errors}`)
+            return
+        }
+        notify(t(`usersAndRolesScreen.roles.notifications.permissionEditSuccess`), {type: "success"})
+        refresh()
+    }
+
     const columns: GridColDef[] = [
         {
             field: "name",
@@ -65,7 +100,7 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
             width: 70,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
-                <Checkbox checked={props.value} />
+                <Checkbox checked={props.value} onClick={editRolePermission(props)} />
             ),
         },
     ]
@@ -96,8 +131,9 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
                     },
                 }}
                 pageSizeOptions={[10, 20, 50, 100]}
-                disableRowSelectionOnClick
+                
             />
         </PageHeaderStyles.Wrapper>
     )
 }
+//disableRowSelectionOnClick

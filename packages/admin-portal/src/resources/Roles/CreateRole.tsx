@@ -13,7 +13,6 @@ import {useMutation} from "@apollo/client"
 import {CREATE_ROLE} from "@/queries/CreateRole"
 //import {CreateRoleMutationVariables} from "@/gql/graphql"
 
-
 interface CreateRoleProps {
     close?: () => void
 }
@@ -30,7 +29,7 @@ export const CreateRole: React.FC<CreateRoleProps> = ({close}) => {
             viewMembers: true,
         },
     })
-    const [createRole] = useMutation(CREATE_ROLE)//<CreateRoleMutationVariables>(CREATE_ROLE)
+    const [createRole] = useMutation(CREATE_ROLE) //<CreateRoleMutationVariables>(CREATE_ROLE)
     const notify = useNotify()
     const refresh = useRefresh()
 
@@ -62,7 +61,7 @@ export const CreateRole: React.FC<CreateRoleProps> = ({close}) => {
         const {name, value} = e.target
         setRole({...role, [name]: value})
     }
-    
+
     return (
         <PageHeaderStyles.Wrapper>
             <SimpleForm

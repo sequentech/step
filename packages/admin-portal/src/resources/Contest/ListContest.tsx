@@ -60,10 +60,8 @@ export const ListContest: React.FC<ListContestProps> = ({aside}) => {
         <>
             <Typography variant="h5">Contests</Typography>
             <List
-                actions={<ListActions 
-                    open={openDrawer}
-                    setOpen={setOpenDrawer}
-                    withFilter={true} />
+                actions={
+                    <ListActions open={openDrawer} setOpen={setOpenDrawer} withFilter={true} />
                 }
                 sx={{flexGrow: 2}}
                 filter={{

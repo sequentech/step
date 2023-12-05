@@ -118,12 +118,11 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         </AccordionTitle>
                         <CeremonyStatus
                             color="primary"
-                            label={t(
-                                "keysGeneration.ceremonyStep.executionStatus",
-                                {status: electionEvent.public_key
+                            label={t("keysGeneration.ceremonyStep.executionStatus", {
+                                status: electionEvent.public_key
                                     ? EStatus.IN_PROCESS
-                                    : currentCeremony?.execution_status}
-                            )}
+                                    : currentCeremony?.execution_status,
+                            })}
                         />
                     </AccordionSummary>
                     <AccordionDetails2>
@@ -158,10 +157,11 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                 {trustee.name}
                                             </TableCell>
                                             <TableCell align="center">
-                                                {!electionEvent.public_key
-                                                    ? <HourglassEmptyIcon />
-                                                    : <DoneIcon />
-                                                }
+                                                {!electionEvent.public_key ? (
+                                                    <HourglassEmptyIcon />
+                                                ) : (
+                                                    <DoneIcon />
+                                                )}
                                             </TableCell>
                                             <TableCell align="center">
                                                 {trustee.status == TStatus.WAITING ||

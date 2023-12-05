@@ -41,10 +41,7 @@ export const ListCandidate: React.FC<ListCandidateProps> = ({aside}) => {
         <>
             <Typography variant="h5">Candidates</Typography>
             <List
-                actions={<ListActions
-                    open={openDrawer}
-                    setOpen={setOpenDrawer}
-                />}
+                actions={<ListActions open={openDrawer} setOpen={setOpenDrawer} />}
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,

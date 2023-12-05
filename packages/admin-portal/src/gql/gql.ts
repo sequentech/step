@@ -19,6 +19,7 @@ const documents = {
     "\n    mutation CreateUser($tenantId: String!, $electionEventId: String, $user: KeycloakUser2!) {\n        create_user(tenant_id: $tenantId, election_event_id: $electionEventId, user: $user) {\n            id\n            attributes\n            email\n            email_verified\n            enabled\n            first_name\n            last_name\n            username\n        }\n    }\n": types.CreateUserDocument,
     "\n    mutation delete_area_contests($tenantId: uuid!, $area: uuid!) {\n        delete_sequent_backend_area_contest(\n            where: {_and: {area_id: {_eq: $area}, tenant_id: {_eq: $tenantId}}}\n        ) {\n            returning {\n                id\n            }\n        }\n    }\n": types.Delete_Area_ContestsDocument,
     "\n    mutation DeleteRole($tenantId: String!, $roleId: String!) {\n        delete_role(tenant_id: $tenantId, role_id: $roleId) {\n            id\n        }\n    }\n": types.DeleteRoleDocument,
+    "\n    mutation DeleteRolePermission($tenantId: String!, $roleId: String!, $permissionName: String!) {\n        delete_role_permission(tenant_id: $tenantId, role_id: $roleId, permission_name: $permissionName) {\n            id\n        }\n    }\n": types.DeleteRolePermissionDocument,
     "\n    mutation DeleteUser($tenantId: String!, $electionEventId: String, $userId: String!) {\n        delete_user(tenant_id: $tenantId, election_event_id: $electionEventId, user_id: $userId) {\n            id\n        }\n    }\n": types.DeleteUserDocument,
     "\n    mutation EditUser($body: EditUsersInput!) {\n        edit_user(body: $body) {\n            attributes\n            email\n            email_verified\n            enabled\n            first_name\n            groups\n            id\n            last_name\n            username\n        }\n    }\n": types.EditUserDocument,
     "\n    query FetchDocument($tenantId: String!, $electionEventId: String!, $documentId: String!) {\n        fetchDocument(\n            tenant_id: $tenantId\n            election_event_id: $electionEventId\n            document_id: $documentId\n        ) {\n            url\n        }\n    }\n": types.FetchDocumentDocument,
@@ -38,6 +39,7 @@ const documents = {
     "\n    mutation CreateElectionEvent($electionEvent: CreateElectionEventInput!) {\n        insertElectionEvent(object: $electionEvent) {\n            id\n        }\n    }\n": types.CreateElectionEventDocument,
     "\n    mutation InsertTenant($slug: String!) {\n        insertTenant(slug: $slug) {\n            id\n            slug\n        }\n    }\n": types.InsertTenantDocument,
     "\n    query listPgaudit($limit: Int, $offset: Int, $order_by: PgAuditOrderBy) {\n        listPgaudit(limit: $limit, offset: $offset, order_by: $order_by) {\n            items {\n                id\n                audit_type\n                class\n                command\n                dbname\n                id\n                server_timestamp\n                session_id\n                statement\n                user\n            }\n            total {\n                aggregate {\n                    count\n                }\n            }\n        }\n    }\n": types.ListPgauditDocument,
+    "\n    mutation SetRolePermission($tenantId: String!, $roleId: String!, $permissionName: String!) {\n        set_role_permission(tenant_id: $tenantId, role_id: $roleId, permission_name: $permissionName) {\n            id\n        }\n    }\n": types.SetRolePermissionDocument,
 };
 
 /**
@@ -78,6 +80,10 @@ export function graphql(source: "\n    mutation delete_area_contests($tenantId: 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n    mutation DeleteRole($tenantId: String!, $roleId: String!) {\n        delete_role(tenant_id: $tenantId, role_id: $roleId) {\n            id\n        }\n    }\n"): (typeof documents)["\n    mutation DeleteRole($tenantId: String!, $roleId: String!) {\n        delete_role(tenant_id: $tenantId, role_id: $roleId) {\n            id\n        }\n    }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    mutation DeleteRolePermission($tenantId: String!, $roleId: String!, $permissionName: String!) {\n        delete_role_permission(tenant_id: $tenantId, role_id: $roleId, permission_name: $permissionName) {\n            id\n        }\n    }\n"): (typeof documents)["\n    mutation DeleteRolePermission($tenantId: String!, $roleId: String!, $permissionName: String!) {\n        delete_role_permission(tenant_id: $tenantId, role_id: $roleId, permission_name: $permissionName) {\n            id\n        }\n    }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -154,6 +160,10 @@ export function graphql(source: "\n    mutation InsertTenant($slug: String!) {\n
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n    query listPgaudit($limit: Int, $offset: Int, $order_by: PgAuditOrderBy) {\n        listPgaudit(limit: $limit, offset: $offset, order_by: $order_by) {\n            items {\n                id\n                audit_type\n                class\n                command\n                dbname\n                id\n                server_timestamp\n                session_id\n                statement\n                user\n            }\n            total {\n                aggregate {\n                    count\n                }\n            }\n        }\n    }\n"): (typeof documents)["\n    query listPgaudit($limit: Int, $offset: Int, $order_by: PgAuditOrderBy) {\n        listPgaudit(limit: $limit, offset: $offset, order_by: $order_by) {\n            items {\n                id\n                audit_type\n                class\n                command\n                dbname\n                id\n                server_timestamp\n                session_id\n                statement\n                user\n            }\n            total {\n                aggregate {\n                    count\n                }\n            }\n        }\n    }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n    mutation SetRolePermission($tenantId: String!, $roleId: String!, $permissionName: String!) {\n        set_role_permission(tenant_id: $tenantId, role_id: $roleId, permission_name: $permissionName) {\n            id\n        }\n    }\n"): (typeof documents)["\n    mutation SetRolePermission($tenantId: String!, $roleId: String!, $permissionName: String!) {\n        set_role_permission(tenant_id: $tenantId, role_id: $roleId, permission_name: $permissionName) {\n            id\n        }\n    }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};
