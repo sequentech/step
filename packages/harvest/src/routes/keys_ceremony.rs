@@ -212,8 +212,26 @@ pub async fn create_keys_ceremony(
     ))?
     .sequent_backend_election_event[0];
 
-    // TODO cancel any previous ceremony or find if there's any and cancel this
-    // one
+    // find if there's any previous ceremony and if so, stop. shouldn't happen,
+    // we only allow one per election event
+    let keys_ceremonies = get_keys_ceremony(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        input.election_event_id.clone(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+    .data
+    .with_context(|| "error listing existing keys ceremonies")
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+    .sequent_backend_keys_ceremony;
+    let has_any_running_ceremony = keys_ceremonies.len() > 0;
+    if has_any_running_ceremony {
+        return Err((
+            Status::BadRequest,
+            "there's already an existing running ceremony".into()
+        ))
+    }
 
     // generate default values
     let keys_ceremony_id: String = Uuid::new_v4().to_string();

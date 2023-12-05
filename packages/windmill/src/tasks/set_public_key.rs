@@ -2,13 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
 use tracing::{event, instrument, Level};
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
+use crate::hasura::keys_ceremony::get_keys_ceremony;
+use crate::types::keys_ceremony::{
+    CeremonyStatus,
+    ExecutionStatus,
+    Trustee,
+    TrusteeStatus,
+};
 use crate::services::public_keys;
 use crate::types::error::Result;
 
@@ -44,6 +51,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String)
         return Ok(());
     }
 
+    // set public key in the election event
     let public_key = public_keys::get_public_key(board_name).await?;
     hasura::election_event::update_election_event_public_key(
         auth_headers.clone(),
@@ -52,5 +60,61 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String)
         public_key,
     )
     .await?;
+
+    // we should probably find a keys ceremony, and then update it
+    let keys_ceremonies = get_keys_ceremony(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+    )
+    .await?
+    .data
+    .with_context(|| "error listing existing keys ceremonies")?
+    .sequent_backend_keys_ceremony;
+
+    if keys_ceremonies.len() == 0 {
+        event!(Level::INFO, "Strange, no ceremonies!");
+        return Ok(())
+    }
+
+    if keys_ceremonies.len() > 1 {
+        event!(
+            Level::ERROR,
+            "Strange, too many ceremonies! we'll just update the first one"
+        );
+    }
+    let keys_ceremony = &keys_ceremonies[0];
+    if keys_ceremony.execution_status != Some(ExecutionStatus::NOT_STARTED.to_string()) {
+        event!(
+            Level::ERROR,
+            "Strange, keys ceremony in wrong execution_status={:?}",
+            keys_ceremony.execution_status
+        );
+
+    }
+    let current_status: CeremonyStatus = serde_json::from_value(
+        keys_ceremony
+            .status
+            .clone()
+            .ok_or(anyhow!("Empty keys ceremony status"))?
+    )
+    .with_context(|| "error parsing keys ceremony current status")?;
+    let new_execution_status: String = ExecutionStatus::IN_PROCESS.to_string();
+    /*let new_status: Value = serde_json::to_value(CeremonyStatus {
+        stop_date: None,
+        public_key: Some(public_key),
+        logs: vec![],
+        trustees: trustees
+            .clone()
+            .into_iter()
+            .map(|trustee| Ok(Trustee {
+                name: trustee.name.ok_or(anyhow!("empty trustee name"))?,
+                status: TrusteeStatus::WAITING,
+            }))
+            .collect::<Result<Vec<Trustee>>>()?
+    })?;*/
+
+
+
     Ok(())
 }
