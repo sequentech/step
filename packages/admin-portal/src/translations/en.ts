@@ -569,8 +569,11 @@ const englishTranslation = {
                 results: "Results",
             },
             common: {
+                title: "Tally",
+                subTitle: "Tally configuration.",
                 cancel: "Cancel",
                 next: "Next",
+                date: "Tally Date",
                 dialog: {
                     ok: "Ok",
                     cancel: "Close",

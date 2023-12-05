@@ -9,18 +9,13 @@ import {
     RecordContext,
     SaveButton,
     SimpleForm,
-    TextInput,
     useGetList,
     useNotify,
     useRefresh,
 } from "react-admin"
-import {useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
-import {GET_AREAS_EXTENDED} from "@/queries/GetAreasExtended"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {INSERT_AREA_CONTESTS} from "../../queries/InsertAreaContest"
-import {DELETE_AREA_CONTESTS} from "@/queries/DeleteAreaContest"
 
 interface EditTallyProps {
     id?: Identifier | undefined
@@ -31,18 +26,6 @@ interface EditTallyProps {
 export const EditTally: React.FC<EditTallyProps> = (props) => {
     const {id, close, electionEventId} = props
 
-    const [delete_sequent_backend_area_contest] = useMutation(DELETE_AREA_CONTESTS)
-    const [insert_sequent_backend_area_contest] = useMutation(INSERT_AREA_CONTESTS, {
-        refetchQueries: [
-            {
-                query: GET_AREAS_EXTENDED,
-                variables: {
-                    electionEventId,
-                    areaId: id,
-                },
-            },
-        ],
-    })
     const refresh = useRefresh()
     const notify = useNotify()
     const {t} = useTranslation()
@@ -95,10 +78,6 @@ export const EditTally: React.FC<EditTallyProps> = (props) => {
     const transform = async (data: any, {previousData}: any) => {
         const temp = {...data}
 
-        // const election_ids = temp.election_ids
-
-        console.log("DATA TO SAVE :: ", temp)
-
         if (shallowEqual(temp, previousData)) {
             console.log("NO CHANGES")
             return {id: temp.id, last_updated_at: new Date().toISOString()}
@@ -149,16 +128,13 @@ export const EditTally: React.FC<EditTallyProps> = (props) => {
                                 <SimpleForm record={parsedValue} toolbar={<SaveButton />}>
                                     <>
                                         <PageHeaderStyles.Title>
-                                            {t("areas.common.title")}
+                                            {t("tally.common.title")}
                                         </PageHeaderStyles.Title>
                                         <PageHeaderStyles.SubTitle>
-                                            {t("areas.common.subTitle")}
+                                            {t("tally.common.subTitle")}
                                         </PageHeaderStyles.SubTitle>
 
-                                        <TextInput source="name" />
-                                        <TextInput source="description" />
-
-                                        {trustees ? (
+                                        {/* {trustees ? (
                                             <CheckboxGroupInput
                                                 label={t("electionEventScreen.tally.trustees")}
                                                 source="trustee_ids"
@@ -167,7 +143,7 @@ export const EditTally: React.FC<EditTallyProps> = (props) => {
                                                 optionValue="id"
                                                 row={false}
                                             />
-                                        ) : null}
+                                        ) : null} */}
 
                                         {elections ? (
                                             <CheckboxGroupInput

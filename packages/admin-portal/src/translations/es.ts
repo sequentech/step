@@ -571,8 +571,11 @@ const spanishTranslation: TranslationType = {
                 results: "Resultados",
             },
             common: {
+                title: "Recuento",
+                subTitle: "Configuración del Recuento.",
                 cancel: "Cancelar",
                 next: "Siguiente",
+                date: "Fecha de Recuento",
                 dialog: {
                     ok: "Ok",
                     cancel: "Cerrar",
