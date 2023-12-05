@@ -132,11 +132,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
 
     return (
         <PageHeaderStyles.Wrapper>
-            <SimpleForm
-                toolbar={<SaveButton alwaysEnable />}
-                onSubmit={onSubmit}
-                sanitizeEmptyValues
-            >
+            <SimpleForm toolbar={<SaveButton alwaysEnable />} onSubmit={onSubmit} sanitizeEmptyValues>
                 <>
                     <PageHeaderStyles.Title>
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.title`)}
@@ -174,26 +170,24 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
                         onChange={handleChange}
                     />
 
-                    {electionEventId ? (
-                        <FormControl fullWidth>
-                            <ElectionHeaderStyles.Title>
-                                {t("usersAndRolesScreen.users.fields.area")}
-                            </ElectionHeaderStyles.Title>
+                    <FormControl fullWidth>
+                        <ElectionHeaderStyles.Title>
+                            {t("usersAndRolesScreen.users.fields.area")}
+                        </ElectionHeaderStyles.Title>
 
-                            <Select
-                                name="area"
-                                defaultValue={defaultAreaId}
-                                value={defaultAreaId}
-                                onChange={handleSelectArea}
-                            >
-                                {areas?.map((area: Sequent_Backend_Area) => (
-                                    <MenuItem key={area.id} value={area.id}>
-                                        {area.name}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
-                    ) : null}
+                        <Select
+                            name="area"
+                            defaultValue={defaultAreaId}
+                            value={defaultAreaId}
+                            onChange={handleSelectArea}
+                        >
+                            {areas?.map((area: Sequent_Backend_Area) => (
+                                <MenuItem key={area.id} value={area.id}>
+                                    {area.name}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
                 </>
             </SimpleForm>
         </PageHeaderStyles.Wrapper>

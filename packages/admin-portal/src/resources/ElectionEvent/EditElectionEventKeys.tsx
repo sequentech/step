@@ -136,8 +136,15 @@ export const EditElectionEventKeys: React.FC = () => {
             ) : (
                 <List
                     resource="sequent_backend_keys_ceremony"
-                    actions={<TopToolbar>{canAdminCeremony ? <CreateButton /> : null}</TopToolbar>}
-                    filter={{tenant_id: tenantId}}
+                    actions={
+                        <TopToolbar>
+                            { canAdminCeremony ? <CreateButton /> : null }
+                        </TopToolbar>
+                    }
+                    filter={{
+                        tenant_id: tenantId || undefined,
+                        election_event_id: electionEvent?.id || undefined,
+                    }}
                     empty={<Empty />}
                 >
                     <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
