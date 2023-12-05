@@ -8,8 +8,22 @@ fi
 
 # Then call the original entrypoint command
 vault server -config /opt/vault/config.hcl &
-sleep 5
-vault operator unseal $VAULT_UNSEAL_KEY
+
+# Loop indefinitely until the 'vault operator unseal' command succeeds
+while true; do
+    vault operator unseal "$VAULT_UNSEAL_KEY"
+    RETVAL=$?
+
+    # Check if the return code is 0 (success)
+    if [ $RETVAL -eq 0 ]; then
+        echo "Vault unsealed successfully."
+        break # Exit the loop if the command succeeded
+    else
+        echo "Error unsealing Vault. Retrying in 1 second..."
+        sleep 1 # Wait for 1 second before retrying
+    fi
+done
+#sleep 5
 vault secrets enable --version=1 --path=secrets kv
 
 # Now bring the vault server back into the foreground

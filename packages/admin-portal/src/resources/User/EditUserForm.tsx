@@ -127,63 +127,65 @@ export const EditUserForm: React.FC<EditUserFormProps> = (props) => {
     }
 
     return (
-        <SimpleForm toolbar={<SaveButton alwaysEnable />} onSubmit={onSubmit} sanitizeEmptyValues>
-            <>
-                <PageHeaderStyles.Title>
-                    {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.title`)}
-                </PageHeaderStyles.Title>
-                <PageHeaderStyles.SubTitle>
-                    {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.subtitle`)}
-                </PageHeaderStyles.SubTitle>
+        <PageHeaderStyles.Wrapper>
+            <SimpleForm toolbar={<SaveButton alwaysEnable />} onSubmit={onSubmit} sanitizeEmptyValues>
+                <>
+                    <PageHeaderStyles.Title>
+                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.title`)}
+                    </PageHeaderStyles.Title>
+                    <PageHeaderStyles.SubTitle>
+                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.subtitle`)}
+                    </PageHeaderStyles.SubTitle>
 
-                <TextField
-                    variant="outlined"
-                    label={t("usersAndRolesScreen.users.fields.first_name")}
-                    value={user.first_name || ""}
-                    name={"first_name"}
-                    onChange={handleChange}
-                />
-                <TextField
-                    variant="outlined"
-                    label={t("usersAndRolesScreen.users.fields.last_name")}
-                    value={user.last_name || ""}
-                    name={"last_name"}
-                    onChange={handleChange}
-                />
-                <TextField
-                    variant="outlined"
-                    label={t("usersAndRolesScreen.users.fields.email")}
-                    value={user.email || ""}
-                    name={"email"}
-                    onChange={handleChange}
-                />
-                <TextField
-                    variant="outlined"
-                    label={t("usersAndRolesScreen.users.fields.username")}
-                    value={user.username || ""}
-                    name={"username"}
-                    onChange={handleChange}
-                />
+                    <TextField
+                        variant="outlined"
+                        label={t("usersAndRolesScreen.users.fields.first_name")}
+                        value={user.first_name || ""}
+                        name={"first_name"}
+                        onChange={handleChange}
+                    />
+                    <TextField
+                        variant="outlined"
+                        label={t("usersAndRolesScreen.users.fields.last_name")}
+                        value={user.last_name || ""}
+                        name={"last_name"}
+                        onChange={handleChange}
+                    />
+                    <TextField
+                        variant="outlined"
+                        label={t("usersAndRolesScreen.users.fields.email")}
+                        value={user.email || ""}
+                        name={"email"}
+                        onChange={handleChange}
+                    />
+                    <TextField
+                        variant="outlined"
+                        label={t("usersAndRolesScreen.users.fields.username")}
+                        value={user.username || ""}
+                        name={"username"}
+                        onChange={handleChange}
+                    />
 
-                <FormControl fullWidth>
-                    <ElectionHeaderStyles.Title>
-                        {t("usersAndRolesScreen.users.fields.area")}
-                    </ElectionHeaderStyles.Title>
+                    <FormControl fullWidth>
+                        <ElectionHeaderStyles.Title>
+                            {t("usersAndRolesScreen.users.fields.area")}
+                        </ElectionHeaderStyles.Title>
 
-                    <Select
-                        name="area"
-                        defaultValue={defaultAreaId}
-                        value={defaultAreaId}
-                        onChange={handleSelectArea}
-                    >
-                        {areas?.map((area: Sequent_Backend_Area) => (
-                            <MenuItem key={area.id} value={area.id}>
-                                {area.name}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-            </>
-        </SimpleForm>
+                        <Select
+                            name="area"
+                            defaultValue={defaultAreaId}
+                            value={defaultAreaId}
+                            onChange={handleSelectArea}
+                        >
+                            {areas?.map((area: Sequent_Backend_Area) => (
+                                <MenuItem key={area.id} value={area.id}>
+                                    {area.name}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </>
+            </SimpleForm>
+        </PageHeaderStyles.Wrapper>
     )
 }
