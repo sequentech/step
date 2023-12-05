@@ -14,7 +14,7 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::ballot::ElectionEventStatus;
 use windmill::hasura::trustee::get_trustees_by_name;
 use windmill::hasura::election_event::get_election_event;
-use windmill::hasura::keys_ceremony::insert_keys_ceremony;
+use windmill::hasura::keys_ceremony::{insert_keys_ceremony, get_keys_ceremony};
 use windmill::tasks::create_keys::{create_keys, CreateKeysBody};
 use windmill::services::celery_app::get_celery_app;
 use windmill::types::keys_ceremony::{
@@ -212,18 +212,6 @@ pub async fn create_keys_ceremony(
     ))?
     .sequent_backend_election_event[0];
 
-    // check config is not already created
-    let event_status: Option<ElectionEventStatus> = match election_event.status.clone() {
-        Some(value) => serde_json::from_value(value)
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?,
-        None => None,
-    };
-    if event_status.map(|val| val.is_config_created()).unwrap_or(false) {
-        return Err((
-            Status::BadRequest,
-            "bulletin board config already created".into()
-        ));
-    }
     // TODO cancel any previous ceremony or find if there's any and cancel this
     // one
 
