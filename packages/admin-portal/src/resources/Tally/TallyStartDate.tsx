@@ -26,13 +26,13 @@ export const TallyStartDate: React.FC = () => {
             label={t("tally.common.date")}
             defaultValue={data?.created_at}
             InputProps={{
-                startAdornment: (
+                endAdornment: (
                     <InputAdornment position="end">
                         <CalendarMonthIcon />
                     </InputAdornment>
                 ),
             }}
-            variant="standard"
+            variant="outlined"
         />
     )
 }
