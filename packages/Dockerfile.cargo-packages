@@ -2,25 +2,14 @@
 # for the devcontainer prebuilds. However, each package has its own Dockerfile,
 # for example packages/windmill/Dockerfile, packages/harvest/Dockerfile, etc.
 
-FROM rust:1.70.0
+FROM rust:1.72.0
 
-RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    m4 chromium libssl-dev protobuf-compiler libprotobuf-dev curl pkg-config && \
+    curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash && \
+    cargo binstall -y cargo-watch && \
+    # cleanups
+    apt-get clean && \
+    apt-get autoremove
 RUN rustup default nightly
-
-WORKDIR /app
-COPY ./immu-board ./immu-board
-COPY ./harvest ./harvest
-COPY ./immudb-rs ./immudb-rs
-COPY ./strand ./strand
-COPY ./braid-messages ./braid-messages
-COPY ./sequent-core ./sequent-core
-COPY ./windmill ./windmill
-COPY ./wrap-map-err ./wrap-map-err
-COPY ./ballot-verifier ./ballot-verifier
-COPY ./velvet ./velvet
-COPY ./braid ./braid
-COPY ./Cargo.toml ./Cargo.toml
-
-# Run cargo build and then remove things we don't want to be in the image,
-# because makes copying it slower
-RUN cargo build && rm -rf ./target/debug/{incremental,deps,build}

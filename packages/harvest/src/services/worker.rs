@@ -2,8 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::routes::scheduled_event;
+use crate::services::worker::scheduled_event::CreateEventBody;
 use anyhow::Result;
 use tracing::{event, instrument, Level};
+use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::create_keys;
 use windmill::tasks::render_report;
@@ -14,9 +17,6 @@ use windmill::tasks::tally_election_event::{
 use windmill::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use windmill::tasks::update_voting_status;
 use windmill::types::scheduled_event::*;
-use uuid::Uuid;
-use crate::routes::scheduled_event;
-use crate::services::worker::scheduled_event::CreateEventBody;
 
 #[instrument]
 pub async fn process_scheduled_event(event: CreateEventBody) -> Result<String> {

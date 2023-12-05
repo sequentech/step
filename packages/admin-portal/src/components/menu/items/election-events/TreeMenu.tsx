@@ -160,8 +160,6 @@ function TreeMenuItem({
 
     const {lastCreatedResourceId, setLastCreatedResourceId} = useContext(NewResourceContext)
 
-    console.log(resource.id)
-
     useEffect(() => {
         if (lastCreatedResourceId === resource.id) {
             setOpen(true)

@@ -16,3 +16,4 @@ pub mod s3;
 pub mod temp_path;
 pub mod to_result;
 pub mod vault;
+pub mod private_keys;

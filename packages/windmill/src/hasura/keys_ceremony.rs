@@ -53,3 +53,76 @@ pub async fn insert_keys_ceremony(
     let response_body: Response<insert_keys_ceremony::ResponseData> = res.json().await?;
     response_body.ok()
 }
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/get_keys_ceremony.graphql",
+    response_derives = "Debug"
+)]
+pub struct GetKeysCeremony;
+
+#[instrument(skip(auth_headers))]
+pub async fn get_keys_ceremony(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+) -> Result<Response<get_keys_ceremony::ResponseData>> {
+    let variables = get_keys_ceremony::Variables {
+        tenant_id: tenant_id,
+        election_event_id: election_event_id,
+    };
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = GetKeysCeremony::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<get_keys_ceremony::ResponseData> = res.json().await?;
+    response_body.ok()
+}
+
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/update_keys_ceremony_status.graphql",
+    response_derives = "Debug"
+)]
+pub struct UpdateKeysCeremonyStatus;
+
+#[instrument(skip_all)]
+pub async fn update_keys_ceremony_status(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    keys_ceremony_id: String,
+    status: Value,
+    execution_status: String,
+) -> Result<Response<update_keys_ceremony_status::ResponseData>> {
+    let variables = update_keys_ceremony_status::Variables {
+        tenant_id: tenant_id,
+        election_event_id: election_event_id,
+        keys_ceremony_id: keys_ceremony_id,
+        status: status,
+        execution_status: execution_status,
+    };
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = UpdateKeysCeremonyStatus::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<update_keys_ceremony_status::ResponseData> = res.json().await?;
+    response_body.ok()
+}

@@ -6,21 +6,17 @@ import {
     DatagridConfigurable,
     List,
     TextField,
-    ReferenceField,
-    ReferenceManyField,
     TextInput,
     Identifier,
     RaRecord,
     useRecordContext,
     useDelete,
     WrapperField,
-    Datagrid,
     FunctionField,
     useRefresh,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Drawer} from "@mui/material"
-import {ChipList} from "../../components/ChipList"
 import {EditArea} from "./EditArea"
 import {CreateArea} from "./CreateArea"
 import {Sequent_Backend_Election_Event} from "../../gql/graphql"
@@ -60,7 +56,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [closeDrawer, setCloseDrawer] = React.useState("")
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
 
     // const rowClickHandler = generateRowClickHandler(["election_event_id"])
@@ -77,7 +73,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
 
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
-        setCloseDrawer(new Date().toISOString())
+        setOpenDrawer(false)
     }
 
     const handleCloseEditDrawer = () => {
@@ -122,7 +118,8 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                 actions={
                     <ListActions
                         withImport={false}
-                        closeDrawer={closeDrawer}
+                        open={openDrawer}
+                        setOpen={setOpenDrawer}
                         Component={<CreateArea record={record} close={handleCloseCreateDrawer} />}
                     />
                 }
