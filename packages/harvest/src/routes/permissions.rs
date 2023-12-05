@@ -6,6 +6,7 @@ use crate::services::authorization::authorize;
 use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
 };
+use crate::types::optional::OptionalId;
 use anyhow::{anyhow, Result};
 use rocket::http::Status;
 use rocket::response::Debug;
@@ -99,7 +100,7 @@ pub struct SetOrDeleteRolePermissionsBody {
 pub async fn set_role_permission(
     claims: jwt::JwtClaims,
     body: Json<SetOrDeleteRolePermissionsBody>,
-) -> Result<(), (Status, String)> {
+) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     authorize(
         &claims,
@@ -115,7 +116,7 @@ pub async fn set_role_permission(
         .set_role_permission(&realm, &input.role_id, &input.permission_name)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    Ok(())
+    Ok(Json(Default::default()))
 }
 
 #[instrument(skip(claims))]
@@ -123,7 +124,7 @@ pub async fn set_role_permission(
 pub async fn delete_role_permission(
     claims: jwt::JwtClaims,
     body: Json<SetOrDeleteRolePermissionsBody>,
-) -> Result<(), (Status, String)> {
+) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     authorize(
         &claims,
@@ -139,7 +140,7 @@ pub async fn delete_role_permission(
         .delete_role_permission(&realm, &input.role_id, &input.permission_name)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    Ok(())
+    Ok(Json(Default::default()))
 }
 
 #[derive(Deserialize, Debug)]
@@ -153,7 +154,7 @@ pub struct DeletePermissionBody {
 pub async fn delete_permission(
     claims: jwt::JwtClaims,
     body: Json<DeletePermissionBody>,
-) -> Result<(), (Status, String)> {
+) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     authorize(
         &claims,
@@ -169,5 +170,5 @@ pub async fn delete_permission(
         .delete_permission(&realm, &input.permission_name)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    Ok(())
+    Ok(Json(Default::default()))
 }
