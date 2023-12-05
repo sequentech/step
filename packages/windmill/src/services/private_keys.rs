@@ -19,11 +19,10 @@ pub async fn get_trustee_encrypted_private_key(
     trustee_pub_key: &str
 ) -> Result<String>
 {
-    /*let private_key = protocol_manager::get_trustee_encrypted_private_key::<RistrettoCtx>(
+    let private_key = protocol_manager::get_trustee_encrypted_private_key::<RistrettoCtx>(
         board_name,
         trustee_pub_key
-    ).await?;*/
-    let private_key = protocol_manager::get_board_public_key::<RistrettoCtx>(board_name).await?;
+    ).await?;
 
     let private_key_bytes = private_key.strand_serialize()?;
     Ok(general_purpose::STANDARD_NO_PAD.encode(private_key_bytes))

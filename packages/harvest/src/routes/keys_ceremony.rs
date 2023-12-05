@@ -17,6 +17,8 @@ use windmill::hasura::election_event::get_election_event;
 use windmill::hasura::keys_ceremony::{insert_keys_ceremony, get_keys_ceremony};
 use windmill::tasks::create_keys::{create_keys, CreateKeysBody};
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::election_event_board::get_election_event_board;
+use windmill::services::private_keys::get_trustee_encrypted_private_key;
 use windmill::types::keys_ceremony::{
     CeremonyStatus,
     ExecutionStatus,
@@ -169,25 +171,60 @@ pub async fn get_private_key(
         ));
     }
 
-    let private_key_base64 = "".into();
-    /* TODO OBTAIN PRIVATE KEY
-    let private_key_base64 = your_service::retrieve_private_key(
-        &input.election_event_id,
-        &input.keys_ceremony_id,
-        &input.trustee_name
-    )
+    // fetch election_event
+    let election_event = 
+        &get_election_event(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            input.election_event_id.clone(),
+        )
+        .await
+        .with_context(|| "error fetching election event")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        .data
+        .with_context(|| "error fetching election event")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        .sequent_backend_election_event[0];
+
+    // get board name
+    let board_name =
+        get_election_event_board(
+            election_event.bulletin_board_reference.clone()
+        )
+        .with_context(|| "missing bulletin board")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    /*
+    let trustees_by_name = 
+        get_trustees_by_name(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            trustee_names.clone().into_iter().collect::<Vec<_>>(),
+        )
+        .await?
+        .data
+        .with_context(|| "can't find trustees")?
+        .sequent_backend_trustee
+        .into_iter()
+        .filter_map(|trustee| trustee.name)*/
+
+    // get the encrypted private key
+    let encrypted_private_key =
+        get_trustee_encrypted_private_key(
+            board_name.as_str(),
+            "TODO:"
+        )
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    */
 
     event!(
         Level::INFO,
         "Retrieved private key for electionEventId={}, keysCeremonyId={}, trusteeName={}",
-        input.election_event_id,
-        input.keys_ceremony_id,
-        trustee_name
+        input.election_event_id.clone(),
+        input.keys_ceremony_id.clone(),
+        trustee_name.clone()
     );
-    Ok(Json(GetPrivateKeyOutput { private_key_base64 }))
+    Ok(Json(GetPrivateKeyOutput { private_key_base64: encrypted_private_key }))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
