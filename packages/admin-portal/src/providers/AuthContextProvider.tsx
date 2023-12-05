@@ -41,6 +41,10 @@ interface AuthContextValues {
      */
     isAuthenticated: boolean
     /**
+     * The id of the authenticated user
+     */
+    userId: string
+    /**
      * The name of the authenticated user
      */
     username: string
@@ -80,6 +84,7 @@ interface AuthContextValues {
  */
 const defaultAuthContextValues: AuthContextValues = {
     isAuthenticated: false,
+    userId: "",
     username: "",
     tenantId: "",
     logout: () => {},
@@ -114,6 +119,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     // Create the local state in which we will keep track if a user is authenticated
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
     // Local state that will contain the users name once it is loaded
+    const [userId, setUserId] = useState<string>("")
     const [username, setUsername] = useState<string>("")
     const [tenantId, setTenantId] = useState<string>("")
     const sleepSecs = 50
@@ -176,6 +182,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         async function loadProfile() {
             try {
                 const profile = await keycloak.loadUserProfile()
+                if (profile.id) {
+                    setUserId(profile.id)
+                }
                 if (profile.firstName) {
                     setUsername(profile.firstName)
                 } else if (profile.username) {
@@ -235,6 +244,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         <AuthContext.Provider
             value={{
                 isAuthenticated,
+                userId,
                 username,
                 tenantId,
                 logout,

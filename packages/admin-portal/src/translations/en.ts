@@ -292,6 +292,13 @@ const englishTranslation = {
                     attributes: "Attributes",
                     area: "Area",
                 },
+                delete: {
+                    body: "Are you sure you want to delete this user?",
+                },
+                notifications: {
+                    deleteError: "Error deleting user",
+                    deleteSuccess: "User deleted",
+                },
             },
             voters: {
                 title: "Voters",
@@ -305,6 +312,13 @@ const englishTranslation = {
                     editSuccess: "Voter edited",
                     createError: "Error creating voter",
                     createSuccess: "Voter created",
+                },
+                delete: {
+                    body: "Are you sure you want to delete this voter?",
+                },
+                notifications: {
+                    deleteError: "Error deleting voter",
+                    deleteSuccess: "Voter deleted",
                 },
             },
             roles: {
@@ -323,6 +337,9 @@ const englishTranslation = {
                 },
                 fields: {
                     name: "Name",
+                },
+                delete: {
+                    body: "Are you sure you want to delete this role?",
                 },
             },
             permissions: {

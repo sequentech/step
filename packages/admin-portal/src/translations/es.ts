@@ -294,6 +294,13 @@ const spanishTranslation: TranslationType = {
                     attributes: "Atributos",
                     area: "Área",
                 },
+                delete: {
+                    body: "¿Estás seguro que quieres borrar este usuario?",
+                },
+                notifications: {
+                    deleteError: "Error borrando usuario",
+                    deleteSuccess: "Usuario borrado",
+                },
             },
             voters: {
                 title: "Votantes",
@@ -307,6 +314,13 @@ const spanishTranslation: TranslationType = {
                     editSuccess: "Votante editado",
                     createError: "Error creando votante",
                     createSuccess: "Votante creado",
+                },
+                delete: {
+                    body: "¿Estás seguro que quieres borrar este votante?",
+                },
+                notifications: {
+                    deleteError: "Error borrando votante",
+                    deleteSuccess: "Votante borrado",
                 },
             },
             roles: {
@@ -325,6 +339,9 @@ const spanishTranslation: TranslationType = {
                 },
                 fields: {
                     name: "Nombre",
+                },
+                delete: {
+                    body: "¿Estás seguro que quieres borrar este rol?",
                 },
             },
             permissions: {

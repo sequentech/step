@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::{event, instrument, Level};
+use std::default::Default;
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {
@@ -26,12 +27,19 @@ pub struct DeleteUserBody {
     user_id: String,
 }
 
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct DeleteUserResponse {
+    id: Option<String>
+}
+
+
 #[instrument(skip(claims))]
 #[post("/delete-user", format = "json", data = "<body>")]
 pub async fn delete_user(
     claims: jwt::JwtClaims,
     body: Json<DeleteUserBody>,
-) -> Result<(), (Status, String)> {
+) -> Result<Json<DeleteUserResponse>, (Status, String)> {
     let input = body.into_inner();
     let required_perm: Permissions = if input.election_event_id.is_some() {
         Permissions::VOTER_WRITE
@@ -57,7 +65,7 @@ pub async fn delete_user(
         .delete_user(&realm, &input.user_id)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    Ok(())
+    Ok(Json(Default::default()))
 }
 
 #[derive(Deserialize, Debug)]

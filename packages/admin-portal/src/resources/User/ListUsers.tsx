@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useEffect} from "react"
+import React, {ReactElement, useContext, useEffect} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -12,6 +12,8 @@ import {
     Identifier,
     useDelete,
     WrapperField,
+    useRefresh,
+    useNotify,
 } from "react-admin"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {ListActions} from "../../components/ListActions"
@@ -23,6 +25,10 @@ import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {EditUser} from "./EditUser"
 import {CreateUser} from "./CreateUser"
+import { AuthContext } from "@/providers/AuthContextProvider"
+import { DeleteUserMutation } from "@/gql/graphql"
+import { DELETE_USER } from "@/queries/DeleteUser"
+import { useMutation } from "@apollo/client"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -49,6 +55,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+    const authContext = useContext(AuthContext)
+    const refresh = useRefresh()
+    const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
+    const notify = useNotify()
 
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
@@ -75,14 +85,30 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     }
 
     const deleteAction = (id: Identifier) => {
+        if (!electionEventId && authContext.userId === id) {
+            return
+        }
         // deleteOne("sequent_backend_area", {id})
         setOpenDeleteModal(true)
         setDeleteId(id)
     }
 
-    const confirmDeleteAction = () => {
-        deleteOne("sequent_backend_area", {id: deleteId})
+    const confirmDeleteAction = async () => {
+        const {errors} =  await deleteUser({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventId,
+                userId: deleteId,
+            },
+        })
+        if (errors) {
+            notify(t(`usersAndRolesScreen.${electionEventId? 'voters' : 'users'}.notifications.deleteError`), {type: "error"})
+            console.log(`Error creating user: ${errors}`)
+            return
+        }
+        notify(t(`usersAndRolesScreen.${electionEventId? 'voters' : 'users'}.notifications.deleteSuccess`), {type: "success"})
         setDeleteId(undefined)
+        refresh()
     }
 
     const actions: Action[] = [
@@ -161,7 +187,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     setOpenDeleteModal(false)
                 }}
             >
-                {t("common.message.delete")}
+                {t(`usersAndRolesScreen.${electionEventId? 'voters' : 'users'}.delete.body`)}
             </Dialog>
         </>
     )
