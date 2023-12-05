@@ -5,7 +5,7 @@ import React, {useEffect, useState} from "react"
 import {useGetOne, useGetMany} from "react-admin"
 
 import {
-    Sequent_Backend_Election,
+    Sequent_Backend_Trustee,
     Sequent_Backend_Tally_Session,
 } from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
@@ -16,17 +16,17 @@ import {
 } from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 
-interface TallyElectionsListProps {
+interface TallyTrusteesListProps {
     update: (elections: Array<string>) => void
 }
 
-export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => {
+export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
     const {update} = props
 
     const [tallyId] = useElectionEventTallyStore()
 
-    const [electionsData, setElectionsData] = useState<
-        Array<Sequent_Backend_Election & {rowId: number; id: string; active: boolean}>
+    const [trusteesData, setTrusteesData] = useState<
+        Array<Sequent_Backend_Trustee & {rowId: number; id: string; active: boolean}>
     >([])
 
 
@@ -37,40 +37,40 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
         }
     )
 
-    const {data: elections} = useGetMany("sequent_backend_election", {
-        ids: data?.election_ids || [],
+    const {data: trustees} = useGetMany("sequent_backend_trustee", {
+        ids: data?.trustee_ids || [],
     })
 
     useEffect(() => {
-        if (elections) {
-            const temp = (elections || []).map((election, index) => ({
-                ...election,
+        if (trustees) {
+            const temp = (trustees || []).map((trustee, index) => ({
+                ...trustee,
                 rowId: index,
-                id: election.id || "",
-                name: election.name,
+                id: trustee.id || "",
+                name: trustee.name,
                 active: false,
             }))
-            setElectionsData(temp)
+            setTrusteesData(temp)
         }
-    }, [elections])
+    }, [trustees])
 
     useEffect(() => {
-        if (electionsData) {
-            const temp = electionsData.filter((election) => election.active).map((election) => election.id)
+        if (trusteesData) {
+            const temp = trusteesData.filter((election) => election.active).map((election) => election.id)
             update(temp)
         }
-    }, [electionsData])
+    }, [trusteesData])
 
     const columns: GridColDef[] = [
         {
             field: "name",
-            headerName: "Elections",
+            headerName: "Trustees",
             flex: 1,
             editable: false,
         },
         {
             field: "active",
-            headerName: "Selected",
+            headerName: "Fragment",
             flex: 1,
             editable: true,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
@@ -81,8 +81,8 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
 
     function handleConfirmChange(clickedRow: any) {
         const updatedData: Array<
-            Sequent_Backend_Election & {rowId: number; id: string; active: boolean}
-        > = electionsData?.map((x) => {
+            Sequent_Backend_Trustee & {rowId: number; id: string; active: boolean}
+        > = trusteesData?.map((x) => {
             if (x.rowId === clickedRow.rowId) {
                 return {
                     ...x,
@@ -91,12 +91,12 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             }
             return x
         })
-        setElectionsData(updatedData)
+        setTrusteesData(updatedData)
     }
 
     return (
         <DataGrid
-            rows={electionsData}
+            rows={trusteesData}
             columns={columns}
             initialState={{
                 pagination: {

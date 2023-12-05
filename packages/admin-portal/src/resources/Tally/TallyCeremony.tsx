@@ -2,15 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {Identifier, useRecordContext, useGetOne, useGetMany} from "react-admin"
+import {Identifier, useRecordContext} from "react-admin"
 import Button from "@mui/material/Button"
 
 import {
-    Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
-    Sequent_Backend_Tally_Session,
 } from "../../gql/graphql"
-import {BreadCrumbSteps, BreadCrumbStepsVariant, Dialog} from "@sequentech/ui-essentials"
+import {
+    BreadCrumbSteps,
+    BreadCrumbStepsVariant,
+    Dialog,
+    IconButton,
+} from "@sequentech/ui-essentials"
 import {Action} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
@@ -21,20 +24,14 @@ import {useTenantStore} from "../../providers/TenantContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import styled from "@emotion/styled"
-import {
-    DataGrid,
-    GridCallbackDetails,
-    GridCellParams,
-    GridColDef,
-    GridRenderCellParams,
-    MuiEvent,
-} from "@mui/x-data-grid"
-import Checkbox from "@mui/material/Checkbox"
 import {Accordion, AccordionDetails, AccordionSummary} from "@mui/material"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
+import {TallyTrusteesList} from "./TallyTrusteesList"
+import {faKey} from "@fortawesome/free-solid-svg-icons"
+import { TallyStyles } from '@/components/styles/TallyStyles'
 
 interface TallyCeremonyProps {
     completed: boolean
@@ -43,19 +40,14 @@ interface TallyCeremonyProps {
 export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     const {completed} = props
 
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {t} = useTranslation()
-    const [tenantId] = useTenantStore()
-    const [tallyId, setTallyId] = useElectionEventTallyStore()
+    const [_, setTallyId] = useElectionEventTallyStore()
 
-    const [open, setOpen] = useState(false)
     const [openModal, setOpenModal] = useState(false)
-    const [deleteId, setDeleteId] = useState<Identifier | undefined>()
-    const [closeDrawer, setCloseDrawer] = useState("")
-    const [recordId, setRecordId] = useState<Identifier | undefined>(undefined)
     const [page, setPage] = useState<number>(completed ? 2 : 0)
     const [showTrustees, setShowTrustees] = useState(false)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
+    const [selectedTrustees, setSelectedTrustees] = useState<string[]>([])
 
     interface IExpanded {
         [key: string]: boolean
@@ -71,63 +63,6 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
         "election-data-logs": true,
         "election-data-results": true,
     })
-
-    // let rows: Array<Sequent_Backend_Election & {id: string; active: boolean}> = (
-
-    useEffect(() => {
-        if (recordId) {
-            setOpen(true)
-        }
-    }, [recordId])
-
-    const handleCloseCreateDrawer = () => {
-        setRecordId(undefined)
-        setCloseDrawer(new Date().toISOString())
-    }
-
-    const handleCloseEditDrawer = () => {
-        setOpen(false)
-        setTimeout(() => {
-            setRecordId(undefined)
-        }, 400)
-    }
-
-    const editAction = (id: Identifier) => {
-        console.log("edit action", id)
-        setRecordId(id)
-    }
-
-    const editDetail = (id: Identifier) => {
-        setTallyId(id as string)
-    }
-
-    const deleteAction = (id: Identifier) => {
-        // deleteOne("sequent_backend_area", {id})
-        setOpenModal(true)
-        setDeleteId(id)
-    }
-
-    const actions: Action[] = [
-        {icon: <EditIcon />, action: editAction},
-        {icon: <DeleteIcon />, action: deleteAction},
-        {icon: <DescriptionIcon />, action: editDetail},
-    ]
-
-    const StyledHeader = styled.div`
-        width: 100%;
-        display: flex;
-        padding: 2rem 0;
-    `
-    const StyledSpacing = styled.div`
-        padding: 2rem 0;
-    `
-
-    const StyledFooter = styled.div`
-        width: 100%;
-        display: flex;
-        justify-content: space-between;
-        padding: 2rem 0;
-    `
 
     const CancelButton = styled(Button)`
         background-color: ${({theme}) => theme.palette.white};
@@ -170,11 +105,12 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
 
     useEffect(() => {
         console.log("selectedElections", selectedElections)
-    }, [selectedElections])
+        console.log("selectedTrustees", selectedTrustees)
+    }, [selectedElections, selectedTrustees])
 
     return (
         <>
-            <StyledHeader>
+            <TallyStyles.StyledHeader>
                 <BreadCrumbSteps
                     labels={[
                         "tally.breadcrumbSteps.ceremony",
@@ -185,7 +121,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                     variant={BreadCrumbStepsVariant.Circle}
                     colorPreviousSteps={true}
                 />
-            </StyledHeader>
+            </TallyStyles.StyledHeader>
 
             {page === 0 && (
                 <>
@@ -194,15 +130,29 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                         subtitle={t("tally.ceremonySubTitle")}
                     />
 
-                    <TallyElectionsList
-                        updateElections={(elections) => setSelectedElections(elections)}
-                    />
+                    <TallyElectionsList update={(elections) => setSelectedElections(elections)} />
 
                     {showTrustees && (
-                        <ElectionHeader
-                            title={t("tally.trusteeTallyTitle")}
-                            subtitle={t("tally.trusteeTallySubTitle")}
-                        />
+                        <>
+                            <TallyStyles.StyledFooter>
+                                <ElectionHeader
+                                    title={t("tally.trusteeTallyTitle")}
+                                    subtitle={t("tally.trusteeTallySubTitle")}
+                                />
+                                <IconButton
+                                    icon={faKey}
+                                    sx={{color: "#43E3A1"}}
+                                    variant="success"
+                                    onClick={() => {
+                                        console.log("TRUSYTEES KEY PRESSED")
+                                    }}
+                                />
+                            </TallyStyles.StyledFooter>
+
+                            <TallyTrusteesList
+                                update={(trustees) => setSelectedTrustees(trustees)}
+                            />
+                        </>
                     )}
                 </>
             )}
@@ -282,9 +232,9 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
 
             {page === 2 && (
                 <>
-                    <StyledSpacing>
+                    <TallyStyles.StyledSpacing>
                         <ListActions withImport={false} withColumns={false} withFilter={false} />
-                    </StyledSpacing>
+                    </TallyStyles.StyledSpacing>
 
                     <Accordion
                         sx={{width: "100%"}}
@@ -334,7 +284,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                 </>
             )}
 
-            <StyledFooter>
+            <TallyStyles.StyledFooter>
                 <CancelButton className="list-actions" onClick={() => setTallyId(null)}>
                     {t("tally.common.cancel")}
                 </CancelButton>
@@ -346,7 +296,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                         </>
                     </NextButton>
                 )}
-            </StyledFooter>
+            </TallyStyles.StyledFooter>
 
             <Dialog
                 variant="warning"
