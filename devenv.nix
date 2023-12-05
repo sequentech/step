@@ -48,6 +48,8 @@
 
     # for development of immudb local store
     pkgs.sqlite
+
+    pkgs.cargo-watch
   ];
 
   # https://devenv.sh/scripts/

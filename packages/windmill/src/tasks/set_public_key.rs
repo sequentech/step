@@ -6,6 +6,7 @@ use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
 use tracing::{event, instrument, Level};
+use serde_json::Value;
 
 use crate::hasura;
 use crate::services::election_event_board::get_election_event_board;
@@ -57,7 +58,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String)
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
-        public_key,
+        public_key.clone(),
     )
     .await?;
 
@@ -100,21 +101,19 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String)
     )
     .with_context(|| "error parsing keys ceremony current status")?;
     let new_execution_status: String = ExecutionStatus::IN_PROCESS.to_string();
-    /*let new_status: Value = serde_json::to_value(CeremonyStatus {
+    let new_status: Value = serde_json::to_value(CeremonyStatus {
         stop_date: None,
-        public_key: Some(public_key),
+        public_key: Some(public_key.clone()),
         logs: vec![],
-        trustees: trustees
+        trustees: current_status.trustees
             .clone()
             .into_iter()
-            .map(|trustee| Ok(Trustee {
-                name: trustee.name.ok_or(anyhow!("empty trustee name"))?,
-                status: TrusteeStatus::WAITING,
-            }))
-            .collect::<Result<Vec<Trustee>>>()?
-    })?;*/
-
-
+            .map(|trustee| Trustee {
+                name: trustee.name,
+                status: TrusteeStatus::KEY_GENERATED,
+            })
+            .collect::<Vec<Trustee>>()
+    })?;
 
     Ok(())
 }
