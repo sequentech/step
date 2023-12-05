@@ -21,12 +21,20 @@ import {useTenantStore} from "../../providers/TenantContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import styled from "@emotion/styled"
-import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
+import {
+    DataGrid,
+    GridCallbackDetails,
+    GridCellParams,
+    GridColDef,
+    GridRenderCellParams,
+    MuiEvent,
+} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 import {Accordion, AccordionDetails, AccordionSummary} from "@mui/material"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ListActions} from "@/components/ListActions"
+import {TallyElectionsList} from "./TallyElectionsList"
 
 interface TallyCeremonyProps {
     completed: boolean
@@ -47,23 +55,11 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     const [recordId, setRecordId] = useState<Identifier | undefined>(undefined)
     const [page, setPage] = useState<number>(completed ? 2 : 0)
     const [showTrustees, setShowTrustees] = useState(false)
+    const [selectedElections, setSelectedElections] = useState<string[]>([])
 
     interface IExpanded {
         [key: string]: boolean
     }
-    const {data, isLoading, error, refetch} = useGetOne<Sequent_Backend_Tally_Session>(
-        "sequent_backend_tally_session",
-        {
-            id: tallyId,
-        }
-    )
-
-    const {data: elections} = useGetMany("sequent_backend_election", {
-        ids: data?.election_ids || [],
-    })
-
-    console.log("TallyCeremony :: data :: ", data)
-    console.log("TallyCeremony :: elections :: ", elections)
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "election-data-general": true,
@@ -76,31 +72,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
         "election-data-results": true,
     })
 
-    let rows: Array<Sequent_Backend_Election & {id: string; active: boolean}> = (elections || [])
-        .map((election) => ({
-            ...election,
-            id: election.id || "",
-            name: election.name,
-            active: false,
-        }))
-
-    const columns: GridColDef[] = [
-        {
-            field: "name",
-            headerName: "Elections",
-            flex: 1,
-            editable: false,
-        },
-        {
-            field: "active",
-            headerName: "Selected",
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, boolean>) => (
-                <Checkbox checked={props.value} />
-            ),
-        },
-    ]
+    // let rows: Array<Sequent_Backend_Election & {id: string; active: boolean}> = (
 
     useEffect(() => {
         if (recordId) {
@@ -196,6 +168,10 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
         setShowTrustees(true)
     }
 
+    useEffect(() => {
+        console.log("selectedElections", selectedElections)
+    }, [selectedElections])
+
     return (
         <>
             <StyledHeader>
@@ -218,18 +194,8 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                         subtitle={t("tally.ceremonySubTitle")}
                     />
 
-                    <DataGrid
-                        rows={rows}
-                        columns={columns}
-                        initialState={{
-                            pagination: {
-                                paginationModel: {
-                                    pageSize: 10,
-                                },
-                            },
-                        }}
-                        pageSizeOptions={[10, 20, 50, 100]}
-                        disableRowSelectionOnClick
+                    <TallyElectionsList
+                        updateElections={(elections) => setSelectedElections(elections)}
                     />
 
                     {showTrustees && (
