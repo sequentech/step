@@ -12,13 +12,17 @@ import {EditElectionEventKeys} from "./EditElectionEventKeys"
 import {EditElectionEventTally} from "./EditElectionEventTally"
 import {EditElectionEventPublish} from "./EditElectionEventPublish"
 import {useTranslation} from "react-i18next"
-import { ElectionEventTallyContextProvider } from '@/providers/ElectionEventTallyProvider'
+import {
+    ElectionEventTallyContextProvider,
+    useElectionEventTallyStore,
+} from "@/providers/ElectionEventTallyProvider"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
     const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     const {t} = useTranslation()
+    const [_, setTallyId] = useElectionEventTallyStore()
 
     return (
         <>
@@ -41,10 +45,13 @@ export const ElectionEventTabs: React.FC = () => {
                 <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.keys")}>
                     <EditElectionEventKeys />
                 </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.tally")}>
-                    <ElectionEventTallyContextProvider>
-                        <EditElectionEventTally />
-                    </ElectionEventTallyContextProvider>
+                <TabbedShowLayout.Tab
+                    label={t("electionEventScreen.tabs.tally")}
+                    onClick={() => {
+                        setTallyId(null)
+                    }}
+                >
+                    <EditElectionEventTally />
                 </TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.publish")}>
                     <EditElectionEventPublish />

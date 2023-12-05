@@ -135,7 +135,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     <TextField source="username" />
                     <FunctionField
                         label={t("usersAndRolesScreen.users.fields.area")}
-                        render={(record: IUser) => record?.attributes?.["area-id"][0]}
+                        render={(record: IUser) => record?.attributes?.["area-id"]?.[0]}
                     />
 
                     <WrapperField source="actions" label="Actions">

@@ -2,10 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {Identifier, RaRecord, useRecordContext, Datagrid} from "react-admin"
+import {Identifier, useRecordContext, useGetOne, useGetMany} from "react-admin"
 import Button from "@mui/material/Button"
 
-import {Sequent_Backend_Election_Event} from "../../gql/graphql"
+import {
+    Sequent_Backend_Election,
+    Sequent_Backend_Election_Event,
+    Sequent_Backend_Tally_Session,
+} from "../../gql/graphql"
 import {BreadCrumbSteps, BreadCrumbStepsVariant, Dialog} from "@sequentech/ui-essentials"
 import {Action} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
@@ -17,7 +21,7 @@ import {useTenantStore} from "../../providers/TenantContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import styled from "@emotion/styled"
-import {GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
+import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 import {Accordion, AccordionDetails, AccordionSummary} from "@mui/material"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
@@ -47,6 +51,19 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     interface IExpanded {
         [key: string]: boolean
     }
+    const {data, isLoading, error, refetch} = useGetOne<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            id: tallyId,
+        }
+    )
+
+    const {data: elections} = useGetMany("sequent_backend_election", {
+        ids: data?.election_ids || [],
+    })
+
+    console.log("TallyCeremony :: data :: ", data)
+    console.log("TallyCeremony :: elections :: ", elections)
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "election-data-general": true,
@@ -59,17 +76,25 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
         "election-data-results": true,
     })
 
+    let rows: Array<Sequent_Backend_Election & {id: string; active: boolean}> = (elections || [])
+        .map((election) => ({
+            ...election,
+            id: election.id || "",
+            name: election.name,
+            active: false,
+        }))
+
     const columns: GridColDef[] = [
         {
             field: "name",
-            headerName: "Permission",
-            width: 350,
+            headerName: "Elections",
+            flex: 1,
             editable: false,
         },
         {
             field: "active",
-            headerName: "Active",
-            width: 70,
+            headerName: "Selected",
+            flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
                 <Checkbox checked={props.value} />
@@ -191,6 +216,20 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                     <ElectionHeader
                         title={t("tally.ceremonyTitle")}
                         subtitle={t("tally.ceremonySubTitle")}
+                    />
+
+                    <DataGrid
+                        rows={rows}
+                        columns={columns}
+                        initialState={{
+                            pagination: {
+                                paginationModel: {
+                                    pageSize: 10,
+                                },
+                            },
+                        }}
+                        pageSizeOptions={[10, 20, 50, 100]}
+                        disableRowSelectionOnClick
                     />
 
                     {showTrustees && (
