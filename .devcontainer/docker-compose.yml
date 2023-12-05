@@ -107,7 +107,6 @@ services:
     build:
       context: ./vault
       dockerfile: Dockerfile
-    container_name: vault
     restart: on-failure:10
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
