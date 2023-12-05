@@ -42,8 +42,8 @@ export const CreateElection: React.FC = () => {
         <Create
             mutationOptions={{
                 onSuccess: (data: any) => {
-                    setLastCreatedResourceId(data.id)
                     refetch()
+                    setLastCreatedResourceId(data.id)
                     redirect(`/sequent_backend_election/${data.id}`)
                 },
             }}

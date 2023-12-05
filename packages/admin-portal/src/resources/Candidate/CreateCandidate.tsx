@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
-import React from "react"
+import React, {useContext} from "react"
 import {
     BooleanInput,
     SimpleForm,
@@ -17,6 +17,7 @@ import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {useTranslation} from "react-i18next"
+import {NewResourceContext} from "@/providers/NewResourceProvider"
 
 const Hidden = styled(Box)`
     display: none;
@@ -32,6 +33,7 @@ export const CreateCandidate: React.FC = () => {
     const electionEventId = searchParams.get("electionEventId")
     const contestId = searchParams.get("contestId")
 
+    const {setLastCreatedResourceId} = useContext(NewResourceContext)
     const {refetch} = useTreeMenuData(false)
 
     return (
@@ -39,6 +41,7 @@ export const CreateCandidate: React.FC = () => {
             mutationOptions={{
                 onSuccess: (data: any) => {
                     refetch()
+                    setLastCreatedResourceId(data.id)
                     redirect(`/sequent_backend_candidate/${data.id}`)
                 },
             }}
