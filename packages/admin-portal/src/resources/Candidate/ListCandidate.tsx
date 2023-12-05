@@ -33,6 +33,7 @@ export interface ListCandidateProps {
 
 export const ListCandidate: React.FC<ListCandidateProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
 
     const rowClickHandler = generateRowClickHandler(["election_event_id", "contest_id"])
 
@@ -40,7 +41,7 @@ export const ListCandidate: React.FC<ListCandidateProps> = ({aside}) => {
         <>
             <Typography variant="h5">Candidates</Typography>
             <List
-                actions={<ListActions />}
+                actions={<ListActions open={openDrawer} setOpen={setOpenDrawer} />}
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,

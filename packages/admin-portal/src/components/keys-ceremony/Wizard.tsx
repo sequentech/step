@@ -3,19 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
-import {
-    Sequent_Backend_Election_Event,
-    Sequent_Backend_Keys_Ceremony
-} from "@/gql/graphql"
+import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 import {styled} from "@mui/material/styles"
-import { Box } from "@mui/material"
-import React, { useState } from "react"
-import { ConfigureStep } from "@/components/keys-ceremony/ConfigureStep"
-import { CeremonyStep } from "@/components/keys-ceremony/CeremonyStep"
-import { IKeysCeremonyExecutionStatus as EStatus } from "@/services/KeyCeremony"
+import {Box} from "@mui/material"
+import React, {useState} from "react"
+import {ConfigureStep} from "@/components/keys-ceremony/ConfigureStep"
+import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
+import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
 
-const StyledBox = styled(Box)`
-`
+const StyledBox = styled(Box)``
 
 interface WizardProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -47,10 +43,10 @@ export const Wizard: React.FC<WizardProps> = ({
         }
     }
 
-    const [currentStep, setCurrentStep] = useState<number>(
-        calculateCurrentStep()
-    )
-    const openCeremonyStep = () => { setCurrentStep(1) }
+    const [currentStep, setCurrentStep] = useState<number>(calculateCurrentStep())
+    const openCeremonyStep = () => {
+        setCurrentStep(1)
+    }
 
     return (
         <StyledBox>
@@ -64,7 +60,7 @@ export const Wizard: React.FC<WizardProps> = ({
                 variant={BreadCrumbStepsVariant.Circle}
                 colorPreviousSteps={true}
             />
-            {currentStep == 0 &&
+            {currentStep == 0 && (
                 <ConfigureStep
                     currentCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}
@@ -72,14 +68,14 @@ export const Wizard: React.FC<WizardProps> = ({
                     openCeremonyStep={openCeremonyStep}
                     goBack={goBack}
                 />
-            }
-            {currentStep > 0 &&
+            )}
+            {currentStep > 0 && (
                 <CeremonyStep
                     currentCeremony={currentCeremony}
                     electionEvent={electionEvent}
                     goBack={goBack}
                 />
-            }
+            )}
         </StyledBox>
     )
 }

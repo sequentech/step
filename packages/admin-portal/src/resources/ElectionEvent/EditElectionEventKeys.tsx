@@ -3,9 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony } from "@/gql/graphql"
+import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 import {styled} from "@mui/material/styles"
-import React, { useState } from "react"
+import React, {useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -21,15 +21,15 @@ import {
 } from "react-admin"
 import {Box, Button, Typography} from "@mui/material"
 import {IconButton} from "@sequentech/ui-essentials"
-import { Wizard } from "@/components/keys-ceremony/Wizard"
-import { faPlus } from "@fortawesome/free-solid-svg-icons"
-import { useTenantStore } from "@/providers/TenantContextProvider"
-import { Action, ActionsColumn } from "@/components/ActionButons"
-import { useTranslation } from "react-i18next"
+import {Wizard} from "@/components/keys-ceremony/Wizard"
+import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {Action, ActionsColumn} from "@/components/ActionButons"
+import {useTranslation} from "react-i18next"
 import {useContext} from "react"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import FileOpenIcon from '@mui/icons-material/FileOpen'
+import FileOpenIcon from "@mui/icons-material/FileOpen"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -44,16 +44,8 @@ export function useActionPermissions() {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
-    const canAdminCeremony = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.ADMIN_CEREMONY
-    )
-    const canReadTrustee = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.TRUSTEE_READ
-    )
+    const canAdminCeremony = authContext.isAuthorized(true, tenantId, IPermissions.ADMIN_CEREMONY)
+    const canReadTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_READ)
 
     return {
         canAdminCeremony,
@@ -80,8 +72,9 @@ export const EditElectionEventKeys: React.FC = () => {
     )
 
     // This is the ceremony currently being shown
-    const [currentCeremony, setCurrentCeremony] = 
-        useState<Sequent_Backend_Keys_Ceremony | null>(null)
+    const [currentCeremony, setCurrentCeremony] = useState<Sequent_Backend_Keys_Ceremony | null>(
+        null
+    )
 
     const [showCeremony, setShowCeremony] = useState(false)
     const {canAdminCeremony, canReadTrustee} = useActionPermissions()
@@ -101,12 +94,14 @@ export const EditElectionEventKeys: React.FC = () => {
             <Typography variant="h4" paragraph>
                 {t("electionEventScreen.keys.emptyHeader")}
             </Typography>
-            {canAdminCeremony ? <>
-                <Typography variant="body1" paragraph>
-                {t("electionEventScreen.keys.emptyBody")}
-                </Typography>
-                <CreateButton />
-            </> : null}
+            {canAdminCeremony ? (
+                <>
+                    <Typography variant="body1" paragraph>
+                        {t("electionEventScreen.keys.emptyBody")}
+                    </Typography>
+                    <CreateButton />
+                </>
+            ) : null}
         </EmptyBox>
     )
 
@@ -116,8 +111,9 @@ export const EditElectionEventKeys: React.FC = () => {
     }
 
     const viewAction = (id: Identifier) => {
-        const ceremony: Sequent_Backend_Keys_Ceremony | undefined = 
-            keyCeremonies?.find((element) => element.id === id)
+        const ceremony: Sequent_Backend_Keys_Ceremony | undefined = keyCeremonies?.find(
+            (element) => element.id === id
+        )
         if (!ceremony) {
             return
         } else {
@@ -126,36 +122,28 @@ export const EditElectionEventKeys: React.FC = () => {
         }
     }
 
-    const actions: Action[] = [
-        {icon: <FileOpenIcon />, action: viewAction},
-    ]
+    const actions: Action[] = [{icon: <FileOpenIcon />, action: viewAction}]
 
     return (
         <>
-            {showCeremony
-                ? <Wizard
+            {showCeremony ? (
+                <Wizard
                     electionEvent={electionEvent}
                     currentCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}
                     goBack={goBack}
                 />
-                : <List
+            ) : (
+                <List
                     resource="sequent_backend_keys_ceremony"
-                    actions={
-                        <TopToolbar>
-                            { canAdminCeremony ? <CreateButton /> : null }
-                        </TopToolbar>
-                    }
+                    actions={<TopToolbar>{canAdminCeremony ? <CreateButton /> : null}</TopToolbar>}
                     filter={{
                         tenant_id: tenantId || undefined,
                         election_event_id: electionEvent?.id || undefined,
                     }}
                     empty={<Empty />}
                 >
-                    <DatagridConfigurable 
-                        omit={OMIT_FIELDS}
-                        bulkActionButtons={<></>}
-                    >
+                    <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                         <TextField source="id" />
                         <DateField source="created_at" showTime={true} />
                         <TextField source="execution_status" />
@@ -168,13 +156,10 @@ export const EditElectionEventKeys: React.FC = () => {
                                 <ChipField source="name" />
                             </SingleFieldList>
                         </ReferenceArrayField>
-                        <ActionsColumn
-                            actions={actions}
-                            label={t("common.label.actions")}
-                        />
+                        <ActionsColumn actions={actions} label={t("common.label.actions")} />
                     </DatagridConfigurable>
                 </List>
-            }
+            )}
         </>
     )
 }

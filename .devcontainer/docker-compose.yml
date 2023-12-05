@@ -348,6 +348,7 @@ services:
         IMMUDB_URL: http://immudb:3322
         IMMUDB_INDEX_DB: indexdb
         TRUSTEE_CONFIG: /opt/braid/trustee1.toml
+        IGNORE_BOARDS: tenanttest,tenant90505c8a23a94cdfa26b4e19f6a097d5eventda4f7c9afd044da2a3afb032e80c1d7c
     depends_on:
       - immudb
   
@@ -370,6 +371,7 @@ services:
         IMMUDB_URL: http://immudb:3322
         IMMUDB_INDEX_DB: indexdb
         TRUSTEE_CONFIG: /opt/braid/trustee2.toml
+        IGNORE_BOARDS: tenanttest,tenant90505c8a23a94cdfa26b4e19f6a097d5eventda4f7c9afd044da2a3afb032e80c1d7c
 
   # Create collection in immudb
   immudb-log-audit-init:
@@ -435,7 +437,7 @@ services:
       "cargo",
       "watch",
       "-x",
-      "run --bin main consume -q short_queue tally_queue beat reports_queue beat"
+      "run --bin main consume -q short_queue tally_queue beat reports_queue"
     ]
     volumes:
       - ./keycloak/import:/import

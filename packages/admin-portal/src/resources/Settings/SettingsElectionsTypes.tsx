@@ -7,21 +7,14 @@ import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 
 import {Drawer} from "@mui/material"
-import { useTranslation } from 'react-i18next'
+import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
 
-import {
-    List,
-    TextField,
-    TextInput,
-    useDelete,
-    Identifier,
-    DatagridConfigurable,
-} from "react-admin"
+import {List, TextField, TextInput, useDelete, Identifier, DatagridConfigurable} from "react-admin"
 
 import {ListActions} from "@/components/ListActions"
-import { ActionsColumn } from '@/components/ActionButons'
-import { SettingselectionsTypesEdit } from './SettingsElectionsTypesEdit'
+import {ActionsColumn} from "@/components/ActionButons"
+import {SettingselectionsTypesEdit} from "./SettingsElectionsTypesEdit"
 import {SettingsElectionsTypesCreate} from "./SettingsElectionsTypesCreate"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
@@ -34,7 +27,7 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [closeDrawer, setCloseDrawer] = React.useState("")
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
 
     useEffect(() => {
@@ -45,7 +38,7 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
 
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
-        setCloseDrawer(new Date().toISOString())
+        setOpenDrawer(false)
         setOpen(false)
     }
 
@@ -74,17 +67,20 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
         {icon: <EditIcon />, action: editAction},
         {icon: <DeleteIcon />, action: deleteAction},
     ]
-    
+
     return (
         <>
             <List
                 filters={Filters}
-                actions={<ListActions 
-                    custom 
-                    withFilter 
-                    closeDrawer={closeDrawer} 
-                    Component={<SettingsElectionsTypesCreate close={handleCloseCreateDrawer} />} 
-                />}
+                actions={
+                    <ListActions
+                        custom
+                        withFilter
+                        open={openDrawer}
+                        setOpen={setOpenDrawer}
+                        Component={<SettingsElectionsTypesCreate close={handleCloseCreateDrawer} />}
+                    />
+                }
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />

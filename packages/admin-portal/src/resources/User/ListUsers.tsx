@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useEffect} from "react"
+import React, {ReactElement, useContext, useEffect} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -10,8 +10,10 @@ import {
     TextInput,
     BooleanField,
     Identifier,
-    useDelete,
     WrapperField,
+    useRefresh,
+    useNotify,
+    useGetList,
 } from "react-admin"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {ListActions} from "../../components/ListActions"
@@ -22,7 +24,12 @@ import {Action, ActionsColumn} from "../../components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {EditUser} from "./EditUser"
-import { CreateUser } from "./CreateUser"
+import {CreateUser} from "./CreateUser"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {DeleteUserMutation} from "@/gql/graphql"
+import {DELETE_USER} from "@/queries/DeleteUser"
+import {useMutation} from "@apollo/client"
+import {IRole} from "sequent-core"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -42,17 +49,27 @@ export interface ListUsersProps {
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
-    const [deleteOne] = useDelete()
 
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
-    const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [closeDrawer, setCloseDrawer] = React.useState("")
-    const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+    const [deleteId, setDeleteId] = React.useState<string | undefined>()
+    const [openDrawer, setOpenDrawer] = React.useState(false)
+    const [recordId, setRecordId] = React.useState<string | undefined>(undefined)
+    const authContext = useContext(AuthContext)
+    const refresh = useRefresh()
+    const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
+    const notify = useNotify()
+    const {data: rolesList} = useGetList<IRole & {id: string}>("role", {
+        pagination: {page: 1, perPage: 9999},
+        sort: {field: "last_updated_at", order: "DESC"},
+        filter: {
+            tenant_id: tenantId,
+        },
+    })
 
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
-        setCloseDrawer(new Date().toISOString())
+        setOpenDrawer(false)
     }
 
     const handleCloseEditDrawer = () => {
@@ -71,18 +88,48 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     }, [recordId])
 
     const editAction = (id: Identifier) => {
-        setRecordId(id)
+        setRecordId(id as string)
     }
 
     const deleteAction = (id: Identifier) => {
+        if (!electionEventId && authContext.userId === id) {
+            return
+        }
         // deleteOne("sequent_backend_area", {id})
         setOpenDeleteModal(true)
-        setDeleteId(id)
+        setDeleteId(id as string)
     }
 
-    const confirmDeleteAction = () => {
-        deleteOne("sequent_backend_area", {id: deleteId})
+    const confirmDeleteAction = async () => {
+        const {errors} = await deleteUser({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventId,
+                userId: deleteId,
+            },
+        })
+        if (errors) {
+            notify(
+                t(
+                    `usersAndRolesScreen.${
+                        electionEventId ? "voters" : "users"
+                    }.notifications.deleteError`
+                ),
+                {type: "error"}
+            )
+            console.log(`Error deleting user: ${errors}`)
+            return
+        }
+        notify(
+            t(
+                `usersAndRolesScreen.${
+                    electionEventId ? "voters" : "users"
+                }.notifications.deleteSuccess`
+            ),
+            {type: "success"}
+        )
         setDeleteId(undefined)
+        refresh()
     }
 
     const actions: Action[] = [
@@ -98,8 +145,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                 actions={
                     <ListActions
                         withImport={false}
-                        closeDrawer={closeDrawer}
-                        Component={<CreateUser electionEventId={electionEventId} close={handleCloseCreateDrawer} />}
+                        open={openDrawer}
+                        setOpen={setOpenDrawer}
+                        Component={
+                            <CreateUser
+                                electionEventId={electionEventId}
+                                close={handleCloseCreateDrawer}
+                            />
+                        }
                     />
                 }
                 // actions={
@@ -135,7 +188,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     sx: {width: "40%"},
                 }}
             >
-                <EditUser id={recordId} electionEventId={electionEventId} close={handleCloseEditDrawer} />
+                <EditUser
+                    id={recordId}
+                    electionEventId={electionEventId}
+                    close={handleCloseEditDrawer}
+                    rolesList={rolesList || []}
+                />
             </Drawer>
 
             <Dialog
@@ -151,7 +209,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     setOpenDeleteModal(false)
                 }}
             >
-                {t("common.message.delete")}
+                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.body`)}
             </Dialog>
         </>
     )
