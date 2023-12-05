@@ -63,13 +63,28 @@ pub async fn check_private_key(
     let input = body.into_inner();
     // The trustee name is simply the username of the user
     let trustee_name = claims
+        .clone()
         .preferred_username
         .ok_or((Status::Unauthorized, "Empty username".to_string()))?;
 
-    ////////////////////////////////////////////////////////////////////////////
-    // TODO JUST call get_private_key() below and check it against what we got
-    ////////////////////////////////////////////////////////////////////////////
-    let private_key_base64: String = "".into();
+    let GetPrivateKeyOutput {private_key_base64} = 
+        get_private_key(
+            Json(GetPrivateKeyInput {
+                election_event_id: input.election_event_id.clone(),
+                keys_ceremony_id: input.keys_ceremony_id.clone(),
+            }),
+            claims.clone(),
+        )
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        .into_inner()
+    else {
+        return Err((
+            Status::BadRequest,
+            "Keys ceremony not in ExecutionStatus::IN_PROCESS".into()
+        ));
+    };
+
     let is_valid = private_key_base64 == input.private_key_base64;
     event!(
         Level::INFO,
@@ -194,25 +209,30 @@ pub async fn get_private_key(
         .with_context(|| "missing bulletin board")
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    /*
-    let trustees_by_name = 
+    let trustee_public_key = 
         get_trustees_by_name(
             auth_headers.clone(),
             tenant_id.clone(),
-            trustee_names.clone().into_iter().collect::<Vec<_>>(),
+            vec![trustee_name.clone()],
         )
-        .await?
+        .await
+        .with_context(|| "can't find trustee in the database")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
         .data
-        .with_context(|| "can't find trustees")?
-        .sequent_backend_trustee
-        .into_iter()
-        .filter_map(|trustee| trustee.name)*/
+        .with_context(|| "error fetching election event")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        .sequent_backend_trustee[0]
+        .public_key
+        .clone()
+        .ok_or((
+            Status::InternalServerError, "can't get election event".into()
+        ))?;
 
     // get the encrypted private key
     let encrypted_private_key =
         get_trustee_encrypted_private_key(
             board_name.as_str(),
-            "TODO:"
+            trustee_public_key.as_str()
         )
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
