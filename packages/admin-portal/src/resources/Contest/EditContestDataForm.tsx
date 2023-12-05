@@ -17,6 +17,7 @@ import {
     useUpdate,
     useNotify,
     useRefresh,
+    required,
 } from "react-admin"
 import {
     Accordion,
@@ -169,6 +170,14 @@ export const ContestDataForm: React.FC = () => {
         temp.presentation.i18n.en.name = temp.name
         temp.presentation.i18n.en.alias = temp.alias
         temp.presentation.i18n.en.description = temp.description
+
+        // defaults
+        temp.voting_type = temp.voting_type || "no-preferential"
+        temp.counting_algorithm = temp.counting_algorithm || "plurality-at-large"
+        temp.min_votes = temp.min_votes || 0
+        temp.max_votes = temp.max_votes || 1
+        temp.winning_candidates_num = temp.winning_candidates_num || 1
+        temp.order_answers = temp.order_answers || "alphabetical"
 
         return temp
     }
@@ -352,10 +361,15 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <SelectInput source="voting_type" choices={VOTING_TYPES(t)} />
+                                <SelectInput
+                                    source="voting_type"
+                                    choices={VOTING_TYPES(t)}
+                                    validate={required()}
+                                />
                                 <SelectInput
                                     source="counting_algorithm"
                                     choices={COUNTING_ALGORITHMS(t)}
+                                    validate={required()}
                                 />
                             </AccordionDetails>
                         </Accordion>
@@ -379,7 +393,11 @@ export const ContestDataForm: React.FC = () => {
                                 <NumberInput source="min_votes" min={0} />
                                 <NumberInput source="max_votes" min={0} />
                                 <NumberInput source="winning_candidates_num" min={0} />
-                                <SelectInput source="order_answers" choices={ORDER_ANSWERS(t)} />
+                                <SelectInput
+                                    source="order_answers"
+                                    choices={ORDER_ANSWERS(t)}
+                                    validate={required()}
+                                />
                                 <FormDataConsumer>
                                     {({formData, ...rest}) => {
                                         return formData?.order_answers === "custom" ? (

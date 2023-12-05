@@ -142,7 +142,7 @@ function TreeMenuItem({
     const [isOpenSidebar] = useSidebarState()
 
     const [open, setOpen] = useState(false)
-    const [isFirstLoad, setIsFirstLoad] = useState(true)
+    // const [isFirstLoad, setIsFirstLoad] = useState(true)
 
     const onClick = () => setOpen(!open)
 
@@ -157,12 +157,12 @@ function TreeMenuItem({
         data[key] = (resource as any)[key]
     }
 
-    useEffect(() => {
-        if (data[key]?.length === 0 && isFirstLoad) {
-            setOpen(true)
-            setIsFirstLoad(false)
-        }
-    }, [data, key, isFirstLoad])
+    // useEffect(() => {
+    //     if (data[key]?.length === 0 && isFirstLoad) {
+    //         setOpen(true)
+    //         setIsFirstLoad(false)
+    //     }
+    // }, [data, key, isFirstLoad])
 
     const menuItemRef = useRef<HTMLDivElement | null>(null)
 
