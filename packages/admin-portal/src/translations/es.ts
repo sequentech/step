@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { TranslationType } from "./en"
+import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
@@ -557,15 +557,30 @@ const spanishTranslation: TranslationType = {
             },
         },
         tally: {
-            electionTallyTitle: "Elecciones para el Recuento",
-            electionTallySubTitle: "Seleccione las elecciones para el recuento",
+            ceremonyTitle: "Elecciones para el Recuento",
+            ceremonySubTitle: "Seleccione las elecciones para el recuento",
+            tallyTitle: "Progreso del Recuento de Elecciones",
+            logsTitle: "Logs",
+            resultsTitle: "Resultados & Participación",
+            generalInfoTitle: "Información General",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estado de importación del fragmento de clave",
-            breadcrumbSteps: {  
+            breadcrumbSteps: {
                 ceremony: "Ceremonia",
                 tally: "Recuento",
                 results: "Resultados",
-            }
+            },
+            common: {
+                cancel: "Cancelar",
+                next: "Siguiente",
+                dialog: {
+                    ok: "Ok",
+                    cancel: "Cerrar",
+                    title: "¿Estás seguro de que quieres iniciar una ceremonia?",
+                    message:
+                        "Estás a punto de iniciar una ceremonia de recuento. Esta acción notificará a los trustees para importar sus fragmentos de clave.",
+                },
+            },
         },
     },
 }

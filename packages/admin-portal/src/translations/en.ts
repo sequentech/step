@@ -555,14 +555,29 @@ const englishTranslation = {
             },
         },
         tally: {
-            electionTallyTitle: "Elections to Tally",
-            electionTallySubTitle: "Choose the elections you want to tally",
+            ceremonyTitle: "Elections to Tally",
+            ceremonySubTitle: "Choose the elections you want to tally",
+            tallyTitle: "Elections Tally Progress",
+            logsTitle: "Logs",
+            resultsTitle: "Results & Participation",
+            generalInfoTitle: "General Information",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Key fragment import status",
             breadcrumbSteps: {
                 ceremony: "Ceremony",
                 tally: "Tally",
                 results: "Results",
+            },
+            common: {
+                cancel: "Cancel",
+                next: "Next",
+                dialog: {
+                    ok: "Ok",
+                    cancel: "Close",
+                    title: "Are you sure you want to  start a ceremony?",
+                    message:
+                        "You are about to start a tally ceremony . This action will notify the trustees to import their key fragments.",
+                },
             },
         },
     },
