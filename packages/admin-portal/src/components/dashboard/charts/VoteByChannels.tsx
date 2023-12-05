@@ -6,7 +6,7 @@ import {useVotesHook} from "./use-votes-hook"
 
 export default function VotesByChannel({
     electionEventId,
-    _electionId,
+    electionId,
     width,
     height,
 }: {
@@ -19,6 +19,7 @@ export default function VotesByChannel({
 
     const {data} = useVotesHook({
         electionEventId,
+        electionId,
     })
 
     const votesCount = data?.["sequent_backend_cast_vote"]?.length ?? 0
