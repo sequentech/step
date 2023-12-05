@@ -17,10 +17,9 @@ import {Identifier, RaRecord, useGetList, useRecordContext} from "react-admin"
         Format: {icon: <Icon />, action: (id: Identifier) => void}
     */
 
-interface TrusteeItemsProps {
-    record: RaRecord<Identifier>
+interface ElectionStatusItemProps {
+    name: string | undefined
 }
-
 
 const StyledChips = styled.div`
     display: flex;
@@ -48,23 +47,14 @@ const StyledChipLabel = styled.div`
     line-height: 18px;
 `
 
-export const TrusteeItems: React.FC<TrusteeItemsProps> = (props) => {
-    const {record} = props
-    const {data} = useQuery(GET_TRUSTEES_NAMES, {
-        variables: {
-            trustees: record.trustee_ids,
-        },
-    })
+export const ElectionStatusItem: React.FC<ElectionStatusItemProps> = (props) => {
+    const {name} = props
 
     return (
         <StyledChips>
-            {data && data.sequent_backend_trustee
-                ? data.sequent_backend_trustee.map((item: any, index: number) => (
-                      <StyledChip key={index}>
-                          <StyledChipLabel>{item.name}</StyledChipLabel>
-                      </StyledChip>
-                  ))
-                : null}
+            <StyledChip>
+                <StyledChipLabel>{name ?? "-"}</StyledChipLabel>
+            </StyledChip>
         </StyledChips>
     )
 }

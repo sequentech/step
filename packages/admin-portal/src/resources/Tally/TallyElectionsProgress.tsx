@@ -4,38 +4,30 @@
 import React, {useEffect, useState} from "react"
 import {useGetOne, useGetMany} from "react-admin"
 
-import {
-    Sequent_Backend_Election,
-    Sequent_Backend_Tally_Session,
-} from "../../gql/graphql"
+import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {
-    DataGrid,
-    GridColDef,
-    GridRenderCellParams,
-} from "@mui/x-data-grid"
+import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
+import {ElectionStatusItem} from "@/components/ElectionStatusItem"
+import styled from "@emotion/styled"
+import {Box, LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 
-interface TallyElectionsProgressProps {
-    update: (elections: Array<string>) => void
-}
+// interface TallyElectionsProgressProps {
+//     update: (elections: Array<string>) => void
+// }
 
-export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = (props) => {
-    const {update} = props
-
+export const TallyElectionsProgress: React.FC = () => {
     const [tallyId] = useElectionEventTallyStore()
 
     const [electionsData, setElectionsData] = useState<
-        Array<Sequent_Backend_Election & {rowId: number; id: string; active: boolean}>
+        Array<
+            Sequent_Backend_Election & {rowId: number; id: string; status: string; progress: number}
+        >
     >([])
 
-
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
-        "sequent_backend_tally_session",
-        {
-            id: tallyId,
-        }
-    )
+    const {data} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
+        id: tallyId,
+    })
 
     const {data: elections} = useGetMany("sequent_backend_election", {
         ids: data?.election_ids || [],
@@ -48,18 +40,12 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = (pr
                 rowId: index,
                 id: election.id || "",
                 name: election.name,
-                active: false,
+                status: election.status || "",
+                progress: election.progress,
             }))
             setElectionsData(temp)
         }
     }, [elections])
-
-    useEffect(() => {
-        if (electionsData) {
-            const temp = electionsData.filter((election) => election.active).map((election) => election.id)
-            update(temp)
-        }
-    }, [electionsData])
 
     const columns: GridColDef[] = [
         {
@@ -69,30 +55,54 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = (pr
             editable: false,
         },
         {
-            field: "active",
-            headerName: "Selected",
+            field: "status",
+            headerName: "Status",
             flex: 1,
-            editable: true,
-            renderCell: (props: GridRenderCellParams<any, boolean>) => (
-                <Checkbox checked={props.value} onChange={() => handleConfirmChange(props.row)} />
-            ),
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, string>) => {
+                return <ElectionStatusItem name={props["value"] !== "" ? props["value"] : "Pending"} />
+            },
+        },
+        {
+            field: "progress",
+            headerName: "Progress",
+            flex: 1,
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, number>) => {
+                let rand: number = Math.floor(Math.random() * (100 + 1) + 0)
+                return (
+                    <ProgressBarDiv>
+                        <BorderLinearProgress variant="determinate" value={rand} />
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{marginLeft: "1rem", display: "flex", justifyContent: "end"}}
+                        >
+                            {rand}%
+                        </Typography>
+                    </ProgressBarDiv>
+                )},
         },
     ]
 
-    function handleConfirmChange(clickedRow: any) {
-        const updatedData: Array<
-            Sequent_Backend_Election & {rowId: number; id: string; active: boolean}
-        > = electionsData?.map((x) => {
-            if (x.rowId === clickedRow.rowId) {
-                return {
-                    ...x,
-                    active: !clickedRow.active,
-                }
-            }
-            return x
-        })
-        setElectionsData(updatedData)
-    }
+    const ProgressBarDiv = styled.div`
+        width: 100%;
+        max-width: 18rem;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+    `
+
+    const BorderLinearProgress = styled(LinearProgress)(({theme}) => ({
+        height: 4,
+        width: "100%",
+        [`&.${linearProgressClasses.colorPrimary}`]: {
+            backgroundColor: theme.palette.grey[theme.palette.mode === "light" ? 200 : 800],
+        },
+        [`& .${linearProgressClasses.bar}`]: {
+            backgroundColor: theme.palette.brandColor,
+        },
+    }))
 
     return (
         <DataGrid

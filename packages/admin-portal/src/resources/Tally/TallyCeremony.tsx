@@ -35,6 +35,7 @@ import { TallyStyles } from '@/components/styles/TallyStyles'
 import { JSON_MOCK } from './constants'
 import { JsonView } from '@/components/JsonView'
 import { TallyStartDate } from './TallyStartDate'
+import { TallyElectionsProgress } from './TallyElectionsProgress'
 
 interface TallyCeremonyProps {
     completed: boolean
@@ -57,14 +58,14 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     }
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
-        "election-data-general": true,
-        "election-data-logs": true,
-        "election-data-results": true,
+        "tally-data-general": true,
+        "tally-data-logs": true,
+        "tally-data-results": true,
     })
 
     const [expandedResults, setExpandedResults] = useState<IExpanded>({
-        "election-data-general": true,
-        "election-data-results": true,
+        "tally-results-general": true,
+        "tally-results-results": true,
     })
 
     const CancelButton = styled(Button)`
@@ -164,11 +165,11 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                 <>
                     <Accordion
                         sx={{width: "100%"}}
-                        expanded={expandedData["election-data-general"]}
+                        expanded={expandedData["tally-data-general"]}
                         onChange={() =>
                             setExpandedData((prev: IExpanded) => ({
                                 ...prev,
-                                "election-data-general": !prev["election-data-general"],
+                                "tally-data-general": !prev["tally-data-general"],
                             }))
                         }
                     >
@@ -178,20 +179,17 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                             </ElectionStyles.Wrapper>
                         </AccordionSummary>
                         <AccordionDetails>
-                            {/* <Tabs value={value} onChange={handleChange}>
-                                {renderTabs(parsedValue)}
-                            </Tabs>
-                            {renderTabContent(parsedValue)} */}
+                            <TallyElectionsProgress />
                         </AccordionDetails>
                     </Accordion>
 
                     <Accordion
                         sx={{width: "100%"}}
-                        expanded={expandedData["election-data-logs"]}
+                        expanded={expandedData["tally-data-logs"]}
                         onChange={() =>
                             setExpandedData((prev: IExpanded) => ({
                                 ...prev,
-                                "election-data-logs": !prev["election-data-logs"],
+                                "tally-data-logs": !prev["tally-data-logs"],
                             }))
                         }
                     >
@@ -207,11 +205,11 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
 
                     <Accordion
                         sx={{width: "100%"}}
-                        expanded={expandedData["election-data-results"]}
+                        expanded={expandedData["tally-data-results"]}
                         onChange={() =>
                             setExpandedData((prev: IExpanded) => ({
                                 ...prev,
-                                "election-data-results": !prev["election-data-results"],
+                                "tally-data-results": !prev["tally-data-results"],
                             }))
                         }
                     >
@@ -246,13 +244,15 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                             }))
                         }
                     >
-                        <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-general" />}>
+                        <AccordionSummary
+                            expandIcon={<ExpandMoreIcon id="tally-results-general" />}
+                        >
                             <ElectionStyles.Wrapper>
                                 <ElectionHeader title={t("tally.generalInfoTitle")} subtitle="" />
                             </ElectionStyles.Wrapper>
                         </AccordionSummary>
                         <AccordionDetails>
-                            <TallyStartDate  />
+                            <TallyStartDate />
                         </AccordionDetails>
                     </Accordion>
 
