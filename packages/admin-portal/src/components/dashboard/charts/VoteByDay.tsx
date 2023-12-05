@@ -1,11 +1,10 @@
 import React from "react"
-import {useQuery} from "@apollo/client"
 import Chart, {Props} from "react-apexcharts"
 import {useRecordContext} from "react-admin"
 import {GetCastVotesQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
-import {GET_CAST_VOTES} from "@/queries/GetCastVotes"
 import CardChart, {daysBefore, getWeekLegend} from "./Charts"
 import {useTranslation} from "react-i18next"
+import {useVotesHook} from "./use-votes-hook"
 
 const now = new Date()
 
@@ -31,13 +30,10 @@ export default function VotesByDay({width, height}: {width: number; height: numb
     const {t} = useTranslation()
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
-    const {loading, error, data} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
-        variables: {
-            electionEventId: record.id,
-            tenantId: record.tenant_id,
-            startDate: daysBefore(now, 7).toISOString(),
-            endDate: now.toISOString(),
-        },
+    const {loading, error, data} = useVotesHook({
+        electionEventId: record.id,
+        startDate: daysBefore(now, 7),
+        endDate: now,
     })
 
     if (loading || error || !data) {
