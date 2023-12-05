@@ -5,25 +5,25 @@
 import React, {createContext, useState} from "react"
 
 interface Context {
-    hasJustCreateNewResource: boolean
-    setHasJustCreateNewResource: (val: boolean) => void
+    lastCreatedResourceId: string | null
+    setLastCreatedResourceId: (val: string | null) => void
 }
 
 const defaultContext: Context = {
-    hasJustCreateNewResource: false,
-    setHasJustCreateNewResource: () => undefined,
+    lastCreatedResourceId: null,
+    setLastCreatedResourceId: () => undefined,
 }
 
 export const NewResourceContext = createContext<Context>(defaultContext)
 
 export default function NewResourceContextProvider({children}: {children: React.ReactNode}) {
-    const [hasJustCreateNewResource, setHasJustCreateNewResource] = useState<boolean>(false)
+    const [lastCreatedResourceId, setLastCreatedResourceId] = useState<string | null>(null)
 
     return (
         <NewResourceContext.Provider
             value={{
-                hasJustCreateNewResource,
-                setHasJustCreateNewResource,
+                lastCreatedResourceId,
+                setLastCreatedResourceId,
             }}
         >
             {children}
