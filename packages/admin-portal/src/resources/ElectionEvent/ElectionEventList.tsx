@@ -11,6 +11,8 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 import {useTranslation} from "react-i18next"
+import {useAtom} from "jotai"
+import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -36,11 +38,13 @@ export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => 
     const {t} = useTranslation()
     const navigate = useNavigate()
     const [tenantId] = useTenantStore()
+    const [isArchivedElectionEvents] = useAtom(archivedElectionEventSelection)
 
     const {data, isLoading} = useGetList("sequent_backend_election_event", {
         sort: {field: "created_at", order: "DESC"},
         filter: {
             tenant_id: tenantId,
+            is_archived: isArchivedElectionEvents,
         },
     })
 
@@ -49,7 +53,7 @@ export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => 
         if (data && data.length > 0) {
             const electionEventId = data[0].id ?? null
             if (electionEventId) {
-                // navigate("/sequent_backend_election_event/" + electionEventId)
+                navigate("/sequent_backend_election_event/" + electionEventId)
             }
         }
     })
