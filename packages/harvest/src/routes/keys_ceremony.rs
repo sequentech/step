@@ -244,7 +244,7 @@ pub async fn get_private_key(
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateKeysCeremonyInput {
     election_event_id: String,
-    threshold: usize,
+    threshold: i64,
     trustee_names: Vec<String>,
 }
 
@@ -280,6 +280,14 @@ pub async fn create_keys_ceremony(
     .with_context(|| "can't find trustees")
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
     .sequent_backend_trustee;
+
+    if input.trustee_names.len() != trustees.len() {
+        return Err((Status::InternalServerError, "can't find trustees".into()));
+    }
+    if input.threshold < 2 || input.threshold as usize > trustees.len() {
+        return Err((Status::InternalServerError, "invalid threshold".into()));
+
+    }
 
     // obtain trustee ids list
     let trustee_ids = trustees
@@ -353,6 +361,7 @@ pub async fn create_keys_ceremony(
         tenant_id.clone(),
         input.election_event_id.clone(),
         trustee_ids,
+        /* threshold */ input.threshold,
         /* status */ Some(status),
         /* execution_status */ Some(execution_status),
     )
@@ -364,7 +373,7 @@ pub async fn create_keys_ceremony(
     let task = celery_app
         .send_task(create_keys::new(
             CreateKeysBody {
-                threshold: input.threshold,
+                threshold: input.threshold as usize,
                 trustee_pks: trustees
                     .clone()
                     .into_iter()

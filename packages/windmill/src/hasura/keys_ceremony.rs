@@ -28,6 +28,7 @@ pub async fn insert_keys_ceremony(
     tenant_id: String,
     election_event_id: String,
     trustee_ids: Vec<String>,
+    threshold: i64,
     status: Option<Value>,
     execution_status: Option<String>,
 ) -> Result<Response<insert_keys_ceremony::ResponseData>> {
@@ -38,6 +39,7 @@ pub async fn insert_keys_ceremony(
         trustee_ids: Some(trustee_ids),
         status: status,
         execution_status: execution_status,
+        threshold: threshold,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
