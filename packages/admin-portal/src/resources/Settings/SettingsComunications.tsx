@@ -34,8 +34,8 @@ export const SettingsComunications: React.FC<void> = () => {
     })
 
     const [setting, setSetting] = useState<any>({
+        mail: record?.settings?.mail || true,
         sms: record?.settings?.sms || false,
-        mail: record?.settings?.mail || false,
     })
 
     const handleToggle = (method: any) => {
@@ -50,8 +50,8 @@ export const SettingsComunications: React.FC<void> = () => {
             save({
                 settings: {
                     ...(record?.settings ? record.settings : {}),
-                    sms: updatedSetting.sms,
                     mail: updatedSetting.mail,
+                    sms: updatedSetting.sms,
                 },
             })
         }
@@ -60,8 +60,8 @@ export const SettingsComunications: React.FC<void> = () => {
     useEffect(() => {
         if (record.settings) {
             setSetting({
+                mail: record?.settings?.mail || true,
                 sms: record?.settings?.sms || false,
-                mail: record?.settings?.mail || false,
             })
         }
     }, [record])
