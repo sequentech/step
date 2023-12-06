@@ -333,7 +333,6 @@ services:
     env_file:
       - .env
     environment:
-      RUSTFLAGS: "-Awarnings"
       ROCKET_ADDRESS: "0.0.0.0"
       ROCKET_PORT: "8400"
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
