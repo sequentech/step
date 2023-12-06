@@ -84,7 +84,6 @@ pub async fn tally_election_event(
         tenant_id.clone(),
         election_event_id.clone(),
         body.election_ids.clone(),
-        body.trustee_ids.clone(),
         area_ids.clone(),
         tally_session_id.clone(),
         "".to_string(),

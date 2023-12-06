@@ -17,7 +17,6 @@ query GetTallySessions(
         labels
         annotations
         election_ids
-        trustee_ids
         area_ids
         is_execution_completed
   }

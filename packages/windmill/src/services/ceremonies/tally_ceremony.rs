@@ -173,7 +173,6 @@ pub async fn create_tally_ceremony(
         tenant_id.clone(),
         election_event_id.clone(),
         election_ids.clone(),
-        vec![], // trustee_ids
         area_ids.clone(),
         tally_session_id.clone(),
         keys_ceremony_id.clone(),
