@@ -1,4 +1,5 @@
 FROM rust:1.70.0 as builder
+RUN rustup default nightly
 
 WORKDIR /app
 
