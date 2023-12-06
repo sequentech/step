@@ -1,22 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Typography} from "@mui/material"
+
 import React from "react"
-import {
-    SimpleForm,
-    TextInput,
-    SelectInput,
-    ReferenceInput,
-    Create,
-    FormDataConsumer,
-    ReferenceField,
-    useRecordContext,
-    useRefresh,
-    useNotify,
-} from "react-admin"
-import {JsonInput} from "react-admin-json-view"
-import {Sequent_Backend_Area, Sequent_Backend_Election_Event} from "../../gql/graphql"
+import {SimpleForm, TextInput, Create, useRefresh, useNotify} from "react-admin"
+import {Sequent_Backend_Election_Event} from "../../gql/graphql"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 
