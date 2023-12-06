@@ -1,155 +1,34 @@
-import {
-    BooleanInput,
-    DateField,
-    DateInput,
-    DateTimeInput,
-    Edit,
-    EditBase,
-    ReferenceManyField,
-    SelectInput,
-    SimpleForm,
-    TabbedForm,
-    TabbedShowLayout,
-    TextField,
-    TextInput,
-    useRecordContext,
-    useRefresh,
-} from "react-admin"
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+import {BooleanInput, DateTimeInput, SimpleForm, TextInput, useRefresh} from "react-admin"
+
 import {
     Accordion,
     AccordionDetails,
     AccordionSummary,
-    Button,
     Tabs,
     Tab,
-    CircularProgress,
-    Menu,
-    MenuItem,
     Typography,
     Grid,
 } from "@mui/material"
-import {CreateScheduledEventMutation, Sequent_Backend_Election_Event} from "../../gql/graphql"
 import React, {useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
-import {ScheduledEventType} from "../../services/ScheduledEvent"
-import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
-import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {ElectionHeaderStyles} from "../../components/styles/ElectionHeaderStyles"
-import {useTenantStore} from "../../providers/TenantContextProvider"
 
 export const EditElectionEventAreasList: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
     const [expanded, setExpanded] = useState("election-event-data-general")
-    const [showMenu, setShowMenu] = useState(false)
     const [value, setValue] = useState(0)
-    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
-    const [showProgress, setShowProgress] = useState(false)
-    const [showCreateKeysDialog, setShowCreateKeysDialog] = useState(false)
-    const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)
-    const [tenantId] = useTenantStore()
-    const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const refresh = useRefresh()
     const {t} = useTranslation()
-
-    const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
-        setAnchorEl(event.currentTarget)
-        setShowMenu(true)
-    }
-
-    const createBulletinBoardAction = async () => {
-        setShowMenu(false)
-        setShowProgress(true)
-
-        const {data, errors} = await createScheduledEvent({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: record.id,
-                eventProcessor: ScheduledEventType.CREATE_BOARD,
-                cronConfig: undefined,
-                eventPayload: {},
-                createdBy: "admin",
-            },
-        })
-        if (errors) {
-            console.log(errors)
-        }
-        if (data) {
-            console.log(data)
-        }
-        setShowProgress(false)
-        refresh()
-    }
-
-    const setPublicKeysAction = async () => {
-        setShowMenu(false)
-        setShowProgress(true)
-
-        const {data, errors} = await createScheduledEvent({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: record.id,
-                eventProcessor: ScheduledEventType.SET_PUBLIC_KEY,
-                cronConfig: undefined,
-                eventPayload: {},
-                createdBy: "admin",
-            },
-        })
-        if (errors) {
-            console.log(errors)
-        }
-        if (data) {
-            console.log(data)
-        }
-        setShowProgress(false)
-        refresh()
-    }
-
-    const openKeysDialog = () => {
-        console.log("opening...")
-        setShowCreateKeysDialog(true)
-    }
-
-    const openStartTallyDialog = () => {
-        console.log("opening...")
-        setShowStartTallyDialog(true)
-    }
-
-    const createBallotStylesAction = async () => {
-        setShowMenu(false)
-        setShowProgress(true)
-
-        const {data, errors} = await createScheduledEvent({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: record.id,
-                eventProcessor: ScheduledEventType.CREATE_ELECTION_EVENT_BALLOT_STYLES,
-                cronConfig: undefined,
-                eventPayload: {},
-                createdBy: "admin",
-            },
-        })
-        if (errors) {
-            console.log(errors)
-        }
-        if (data) {
-            console.log(data)
-        }
-        setShowProgress(false)
-        refresh()
-    }
 
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
     }
-
-    let configCreatedStatus = getConfigCreatedStatus(record.status)
 
     return (
         <SimpleForm>

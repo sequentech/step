@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useMemo, useRef, useState} from "react"
+import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
 import {NavLink} from "react-router-dom"
 import {useGetOne, useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -26,6 +26,7 @@ import {useTranslation} from "react-i18next"
 import MenuActions from "./MenuActions"
 import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {NewResourceContext} from "@/providers/NewResourceProvider"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -157,12 +158,14 @@ function TreeMenuItem({
         data[key] = (resource as any)[key]
     }
 
-    // useEffect(() => {
-    //     if (data[key]?.length === 0 && isFirstLoad) {
-    //         setOpen(true)
-    //         setIsFirstLoad(false)
-    //     }
-    // }, [data, key, isFirstLoad])
+    const {lastCreatedResourceId, setLastCreatedResourceId} = useContext(NewResourceContext)
+
+    useEffect(() => {
+        if (lastCreatedResourceId === resource.id) {
+            setOpen(true)
+            setLastCreatedResourceId(null)
+        }
+    }, [lastCreatedResourceId, setLastCreatedResourceId, resource.id])
 
     const menuItemRef = useRef<HTMLDivElement | null>(null)
 

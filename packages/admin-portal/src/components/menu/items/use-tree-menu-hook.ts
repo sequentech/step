@@ -13,6 +13,7 @@ export function useTreeMenuData(isArchivedElectionEvents: boolean) {
             tenantId: tenantId,
             isArchived: isArchivedElectionEvents,
         },
+        pollInterval: 500,
     })
 }
 
