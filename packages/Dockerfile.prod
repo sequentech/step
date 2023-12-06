@@ -1,0 +1,17 @@
+FROM node:20-alpine
+
+WORKDIR /usr/src/app/
+EXPOSE 3000
+
+# Install security updates and Yarn
+RUN apk update && \
+    apk upgrade && \
+    apk add --no-cache yarn
+
+#TODO: copy only necessary files, exclude source code from the runtime image
+COPY . .
+
+RUN yarn --pure-lockfile --non-interactive; \
+    yarn build:ui-essentials;
+
+ENTRYPOINT ["yarn", "start"]
