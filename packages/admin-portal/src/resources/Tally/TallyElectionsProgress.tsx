@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useState, memo} from "react"
 import {useGetOne, useGetMany} from "react-admin"
 
 import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next'
 //     update: (elections: Array<string>) => void
 // }
 
-export const TallyElectionsProgress: React.FC = () => {
+const TallyElectionsProgress: React.FC = () => {
     const [tallyId] = useElectionEventTallyStore()
     const {t} = useTranslation()
 
@@ -27,9 +27,15 @@ export const TallyElectionsProgress: React.FC = () => {
         >
     >([])
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
-        id: tallyId,
-    })
+    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            id: tallyId,
+        },
+        {
+            refetchInterval: 5000,
+        }
+    )
 
     const {data: elections} = useGetMany("sequent_backend_election", {
         ids: data?.election_ids || [],
@@ -125,3 +131,5 @@ export const TallyElectionsProgress: React.FC = () => {
         />
     )
 }
+
+export default memo(TallyElectionsProgress)

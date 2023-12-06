@@ -35,9 +35,15 @@ export const TallyElectionsResults: React.FC = () => {
         >
     >([])
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
-        id: tallyId,
-    })
+    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            id: tallyId,
+        },
+        {
+            refetchInterval: 5000,
+        }
+    )
 
     const {data: elections} = useGetMany("sequent_backend_election", {
         ids: data?.election_ids || [],

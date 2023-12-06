@@ -14,13 +14,8 @@ import {
     Dialog,
     IconButton,
 } from "@sequentech/ui-essentials"
-import {Action} from "../../components/ActionButons"
-import EditIcon from "@mui/icons-material/Edit"
-import DeleteIcon from "@mui/icons-material/Delete"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
-import DescriptionIcon from "@mui/icons-material/Description"
 import {useTranslation} from "react-i18next"
-import {useTenantStore} from "../../providers/TenantContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import styled from "@emotion/styled"
@@ -35,8 +30,10 @@ import { TallyStyles } from '@/components/styles/TallyStyles'
 import { JSON_MOCK } from './constants'
 import { JsonView } from '@/components/JsonView'
 import { TallyStartDate } from './TallyStartDate'
-import { TallyElectionsProgress } from './TallyElectionsProgress'
+import TallyElectionsProgress from './TallyElectionsProgress'
 import { TallyElectionsResults } from './TallyElectionsResults'
+import TallyResults from './TallyResults'
+import TallyLogs from './TallyLogs'
 
 interface TallyCeremonyProps {
     completed: boolean
@@ -200,7 +197,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                             </ElectionStyles.Wrapper>
                         </AccordionSummary>
                         <AccordionDetails>
-                            <JsonView origin={JSON_MOCK} />
+                            <TallyLogs />
                         </AccordionDetails>
                     </Accordion>
 
@@ -220,10 +217,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                             </ElectionStyles.Wrapper>
                         </AccordionSummary>
                         <AccordionDetails>
-                            {/* <Tabs value={value} onChange={handleChange}>
-                                {renderTabs(parsedValue)}
-                            </Tabs>
-                            {renderTabContent(parsedValue)} */}
+                            <TallyResults />
                         </AccordionDetails>
                     </Accordion>
                 </>
@@ -274,10 +268,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                             </ElectionStyles.Wrapper>
                         </AccordionSummary>
                         <AccordionDetails>
-                            {/* <Tabs value={value} onChange={handleChange}>
-                                {renderTabs(parsedValue)}
-                            </Tabs>
-                            {renderTabContent(parsedValue)} */}
+                            <TallyResults />
                         </AccordionDetails>
                     </Accordion>
                 </>
