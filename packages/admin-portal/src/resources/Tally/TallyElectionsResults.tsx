@@ -13,11 +13,11 @@ import styled from "@emotion/styled"
 import {Box, LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import { useTranslation } from 'react-i18next'
 
-// interface TallyElectionsProgressProps {
+// interface TallyElectionsResultsProps {
 //     update: (elections: Array<string>) => void
 // }
 
-export const TallyElectionsProgress: React.FC = () => {
+export const TallyElectionsResults: React.FC = () => {
     const [tallyId] = useElectionEventTallyStore()
     const {t} = useTranslation()
 

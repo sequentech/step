@@ -15,6 +15,7 @@ import {
     GridRenderCellParams,
 } from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
+import { useTranslation } from 'react-i18next'
 
 interface TallyElectionsListProps {
     update: (elections: Array<string>) => void
@@ -24,6 +25,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
     const {update} = props
 
     const [tallyId] = useElectionEventTallyStore()
+    const {t} = useTranslation()
 
     const [electionsData, setElectionsData] = useState<
         Array<Sequent_Backend_Election & {rowId: number; id: string; active: boolean}>
@@ -64,13 +66,13 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
     const columns: GridColDef[] = [
         {
             field: "name",
-            headerName: "Elections",
+            headerName: t("tally.table.elections"),
             flex: 1,
             editable: false,
         },
         {
             field: "active",
-            headerName: "Selected",
+            headerName: t("tally.table.selected"),
             flex: 1,
             editable: true,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (

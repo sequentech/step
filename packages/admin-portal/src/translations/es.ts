@@ -584,6 +584,16 @@ const spanishTranslation: TranslationType = {
                         "Estás a punto de iniciar una ceremonia de recuento. Esta acción notificará a los trustees para importar sus fragmentos de clave.",
                 },
             },
+            table: {
+                elections: "Elecciones",
+                selected: "Seleccionadas",
+                status: "Estado",
+                progress: "Progreso",
+                method: "Método de Recuento",
+                elegible: "Votantes Elegibles",
+                number: "Número de Votos",
+                turnout: "Participación",
+            },
         },
     },
 }

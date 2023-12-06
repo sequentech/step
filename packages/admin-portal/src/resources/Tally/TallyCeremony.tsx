@@ -36,6 +36,7 @@ import { JSON_MOCK } from './constants'
 import { JsonView } from '@/components/JsonView'
 import { TallyStartDate } from './TallyStartDate'
 import { TallyElectionsProgress } from './TallyElectionsProgress'
+import { TallyElectionsResults } from './TallyElectionsResults'
 
 interface TallyCeremonyProps {
     completed: boolean
@@ -253,6 +254,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                         </AccordionSummary>
                         <AccordionDetails>
                             <TallyStartDate />
+                            <TallyElectionsResults />
                         </AccordionDetails>
                     </Accordion>
 

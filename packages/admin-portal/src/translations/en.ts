@@ -582,6 +582,16 @@ const englishTranslation = {
                         "You are about to start a tally ceremony . This action will notify the trustees to import their key fragments.",
                 },
             },
+            table: {
+                elections: "Elections",
+                selected: "Selected",
+                status: "Status",
+                progress: "Progress",
+                method: "Tally Method",
+                elegible: "Elegible Voters",
+                number: "Number of Votes",
+                turnout: "Turnout",
+            }
         },
     },
 }
