@@ -50,9 +50,11 @@ import {CreateElection} from "./resources/Election/CreateElection"
 import {ElectionBaseTabs} from "./resources/ElectionEvent/ElectionBaseTabs"
 import {CandidateBaseTabs} from "./resources/Candidate/CandidateBaseTabs"
 import {CreateCandidateData} from "./resources/Candidate/CreateCandidateData"
-import { ContestBaseTabs } from './resources/Contest/ContestBaseTabs'
-import { CreateContestData } from './resources/Contest/CreateContestData'
-import { SettingsElectionsTypesCreate } from './resources/Settings/SettingsElectionsTypesCreate'
+import {ContestBaseTabs} from "./resources/Contest/ContestBaseTabs"
+import {CreateContestData} from "./resources/Contest/CreateContestData"
+import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectionsTypesCreate"
+import {adminI18nProvider} from "./services/AdminTranslation"
+import {useTranslation} from "react-i18next"
 
 export const AppWrapper = () => {
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
@@ -88,6 +90,9 @@ interface AppProps {
 
 const App: React.FC<AppProps> = ({apolloClient}) => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
+    const {i18n} = useTranslation()
+    adminI18nProvider.changeLocale(i18n.language)
+    i18n.on("languageChanged", (lng) => adminI18nProvider.changeLocale(lng))
 
     useEffect(() => {
         const buildDataProvider = async () => {
@@ -109,6 +114,7 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
             dataProvider={dataProvider || undefined}
             layout={CustomLayout}
             theme={fullAdminTheme}
+            i18nProvider={adminI18nProvider}
         >
             <CustomRoutes>
                 <Route path="/user-roles" element={<UserAndRoles />} />
@@ -119,7 +125,7 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
             {
                 // <Resource name="pgaudit" list={PgAuditList} options={{label: "PGAudit"}} />
             }
-            
+
             <Resource
                 name="sequent_backend_election_event"
                 list={ElectionEventList}

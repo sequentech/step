@@ -146,7 +146,7 @@ type Query {
   ): DataListPgAudit
 }
 
-type Mutation {
+type Query {
   list_user_roles (
     tenant_id: String!
     user_id: String!

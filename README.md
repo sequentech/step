@@ -582,6 +582,7 @@ Clean the disk with:
 ```bash
 docker system prune --all --force
 nix-collect-garbage
+cargo clean
 ```
 
 [cargo workspace]: https://doc.rust-lang.org/cargo/reference/workspaces.html

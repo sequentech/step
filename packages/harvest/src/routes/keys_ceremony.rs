@@ -3,20 +3,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::{Result, Context};
 use anyhow::anyhow;
+use anyhow::{Context, Result};
 use rocket::http::Status;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::keycloak;
+use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::ballot::ElectionEventStatus;
 use windmill::hasura::trustee::get_trustees_by_name;
 use windmill::hasura::election_event::get_election_event;
-use windmill::hasura::keys_ceremony::insert_keys_ceremony;
+use windmill::hasura::keys_ceremony::{insert_keys_ceremony, get_keys_ceremony};
 use windmill::tasks::create_keys::{create_keys, CreateKeysBody};
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::election_event_board::get_election_event_board;
+use windmill::services::private_keys::get_trustee_encrypted_private_key;
 use windmill::types::keys_ceremony::{
     CeremonyStatus,
     ExecutionStatus,
@@ -52,28 +54,32 @@ pub async fn check_private_key(
     body: Json<CheckPrivateKeyInput>,
     claims: JwtClaims,
 ) -> Result<Json<CheckPrivateKeyOutput>, (Status, String)> {
-    authorize(
-        &claims,
-        true,
-        None,
-        vec![Permissions::TRUSTEE_READ],
-    )?;
+    authorize(&claims, true, None, vec![Permissions::TRUSTEE_READ])?;
     let input = body.into_inner();
     // The trustee name is simply the username of the user
     let trustee_name = claims
+        .clone()
         .preferred_username
         .ok_or((Status::Unauthorized, "Empty username".to_string()))?;
 
-    let private_key_base64: String = "".into();
-    /* TODO:
-    let private_key = your_service::check_private_key(
-        &input.election_event_id,
-        &input.keys_ceremony_id,
-        &input.trustee_name,
-        &input.private_key)
+    let GetPrivateKeyOutput {private_key_base64} = 
+        get_private_key(
+            Json(GetPrivateKeyInput {
+                election_event_id: input.election_event_id.clone(),
+                keys_ceremony_id: input.keys_ceremony_id.clone(),
+            }),
+            claims.clone(),
+        )
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    */
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        .into_inner()
+    else {
+        return Err((
+            Status::BadRequest,
+            "Keys ceremony not in ExecutionStatus::IN_PROCESS".into()
+        ));
+    };
+
     let is_valid = private_key_base64 == input.private_key_base64;
     event!(
         Level::INFO,
@@ -108,37 +114,127 @@ pub async fn get_private_key(
     body: Json<GetPrivateKeyInput>,
     claims: JwtClaims,
 ) -> Result<Json<GetPrivateKeyOutput>, (Status, String)> {
-    authorize(
-        &claims,
-        true,
-        None,
-        vec![Permissions::TRUSTEE_READ],
-    )?;
+    authorize(&claims, true, None, vec![Permissions::TRUSTEE_READ])?;
     let input = body.into_inner();
+    let auth_headers = keycloak::get_client_credentials()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let celery_app = get_celery_app().await;
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+
     // The trustee name is simply the username of the user
     let trustee_name = claims
         .preferred_username
         .ok_or((Status::Unauthorized, "Empty username".to_string()))?;
 
-    let private_key_base64 = "".into();
-    /* TODO:
-    let private_key_base64 = your_service::retrieve_private_key(
-        &input.election_event_id,
-        &input.keys_ceremony_id,
-        &input.trustee_name
-    )
+    // get the keys ceremonies for this election event
+    let keys_ceremony =
+        get_keys_ceremony(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            input.election_event_id.clone(),
+        )
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        .data
+        .with_context(|| "error listing existing keys ceremonies")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        .sequent_backend_keys_ceremony
+        .into_iter()
+        .find(|ceremony| ceremony.id == input.keys_ceremony_id)
+        .ok_or((
+            Status::BadRequest,
+            "Keys ceremony not found".into()
+        ))?;
+    // check keys_ceremony has correct execution status
+    if (keys_ceremony.execution_status != Some(ExecutionStatus::IN_PROCESS.to_string())) {
+        return Err((
+            Status::BadRequest,
+            "Keys ceremony not in ExecutionStatus::IN_PROCESS".into()
+        ));
+    }
+    // get ceremony status
+    let current_status: CeremonyStatus =
+        serde_json::from_value(
+            keys_ceremony
+                .status
+                .clone()
+                .ok_or(anyhow!("Empty keys ceremony status"))
+                .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        )
+        .with_context(|| "error parsing keys ceremony current status")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    // check the trustee is part of this ceremony
+    if let None = current_status.trustees
+        .clone()
+        .into_iter()
+        .find(|trustee| trustee.name == trustee_name)
+    {
+        return Err((
+            Status::BadRequest,
+            "Trustee not part of the keys ceremony".into()
+        ));
+    }
+
+    // fetch election_event
+    let election_event = 
+        &get_election_event(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            input.election_event_id.clone(),
+        )
+        .await
+        .with_context(|| "error fetching election event")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        .data
+        .with_context(|| "error fetching election event")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        .sequent_backend_election_event[0];
+
+    // get board name
+    let board_name =
+        get_election_event_board(
+            election_event.bulletin_board_reference.clone()
+        )
+        .with_context(|| "missing bulletin board")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let trustee_public_key = 
+        get_trustees_by_name(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            vec![trustee_name.clone()],
+        )
+        .await
+        .with_context(|| "can't find trustee in the database")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        .data
+        .with_context(|| "error fetching election event")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        .sequent_backend_trustee[0]
+        .public_key
+        .clone()
+        .ok_or((
+            Status::InternalServerError, "can't get election event".into()
+        ))?;
+
+    // get the encrypted private key
+    let encrypted_private_key =
+        get_trustee_encrypted_private_key(
+            board_name.as_str(),
+            trustee_public_key.as_str()
+        )
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    */
 
     event!(
         Level::INFO,
         "Retrieved private key for electionEventId={}, keysCeremonyId={}, trusteeName={}",
-        input.election_event_id,
-        input.keys_ceremony_id,
-        trustee_name
+        input.election_event_id.clone(),
+        input.keys_ceremony_id.clone(),
+        trustee_name.clone()
     );
-    Ok(Json(GetPrivateKeyOutput { private_key_base64 }))
+    Ok(Json(GetPrivateKeyOutput { private_key_base64: encrypted_private_key }))
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -164,12 +260,7 @@ pub async fn create_keys_ceremony(
     body: Json<CreateKeysCeremonyInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateKeysCeremonyOutput>, (Status, String)> {
-    authorize(
-        &claims,
-        true,
-        None,
-        vec![Permissions::ADMIN_CEREMONY],
-    )?;
+    authorize(&claims, true, None, vec![Permissions::ADMIN_CEREMONY])?;
     let input = body.into_inner();
     let auth_headers = keycloak::get_client_credentials()
         .await
@@ -208,24 +299,31 @@ pub async fn create_keys_ceremony(
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
     .data
     .ok_or((
-        Status::InternalServerError, "can't get election event".into()
+        Status::InternalServerError,
+        "can't get election event".into(),
     ))?
     .sequent_backend_election_event[0];
 
-    // check config is not already created
-    let event_status: Option<ElectionEventStatus> = match election_event.status.clone() {
-        Some(value) => serde_json::from_value(value)
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?,
-        None => None,
-    };
-    if event_status.map(|val| val.is_config_created()).unwrap_or(false) {
+    // find if there's any previous ceremony and if so, stop. shouldn't happen,
+    // we only allow one per election event
+    let keys_ceremonies = get_keys_ceremony(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        input.election_event_id.clone(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+    .data
+    .with_context(|| "error listing existing keys ceremonies")
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+    .sequent_backend_keys_ceremony;
+    let has_any_running_ceremony = keys_ceremonies.len() > 0;
+    if has_any_running_ceremony {
         return Err((
             Status::BadRequest,
-            "bulletin board config already created".into()
-        ));
+            "there's already an existing running ceremony".into()
+        ))
     }
-    // TODO cancel any previous ceremony or find if there's any and cancel this
-    // one
 
     // generate default values
     let keys_ceremony_id: String = Uuid::new_v4().to_string();
@@ -237,15 +335,17 @@ pub async fn create_keys_ceremony(
         trustees: trustees
             .clone()
             .into_iter()
-            .map(|trustee| Ok(Trustee {
-                name: trustee.name.ok_or(anyhow!("empty trustee name"))?,
-                status: TrusteeStatus::WAITING,
-            }))
+            .map(|trustee| {
+                Ok(Trustee {
+                    name: trustee.name.ok_or(anyhow!("empty trustee name"))?,
+                    status: TrusteeStatus::WAITING,
+                })
+            })
             .collect::<Result<Vec<Trustee>>>()
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?,
     })
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    
+
     // insert keys-ceremony into the database using graphql
     insert_keys_ceremony(
         auth_headers.clone(),
@@ -253,8 +353,8 @@ pub async fn create_keys_ceremony(
         tenant_id.clone(),
         input.election_event_id.clone(),
         trustee_ids,
-        /*status*/ Some(status),
-        /*execution_status*/ Some(execution_status),
+        /* status */ Some(status),
+        /* execution_status */ Some(execution_status),
     )
     .await
     .with_context(|| "couldn't insert keys ceremony")
@@ -262,23 +362,27 @@ pub async fn create_keys_ceremony(
 
     // create the public keys in async task
     let task = celery_app
-    .send_task(create_keys::new(
-        CreateKeysBody {
-            threshold: input.threshold,
-            trustee_pks: trustees
-                .clone()
-                .into_iter()
-                .map(|trustee| Ok(
-                    trustee.public_key.ok_or(anyhow!("empty trustee pub key"))?
-                ))
-                .collect::<Result<Vec<String>>>()
-                .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
-        },
-        tenant_id.clone(),
-        input.election_event_id.clone(),
-    ))
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .send_task(create_keys::new(
+            CreateKeysBody {
+                threshold: input.threshold,
+                trustee_pks: trustees
+                    .clone()
+                    .into_iter()
+                    .map(|trustee| {
+                        Ok(trustee
+                            .public_key
+                            .ok_or(anyhow!("empty trustee pub key"))?)
+                    })
+                    .collect::<Result<Vec<String>>>()
+                    .map_err(|e| {
+                        (Status::InternalServerError, format!("{:?}", e))
+                    })?,
+            },
+            tenant_id.clone(),
+            input.election_event_id.clone(),
+        ))
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     event!(Level::INFO, "Sent create_keys task {}", task.task_id);
 
     event!(
