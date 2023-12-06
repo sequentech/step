@@ -9,8 +9,10 @@ use sequent_core::serialization::base64::Base64Deserialize;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandSerialize;
+use strand::signature::StrandSignaturePk;
 use tracing::instrument;
 
+use super::public_keys::deserialize_public_key;
 use super::protocol_manager;
 
 #[instrument]
@@ -19,9 +21,11 @@ pub async fn get_trustee_encrypted_private_key(
     trustee_pub_key: &str
 ) -> Result<String>
 {
+    let trustee_deserialized_pub_key: StrandSignaturePk = 
+        deserialize_public_key(trustee_pub_key.to_string());
     let private_key = protocol_manager::get_trustee_encrypted_private_key::<RistrettoCtx>(
         board_name,
-        trustee_pub_key
+        &trustee_deserialized_pub_key
     ).await?;
 
     let private_key_bytes = private_key.strand_serialize()?;
