@@ -87,7 +87,6 @@ pub async fn get_keys_ceremony(
     response_body.ok()
 }
 
-
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",

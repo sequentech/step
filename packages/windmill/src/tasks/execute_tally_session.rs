@@ -460,7 +460,7 @@ pub async fn execute_tally_session(
     let base_tempdir = tempdir()?;
 
     // perform tallies with velvet
-    
+
     let tallies_result: Result<Vec<()>> = plaintexts_data
         .iter()
         .map(|area_contest_plaintext| {
@@ -474,7 +474,7 @@ pub async fn execute_tally_session(
         Ok(o) => o,
         Err(e) => {
             event!(Level::ERROR, "Tally area contest: {e}");
-            return Err(e)
+            return Err(e);
         }
     };
 
