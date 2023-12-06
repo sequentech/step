@@ -420,6 +420,7 @@ const spanishTranslation: TranslationType = {
                 next: "Siguiente",
                 warning: "Aviso",
                 json: "Vista previa",
+                noResult: "Sin resultados",
             },
             language: {
                 es: "Español",

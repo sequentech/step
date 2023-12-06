@@ -418,6 +418,7 @@ const englishTranslation = {
                 next: "Next",
                 warning: "Warning",
                 json: "Preview",
+                noResult: "No result",
             },
             language: {
                 es: "Spanish",
