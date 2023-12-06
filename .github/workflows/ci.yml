@@ -24,7 +24,7 @@ jobs:
             file: packages/braid/Dockerfile.prod
           - service: windmill
             context: packages
-            file: packages/windmill/Dockerfile
+            file: packages/windmill/Dockerfile.prod
       fail-fast: false
 
     steps:

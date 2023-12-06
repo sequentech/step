@@ -1,0 +1,33 @@
+FROM rust:1.70.0 as builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    protobuf-compiler \
+    libprotobuf-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
+COPY ./strand ./strand
+COPY ./braid-messages ./braid-messages
+COPY ./sequent-core ./sequent-core
+COPY ./windmill ./windmill
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./velvet ./velvet
+
+WORKDIR /app/windmill
+RUN cargo build --release
+
+
+
+FROM debian:bullseye
+# Install any necessary runtime dependencies for production
+RUN apt-get update && apt-get install -y --no-install-recommends libssl1.1 && rm -rf /var/lib/apt/lists/*
+
+# Copy the compiled binary from the builder stage
+COPY --from=builder /app/windmill/target/release/main /usr/local/bin/main
+
+WORKDIR /usr/local/bin
+CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat"]
