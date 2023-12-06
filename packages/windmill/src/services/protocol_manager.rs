@@ -119,15 +119,14 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     let mut board = get_board_client().await?;
 
     let messages = board.get_messages(board_name, -1).await?;
-    let channel_message = messages
+    let pks_message = messages
         .into_iter()
         .map(|message| Message::strand_deserialize(&message.message))
-        .find(|message_opt| {
+        .find(|message| {
             // TODO: Actually find the message with the encrypted private key
-            //let message_opt.ok_or(false)?;
             if let Ok(m) = message {
                 match m.statement.get_kind() {
-                    StatementType::Channel => true,
+                    StatementType::PublicKey => true,
                     _ => false,
                 }
             } else {
@@ -136,7 +135,7 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
         })
         .with_context(|| format!("Public Key not found on board {}", board_name))??;
 
-    let bytes = channel_message.artifact.with_context(|| {
+    let bytes = pks_message.artifact.with_context(|| {
         format!(
             "Artifact missing on Public Key message on board {}",
             board_name
