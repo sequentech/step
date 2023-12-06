@@ -1,3 +1,53 @@
 table:
   name: results_contest_candidate
   schema: sequent_backend
+insert_permissions:
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - cast_votes
+    - points
+    - winning_position
+    - candidate_id
+    - contest_id
+    - election_event_id
+    - election_id
+    - id
+    - results_event_id
+    - tenant_id
+  role: service-account
+select_permissions:
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - cast_votes
+    - points
+    - winning_position
+    - candidate_id
+    - contest_id
+    - election_event_id
+    - election_id
+    - id
+    - results_event_id
+    - tenant_id
+    filter: {}
+  role: service-account
+update_permissions:
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - cast_votes
+    - points
+    - winning_position
+    - candidate_id
+    - contest_id
+    - election_event_id
+    - election_id
+    - id
+    - results_event_id
+    - tenant_id
+    filter: {}
+  role: service-account
