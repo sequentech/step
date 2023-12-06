@@ -442,6 +442,9 @@ const englishTranslation = {
                 online: "Online",
                 kiosk: "Kiosk",
             },
+            message: {
+                delete: "Are you sure you want to delete this item?",
+            },
         },
         createResource: {
             electionEvent: "Create an Election Event",
@@ -614,6 +617,8 @@ const englishTranslation = {
             generalInfoTitle: "General Information",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Key fragment import status",
+            createTallySuccess: "Tally created",
+            createTallyError: "Could not create Tally",
             breadcrumbSteps: {
                 ceremony: "Ceremony",
                 tally: "Tally",
@@ -642,7 +647,7 @@ const englishTranslation = {
                 elegible: "Elegible Voters",
                 number: "Number of Votes",
                 turnout: "Turnout (%)",
-            }
+            },
         },
     },
 }

@@ -2,12 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {Identifier, useRecordContext} from "react-admin"
 import Button from "@mui/material/Button"
-
-import {
-    Sequent_Backend_Election_Event,
-} from "../../gql/graphql"
 import {
     BreadCrumbSteps,
     BreadCrumbStepsVariant,
@@ -27,8 +22,6 @@ import {TallyElectionsList} from "./TallyElectionsList"
 import {TallyTrusteesList} from "./TallyTrusteesList"
 import {faKey} from "@fortawesome/free-solid-svg-icons"
 import { TallyStyles } from '@/components/styles/TallyStyles'
-import { JSON_MOCK } from './constants'
-import { JsonView } from '@/components/JsonView'
 import { TallyStartDate } from './TallyStartDate'
 import TallyElectionsProgress from './TallyElectionsProgress'
 import { TallyElectionsResults } from './TallyElectionsResults'

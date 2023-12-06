@@ -13,6 +13,7 @@ insert_permissions:
     - election_ids
     - id
     - is_execution_completed
+    - keys_ceremony_id
     - labels
     - last_updated_at
     - tenant_id
@@ -46,6 +47,7 @@ select_permissions:
     - election_ids
     - id
     - is_execution_completed
+    - keys_ceremony_id
     - labels
     - last_updated_at
     - tenant_id

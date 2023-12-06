@@ -444,6 +444,9 @@ const spanishTranslation: TranslationType = {
                 online: "En línea",
                 kiosk: "Kiosco",
             },
+            message: {
+                delete: "¿Estás seguro que quieres borrar este elemento?",
+            },
         },
         createResource: {
             electionEvent: "Crear un Evento Electoral",
@@ -616,6 +619,8 @@ const spanishTranslation: TranslationType = {
             generalInfoTitle: "Información General",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estado de importación del fragmento de clave",
+            createTallySuccess: "Recuento creado",
+            createTallyError: "Error creando recuento",
             breadcrumbSteps: {
                 ceremony: "Ceremonia",
                 tally: "Recuento",
