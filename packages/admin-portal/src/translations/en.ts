@@ -199,6 +199,7 @@ const englishTranslation = {
                 createNew: "Create Keys Ceremony",
                 emptyHeader: "No Keys Ceremony yet.",
                 emptyBody: "Do you want to create one?",
+                statusLabel: "Status",
                 breadCrumbs: {
                     configure: "Configure",
                     ceremony: "Ceremony",
@@ -262,6 +263,13 @@ const englishTranslation = {
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
+            tabs: {
+                dashboard: "Dashboard",
+                data: "Data",
+                voters: "Voters",
+                publish: "Publish",
+                logs: "Logs",
+            },
         },
         tenantScreen: {
             common: {
@@ -280,9 +288,14 @@ const englishTranslation = {
             },
             users: {
                 title: "Users",
+                subtitle: "View and edit user data",
                 edit: {
                     title: "User Data",
                     subtitle: "View and edit user",
+                },
+                create: {
+                    title: "User",
+                    subtitle: "Create user",
                 },
                 fields: {
                     username: "Username",
@@ -295,15 +308,33 @@ const englishTranslation = {
                     attributes: "Attributes",
                     area: "Area",
                 },
+                delete: {
+                    body: "Are you sure you want to delete this user?",
+                },
+                notifications: {
+                    deleteError: "Error deleting user",
+                    deleteSuccess: "User deleted",
+                },
             },
             voters: {
                 title: "Voters",
-                subtitle: "View and edit voter data ",
+                subtitle: "View and edit voter data",
+                create: {
+                    title: "Voter",
+                    subtitle: "Create voter",
+                },
                 errors: {
                     editError: "Error editing voter",
                     editSuccess: "Voter edited",
                     createError: "Error creating voter",
                     createSuccess: "Voter created",
+                },
+                delete: {
+                    body: "Are you sure you want to delete this voter?",
+                },
+                notifications: {
+                    deleteError: "Error deleting voter",
+                    deleteSuccess: "Voter deleted",
                 },
             },
             roles: {
@@ -311,6 +342,26 @@ const englishTranslation = {
                 edit: {
                     title: "Role Data",
                     subtitle: "View and edit role",
+                },
+                create: {
+                    title: "Role",
+                    subtitle: "Create role",
+                },
+                errors: {
+                    createError: "Error creating role",
+                    createSuccess: "Role created",
+                },
+                fields: {
+                    name: "Name",
+                },
+                delete: {
+                    body: "Are you sure you want to delete this role?",
+                },
+                notifications: {
+                    deleteError: "Error deleting role",
+                    deleteSuccess: "Role deleted",
+                    permissionEditError: "Error editing permission",
+                    permissionEditSuccess: "Permission edited",
                 },
             },
             permissions: {

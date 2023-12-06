@@ -27,7 +27,7 @@ extern "C" {
 const IPERMISSION: &'static str = r#"
 interface IPermission {
     id?: string;
-    attributes: {[key: string]: object};
+    attributes: {[key: string]: any};
     container_id?: string;
     description?: string;
     name?: string;
@@ -46,9 +46,9 @@ interface IRole {
     id?: string;
     name?: string;
     permissions?: Array<string>;
-    access?: {[key: string]: object};
-    attributes?: {[key: string]: object};
-    client_roles?: {[key: string]: object};
+    access?: {[key: string]: any};
+    attributes?: {[key: string]: any};
+    client_roles?: {[key: string]: any};
 }
 "#;
 

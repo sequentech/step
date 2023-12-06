@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
 
+use crate::types::optional::OptionalId;
 use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
 };
@@ -41,10 +42,10 @@ pub async fn create_role(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let role = client
-        .create_role(&realm, &input.role)
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let role = client.create_role(&realm, &input.role).await.map_err(|e| {
+        event!(Level::INFO, "Error {:?}", e);
+        (Status::InternalServerError, format!("{:?}", e))
+    })?;
     Ok(Json(role))
 }
 
@@ -140,7 +141,7 @@ pub struct SetOrDeleteUserRoleBody {
 pub async fn set_user_role(
     claims: jwt::JwtClaims,
     body: Json<SetOrDeleteUserRoleBody>,
-) -> Result<(), (Status, String)> {
+) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     authorize(
         &claims,
@@ -156,7 +157,7 @@ pub async fn set_user_role(
         .set_user_role(&realm, &input.user_id, &input.role_id)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    Ok(())
+    Ok(Json(Default::default()))
 }
 
 #[instrument(skip(claims))]
@@ -164,7 +165,7 @@ pub async fn set_user_role(
 pub async fn delete_user_role(
     claims: jwt::JwtClaims,
     body: Json<SetOrDeleteUserRoleBody>,
-) -> Result<(), (Status, String)> {
+) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     authorize(
         &claims,
@@ -180,7 +181,7 @@ pub async fn delete_user_role(
         .delete_user_role(&realm, &input.user_id, &input.role_id)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    Ok(())
+    Ok(Json(Default::default()))
 }
 
 #[derive(Deserialize, Debug)]
@@ -194,7 +195,7 @@ pub struct DeleteRoleBody {
 pub async fn delete_role(
     claims: jwt::JwtClaims,
     body: Json<DeleteRoleBody>,
-) -> Result<(), (Status, String)> {
+) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     authorize(
         &claims,
@@ -210,5 +211,5 @@ pub async fn delete_role(
         .delete_role(&realm, &input.role_id)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    Ok(())
+    Ok(Json(Default::default()))
 }

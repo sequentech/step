@@ -201,6 +201,7 @@ const spanishTranslation: TranslationType = {
                 createNew: "Crear Ceremonia de Claves",
                 emptyHeader: "Ninguna Ceremonia de Claves aún.",
                 emptyBody: "¿Quieres crear una?",
+                statusLabel: "Estado",
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Ceremonia",
@@ -264,6 +265,13 @@ const spanishTranslation: TranslationType = {
             },
             createElectionEventSuccess: "Creada la elección",
             createElectionEventError: "Error Creando la elección",
+            tabs: {
+                dashboard: "Panel de Control",
+                data: "Datos",
+                voters: "Votantes",
+                publish: "Publicar",
+                logs: "Logs",
+            },
         },
         tenantScreen: {
             common: {
@@ -282,9 +290,14 @@ const spanishTranslation: TranslationType = {
             },
             users: {
                 title: "Usuarios",
+                subtitle: "Ver y editar datos del usuario",
                 edit: {
                     title: "Información de Usuario",
                     subtitle: "Ver y editar Usuario",
+                },
+                create: {
+                    title: "Usuario",
+                    subtitle: "Crear usuario",
                 },
                 fields: {
                     username: "Nombre de Usuario",
@@ -297,15 +310,33 @@ const spanishTranslation: TranslationType = {
                     attributes: "Atributos",
                     area: "Área",
                 },
+                delete: {
+                    body: "¿Estás seguro que quieres borrar este usuario?",
+                },
+                notifications: {
+                    deleteError: "Error borrando usuario",
+                    deleteSuccess: "Usuario borrado",
+                },
             },
             voters: {
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                create: {
+                    title: "Votante",
+                    subtitle: "Crear votante",
+                },
                 errors: {
                     editError: "Error editando votante",
                     editSuccess: "Votante editado",
                     createError: "Error creando votante",
                     createSuccess: "Votante creado",
+                },
+                delete: {
+                    body: "¿Estás seguro que quieres borrar este votante?",
+                },
+                notifications: {
+                    deleteError: "Error borrando votante",
+                    deleteSuccess: "Votante borrado",
                 },
             },
             roles: {
@@ -313,6 +344,26 @@ const spanishTranslation: TranslationType = {
                 edit: {
                     title: "Información de Rol",
                     subtitle: "Ver y editar Rol",
+                },
+                create: {
+                    title: "Rol",
+                    subtitle: "Crear rol",
+                },
+                errors: {
+                    createError: "Error creando rol",
+                    createSuccess: "Rol creado",
+                },
+                fields: {
+                    name: "Nombre",
+                },
+                delete: {
+                    body: "¿Estás seguro que quieres borrar este rol?",
+                },
+                notifications: {
+                    deleteError: "Error borrando rol",
+                    deleteSuccess: "Rol borrado",
+                    permissionEditError: "Error editando permiso",
+                    permissionEditSuccess: "Permiso editado",
                 },
             },
             permissions: {

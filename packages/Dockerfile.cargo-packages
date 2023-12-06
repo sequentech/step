@@ -2,7 +2,7 @@
 # for the devcontainer prebuilds. However, each package has its own Dockerfile,
 # for example packages/windmill/Dockerfile, packages/harvest/Dockerfile, etc.
 
-FROM rust:1.70.0
+FROM rust:1.72.0
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \

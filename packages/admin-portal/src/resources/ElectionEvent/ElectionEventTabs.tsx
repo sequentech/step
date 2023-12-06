@@ -13,7 +13,6 @@ import {EditElectionEventTally} from "./EditElectionEventTally"
 import {EditElectionEventPublish} from "./EditElectionEventPublish"
 import {useTranslation} from "react-i18next"
 import {
-    ElectionEventTallyContextProvider,
     useElectionEventTallyStore,
 } from "@/providers/ElectionEventTallyProvider"
 

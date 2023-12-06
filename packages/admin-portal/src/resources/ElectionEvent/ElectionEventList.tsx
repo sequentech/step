@@ -9,15 +9,15 @@ import {useNavigate} from "react-router-dom"
 import {CircularProgress} from "@mui/material"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {styled} from "@mui/material/styles"
-import { Box } from "@mui/material"
+import {Box} from "@mui/material"
 
 const CenteredBox = styled(Box)`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  text-align: center;
-`;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    text-align: center;
+`
 
 export interface ElectionEventListProps {
     aside?: ReactElement
@@ -46,7 +46,9 @@ export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => 
 
     // if data, we would be automatically redirected to the first election
     // event, so we should just show a process icon in the meantime
-    return <CenteredBox>
-        <CircularProgress />
-    </CenteredBox>
+    return (
+        <CenteredBox>
+            <CircularProgress />
+        </CenteredBox>
+    )
 }

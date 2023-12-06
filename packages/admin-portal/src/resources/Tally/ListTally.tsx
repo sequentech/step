@@ -65,7 +65,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [closeDrawer, setCloseDrawer] = React.useState("")
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
 
     // const rowClickHandler = generateRowClickHandler(["election_event_id"])
@@ -82,7 +82,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
-        setCloseDrawer(new Date().toISOString())
+        setOpenDrawer(false)
     }
 
     const handleCloseEditDrawer = () => {
@@ -128,7 +128,8 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         withImport={false}
                         withExport={false}
                         // withFilter={false}
-                        closeDrawer={closeDrawer}
+                        open={openDrawer}
+                        setOpen={setOpenDrawer}
                         Component={<CreateTally record={record} close={handleCloseCreateDrawer} />}
                     />
                 }

@@ -2,23 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {
-    Identifier,
-    List,
-    useListContext,
-} from "react-admin"
+import {List, useListContext} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {IRole, IUser} from "sequent-core"
 import {EditUserForm} from "./EditUserForm"
 
 interface EditUserProps {
-    id?: Identifier | undefined
-    electionEventId: Identifier | undefined
+    id?: string
+    electionEventId?: string
     close?: () => void
+    rolesList: Array<IRole>
 }
 
-export const EditUser: React.FC<EditUserProps> = (props) => {
-    const {id, close, electionEventId} = props
-
+export const EditUser: React.FC<EditUserProps> = ({id, close, electionEventId, rolesList}) => {
     const {data, isLoading} = useListContext()
 
     const [tenantId] = useTenantStore()
@@ -39,7 +35,12 @@ export const EditUser: React.FC<EditUserProps> = (props) => {
                 sx={{padding: "16px"}}
                 actions={false}
             >
-                <EditUserForm id={id} electionEventId={electionEventId} close={close} />
+                <EditUserForm
+                    id={id}
+                    electionEventId={electionEventId}
+                    close={close}
+                    rolesList={rolesList}
+                />
             </List>
         )
     } else {
