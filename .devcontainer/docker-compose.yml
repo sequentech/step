@@ -129,7 +129,7 @@ services:
   graphql-engine:
     profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
-    container_name: graphql-engine
+    container_name: hasura
     ports:
       - "8080:8080"
     restart: always
