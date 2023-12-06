@@ -34,8 +34,8 @@ export const SettingsLanguages: React.FC<void> = () => {
     })
 
     const [setting, setSetting] = useState<any>({
-        spanish: record?.settings?.spanish || false,
         english: record?.settings?.english || false,
+        spanish: record?.settings?.spanish || false,
     })
 
     const handleToggle = (method: any) => {
@@ -60,8 +60,8 @@ export const SettingsLanguages: React.FC<void> = () => {
     useEffect(() => {
         if (record.settings) {
             setSetting({
-                spanish: record?.settings?.spanish || false,
                 english: record?.settings?.english || false,
+                spanish: record?.settings?.spanish || false,
             })
         }
     }, [record])
@@ -77,6 +77,7 @@ export const SettingsLanguages: React.FC<void> = () => {
                     </SettingsLanguagesStyles.Text>
 
                     <Switch
+                        disabled={true}
                         checked={setting?.[method] || false}
                         onChange={() => handleToggle(method)}
                     />

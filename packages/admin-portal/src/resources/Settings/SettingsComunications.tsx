@@ -77,6 +77,7 @@ export const SettingsComunications: React.FC<void> = () => {
                     </SettingsCommunicationsStyles.Text>
 
                     <Switch
+                        disabled={true}
                         checked={setting?.[method] || false}
                         onChange={() => handleToggle(method)}
                     />
