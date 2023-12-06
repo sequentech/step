@@ -1,0 +1,3 @@
+table:
+  name: results_area_contest_candidate
+  schema: sequent_backend
