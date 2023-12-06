@@ -62,8 +62,7 @@ export default function MenuAction({
 
     const notify = useNotify()
 
-    // TODO : need to change this use query
-    const {refetch} = useTreeMenuData(false)
+    const {refetch} = useTreeMenuData(isArchivedTab)
 
     const {canCreateElectionEvent, canEditElectionEvent} = useActionPermissions()
 
