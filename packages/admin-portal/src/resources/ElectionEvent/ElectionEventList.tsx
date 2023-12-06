@@ -2,15 +2,24 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {useGetList} from "react-admin"
+import {CreateButton, useGetList} from "react-admin"
 import React, {ReactElement, useEffect} from "react"
 
 import {useNavigate} from "react-router-dom"
-import {CircularProgress} from "@mui/material"
+import {CircularProgress, Typography} from "@mui/material"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
+import {useTranslation} from "react-i18next"
 
+const EmptyBox = styled(Box)`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+`
 const CenteredBox = styled(Box)`
     display: flex;
     justify-content: center;
@@ -24,10 +33,11 @@ export interface ElectionEventListProps {
 }
 
 export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => {
+    const {t} = useTranslation()
     const navigate = useNavigate()
     const [tenantId] = useTenantStore()
 
-    const {data} = useGetList("sequent_backend_election_event", {
+    const {data, isLoading} = useGetList("sequent_backend_election_event", {
         sort: {field: "created_at", order: "DESC"},
         filter: {
             tenant_id: tenantId,
@@ -39,16 +49,24 @@ export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => 
         if (data && data.length > 0) {
             const electionEventId = data[0].id ?? null
             if (electionEventId) {
-                navigate("/sequent_backend_election_event/" + electionEventId)
+                // navigate("/sequent_backend_election_event/" + electionEventId)
             }
         }
     })
 
+    const Empty = (
+        <EmptyBox m={1}>
+            <Typography variant="h4" paragraph>
+                {t("electionEventScreen.error.noResult")}
+            </Typography>
+            <Typography variant="body1" paragraph>
+                {t("common.resources.noResult.askCreate")}
+            </Typography>
+            <CreateButton />
+        </EmptyBox>
+    )
+
     // if data, we would be automatically redirected to the first election
     // event, so we should just show a process icon in the meantime
-    return (
-        <CenteredBox>
-            <CircularProgress />
-        </CenteredBox>
-    )
+    return <CenteredBox>{isLoading ? <CircularProgress /> : Empty}</CenteredBox>
 }
