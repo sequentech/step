@@ -11,7 +11,8 @@ pub(crate) mod tests {
     use serial_test::serial;
     use immu_board::board_client::BoardClient;
     use immu_board::BoardMessage;
-    use strand::signature::StrandSignatureSk;
+    use strand::signature::{StrandSignatureSk, StrandSignaturePk};
+    use strand::serialization::StrandDeserialize;
 
     use crate::electoral_log::message::{Message, SigningData};
     use crate::electoral_log::newtypes::*;
@@ -64,6 +65,7 @@ pub(crate) mod tests {
         let sender_name = "test";
         let sender_sk = StrandSignatureSk::gen().unwrap();
         let system_sk = StrandSignatureSk::gen().unwrap();
+        let system_pk = StrandSignaturePk::from_sk(&system_sk).unwrap();
         let sd = SigningData::new(sender_sk, sender_name, system_sk);
         let ctx = ContextHash(DUMMY_H);
         let contest = ContestHash(DUMMY_H);
@@ -78,6 +80,12 @@ pub(crate) mod tests {
         b.insert_electoral_log_messages(BOARD_DB, &messages).await.unwrap();
         let ret = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
         assert_eq!(messages, ret);
+
+        let first = &ret[0];
+        let ret_m = Message::strand_deserialize(&first.message).unwrap();
+        
+        ret_m.verify(&system_pk).unwrap();
+
         tear_down(b).await;
     }
     

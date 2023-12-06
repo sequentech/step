@@ -47,6 +47,15 @@ impl Message {
             artifact,
         })
     }
+
+    pub fn verify(&self, system_pk: &StrandSignaturePk) -> Result<()> {
+        let bytes = self.statement.strand_serialize()?;
+        self.sender.pk.verify(&self.sender_signature, &bytes)?;
+        system_pk.verify(&self.system_signature, &bytes)?;
+
+        Ok(())
+
+    }
 }
 
 impl TryFrom<Message> for BoardMessage {
