@@ -4,16 +4,6 @@ mod message;
 mod statement;
 mod newtypes;
 
-/*#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn test_elog_post() {
-        assert!(true);
-    }
-
-}*/
-
 // Run ignored tests with 
 // cargo test <test_name> -- --include-ignored
 #[cfg(test)]
@@ -78,7 +68,7 @@ pub(crate) mod tests {
         let pseudonym = PseudonymHash([0u8; 64]);
         let message = Message::test_message(ctx, pseudonym, &sd).unwrap();
         let mut board_message: BoardMessage = message.try_into().unwrap();
-        // We do this so that the id matches the auto generated id in the db
+        // We do this so that the id matches the auto generated id in the db, otherwise the assert_eq fails
         board_message.id = 1;
         let messages = vec![board_message];
 

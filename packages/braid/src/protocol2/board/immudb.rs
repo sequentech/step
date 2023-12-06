@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
-use braid_messages::statement::StatementType;
+use anyhow::Result;
 use immu_board::{Board, BoardClient, BoardMessage};
 use rusqlite::params;
 use rusqlite::Connection;
+use tracing::info;
 use std::path::PathBuf;
 use strand::serialization::StrandDeserialize;
 // use strand::serialization::StrandSerialize;
@@ -93,10 +93,7 @@ impl ImmudbBoard {
             .or(Ok(0i64));
         let last_id = last_id?;
 
-        /* let messages = self
-            .board_client
-            .get_messages(&self.board_dbname, last_id)
-            .await?;*/
+        info!("last_id {}", last_id);
 
         let messages = self.get_remote_messages(last_id).await?;
 
@@ -125,61 +122,6 @@ impl ImmudbBoard {
 
     }
     
-    
-    async fn update_store(&mut self) -> Result<Vec<Message>> {
-        let connection = self.get_store()?;
-        let mut channel_messages = vec![];
-
-        let last_id: Result<i64> = connection
-            .query_row("SELECT max(external_id) FROM messages;", [], |row| row.get(0))
-            .or(Ok(0i64));
-        let last_id = last_id?;
-
-        let messages = self
-            .board_client
-            .get_messages(&self.board_dbname, last_id)
-            .await?;
-
-        for message in messages {
-            // Allows for Channel deletion
-            /* let m = Message::strand_deserialize(&message.message)?;
-            if m.statement.get_kind() == StatementType::Channel {
-                channel_messages.push(m);
-            } else {
-                connection.execute(
-                    "INSERT INTO MESSAGES VALUES(?1, ?2)",
-                    params![message.id, message.message],
-                )?;
-            }*/
-            connection.execute(
-                "INSERT INTO MESSAGES(external_id, message) VALUES(?1, ?2)",
-                params![message.id, message.message],
-            )?;
-        }
-
-        Ok(channel_messages)
-    }
-
-    fn get_store_messages(
-        &mut self,
-        last_id: i64,
-    ) -> Result<Vec<Message>> {
-        let connection = self.get_store()?;
-        let mut stmt =
-            connection.prepare("SELECT id,message FROM MESSAGES where id > ?1 order by id asc")?;
-        let rows = stmt.query_map([last_id], |row| {
-            Ok(MessageRow {
-                _id: row.get(0)?,
-                message: row.get(1)?,
-            })
-        })?;
-
-        let messages: Result<Vec<Message>> = rows
-            .map(|mr| Ok(Message::strand_deserialize(&mr?.message)?))
-            .collect();
-
-        messages
-    }
 }
 
 pub struct ImmudbBoardIndex {

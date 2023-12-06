@@ -39,12 +39,15 @@ impl StatementHead {
 }
 
 /*
+TODO
+
 • Emisión de voto (sólo como registro que el sistema almacenó correctamente el voto).
 • Errores en la emisión del voto.
 • Publicación, apertura y cierre de las elecciones.
 • Creación de llave criptográfica.
 • Ingreso de los fragmentos de la llave privada
 • Apertura y cierre de la bóveda de votos
+
 */
 
 #[derive(BorshSerialize, BorshDeserialize)]

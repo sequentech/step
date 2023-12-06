@@ -31,6 +31,7 @@ impl<C: Ctx> Session<C> {
 
     // Takes ownership of self to allow spawning threads in parallel
     // See https://stackoverflow.com/questions/63434977/how-can-i-spawn-asynchronous-methods-in-a-loop
+    // See also protocol_test_immudb::run_protocol_test_immudb
     pub async fn step(mut self) -> Result<Self> {
         let messages = self.board.get_messages(self.last_message_id).await?;
 
