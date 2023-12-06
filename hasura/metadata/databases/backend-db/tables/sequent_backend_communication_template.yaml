@@ -14,10 +14,25 @@ insert_permissions:
     - created_by
     - created_at
     - updated_at
-    - election_event_id
     - id
     - tenant_id
   role: admin-user
+- comment: ""
+  permission:
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - annotations
+    - communication_method
+    - communication_type
+    - id
+    - labels
+    - template
+    - tenant_id
+    set:
+      created_by: x-hasura-User-Id
+  role: communication-template-write
 - comment: ""
   permission:
     check: {}
@@ -30,7 +45,6 @@ insert_permissions:
     - created_by
     - created_at
     - updated_at
-    - election_event_id
     - id
     - tenant_id
   role: service-account
@@ -46,11 +60,28 @@ select_permissions:
     - created_by
     - created_at
     - updated_at
-    - election_event_id
     - id
     - tenant_id
     filter: {}
   role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - annotations
+    - communication_method
+    - communication_type
+    - created_at
+    - created_by
+    - id
+    - labels
+    - template
+    - tenant_id
+    - updated_at
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: communication-template-read
 - comment: ""
   permission:
     columns:
@@ -62,33 +93,14 @@ select_permissions:
     - created_by
     - created_at
     - updated_at
-    - election_event_id
     - id
     - tenant_id
     filter: {}
   role: service-account
-- comment: ""
-  permission:
-    columns:
-    - annotations
-    - labels
-    - template
-    - communication_method
-    - communication_type
-    - created_by
-    - created_at
-    - updated_at
-    - election_event_id
-    - id
-    - tenant_id
-    filter:
-      tenant_id:
-        _eq: X-Hasura-Tenant-Id
-  role: user
 update_permissions:
 - comment: ""
   permission:
-    check: null
+    check: {}
     columns:
     - annotations
     - labels
@@ -98,14 +110,31 @@ update_permissions:
     - created_by
     - created_at
     - updated_at
-    - election_event_id
     - id
     - tenant_id
     filter: {}
   role: admin-user
 - comment: ""
   permission:
-    check: null
+    check:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    columns:
+    - annotations
+    - communication_method
+    - communication_type
+    - id
+    - labels
+    - template
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+    set:
+      tenant_id: x-hasura-
+  role: communication-template-write
+- comment: ""
+  permission:
+    check: {}
     columns:
     - annotations
     - labels
@@ -115,7 +144,6 @@ update_permissions:
     - created_by
     - created_at
     - updated_at
-    - election_event_id
     - id
     - tenant_id
     filter: {}
@@ -125,6 +153,12 @@ delete_permissions:
   permission:
     filter: {}
   role: admin-user
+- comment: ""
+  permission:
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: communication-template-write
 - comment: ""
   permission:
     filter: {}
