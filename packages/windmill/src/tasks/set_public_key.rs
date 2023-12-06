@@ -15,7 +15,7 @@ use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::public_keys;
 use crate::types::error::Result;
-use crate::types::keys_ceremony::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
+use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
 
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]

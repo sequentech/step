@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Result};
-use braid_messages::newtypes::BatchNumber;
+use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use sequent_core::services::connection;

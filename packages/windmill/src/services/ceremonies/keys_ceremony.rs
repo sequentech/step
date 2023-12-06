@@ -7,19 +7,12 @@ use crate::hasura::election_event::get_election_event;
 use crate::hasura::keys_ceremony::{get_keys_ceremony, insert_keys_ceremony};
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::celery_app::get_celery_app;
-use crate::services::election_event_board::get_election_event_board;
-use crate::services::private_keys::get_trustee_encrypted_private_key;
 use crate::tasks::create_keys::{create_keys, CreateKeysBody};
-use crate::types::keys_ceremony::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
 use anyhow::{anyhow, Context, Result};
-use sequent_core::ballot::ElectionEventStatus;
-use sequent_core::services::connection;
-use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
-use sequent_core::types::permissions::Permissions;
-use serde::{Deserialize, Serialize};
+use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
 use serde_json::Value;
-use tracing::{event, instrument, Level};
+use tracing::{event, Level};
 use uuid::Uuid;
 
 pub async fn create_keys_ceremony(
@@ -49,7 +42,7 @@ pub async fn create_keys_ceremony(
         .collect();
 
     // get the election event
-    let election_event = &get_election_event(
+    let _election_event = &get_election_event(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),

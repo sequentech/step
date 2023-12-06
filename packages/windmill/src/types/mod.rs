@@ -4,5 +4,4 @@
 
 pub mod error;
 pub mod hasura_types;
-pub mod keys_ceremony;
 pub mod scheduled_event;

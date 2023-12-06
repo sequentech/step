@@ -5,19 +5,18 @@ use crate::services::authorization::authorize;
 
 use crate::types::optional::OptionalId;
 use crate::types::resources::{
-    Aggregate, DataList, OrderDirection, TotalAggregate,
+    Aggregate, DataList, TotalAggregate,
 };
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use rocket::http::Status;
-use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::KeycloakAdminClient;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::keycloak::get_tenant_realm;
 use sequent_core::types::keycloak::Permission;
 use sequent_core::types::permissions::Permissions;
-use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use serde::Deserialize;
+use tracing::instrument;
 
 #[derive(Deserialize, Debug)]
 pub struct GetPermissionsBody {

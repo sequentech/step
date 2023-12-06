@@ -6,30 +6,21 @@ use crate::services::authorization::authorize;
 use anyhow::anyhow;
 use anyhow::{Context, Result};
 use rocket::http::Status;
-use rocket::response::Debug;
 use rocket::serde::json::Json;
-use sequent_core::ballot::ElectionEventStatus;
-use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
+use sequent_core::types::ceremonies::{
+    CeremonyStatus, ExecutionStatus
+};
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use tracing::{event, instrument, Level};
-use uuid::Uuid;
 use windmill::hasura::election_event::get_election_event;
-use windmill::hasura::keys_ceremony::{
-    get_keys_ceremony, insert_keys_ceremony,
-};
+use windmill::hasura::keys_ceremony::get_keys_ceremony;
 use windmill::hasura::trustee::get_trustees_by_name;
-use windmill::services::celery_app::get_celery_app;
 use windmill::services::ceremonies::keys_ceremony;
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::private_keys::get_trustee_encrypted_private_key;
-use windmill::tasks::create_keys::{create_keys, CreateKeysBody};
-use windmill::types::keys_ceremony::{
-    CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus,
-};
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Endpoint: /check-private-key
@@ -119,7 +110,6 @@ pub async fn get_private_key(
     let auth_headers = keycloak::get_client_credentials()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let celery_app = get_celery_app().await;
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
     // The trustee name is simply the username of the user
@@ -143,8 +133,8 @@ pub async fn get_private_key(
     .find(|ceremony| ceremony.id == input.keys_ceremony_id)
     .ok_or((Status::BadRequest, "Keys ceremony not found".into()))?;
     // check keys_ceremony has correct execution status
-    if (keys_ceremony.execution_status
-        != Some(ExecutionStatus::IN_PROCESS.to_string()))
+    if keys_ceremony.execution_status
+        != Some(ExecutionStatus::IN_PROCESS.to_string())
     {
         return Err((
             Status::BadRequest,

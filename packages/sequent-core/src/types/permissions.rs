@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use strum_macros::{Display, EnumString};
 
 #[allow(non_camel_case_types)]
