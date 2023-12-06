@@ -10,6 +10,7 @@ pub mod insert_tenant;
 pub mod keys_ceremony;
 pub mod permissions;
 pub mod roles;
+pub mod tally_ceremony;
 pub mod scheduled_event;
 pub mod upload_document;
 pub mod users;

@@ -9,6 +9,7 @@ pub mod documents;
 pub mod election_event_board;
 pub mod election_event_status;
 pub mod jwks;
+pub mod keys_ceremony;
 pub mod pg_lock;
 pub mod protocol_manager;
 pub mod public_keys;

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -22,4 +22,5 @@ pub async fn create_tally_ceremony(
     body: Json<CreateTallyCeremonyInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateTallyCeremonyOutput>, (Status, String)> {
+    Err(Status::InternalServerError, "".to_string())
 }
