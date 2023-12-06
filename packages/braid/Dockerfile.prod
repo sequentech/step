@@ -32,13 +32,13 @@ FROM debian:bookworm
 # Some shared libraries (extra-runtime-dependencies) may need to be installed:
 RUN apt-get update && apt-get install -y --no-install-recommends libssl3 && rm -rf /var/lib/apt/lists/*
 
-COPY --from=braid-builder /app/target/release/bb_helper /usr/bin
-COPY --from=braid-builder /app/target/release/main /usr/bin/trustee
-COPY --from=braid-builder /app/target/release/gen_trustee_config /usr/bin/
-COPY --from=braid-builder /app/target/release/main /usr/bin/trustee
-COPY --from=braid-builder /app/braid/scripts/*.sh /usr/bin/
+COPY --from=builder /app/target/release/bb_helper /usr/bin
+COPY --from=builder /app/target/release/main /usr/bin/trustee
+COPY --from=builder /app/target/release/gen_trustee_config /usr/bin/
+COPY --from=builder /app/target/release/main /usr/bin/trustee
+COPY --from=builder /app/braid/scripts/*.sh /usr/bin/
 RUN mkdir -p /opt/braid/
-COPY --from=braid-builder /app/braid/scripts/*.toml /opt/braid/
+COPY --from=builder /app/braid/scripts/*.toml /opt/braid/
 
 # init index db
 RUN mkdir /tmp/cache
