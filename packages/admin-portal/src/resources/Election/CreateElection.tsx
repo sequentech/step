@@ -36,7 +36,7 @@ export const CreateElection: React.FC = () => {
 
     const {refetch} = useTreeMenuData(false)
 
-    const {setLastCreatedResource: setLastCreatedResource} = useContext(NewResourceContext)
+    const {setLastCreatedResource} = useContext(NewResourceContext)
 
     return (
         <Create

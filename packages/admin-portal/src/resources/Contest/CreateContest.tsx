@@ -35,14 +35,22 @@ export const CreateContest: React.FC = () => {
     const electionId = searchParams.get("electionId")
 
     const {refetch} = useTreeMenuData(false)
+<<<<<<< HEAD
     const {setLastCreatedResource} = useContext(NewResourceContext)
+=======
+    const {setLastCreatedResourceId} = useContext(NewResourceContext)
+>>>>>>> main
 
     return (
         <Create
             mutationOptions={{
                 onSuccess: (data: any) => {
                     refetch()
+<<<<<<< HEAD
                     setLastCreatedResource({id: data.id, type: "sequent_backend_contest"})
+=======
+                    setLastCreatedResourceId(data.id)
+>>>>>>> main
                     redirect(`/sequent_backend_contest/${data.id}`)
                 },
             }}

@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use braid_messages::artifact::DkgPublicKey;
-use braid_messages::artifact::{Ballots, Configuration};
+use braid_messages::artifact::{DkgPublicKey, Channel, Ballots, Configuration};
 use braid_messages::message::Message;
 use braid_messages::newtypes::BatchNumber;
 use braid_messages::newtypes::PublicKeyHash;
@@ -15,6 +14,7 @@ use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
+use strand::symm::EncryptionData;
 use strand::util::StrandError;
 
 use anyhow::{anyhow, Context, Result};
@@ -113,8 +113,8 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
 #[instrument]
 pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     board_name: &str,
-    trustee_pub_key: &str
-) -> Result<C::E>
+    trustee_pub_key: &StrandSignaturePk
+) -> Result<EncryptionData>
 {
     let mut board = get_board_client().await?;
 
@@ -122,27 +122,21 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     let pks_message = messages
         .into_iter()
         .map(|message| Message::strand_deserialize(&message.message))
+        .filter_map(|message| message.ok())
         .find(|message| {
-            // TODO: Actually find the message with the encrypted private key
-            if let Ok(m) = message {
-                match m.statement.get_kind() {
-                    StatementType::PublicKey => true,
-                    _ => false,
-                }
-            } else {
-                false
-            }
+            message.statement.get_kind() == StatementType::Channel &&
+            message.sender.pk == *trustee_pub_key
         })
-        .with_context(|| format!("Public Key not found on board {}", board_name))??;
+        .with_context(|| format!("Private Key not found on board {}", board_name))?;
 
     let bytes = pks_message.artifact.with_context(|| {
         format!(
-            "Artifact missing on Public Key message on board {}",
+            "Artifact missing on Private Key message on board {}",
             board_name
         )
     })?;
-    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
-    Ok(dkgpk.pk)
+    let channel = Channel::<C>::strand_deserialize(&bytes).unwrap();
+    Ok(channel.encrypted_channel_sk)
 }
 
 pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuration<C>> {
