@@ -168,3 +168,42 @@ pub async fn set_tally_session_completed(
     let response_body: Response<set_tally_session_completed::ResponseData> = res.json().await?;
     response_body.ok()
 }
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/update_tally_session_status.graphql",
+    response_derives = "Debug,Clone,Deserialize,Serialize"
+)]
+pub struct UpdateTallySessionStatus;
+
+#[instrument(skip(auth_headers))]
+pub async fn update_tally_session_status(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    tally_session_id: String,
+    status: TallyCeremonyStatus,
+    execution_status: TallyExecutionStatus,
+) -> Result<Response<update_tally_session_status::ResponseData>> {
+    let variables = update_tally_session_status::Variables {
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        status: Some(serde_json::to_value(status)?),
+        execution_status: Some(execution_status.to_string()),
+    };
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = UpdateTallySessionStatus::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<update_tally_session_status::ResponseData> = res.json().await?;
+    response_body.ok()
+}

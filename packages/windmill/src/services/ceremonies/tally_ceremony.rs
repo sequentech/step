@@ -40,7 +40,7 @@ pub async fn get_tally_session(
         .ok_or(anyhow!("Tally session not found {}", tally_session_id))
 }
 
-pub fn get_tally_ceremony(input: Option<Value>) -> Result<TallyCeremonyStatus> {
+pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonyStatus> {
     input
         .map(|value| {
             from_value(value)

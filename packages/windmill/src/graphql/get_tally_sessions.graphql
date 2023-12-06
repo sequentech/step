@@ -19,6 +19,9 @@ query GetTallySessions(
         election_ids
         area_ids
         is_execution_completed
+        keys_ceremony_id
+        execution_status
+        status
   }
 }
 
