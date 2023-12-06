@@ -641,7 +641,7 @@ const englishTranslation = {
                 method: "Tally Method",
                 elegible: "Elegible Voters",
                 number: "Number of Votes",
-                turnout: "Turnout",
+                turnout: "Turnout (%)",
             }
         },
     },

@@ -11,7 +11,7 @@ import Checkbox from "@mui/material/Checkbox"
 import {ElectionStatusItem} from "@/components/ElectionStatusItem"
 import styled from "@emotion/styled"
 import {Box, LinearProgress, Typography, linearProgressClasses} from "@mui/material"
-import { useTranslation } from 'react-i18next'
+import {useTranslation} from "react-i18next"
 
 // interface TallyElectionsResultsProps {
 //     update: (elections: Array<string>) => void
@@ -23,7 +23,15 @@ export const TallyElectionsResults: React.FC = () => {
 
     const [electionsData, setElectionsData] = useState<
         Array<
-            Sequent_Backend_Election & {rowId: number; id: string; status: string; progress: number}
+            Sequent_Backend_Election & {
+                rowId: number
+                id: string
+                status: string
+                method: string
+                voters: number
+                number: number
+                turnout: number
+            }
         >
     >([])
 
@@ -43,7 +51,10 @@ export const TallyElectionsResults: React.FC = () => {
                 id: election.id || "",
                 name: election.name,
                 status: election.status || "",
-                progress: election.progress,
+                method: election.method,
+                voters: election.voters,
+                number: election.number,
+                turnout: election.turnout,
             }))
             setElectionsData(temp)
         }
@@ -57,57 +68,34 @@ export const TallyElectionsResults: React.FC = () => {
             editable: false,
         },
         {
-            field: "status",
-            headerName: t("tally.table.status"),
+            field: "method",
+            headerName: t("tally.table.method"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) => {
-                return (
-                    <ElectionStatusItem name={props["value"] !== "" ? props["value"] : "Pending"} />
-                )
-            },
+            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] || "-",
         },
         {
-            field: "progress",
-            headerName: t("tally.table.progress"),
+            field: "elegible",
+            headerName: t("tally.table.elegible"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => {
-                let rand: number = Math.floor(Math.random() * (100 + 1) + 0)
-                return (
-                    <ProgressBarDiv>
-                        <BorderLinearProgress variant="determinate" value={rand} />
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{marginLeft: "1rem", display: "flex", justifyContent: "end"}}
-                        >
-                            {rand}%
-                        </Typography>
-                    </ProgressBarDiv>
-                )
-            },
+            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || 0,
+        },
+        {
+            field: "number",
+            headerName: t("tally.table.number"),
+            flex: 1,
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || 0,
+        },
+        {
+            field: "turnout",
+            headerName: t("tally.table.turnout"),
+            flex: 1,
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, number>) => `${props["value"] || 0}%`,
         },
     ]
-
-    const ProgressBarDiv = styled.div`
-        width: 100%;
-        max-width: 18rem;
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-    `
-
-    const BorderLinearProgress = styled(LinearProgress)(({theme}) => ({
-        height: 4,
-        width: "100%",
-        [`&.${linearProgressClasses.colorPrimary}`]: {
-            backgroundColor: theme.palette.grey[theme.palette.mode === "light" ? 200 : 800],
-        },
-        [`& .${linearProgressClasses.bar}`]: {
-            backgroundColor: theme.palette.brandColor,
-        },
-    }))
 
     return (
         <DataGrid

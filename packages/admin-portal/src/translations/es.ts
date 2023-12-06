@@ -643,7 +643,7 @@ const spanishTranslation: TranslationType = {
                 method: "Método de Recuento",
                 elegible: "Votantes Elegibles",
                 number: "Número de Votos",
-                turnout: "Participación",
+                turnout: "Participación (%)",
             },
         },
     },
