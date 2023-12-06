@@ -3,16 +3,52 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::area::get_election_event_areas;
 use crate::hasura::keys_ceremony::get_keys_ceremony;
+use crate::hasura::tally_session::get_tally_sessions;
 use crate::hasura::tally_session::insert_tally_session;
 use crate::services::celery_app::get_celery_app;
+use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
 use crate::tasks::connect_tally_ceremony::connect_tally_ceremony;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
+use serde_json::{from_value, Value};
 use std::collections::HashSet;
-use uuid::Uuid;
 use tracing::{event, instrument, Level};
+use uuid::Uuid;
+
+pub async fn get_tally_session(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    tally_session_id: String,
+) -> Result<GetTallySessionsSequentBackendTallySession> {
+    // fetch tally_sessions
+    let tally_sessions = get_tally_sessions(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+    )
+    .await?
+    .data
+    .expect("expected data")
+    .sequent_backend_tally_session;
+
+    tally_sessions
+        .into_iter()
+        .find(|x| x.id == tally_session_id)
+        .ok_or(anyhow!("Tally session not found {}", tally_session_id))
+}
+
+pub fn get_tally_ceremony(input: Option<Value>) -> Result<TallyCeremonyStatus> {
+    input
+        .map(|value| {
+            from_value(value)
+                .map_err(|err| anyhow!("Error parsing tally ceremony status: {:?}", err))
+        })
+        .ok_or(anyhow!("Missing tally ceremony status"))
+        .flatten()
+}
 
 pub async fn find_keys_ceremony(
     auth_headers: connection::AuthHeaders,
@@ -160,6 +196,10 @@ pub async fn create_tally_ceremony(
             tally_session_id.clone(),
         ))
         .await?;
-    event!(Level::INFO, "Sent connect_tally_ceremony task {}", task.task_id);
+    event!(
+        Level::INFO,
+        "Sent connect_tally_ceremony task {}",
+        task.task_id
+    );
     Ok(keys_ceremony_id)
 }
