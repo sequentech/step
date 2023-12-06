@@ -142,7 +142,10 @@ const englishTranslation = {
                 sms: "SMS",
                 mail: "Mails",
                 spanish: "Spanish",
-                english: "English"
+                english: "English",
+                createNew: "Create Election Type",
+                emptyHeader: "No Election Types yet.",
+                emptyBody: "Do you want to create one?",
             },
             create: {
                 title: "Create Election Type",

@@ -144,7 +144,10 @@ const spanishTranslation: TranslationType = {
                 sms: "SMS",
                 mail: "Mails",
                 spanish: "Spanish",
-                english: "English"
+                english: "English",
+                createNew: "Crear un Tipo de Elección",
+                emptyHeader: "No hay Tipos de Elección aún.",
+                emptyBody: "¿Quieres crear uno?",
             },
             create: {
                 title: "Crear Tipo de Elección",

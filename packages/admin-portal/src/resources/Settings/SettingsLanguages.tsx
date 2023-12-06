@@ -34,8 +34,8 @@ export const SettingsLanguages: React.FC<void> = () => {
     })
 
     const [setting, setSetting] = useState<any>({
+        english: record?.settings?.english || true,
         spanish: record?.settings?.spanish || false,
-        english: record?.settings?.english || false,
     })
 
     const handleToggle = (method: any) => {
@@ -50,8 +50,8 @@ export const SettingsLanguages: React.FC<void> = () => {
             save({
                 settings: {
                     ...(record?.settings ? record.settings : {}),
-                    spanish: updatedSetting.spanish,
                     english: updatedSetting.english,
+                    spanish: updatedSetting.spanish,
                 },
             })
         }
@@ -60,8 +60,8 @@ export const SettingsLanguages: React.FC<void> = () => {
     useEffect(() => {
         if (record.settings) {
             setSetting({
+                english: record?.settings?.english || true,
                 spanish: record?.settings?.spanish || false,
-                english: record?.settings?.english || false,
             })
         }
     }, [record])
