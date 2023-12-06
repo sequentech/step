@@ -18,7 +18,7 @@ jobs:
             file: packages/Dockerfile.prod
           - service: harvest
             context: packages
-            file: packages/harvest/Dockerfile
+            file: packages/harvest/Dockerfile.prod
           - service: braid
             context: packages
             file: packages/braid/Dockerfile
