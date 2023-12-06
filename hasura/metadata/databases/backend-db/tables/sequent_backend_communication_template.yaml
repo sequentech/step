@@ -1,0 +1,131 @@
+table:
+  name: communication_template
+  schema: sequent_backend
+insert_permissions:
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - annotations
+    - labels
+    - template
+    - communication_method
+    - communication_type
+    - created_by
+    - created_at
+    - updated_at
+    - election_event_id
+    - id
+    - tenant_id
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - annotations
+    - labels
+    - template
+    - communication_method
+    - communication_type
+    - created_by
+    - created_at
+    - updated_at
+    - election_event_id
+    - id
+    - tenant_id
+  role: service-account
+select_permissions:
+- comment: ""
+  permission:
+    columns:
+    - annotations
+    - labels
+    - template
+    - communication_method
+    - communication_type
+    - created_by
+    - created_at
+    - updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    columns:
+    - annotations
+    - labels
+    - template
+    - communication_method
+    - communication_type
+    - created_by
+    - created_at
+    - updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: service-account
+- comment: ""
+  permission:
+    columns:
+    - annotations
+    - labels
+    - template
+    - communication_method
+    - communication_type
+    - created_by
+    - created_at
+    - updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: user
+update_permissions:
+- comment: ""
+  permission:
+    check: null
+    columns:
+    - annotations
+    - labels
+    - template
+    - communication_method
+    - communication_type
+    - created_by
+    - created_at
+    - updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    check: null
+    columns:
+    - annotations
+    - labels
+    - template
+    - communication_method
+    - communication_type
+    - created_by
+    - created_at
+    - updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: service-account
+delete_permissions:
+- comment: ""
+  permission:
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    filter: {}
+  role: service-account

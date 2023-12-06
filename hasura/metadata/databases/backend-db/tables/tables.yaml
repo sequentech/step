@@ -3,6 +3,7 @@
 - "!include sequent_backend_ballot_style.yaml"
 - "!include sequent_backend_candidate.yaml"
 - "!include sequent_backend_cast_vote.yaml"
+- "!include sequent_backend_communication_template.yaml"
 - "!include sequent_backend_contest.yaml"
 - "!include sequent_backend_document.yaml"
 - "!include sequent_backend_election.yaml"
