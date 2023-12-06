@@ -9,9 +9,7 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
-use sequent_core::types::ceremonies::{
-    CeremonyStatus, ExecutionStatus
-};
+use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus};
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};

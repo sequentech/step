@@ -5,6 +5,9 @@ mutation InsertTallySession(
   $trusteeIds: [uuid!]!,
   $areaIds: [uuid!]!,
   $tallySessionId: uuid!,
+  $keysCeremonyId: uuid!,
+  $executionStatus: String,
+  $status: jsonb
 ) {
   insert_sequent_backend_tally_session(
     objects:
@@ -14,7 +17,10 @@ mutation InsertTallySession(
       election_ids: $electionIds,
       trustee_ids: $trusteeIds,
       area_ids: $areaIds,
-      id: $tallySessionId
+      id: $tallySessionId,
+      keys_ceremony_id: $keysCeremonyId,
+      execution_status: $executionStatus,
+      status: $status
     }
   ) {
     returning {
@@ -28,6 +34,10 @@ mutation InsertTallySession(
       election_ids
       trustee_ids
       area_ids
+      is_execution_completed
+      keys_ceremony_id
+      execution_status
+      status
     }
   }
 }

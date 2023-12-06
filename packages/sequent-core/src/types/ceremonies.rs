@@ -7,6 +7,7 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 use strum_macros::EnumString;
+use std::default::Default;
 
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
 pub enum ExecutionStatus {
@@ -45,8 +46,9 @@ pub struct CeremonyStatus {
 }
 
 
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, Default)]
 pub enum TallyExecutionStatus {
+    #[default]
     NOT_STARTED,
     IN_PROCESS,
     SUCCESS,
@@ -54,21 +56,23 @@ pub enum TallyExecutionStatus {
 }
 
 
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, Default)]
 pub enum TallyTrusteeStatus {
+    #[default]
     WAITING,
     KEY_RESTORED,
     KEY_CHECKED,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct TallyTrustee {
     pub name: String,
     pub status: TallyTrusteeStatus,
 }
 
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, Default)]
 pub enum TallyElectionStatus {
+    #[default]
     WAITING,
     MIXING,
     DECRYPTING,
@@ -77,17 +81,16 @@ pub enum TallyElectionStatus {
     ERROR,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct TallyElection {
-    election_id: String,
-    status: TallyElectionStatus,
-    progress: f64,
+    pub election_id: String,
+    pub status: TallyElectionStatus,
+    pub progress: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct TallyCeremonyStatus {
     pub stop_date: Option<String>,
-    pub public_key: Option<String>,
     pub logs: Vec<Log>,
     pub trustees: Vec<TallyTrustee>,
     pub elections_status: Vec<TallyElection>,

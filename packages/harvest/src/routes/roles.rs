@@ -4,9 +4,7 @@
 use crate::services::authorization::authorize;
 
 use crate::types::optional::OptionalId;
-use crate::types::resources::{
-    Aggregate, DataList, TotalAggregate,
-};
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;

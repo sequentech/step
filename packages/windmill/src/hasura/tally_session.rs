@@ -6,6 +6,8 @@ use braid_messages::newtypes::BatchNumber;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use sequent_core::services::connection;
+use sequent_core::types::ceremonies::{TallyCeremonyStatus, TallyExecutionStatus};
+use serde_json;
 use std::env;
 use tracing::instrument;
 
@@ -71,6 +73,9 @@ pub async fn insert_tally_session(
     trustee_ids: Vec<String>,
     area_ids: Vec<String>,
     tally_session_id: String,
+    keys_ceremony_id: String,
+    execution_status: TallyExecutionStatus,
+    status: TallyCeremonyStatus,
 ) -> Result<Response<insert_tally_session::ResponseData>> {
     let variables = insert_tally_session::Variables {
         tenant_id: tenant_id,
@@ -79,6 +84,9 @@ pub async fn insert_tally_session(
         trustee_ids: trustee_ids,
         area_ids: area_ids,
         tally_session_id: tally_session_id,
+        keys_ceremony_id: keys_ceremony_id,
+        execution_status: Some(execution_status.to_string()),
+        status: Some(serde_json::to_value(status)?),
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
