@@ -16,6 +16,7 @@ import {ElectionEventContextProvider} from "./providers/ElectionEventContextProv
 import {ElectionContextProvider} from "./providers/ElectionContextProvider"
 import {ContestContextProvider} from "./providers/ContestContextProvider"
 import {CandidateContextProvider} from "./providers/CandidateContextProvider"
+import NewResourceContextProvider from "./providers/NewResourceProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -25,17 +26,19 @@ root.render(
     <React.StrictMode>
         <AuthContextProvider>
             <TenantContextProvider>
-                <ElectionEventContextProvider>
-                    <ElectionContextProvider>
-                        <ContestContextProvider>
-                            <CandidateContextProvider>
-                                <ThemeProvider theme={fullAdminTheme}>
-                                    <AppWrapper />
-                                </ThemeProvider>
-                            </CandidateContextProvider>
-                        </ContestContextProvider>
-                    </ElectionContextProvider>
-                </ElectionEventContextProvider>
+                <NewResourceContextProvider>
+                    <ElectionEventContextProvider>
+                        <ElectionContextProvider>
+                            <ContestContextProvider>
+                                <CandidateContextProvider>
+                                    <ThemeProvider theme={fullAdminTheme}>
+                                        <AppWrapper />
+                                    </ThemeProvider>
+                                </CandidateContextProvider>
+                            </ContestContextProvider>
+                        </ElectionContextProvider>
+                    </ElectionEventContextProvider>
+                </NewResourceContextProvider>
             </TenantContextProvider>
         </AuthContextProvider>
     </React.StrictMode>

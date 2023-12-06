@@ -126,6 +126,9 @@ export default function ElectionEvents() {
     const {t} = useTranslation()
 
     const isArchivedElectionEvents = archivedElectionEvents === 1
+
+    const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
+
     function handleSearchChange(searchInput: string) {
         setSearchInput(searchInput)
     }
@@ -137,8 +140,6 @@ export default function ElectionEvents() {
     const isElectionEventActive = TREE_RESOURCE_NAMES.some(
         (route) => location.pathname.search(route) > -1
     )
-
-    const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
 
     let resultData = data
     if (!loading && data && data.sequent_backend_election_event) {

@@ -9,6 +9,8 @@ import styled from "@emotion/styled"
 import Stats from "../Stats"
 import VotesByDay from "../charts/VoteByDay"
 import VotesByChannel from "../charts/VoteByChannels"
+import {useRecordContext} from "react-admin"
+import {Sequent_Backend_Election} from "@/gql/graphql"
 
 const Container = styled(Box)`
     display: flex;
@@ -20,6 +22,8 @@ export default function DashboardElection() {
     const cardWidth = 470
     const cardHeight = 250
 
+    const record = useRecordContext<Sequent_Backend_Election>()
+
     return (
         <>
             <Box sx={{width: 1024, marginX: "auto"}}>
@@ -28,7 +32,12 @@ export default function DashboardElection() {
 
                     <Container>
                         <VotesByDay width={cardWidth} height={cardHeight} />
-                        <VotesByChannel width={cardWidth} height={cardHeight} />
+                        <VotesByChannel
+                            electionEventId={record.election_event_id}
+                            electionId={record.id}
+                            width={cardWidth}
+                            height={cardHeight}
+                        />
                     </Container>
                 </Box>
             </Box>
