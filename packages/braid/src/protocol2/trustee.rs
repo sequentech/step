@@ -345,7 +345,7 @@ impl<C: Ctx> Trustee<C> {
         &self,
         hash: &ChannelHash,
         signer_position: TrusteePosition,
-    ) -> Option<Channel<C>> {
+    ) -> Result<Channel<C>> {
         self.local_board.get_channel(hash, signer_position)
     }
 
@@ -353,7 +353,7 @@ impl<C: Ctx> Trustee<C> {
         &self,
         hash: &SharesHash,
         signer_position: TrusteePosition,
-    ) -> Option<Shares<C>> {
+    ) -> Result<Shares<C>> {
         self.local_board.get_shares(hash, signer_position)
     }
 
@@ -361,7 +361,7 @@ impl<C: Ctx> Trustee<C> {
         &self,
         hash: &PublicKeyHash,
         signer_position: TrusteePosition,
-    ) -> Option<DkgPublicKey<C>> {
+    ) -> Result<DkgPublicKey<C>> {
         self.local_board.get_dkg_public_key(hash, signer_position)
     }
 
@@ -370,7 +370,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Ballots<C>> {
+    ) -> Result<Ballots<C>> {
         self.local_board.get_ballots(hash, batch, signer_position)
     }
 
@@ -379,7 +379,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Mix<C>> {
+    ) -> Result<Mix<C>> {
         self.local_board.get_mix(hash, batch, signer_position)
     }
 
@@ -388,7 +388,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<DecryptionFactors<C>> {
+    ) -> Result<DecryptionFactors<C>> {
         self.local_board
             .get_decryption_factors(hash, batch, signer_position)
     }
@@ -398,7 +398,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Plaintexts<C>> {
+    ) -> Result<Plaintexts<C>> {
         self.local_board
             .get_plaintexts(hash, batch, signer_position)
     }

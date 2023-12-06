@@ -19,7 +19,7 @@ pub(crate) mod tests {
 
     const INDEX_DB: &'static str = "testindexdb";
     const BOARD_DB: &'static str = "testdb";
-    const DUMMY_H: [u8; 64] = [0u8; 64];
+    const DUMMY_H: [u8; 64] = [1u8; 64];
 
     async fn set_up() -> BoardClient {
         let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb").await.unwrap();
