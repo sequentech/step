@@ -3,10 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use keycloak::types::UserRepresentation;
+use serde_json::Value;
+use std::collections::HashMap;
 use std::convert::From;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
+use uuid::Uuid;
 
 impl From<UserRepresentation> for User {
     fn from(item: UserRepresentation) -> Self {
@@ -17,8 +20,37 @@ impl From<UserRepresentation> for User {
             email_verified: item.email_verified.clone(),
             enabled: item.enabled.clone(),
             first_name: item.first_name.clone(),
-            groups: item.groups.clone(),
             last_name: item.last_name.clone(),
+            username: item.username.clone(),
+        }
+    }
+}
+
+impl From<User> for UserRepresentation {
+    fn from(item: User) -> Self {
+        UserRepresentation {
+            access: None,
+            attributes: item.attributes.clone(),
+            client_consents: None,
+            client_roles: None,
+            created_timestamp: None,
+            credentials: None,
+            disableable_credential_types: None,
+            email: item.email.clone(),
+            email_verified: item.email_verified.clone(),
+            enabled: item.enabled.clone(),
+            federated_identities: None,
+            federation_link: None,
+            first_name: item.first_name.clone(),
+            groups: None,
+            id: item.id.clone(),
+            last_name: item.last_name.clone(),
+            not_before: None,
+            origin: None,
+            realm_roles: None,
+            required_actions: None,
+            self_: None,
+            service_account_client_id: None,
             username: item.username.clone(),
         }
     }
@@ -31,15 +63,125 @@ impl KeycloakAdminClient {
         realm: &str,
         search: Option<String>,
         email: Option<String>,
-        max: Option<i32>,
-    ) -> Result<Vec<User>> {
-        let users: Vec<UserRepresentation> = self
+        limit: Option<i32>,
+        offset: Option<i32>,
+    ) -> Result<(Vec<User>, i32)> {
+        let user_representations: Vec<UserRepresentation> = self
             .client
             .realm_users_get(
-                realm, None, email, None, None, None, None, None, None, None,
-                None, max, None, search, None,
+                realm.clone(),
+                Some(false),
+                email.clone(),
+                None,
+                None,
+                None,
+                offset.clone(),
+                None,
+                None,
+                None,
+                None,
+                limit.clone(),
+                None,
+                search.clone(),
+                None,
             )
-            .await?;
-        Ok(users.into_iter().map(|user| user.into()).collect())
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        let count: i32 = self
+            .client
+            .realm_users_count_get(
+                realm, email, None, None, None, None, search, None,
+            )
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        let users = user_representations
+            .into_iter()
+            .map(|user| user.into())
+            .collect();
+        Ok((users, count))
+    }
+
+    #[instrument(skip(self))]
+    pub async fn edit_user(
+        self,
+        realm: &str,
+        user_id: &str,
+        enabled: Option<bool>,
+        attributes: Option<HashMap<String, Value>>,
+        email: Option<String>,
+        first_name: Option<String>,
+        last_name: Option<String>,
+        username: Option<String>,
+    ) -> Result<User> {
+        let mut current_user: UserRepresentation = self
+            .client
+            .realm_users_with_id_get(realm, user_id)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+
+        current_user.enabled = match enabled {
+            Some(val) => Some(val),
+            None => current_user.enabled,
+        };
+
+        current_user.attributes = match attributes {
+            Some(val) => {
+                let mut new_attributes =
+                    current_user.attributes.unwrap_or(HashMap::new());
+                for (key, value) in val.iter() {
+                    new_attributes.insert(key.clone(), value.clone());
+                }
+                Some(new_attributes)
+            }
+            None => current_user.attributes,
+        };
+
+        current_user.email = match email {
+            Some(val) => Some(val),
+            None => current_user.email,
+        };
+
+        current_user.first_name = match first_name {
+            Some(val) => Some(val),
+            None => current_user.first_name,
+        };
+
+        current_user.last_name = match last_name {
+            Some(val) => Some(val),
+            None => current_user.last_name,
+        };
+
+        current_user.username = match username {
+            Some(val) => Some(val),
+            None => current_user.username,
+        };
+
+        self.client
+            .realm_users_with_id_put(realm, user_id, current_user.clone())
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+
+        Ok(current_user.into())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn delete_user(self, realm: &str, user_id: &str) -> Result<()> {
+        self.client
+            .realm_users_with_id_delete(realm, user_id)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn create_user(self, realm: &str, user: &User) -> Result<User> {
+        let mut new_user = user.clone();
+        let new_user_id = new_user.id.clone().unwrap_or(Uuid::new_v4().to_string());
+        new_user.id =Some(new_user_id.clone());
+        self.client
+            .realm_users_post(realm, new_user.clone().into())
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(new_user.clone())
     }
 }

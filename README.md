@@ -32,9 +32,13 @@ using them and continue development:
   - `master` realm:
     - Username: `admin`
     - Password: `admin`
-  - `electoral-process` realm (used through the react frontend):
-    - Username: `edu`
-    - Password: `edu`
+    - Telephone `+34666000222` (ends in `0222`)
+    - Configure an OTP method the first time
+  - election event realm (used through the react frontend for voting portal):
+    - Username: `felix`
+    - Password: `felix`
+    - Telephone `+34666000111` (ends in `0111`)
+    - Configure an OTP method the first time
 - **Hasura console** at [http://127.0.0.1:8080].
   - This docker service has the `hasura/migrations` and `hasura/metadata`
   services mounted, so that you can work transparently on that and it's synced
@@ -52,12 +56,32 @@ using them and continue development:
     - Password: `immudb`
   - To create the index db, run:
       `/workspaces/backend-services/packages/target/debug/bb_helper --cache-dir /tmp/cache -s http://immudb:3322 -i indexdb -u immudb -p immudb upsert-init-db -l debug`
-- \[TODO\] **Rust Rocket service** at [http://127.0.0.1:8000]
 
 Additionally, this dev container comes with:
  - Relevant VS Code plugins installed
  - `cargo run` and `yarn install` pre-run so that you don't have to spend time
    waiting for setting up the enviroment the first time.
+
+## Developing `admin-portal`
+
+To launch the `admin-portal` in development mode, execute (the first time):
+
+```bash
+cd /workspaces/backend-services/packages/
+yarn && yarn build:ui-essentials # only needed the first time
+yarn start:admin
+```
+
+For subsequent runs, you only need:
+
+```bash
+cd /workspaces/backend-services/packages/
+yarn start:admin
+```
+
+Then it should open the admin-portal in the web browser, or else enter 
+in [http://127.0.0.1:3002/]
+
 
 ### Workspaces
 
@@ -180,23 +204,72 @@ automatically run docker compose logs on start up, for convenience.
 
 You can enter the Immudb web console at http://localhost:3325 and the user/pass is `immudb:immudb`.
 
-### Export keycloak realm with users
+### Keycloak default realms
 
-If you want to export a realm configuration but you don't need the users,
-you can do it from the realm console, going to the `Realm settings` and
-clicking on `Action` > `Partial export`.
+The deployment has 2 default Keycloak realms created by default, one for the
+default tenant and another for the default election event inside that tenant.
 
-However that won't export users. You can export them by running this:
+Those two realms are automatically imported into Keycloak in the Dev Containers 
+from the `.devcontainer/keycloak/import/` directory.
+
+Additionally, each tenant and election event have an associated realm. In the
+Dev Containers, we use the same `.devcontainer/keycloak/import/` files to be the
+templates for the creation of realms associated to a new tenant or a new
+election event. These realms are created if they don't exist when the `keycloak`
+container is started.
+
+If you change the configuration of the default tenant realm and want to update
+it in `.devcontainer/keycloak/import/` to be used for the default tenant and as
+a template for new tenants, you can export it running the following commands:
 
 ```bash
-docker compose exec keycloak sh -c '/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm electoral-process'
-docker compose exec keycloak sh -c 'cat /tmp/export.json' > file.json
+export REALM="tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5"
+cd /workspaces/backend-services/.devcontainer
+docker compose exec keycloak sh -c "/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm ${REALM}"
+docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/import/${REALM}.json
 ```
 
-Then you'll find the export -including users- in the `file.json`. You
-can then for example update the file `.devcontainer/keycloak/import/electoral-process-realm.json`
-if you want to automatically import that data when the container is
-created.
+You can change `REALM` to be `"tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559"` to export and update the configuration of the default election event:
+
+```bash
+export REALM="tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559"
+cd /workspaces/backend-services/.devcontainer
+docker compose exec keycloak sh -c "/opt/keycloak/bin/kc.sh export --file /tmp/export.json --users same_file --realm ${REALM}"
+docker compose exec keycloak sh -c 'cat /tmp/export.json' > keycloak/import/${REALM}.json
+```
+
+Whenever a realm is updated, there's a chance that the assocated JWK used have
+changed. This JWK is used to verify the JWT that is received from keycloak.
+These keys are configured in S3/minio in the `.devcontainer/minio/certs.json`
+file via the `configure-minio` helper docker service. If the keys changed and we
+don't update the keys serviced by minio/s3, then the admin-portal or the
+voting-booth might show some errors because this JWT verification fails.
+
+To fix that issue by updating the JWK serviced by minio, perform the following
+2 steps:
+
+1. Update the `.devcontainer/minio/certs.json` file: 
+
+```bash
+cd /workspaces/backend-services/.devcontainer
+[ -f /tmp/combined.json ] && rm /tmp/combined.json
+export FILES=$(ls keycloak/import/)
+for FILE in $FILES; do
+  curl http://keycloak:8090/realms/${FILE%.json}/protocol/openid-connect/certs | python -m json.tool > /tmp/certs.json
+  [ -f /tmp/combined.json ] && jq -s '{keys: (.[0].keys + .[1].keys)}' /tmp/certs.json /tmp/combined.json > /tmp/combined.json
+  [ ! -f /tmp/combined.json ] && cp /tmp/certs.json /tmp/combined.json
+done
+ls -lah /tmp/certs.json /tmp/combined.json
+cp /tmp/combined.json minio/certs.json
+```
+
+2. Rerun the `configure-minio` docker service to update the certificate serviced
+   by `minio`:
+  
+```bash
+cd /workspaces/backend-services/.devcontainer/
+docker compose build configure-minio && docker compose up -d --no-deps configure-minio && docker compose logs -f configure-minio
+```
 
 ### Add Hasura migrations/changes
 
@@ -206,10 +279,10 @@ and open it in VS Code Desktop (not from the web). Then, in your local machine
 ensure that the `graphql-engine` server name is aliased to `127.0.0.1` in 
 `/etc/hosts`, or else this won't work.
 
-Also clone this github project on your local machine (so this is apart from running
-it on Codespaces), and from the `backend-services/hasura` folder, run this:
+Then run the following commands to run the console in port `9695`:
 
 ```bash
+cd /workspaces/backend-services/hasura/
 hasura console --endpoint "http://graphql-engine:8080" --admin-secret "admin"
 ```
 
@@ -232,7 +305,7 @@ to export the json schema from Hasura, specifically you'll need to run something
 like:
 
 ```bash
-cd packages/admin-portal/
+cd /workspaces/backend-services/packages/admin-portal/
 gq http://graphql-engine:8080/v1/graphql \
     -H "X-Hasura-Admin-Secret: admin" \
     --introspect  \
@@ -244,10 +317,29 @@ Afterwards, you need to regenerate the typescript auto-generated types using
 `graphql-codegen` with:
 
 ```bash
-yarn generate
+cd /workspaces/backend-services/packages/
+yarn generate:admin
 ```
 
-## Trustees
+Additionally, the same graphql schema file is needed in `windmill` to generate 
+the base types for Rust. To update them, execute the following:
+
+```bash
+cd /workspaces/backend-services/packages/windmill/
+gq http://graphql-engine:8080/v1/graphql \
+    -H "X-Hasura-Admin-Secret: admin" \
+    --introspect  \
+    --format json \
+    > src/graphql/schema.json
+cargo build
+```
+
+It might be the case that for example if you added some new field to an existing
+table, you will have to update some graphql query in
+`packages/windmill/src/graphql/` directory and the corresponding boilerplate
+code in `packages/windmill/src/hasura/`. Otherwise the build might fail.
+
+## Creating Trustees
 
 By default the trustees in this repo are configured to use a predefined configuration/
 set of keys. This is useful for development because these trustees are also added to
@@ -271,6 +363,22 @@ signing_key_pk = "YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k"
 ```
 
 Then add the trustee in the admin portal with the key, in this case `YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k`.
+
+## Running Trustees
+
+
+
+```bash
+# run windmill task generator
+cd /workspaces/backend-services/packages/windmill/
+cargo run --bin beat
+```
+
+```bash
+# run trustes
+cd /workspaces/backend-services/.devcontainer/
+docker compose up -d trustee1 trustee2
+```
 
 ## Vault
 
@@ -305,6 +413,109 @@ Finally you'll need to rebuild/restart harvest:
 
     docker compose stop harvest && docker compose build harvest && docker compose up -d --no-deps harvest
 
+## Update Sequent Core
+
+```bash
+cd packages/sequent-core
+wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+wasm-pack -v pack .
+
+# esto da un hash que hay que poner en 3 sitios en el yarn.lock de packages:
+
+"sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
+  version "0.1.0"
+  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
+
+"sequent-core@file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz":
+  version "0.1.0"
+  resolved "file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
+
+"sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
+  version "0.1.0"
+  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
+
+# luego ejecutar en packages/
+rm ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
+cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
+cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
+cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
+
+rm -rf node_modules voting-portal/node_modules ballot-verifier/node_modules
+
+# y luego:
+
+yarn && yarn build:ui-essentials
+
+# y luego ya funciona todo
+```
+
+
+## Create election event
+
+In order to be able to create an election event, you need:
+
+1. Run harvest:
+
+```bash
+cd /workspaces/backend-services/.devcontainer
+docker compose stop harvest; docker compose up -d --no-deps harvest
+```
+
+2. Run the vault:
+
+```bash
+cd /workspaces/backend-services/.devcontainer
+docker compose stop vault; docker compose up -d --no-deps vault
+```
+
+3. Go to `http://127.0.0.1:8201` and set 1 key (both fields), then note down the
+   `Initial root token` and `Key 1` or `Download keys` in JSON. Then click in
+   `Continue to Unseal`. Put `Key 1` (`keys[0]` in the downloaded keys) in
+   `Unseal Key Portion` and press `Unseal`. If it works, it will redirect to
+   `Sign in to Vault`. You can stop there.
+  
+4. We'll generate an `.env` file for windmill. Start copying the example:
+
+```bash
+cd /workspaces/backend-services/packages/windmill
+cp .env.example .env
+```
+
+5. Copy the `Initial root token` (`"root_token"` in the downloaded keys) to the
+   `VAULT_TOKEN` environment variable in the
+   `/workspaces/backend-services/packages/windmill/.env` file.
+
+6. Without windmill the async background tasks - like the creation of an
+   election event - won't happen. For this reason, next we're going to run
+   windmill:
+
+```bash
+cd /workspaces/backend-services/packages/windmill
+cargo run --bin main consume -q short_queue tally_queue beat reports_queue beat
+```
+
+7. Finally, we need to create the indexdb in immudb: 
+
+
+```bash
+cd /workspaces/backend-services/packages/immu-board
+cargo build && \
+../target/debug/bb_helper \
+  --server-url http://immudb:3322 \
+  --username immudb \
+  --password immudb \
+  --index-dbname indexdb \
+  --board-dbname 33f18502a67c48538333a58630663559 \
+  --cache-dir /tmp/immu-board upsert-init-db
+```
+
+Now you should be able to create election events. For debugging, you can watch the logs of `harvest` and `windmill` (it's already in one terminal):
+
+```bash
+# do this in one terminal
+cd /workspaces/backend-services/.devcontainer
+docker compose logs -f harvest
+```
 
 ## Common issues
 
@@ -371,6 +582,7 @@ Clean the disk with:
 ```bash
 docker system prune --all --force
 nix-collect-garbage
+cargo clean
 ```
 
 [cargo workspace]: https://doc.rust-lang.org/cargo/reference/workspaces.html

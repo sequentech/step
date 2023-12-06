@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Typography} from "@mui/material"
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     BreadCrumbSteps,
@@ -27,8 +27,9 @@ import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSl
 import {IElection, selectElectionById, setElection} from "../store/elections/electionsSlice"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {AppDispatch} from "../store/store"
-import {DISABLE_AUTH} from ".."
+import {DISABLE_AUTH} from "../Config"
 import {ELECTIONS_LIST} from "../fixtures/election"
+import {TenantEventContext} from ".."
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -55,10 +56,11 @@ interface ElectionWrapperProps {
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     const election = useAppSelector(selectElectionById(electionId))
+    const {tenantId, eventId} = useContext(TenantEventContext)
     const navigate = useNavigate()
 
     const onClickToVote = () => {
-        navigate(`/election/${electionId}/start`)
+        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/start`)
     }
 
     const formatDate = (dateStr: string): string => {
@@ -97,7 +99,6 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
                 id: election.id,
                 election_id: election.id,
                 election_event_id: election.id,
-                status: "open",
                 tenant_id: election.id,
                 ballot_eml: election,
                 ballot_signature: null,
@@ -132,7 +133,6 @@ const updateBallotStyleAndSelection = (data: GetBallotStylesQuery, dispatch: App
                 id: ballotStyle.id,
                 election_id: ballotStyle.election_id,
                 election_event_id: ballotStyle.election_event_id,
-                status: ballotStyle.status || undefined,
                 tenant_id: ballotStyle.tenant_id,
                 ballot_eml: electionData,
                 ballot_signature: ballotStyle.ballot_signature,

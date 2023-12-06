@@ -9,8 +9,7 @@ use sequent_core::services::connection;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::hasura;
-
-use crate::s3;
+use windmill::services::s3;
 
 #[derive(Deserialize, Debug)]
 pub struct GetDocumentUrlBody {
@@ -39,7 +38,7 @@ pub async fn fetch_document(
     )
     .await?;
 
-    let _document = &document_result
+    let document = &document_result
         .data
         .expect("expected data".into())
         .sequent_backend_document[0];
@@ -49,7 +48,12 @@ pub async fn fetch_document(
         input.election_event_id,
         input.document_id,
     );
-    let url = s3::get_document_url(document_s3_key).await?;
+    let bucket = if document.is_public.unwrap_or(false) {
+        s3::get_public_bucket()
+    } else {
+        s3::get_private_bucket()
+    };
+    let url = s3::get_document_url(document_s3_key, bucket).await?;
 
     Ok(Json(GetDocumentUrlResponse { url: url }))
 }

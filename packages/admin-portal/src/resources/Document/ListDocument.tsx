@@ -11,9 +11,9 @@ import {
     TextInput,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
 import {generateRowClickHandler} from "../../services/RowClickService"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 const OMIT_FIELDS = ["id"]
 
@@ -30,6 +30,7 @@ export interface ListDocumentProps {
 
 export const ListDocument: React.FC<ListDocumentProps & PropsWithChildren> = ({aside}) => {
     const [tenantId] = useTenantStore()
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
 
     const rowClickHandler = generateRowClickHandler(["election_event_id"], true)
 
@@ -37,7 +38,9 @@ export const ListDocument: React.FC<ListDocumentProps & PropsWithChildren> = ({a
         <>
             <Typography variant="h5">Documents</Typography>
             <List
-                actions={<ListActions withFilter={true} />}
+                actions={
+                    <ListActions open={openDrawer} setOpen={setOpenDrawer} withFilter={true} />
+                }
                 filter={{tenant_id: tenantId || undefined}}
                 aside={aside || <div>hey</div>}
                 filters={Filters}

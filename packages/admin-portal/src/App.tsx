@@ -13,19 +13,6 @@ import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
 import {CreateCandidate} from "./resources/Candidate/CreateCandidate"
 import {CreateContest} from "./resources/Contest/CreateContest"
 import {CreateDocument} from "./resources/Document/CreateDocument"
-import {CreateElection} from "./resources/Election/CreateElection"
-import {CreateElectionList} from "./resources/ElectionEvent/CreateElectionEvent"
-import {CreateTenant} from "./resources/Tenant/CreateTenant"
-import {CreateTrustee} from "./resources/Trustee/CreateTrustee"
-import {CustomLayout} from "./components/CustomLayout"
-import {EditArea} from "./resources/Area/EditArea"
-import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
-import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
-import {EditCandidate} from "./resources/Candidate/EditCandidate"
-import {EditContest} from "./resources/Contest/EditContest"
-import {EditElection} from "./resources/Election/EditElection"
-import {EditTenant} from "./resources/Tenant/EditTenant"
-import {EditTrustee} from "./resources/Trustee/EditTrustee"
 import {ElectionEventList} from "./resources/ElectionEvent/ElectionEventList"
 import {ListArea} from "./resources/Area/ListArea"
 import {ListAreaContest} from "./resources/AreaContest/ListAreaContest"
@@ -39,7 +26,6 @@ import {ListTrustee} from "./resources/Trustee/ListTrustee"
 import {Messages} from "./screens/Messages"
 import {PgAuditList} from "./resources/PgAudit/PgAuditList"
 import {Route} from "react-router-dom"
-import {Settings} from "./screens/Settings"
 import {ShowDocument} from "./resources/Document/ShowDocument"
 import {UserAndRoles} from "./screens/UserAndRoles"
 import buildHasuraProvider from "ra-data-hasura"
@@ -47,6 +33,28 @@ import {createApolloClient} from "./services/ApolloService"
 import {customBuildQuery} from "./queries/customBuildQuery"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {isNull} from "@sequentech/ui-essentials"
+import {SettingsScreen} from "./screens/SettingsScreen"
+import {ListUsers} from "./resources/User/ListUsers"
+import {CreateElectionList} from "./resources/ElectionEvent/CreateElectionEvent"
+import {CustomLayout} from "./components/CustomLayout"
+import {EditContest} from "./resources/Contest/EditContest"
+import {EditCandidate} from "./resources/Candidate/EditCandidate"
+import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
+import {EditArea} from "./resources/Area/EditArea"
+import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
+import {EditTenant} from "./resources/Tenant/EditTenant"
+import {CreateTenant} from "./resources/Tenant/CreateTenant"
+import {EditTrustee} from "./resources/Trustee/EditTrustee"
+import {CreateTrustee} from "./resources/Trustee/CreateTrustee"
+import {CreateElection} from "./resources/Election/CreateElection"
+import {ElectionBaseTabs} from "./resources/ElectionEvent/ElectionBaseTabs"
+import {CandidateBaseTabs} from "./resources/Candidate/CandidateBaseTabs"
+import {CreateCandidateData} from "./resources/Candidate/CreateCandidateData"
+import {ContestBaseTabs} from "./resources/Contest/ContestBaseTabs"
+import {CreateContestData} from "./resources/Contest/CreateContestData"
+import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectionsTypesCreate"
+import {adminI18nProvider} from "./services/AdminTranslation"
+import {useTranslation} from "react-i18next"
 
 export const AppWrapper = () => {
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
@@ -82,6 +90,9 @@ interface AppProps {
 
 const App: React.FC<AppProps> = ({apolloClient}) => {
     const [dataProvider, setDataProvider] = useState<DataProvider | null>(null)
+    const {i18n} = useTranslation()
+    adminI18nProvider.changeLocale(i18n.language)
+    i18n.on("languageChanged", (lng) => adminI18nProvider.changeLocale(lng))
 
     useEffect(() => {
         const buildDataProvider = async () => {
@@ -103,15 +114,18 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
             dataProvider={dataProvider || undefined}
             layout={CustomLayout}
             theme={fullAdminTheme}
+            i18nProvider={adminI18nProvider}
         >
             <CustomRoutes>
                 <Route path="/user-roles" element={<UserAndRoles />} />
-                <Route path="/settings" element={<Settings />} />
                 <Route path="/messages" element={<Messages />} />
+                <Route path="/settings" element={<SettingsScreen />} />
             </CustomRoutes>
+
             {
                 // <Resource name="pgaudit" list={PgAuditList} options={{label: "PGAudit"}} />
             }
+
             <Resource
                 name="sequent_backend_election_event"
                 list={ElectionEventList}
@@ -120,22 +134,34 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
                 show={ElectionEventBaseTabs}
                 options={{label: "Election Events", isMenuParent: true}}
             />
+
+            <Resource
+                name="sequent_backend_election_type"
+                create={SettingsElectionsTypesCreate}
+                edit={SettingsScreen}
+                show={SettingsScreen}
+                options={{label: "Election Type", isMenuParent: true}}
+            />
+
             <Resource
                 name="sequent_backend_election"
-                edit={EditElection}
                 list={ListElection}
                 create={CreateElection}
+                show={ElectionBaseTabs}
+                edit={ElectionBaseTabs}
                 options={{
                     label: "Elections",
                     menuParent: "sequent_backend_election_event",
                     foreignKeyFrom: "election_event_id",
                 }}
             />
+
             <Resource
                 name="sequent_backend_contest"
-                edit={EditContest}
                 list={ListContest}
                 create={CreateContest}
+                edit={ContestBaseTabs}
+                show={ContestBaseTabs}
                 options={{
                     label: "Contests",
                     menuParent: "sequent_backend_election",
@@ -144,9 +170,10 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
             />
             <Resource
                 name="sequent_backend_candidate"
-                edit={EditCandidate}
                 list={ListCandidate}
                 create={CreateCandidate}
+                edit={CandidateBaseTabs}
+                show={CandidateBaseTabs}
                 options={{
                     label: "Candidates",
                     menuParent: "sequent_backend_contest",
@@ -195,6 +222,7 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
                 create={CreateTrustee}
                 options={{label: "Trustee"}}
             />
+            <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
         </Admin>
     )
 }

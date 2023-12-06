@@ -4,6 +4,7 @@ mutation InsertTallySession(
   $electionIds: [uuid!]!,
   $trusteeIds: [uuid!]!,
   $areaIds: [uuid!]!,
+  $tallySessionId: uuid!,
 ) {
   insert_sequent_backend_tally_session(
     objects:
@@ -12,7 +13,8 @@ mutation InsertTallySession(
       election_event_id: $electionEventId,
       election_ids: $electionIds,
       trustee_ids: $trusteeIds,
-      area_ids: $areaIds
+      area_ids: $areaIds,
+      id: $tallySessionId
     }
   ) {
     returning {

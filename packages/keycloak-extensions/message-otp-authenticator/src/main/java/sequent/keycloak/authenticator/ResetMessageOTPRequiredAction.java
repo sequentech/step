@@ -2,7 +2,6 @@ package sequent.keycloak.authenticator;
 
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
-import org.jboss.logging.Logger;
 import lombok.extern.jbosslog.JBossLog;
 import jakarta.ws.rs.core.Response;
 import org.keycloak.authentication.InitiatedActionSupport;
@@ -14,7 +13,6 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
-import java.security.MessageDigest;
 import java.util.function.Consumer;
 import java.util.Optional;
 
@@ -146,6 +144,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
                 authSession
             );
         } catch (Exception error) {
+			log.infov("there was an error {0}", error);
 			context.failure();
         }
 

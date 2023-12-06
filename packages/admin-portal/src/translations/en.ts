@@ -129,6 +129,33 @@ const englishTranslation = {
             },
             createAreaSuccess: "Area created",
             createAreaError: "Could not create Area",
+            sequent_backend_area_contest: "Contests",
+        },
+        electionTypeScreen: {
+            common: {
+                title: "Election Type",
+                subtitle: "Election type configuration",
+                onlineVoting: "Online Voting",
+                kioskVoting: "Kiosk Voting",
+                settingTitle: "Settings",
+                settingSubtitle: "General Configuration",
+            },
+            create: {
+                title: "Create Election Type",
+            },
+            edit: {
+                title: "Edit Election Type",
+            },
+            tabs: {
+                votingChannels: "VOTING CHANELS",
+                electionTypes: "ELECTION TYPES",
+                communications: "COMMUNICATION",
+                languages: "LANGUAGES",
+            },
+        },
+        dashboard: {
+            voteByDay: "Vote by day",
+            voteByChannels: "Vote by channels",
         },
         electionEventScreen: {
             common: {
@@ -142,19 +169,247 @@ const englishTranslation = {
             },
             field: {
                 name: "Name",
+                alias: "Alias",
+                description: "Description",
+                startDateTime: "Start Date and Time",
+                endDateTime: "End Date and Time",
+                language: "Language",
+                votingChannels: "Voting Channels",
+            },
+            error: {
+                endDate: "End date must be after start date",
+            },
+            voters: {
+                title: "Voters",
+            },
+            createElectionEventSuccess: "Election Event created",
+            createElectionEventError: "Error creating election event",
+            stats: {
+                elegibleVoters: "Elegible voters",
+                elections: "Elections",
+                areas: "Areas",
+                sentEmails: "Emails sent",
+                sentSMS: "SMS sent",
+                calendar: {
+                    title: "Calendar",
+                    scheduled: "Scheduled",
+                },
+            },
+            keys: {
+                createNew: "Create Keys Ceremony",
+                emptyHeader: "No Keys Ceremony yet.",
+                emptyBody: "Do you want to create one?",
+                statusLabel: "Status",
+                breadCrumbs: {
+                    configure: "Configure",
+                    ceremony: "Ceremony",
+                    created: "Finished",
+                },
+            },
+            tabs: {
+                dashboard: "Dashboard",
+                data: "Data",
+                voters: "Voters",
+                areas: "Areas",
+                keys: "Keys",
+                tally: "Tally",
+                publish: "Publish",
+                logs: "Logs",
+            },
+        },
+        electionScreen: {
+            common: {
+                title: "Election",
+                subtitle: "Election configuration.",
+                fileLoaded: "File loaded",
+            },
+            edit: {
+                general: "General",
+                dates: "Dates",
+                language: "Language",
+                allowed: "Voting Channels Allowed",
+                default: "Default",
+                receipts: "Receipts",
+                image: "Image",
+                advanced: "Advanced Configuration",
+            },
+            field: {
+                name: "Name",
                 language: "Language",
                 votingChannels: "Voting Channels",
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
+                alias: "Alias",
+                description: "Description",
+            },
+            error: {
+                endDate: "End date must be after start date",
+                fileError: "Error uploading file",
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
+            tabs: {
+                dashboard: "Dashboard",
+                data: "Data",
+                voters: "Voters",
+                publish: "Publish",
+                logs: "Logs",
+            },
+        },
+        tenantScreen: {
+            common: {
+                title: "Client",
+            },
+            new: {
+                subtitle: "Create Client",
+            },
+            createSuccess: "Customer created",
+            createError: "Error creating customer",
+        },
+        usersAndRolesScreen: {
+            common: {
+                title: "Users and Roles",
+                subtitle: "General configuration",
+            },
+            users: {
+                title: "Users",
+                subtitle: "View and edit user data",
+                edit: {
+                    title: "User Data",
+                    subtitle: "View and edit user",
+                },
+                create: {
+                    title: "User",
+                    subtitle: "Create user",
+                },
+                fields: {
+                    username: "Username",
+                    first_name: "First Name",
+                    last_name: "Last Name",
+                    email: "Email",
+                    enabled: "Enabled",
+                    emailVerified: "Email Verified",
+                    groups: "Groups",
+                    attributes: "Attributes",
+                    area: "Area",
+                },
+                delete: {
+                    body: "Are you sure you want to delete this user?",
+                },
+                notifications: {
+                    deleteError: "Error deleting user",
+                    deleteSuccess: "User deleted",
+                },
+            },
+            voters: {
+                title: "Voters",
+                subtitle: "View and edit voter data",
+                create: {
+                    title: "Voter",
+                    subtitle: "Create voter",
+                },
+                errors: {
+                    editError: "Error editing voter",
+                    editSuccess: "Voter edited",
+                    createError: "Error creating voter",
+                    createSuccess: "Voter created",
+                },
+                delete: {
+                    body: "Are you sure you want to delete this voter?",
+                },
+                notifications: {
+                    deleteError: "Error deleting voter",
+                    deleteSuccess: "Voter deleted",
+                },
+            },
+            roles: {
+                title: "Roles",
+                edit: {
+                    title: "Role Data",
+                    subtitle: "View and edit role",
+                },
+                create: {
+                    title: "Role",
+                    subtitle: "Create role",
+                },
+                errors: {
+                    createError: "Error creating role",
+                    createSuccess: "Role created",
+                },
+                fields: {
+                    name: "Name",
+                },
+                delete: {
+                    body: "Are you sure you want to delete this role?",
+                },
+                notifications: {
+                    deleteError: "Error deleting role",
+                    deleteSuccess: "Role deleted",
+                    permissionEditError: "Error editing permission",
+                    permissionEditSuccess: "Permission edited",
+                },
+            },
+            permissions: {
+                "tenant-create": "Create Tenant",
+                "tenant-read": "Read Tenant",
+                "tenant-write": "Edit Tenant",
+                "election-event-create": "Create Election Event",
+                "election-event-read": "Read Election Event",
+                "election-event-write": "Edit Election Event",
+                "voter-create": "Create Voter",
+                "voter-read": "Read Voter",
+                "voter-write": "Edit Voter",
+                "user-create": "Create User",
+                "user-read": "Read User",
+                "user-write": "Edit User",
+                "user-permission-create": "Create User Permission",
+                "user-permission-read": "Read User Permission",
+                "user-permission-write": "Edit User Permission",
+                "role-create": "Create Role",
+                "role-read": "Read Role",
+                "role-write": "Edit Role",
+                "role-assign": "Assign Role",
+                "communication-template-create": "Create Communication Template",
+                "communication-template-read": "Read Communication Template",
+                "communication-template-write": "Edit Communication Template",
+                "notification-read": "Read Notification",
+                "notification-write": "Edit Notification",
+                "notification-send": "Send Notification",
+                "area-read": "Read Area",
+                "area-write": "Edit Area",
+                "election-state-write": "Edit Election State",
+                "election-type-create": "Create Election Type",
+                "election-type-read": "Read Election Type",
+                "election-type-write": "Edit Election Type",
+                "voting-channel-read": "Read Voting Channel",
+                "voting-channel-write": "Edit Voting Channel",
+                "trustee-create": "Create Trustee",
+                "trustee-read": "Read Trustee",
+                "trustee-write": "Edit Trustee",
+                "tally-read": "Read Tally",
+                "tally-start": "Start Tally",
+                "tally-write": "Edit Tally",
+                "tally-results-read": "Read Tally Results",
+                "publish-read": "Read Publish",
+                "publish-write": "Edit Publish",
+                "logs-read": "Read Logs",
+                "keys-read": "Read Keys",
+            },
         },
         common: {
+            resources: {
+                electionEvent: "Election Event",
+                election: "Election",
+                contest: "Contest",
+                candidate: "Candidate",
+            },
             label: {
                 add: "Add",
+                actions: "Actions",
                 create: "Create",
                 delete: "Delete",
+                archive: "Archive",
+                unarchive: "Unarchive",
                 cancel: "Cancel",
                 edit: "Edit",
                 save: "Save",
@@ -162,15 +417,179 @@ const englishTranslation = {
                 back: "Back",
                 next: "Next",
                 warning: "Warning",
+                json: "Preview",
             },
-            message: {
-                delete: "Are you sure you want to delete this item?",
+            language: {
+                es: "Spanish",
+                en: "English",
+            },
+            channel: {
+                online: "Online",
+                kiosk: "Kiosk",
             },
         },
-        tenant: {
-            createSuccess: "Customer created",
-            createError: "Error creating customer",
-        }
+        createResource: {
+            electionEvent: "Create an Election Event",
+            election: "Create an Election",
+            contest: "Create a Contest",
+            candidate: "Create a Candidate",
+        },
+        sideMenu: {
+            electionEvents: "Election Events",
+            search: "Search",
+            usersAndRoles: "Users and Roles",
+            settings: "Settings",
+            communicationTemplates: "Communication Templates",
+            active: "Active",
+            archived: "Archived",
+            addResource: {
+                electionEvent: "Create an Election Event",
+                election: "Create an Election",
+                contest: "Create a Contest",
+                candidate: "Create a Candidate",
+            },
+            menuActions: {
+                archive: {
+                    electionEvent: "Archive this Election Event",
+                },
+                unarchive: {
+                    electionEvent: "Unarchive this Election Event",
+                    election: "Unarchive this election",
+                    contest: "Unarchive this Contest",
+                    candidate: "Unarchive this Candidate",
+                },
+                remove: {
+                    electionEvent: "Remove this Election Event",
+                    election: "Remove this Election",
+                    contest: "Remove this Contest",
+                    candidate: "Remove this Candidate",
+                },
+                messages: {
+                    confirm: {
+                        archive: "Are you sure to archive this item?",
+                        unarchive: "Are you sure to unarchive this item?",
+                        delete: "Are you sure to delete this item?",
+                    },
+                    notification: {
+                        success: {
+                            archive: "The item has been archived",
+                            unarchive: "The item has been unarchived",
+                            delete: "The item has been deleted",
+                        },
+                        error: {
+                            archive: "Error while trying to archive this item",
+                            unarchive: "Error while trying to unarchive this item",
+                            delete: "Error while trying to delete this item",
+                        },
+                    },
+                },
+            },
+        },
+        candidateScreen: {
+            common: {
+                subtitle: "Candidate configuration.",
+            },
+            edit: {
+                general: "General",
+                type: "Type",
+                image: "Image",
+            },
+            field: {
+                name: "Name",
+                alias: "Alias",
+                description: "Description",
+            },
+            options: {
+                "candidate": "Candidate",
+                "option": "Option",
+                "write-in": "Write-in",
+                "open-list": "Open List",
+                "closed-list": "Closed List",
+                "semi-open-list": "Semi Open List",
+                "invalid-vote": "Invalid Vote",
+                "blank-vote": "Blank Vote",
+            },
+            error: {},
+            createCandidateSuccess: "Candidate created",
+            createCandidateError: "Error creating candidate",
+        },
+        contestScreen: {
+            common: {
+                subtitle: "Contest configuration.",
+            },
+            edit: {
+                general: "General",
+                type: "Type",
+                image: "Image",
+                system: "Ballot Voting System",
+                design: "Ballot Design",
+                reorder: "Reorder candidates",
+            },
+            field: {
+                name: "Name",
+                alias: "Alias",
+                description: "Description",
+            },
+            options: {
+                "no-preferential": "No Preferential",
+                "plurality-at-large": "Plurality at Large",
+                "random-asnwers": "Random Answers",
+                "custom": "Custom",
+                "alphabetical": "Alphabetical",
+            },
+            error: {},
+            createContestSuccess: "Contest created",
+            createContestError: "Error creating candidate",
+        },
+        keysGeneration: {
+            configureStep: {
+                create: "Create Keys Ceremony",
+                title: "Create Election Event Keys Ceremony",
+                subtitle:
+                    "In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
+                threshold: "Threshold",
+                trusteeList: "Trustees",
+                errorMinTrustees:
+                    "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
+                errorThreshold:
+                    "You selected threshold {{selected}} but it must be between {{min}} and {{max}}.",
+                errorCreatingCeremony: "Error creating Keys Ceremony: {{error}}",
+                createCeremonySuccess: "Keys Ceremony created",
+                confirmdDialog: {
+                    ok: "Yes, Create Keys Ceremony",
+                    cancel: "Cancel",
+                    title: "Are you sure you want to Create Keys Ceremony?",
+                    description:
+                        "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
+                },
+            },
+            ceremonyStep: {
+                cancel: "Cancel Keys Ceremony",
+                progressHeader: "Keys Ceremony Progress",
+                description:
+                    "This screen shows the progress and logs of the Election Event's Keys Ceremony. In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event.",
+                executionStatus: "Status: {{status}}",
+                confirmdDialog: {
+                    ok: "Yes, Cancel Create Keys Ceremony",
+                    cancel: "Go back to Keys Ceremony",
+                    title: "Are you sure you want to Cancel Keys Ceremony?",
+                    description:
+                        "You are about to Cancel Keys Ceremony. After performing this action, to have a succcessful Keys Ceremony you will have to Create a new one.",
+                },
+                header: {
+                    trusteeName: "Trustee Name",
+                    fragment: "Key Fragment Generated",
+                    downloaded: "Private Key Fragment Downloaded",
+                    checked: "Private Key Fragment Checked",
+                },
+                logsHeader: {
+                    title: "Logs",
+                    date: "Date",
+                    entry: "Entry",
+                },
+                emptyLogs: "No logs yet.",
+            },
+        },
     },
 }
 

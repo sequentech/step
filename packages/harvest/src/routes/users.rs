@@ -1,30 +1,218 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::authorization::authorize;
+use crate::types::optional::OptionalId;
+use crate::types::resources::{
+    Aggregate, DataList, OrderDirection, TotalAggregate,
+};
 use anyhow::{anyhow, Result};
-use immu_board::util::get_tenant_name;
+use rocket::http::Status;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::KeycloakAdminClient;
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::User;
-use tracing::instrument;
+use sequent_core::types::permissions::Permissions;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashMap;
+use tracing::{event, instrument, Level};
 
-#[instrument]
-#[get("/users?<search>&<email>&<max>")]
-pub async fn get_users(
-    jwt: jwt::JwtClaims,
-    search: Option<String>,
-    email: Option<String>,
-    max: Option<i32>,
-) -> Result<Json<Vec<User>>, Debug<anyhow::Error>> {
-    let board = get_tenant_name(&jwt.hasura_claims.tenant_id);
+#[derive(Deserialize, Debug)]
+pub struct DeleteUserBody {
+    tenant_id: String,
+    election_event_id: Option<String>,
+    user_id: String,
+}
+
+#[instrument(skip(claims))]
+#[post("/delete-user", format = "json", data = "<body>")]
+pub async fn delete_user(
+    claims: jwt::JwtClaims,
+    body: Json<DeleteUserBody>,
+) -> Result<Json<OptionalId>, (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_WRITE
+    } else {
+        Permissions::USER_WRITE
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| anyhow::Error::from(e))?;
-    let users = client
-        .list_users(&board, search, email, max)
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    client
+        .delete_user(&realm, &input.user_id)
         .await
-        .map_err(|e| anyhow::Error::from(e))?;
-    Ok(Json(users))
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    Ok(Json(Default::default()))
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GetUsersBody {
+    tenant_id: String,
+    election_event_id: Option<String>,
+    search: Option<String>,
+    email: Option<String>,
+    limit: Option<i32>,
+    offset: Option<i32>,
+}
+
+#[instrument(skip(claims))]
+#[post("/get-users", format = "json", data = "<body>")]
+pub async fn get_users(
+    claims: jwt::JwtClaims,
+    body: Json<GetUsersBody>,
+) -> Result<Json<DataList<User>>, (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_READ
+    } else {
+        Permissions::USER_READ
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let (users, count) = client
+        .list_users(
+            &realm,
+            input.search,
+            input.email,
+            input.limit,
+            input.offset,
+        )
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    Ok(Json(DataList {
+        items: users,
+        total: TotalAggregate {
+            aggregate: Aggregate {
+                count: count as i64,
+            },
+        },
+    }))
+}
+
+#[derive(Deserialize, Debug)]
+pub struct CreateUserBody {
+    tenant_id: String,
+    election_event_id: Option<String>,
+    user: User,
+}
+
+#[instrument(skip(claims))]
+#[post("/create-user", format = "json", data = "<body>")]
+pub async fn create_user(
+    claims: jwt::JwtClaims,
+    body: Json<CreateUserBody>,
+) -> Result<Json<User>, (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_CREATE
+    } else {
+        Permissions::USER_CREATE
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let user = client
+        .create_user(&realm, &input.user)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    Ok(Json(user))
+}
+
+#[derive(Deserialize, Debug)]
+pub struct EditUserBody {
+    tenant_id: String,
+    user_id: String,
+    enabled: Option<bool>,
+    election_event_id: Option<String>,
+    attributes: Option<HashMap<String, Value>>,
+    email: Option<String>,
+    first_name: Option<String>,
+    last_name: Option<String>,
+    username: Option<String>,
+}
+
+#[instrument(skip(claims))]
+#[post("/edit-user", format = "json", data = "<body>")]
+pub async fn edit_user(
+    claims: jwt::JwtClaims,
+    body: Json<EditUserBody>,
+) -> Result<Json<User>, (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_WRITE
+    } else {
+        Permissions::USER_WRITE
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let user = client
+        .edit_user(
+            &realm,
+            &input.user_id,
+            input.enabled.clone(),
+            input.attributes.clone(),
+            input.email.clone(),
+            input.first_name.clone(),
+            input.last_name.clone(),
+            input.username.clone(),
+        )
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    Ok(Json(user))
 }

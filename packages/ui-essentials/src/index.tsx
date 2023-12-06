@@ -18,7 +18,10 @@ export {default as PageLimit} from "./components/PageLimit/PageLimit"
 export {default as Version} from "./components/Version/Version"
 export {default as VerticalBox} from "./components/VerticalBox/VerticalBox"
 export {default as WarnBox} from "./components/WarnBox/WarnBox"
-export {default as BreadCrumbSteps} from "./components/BreadCrumbSteps/BreadCrumbSteps"
+export {
+    default as BreadCrumbSteps,
+    BreadCrumbStepsVariant,
+} from "./components/BreadCrumbSteps/BreadCrumbSteps"
 export {useForwardedRef} from "./utils/ref"
 export {default as Candidate} from "./components/Candidate/Candidate"
 export {sleep} from "./services/sleep"

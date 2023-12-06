@@ -6,7 +6,7 @@
 	"name": "backend-services",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "devcontainer",
-	"forwardPorts": [9001, 9000, 8090, 8080, 8000, 8400, 8200, 8201, 6379, 3000, 3322, 3323, 3324, 3325, 5672, 15672],
+	"forwardPorts": [9001, 9000, 8090, 8080, 8000, 8400, 8200, 8201, 6379, 3000, 3002, 3322, 3323, 3324, 3325, 5672, 15672],
 
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
 	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
@@ -24,8 +24,15 @@
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": false,
 
-	"onCreateCommand": "direnv allow",
-	"updateContentCommand": "direnv allow && devenv shell bash -c 'cd packages/ && cargo build && cd /workspace/frontend && yarn install' || true",
+	"onCreateCommand": "direnv allow && devenv shell bash -c 'echo devenv run'",
+	"updateContentCommand": "direnv allow && devenv shell bash -c 'echo devenv run'",
+
+	// Adding host requirements so that there is no need to manually select the
+	// machine to run on all the time
+	"hostRequirements": {
+		"storage": "40gb",
+		"cpus": 4
+	},
 
 	"features": {
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
@@ -57,6 +64,9 @@
 				
                 // Toml support
         		"tamasfe.even-better-toml",
+
+				// SQL formatter, useful for .sql files in hasura
+				"adpyke.vscode-sql-formatter",
 				
                 // Debugging
         		"vadimcn.vscode-lldb",

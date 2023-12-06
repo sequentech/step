@@ -1,6 +1,5 @@
 package sequent.keycloak.security_question_authenticator;
 
-import sequent.keycloak.security_question_authenticator.Utils;
 import com.google.auto.service.AutoService;
 import org.keycloak.Config;
 import org.keycloak.authentication.Authenticator;
@@ -11,8 +10,6 @@ import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
 
 import java.util.List;
-import java.util.Map;
-import java.util.LinkedHashMap;
 
 @AutoService(AuthenticatorFactory.class)
 public class SecurityQuestionAuthenticatorFactory

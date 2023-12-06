@@ -2,31 +2,31 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use serde_json;
-use serde;
 use base64::engine::general_purpose;
 use base64::Engine;
+use serde;
+use serde::{Deserialize, Serialize};
+use serde_json;
 use std::collections::HashMap;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtRolesAccess {
     pub roles: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtHasuraClaims {
-    #[serde(rename = "x-hasura-default-role")] 
+    #[serde(rename = "x-hasura-default-role")]
     pub default_role: String,
-    #[serde(rename = "x-hasura-tenant-id")] 
+    #[serde(rename = "x-hasura-tenant-id")]
     pub tenant_id: String,
-    #[serde(rename = "x-hasura-user-id")] 
+    #[serde(rename = "x-hasura-user-id")]
     pub user_id: String,
-    #[serde(rename = "x-hasura-allowed-roles")] 
+    #[serde(rename = "x-hasura-allowed-roles")]
     pub allowed_roles: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtClaims {
     pub exp: i64,
     pub iat: i64,
@@ -40,20 +40,20 @@ pub struct JwtClaims {
     pub nonce: String,
     pub session_state: String,
     pub acr: String,
-    #[serde(rename = "allowed-origins")] 
+    #[serde(rename = "allowed-origins")]
     pub allowed_origins: Vec<String>,
     pub realm_access: JwtRolesAccess,
     pub resource_access: HashMap<String, JwtRolesAccess>,
     pub scope: String,
     pub sid: String,
     pub email_verified: bool,
-    #[serde(rename = "https://hasura.io/jwt/claims")] 
+    #[serde(rename = "https://hasura.io/jwt/claims")]
     pub hasura_claims: JwtHasuraClaims,
-    pub name: String, 
-    pub preferred_username: String, 
-    pub given_name: String, 
-    pub family_name: String, 
- }
+    pub name: String,
+    pub preferred_username: Option<String>,
+    pub given_name: Option<String>,
+    pub family_name: Option<String>,
+}
 
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     let parts: Vec<&str> = token.split('.').collect();
@@ -72,8 +72,7 @@ mod tests {
     };
     use serde::{Deserialize, Serialize};
     #[derive(Debug, Serialize, Deserialize)]
-    struct Claims {
-    }
+    struct Claims {}
 
     #[test]
     fn test_jwt() {

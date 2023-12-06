@@ -109,6 +109,42 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     Ok(dkgpk.pk)
 }
 
+
+#[instrument]
+pub async fn get_trustee_encrypted_private_key<C: Ctx>(
+    board_name: &str,
+    trustee_pub_key: &str
+) -> Result<C::E>
+{
+    let mut board = get_board_client().await?;
+
+    let messages = board.get_messages(board_name, -1).await?;
+    let pks_message = messages
+        .into_iter()
+        .map(|message| Message::strand_deserialize(&message.message))
+        .find(|message| {
+            // TODO: Actually find the message with the encrypted private key
+            if let Ok(m) = message {
+                match m.statement.get_kind() {
+                    StatementType::PublicKey => true,
+                    _ => false,
+                }
+            } else {
+                false
+            }
+        })
+        .with_context(|| format!("Public Key not found on board {}", board_name))??;
+
+    let bytes = pks_message.artifact.with_context(|| {
+        format!(
+            "Artifact missing on Public Key message on board {}",
+            board_name
+        )
+    })?;
+    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
+    Ok(dkgpk.pk)
+}
+
 pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuration<C>> {
     let configuration_msg = messages
         .iter()

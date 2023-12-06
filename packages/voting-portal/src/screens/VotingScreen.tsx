@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState} from "react"
+import React, {useContext, useState} from "react"
 //import {fetchElectionByIdAsync} from "../store/elections/electionsSlice"
 import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -31,6 +31,7 @@ import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlic
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
+import {TenantEventContext} from ".."
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -74,6 +75,7 @@ interface ActionButtonProps {
 
 const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) => {
     const {t} = useTranslation()
+    const {tenantId, eventId} = useContext(TenantEventContext)
     const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
@@ -106,7 +108,9 @@ const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) 
                     })
                 )
             }
-            navigate(`/election/${ballotStyle.election_id}/review`)
+            navigate(
+                `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/review`
+            )
         } catch (error) {
             console.log("ERROR encrypting ballot:")
             console.log(error)

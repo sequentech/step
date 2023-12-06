@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 import {useMutation} from "@apollo/client"
-import React, { useEffect, useState } from "react"
-import {CreateElectionEventMutation} from "../../gql/graphql"
+import React, {useEffect, useState} from "react"
+import {CreateElectionEventMutation} from "@/gql/graphql"
 import {v4} from "uuid"
 import {
     BooleanInput,
@@ -17,10 +18,17 @@ import {
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {INSERT_ELECTION_EVENT} from "../../queries/InsertElectionEvent"
-import { CircularProgress } from "@mui/material"
-import { useTranslation } from "react-i18next"
-import { isNull } from "@sequentech/ui-essentials"
-import { useNavigate } from "react-router"
+import {Box, CircularProgress, Typography} from "@mui/material"
+import {useTranslation} from "react-i18next"
+import {isNull} from "@sequentech/ui-essentials"
+import {useNavigate} from "react-router"
+import {useTenantStore} from "../../providers/TenantContextProvider"
+import {styled} from "@mui/material/styles"
+import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
+
+const Hidden = styled(Box)`
+    display: none;
+`
 
 interface IElectionSubmit {
     description: string
@@ -34,10 +42,24 @@ interface IElectionEventSubmit {
     encryption_protocol: string
     id: string
     tenant_id: string
+    presentation: {
+        i18n: {
+            [key: string]: {
+                name: string
+                alias: string
+                description: string
+            }
+        }
+        language_conf: {
+            enabled_language_codes: Array<string>
+            default_language_code: string
+        }
+    }
 }
 
 export const CreateElectionList: React.FC = () => {
     const [insertElectionEvent] = useMutation<CreateElectionEventMutation>(INSERT_ELECTION_EVENT)
+    const [tenantId] = useTenantStore()
     const notify = useNotify()
     const [newId, setNewId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
@@ -45,12 +67,15 @@ export const CreateElectionList: React.FC = () => {
     const navigate = useNavigate()
     const refresh = useRefresh()
     const postDefaultValues = () => ({id: v4()})
-    const { data: newElectionEvent, isLoading: isOneLoading, error } = useGetOne(
-        'sequent_backend_election_event',
-        {
-            id: newId,
-        }
-    )
+    const {
+        data: newElectionEvent,
+        isLoading: isOneLoading,
+        error,
+    } = useGetOne("sequent_backend_election_event", {
+        id: newId,
+    })
+
+    const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
     useEffect(() => {
         if (isNull(newId)) {
@@ -58,21 +83,43 @@ export const CreateElectionList: React.FC = () => {
         }
         if (isLoading && error && !isOneLoading) {
             setIsLoading(false)
-            notify(t("electionEventScreen.createElectionEventError"), { type: "error"})
+            notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
             refresh()
             return
         }
         if (isLoading && !error && !isOneLoading && newElectionEvent) {
             setIsLoading(false)
-            notify(t("electionEventScreen.createElectionEventSuccess"), { type: "success"})
+            notify(t("electionEventScreen.createElectionEventSuccess"), {type: "success"})
             refresh()
             navigate(`/sequent_backend_election_event/${newId}`)
-
-        } 
+        }
     }, [isLoading, newElectionEvent, isOneLoading, error])
 
     const handleSubmit = async (values: any) => {
-        const electionSubmit = values as IElectionEventSubmit
+        let electionSubmit = values as IElectionEventSubmit
+
+        // TODO: get enabled_language_codes from settings
+
+        electionSubmit = {
+            ...electionSubmit,
+            presentation: {
+                ...electionSubmit.presentation,
+                language_conf: {
+                    enabled_language_codes: ["es", "en"],
+                    default_language_code: "en",
+                },
+                i18n: {
+                    en: {
+                        name: electionSubmit.name,
+                        alias: "",
+                        description: electionSubmit.description || "",
+                    },
+                },
+            },
+        }
+
+        console.log("electionSubmit :: ", electionSubmit)
+
         let {data, errors} = await insertElectionEvent({
             variables: {
                 electionEvent: electionSubmit,
@@ -83,71 +130,83 @@ export const CreateElectionList: React.FC = () => {
             setNewId(data?.insertElectionEvent?.id)
             setIsLoading(true)
         } else {
-            notify(t("electionEventScreen.createElectionEventError"), { type: "error"})
+            notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
             setIsLoading(false)
         }
+        refresh()
+        setTimeout(() => {
+            refetchTreeMenu()
+        }, 3000)
     }
     return (
         <SimpleForm defaultValues={postDefaultValues} onSubmit={handleSubmit}>
-            <TextInput source="description" />
+            <Typography variant="h4">{t("common.resources.electionEvent")}</Typography>
+            <Typography variant="body2">{t("createResource.electionEvent")}</Typography>
             <TextInput source="name" />
-            <SelectInput source="encryption_protocol" choices={[{id: "RSA256", name: "RSA256"}]} />
-            <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
-                <SelectInput optionText="slug" />
-            </ReferenceInput>
-            <BooleanInput source="is_archived" defaultValue={false} />
-            <JsonInput
-                source="labels"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="presentation"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="voting_channels"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="voting_channels"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <JsonInput
-                source="dates"
-                jsonString={false}
-                reactJsonOptions={{
-                    name: null,
-                    collapsed: true,
-                    enableClipboard: true,
-                    displayDataTypes: false,
-                }}
-            />
-            <TextInput source="user_boards" />
-            <TextInput source="audit_election_event_id" />
+            <TextInput source="description" />
+            <Hidden>
+                <SelectInput
+                    source="encryption_protocol"
+                    choices={[{id: "RSA256", name: "RSA256"}]}
+                    defaultValue={"RSA256"}
+                />
+                <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
+                    <SelectInput optionText="slug" defaultValue={tenantId} />
+                </ReferenceInput>
+                <BooleanInput source="is_archived" defaultValue={false} />
+                <JsonInput
+                    source="labels"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="presentation"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="voting_channels"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="voting_channels"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <JsonInput
+                    source="dates"
+                    jsonString={false}
+                    reactJsonOptions={{
+                        name: null,
+                        collapsed: true,
+                        enableClipboard: true,
+                        displayDataTypes: false,
+                    }}
+                />
+                <TextInput source="user_boards" />
+                <TextInput source="audit_election_event_id" />
+            </Hidden>
             {isLoading ? <CircularProgress /> : null}
         </SimpleForm>
     )

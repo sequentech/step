@@ -1,33 +1,39 @@
 package sequent.keycloak.authenticator;
 
 import org.keycloak.common.util.SecretGenerator;
+import org.keycloak.email.EmailTemplateProvider;
+import org.keycloak.email.EmailException;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
-import org.keycloak.theme.Theme;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
+
 import lombok.extern.jbosslog.JBossLog;
 
 import lombok.experimental.UtilityClass;
-import sequent.keycloak.authenticator.gateway.EmailServiceFactory;
-import sequent.keycloak.authenticator.gateway.SmsServiceFactory;
+import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 
 import java.io.IOException;
-import java.util.Locale;
+import java.util.List;
 import java.util.Optional;
 import java.util.Map;
 
 @UtilityClass
 @JBossLog
 public class Utils {
-	public String CODE = "code";
-	public String CODE_LENGTH = "length";
-	public String CODE_TTL = "ttl";
-	public String SENDER_ID = "senderId";
-	public String SIMULATION_MODE = "simulation";
-	public String TEL_USER_ATTRIBUTE = "telUserAttribute";
-	public String EMAIL_USER_ATTRIBUTE = "emailUserAttribute";
+	public final String CODE = "code";
+	public final String CODE_LENGTH = "length";
+	public final String CODE_TTL = "ttl";
+	public final String SENDER_ID = "senderId";
+	public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
+	public final String SEND_CODE_SMS_I18N_KEY = "messageOtp.sendCode.sms.text";
+	public final String SEND_CODE_EMAIL_SUBJECT = "messageOtp.sendCode.email.subject";
+	public final String SEND_CODE_EMAIL_FTL = "send-code-email.ftl";
 
 	/**
 	 * Sends code and also sets the auth notes related to the code
@@ -37,12 +43,11 @@ public class Utils {
 		KeycloakSession session,
 		UserModel user,
 		AuthenticationSessionModel authSession
-	) throws IOException
+	) throws IOException, EmailException
 	{
 		log.info("sendCode()");
-		Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
 		String mobileNumber = Utils.getMobile(config, user);
-		String emailAddress = Utils.getEmail(config, user);
+		String emailAddress = user.getEmail();
 
 		int length = Integer.parseInt(
 			config.getConfig().get(Utils.CODE_LENGTH)
@@ -59,45 +64,50 @@ public class Utils {
 			Utils.CODE_TTL,
 			Long.toString(System.currentTimeMillis() + (ttl * 1000L))
 		);
+		RealmModel realm = authSession.getRealm();
+		String realmName = getRealmName(realm);
 
-		Locale locale = session.getContext().resolveLocale(user);
+		if (mobileNumber != null)
+		{
+			SmsSenderProvider smsSenderProvider = 
+				session.getProvider(SmsSenderProvider.class);
+			log.infov("Sending sms to={0}", mobileNumber);
+			List<String> smsAttributes = ImmutableList.of(
+				realmName,
+				code,
+				String.valueOf(Math.floorDiv(ttl, 60))
+			);
 
-		if (mobileNumber != null) {
-			String smsAuthText = theme
-				.getMessages(locale)
-				.getProperty("smsAuthText");
-			String smsText = String
-				.format(smsAuthText, code, Math.floorDiv(ttl, 60));
-			SmsServiceFactory
-				.get(config.getConfig())
-				.send(mobileNumber, smsText);
+			smsSenderProvider.send(
+				mobileNumber,
+				Utils.SEND_CODE_SMS_I18N_KEY,
+				smsAttributes,
+				realm,
+				user,
+				session
+			);
 		}
-		if (emailAddress != null) {
-			String emailAuthTitle = theme
-				.getMessages(locale)
-				.getProperty("emailAuthTitle");
-			String emailTitle = String
-				.format(emailAuthTitle, code, Math.floorDiv(ttl, 60));
 
-			String emailAuthBody = theme
-				.getMessages(locale)
-				.getProperty("emailAuthBody");
-			String emailBody = String
-				.format(emailAuthBody, code, Math.floorDiv(ttl, 60));
+		if (emailAddress != null)
+		{
+			EmailTemplateProvider emailTemplateProvider =
+				session.getProvider(EmailTemplateProvider.class);
 
-			String emailAuthHtmlBody = theme
-				.getMessages(locale)
-				.getProperty("emailAuthHtmlBody");
-			String emailHtmlBody = String
-				.format(emailAuthHtmlBody, code, Math.floorDiv(ttl, 60));
+			Map<String, Object> messageAttributes = Maps.newHashMap();
+			messageAttributes.put("realmName", realmName);
+			messageAttributes.put("code", code);
+			messageAttributes.put("ttl", Math.floorDiv(ttl, 60));
 
-			EmailServiceFactory
-				.get(config.getConfig())
+			List<Object> subjAttr = ImmutableList.of(realmName);
+			emailTemplateProvider
+				.setRealm(realm)
+				.setUser(user)
+				.setAttribute("realmName", realmName)
 				.send(
-					emailAddress,
-					emailTitle,
-					emailBody,
-					emailHtmlBody
+					Utils.SEND_CODE_EMAIL_SUBJECT,
+					subjAttr, 
+					Utils.SEND_CODE_EMAIL_FTL,
+					messageAttributes
 				);
 		}
 	}
@@ -131,37 +141,6 @@ public class Utils {
 			mobile
 		);
 		return mobile;
-	}
-
-	String getEmail(AuthenticatorConfigModel config, UserModel user)
-	{
-		log.infov("getEmail()");
-		if (config == null) {
-			log.infov("getEmail(): NULL config={0}", config);
-			return user.getFirstAttribute(
-				MessageOTPAuthenticator.EMAIL_ADDRESS_FIELD
-			);
-		}
-
-		Map<String, String> mapConfig = config.getConfig();
-		if (
-			mapConfig == null ||
-			!mapConfig.containsKey(Utils.EMAIL_USER_ATTRIBUTE)
-		) {
-			log.infov("getEmail(): NullOrNotFound mapConfig={0}", mapConfig);
-			return user.getFirstAttribute(
-				MessageOTPAuthenticator.EMAIL_ADDRESS_FIELD
-			);
-		}
-		String emailUserAttribute = mapConfig.get(Utils.EMAIL_USER_ATTRIBUTE);
-
-		String email = user.getFirstAttribute(emailUserAttribute);
-		log.infov(
-			"getEmail(): emailUserAttribute={0}, email={1}",
-			emailUserAttribute,
-			email
-		);
-		return email;
 	}
 
 	Optional<AuthenticatorConfigModel> getConfig(RealmModel realm)
@@ -207,4 +186,13 @@ public class Utils {
 		}
 		return result == 0;
 	}
+
+
+    public static String getRealmName(RealmModel realm)
+    {
+        return Strings.isNullOrEmpty(realm.getDisplayName())
+            ? realm.getName()
+            : realm.getDisplayName();
+    }
+
 }

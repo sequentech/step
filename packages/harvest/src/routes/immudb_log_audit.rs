@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::types::resources::{
+    Aggregate, DataList, OrderDirection, TotalAggregate,
+};
 use anyhow::{anyhow, Context, Result};
 use immudb_rs::{sql_value::Value as SqlValue, Client, Row};
 use rocket::response::Debug;
@@ -43,14 +46,6 @@ enum OrderField {
     SessionId,
     Statement,
     User,
-}
-
-// Enumeration for the valid order directions
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum OrderDirection {
-    Asc,
-    Desc,
 }
 
 #[derive(Deserialize, Debug)]
@@ -168,16 +163,6 @@ impl TryFrom<&Row> for PgAuditRow {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Aggregate {
-    count: i64,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct TotalAggregate {
-    aggregate: Aggregate,
-}
-
 impl TryFrom<&Row> for Aggregate {
     type Error = anyhow::Error;
 
@@ -191,12 +176,6 @@ impl TryFrom<&Row> for Aggregate {
         }
         Ok(Aggregate { count })
     }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct DataList<T> {
-    items: Vec<T>,
-    total: TotalAggregate,
 }
 
 #[instrument]

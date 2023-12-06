@@ -4,12 +4,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use celery::error::TaskError;
-use immu_board::util::get_board_name;
+use immu_board::util::get_event_board;
 use sequent_core;
 use sequent_core::services::connection;
+use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use serde_json::Value;
 use std::env;
+use std::fs;
 use tracing::{event, instrument, Level};
 
 use crate::hasura::election_event::insert_election_event::sequent_backend_election_event_insert_input as InsertElectionEventInput;
@@ -22,7 +24,7 @@ use crate::types::error::Result;
 #[instrument]
 pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Result<Value> {
     let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
-    let board_name = get_board_name(tenant_id, election_event_id);
+    let board_name = get_event_board(tenant_id, election_event_id);
     let mut board_client = get_board_client().await?;
     let has_board = board_client.has_database(board_name.as_str()).await?;
     let board = if has_board {
@@ -38,14 +40,17 @@ pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Resu
 
 #[instrument]
 pub async fn upsert_keycloak_realm(tenant_id: &str, election_event_id: &str) -> Result<()> {
-    let json_realm_config = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG")
-        .expect(&format!("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG must be set"));
+    let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH").expect(&format!(
+        "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set"
+    ));
+    let realm_config = fs::read_to_string(&realm_config_path)
+        .expect(&format!("Should have been able to read the configuration file in KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH={realm_config_path}"));
     let client = KeycloakAdminClient::new().await?;
-    let board_name = get_board_name(tenant_id, election_event_id);
+    let realm_name = get_event_realm(tenant_id, election_event_id);
     client
-        .upsert_realm(board_name.as_str(), &json_realm_config)
+        .upsert_realm(realm_name.as_str(), &realm_config, tenant_id)
         .await?;
-    upsert_realm_jwks(board_name.as_str()).await?;
+    upsert_realm_jwks(realm_name.as_str()).await?;
     Ok(())
 }
 

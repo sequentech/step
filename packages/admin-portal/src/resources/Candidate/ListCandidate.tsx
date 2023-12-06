@@ -12,9 +12,9 @@ import {
     ReferenceField,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {useTenantStore} from "../../components/CustomMenu"
 import {Typography} from "@mui/material"
 import {generateRowClickHandler} from "../../services/RowClickService"
+import {useTenantStore} from "../../providers/TenantContextProvider"
 
 const OMIT_FIELDS = ["id", "type", "is_public"]
 
@@ -33,6 +33,7 @@ export interface ListCandidateProps {
 
 export const ListCandidate: React.FC<ListCandidateProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
 
     const rowClickHandler = generateRowClickHandler(["election_event_id", "contest_id"])
 
@@ -40,7 +41,7 @@ export const ListCandidate: React.FC<ListCandidateProps> = ({aside}) => {
         <>
             <Typography variant="h5">Candidates</Typography>
             <List
-                actions={<ListActions />}
+                actions={<ListActions open={openDrawer} setOpen={setOpenDrawer} />}
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,

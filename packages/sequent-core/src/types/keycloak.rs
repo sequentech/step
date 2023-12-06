@@ -14,7 +14,25 @@ pub struct User {
     pub email_verified: Option<bool>,
     pub enabled: Option<bool>,
     pub first_name: Option<String>,
-    pub groups: Option<Vec<String>>,
     pub last_name: Option<String>,
     pub username: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct Permission {
+    pub id: Option<String>,
+    pub attributes: Option<HashMap<String, Value>>,
+    pub container_id: Option<String>,
+    pub description: Option<String>,
+    pub name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct Role {
+    pub id: Option<String>,
+    pub name: Option<String>,
+    pub permissions: Option<Vec<String>>,
+    pub access: Option<HashMap<String, Value>>,
+    pub attributes: Option<HashMap<String, Value>>,
+    pub client_roles: Option<HashMap<String, Value>>,
 }

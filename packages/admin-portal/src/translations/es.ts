@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-// import {TranslationType} from "./en"
+import {TranslationType} from "./en"
 
-const spanishTranslation = {
+const spanishTranslation: TranslationType = {
     translations: {
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
@@ -129,12 +129,39 @@ const spanishTranslation = {
                 title: "Áreas",
                 subTitle: "Configuración de Área.",
             },
-            createAreaSuccess: "Área creadas",
+            createAreaSuccess: "Área creada",
             createAreaError: "Error creando área",
+            sequent_backend_area_contest: "Preguntas del Área",
+        },
+        electionTypeScreen: {
+            common: {
+                title: "Tipo de Elección",
+                subtitle: "Configuración del Tipo de Elección",
+                onlineVoting: "Votación en Línea",
+                kioskVoting: "Votación en Quiosco",
+                settingTitle: "Configuración",
+                settingSubtitle: "Ajustes generales",
+            },
+            create: {
+                title: "Crear Tipo de Elección",
+            },
+            edit: {
+                title: "Editar Tipo de Elección",
+            },
+            tabs: {
+                votingChannels: "CANALES DE VOTACIÓN",
+                electionTypes: "TIPOS DE ELECCIÓN",
+                communications: "COMUNICACIÓN",
+                languages: "IDIOMAS",
+            },
+        },
+        dashboard: {
+            voteByDay: "Voto por día",
+            voteByChannels: "Voto por canales",
         },
         electionEventScreen: {
             common: {
-                subtitle: "Configuración del Evento de Elección.",
+                subtitle: "Configuración del Evento Electoral.",
             },
             edit: {
                 general: "General",
@@ -146,19 +173,245 @@ const spanishTranslation = {
                 name: "Nombre",
                 alias: "Alias",
                 description: "Descripción",
-                startDate: "Fecha de inicio",
-                endDate: "Fecha de finalización",
+                startDateTime: "Fecha y hora de inicio",
+                endDateTime: "Fecha y hora de finalización",
                 language: "Idioma",
                 votingChannels: "Canales de Voto",
             },
-            createElectionEventSuccess: "Evento de Elección creado",
-            createElectionEventError: "Error creando Evento de Elección",
+            error: {
+                endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
+            },
+            voters: {
+                title: "Votantes",
+            },
+            createElectionEventSuccess: "Evento Electoral creado",
+            createElectionEventError: "Error creando Evento Electoral",
+            stats: {
+                elegibleVoters: "Votantes elegibles",
+                elections: "Elecciones",
+                areas: "Áreas",
+                sentEmails: "Emails enviados",
+                sentSMS: "SMS enviados",
+                calendar: {
+                    title: "Calendario",
+                    scheduled: "Programado",
+                },
+            },
+            keys: {
+                createNew: "Crear Ceremonia de Claves",
+                emptyHeader: "Ninguna Ceremonia de Claves aún.",
+                emptyBody: "¿Quieres crear una?",
+                statusLabel: "Estado",
+                breadCrumbs: {
+                    configure: "Configurar",
+                    ceremony: "Ceremonia",
+                    created: "Finished",
+                },
+            },
+            tabs: {
+                dashboard: "Panel de Control",
+                data: "Datos",
+                voters: "Votantes",
+                areas: "Áreas",
+                keys: "Claves",
+                tally: "Recuento",
+                publish: "Publicar",
+                logs: "Logs",
+            },
+        },
+        electionScreen: {
+            common: {
+                title: "Elección",
+                subtitle: "Configuración de la elección.",
+                fileLoaded: "Archivo cargado",
+            },
+            edit: {
+                general: "General",
+                dates: "Fechas",
+                language: "Idioma",
+                allowed: "Canales de Voto Permitidos",
+                default: "Por defecto",
+                receipts: "Comprobantes",
+                image: "Imagen",
+                advanced: "Configuración Avanzada",
+            },
+            field: {
+                name: "Nombre",
+                language: "Idioma",
+                votingChannels: "Canales de Voto",
+                startDateTime: "Fecha y hora de inicio",
+                endDateTime: "Fecha y hora de finalización",
+                alias: "Alias",
+                description: "Descripción",
+            },
+            error: {
+                endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
+                fileError: "Error al cargar el archivo",
+            },
+            createElectionEventSuccess: "Creada la elección",
+            createElectionEventError: "Error Creando la elección",
+            tabs: {
+                dashboard: "Panel de Control",
+                data: "Datos",
+                voters: "Votantes",
+                publish: "Publicar",
+                logs: "Logs",
+            },
+        },
+        tenantScreen: {
+            common: {
+                title: "Cliente",
+            },
+            new: {
+                subtitle: "Crear Cliente",
+            },
+            createSuccess: "Cliente creado",
+            createError: "Error creando cliente",
+        },
+        usersAndRolesScreen: {
+            common: {
+                title: "Usuarios y Roles",
+                subtitle: "Configuración general",
+            },
+            users: {
+                title: "Usuarios",
+                subtitle: "Ver y editar datos del usuario",
+                edit: {
+                    title: "Información de Usuario",
+                    subtitle: "Ver y editar Usuario",
+                },
+                create: {
+                    title: "Usuario",
+                    subtitle: "Crear usuario",
+                },
+                fields: {
+                    username: "Nombre de Usuario",
+                    first_name: "Nombre",
+                    last_name: "Apellido",
+                    email: "Email",
+                    enabled: "Habilitado",
+                    emailVerified: "Email Verificado",
+                    groups: "Grupos",
+                    attributes: "Atributos",
+                    area: "Área",
+                },
+                delete: {
+                    body: "¿Estás seguro que quieres borrar este usuario?",
+                },
+                notifications: {
+                    deleteError: "Error borrando usuario",
+                    deleteSuccess: "Usuario borrado",
+                },
+            },
+            voters: {
+                title: "Votantes",
+                subtitle: "Ver y editar datos del votante",
+                create: {
+                    title: "Votante",
+                    subtitle: "Crear votante",
+                },
+                errors: {
+                    editError: "Error editando votante",
+                    editSuccess: "Votante editado",
+                    createError: "Error creando votante",
+                    createSuccess: "Votante creado",
+                },
+                delete: {
+                    body: "¿Estás seguro que quieres borrar este votante?",
+                },
+                notifications: {
+                    deleteError: "Error borrando votante",
+                    deleteSuccess: "Votante borrado",
+                },
+            },
+            roles: {
+                title: "Roles",
+                edit: {
+                    title: "Información de Rol",
+                    subtitle: "Ver y editar Rol",
+                },
+                create: {
+                    title: "Rol",
+                    subtitle: "Crear rol",
+                },
+                errors: {
+                    createError: "Error creando rol",
+                    createSuccess: "Rol creado",
+                },
+                fields: {
+                    name: "Nombre",
+                },
+                delete: {
+                    body: "¿Estás seguro que quieres borrar este rol?",
+                },
+                notifications: {
+                    deleteError: "Error borrando rol",
+                    deleteSuccess: "Rol borrado",
+                    permissionEditError: "Error editando permiso",
+                    permissionEditSuccess: "Permiso editado",
+                },
+            },
+            permissions: {
+                "tenant-create": "Create Tenant",
+                "tenant-read": "Read Tenant",
+                "tenant-write": "Edit Tenant",
+                "election-event-create": "Create Election Event",
+                "election-event-read": "Read Election Event",
+                "election-event-write": "Edit Election Event",
+                "voter-create": "Create Voter",
+                "voter-read": "Read Voter",
+                "voter-write": "Edit Voter",
+                "user-create": "Create User",
+                "user-read": "Read User",
+                "user-write": "Edit User",
+                "user-permission-create": "Create User Permission",
+                "user-permission-read": "Read User Permission",
+                "user-permission-write": "Edit User Permission",
+                "role-create": "Create Role",
+                "role-read": "Read Role",
+                "role-write": "Edit Role",
+                "role-assign": "Assign Role",
+                "communication-template-create": "Create Communication Template",
+                "communication-template-read": "Read Communication Template",
+                "communication-template-write": "Edit Communication Template",
+                "notification-read": "Read Notification",
+                "notification-write": "Edit Notification",
+                "notification-send": "Send Notification",
+                "area-read": "Read Area",
+                "area-write": "Edit Area",
+                "election-state-write": "Edit Election State",
+                "election-type-create": "Create Election Type",
+                "election-type-read": "Read Election Type",
+                "election-type-write": "Edit Election Type",
+                "voting-channel-read": "Read Voting Channel",
+                "voting-channel-write": "Edit Voting Channel",
+                "trustee-create": "Create Trustee",
+                "trustee-read": "Read Trustee",
+                "trustee-write": "Edit Trustee",
+                "tally-read": "Read Tally",
+                "tally-start": "Start Tally",
+                "tally-write": "Edit Tally",
+                "tally-results-read": "Read Tally Results",
+                "publish-read": "Read Publish",
+                "publish-write": "Edit Publish",
+                "logs-read": "Read Logs",
+                "keys-read": "Read Keys",
+            },
         },
         common: {
+            resources: {
+                electionEvent: "Evento Electoral",
+                election: "Elección",
+                contest: "Concurso",
+                candidate: "Candidato",
+            },
             label: {
                 add: "Añadir",
+                actions: "Acciones",
                 create: "Crear",
                 delete: "Borrar",
+                archive: "Archivar",
+                unarchive: "Desarchivar",
                 cancel: "Cancelar",
                 edit: "Editar",
                 save: "Guardar",
@@ -166,15 +419,179 @@ const spanishTranslation = {
                 back: "Atrás",
                 next: "Siguiente",
                 warning: "Aviso",
+                json: "Vista previa",
             },
-            message: {
-                delete: "¿Estás seguro de que quieres eliminar este elemento?",
+            language: {
+                es: "Español",
+                en: "Inglés",
+            },
+            channel: {
+                online: "En línea",
+                kiosk: "Kiosco",
             },
         },
-        tenant: {
-            createSuccess: "Cliente creado",
-            createError: "Error creando cliente",
-        }
+        createResource: {
+            electionEvent: "Crear un Evento Electoral",
+            election: "Crear una Elección",
+            contest: "Crear un Concurso",
+            candidate: "Crear un Candidato",
+        },
+        sideMenu: {
+            electionEvents: "Procesos Electorales",
+            search: "Buscar",
+            usersAndRoles: "Usuarios y Roles",
+            settings: "Configuracion",
+            communicationTemplates: "Plantillas de Comunicación",
+            active: "Activos",
+            archived: "Archivados",
+            addResource: {
+                electionEvent: "Crear un Evento Electoral",
+                election: "Crear una Elección",
+                contest: "Crear un Concurso",
+                candidate: "Crear un Candidato",
+            },
+            menuActions: {
+                archive: {
+                    electionEvent: "Archivar este Evento Electoral",
+                },
+                unarchive: {
+                    electionEvent: "Desarchivar este Evento Electoral",
+                    election: "Desarchivar esta Elección",
+                    contest: "Desarchivar este Concurso",
+                    candidate: "Desarchivar este Candidato",
+                },
+                remove: {
+                    electionEvent: "Eliminar este Evento Electoral",
+                    election: "Eliminar esta Elección",
+                    contest: "Eliminar este Concurso",
+                    candidate: "Eliminar este Candidato",
+                },
+                messages: {
+                    confirm: {
+                        archive: "¿Está seguro de que desea archivar este elemento?",
+                        unarchive: "¿Está seguro de que desea desarchivar este elemento?",
+                        delete: "¿Está seguro de que desea eliminar este elemento?",
+                    },
+                    notification: {
+                        success: {
+                            archive: "El elemento ha sido archivado",
+                            unarchive: "El elemento ha sido desarchivado",
+                            delete: "El elemento ha sido eliminado",
+                        },
+                        error: {
+                            archive: "Error al intentar archivar este elemento",
+                            unarchive: "Error al intentar desarchivar este elemento",
+                            delete: "Error al intentar eliminar este elemento",
+                        },
+                    },
+                },
+            },
+        },
+        candidateScreen: {
+            common: {
+                subtitle: "Configuración de candidatos.",
+            },
+            edit: {
+                general: "General",
+                type: "Tipo",
+                image: "Imagen",
+            },
+            field: {
+                name: "Nombre",
+                alias: "Alias",
+                description: "Descripción",
+            },
+            options: {
+                "candidate": "Candidato",
+                "option": "Opción",
+                "write-in": "Voto por Escrito",
+                "open-list": "Lista Abierta",
+                "closed-list": "Lista Cerrada",
+                "semi-open-list": "Lista Semiabierta",
+                "invalid-vote": "Voto Inválido",
+                "blank-vote": "Voto en Blanco",
+            },
+            error: {},
+            createCandidateSuccess: "Candidato creado",
+            createCandidateError: "Error creating candidato",
+        },
+        contestScreen: {
+            common: {
+                subtitle: "Configuración de pregunta.",
+            },
+            edit: {
+                general: "General",
+                type: "Tipo",
+                image: "Imagen",
+                system: "Sistema de votación de papeletas",
+                design: "Diseño de la papeleta",
+                reorder: "Reordernar candidatos",
+            },
+            field: {
+                name: "Nombre",
+                alias: "Alias",
+                description: "Descripción",
+            },
+            options: {
+                "no-preferential": "Sin Preferencia",
+                "plurality-at-large": "Mayoría Plural",
+                "random-asnwers": "Respuestas Aleatorias",
+                "custom": "Personalizado",
+                "alphabetical": "Alfabético",
+            },
+            error: {},
+            createContestSuccess: "Pregunta creado",
+            createContestError: "Error creando pregunta",
+        },
+        keysGeneration: {
+            configureStep: {
+                create: "Crear Ceremonia de Claves",
+                title: "Crear Ceremonia de Claves del Evento Electoral",
+                subtitle:
+                    "En esta ceremonia cada autoridad generará y descargará su parte de las claves privadas para el Evento Electoral. Para continuar, elija los autoridades que participarán en la ceremonia y el umbral, que es el número mínimo de autoridades necesarios para contar.",
+                trusteeList: "Autoridades",
+                threshold: "Umbral",
+                errorMinTrustees:
+                    "Seleccionaste sólo {{selected}} autoridades, pero debe seleccionar al menos {{threshold}}.",
+                errorThreshold:
+                    "Seleccionaste un umbral de {{selected}} pero debe estar entre {{min}} y {{max}}.",
+                errorCreatingCeremony: "Error creando Ceremonia de Claves: {{error}}",
+                createCeremonySuccess: "Ceremonia de Claves creada",
+                confirmdDialog: {
+                    ok: "Sí, Crear Ceremonia de Claves",
+                    cancel: "Cancelar",
+                    title: "¿Estás seguro de que quieres Crear una Ceremonia de Claves?",
+                    description:
+                        "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
+                },
+            },
+            ceremonyStep: {
+                cancel: "Cancelar Ceremonia de Claves",
+                progressHeader: "Progreso de Ceremonia de Claves",
+                description:
+                    "Esta pantalla muestra el progreso y los registros de la Ceremonia de Claves del Evento Electoral. En la Ceremonia de Claves, cada autoridad generará y descargará su fragmento de la clave privada para el Evento Electoral.",
+                executionStatus: "Estado: {{status}}",
+                confirmdDialog: {
+                    ok: "Sí, Cancelar Creación de Ceremonia de Claves",
+                    cancel: "Volver a la Ceremonia de Claves",
+                    title: "¿Estás seguro de que quieres Cancelar la Ceremonia de Claves?",
+                    description:
+                        "Estás a punto de Cancelar la Ceremonia de Claves. Después de realizar esta acción, para tener una Ceremonia de Claves exitosa tendrás que Crear una nueva.",
+                },
+                header: {
+                    trusteeName: "Nombre de Autoridad",
+                    fragment: "Fragmento de Clave Generado",
+                    downloaded: "Fragmento Privado de Clave Descargado",
+                    checked: "Fragmento Privado de Clave Comprobado",
+                },
+                logsHeader: {
+                    title: "Logs",
+                    date: "Fecha",
+                    entry: "Entrada",
+                },
+                emptyLogs: "Sin logs aún.",
+            },
+        },
     },
 }
 

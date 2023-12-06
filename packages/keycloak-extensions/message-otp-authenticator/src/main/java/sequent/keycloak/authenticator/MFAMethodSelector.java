@@ -1,12 +1,10 @@
 package sequent.keycloak.authenticator;
 
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
-import sequent.keycloak.authenticator.ResetMessageOTPRequiredAction;
 import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedMap;
 import lombok.extern.jbosslog.JBossLog;
 
-import org.jboss.logging.Logger;
 import org.keycloak.Config;
 import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
@@ -20,6 +18,7 @@ import org.keycloak.models.credential.OTPCredentialModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 import java.util.Map;
+import java.util.stream.Collectors;
 
 
 /**
@@ -104,9 +103,32 @@ public class MFAMethodSelector
 	public void requiredActionChallenge(RequiredActionContext context) {
 		// initial form
 		LoginFormsProvider form = context.form();
+		context.getRealm().getRequiredActionProvidersStream();
 		form.setAttribute("realm", context.getRealm());
 		form.setAttribute("user", context.getUser());
-		form.setAttribute("credentialOptions", credentialTypes);
+
+		Map<String, String> filteredCredentialTypes = credentialTypes
+			.entrySet()
+			.stream()
+			.filter(entry -> {
+				String requiredActionId = entry.getValue();
+				return context
+					.getRealm()
+					.getRequiredActionProvidersStream()
+					.anyMatch(action -> {
+						log.infov(
+							"action.id={0}, enabled={1}",
+							action.getAlias(),
+							action.isEnabled()
+						);
+						return (
+							action.isEnabled() &&
+							action.getAlias().equals(requiredActionId)
+						);
+					});
+			})
+			.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+		form.setAttribute("credentialOptions", filteredCredentialTypes);
 		context.challenge(form.createForm(TPL_SELECTOR));
 	}
 

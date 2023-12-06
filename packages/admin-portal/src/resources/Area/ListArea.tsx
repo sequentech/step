@@ -6,28 +6,28 @@ import {
     DatagridConfigurable,
     List,
     TextField,
-    ReferenceField,
-    ReferenceManyField,
     TextInput,
     Identifier,
     RaRecord,
     useRecordContext,
     useDelete,
+    WrapperField,
+    FunctionField,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {useTenantStore} from "../../components/CustomMenu"
-import {Drawer, IconButton, Typography, styled} from "@mui/material"
-import EditIcon from "@mui/icons-material/Edit"
-import DeleteIcon from "@mui/icons-material/Delete"
-import {ChipList} from "../../components/ChipList"
+import {Drawer} from "@mui/material"
 import {EditArea} from "./EditArea"
 import {CreateArea} from "./CreateArea"
 import {Sequent_Backend_Election_Event} from "../../gql/graphql"
-import {Dialog, adminTheme} from "@sequentech/ui-essentials"
-import {faPen, faTrash} from "@fortawesome/free-solid-svg-icons"
+import {Dialog} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
+import EditIcon from "@mui/icons-material/Edit"
+import DeleteIcon from "@mui/icons-material/Delete"
 import {useTranslation} from "react-i18next"
-import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
+import {useTenantStore} from "../../providers/TenantContextProvider"
+import {useParams} from "react-router"
+import {AreaContestItems} from "@/components/AreaContestItems"
+
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
 const Filters: Array<ReactElement> = [
@@ -44,6 +44,8 @@ export interface ListAreaProps {
 
 export const ListArea: React.FC<ListAreaProps> = (props) => {
     const {t} = useTranslation()
+    const {id} = useParams()
+
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const [tenantId] = useTenantStore()
@@ -52,7 +54,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
-    const [closeDrawer, setCloseDrawer] = React.useState("")
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
 
     // const rowClickHandler = generateRowClickHandler(["election_event_id"])
@@ -69,7 +71,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
 
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
-        setCloseDrawer(new Date().toISOString())
+        setOpenDrawer(false)
     }
 
     const handleCloseEditDrawer = () => {
@@ -106,13 +108,16 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                 actions={
                     <ListActions
                         withImport={false}
-                        closeDrawer={closeDrawer}
+                        open={openDrawer}
+                        setOpen={setOpenDrawer}
                         Component={<CreateArea record={record} close={handleCloseCreateDrawer} />}
                     />
                 }
+                empty={false}
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,
+                    election_event_id: record?.id || undefined,
                 }}
                 filters={Filters}
             >
@@ -120,25 +125,15 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     <TextField source="id" />
                     <TextField source="name" />
                     <TextField source="description" />
-                    <TextField source="type" />
-                    <ReferenceField
-                        label="Election Event"
-                        reference="sequent_backend_election_event"
-                        source="election_event_id"
-                    >
-                        <TextField source="name" />
-                    </ReferenceField>
-                    <ReferenceManyField
-                        label="Area Contests"
-                        reference="sequent_backend_area_contest"
-                        target="area_id"
-                    >
-                        <ChipList
-                            source="sequent_backend_area_contest"
-                            filterFields={["election_event_id", "area_id"]}
-                        />
-                    </ReferenceManyField>
-                    <ActionsColumn actions={actions} />
+
+                    <FunctionField
+                        label={t("areas.sequent_backend_area_contest")}
+                        render={(record: any) => <AreaContestItems record={record} />}
+                    />
+
+                    <WrapperField source="actions" label="Actions">
+                        <ActionsColumn actions={actions} />
+                    </WrapperField>
                 </DatagridConfigurable>
             </List>
 
@@ -150,7 +145,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                     sx: {width: "40%"},
                 }}
             >
-                <EditArea id={recordId} close={handleCloseEditDrawer} />
+                <EditArea id={recordId} electionEventId={id} close={handleCloseEditDrawer} />
             </Drawer>
 
             <Dialog
