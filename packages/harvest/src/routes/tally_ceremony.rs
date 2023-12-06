@@ -23,6 +23,7 @@ use windmill::hasura::keys_ceremony::{
 };
 use windmill::hasura::trustee::get_trustees_by_name;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::ceremonies::tally_ceremony;
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::private_keys::get_trustee_encrypted_private_key;
 use windmill::tasks::create_keys::{create_keys, CreateKeysBody};
@@ -33,8 +34,7 @@ use windmill::types::keys_ceremony::{
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTallyCeremonyInput {
     election_event_id: String,
-    threshold: usize,
-    trustee_names: Vec<String>,
+    election_ids: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -49,5 +49,23 @@ pub async fn create_tally_ceremony(
     body: Json<CreateTallyCeremonyInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateTallyCeremonyOutput>, (Status, String)> {
-    Err((Status::InternalServerError, "".to_string()))
+    authorize(&claims, true, None, vec![Permissions::ADMIN_CEREMONY])?;
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+
+    let tally_session_id = tally_ceremony::create_tally_ceremony(
+        tenant_id,
+        input.election_event_id.clone(),
+        input.election_ids,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    event!(
+        Level::INFO,
+        "Creating Tally Ceremony, electionEventId={}, tallySessionId={}",
+        input.election_event_id,
+        tally_session_id,
+    );
+    Ok(Json(CreateTallyCeremonyOutput { tally_session_id }))
 }

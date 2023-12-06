@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod celery_app;
+pub mod ceremonies;
 pub mod compress;
 pub mod date;
 pub mod documents;
 pub mod election_event_board;
 pub mod election_event_status;
 pub mod jwks;
-pub mod keys_ceremony;
 pub mod pg_lock;
 pub mod private_keys;
 pub mod protocol_manager;

@@ -23,8 +23,8 @@ use windmill::hasura::keys_ceremony::{
 };
 use windmill::hasura::trustee::get_trustees_by_name;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::ceremonies::keys_ceremony;
 use windmill::services::election_event_board::get_election_event_board;
-use windmill::services::keys_ceremony;
 use windmill::services::private_keys::get_trustee_encrypted_private_key;
 use windmill::tasks::create_keys::{create_keys, CreateKeysBody};
 use windmill::types::keys_ceremony::{
@@ -62,7 +62,7 @@ pub async fn check_private_key(
         .preferred_username
         .ok_or((Status::Unauthorized, "Empty username".to_string()))?;
 
-    let GetPrivateKeyOutput {private_key_base64} = 
+    let GetPrivateKeyOutput {private_key_base64} =
         get_private_key(
             Json(GetPrivateKeyInput {
                 election_event_id: input.election_event_id.clone(),

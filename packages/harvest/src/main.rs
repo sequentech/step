@@ -53,6 +53,7 @@ fn rocket() -> _ {
                 routes::keys_ceremony::create_keys_ceremony,
                 routes::keys_ceremony::get_private_key,
                 routes::keys_ceremony::check_private_key,
+                routes::tally_ceremony::create_tally_ceremony,
             ],
         )
 }
