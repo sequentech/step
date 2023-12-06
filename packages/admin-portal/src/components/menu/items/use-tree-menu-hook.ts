@@ -4,7 +4,7 @@ import {useQuery} from "@apollo/client"
 import {useContext} from "react"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import configs from "@/configs"
+import globalSettings from "@/GlobalSettings"
 
 export function useTreeMenuData(isArchivedElectionEvents: boolean) {
     const [tenantId] = useTenantStore()
@@ -14,7 +14,7 @@ export function useTreeMenuData(isArchivedElectionEvents: boolean) {
             tenantId: tenantId,
             isArchived: isArchivedElectionEvents,
         },
-        pollInterval: configs.QUERY_POLL_INTERVAL_MS,
+        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 }
 

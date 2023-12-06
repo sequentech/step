@@ -17,7 +17,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
 import StatItem from "./StatItem"
-import configs from "@/configs"
+import globalSettings from "@/GlobalSettings"
 
 const CardList = styled(Box)`
     display: flex;
@@ -40,7 +40,7 @@ export default function Stats({forElection = false}: {forElection?: boolean}) {
                 electionEventId,
                 tenantId: record.tenant_id,
             },
-            pollInterval: configs.QUERY_POLL_INTERVAL_MS,
+            pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 

@@ -6,7 +6,7 @@ import {
     GET_CAST_VOTES_BY_DATERANGE,
     GET_CAST_VOTES_FOR_ELECTION,
 } from "@/queries/GetCastVotes"
-import configs from "@/configs"
+import globalSettings from "@/GlobalSettings"
 
 export function useVotesHook({
     electionEventId,
@@ -46,6 +46,6 @@ export function useVotesHook({
 
     return useQuery<GetCastVotesQuery>(query, {
         variables,
-        pollInterval: configs.QUERY_POLL_INTERVAL_MS,
+        pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
     })
 }
