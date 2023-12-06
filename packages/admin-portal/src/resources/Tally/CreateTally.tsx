@@ -17,6 +17,7 @@ import {
     SaveButton,
     useGetList,
     CheckboxGroupInput,
+    useGetOne,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {Sequent_Backend_Area, Sequent_Backend_Election_Event} from "../../gql/graphql"
@@ -44,6 +45,11 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
     const {data: trustees} = useGetList("sequent_backend_trustee", {
         pagination: {page: 1, perPage: 9999},
         filter: {tenant_id: tenantId},
+    })
+
+    const {data: keyCeremony} = useGetList("sequent_backend_key_ceremony",{
+        pagination: {page: 1, perPage: 9999},
+        filter: {election_event_id: record?.id, tenant_id: record?.tenant_id},
     })
 
     const onSuccess = () => {
@@ -80,13 +86,19 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
                         label="Election Event"
                         source="election_event_id"
                         defaultValue={record?.id || ""}
-                        style={{display: "none"}}
+                        // style={{display: "none"}}
                     />
                     <TextInput
                         label="Tenant"
                         source="tenant_id"
                         defaultValue={record?.tenant_id || ""}
-                        style={{display: "none"}}
+                        // style={{display: "none"}}
+                    />
+                    <TextInput
+                        label="Key Ceremony"
+                        source="keys_ceremony_id"
+                        defaultValue={keyCeremony || ""}
+                        // style={{display: "none"}}
                     />
 {/* 
                     {trustees ? (
