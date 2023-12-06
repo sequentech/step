@@ -56,12 +56,32 @@ using them and continue development:
     - Password: `immudb`
   - To create the index db, run:
       `/workspaces/backend-services/packages/target/debug/bb_helper --cache-dir /tmp/cache -s http://immudb:3322 -i indexdb -u immudb -p immudb upsert-init-db -l debug`
-- \[TODO\] **Rust Rocket service** at [http://127.0.0.1:8000]
 
 Additionally, this dev container comes with:
  - Relevant VS Code plugins installed
  - `cargo run` and `yarn install` pre-run so that you don't have to spend time
    waiting for setting up the enviroment the first time.
+
+## Developing `admin-portal`
+
+To launch the `admin-portal` in development mode, execute (the first time):
+
+```bash
+cd /workspaces/backend-services/packages/
+yarn && yarn build:ui-essentials # only needed the first time
+yarn start:admin
+```
+
+For subsequent runs, you only need:
+
+```bash
+cd /workspaces/backend-services/packages/
+yarn start:admin
+```
+
+Then it should open the admin-portal in the web browser, or else enter 
+in [http://127.0.0.1:3002/]
+
 
 ### Workspaces
 
@@ -259,10 +279,10 @@ and open it in VS Code Desktop (not from the web). Then, in your local machine
 ensure that the `graphql-engine` server name is aliased to `127.0.0.1` in 
 `/etc/hosts`, or else this won't work.
 
-Also clone this github project on your local machine (so this is apart from running
-it on Codespaces), and from the `backend-services/hasura` folder, run this:
+Then run the following commands to run the console in port `9695`:
 
 ```bash
+cd /workspaces/backend-services/hasura/
 hasura console --endpoint "http://graphql-engine:8080" --admin-secret "admin"
 ```
 
@@ -298,7 +318,7 @@ Afterwards, you need to regenerate the typescript auto-generated types using
 
 ```bash
 cd /workspaces/backend-services/packages/
-yarn generate
+yarn generate:admin
 ```
 
 Additionally, the same graphql schema file is needed in `windmill` to generate 
@@ -562,6 +582,7 @@ Clean the disk with:
 ```bash
 docker system prune --all --force
 nix-collect-garbage
+cargo clean
 ```
 
 [cargo workspace]: https://doc.rust-lang.org/cargo/reference/workspaces.html

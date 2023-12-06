@@ -198,6 +198,14 @@
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
     }, {
+      "id" : "545b57a0-ad5d-41c3-be67-bbbe0887ea66",
+      "name" : "admin-ceremony",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
       "id" : "1f8a329d-0ec6-484c-b06c-621e42b33fe1",
       "name" : "user-permission-read",
       "description" : "",
@@ -734,7 +742,7 @@
     "name" : "admin",
     "path" : "/admin",
     "attributes" : { },
-    "realmRoles" : [ "user-permission-create", "communication-template-read", "communication-template-write", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "role-write", "tally-results-read", "voting-channel-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "role-read", "election-type-read", "tally-read", "area-read", "tenant-read", "tally-start", "admin-user", "voter-write", "voter-create", "role-assign", "user-create", "voting-channel-read", "document-upload", "user-permission-read", "voter-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "tenant-create", "election-type-write", "publish-write", "user-read", "notification-read", "tenant-write", "area-write", "trustee-create", "election-event-read", "election-type-create", "publish-read" ],
+    "realmRoles" : [ "user-permission-create", "communication-template-read", "communication-template-write", "tally-write", "trustee-write", "user-write", "election-event-write", "notification-send", "user-permission-write", "role-write", "tally-results-read", "voting-channel-write", "logs-read", "communication-template-create", "election-state-write", "role-create", "role-read", "election-type-read", "tally-read", "area-read", "tenant-read", "tally-start", "admin-user", "voter-write", "voter-create", "role-assign", "user-create", "voting-channel-read", "document-upload", "user-permission-read", "voter-read", "election-event-create", "notification-write", "trustee-read", "keys-read", "tenant-create", "election-type-write", "publish-write", "user-read", "notification-read", "tenant-write", "area-write", "trustee-create", "election-event-read", "election-type-create", "publish-read", "admin-ceremony" ],
     "clientRoles" : { },
     "subGroups" : [ ]
   } ],
@@ -2974,7 +2982,7 @@
     "alias" : "message-otp-ra",
     "name" : "Reset Message OTP",
     "providerId" : "message-otp-ra",
-    "enabled" : false,
+    "enabled" : true,
     "defaultAction" : false,
     "priority" : 1003,
     "config" : { }

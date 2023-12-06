@@ -24,8 +24,15 @@
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": false,
 
-	"onCreateCommand": "direnv allow && devenv shell bash -c 'cd /workspaces/backend-services/packages/ && cargo build && yarn && yarn build:ui-essentials && sudo chown vscode:vscode node_modules/ */node_modules/' || true",
-	"updateContentCommand": "direnv allow && devenv shell bash -c 'cd /workspaces/backend-services/packages/ && cargo build' || true",
+	"onCreateCommand": "direnv allow && devenv shell bash -c 'echo devenv run'",
+	"updateContentCommand": "direnv allow && devenv shell bash -c 'echo devenv run'",
+
+	// Adding host requirements so that there is no need to manually select the
+	// machine to run on all the time
+	"hostRequirements": {
+		"storage": "40gb",
+		"cpus": 4
+	},
 
 	"features": {
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
@@ -57,6 +64,9 @@
 				
                 // Toml support
         		"tamasfe.even-better-toml",
+
+				// SQL formatter, useful for .sql files in hasura
+				"adpyke.vscode-sql-formatter",
 				
                 // Debugging
         		"vadimcn.vscode-lldb",

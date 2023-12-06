@@ -1,27 +1,20 @@
-import {
-    Button,
-    CreateButton,
-    ExportButton,
-    FilterButton,
-    SelectColumnsButton,
-    TopToolbar,
-} from "react-admin"
-import {ImportButton, ImportConfig} from "react-admin-import-csv"
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
 
-import {Add} from "@mui/icons-material"
 import {Drawer} from "@mui/material"
+import {Add} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
+import {ImportButton, ImportConfig} from "react-admin-import-csv"
+
+import {Button, TopToolbar, ExportButton, FilterButton, SelectColumnsButton} from "react-admin"
 
 interface ListActionsProps {
     withImport?: boolean
     withExport?: boolean
     withFilter?: boolean
+    open: boolean
+    setOpen: (val: boolean) => void
     Component?: React.ReactNode
-    closeDrawer?: string
+    custom?: boolean
 }
 
 export const ListActions: React.FC<ListActionsProps> = (props) => {
@@ -30,49 +23,75 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
         withExport = true,
         withFilter = true,
         Component,
-        closeDrawer = false,
+        open,
+        setOpen,
+        custom = true,
     } = props
+
     const {t} = useTranslation()
-
-    const [open, setOpen] = useState<boolean>(false)
-
-    useEffect(() => {
-        setOpen(false)
-    }, [closeDrawer])
 
     const config: ImportConfig = {
         logging: true,
-        // Disable the attempt to use "createMany", will instead just use "create" calls
         disableCreateMany: true,
-        // Disable the attempt to use "updateMany", will instead just use "update" calls
         disableUpdateMany: true,
     }
 
     return (
-        <TopToolbar>
-            <SelectColumnsButton />
-            {withFilter ? <FilterButton /> : null}
-            {Component && (
-                <>
-                    <Button label={t("common.label.add")} onClick={() => setOpen(true)}>
-                        <Add />
-                    </Button>
-                    <Drawer
-                        anchor="right"
-                        open={open}
-                        onClose={() => {
-                            setOpen(false)
+        <div className={custom ? "list-actions" : ""}>
+            <TopToolbar
+                sx={{
+                    backgroundColor: "transparent",
+                    display: "flex",
+                }}
+            >
+                <SelectColumnsButton />
+
+                {withFilter ? <FilterButton /> : null}
+
+                {Component && (
+                    <>
+                        <Button onClick={() => setOpen(true)} label={t("common.label.add")}>
+                            <Add />
+                        </Button>
+
+                        <Drawer
+                            anchor="right"
+                            open={open}
+                            onClose={() => {
+                                setOpen(false)
+                            }}
+                            PaperProps={{
+                                sx: {width: "30%"},
+                            }}
+                        >
+                            {Component}
+                        </Drawer>
+                    </>
+                )}
+
+                {withImport ? (
+                    <ImportButton
+                        sx={{
+                            color: "#0F054C",
+                            textAlign: "center",
+                            fontSize: "14px",
+                            fontStyle: "normal",
+                            fontWeight: "500",
+                            lineHeight: "normal",
+                            letterSpacing: "normal",
+                            textTransform: "uppercase",
+                            border: "1px solid #0F054C",
+                            borderRadius: "0px",
+                            padding: "6px 12px",
                         }}
-                        PaperProps={{
-                            sx: {width: "40%"},
-                        }}
-                    >
-                        {Component}
-                    </Drawer>
-                </>
-            )}
-            {withImport ? <ImportButton {...props} {...config} /> : null}
-            {withExport ? <ExportButton /> : null}
-        </TopToolbar>
+                        className="test-import-button"
+                        {...props}
+                        {...config}
+                    />
+                ) : null}
+
+                {withExport ? <ExportButton /> : null}
+            </TopToolbar>
+        </div>
     )
 }

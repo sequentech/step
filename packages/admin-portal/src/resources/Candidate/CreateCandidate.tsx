@@ -15,13 +15,16 @@ import {
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
-import useTreeMenuHook from "@/components/menu/items/use-tree-menu-hook"
+import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
+import {useTranslation} from "react-i18next"
 
 const Hidden = styled(Box)`
     display: none;
 `
 
 export const CreateCandidate: React.FC = () => {
+    const {t} = useTranslation()
+
     const [tenantId] = useTenantStore()
     const [searchParams] = useSearchParams()
     const redirect = useRedirect()
@@ -29,7 +32,7 @@ export const CreateCandidate: React.FC = () => {
     const electionEventId = searchParams.get("electionEventId")
     const contestId = searchParams.get("contestId")
 
-    const {refetch} = useTreeMenuHook(false)
+    const {refetch} = useTreeMenuData(false)
 
     return (
         <Create
@@ -41,8 +44,8 @@ export const CreateCandidate: React.FC = () => {
             }}
         >
             <SimpleForm>
-                <Typography variant="h4">Candidate</Typography>
-                <Typography variant="body2">Candidate creation</Typography>
+                <Typography variant="h4">{t("common.resources.candidate")}</Typography>
+                <Typography variant="body2">{t("createResource.candidate")}</Typography>
                 <TextInput source="name" />
                 <TextInput source="description" />
                 <Hidden>

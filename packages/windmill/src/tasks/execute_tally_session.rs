@@ -422,7 +422,7 @@ fn tally_area_contest(
 
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 60000)]
+#[celery::task(time_limit = 120000)]
 pub async fn execute_tally_session(
     tenant_id: String,
     election_event_id: String,
@@ -436,7 +436,7 @@ pub async fn execute_tally_session(
             tenant_id, election_event_id, tally_session_id
         ),
         Uuid::new_v4().to_string(),
-        Some(Utc::now().naive_utc() + Duration::seconds(60)),
+        Some(Utc::now().naive_utc() + Duration::seconds(120)),
     )
     .await?;
     // map plaintexts to contests
@@ -460,14 +460,23 @@ pub async fn execute_tally_session(
     let base_tempdir = tempdir()?;
 
     // perform tallies with velvet
-    plaintexts_data.iter().for_each(|area_contest_plaintext| {
-        if let Err(e) = tally_area_contest(
-            area_contest_plaintext.clone(),
-            base_tempdir.path().to_path_buf(),
-        ) {
+    
+    let tallies_result: Result<Vec<()>> = plaintexts_data
+        .iter()
+        .map(|area_contest_plaintext| {
+            tally_area_contest(
+                area_contest_plaintext.clone(),
+                base_tempdir.path().to_path_buf(),
+            )
+        })
+        .collect();
+    match tallies_result {
+        Ok(o) => o,
+        Err(e) => {
             event!(Level::ERROR, "Tally area contest: {e}");
+            return Err(e)
         }
-    });
+    };
 
     // compressed file with the tally
     let data = compress_folder(base_tempdir.path())?;

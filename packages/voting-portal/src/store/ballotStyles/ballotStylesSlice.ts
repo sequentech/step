@@ -9,7 +9,6 @@ export interface IBallotStyle {
     id: string
     election_id: string
     election_event_id: string
-    status?: string | null
     tenant_id: string
     ballot_eml: IElectionDTO
     ballot_signature?: string | null

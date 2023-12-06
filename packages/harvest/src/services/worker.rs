@@ -2,8 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::routes::scheduled_event;
+use crate::services::worker::scheduled_event::CreateEventBody;
 use anyhow::Result;
 use tracing::{event, instrument, Level};
+use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::create_keys;
 use windmill::tasks::render_report;
@@ -15,12 +18,10 @@ use windmill::tasks::update_election_event_ballot_styles::update_election_event_
 use windmill::tasks::update_voting_status;
 use windmill::types::scheduled_event::*;
 
-use crate::routes::scheduled_event;
-use crate::services::worker::scheduled_event::CreateEventBody;
-
 #[instrument]
-pub async fn process_scheduled_event(event: CreateEventBody) -> Result<()> {
+pub async fn process_scheduled_event(event: CreateEventBody) -> Result<String> {
     let celery_app = get_celery_app().await;
+    let mut element_id: String = Uuid::new_v4().to_string();
     match event.event_processor.clone() {
         EventProcessors::CREATE_REPORT => {
             let body: render_report::RenderTemplateBody =
@@ -79,6 +80,7 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<()> {
                     payload,
                     event.tenant_id,
                     event.election_event_id.clone(),
+                    element_id.clone(),
                 ))
                 .await?;
             event!(
@@ -101,5 +103,5 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<()> {
             );
         }
     }
-    Ok(())
+    Ok(element_id)
 }

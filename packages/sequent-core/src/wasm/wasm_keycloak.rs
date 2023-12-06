@@ -7,12 +7,11 @@ use wasm_bindgen::prelude::*;
 const IUSER: &'static str = r#"
 interface IUser {
     id?: string;
-    attributes?: {[key: string]: object};
+    attributes?: {[key: string]: any};
     email?: string;
     email_verified?: boolean;
     enabled?: boolean;
     first_name?: string;
-    groups?: Array<string>;
     last_name?: string;
     username?: string;
 }
@@ -28,7 +27,7 @@ extern "C" {
 const IPERMISSION: &'static str = r#"
 interface IPermission {
     id?: string;
-    attributes: {[key: string]: object};
+    attributes: {[key: string]: any};
     container_id?: string;
     description?: string;
     name?: string;
@@ -47,9 +46,9 @@ interface IRole {
     id?: string;
     name?: string;
     permissions?: Array<string>;
-    access?: {[key: string]: object};
-    attributes?: {[key: string]: object};
-    client_roles?: {[key: string]: object};
+    access?: {[key: string]: any};
+    attributes?: {[key: string]: any};
+    client_roles?: {[key: string]: any};
 }
 "#;
 

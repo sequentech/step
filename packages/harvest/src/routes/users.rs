@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
+use crate::types::optional::OptionalId;
 use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
 };
@@ -31,7 +32,7 @@ pub struct DeleteUserBody {
 pub async fn delete_user(
     claims: jwt::JwtClaims,
     body: Json<DeleteUserBody>,
-) -> Result<(), (Status, String)> {
+) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     let required_perm: Permissions = if input.election_event_id.is_some() {
         Permissions::VOTER_WRITE
@@ -57,7 +58,7 @@ pub async fn delete_user(
         .delete_user(&realm, &input.user_id)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    Ok(())
+    Ok(Json(Default::default()))
 }
 
 #[derive(Deserialize, Debug)]

@@ -10,7 +10,6 @@ use sequent_core::util::init_log::init_log;
 
 mod pdf;
 mod routes;
-mod s3;
 mod services;
 mod types;
 
@@ -51,6 +50,9 @@ fn rocket() -> _ {
                 routes::permissions::set_role_permission,
                 routes::permissions::delete_role_permission,
                 routes::upload_document::upload_document,
+                routes::keys_ceremony::create_keys_ceremony,
+                routes::keys_ceremony::get_private_key,
+                routes::keys_ceremony::check_private_key,
             ],
         )
 }

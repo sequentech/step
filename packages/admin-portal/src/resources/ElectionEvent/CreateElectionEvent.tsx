@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 import {useMutation} from "@apollo/client"
 import React, {useEffect, useState} from "react"
-import {CreateElectionEventMutation} from "../../gql/graphql"
+import {CreateElectionEventMutation} from "@/gql/graphql"
 import {v4} from "uuid"
 import {
     BooleanInput,
@@ -23,6 +24,7 @@ import {isNull} from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {styled} from "@mui/material/styles"
+import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 
 const Hidden = styled(Box)`
     display: none;
@@ -40,6 +42,19 @@ interface IElectionEventSubmit {
     encryption_protocol: string
     id: string
     tenant_id: string
+    presentation: {
+        i18n: {
+            [key: string]: {
+                name: string
+                alias: string
+                description: string
+            }
+        }
+        language_conf: {
+            enabled_language_codes: Array<string>
+            default_language_code: string
+        }
+    }
 }
 
 export const CreateElectionList: React.FC = () => {
@@ -60,6 +75,8 @@ export const CreateElectionList: React.FC = () => {
         id: newId,
     })
 
+    const {refetch: refetchTreeMenu} = useTreeMenuData(false)
+
     useEffect(() => {
         if (isNull(newId)) {
             return
@@ -79,7 +96,30 @@ export const CreateElectionList: React.FC = () => {
     }, [isLoading, newElectionEvent, isOneLoading, error])
 
     const handleSubmit = async (values: any) => {
-        const electionSubmit = values as IElectionEventSubmit
+        let electionSubmit = values as IElectionEventSubmit
+
+        // TODO: get enabled_language_codes from settings
+
+        electionSubmit = {
+            ...electionSubmit,
+            presentation: {
+                ...electionSubmit.presentation,
+                language_conf: {
+                    enabled_language_codes: ["es", "en"],
+                    default_language_code: "en",
+                },
+                i18n: {
+                    en: {
+                        name: electionSubmit.name,
+                        alias: "",
+                        description: electionSubmit.description || "",
+                    },
+                },
+            },
+        }
+
+        console.log("electionSubmit :: ", electionSubmit)
+
         let {data, errors} = await insertElectionEvent({
             variables: {
                 electionEvent: electionSubmit,
@@ -94,11 +134,14 @@ export const CreateElectionList: React.FC = () => {
             setIsLoading(false)
         }
         refresh()
+        setTimeout(() => {
+            refetchTreeMenu()
+        }, 3000)
     }
     return (
         <SimpleForm defaultValues={postDefaultValues} onSubmit={handleSubmit}>
-            <Typography variant="h4">{t("electionEventScreen.common.title")}</Typography>
-            <Typography variant="body2">{t("electionEventScreen.new.subtitle")}</Typography>
+            <Typography variant="h4">{t("common.resources.electionEvent")}</Typography>
+            <Typography variant="body2">{t("createResource.electionEvent")}</Typography>
             <TextInput source="name" />
             <TextInput source="description" />
             <Hidden>

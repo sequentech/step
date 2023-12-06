@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 body {
   margin: 0;
-  font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -23,6 +23,52 @@ code {
 }
 
 .MuiScopedCssBaseline-root {
-    margin-block-start: 0 !important;
-    margin-block-end: 0 !important;
+  margin-block-start: 0 !important;
+  margin-block-end: 0 !important;
+}
+
+.RaSidebar-fixed .MuiList-root {
+  overflow-y: auto !important;
+  padding-bottom: 0 !important;
+}
+
+
+.list-actions {
+  .MuiButtonBase-root {
+    color: #0F054C !important;
+    text-align: center !important;
+    font-size: 14px !important;
+    font-style: normal !important;
+    font-weight: 500 !important;
+    line-height: normal !important;
+    letter-spacing: normal !important;
+    text-transform: uppercase !important;
+    border-radius: 0px !important;
+    padding: 6px 12px !important;
+    height: 35px !important;
+    background-color: #fff !important;
+    border-top: 1px solid #0F054C !important;
+    border-bottom: 1px solid #0F054C !important;
+    border-left: 1px solid #0F054C !important;
+    border-right: none;
+
+    &:hover {
+      box-shadow: none;
+      border-top: 1px solid #0F054C !important;
+      border-bottom: 1px solid #0F054C !important;
+      border-left: 1px solid #0F054C !important;
+      border-right: none;
+    }
+  }
+
+  .MuiToolbar-root {
+    display: flex;
+    gap: 0;
+
+    .MuiButtonBase-root {
+      &:last-child {
+        border-right: 1px solid #0F054C !important;
+      }
+    }
+  }
 }

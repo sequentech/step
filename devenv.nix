@@ -48,6 +48,8 @@
 
     # for development of immudb local store
     pkgs.sqlite
+
+    pkgs.cargo-watch
   ];
 
   # https://devenv.sh/scripts/
@@ -57,6 +59,8 @@
     hello
     git --version
     export COMPOSE_PROJECT_NAME=backend-services_devcontainer
+    export COMPOSE_PROFILES=base
+    export RUSTFLAGS="-Awarnings"
   '';
 
   # https://devenv.sh/languages/
