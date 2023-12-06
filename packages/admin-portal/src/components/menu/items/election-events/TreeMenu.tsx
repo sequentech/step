@@ -158,14 +158,14 @@ function TreeMenuItem({
         data[key] = (resource as any)[key]
     }
 
-    const {lastCreatedResourceId, setLastCreatedResourceId} = useContext(NewResourceContext)
+    const {lastCreatedResource, setLastCreatedResource} = useContext(NewResourceContext)
 
     useEffect(() => {
-        if (lastCreatedResourceId === resource.id) {
+        if (lastCreatedResource?.id === resource.id) {
             setOpen(true)
-            setLastCreatedResourceId(null)
+            setLastCreatedResource(null)
         }
-    }, [lastCreatedResourceId, setLastCreatedResourceId, resource.id])
+    }, [lastCreatedResource, setLastCreatedResource, resource.id])
 
     const menuItemRef = useRef<HTMLDivElement | null>(null)
 
