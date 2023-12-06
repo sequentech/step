@@ -50,6 +50,7 @@ pub struct CeremonyStatus {
 pub enum TallyExecutionStatus {
     #[default]
     NOT_STARTED,
+    CONNECTED,
     IN_PROCESS,
     SUCCESS,
     CANCELLED,

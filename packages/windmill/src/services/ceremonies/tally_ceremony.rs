@@ -4,12 +4,15 @@
 use crate::hasura::area::get_election_event_areas;
 use crate::hasura::keys_ceremony::get_keys_ceremony;
 use crate::hasura::tally_session::insert_tally_session;
+use crate::services::celery_app::get_celery_app;
+use crate::tasks::connect_tally_ceremony::connect_tally_ceremony;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
 use std::collections::HashSet;
 use uuid::Uuid;
+use tracing::{event, instrument, Level};
 
 pub async fn find_keys_ceremony(
     auth_headers: connection::AuthHeaders,
@@ -113,6 +116,7 @@ pub async fn create_tally_ceremony(
     election_ids: Vec<String>,
 ) -> Result<String> {
     let auth_headers = keycloak::get_client_credentials().await?;
+    let celery_app = get_celery_app().await;
     let keys_ceremony_id = find_keys_ceremony(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -147,5 +151,15 @@ pub async fn create_tally_ceremony(
     .ok_or(anyhow!("can't find tally session"))?
     .returning[0]
         .clone();
+
+    // create the public keys in async task
+    let task = celery_app
+        .send_task(connect_tally_ceremony::new(
+            tenant_id.clone(),
+            election_event_id.clone(),
+            tally_session_id.clone(),
+        ))
+        .await?;
+    event!(Level::INFO, "Sent connect_tally_ceremony task {}", task.task_id);
     Ok(keys_ceremony_id)
 }
