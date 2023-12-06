@@ -8,10 +8,10 @@ use anyhow::{Context, Result};
 use rocket::http::Status;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
+use sequent_core::services::keycloak;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::ballot::ElectionEventStatus;
 use windmill::hasura::trustee::get_trustees_by_name;
 use windmill::hasura::election_event::get_election_event;
 use windmill::hasura::keys_ceremony::{insert_keys_ceremony, get_keys_ceremony};
@@ -30,14 +30,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-use windmill::hasura::election_event::get_election_event;
-use windmill::hasura::keys_ceremony::insert_keys_ceremony;
-use windmill::hasura::trustee::get_trustees_by_name;
-use windmill::services::celery_app::get_celery_app;
-use windmill::tasks::create_keys::{create_keys, CreateKeysBody};
-use windmill::types::keys_ceremony::{
-    CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus,
-};
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Endpoint: /check-private-key
