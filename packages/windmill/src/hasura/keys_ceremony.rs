@@ -57,7 +57,7 @@ pub async fn insert_keys_ceremony(
 #[graphql(
     schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/get_keys_ceremony.graphql",
-    response_derives = "Debug"
+    response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
 pub struct GetKeysCeremony;
 

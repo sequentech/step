@@ -6,6 +6,8 @@ use crate::hasura::keys_ceremony::get_keys_ceremony;
 use crate::hasura::tally_session::get_tally_sessions;
 use crate::hasura::tally_session::insert_tally_session;
 use crate::services::celery_app::get_celery_app;
+use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
+use crate::services::ceremonies::tally_ceremony::get_keys_ceremony::GetKeysCeremonySequentBackendKeysCeremony;
 use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
 use crate::tasks::connect_tally_ceremony::connect_tally_ceremony;
 use anyhow::{anyhow, Context, Result};
@@ -54,7 +56,7 @@ pub async fn find_keys_ceremony(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
-) -> Result<String> {
+) -> Result<GetKeysCeremonySequentBackendKeysCeremony> {
     // find if there's any previous ceremony. There should be one and it should
     // have finished successfully.
     let keys_ceremonies = get_keys_ceremony(
@@ -83,14 +85,24 @@ pub async fn find_keys_ceremony(
     if successful_ceremonies.len() > 1 {
         return Err(anyhow!("Expected a single keys ceremony"));
     }
-    Ok(successful_ceremonies[0].id.clone())
+    Ok(successful_ceremonies[0].clone())
 }
 
-fn generate_initial_tally_status(election_ids: &Vec<String>) -> TallyCeremonyStatus {
+fn generate_initial_tally_status(
+    election_ids: &Vec<String>,
+    keys_ceremony_status: &CeremonyStatus,
+) -> TallyCeremonyStatus {
     TallyCeremonyStatus {
         stop_date: None,
         logs: vec![],
-        trustees: vec![],
+        trustees: keys_ceremony_status
+            .trustees
+            .iter()
+            .map(|trustee| TallyTrustee {
+                name: trustee.name.clone(),
+                status: TallyTrusteeStatus::WAITING,
+            })
+            .collect(),
         elections_status: election_ids
             .iter()
             .map(|election_id| TallyElection {
@@ -153,12 +165,14 @@ pub async fn create_tally_ceremony(
 ) -> Result<String> {
     let auth_headers = keycloak::get_client_credentials().await?;
     let celery_app = get_celery_app().await;
-    let keys_ceremony_id = find_keys_ceremony(
+    let keys_ceremony = find_keys_ceremony(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
     )
     .await?;
+    let keys_ceremony_status = get_keys_ceremony_status(keys_ceremony.status)?;
+    let keys_ceremony_id = keys_ceremony.id.clone();
     let area_ids = get_area_ids(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -166,7 +180,7 @@ pub async fn create_tally_ceremony(
         election_ids.clone(),
     )
     .await?;
-    let initial_status = generate_initial_tally_status(&election_ids);
+    let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
     let tally_session_id: String = Uuid::new_v4().to_string();
     let _tally_session = insert_tally_session(
         auth_headers.clone(),

@@ -12,6 +12,7 @@ use tracing::{event, instrument, Level};
 use crate::hasura;
 use crate::hasura::keys_ceremony::get_keys_ceremony;
 use crate::hasura::trustee::get_trustees_by_name;
+use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::public_keys;
 use crate::types::error::Result;
@@ -88,13 +89,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
         );
         return Err("keys ceremony in wrong execution_status".into());
     }
-    let current_status: CeremonyStatus = serde_json::from_value(
-        keys_ceremony
-            .status
-            .clone()
-            .ok_or(anyhow!("Empty keys ceremony status"))?,
-    )
-    .with_context(|| "error parsing keys ceremony current status")?;
+    let current_status: CeremonyStatus = get_keys_ceremony_status(keys_ceremony.status.clone())?;
 
     // verify trustee names and fetch their objects to get their ids
     let trustee_names = current_status

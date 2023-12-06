@@ -11,9 +11,20 @@ use crate::tasks::create_keys::{create_keys, CreateKeysBody};
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
+use serde_json::from_value;
 use serde_json::Value;
 use tracing::{event, Level};
 use uuid::Uuid;
+
+pub fn get_keys_ceremony_status(input: Option<Value>) -> Result<CeremonyStatus> {
+    input
+        .map(|value| {
+            from_value(value)
+                .map_err(|err| anyhow!("Error parsing keys ceremony status: {:?}", err))
+        })
+        .ok_or(anyhow!("Missing keys ceremony status"))
+        .flatten()
+}
 
 pub async fn create_keys_ceremony(
     tenant_id: String,

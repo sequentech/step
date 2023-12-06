@@ -3,9 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::tally_session::update_tally_session_status;
 use crate::services::ceremonies::tally_ceremony::*;
-use crate::types::error::{Error, Result};
+use crate::types::error::Result;
 use celery::prelude::TaskError;
-use sequent_core::services::connection;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
 use tracing::{event, instrument, Level};
