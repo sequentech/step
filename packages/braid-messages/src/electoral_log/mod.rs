@@ -14,10 +14,11 @@ pub(crate) mod tests {
     use strand::signature::StrandSignatureSk;
 
     use crate::electoral_log::message::{Message, SigningData};
-    use crate::electoral_log::newtypes::{ContextHash, PseudonymHash};
+    use crate::electoral_log::newtypes::*;
 
     const INDEX_DB: &'static str = "testindexdb";
     const BOARD_DB: &'static str = "testdb";
+    const DUMMY_H: [u8; 64] = [0u8; 64];
 
     async fn set_up() -> BoardClient {
         let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb").await.unwrap();
@@ -64,9 +65,11 @@ pub(crate) mod tests {
         let sender_sk = StrandSignatureSk::gen().unwrap();
         let system_sk = StrandSignatureSk::gen().unwrap();
         let sd = SigningData::new(sender_sk, sender_name, system_sk);
-        let ctx = ContextHash([0u8; 64]);
-        let pseudonym = PseudonymHash([0u8; 64]);
-        let message = Message::test_message(ctx, pseudonym, &sd).unwrap();
+        let ctx = ContextHash(DUMMY_H);
+        let contest = ContestHash(DUMMY_H);
+        let pseudonym = PseudonymHash(DUMMY_H);
+        let vote = CastVoteHash(DUMMY_H);
+        let message = Message::cast_vote_message(ctx, contest, pseudonym, vote, &sd).unwrap();
         let mut board_message: BoardMessage = message.try_into().unwrap();
         // We do this so that the id matches the auto generated id in the db, otherwise the assert_eq fails
         board_message.id = 1;

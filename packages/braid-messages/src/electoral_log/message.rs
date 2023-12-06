@@ -13,7 +13,7 @@ use crate::electoral_log::statement::StatementHead;
 
 use crate::electoral_log::newtypes::ContextHash;
 
-use super::newtypes::PseudonymHash;
+use super::newtypes::*;
 
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct Message {
@@ -24,8 +24,8 @@ pub struct Message {
     pub artifact: Option<Vec<u8>>,
 }
 impl Message {
-    pub fn test_message(context: ContextHash, pseudonym: PseudonymHash, sd: &SigningData) -> Result<Self> {
-        let body = StatementBody::CastVote(pseudonym);
+    pub fn cast_vote_message(context: ContextHash, contest_h: ContestHash, pseudonym_h: PseudonymHash, vote_h: CastVoteHash, sd: &SigningData) -> Result<Self> {
+        let body = StatementBody::CastVote(contest_h, pseudonym_h, vote_h);
         let head = StatementHead::from_body(context, &body);
         let statement = Statement::new(head, body);
 
