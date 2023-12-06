@@ -312,6 +312,8 @@ services:
     volumes:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
+    depends_on:
+      - immudb-init
   
   harvest:
     profiles: ["full", "base"]
@@ -432,6 +434,42 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+
+  immudb-init:
+    profiles: ["full", "base"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: immudb-init
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
+    restart: always
+    working_dir: /app/immu-board
+    entrypoint: [
+      "cargo",
+      "run",
+      "--bin",
+      "bb_helper",
+      "--",
+      "--server-url",
+      "${IMMUDB_SERVER_URL}",
+      "--username",
+      "${IMMUDB_USER}",
+      "--password",
+      "${IMMUDB_PASSWORD}",
+      "--index-dbname",
+      "${IMMUDB_INDEX_DB}",
+      "--board-dbname",
+      "${IMMUDB_BOARD_DB_NAME}",
+      "--cache-dir",
+      "/tmp/immu-board",
+      "upsert-init-db"
+    ]
+    volumes:
+      - ./keycloak/import:/import
+      - ../packages/:/app
+    env_file:
+      - .env
 
   windmill:
     profiles: ["full", "base"]
