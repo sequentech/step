@@ -11,10 +11,11 @@ import {
 } from "@/services/KeyCeremony"
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 import {styled} from "@mui/material/styles"
-import {Box} from "@mui/material"
+import {Alert, Box} from "@mui/material"
 import React, {useContext, useState} from "react"
 import {StartStep} from "@/components/keys-ceremony/StartStep"
 import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
+import { useTranslation } from "react-i18next"
 
 export const isTrusteeParticipating =
     (
@@ -69,6 +70,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     setCurrentCeremony,
     goBack,
 }) => {
+    const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const trusteeParticipating = (
         currentCeremony &&
@@ -78,32 +80,41 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         currentCeremony,
         authContext
     )
+    const status: IExecutionStatus = currentCeremony.status
+    const keysGenerated = (
+        status.public_key != undefined &&
+        currentCeremony.execution_status == EStatus.IN_PROCESS
+    )
     const calculateCurrentStep: () => WizardStep = () => {
-        // If trustee is not participating, it can only status view
+        // If trustee is not participating, show status step
         if (!trusteeParticipating) {
             return WizardStep.Status
-        // If trustee is participating but is not in process, then it can only
-        // view the ceremony
-        } else if (currentCeremony.execution_status != EStatus.IN_PROCESS) {
+        // If trustee is participating but is not started, show status step
+        } else if (currentCeremony.execution_status == EStatus.NOT_STARTED) {
             return WizardStep.Status
+        // If trustee is participating but is not started, show status step
+        } else if (
+            currentCeremony.execution_status == EStatus.CANCELLED ||
+            currentCeremony.execution_status == EStatus.SUCCESS
+        ) {
+            return WizardStep.Success
         // if the trustee has not checked the key, then show the start screen
-        } else if (!trusteeCheckedKeys) {
+        } else if (
+            currentCeremony.execution_status == EStatus.IN_PROCESS &&
+            !trusteeCheckedKeys
+        ) {
             return WizardStep.Start
         // In all other cases, just show the status
         } else {
             return WizardStep.Success
         }
     }
-    const showStatusNext = trusteeCheckedKeys && trusteeParticipating
     const [currentStep, setCurrentStep] = useState<WizardStep>(calculateCurrentStep())
-    const openCeremonyStep = () => {
-        setCurrentStep(1)
-    }
 
     return (
         <StyledBox>
             <BreadCrumbSteps
-                labels={showStatusNext
+                labels={trusteeParticipating
                     ? [
                         "electionEventScreen.keys.breadCrumbs.status",
                         "electionEventScreen.keys.breadCrumbs.start",
@@ -126,17 +137,28 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                     currentCeremony={currentCeremony}
                     electionEvent={electionEvent}
                     goBack={goBack}
-                    goNext={showStatusNext && currentStep == WizardStep.Status
+                    goNext={(
+                        !trusteeCheckedKeys &&
+                        trusteeParticipating &&
+                        keysGenerated &&
+                        currentStep == WizardStep.Status
+                    )
                         ? () => setCurrentStep(WizardStep.Start)
-                        : undefined}
+                        : undefined
+                    }
+                    message={!keysGenerated 
+                        ? <>
+                            <Alert severity="warning">
+                                {t("electionEventScreen.keys.waitingKeys")}
+                            </Alert>
+                        </>
+                        : undefined
+                    }
                 />
             )}
             {currentStep == WizardStep.Start && (
                 <StartStep
-                    currentCeremony={currentCeremony}
-                    setCurrentCeremony={setCurrentCeremony}
-                    electionEvent={electionEvent}
-                    openCeremonyStep={openCeremonyStep}
+                    goNext={() => setCurrentStep(WizardStep.Success)}
                     goBack={() => setCurrentStep(WizardStep.Status)}
                 />
             )}

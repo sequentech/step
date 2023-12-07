@@ -208,7 +208,7 @@ function TreeMenuItem({
     return (
         <div className="bg-white">
             <div ref={menuItemRef} className="group flex text-left space-x-2 items-center">
-                {canCreateElectionEvent ? (
+                {hasNext && canCreateElectionEvent ? (
                     <div className="flex-none w-6 h-6 cursor-pointer text-black" onClick={onClick}>
                         {open ? <ExpandMoreIcon /> : <ChevronRightIcon />}
                     </div>

@@ -202,6 +202,7 @@ const spanishTranslation: TranslationType = {
                 createNew: "Crear Ceremonia de Claves",
                 emptyHeader: "Ninguna Ceremonia de Claves aún.",
                 statusLabel: "Estado",
+                waitingKeys: "Esperando a la Generación de Claves..",
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Ceremonia",
