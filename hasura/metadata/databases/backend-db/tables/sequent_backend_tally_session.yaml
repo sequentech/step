@@ -11,12 +11,13 @@ insert_permissions:
     - created_at
     - election_event_id
     - election_ids
+    - execution_status
     - id
     - is_execution_completed
+    - keys_ceremony_id
     - labels
     - last_updated_at
     - tenant_id
-    - trustee_ids
   role: admin-user
 - comment: ""
   permission:
@@ -27,12 +28,13 @@ insert_permissions:
     - created_at
     - election_event_id
     - election_ids
+    - execution_status
     - id
     - is_execution_completed
+    - keys_ceremony_id
     - labels
     - last_updated_at
     - tenant_id
-    - trustee_ids
   role: service-account
 select_permissions:
 - comment: ""
@@ -44,12 +46,13 @@ select_permissions:
     - created_at
     - election_event_id
     - election_ids
+    - execution_status
     - id
     - is_execution_completed
+    - keys_ceremony_id
     - labels
     - last_updated_at
     - tenant_id
-    - trustee_ids
     filter: {}
   role: admin-user
 - comment: ""
@@ -61,12 +64,13 @@ select_permissions:
     - created_at
     - election_event_id
     - election_ids
+    - execution_status
     - id
     - is_execution_completed
+    - keys_ceremony_id
     - labels
     - last_updated_at
     - tenant_id
-    - trustee_ids
     filter: {}
   role: service-account
 update_permissions:
@@ -79,12 +83,13 @@ update_permissions:
     - created_at
     - election_event_id
     - election_ids
+    - execution_status
     - id
     - is_execution_completed
+    - keys_ceremony_id
     - labels
     - last_updated_at
     - tenant_id
-    - trustee_ids
     filter: {}
   role: admin-user
 - comment: ""
@@ -96,11 +101,12 @@ update_permissions:
     - created_at
     - election_event_id
     - election_ids
+    - execution_status
     - id
     - is_execution_completed
+    - keys_ceremony_id
     - labels
     - last_updated_at
     - tenant_id
-    - trustee_ids
     filter: {}
   role: service-account
