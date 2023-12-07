@@ -118,16 +118,25 @@ export default function Header({
                                             vertical: "top",
                                             horizontal: "right",
                                         }}
+                                        sx={{maxWidth: 220}}
                                         open={Boolean(anchorEl)}
                                         onClose={handleClose}
                                     >
                                         <MenuItem>
-                                            <Box>
-                                                <p>
+                                            <Box
+                                                sx={{
+                                                    textOverflow: "ellipsis",
+                                                    whiteSpace: "nowrap",
+                                                    overflow: "hidden",
+                                                }}
+                                            >
+                                                <span title={userProfile?.displayName}>
                                                     {userProfile?.displayName}
-                                                    <br />
+                                                </span>
+                                                <br />
+                                                <span title={userProfile?.email}>
                                                     {userProfile?.email}
-                                                </p>
+                                                </span>
                                             </Box>
                                         </MenuItem>
                                         <MenuItem

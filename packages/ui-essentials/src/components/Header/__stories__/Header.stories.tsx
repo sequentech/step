@@ -65,3 +65,23 @@ export const WithUserProfile: Story = {
         },
     },
 }
+
+export const WithUserProfileLong: Story = {
+    args: {
+        userProfile: {
+            email: "johnhasaverysupersuperduperverysuperduperlongname@sequentech.io",
+            displayName: "John has a very super super duper very super duper long name",
+            openLink() {
+                alert("rouge")
+            },
+        },
+        logoutFn() {
+            alert("logging out")
+        },
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}
