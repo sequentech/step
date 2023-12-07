@@ -103,19 +103,19 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
                                 optionText={"id"}
                                 optionValue={"id"}
                                 defaultValue={keyCeremony[0].id}
-                                style={{display: "none"}}
+                                // style={{display: "none"}}
                             />
                             <TextInput
                                 label="Election Event"
                                 source="election_event_id"
                                 defaultValue={record?.id}
-                                style={{display: "none"}}
+                                // style={{display: "none"}}
                             />
                             <TextInput
                                 label="Tenant"
                                 source="tenant_id"
                                 defaultValue={record?.tenant_id}
-                                style={{display: "none"}}
+                                // style={{display: "none"}}
                             />
                             {/* 
                     {trustees ? (

@@ -954,7 +954,6 @@ export type Mutation_RootDelete_Sequent_Backend_Communication_TemplateArgs = {
 
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Communication_Template_By_PkArgs = {
-  election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
 };
@@ -2875,7 +2874,6 @@ export type Query_RootSequent_Backend_Communication_Template_AggregateArgs = {
 
 
 export type Query_RootSequent_Backend_Communication_Template_By_PkArgs = {
-  election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
 };
@@ -5010,7 +5008,6 @@ export type Sequent_Backend_Communication_Template = {
   communication_type: Scalars['String']['output'];
   created_at: Scalars['timestamptz']['output'];
   created_by: Scalars['String']['output'];
-  election_event_id: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
   template: Scalars['jsonb']['output'];
@@ -5075,7 +5072,6 @@ export type Sequent_Backend_Communication_Template_Bool_Exp = {
   communication_type?: InputMaybe<String_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   created_by?: InputMaybe<String_Comparison_Exp>;
-  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   template?: InputMaybe<Jsonb_Comparison_Exp>;
@@ -5085,7 +5081,7 @@ export type Sequent_Backend_Communication_Template_Bool_Exp = {
 
 /** unique or primary key constraints on table "sequent_backend.communication_template" */
 export enum Sequent_Backend_Communication_Template_Constraint {
-  /** unique or primary key constraint on columns "id", "tenant_id", "election_event_id" */
+  /** unique or primary key constraint on columns "id", "tenant_id" */
   CommunicationTemplatePkey = 'communication_template_pkey'
 }
 
@@ -5117,7 +5113,6 @@ export type Sequent_Backend_Communication_Template_Insert_Input = {
   communication_type?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   created_by?: InputMaybe<Scalars['String']['input']>;
-  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   template?: InputMaybe<Scalars['jsonb']['input']>;
@@ -5132,7 +5127,6 @@ export type Sequent_Backend_Communication_Template_Max_Fields = {
   communication_type?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   created_by?: Maybe<Scalars['String']['output']>;
-  election_event_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   updated_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -5145,7 +5139,6 @@ export type Sequent_Backend_Communication_Template_Min_Fields = {
   communication_type?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   created_by?: Maybe<Scalars['String']['output']>;
-  election_event_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   updated_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -5174,7 +5167,6 @@ export type Sequent_Backend_Communication_Template_Order_By = {
   communication_type?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   created_by?: InputMaybe<Order_By>;
-  election_event_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   template?: InputMaybe<Order_By>;
@@ -5184,7 +5176,6 @@ export type Sequent_Backend_Communication_Template_Order_By = {
 
 /** primary key columns input for table: sequent_backend.communication_template */
 export type Sequent_Backend_Communication_Template_Pk_Columns_Input = {
-  election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
 };
@@ -5209,8 +5200,6 @@ export enum Sequent_Backend_Communication_Template_Select_Column {
   /** column name */
   CreatedBy = 'created_by',
   /** column name */
-  ElectionEventId = 'election_event_id',
-  /** column name */
   Id = 'id',
   /** column name */
   Labels = 'labels',
@@ -5229,7 +5218,6 @@ export type Sequent_Backend_Communication_Template_Set_Input = {
   communication_type?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   created_by?: InputMaybe<Scalars['String']['input']>;
-  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   template?: InputMaybe<Scalars['jsonb']['input']>;
@@ -5252,7 +5240,6 @@ export type Sequent_Backend_Communication_Template_Stream_Cursor_Value_Input = {
   communication_type?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   created_by?: InputMaybe<Scalars['String']['input']>;
-  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   template?: InputMaybe<Scalars['jsonb']['input']>;
@@ -5272,8 +5259,6 @@ export enum Sequent_Backend_Communication_Template_Update_Column {
   CreatedAt = 'created_at',
   /** column name */
   CreatedBy = 'created_by',
-  /** column name */
-  ElectionEventId = 'election_event_id',
   /** column name */
   Id = 'id',
   /** column name */
@@ -13711,7 +13696,6 @@ export type Subscription_RootSequent_Backend_Communication_Template_AggregateArg
 
 
 export type Subscription_RootSequent_Backend_Communication_Template_By_PkArgs = {
-  election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
 };

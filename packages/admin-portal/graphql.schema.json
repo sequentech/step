@@ -5268,22 +5268,6 @@
             "description": "delete single row from the table: \"sequent_backend.communication_template\"",
             "args": [
               {
-                "name": "election_event_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
                 "name": "id",
                 "description": null,
                 "type": {
@@ -18355,22 +18339,6 @@
             "name": "sequent_backend_communication_template_by_pk",
             "description": "fetch data from the table: \"sequent_backend.communication_template\" using primary key columns",
             "args": [
-              {
-                "name": "election_event_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
               {
                 "name": "id",
                 "description": null,
@@ -34808,22 +34776,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "id",
             "description": null,
             "args": [],
@@ -35228,18 +35180,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "uuid_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "id",
             "description": null,
             "type": {
@@ -35314,7 +35254,7 @@
         "enumValues": [
           {
             "name": "communication_template_pkey",
-            "description": "unique or primary key constraint on columns \"id\", \"tenant_id\", \"election_event_id\"",
+            "description": "unique or primary key constraint on columns \"id\", \"tenant_id\"",
             "isDeprecated": false,
             "deprecationReason": null
           }
@@ -35553,18 +35493,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "id",
             "description": null,
             "type": {
@@ -35683,18 +35611,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "id",
             "description": null,
             "args": [],
@@ -35784,18 +35700,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "election_event_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
               "ofType": null
             },
             "isDeprecated": false,
@@ -36024,18 +35928,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "id",
             "description": null,
             "type": {
@@ -36106,22 +35998,6 @@
         "description": "primary key columns input for table: sequent_backend.communication_template",
         "fields": null,
         "inputFields": [
-          {
-            "name": "election_event_id",
-            "description": null,
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
-                "ofType": null
-              }
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
           {
             "name": "id",
             "description": null,
@@ -36245,12 +36121,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "id",
             "description": "column name",
             "isDeprecated": false,
@@ -36343,18 +36213,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "election_event_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null,
@@ -36532,18 +36390,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "id",
             "description": null,
             "type": {
@@ -36642,12 +36488,6 @@
           },
           {
             "name": "created_by",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "election_event_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -94335,22 +94175,6 @@
             "name": "sequent_backend_communication_template_by_pk",
             "description": "fetch data from the table: \"sequent_backend.communication_template\" using primary key columns",
             "args": [
-              {
-                "name": "election_event_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
               {
                 "name": "id",
                 "description": null,
