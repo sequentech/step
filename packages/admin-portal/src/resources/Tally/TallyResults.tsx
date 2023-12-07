@@ -1,18 +1,16 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {memo, useEffect, useState} from "react"
+import React, {useEffect, useState} from "react"
 import {
     useGetOne,
     useGetMany,
-    TabbedShowLayout,
     RaRecord,
     Identifier,
     useGetList,
 } from "react-admin"
 
 import {
-    Sequent_Backend_Area,
     Sequent_Backend_Election,
     Sequent_Backend_Tally_Session,
 } from "../../gql/graphql"
@@ -21,11 +19,8 @@ import {TallyResultsContest} from "./TallyResultsContests"
 import {Box, Tab, Tabs} from "@mui/material"
 import {ReactI18NextChild} from "react-i18next"
 
-// interface TallyResultsProps {
-//     tally: Sequent_Backend_Tally_Session | undefined
-// }
 
-const TallyResults: React.FC = () => {
+export const TallyResults: React.FC = () => {
     const [tallyId] = useElectionEventTallyStore()
     const [value, setValue] = React.useState<number | null>(null)
     const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election>>([])
@@ -73,15 +68,6 @@ const TallyResults: React.FC = () => {
 
     const tabClicked = (id: string, index: number) => {
         setElectionId(id)
-        // localStorage.setItem("selected-results-election-tab-id", index.toString())
-        
-        localStorage.setItem("selected-results-election-id", id)
-        localStorage.setItem(
-            "selected-results-election-event-id",
-            electionsData?.[index]?.election_event_id
-        )
-        localStorage.setItem("selected-results-tenant-id", electionsData?.[index]?.tenant_id)
-        
         setValue(index)
     }
 
@@ -98,11 +84,15 @@ const TallyResults: React.FC = () => {
             </Tabs>
             {electionsData?.map((election, index) => (
                 <CustomTabPanel key={index} index={index} value={value}>
-                    <TallyResultsContest areas={areas} electionId={electionId} />
+                    <TallyResultsContest 
+                    areas={areas} 
+                    electionId={electionId} 
+                    electionEventId={election.election_event_id}
+                    tenantId={election.tenant_id}
+                    />
                 </CustomTabPanel>
             ))}
         </>
     )
 }
 
-export default memo(TallyResults)

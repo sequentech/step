@@ -2,21 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {useGetOne, useGetMany, useGetList} from "react-admin"
+import {useGetMany, useGetList} from "react-admin"
 
 import {
     Sequent_Backend_Election,
     Sequent_Backend_Results_Election,
-    Sequent_Backend_Tally_Session,
 } from "../../gql/graphql"
-import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
-import Checkbox from "@mui/material/Checkbox"
-import {ElectionStatusItem} from "@/components/ElectionStatusItem"
-import styled from "@emotion/styled"
-import {Box, LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {TenantContextProvider} from "@/providers/TenantContextProvider"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -27,19 +20,25 @@ interface TallyElectionsResultsProps {
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
     const {tenantId, electionEventId, electionIds} = props
     const {t} = useTranslation()
-    const [resultsData, setResultsData] = useState<Array<
-        Sequent_Backend_Election & {
-            rowId: number
-            id: string
-            status: string
-            method: string
-            voters: number
-            number: number
-            turnout: number
-        }
-    >>([])
+    const [resultsData, setResultsData] = useState<
+        Array<
+            Sequent_Backend_Election & {
+                rowId: number
+                id: string
+                status: string
+                method: string
+                voters: number
+                number: number
+                turnout: number
+            }
+        >
+    >([])
 
-    const {data: results, isLoading} = useGetList<Sequent_Backend_Results_Election>(
+    const {data: elections} = useGetMany("sequent_backend_election", {
+        ids: electionIds || [],
+    })
+
+    const {data: results} = useGetList<Sequent_Backend_Results_Election>(
         "sequent_backend_results_election",
         {
             pagination: {page: 1, perPage: 1},
@@ -50,14 +49,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         }
     )
 
-    const {data: elections} = useGetMany("sequent_backend_election", {
-        ids: electionIds || [],
-    })
-
     useEffect(() => {
-        console.log("TallyElectionsResults :: results", results)
-        console.log("TallyElectionsResults :: elections", elections)
-
         if (results && elections) {
             const temp:
                 | Array<
@@ -71,40 +63,23 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                           turnout: number
                       }
                   >
-                | undefined = elections?.map((election, index) => {
+                | undefined = elections?.map((item, index) => {
                 return {
-                    ...election,
+                    ...item,
                     rowId: index,
-                    id: election.id || "",
-                    name: election.name,
-                    status: election.status || "",
-                    method: election.method,
-                    voters: election.voters,
-                    number: election.number,
-                    turnout: election.turnout,
+                    id: item.id || "",
+                    name: item.name,
+                    status: item.status || "",
+                    method: item.method,
+                    voters: item.voters,
+                    number: item.number,
+                    turnout: item.turnout,
                 }
             })
 
             setResultsData(temp)
         }
     }, [results, elections])
-
-    // useEffect(() => {
-    //     if (elections) {
-    //         const temp = (elections || []).map((election, index) => ({
-    //             ...election,
-    //             rowId: index,
-    //             id: election.id || "",
-    //             name: election.name,
-    //             status: election.status || "",
-    //             method: election.method,
-    //             voters: election.voters,
-    //             number: election.number,
-    //             turnout: election.turnout,
-    //         }))
-    //         setElectionsData(temp)
-    //     }
-    // }, [elections])
 
     const columns: GridColDef[] = [
         {

@@ -21,13 +21,13 @@ import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
 import {TallyTrusteesList} from "./TallyTrusteesList"
 import {faKey} from "@fortawesome/free-solid-svg-icons"
-import { TallyStyles } from '@/components/styles/TallyStyles'
-import { TallyStartDate } from './TallyStartDate'
-import TallyElectionsProgress from './TallyElectionsProgress'
-import { TallyElectionsResults } from './TallyElectionsResults'
-import TallyResults from './TallyResults'
-import TallyLogs from './TallyLogs'
-import { useGetOne } from 'react-admin'
+import {TallyStyles} from "@/components/styles/TallyStyles"
+import {TallyStartDate} from "./TallyStartDate"
+import {TallyElectionsProgress} from "./TallyElectionsProgress"
+import {TallyElectionsResults} from "./TallyElectionsResults"
+import {TallyResults} from "./TallyResults"
+import TallyLogs from "./TallyLogs"
+import {useGetOne} from "react-admin"
 
 interface TallyCeremonyProps {
     completed: boolean
@@ -246,7 +246,11 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                         </AccordionSummary>
                         <AccordionDetails>
                             <TallyStartDate />
-                            <TallyElectionsResults tenantId={tally?.tenant_id} electionEventId={tally?.election_event_id} electionIds={tally?.election_ids}/>
+                            <TallyElectionsResults
+                                tenantId={tally?.tenant_id}
+                                electionEventId={tally?.election_event_id}
+                                electionIds={tally?.election_ids}
+                            />
                         </AccordionDetails>
                     </Accordion>
 

@@ -5,13 +5,9 @@ import React, {useEffect, useState} from "react"
 import {Identifier, RaRecord, useGetList, useGetOne} from "react-admin"
 
 import {
-    Sequent_Backend_Area,
     Sequent_Backend_Area_Contest,
-    Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
-    Sequent_Backend_Tally_Session,
 } from "../../gql/graphql"
-import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Tabs, Tab} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsGlobalCandidates} from "./TallyResultsGlobalCandidates"
@@ -20,17 +16,17 @@ import {TallyResultsCandidates} from "./TallyResultsCandidates"
 interface TallyResultsContestAreasProps {
     areas: RaRecord<Identifier>[] | undefined
     contestId: string | null
+    electionId: string | null
+    electionEventId: string | null
+    tenantId: string | null
 }
 
 export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> = (props) => {
-    const {areas, contestId} = props
+    const {areas, contestId, electionEventId, tenantId} = props
     const {t} = reactI18next.useTranslation()
 
-    // const [tenantId] = useTenantStore()
     const [value, setValue] = React.useState<number | null>(null)
     const [areasData, setAreasData] = useState<Array<Sequent_Backend_Area_Contest>>([])
-    const [tenantId, setTenantId] = useState<string | null>()
-    const [electionEventId, setElectionEventId] = useState<string | null>()
     const [areaContestId, setAreaContestId] = useState<string | null>()
     const [selectedArea, setSelectedArea] = useState<string | null>()
 
@@ -49,11 +45,6 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         id: contestId,
         meta: {tenant_id: tenantId},
     })
-
-    useEffect(() => {
-        setTenantId(localStorage.getItem("selected-results-tenant-id"))
-        setElectionEventId(localStorage.getItem("selected-results-election-event-id"))
-    }, [contestId])
 
     useEffect(() => {
         if (contestId) {
@@ -78,12 +69,9 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     }
 
     const tabClicked = (area: Sequent_Backend_Area_Contest, index: number) => {
-        localStorage.setItem("selected-results-contest-area-id", areasData?.[index]?.id)
         setValue(index + 1)
-
         setAreaContestId(area.id)
         setSelectedArea(area.area_id)
-        localStorage.setItem("selected-results-contest-area-id", area.id)
     }
 
     const tabGlobalClicked = () => {

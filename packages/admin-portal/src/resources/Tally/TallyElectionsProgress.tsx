@@ -1,23 +1,19 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState, memo} from "react"
+import React, {useEffect, useState} from "react"
 import {useGetOne, useGetMany, useGetList} from "react-admin"
 
 import {Sequent_Backend_Election, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
-import Checkbox from "@mui/material/Checkbox"
 import {ElectionStatusItem} from "@/components/ElectionStatusItem"
 import styled from "@emotion/styled"
-import {Box, LinearProgress, Typography, linearProgressClasses} from "@mui/material"
+import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import { useTranslation } from 'react-i18next'
 
-// interface TallyElectionsProgressProps {
-//     update: (elections: Array<string>) => void
-// }
 
-const TallyElectionsProgress: React.FC = () => {
+export const TallyElectionsProgress: React.FC = () => {
     const [tallyId] = useElectionEventTallyStore()
     const {t} = useTranslation()
 
@@ -138,4 +134,3 @@ const TallyElectionsProgress: React.FC = () => {
     )
 }
 
-export default memo(TallyElectionsProgress)
