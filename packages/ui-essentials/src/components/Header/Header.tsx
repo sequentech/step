@@ -40,13 +40,21 @@ type ApplicationVersion = {
     main: string
 }
 
+type UserProfile = {
+    displayName: string
+    email: string
+    openLink: Function
+}
+
 export interface HeaderProps {
     logoutFn?: () => void
     version?: ApplicationVersion
     logoLink?: string
+    userProfile?: UserProfile
 }
 
 export default function Header({
+    userProfile,
     version: appVersion,
     logoutFn,
     logoLink = "//sequentech.io/",
@@ -57,10 +65,6 @@ export default function Header({
 
     function handleCloseModal(value: boolean) {
         return value && logoutFn ? logoutFn() : setOpenModal(false)
-    }
-
-    function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
-        console.log("toto")
     }
 
     function handleMenu(event: React.MouseEvent<HTMLElement>) {
@@ -89,58 +93,66 @@ export default function Header({
                         >
                             <Version version={appVersion ?? {main: "7.1.0"}} />
                             <LanguageMenu />
-                            <div>
-                                <IconButton
-                                    size="large"
-                                    aria-label="account of current user"
-                                    aria-controls="menu-appbar"
-                                    aria-haspopup="true"
-                                    onClick={handleMenu}
-                                    color="inherit"
-                                >
-                                    <AccountCircle />
-                                </IconButton>
-                                <Menu
-                                    id="menu-appbar"
-                                    anchorEl={anchorEl}
-                                    anchorOrigin={{
-                                        vertical: "top",
-                                        horizontal: "right",
-                                    }}
-                                    keepMounted
-                                    transformOrigin={{
-                                        vertical: "top",
-                                        horizontal: "right",
-                                    }}
-                                    open={Boolean(anchorEl)}
-                                    onClose={handleClose}
-                                >
-                                    <MenuItem>
-                                        <Box>
-                                            <p>
-                                                Name
-                                                <br />
-                                                eee@eee.com
-                                            </p>
-                                        </Box>
-                                    </MenuItem>
-                                    <MenuItem onClick={handleClose}>
-                                        <AccountCircle sx={{marginRight: "14px"}} />
-                                        Profile
-                                    </MenuItem>
-                                    {logoutFn && (
+                            {userProfile && (
+                                <div>
+                                    <IconButton
+                                        size="large"
+                                        aria-label="account of current user"
+                                        aria-controls="menu-appbar"
+                                        aria-haspopup="true"
+                                        onClick={handleMenu}
+                                        color="inherit"
+                                    >
+                                        <AccountCircle sx={{fontSize: 40}} />
+                                    </IconButton>
+
+                                    <Menu
+                                        id="menu-appbar"
+                                        anchorEl={anchorEl}
+                                        anchorOrigin={{
+                                            vertical: "top",
+                                            horizontal: "right",
+                                        }}
+                                        keepMounted
+                                        transformOrigin={{
+                                            vertical: "top",
+                                            horizontal: "right",
+                                        }}
+                                        open={Boolean(anchorEl)}
+                                        onClose={handleClose}
+                                    >
+                                        <MenuItem>
+                                            <Box>
+                                                <p>
+                                                    {userProfile?.displayName}
+                                                    <br />
+                                                    {userProfile?.email}
+                                                </p>
+                                            </Box>
+                                        </MenuItem>
                                         <MenuItem
                                             onClick={() => {
-                                                setOpenModal(true)
                                                 handleClose()
+                                                userProfile?.openLink()
                                             }}
                                         >
-                                            <LogoutIcon sx={{marginRight: "14px"}} />
-                                            {t("logout.buttonText")}
+                                            <AccountCircle sx={{marginRight: "14px"}} />
+                                            Profile
                                         </MenuItem>
-                                    )}
-                                </Menu>
-                            </div>
+                                        {logoutFn && (
+                                            <MenuItem
+                                                onClick={() => {
+                                                    setOpenModal(true)
+                                                    handleClose()
+                                                }}
+                                            >
+                                                <LogoutIcon sx={{marginRight: "14px"}} />
+                                                {t("logout.buttonText")}
+                                            </MenuItem>
+                                        )}
+                                    </Menu>
+                                </div>
+                            )}
                         </Box>
                     </PageBanner>
                 </PageLimit>

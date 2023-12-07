@@ -26,9 +26,7 @@ type Story = StoryObj<typeof Header>
 
 export const Primary: Story = {
     // More on args: https://storybook.js.org/docs/react/writing-stories/args
-    args: {
-        logoutFn: () => {},
-    },
+    args: {},
     parameters: {
         viewport: {
             disable: true,
@@ -44,6 +42,26 @@ export const PrimaryMobile: Story = {
     parameters: {
         viewport: {
             defaultViewport: "iphone6",
+        },
+    },
+}
+
+export const WithUserProfile: Story = {
+    args: {
+        userProfile: {
+            email: "john@sequentech.io",
+            displayName: "John Doe",
+            openLink() {
+                alert("rouge")
+            },
+        },
+        logoutFn() {
+            alert("logging out")
+        },
+    },
+    parameters: {
+        viewport: {
+            disable: true,
         },
     },
 }
