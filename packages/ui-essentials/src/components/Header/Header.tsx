@@ -48,14 +48,14 @@ type UserProfile = {
 
 export interface HeaderProps {
     logoutFn?: () => void
-    version?: ApplicationVersion
+    appVersion?: ApplicationVersion
     logoLink?: string
     userProfile?: UserProfile
 }
 
 export default function Header({
     userProfile,
-    version: appVersion,
+    appVersion,
     logoutFn,
     logoLink = "//sequentech.io/",
 }: HeaderProps) {
