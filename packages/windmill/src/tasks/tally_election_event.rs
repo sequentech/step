@@ -88,7 +88,6 @@ pub async fn tally_election_event(
         tally_session_id.clone(),
         "".to_string(),
         TallyExecutionStatus::NOT_STARTED,
-        Default::default(),
     )
     .await?
     .data

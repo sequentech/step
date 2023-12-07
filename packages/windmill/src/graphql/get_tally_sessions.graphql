@@ -21,7 +21,6 @@ query GetTallySessions(
         is_execution_completed
         keys_ceremony_id
         execution_status
-        status
   }
 }
 

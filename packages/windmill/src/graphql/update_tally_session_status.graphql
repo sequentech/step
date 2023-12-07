@@ -2,7 +2,6 @@ mutation UpdateTallySessionStatus(
         $tenantId: uuid!
         $electionEventId: uuid!
         $tallySessionId: uuid!
-        $status: jsonb
         $executionStatus: String
     ) {
         update_sequent_backend_tally_session(
@@ -12,7 +11,6 @@ mutation UpdateTallySessionStatus(
                 election_event_id: {_eq: $electionEventId}
             }
             _set: {
-                status: $status,
                 execution_status: $executionStatus
             }
         ) {

@@ -8,6 +8,7 @@ use celery::prelude::TaskError;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
 use tracing::{event, instrument, Level};
+use crate::hasura::tally_session_execution::insert_tally_session_execution;
 
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -18,13 +19,16 @@ pub async fn connect_tally_ceremony(
     tally_session_id: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
-    let tally_session = get_tally_session(
+
+    let Some((tally_session_execution, tally_session)) = find_last_tally_session_execution(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
-    )
-    .await?;
+    ).await? else {
+        event!(Level::INFO, "Missing tally session/execution");
+        return Ok(());
+    };
     let execution_status = tally_session.execution_status.unwrap_or("".into());
     if execution_status != TallyExecutionStatus::NOT_STARTED.to_string() {
         event!(
@@ -34,7 +38,7 @@ pub async fn connect_tally_ceremony(
         );
         return Ok(());
     }
-    let status = get_tally_ceremony_status(tally_session.status)?;
+    let status = get_tally_ceremony_status(tally_session_execution.status)?;
     let mut new_status = status.clone();
     new_status.trustees = new_status
         .trustees
@@ -50,8 +54,18 @@ pub async fn connect_tally_ceremony(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
-        new_status,
         TallyExecutionStatus::CONNECTED,
+    )
+    .await?;
+    insert_tally_session_execution(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        -1,
+        tally_session_id.clone(),
+        None,
+        Some(new_status),
+        None,
     )
     .await?;
     Ok(())

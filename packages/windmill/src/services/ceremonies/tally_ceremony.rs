@@ -10,6 +10,13 @@ use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
 use crate::services::ceremonies::tally_ceremony::get_keys_ceremony::GetKeysCeremonySequentBackendKeysCeremony;
 use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
 use crate::tasks::connect_tally_ceremony::connect_tally_ceremony;
+use crate::hasura::tally_session_execution::{
+    get_last_tally_session_execution, insert_tally_session_execution,
+};
+use crate::services::ceremonies::tally_ceremony::get_last_tally_session_execution::{
+    GetLastTallySessionExecutionSequentBackendTallySession,
+    GetLastTallySessionExecutionSequentBackendTallySessionExecution
+};
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
@@ -18,6 +25,40 @@ use serde_json::{from_value, Value};
 use std::collections::HashSet;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+
+pub async fn find_last_tally_session_execution(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    tally_session_id: String,
+) -> Result<Option<(GetLastTallySessionExecutionSequentBackendTallySessionExecution, GetLastTallySessionExecutionSequentBackendTallySession)>> {
+    // get all data for the execution: the last tally session execution,
+    // the list of tally_session_contest, and the ballot styles
+    let data = get_last_tally_session_execution(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session_id.clone(),
+    )
+    .await?
+    .data
+    .expect("expected data");
+
+    if data.sequent_backend_tally_session.len() == 0 {
+        event!(Level::INFO, "Missing tally session");
+        return Ok(None);
+    }
+
+    if data.sequent_backend_tally_session_execution.len() == 0 {
+        event!(Level::INFO, "Missing tally session execution");
+        return Ok(None);
+    }
+    Ok(Some((
+        data.sequent_backend_tally_session_execution[0].clone(),
+        data.sequent_backend_tally_session[0].clone()
+    )))
+
+}
 
 pub async fn get_tally_session(
     auth_headers: connection::AuthHeaders,
@@ -191,7 +232,6 @@ pub async fn create_tally_ceremony(
         tally_session_id.clone(),
         keys_ceremony_id.clone(),
         TallyExecutionStatus::NOT_STARTED,
-        initial_status,
     )
     .await?
     .data
@@ -200,6 +240,18 @@ pub async fn create_tally_ceremony(
     .ok_or(anyhow!("can't find tally session"))?
     .returning[0]
         .clone();
+    
+    let _tally_session_execution = insert_tally_session_execution(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        -1,
+        tally_session_id.clone(),
+        None,
+        Some(initial_status),
+        None,
+    )
+    .await?;
 
     // create the public keys in async task
     let task = celery_app

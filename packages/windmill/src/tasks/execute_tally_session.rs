@@ -528,7 +528,9 @@ pub async fn execute_tally_session(
         election_event_id.clone(),
         newest_message_id,
         tally_session_id.clone(),
-        document.id.clone(),
+        Some(document.id.clone()),
+        None,
+        None,
     )
     .await?;
 

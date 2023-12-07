@@ -23,6 +23,8 @@ query GetLastTallySessionExecution(
         annotations
         current_message_id
         tally_session_id
+        status
+        results_event_id
     }
     sequent_backend_tally_session(
         where: {
@@ -43,7 +45,6 @@ query GetLastTallySessionExecution(
         is_execution_completed
         keys_ceremony_id
         execution_status
-        status
     }
     sequent_backend_tally_session_contest(
         where: {
