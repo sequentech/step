@@ -1,13 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Context};
-use board_messages::braid::newtypes::BatchNumber;
-use celery::error::TaskError;
-use sequent_core::services::keycloak;
-use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use tracing::{event, instrument, Level};
 
 use crate::hasura::area::get_election_event_areas;
 use crate::hasura::tally_session::{get_tally_session_highest_batch, insert_tally_session};
@@ -16,6 +9,15 @@ use crate::hasura::trustee::get_trustees_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
 use crate::types::error::Result;
+use anyhow::{anyhow, Context};
+use board_messages::braid::newtypes::BatchNumber;
+use celery::error::TaskError;
+use sequent_core::services::keycloak;
+use sequent_core::types::ceremonies::*;
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::default::Default;
+use tracing::{event, instrument, Level};
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct TallyElectionBody {
@@ -68,6 +70,7 @@ pub async fn tally_election_event(
         .collect::<HashSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
+
     let _trustees = get_trustees_by_id(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -82,9 +85,10 @@ pub async fn tally_election_event(
         tenant_id.clone(),
         election_event_id.clone(),
         body.election_ids.clone(),
-        body.trustee_ids.clone(),
         area_ids.clone(),
         tally_session_id.clone(),
+        "".to_string(),
+        TallyExecutionStatus::NOT_STARTED,
     )
     .await?
     .data

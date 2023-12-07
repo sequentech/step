@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useMemo, useRef, useState} from "react"
+import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
 import {NavLink} from "react-router-dom"
 import {useGetOne, useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -26,6 +26,7 @@ import {useTranslation} from "react-i18next"
 import MenuActions from "./MenuActions"
 import {useActionPermissions} from "../use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {NewResourceContext} from "@/providers/NewResourceProvider"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -157,12 +158,14 @@ function TreeMenuItem({
         data[key] = (resource as any)[key]
     }
 
-    // useEffect(() => {
-    //     if (data[key]?.length === 0 && isFirstLoad) {
-    //         setOpen(true)
-    //         setIsFirstLoad(false)
-    //     }
-    // }, [data, key, isFirstLoad])
+    const {lastCreatedResource, setLastCreatedResource} = useContext(NewResourceContext)
+
+    useEffect(() => {
+        if (lastCreatedResource?.id === resource.id) {
+            setOpen(true)
+            setLastCreatedResource(null)
+        }
+    }, [lastCreatedResource, setLastCreatedResource, resource.id])
 
     const menuItemRef = useRef<HTMLDivElement | null>(null)
 
@@ -262,6 +265,9 @@ export function TreeMenu({
     onArchiveElectionEventsSelect: (val: number) => void
 }) {
     const {t} = useTranslation()
+    const isEmpty =
+        (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents
+
     return (
         <>
             <ul className="flex px-4 space-x-4 bg-white uppercase text-xs leading-6">
@@ -289,12 +295,16 @@ export function TreeMenu({
                 </li>
             </ul>
             <div className="mx-5 py-2">
-                <TreeLeaves
-                    data={data}
-                    parentData={data as DataTreeMenuType}
-                    treeResourceNames={treeResourceNames}
-                    isArchivedElectionEvents={isArchivedElectionEvents}
-                />
+                {isEmpty ? (
+                    <div className="p-4 bg-white">No result</div>
+                ) : (
+                    <TreeLeaves
+                        data={data}
+                        parentData={data as DataTreeMenuType}
+                        treeResourceNames={treeResourceNames}
+                        isArchivedElectionEvents={isArchivedElectionEvents}
+                    />
+                )}
             </div>
         </>
     )

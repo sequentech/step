@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, {useContext} from "react"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Typography, styled} from "@mui/material"
@@ -19,6 +19,7 @@ import {
 import {JsonInput} from "react-admin-json-view"
 import {useSearchParams} from "react-router-dom"
 import {useTranslation} from "react-i18next"
+import {NewResourceContext} from "@/providers/NewResourceProvider"
 
 const Hidden = styled(Box)`
     display: none;
@@ -35,11 +36,14 @@ export const CreateElection: React.FC = () => {
 
     const {refetch} = useTreeMenuData(false)
 
+    const {setLastCreatedResource} = useContext(NewResourceContext)
+
     return (
         <Create
             mutationOptions={{
                 onSuccess: (data: any) => {
                     refetch()
+                    setLastCreatedResource({id: data.id, type: "sequent_backend_election"})
                     redirect(`/sequent_backend_election/${data.id}`)
                 },
             }}

@@ -19,7 +19,7 @@ use crate::hasura::tally_session_contest::get_tally_session_contest;
 use crate::hasura::trustee::get_trustees_by_id;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager::*;
-use crate::services::public_keys::deserialize_pk;
+use crate::services::public_keys::deserialize_public_key;
 use crate::types::error::{Error, Result};
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
@@ -77,7 +77,7 @@ pub async fn insert_ballots(
     let deserialized_trustee_pks: Vec<StrandSignaturePk> = trustees
         .clone()
         .into_iter()
-        .map(|trustee| deserialize_pk(trustee.public_key.unwrap()))
+        .map(|trustee| deserialize_public_key(trustee.public_key.unwrap()))
         .collect();
 
     event!(

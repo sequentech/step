@@ -1,0 +1,35 @@
+table:
+  name: results_event
+  schema: sequent_backend
+insert_permissions:
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - election_event_id
+    - id
+    - name
+    - tenant_id
+  role: service-account
+select_permissions:
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - name
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: service-account
+update_permissions:
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - name
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: service-account

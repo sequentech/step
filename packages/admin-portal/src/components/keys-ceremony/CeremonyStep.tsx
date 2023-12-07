@@ -45,16 +45,17 @@ export const statusColor: (status: string) => string = (status) => {
     }
 }
 
-const CancelButton = styled(Button)`
-    margin-left: auto;
-    background-color: ${({theme}) => theme.palette.grey[100]};
-    color: ${({theme}) => theme.palette.errorColor};
-    border-color: ${({theme}) => theme.palette.errorColor};
-
-    &:hover {
-        background-color: ${({theme}) => theme.palette.errorColor};
-    }
-`
+// TODO: use this later when we support multiple ceremonies per election event
+// const CancelButton = styled(Button)`
+//     margin-left: auto;
+//     background-color: ${({theme}) => theme.palette.grey[100]};
+//     color: ${({theme}) => theme.palette.errorColor};
+//     border-color: ${({theme}) => theme.palette.errorColor};
+// 
+//     &:hover {
+//         background-color: ${({theme}) => theme.palette.errorColor};
+//     }
+// `
 
 const StyledToolbar = styled(Toolbar)`
     flex-direction: row;
@@ -277,12 +278,12 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                     <ArrowBackIosIcon />
                     {t("common.label.back")}
                 </BackButton>
-                {cancellable() ? (
+                {/*cancellable() ? (
                     <CancelButton onClick={() => setOpenConfirmationModal(true)}>
                         <CloseIcon />
                         {t("keysGeneration.ceremonyStep.cancel")}
                     </CancelButton>
-                ) : null}
+                ) : null*/}
             </StyledToolbar>
             <Dialog
                 variant="warning"

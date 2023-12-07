@@ -106,7 +106,7 @@ impl TryFrom<&Row> for PgAuditRow {
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         let mut id = 0;
-        let mut audit_type = String::from("");
+        let _audit_type = String::from("");
         let mut class = String::from("");
         let mut command = String::from("");
         let mut dbname = String::from("");
@@ -196,8 +196,8 @@ pub async fn list_pgaudit(
     client.login().await?;
 
     client.open_session(&input.election_event_id).await?;
-    let limit: i64 = input.limit.unwrap_or(10);
-    let offset: i64 = input.offset.unwrap_or(0);
+    let _limit: i64 = input.limit.unwrap_or(10);
+    let _offset: i64 = input.offset.unwrap_or(0);
     let sql = format!(
         r#"
         SELECT

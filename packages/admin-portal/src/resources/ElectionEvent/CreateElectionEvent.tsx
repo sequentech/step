@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {useMutation} from "@apollo/client"
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {CreateElectionEventMutation} from "@/gql/graphql"
 import {v4} from "uuid"
 import {
@@ -25,6 +25,7 @@ import {useNavigate} from "react-router"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {styled} from "@mui/material/styles"
 import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
+import {NewResourceContext} from "@/providers/NewResourceProvider"
 
 const Hidden = styled(Box)`
     display: none;
@@ -75,6 +76,7 @@ export const CreateElectionList: React.FC = () => {
         id: newId,
     })
 
+    const {setLastCreatedResource} = useContext(NewResourceContext)
     const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
     useEffect(() => {
@@ -126,14 +128,19 @@ export const CreateElectionList: React.FC = () => {
             },
         })
 
-        if (data?.insertElectionEvent?.id) {
-            setNewId(data?.insertElectionEvent?.id)
+        const newId = data?.insertElectionEvent?.id ?? null
+
+        if (newId) {
+            setNewId(newId)
+            setLastCreatedResource({id: newId, type: "sequent_backend_election_event"})
             setIsLoading(true)
         } else {
             notify(t("electionEventScreen.createElectionEventError"), {type: "error"})
             setIsLoading(false)
         }
+
         refresh()
+
         setTimeout(() => {
             refetchTreeMenu()
         }, 3000)

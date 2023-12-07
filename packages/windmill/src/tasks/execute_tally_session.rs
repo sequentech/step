@@ -1,16 +1,19 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>, Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use chrono::{Duration, Utc};
-use std::fs::{self, File};
-use std::io::Write;
-use std::path::PathBuf;
+
 
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
+use chrono::{Duration, Utc};
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::services::keycloak;
+use sequent_core::types::ceremonies::TallyExecutionStatus;
+use std::fs::{self, File};
+use std::io::Write;
+use std::path::PathBuf;
+use std::str::FromStr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tempfile::tempdir;
 use tracing::{event, instrument, Level};
@@ -130,6 +133,34 @@ fn process_plaintexts(
         .collect()
 }
 
+#[instrument]
+fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecutionStatus> {
+    let Some(execution_status_str) = execution_status.clone() else {
+        event!(Level::INFO, "Missing execution status");
+
+        return None;
+    };
+    let Some(execution_status) = TallyExecutionStatus::from_str(&execution_status_str).ok() else {
+        event!(Level::INFO, "Tally session can't continue the tally with unexpected execution status {}", execution_status_str);
+
+        return None;
+    };
+    let valid_status: Vec<TallyExecutionStatus> = vec![
+        TallyExecutionStatus::CONNECTED,
+        TallyExecutionStatus::IN_PROCESS,
+    ];
+    if !valid_status.contains(&execution_status) {
+        event!(
+            Level::INFO,
+            "Tally session can't continue the tally with unexpected execution status {}",
+            execution_status_str
+        );
+
+        return None;
+    };
+    Some(execution_status)
+}
+
 #[instrument(skip_all)]
 async fn map_plaintext_data(
     tenant_id: String,
@@ -167,7 +198,7 @@ async fn map_plaintext_data(
     let bulletin_board_opt =
         get_election_event_board(election_event.bulletin_board_reference.clone());
 
-    if bulletin_board_opt.is_none() {
+    let Some(bulletin_board) = bulletin_board_opt else {
         event!(
             Level::INFO,
             "Election Event {} has no bulletin board",
@@ -175,9 +206,7 @@ async fn map_plaintext_data(
         );
 
         return Ok(None);
-    }
-
-    let bulletin_board = bulletin_board_opt.unwrap();
+    };
 
     // get all data for the execution: the last tally session execution,
     // the list of tally_session_contest, and the ballot styles
@@ -191,12 +220,9 @@ async fn map_plaintext_data(
     .data
     .expect("expected data");
 
-    // if the execution is completed, we don't need to do anything
-    if tally_session_data.sequent_backend_tally_session[0].is_execution_completed {
-        event!(Level::INFO, "Tally session execution is completed",);
-
+    let Some(_execution_status) = get_execution_status(tally_session_data.sequent_backend_tally_session[0].execution_status.clone()) else {
         return Ok(None);
-    }
+    };
 
     // get last message id
     let last_message_id = if !tally_session_data
@@ -460,7 +486,7 @@ pub async fn execute_tally_session(
     let base_tempdir = tempdir()?;
 
     // perform tallies with velvet
-    
+
     let tallies_result: Result<Vec<()>> = plaintexts_data
         .iter()
         .map(|area_contest_plaintext| {
@@ -474,7 +500,7 @@ pub async fn execute_tally_session(
         Ok(o) => o,
         Err(e) => {
             event!(Level::ERROR, "Tally area contest: {e}");
-            return Err(e)
+            return Err(e);
         }
     };
 
@@ -504,7 +530,9 @@ pub async fn execute_tally_session(
         election_event_id.clone(),
         newest_message_id,
         tally_session_id.clone(),
-        document.id.clone(),
+        Some(document.id.clone()),
+        None,
+        None,
     )
     .await?;
 

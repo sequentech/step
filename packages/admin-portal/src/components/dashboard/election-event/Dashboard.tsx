@@ -54,7 +54,11 @@ export default function DashboardElectionEvent() {
 
                     <Container>
                         <VotesByDay width={cardWidth} height={cardHeight} />
-                        <VotesByChannel width={cardWidth} height={cardHeight} />
+                        <VotesByChannel
+                            electionEventId={record.id}
+                            width={cardWidth}
+                            height={cardHeight}
+                        />
                     </Container>
                 </Box>
             </Box>

@@ -129,7 +129,7 @@ services:
   graphql-engine:
     profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
-    container_name: graphql-engine
+    container_name: hasura
     ports:
       - "8080:8080"
     restart: always
@@ -312,6 +312,8 @@ services:
     volumes:
       - immudb_data:/var/lib/immudb
       - immudb_logs:/var/log/immudb
+    depends_on:
+      - immudb-init
   
   harvest:
     profiles: ["full", "base"]
@@ -333,9 +335,9 @@ services:
     env_file:
       - .env
     environment:
-      RUSTFLAGS: "-Awarnings"
       ROCKET_ADDRESS: "0.0.0.0"
       ROCKET_PORT: "8400"
+      RUSTFLAGS: -Awarnings
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
@@ -434,6 +436,42 @@ services:
       - "5672:5672"
       - "15672:15672"
 
+  immudb-init:
+    profiles: ["full", "base"]
+    stdin_open: true
+    image: sequentech.local/cargo-packages
+    container_name: immudb-init
+    # make sure to depend on the `harvest` container to ensure
+    # that the `sequentech.local/cargo-packages` image is locally build, so
+    # that we can reuse it:
+    restart: always
+    working_dir: /app/immu-board
+    entrypoint: [
+      "cargo",
+      "run",
+      "--bin",
+      "bb_helper",
+      "--",
+      "--server-url",
+      "${IMMUDB_SERVER_URL}",
+      "--username",
+      "${IMMUDB_USER}",
+      "--password",
+      "${IMMUDB_PASSWORD}",
+      "--index-dbname",
+      "${IMMUDB_INDEX_DB}",
+      "--board-dbname",
+      "${IMMUDB_BOARD_DB_NAME}",
+      "--cache-dir",
+      "/tmp/immu-board",
+      "upsert-init-db"
+    ]
+    volumes:
+      - ./keycloak/import:/import
+      - ../packages/:/app
+    env_file:
+      - .env
+
   windmill:
     profiles: ["full", "base"]
     stdin_open: true
@@ -455,6 +493,8 @@ services:
       - ../packages/:/app
     env_file:
       - .env
+    environment:
+      RUSTFLAGS: -Awarnings
   
   beat:
     profiles: ["full"]
@@ -478,6 +518,8 @@ services:
       - ../packages/:/app
     env_file:
       - .env
+    environment:
+      RUSTFLAGS: -Awarnings
 
 volumes:
   db_data:

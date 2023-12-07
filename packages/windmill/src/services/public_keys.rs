@@ -15,7 +15,7 @@ use tracing::instrument;
 use super::protocol_manager;
 use crate::services::vault;
 
-pub fn deserialize_pk(public_key_string: String) -> StrandSignaturePk {
+pub fn deserialize_public_key(public_key_string: String) -> StrandSignaturePk {
     Base64Deserialize::deserialize(public_key_string).unwrap()
 }
 
@@ -36,7 +36,7 @@ pub async fn create_keys(
     let trustee_pks: Vec<StrandSignaturePk> = trustee_pks
         .clone()
         .into_iter()
-        .map(deserialize_pk)
+        .map(deserialize_public_key)
         .collect();
 
     // 5. add config to board on immudb
