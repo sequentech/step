@@ -343,17 +343,12 @@ impl Contest {
 )]
 pub struct ElectionEventStatus {
     pub config_created: Option<bool>,
-    pub stopped: Option<bool>,
     pub voting_status: VotingStatus,
 }
 
 impl ElectionEventStatus {
     pub fn is_config_created(&self) -> bool {
         self.config_created.unwrap_or(false)
-    }
-
-    pub fn is_stopped(&self) -> bool {
-        self.stopped.unwrap_or(false)
     }
 }
 

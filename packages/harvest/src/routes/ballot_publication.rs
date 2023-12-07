@@ -22,13 +22,16 @@ pub struct PublishBallotOutput {
     ballot_publication_id: String,
 }
 
-// The main function to start a key ceremony
 #[instrument(skip(claims))]
 #[post("/publish-ballot", format = "json", data = "<body>")]
 pub async fn publish_ballot(
     body: Json<PublishBallotInput>,
     claims: JwtClaims,
 ) -> Result<Json<PublishBallotOutput>, (Status, String)> {
+    authorize(&claims, true, None, vec![Permissions::PUBLISH_WRITE])?;
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+
     Ok(Json(PublishBallotOutput {
         ballot_publication_id: "".into(),
     }))

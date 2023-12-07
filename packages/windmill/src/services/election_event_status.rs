@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use sequent_core::ballot::ElectionEventStatus;
 use serde_json::value::Value;
+use anyhow::Result;
+use sequent_core::ballot::VotingStatus;
 
 pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
     status_json_opt.and_then(|status_json| serde_json::from_value(status_json).ok())
@@ -13,4 +15,12 @@ pub fn has_config_created(status_json_opt: Option<Value>) -> bool {
         .map(|status| status.config_created)
         .unwrap_or(Some(false))
         .unwrap_or(false)
+}
+
+pub async fn update_event_voting_status(
+    tenant_id: String,
+    election_event_id: String,
+    new_status: VotingStatus,
+) -> Result<()> {
+    Ok(())
 }

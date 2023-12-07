@@ -12,49 +12,64 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::services::ceremonies::tally_ceremony;
+use windmill::services::election_event_status;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct UpdateEventStatusInput {
+pub struct UpdateEventVotingStatusInput {
     pub election_event_id: String,
     pub voting_status: VotingStatus,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct UpdateEventStatusOutput {
+pub struct UpdateEventVotingStatusOutput {
     pub election_event_id: String,
 }
 
-// The main function to start a key ceremony
 #[instrument(skip(claims))]
-#[post("/update-event-status", format = "json", data = "<body>")]
+#[post("/update-event-voting-status", format = "json", data = "<body>")]
 pub async fn update_event_status(
-    body: Json<UpdateEventStatusInput>,
+    body: Json<UpdateEventVotingStatusInput>,
     claims: JwtClaims,
-) -> Result<Json<UpdateEventStatusOutput>, (Status, String)> {
-    Ok(Json(UpdateEventStatusOutput {
-        election_event_id: "".into(),
+) -> Result<Json<UpdateEventVotingStatusOutput>, (Status, String)> {
+    authorize(&claims, true, None, vec![Permissions::ELECTION_STATE_WRITE])?;
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    election_event_status::update_event_voting_status(
+        tenant_id.clone(),
+        input.election_event_id.clone(),
+        input.voting_status.clone(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    Ok(Json(UpdateEventVotingStatusOutput {
+        election_event_id: input.election_event_id.clone(),
     }))
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct UpdateElectionStatusInput {
+pub struct UpdateElectionVotingStatusInput {
+    pub election_event_id: String,
     pub election_id: String,
     pub voting_status: VotingStatus,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct UpdateElectionStatusOutput {
+pub struct UpdateElectionVotingStatusOutput {
     pub election_id: String,
 }
 
-// The main function to start a key ceremony
 #[instrument(skip(claims))]
-#[post("/update-election-status", format = "json", data = "<body>")]
+#[post("/update-election-voting-status", format = "json", data = "<body>")]
 pub async fn update_election_status(
-    body: Json<UpdateElectionStatusInput>,
+    body: Json<UpdateElectionVotingStatusInput>,
     claims: JwtClaims,
-) -> Result<Json<UpdateElectionStatusOutput>, (Status, String)> {
-    Ok(Json(UpdateElectionStatusOutput {
-        election_id: "".into(),
+) -> Result<Json<UpdateElectionVotingStatusOutput>, (Status, String)> {
+    authorize(&claims, true, None, vec![Permissions::ELECTION_STATE_WRITE])?;
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+
+    Ok(Json(UpdateElectionVotingStatusOutput {
+        election_id: input.election_id.clone(),
     }))
 }

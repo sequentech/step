@@ -69,7 +69,6 @@ pub async fn create_keys(
     // update election event with status: keys created
     let new_status = serde_json::to_value(ElectionEventStatus {
         config_created: Some(true),
-        stopped: Some(false),
         voting_status: VotingStatus::NOT_STARTED,
     })?;
 
