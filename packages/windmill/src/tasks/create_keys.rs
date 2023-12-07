@@ -8,7 +8,7 @@ use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-
+use sequent_core::ballot::VotingStatus;
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
 use crate::services::celery_app::*;
@@ -70,6 +70,7 @@ pub async fn create_keys(
     let new_status = serde_json::to_value(ElectionEventStatus {
         config_created: Some(true),
         stopped: Some(false),
+        voting_status: VotingStatus::NOT_STARTED,
     })?;
 
     update_election_event_status(

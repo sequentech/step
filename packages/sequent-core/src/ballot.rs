@@ -344,6 +344,7 @@ impl Contest {
 pub struct ElectionEventStatus {
     pub config_created: Option<bool>,
     pub stopped: Option<bool>,
+    pub voting_status: VotingStatus,
 }
 
 impl ElectionEventStatus {
@@ -368,6 +369,7 @@ impl ElectionEventStatus {
     Eq,
     Clone,
     EnumString,
+    JsonSchema,
 )]
 pub enum VotingStatus {
     NOT_STARTED,

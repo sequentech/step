@@ -6,6 +6,7 @@ use crate::services::authorization::authorize;
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::ballot::VotingStatus;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -14,13 +15,13 @@ use windmill::services::ceremonies::tally_ceremony;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateEventStatusInput {
-    election_event_id: String,
-    status: String,
+    pub election_event_id: String,
+    pub voting_status: VotingStatus,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateEventStatusOutput {
-    election_event_id: String,
+    pub election_event_id: String,
 }
 
 // The main function to start a key ceremony
@@ -37,13 +38,13 @@ pub async fn update_event_status(
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateElectionStatusInput {
-    election_id: String,
-    status: String,
+    pub election_id: String,
+    pub voting_status: VotingStatus,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateElectionStatusOutput {
-    election_id: String,
+    pub election_id: String,
 }
 
 // The main function to start a key ceremony
