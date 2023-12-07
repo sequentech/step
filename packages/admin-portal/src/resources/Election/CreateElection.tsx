@@ -36,14 +36,14 @@ export const CreateElection: React.FC = () => {
 
     const {refetch} = useTreeMenuData(false)
 
-    const {setLastCreatedResourceId} = useContext(NewResourceContext)
+    const {setLastCreatedResource} = useContext(NewResourceContext)
 
     return (
         <Create
             mutationOptions={{
                 onSuccess: (data: any) => {
                     refetch()
-                    setLastCreatedResourceId(data.id)
+                    setLastCreatedResource({id: data.id, type: "sequent_backend_election"})
                     redirect(`/sequent_backend_election/${data.id}`)
                 },
             }}

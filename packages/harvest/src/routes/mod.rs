@@ -11,5 +11,6 @@ pub mod keys_ceremony;
 pub mod permissions;
 pub mod roles;
 pub mod scheduled_event;
+pub mod tally_ceremony;
 pub mod upload_document;
 pub mod users;

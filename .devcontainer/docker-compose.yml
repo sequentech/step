@@ -129,7 +129,7 @@ services:
   graphql-engine:
     profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
-    container_name: graphql-engine
+    container_name: hasura
     ports:
       - "8080:8080"
     restart: always
@@ -337,6 +337,7 @@ services:
     environment:
       ROCKET_ADDRESS: "0.0.0.0"
       ROCKET_PORT: "8400"
+      RUSTFLAGS: -Awarnings
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
@@ -492,6 +493,8 @@ services:
       - ../packages/:/app
     env_file:
       - .env
+    environment:
+      RUSTFLAGS: -Awarnings
   
   beat:
     profiles: ["full"]
@@ -515,6 +518,8 @@ services:
       - ../packages/:/app
     env_file:
       - .env
+    environment:
+      RUSTFLAGS: -Awarnings
 
 volumes:
   db_data:

@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useState} from "react"
+import {useAtom} from "jotai"
+import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
 import {useLocation} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {IconButton, adminTheme} from "@sequentech/ui-essentials"
@@ -116,7 +118,9 @@ export default function ElectionEvents() {
     const [tenantId] = useTenantStore()
     const [isOpenSidebar] = useSidebarState()
     const [searchInput, setSearchInput] = useState<string>("")
-    const [archivedElectionEvents, setArchivedElectionEvents] = useState(0)
+    const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
+        archivedElectionEventSelection
+    )
     const authContext = useContext(AuthContext)
     const showAddElectionEvent = authContext.isAuthorized(
         true,
@@ -125,15 +129,14 @@ export default function ElectionEvents() {
     )
     const {t} = useTranslation()
 
-    const isArchivedElectionEvents = archivedElectionEvents === 1
-
     const {data, loading} = useTreeMenuData(isArchivedElectionEvents)
 
     function handleSearchChange(searchInput: string) {
         setSearchInput(searchInput)
     }
+
     function changeArchiveSelection(val: number) {
-        setArchivedElectionEvents(val)
+        setArchivedElectionEvents(val === 1)
     }
 
     const location = useLocation()

@@ -3,6 +3,7 @@ mutation InsertKeysCeremony(
   $tenantId: uuid!,
   $electionEventId: uuid!,
   $trusteeIds: [uuid!],
+  $threshold: Int!,
   $status: jsonb,
   $executionStatus: String
 ) {
@@ -15,11 +16,13 @@ mutation InsertKeysCeremony(
       trustee_ids: $trusteeIds,
       status: $status,
       execution_status: $executionStatus,
+      threshold: $threshold,
     }
   ) {
     returning {
       id
       tenant_id
+      threshold
       election_event_id
       trustee_ids
       status

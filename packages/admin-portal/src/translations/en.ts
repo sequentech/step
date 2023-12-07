@@ -178,6 +178,7 @@ const englishTranslation = {
             },
             error: {
                 endDate: "End date must be after start date",
+                noResult: "No Election Event yet",
             },
             voters: {
                 title: "Voters",
@@ -198,7 +199,6 @@ const englishTranslation = {
             keys: {
                 createNew: "Create Keys Ceremony",
                 emptyHeader: "No Keys Ceremony yet.",
-                emptyBody: "Do you want to create one?",
                 statusLabel: "Status",
                 breadCrumbs: {
                     configure: "Configure",
@@ -402,6 +402,9 @@ const englishTranslation = {
                 election: "Election",
                 contest: "Contest",
                 candidate: "Candidate",
+                noResult: {
+                    askCreate: "Do you want to create one?",
+                },
             },
             label: {
                 add: "Add",
@@ -418,6 +421,7 @@ const englishTranslation = {
                 next: "Next",
                 warning: "Warning",
                 json: "Preview",
+                noResult: "No result",
             },
             language: {
                 es: "Spanish",
