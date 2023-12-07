@@ -10,7 +10,6 @@ use std::collections::HashSet;
 use tracing::{event, instrument, Level};
 
 use crate::hasura;
-use crate::hasura::keys_ceremony::get_keys_ceremony;
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
 use crate::services::election_event_board::get_election_event_board;
@@ -59,7 +58,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
     .await?;
 
     // find the keys ceremony, and then update it
-    let keys_ceremonies = get_keys_ceremony(
+    let keys_ceremonies = hasura::keys_ceremony::get_keys_ceremonies(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -130,6 +129,17 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
             })
             .collect::<Vec<Trustee>>(),
     })?;
+
+    // update public key
+    hasura::keys_ceremony::update_keys_ceremony_status(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        keys_ceremony.id.clone(),
+        new_status,
+        new_execution_status,
+    )
+    .await?;
 
     Ok(())
 }
