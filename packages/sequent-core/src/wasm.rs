@@ -19,8 +19,5 @@ pub mod wasm_keycloak;
 #[cfg(feature = "wasm")]
 pub mod wasm_hasura_types;
 
-#[cfg(feature = "wasm")]
-pub mod wasm_ceremonies;
-
 #[cfg(feature = "wasmtest")]
 pub mod test;
