@@ -33,6 +33,7 @@ import {useContext} from "react"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import FileOpenIcon from "@mui/icons-material/FileOpen"
+import KeyIcon from '@mui/icons-material/Key'
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -41,6 +42,10 @@ const EmptyBox = styled(Box)`
     justify-content: center;
     text-align: center;
     width: 100%;
+`
+
+const TrusteeKeyIcon = styled(KeyIcon)`
+    color: ${theme.palette.brandSuccess};
 `
 
 export function useActionPermissions() {
@@ -81,6 +86,10 @@ export const EditElectionEventKeys: React.FC = () => {
     const {t} = useTranslation()
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [tenantId] = useTenantStore()
+    const authContext = useContext(AuthContext)
+    const isTrustee = authContext.isAuthorized(
+        true, tenantId, IPermissions.TRUSTEE_READ
+    )
 
     const {data: keyCeremonies} = useGetList<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
@@ -144,7 +153,14 @@ export const EditElectionEventKeys: React.FC = () => {
         }
     }
 
-    const actions: Action[] = [{icon: <FileOpenIcon />, action: viewAction}]
+    const actions: Action[] = [
+        {
+            icon: isTrustee
+                ? <TrusteeKeyIcon />
+                : <FileOpenIcon />,
+            action: viewAction
+        }
+    ]
 
     return (
         <>
