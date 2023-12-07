@@ -1,3 +1,100 @@
 table:
   name: ballot_publication
   schema: sequent_backend
+insert_permissions:
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - election_ids
+    - is_published
+    - annotations
+    - labels
+    - created_by_user_id
+    - created_at
+    - deleted_at
+    - election_event_id
+    - id
+    - tenant_id
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - election_ids
+    - is_published
+    - annotations
+    - labels
+    - created_by_user_id
+    - created_at
+    - deleted_at
+    - election_event_id
+    - id
+    - tenant_id
+  role: service-account
+select_permissions:
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - election_ids
+    - is_published
+    - annotations
+    - labels
+    - created_by_user_id
+    - created_at
+    - deleted_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - election_ids
+    - is_published
+    - annotations
+    - labels
+    - created_by_user_id
+    - created_at
+    - deleted_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: service-account
+update_permissions:
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - election_ids
+    - is_published
+    - annotations
+    - labels
+    - created_by_user_id
+    - created_at
+    - deleted_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - election_ids
+    - is_published
+    - annotations
+    - labels
+    - created_by_user_id
+    - created_at
+    - deleted_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter: {}
+  role: service-account
