@@ -89,7 +89,7 @@ const spanishTranslation: TranslationType = {
             header: "Versión:",
         },
         logout: {
-            buttonText: "cerrar sesión",
+            buttonText: "Cerrar sesión",
             modal: {
                 title: "¿Estás seguro de que quieres cerrar sesión?",
                 content:
