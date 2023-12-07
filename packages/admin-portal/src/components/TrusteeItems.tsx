@@ -35,7 +35,7 @@ const StyledChip = styled.div`
     justify-content: center;
     align-items: center;
     border-radius: 4px;
-    background: #0f054c;
+    background: #d32f2f;
     padding: 1px 7px;
 `
 
