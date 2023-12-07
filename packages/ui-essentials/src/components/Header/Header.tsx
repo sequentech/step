@@ -27,6 +27,11 @@ const HeaderWrapper = styled(PageBanner)`
     }
 `
 
+const Span = styled.span`
+    font-size: 14px;
+    color: ${theme.palette.customGrey.dark};
+`
+
 const StyledLink = styled.a`
     max-height: 100%;
     max-width: 50%;
@@ -134,9 +139,9 @@ export default function Header({
                                                     {userProfile?.username}
                                                 </span>
                                                 <br />
-                                                <span title={userProfile?.email}>
+                                                <Span title={userProfile?.email}>
                                                     {userProfile?.email}
-                                                </span>
+                                                </Span>
                                             </Box>
                                         </MenuItem>
                                         <MenuItem
