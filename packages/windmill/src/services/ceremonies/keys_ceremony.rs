@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::hasura::election_event::get_election_event;
-use crate::hasura::keys_ceremony::{get_keys_ceremony, insert_keys_ceremony};
+use crate::hasura::keys_ceremony::{get_keys_ceremonies, insert_keys_ceremony};
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::celery_app::get_celery_app;
 use crate::tasks::create_keys::{create_keys, CreateKeysBody};
@@ -73,7 +73,7 @@ pub async fn create_keys_ceremony(
 
     // find if there's any previous ceremony and if so, stop. shouldn't happen,
     // we only allow one per election event
-    let keys_ceremonies = get_keys_ceremony(
+    let keys_ceremonies = get_keys_ceremonies(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),

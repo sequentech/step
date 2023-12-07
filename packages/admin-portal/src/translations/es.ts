@@ -202,10 +202,19 @@ const spanishTranslation: TranslationType = {
                 createNew: "Crear Ceremonia de Claves",
                 emptyHeader: "Ninguna Ceremonia de Claves aún.",
                 statusLabel: "Estado",
+                waitingKeys: "Esperando a la Generación de Claves..",
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Ceremonia",
                     created: "Finished",
+                    start: "Comienzo",
+                    status: "Estado",
+                    download: "Descargar",
+                    check: "Comprobar",
+                    success: "Finalizado",
+                },
+                notify:{
+                    participateNow: "Ha sido invitado a participar a una Ceremonia de Claves. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
                 },
             },
             tabs: {
@@ -595,6 +604,14 @@ const spanishTranslation: TranslationType = {
                 },
                 emptyLogs: "Sin logs aún.",
             },
+            startStep: {
+                title: "Ceremonia de Claves",
+                subtitle: "Estás a punto de participar en la Ceremonia de Claves como un Autoridad. Esto implica los siguientes pasos:",
+                one: "<strong>Descargar</strong> tu clave privada.",
+                two: "Crear múltiples <strong>Copias de seguridad</strong> de la clave privada.",
+                three: "<strong>Verificar</strong> que la clave de respaldo funcione bien.",
+            },
+            
         },
     },
 }

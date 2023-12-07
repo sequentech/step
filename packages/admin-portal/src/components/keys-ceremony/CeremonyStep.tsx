@@ -16,8 +16,8 @@ import {
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import CloseIcon from "@mui/icons-material/Close"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos'
 import DoneOutlineIcon from "@mui/icons-material/DoneOutline"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
 import Button from "@mui/material/Button"
@@ -68,6 +68,10 @@ const BackButton = styled(Button)`
     color: ${({theme}) => theme.palette.brandColor};
 `
 
+const NextButton = styled(Button)`
+    margin-left: auto;
+`
+
 const StyledBox = styled(Box)`
     margin-top: 30px;
     margin-bottom: 30px;
@@ -94,15 +98,19 @@ const CeremonyStatus = styled(Chip)`
 `
 
 export interface CeremonyStepProps {
+    message?: React.ReactNode
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
     electionEvent: Sequent_Backend_Election_Event
+    goNext?: () => void
     goBack: () => void
 }
 
 export const CeremonyStep: React.FC<CeremonyStepProps> = ({
+    message,
     currentCeremony,
     electionEvent,
     goBack,
+    goNext,
 }) => {
     console.log(`ceremony step with currentCeremony.id=${currentCeremony?.id ?? null}`)
     const {t} = useTranslation()
@@ -111,17 +119,18 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     const [logsExpanded, setLogsExpanded] = useState(true)
 
     const confirmCancelCeremony = () => {}
-    const cancellable = () => {
-        return (
-            currentCeremony?.execution_status == EStatus.NOT_STARTED ||
-            currentCeremony?.execution_status == EStatus.IN_PROCESS
-        )
-    }
+    //const cancellable = () => {
+    //    return (
+    //        currentCeremony?.execution_status == EStatus.NOT_STARTED ||
+    //        currentCeremony?.execution_status == EStatus.IN_PROCESS
+    //    )
+    //}
     const status: IExecutionStatus = currentCeremony?.status
 
     return (
         <>
             <StyledBox>
+                {message}
                 <Accordion
                     sx={{width: "100%"}}
                     expanded={progressExpanded}
@@ -278,6 +287,10 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                     <ArrowBackIosIcon />
                     {t("common.label.back")}
                 </BackButton>
+                {!!goNext && <NextButton color="info" onClick={goNext}>
+                    <ArrowForwardIosIcon />
+                    {t("common.label.next")}
+                </NextButton>}
                 {/*cancellable() ? (
                     <CancelButton onClick={() => setOpenConfirmationModal(true)}>
                         <CloseIcon />

@@ -3,26 +3,30 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
+import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
+import {
+    IKeysCeremonyExecutionStatus as EStatus,
+    IKeysCeremonyTrusteeStatus as TStatus,
+    IExecutionStatus,
+} from "@/services/KeyCeremony"
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
-import React, {useState} from "react"
+import React, {useContext, useState} from "react"
 import {ConfigureStep} from "@/components/keys-ceremony/ConfigureStep"
 import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
-import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
 
 const StyledBox = styled(Box)``
 
-interface WizardProps {
+interface AdminWizardProps {
     electionEvent: Sequent_Backend_Election_Event
-
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
     setCurrentCeremony: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
 
     goBack: () => void
 }
 
-export const Wizard: React.FC<WizardProps> = ({
+export const AdminWizard: React.FC<AdminWizardProps> = ({
     electionEvent,
     currentCeremony,
     setCurrentCeremony,
@@ -43,6 +47,7 @@ export const Wizard: React.FC<WizardProps> = ({
         }
     }
 
+    const authContext = useContext(AuthContext)
     const [currentStep, setCurrentStep] = useState<number>(calculateCurrentStep())
     const openCeremonyStep = () => {
         setCurrentStep(1)
