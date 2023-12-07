@@ -35,6 +35,7 @@ pub async fn add_ballot_publication(
         .send_task(update_election_event_ballot_styles::new(
             tenant_id.clone(),
             election_event_id.clone(),
+            ballot_publication.id.clone(),
         ))
         .await?;
     event!(
