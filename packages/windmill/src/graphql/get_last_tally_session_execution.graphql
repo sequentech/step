@@ -41,6 +41,9 @@ query GetLastTallySessionExecution(
         election_ids
         area_ids
         is_execution_completed
+        keys_ceremony_id
+        execution_status
+        status
     }
     sequent_backend_tally_session_contest(
         where: {
