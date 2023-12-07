@@ -158,14 +158,14 @@ function TreeMenuItem({
         data[key] = (resource as any)[key]
     }
 
-    const {lastCreatedResourceId, setLastCreatedResourceId} = useContext(NewResourceContext)
+    const {lastCreatedResource, setLastCreatedResource} = useContext(NewResourceContext)
 
     useEffect(() => {
-        if (lastCreatedResourceId === resource.id) {
+        if (lastCreatedResource?.id === resource.id) {
             setOpen(true)
-            setLastCreatedResourceId(null)
+            setLastCreatedResource(null)
         }
-    }, [lastCreatedResourceId, setLastCreatedResourceId, resource.id])
+    }, [lastCreatedResource, setLastCreatedResource, resource.id])
 
     const menuItemRef = useRef<HTMLDivElement | null>(null)
 
@@ -265,6 +265,9 @@ export function TreeMenu({
     onArchiveElectionEventsSelect: (val: number) => void
 }) {
     const {t} = useTranslation()
+    const isEmpty =
+        (!data?.electionEvents || data.electionEvents.length === 0) && isArchivedElectionEvents
+
     return (
         <>
             <ul className="flex px-4 space-x-4 bg-white uppercase text-xs leading-6">
@@ -292,12 +295,16 @@ export function TreeMenu({
                 </li>
             </ul>
             <div className="mx-5 py-2">
-                <TreeLeaves
-                    data={data}
-                    parentData={data as DataTreeMenuType}
-                    treeResourceNames={treeResourceNames}
-                    isArchivedElectionEvents={isArchivedElectionEvents}
-                />
+                {isEmpty ? (
+                    <div className="p-4 bg-white">No result</div>
+                ) : (
+                    <TreeLeaves
+                        data={data}
+                        parentData={data as DataTreeMenuType}
+                        treeResourceNames={treeResourceNames}
+                        isArchivedElectionEvents={isArchivedElectionEvents}
+                    />
+                )}
             </div>
         </>
     )

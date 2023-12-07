@@ -22,13 +22,13 @@ import {
 } from "react-admin"
 import {Box, Button, Typography, Chip} from "@mui/material"
 import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
-import {theme,IconButton} from "@sequentech/ui-essentials"
-import { Wizard } from "@/components/keys-ceremony/Wizard"
-import { statusColor } from "@/components/keys-ceremony/CeremonyStep"
-import { faPlus } from "@fortawesome/free-solid-svg-icons"
-import { useTenantStore } from "@/providers/TenantContextProvider"
-import { Action, ActionsColumn } from "@/components/ActionButons"
-import { useTranslation } from "react-i18next"
+import {theme, IconButton} from "@sequentech/ui-essentials"
+import {Wizard} from "@/components/keys-ceremony/Wizard"
+import {statusColor} from "@/components/keys-ceremony/CeremonyStep"
+import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {Action, ActionsColumn} from "@/components/ActionButons"
+import {useTranslation} from "react-i18next"
 import {useContext} from "react"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
@@ -66,9 +66,7 @@ const StatusChip: React.FC<StatusLabelProps> = (props) => {
         <>
             <Chip
                 sx={{
-                    backgroundColor: statusColor(
-                        record["execution_status"]
-                    ),
+                    backgroundColor: statusColor(record["execution_status"]),
                     color: theme.palette.background.default,
                 }}
                 label={record["execution_status"]}
@@ -121,7 +119,7 @@ export const EditElectionEventKeys: React.FC = () => {
             {canAdminCeremony ? (
                 <>
                     <Typography variant="body1" paragraph>
-                        {t("electionEventScreen.keys.emptyBody")}
+                        {t("common.resources.noResult.askCreate")}
                     </Typography>
                     <CreateButton />
                 </>
@@ -175,7 +173,7 @@ export const EditElectionEventKeys: React.FC = () => {
                             label={t("electionEventScreen.keys.statusLabel")}
                             render={(record: any) => <StatusChip record={record} />}
                         />
-                        
+
                         <ReferenceArrayField
                             perPage={10}
                             reference="sequent_backend_trustee"
