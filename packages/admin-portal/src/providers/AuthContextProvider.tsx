@@ -4,7 +4,7 @@
 import React from "react"
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
-import {isNull, sleep} from "@sequentech/ui-essentials"
+import {isArray, isNull, isString, sleep} from "@sequentech/ui-essentials"
 import {IPermissions} from "@/types/keycloak"
 import globalSettings from "@/GlobalSettings"
 
@@ -74,7 +74,7 @@ interface AuthContextValues {
     isAuthorized: (
         checkSuperAdmin: boolean,
         someTenantId: string | null,
-        role: IPermissions
+        role: IPermissions | IPermissions[]
     ) => boolean
 }
 
@@ -228,14 +228,15 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const isAuthorized = (
         checkSuperAdmin: boolean,
         someTenantId: string | null,
-        role: string
+        role: string | string[]
     ): boolean => {
         const isSuperAdmin = globalSettings.DEFAULT_TENANT_ID === tenantId
         const isValidTenant = tenantId === someTenantId
         if (!((checkSuperAdmin && isSuperAdmin) || (!isNull(someTenantId) && isValidTenant))) {
             return false
         }
-        return hasRole(role)
+        const roleList: string[] = isString(role) ? [role] : role
+        return roleList.find(roleItem => hasRole(roleItem)) != undefined
     }
 
     // Setup the context provider

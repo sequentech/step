@@ -100,6 +100,7 @@ function TreeLeaves({
                                 name={resource.name}
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
+                                canCreateElectionEvent={canCreateElectionEvent}
                             />
                         )
                     }
@@ -129,6 +130,7 @@ interface TreeMenuItemProps {
     name: string
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
+    canCreateElectionEvent: boolean
 }
 
 function TreeMenuItem({
@@ -139,6 +141,7 @@ function TreeMenuItem({
     name,
     treeResourceNames,
     isArchivedElectionEvents,
+    canCreateElectionEvent,
 }: TreeMenuItemProps) {
     const [isOpenSidebar] = useSidebarState()
 
@@ -149,7 +152,7 @@ function TreeMenuItem({
 
     const subTreeResourceNames = treeResourceNames.slice(1)
     const nextResourceName = subTreeResourceNames[0] ?? null
-    const hasNext = !!nextResourceName
+    const hasNext = !!nextResourceName && canCreateElectionEvent
 
     const key = mapDataChildren(subTreeResourceNames[0] as ResourceName)
     const data: DynEntityType = useMemo(() => ({}), [])
@@ -227,14 +230,17 @@ function TreeMenuItem({
                     </NavLink>
                 )}
                 <div className="invisible group-hover:visible">
-                    <MenuActions
-                        isArchivedTab={isArchivedElectionEvents}
-                        resourceId={id}
-                        resourceName={name}
-                        resourceType={treeResourceNames[0]}
-                        parentData={superParentData}
-                        menuItemRef={menuItemRef}
-                    ></MenuActions>
+                    {canCreateElectionEvent
+                        ? <MenuActions
+                            isArchivedTab={isArchivedElectionEvents}
+                            resourceId={id}
+                            resourceName={name}
+                            resourceType={treeResourceNames[0]}
+                            parentData={superParentData}
+                            menuItemRef={menuItemRef}
+                        ></MenuActions>
+                        : null
+                    }
                 </div>
             </div>
             {open && (

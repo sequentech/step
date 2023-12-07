@@ -101,4 +101,6 @@ pub enum Permissions {
     DOCUMENT_UPLOAD,
     #[strum(serialize = "admin-ceremony")]
     ADMIN_CEREMONY,
+    #[strum(serialize = "admin-dashboard-view")]
+    ADMIN_DASHBOARD_VIEW,
 }
