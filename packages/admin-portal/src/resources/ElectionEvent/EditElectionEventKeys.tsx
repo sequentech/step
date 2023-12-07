@@ -22,7 +22,7 @@ import {
 } from "react-admin"
 import {Box, Button, Typography, Chip, Alert} from "@mui/material"
 import {theme, IconButton} from "@sequentech/ui-essentials"
-import {Wizard} from "@/components/keys-ceremony/Wizard"
+import {AdminWizard} from "@/components/keys-ceremony/AdminWizard"
 import {
     TrusteeWizard,
     isTrusteeParticipating
@@ -235,7 +235,7 @@ export const EditElectionEventKeys: React.FC = () => {
                     </Trans>
                 </Alert>}
             {canAdminCeremony && showCeremony && (
-                <Wizard
+                <AdminWizard
                     electionEvent={electionEvent}
                     currentCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}

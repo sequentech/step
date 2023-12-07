@@ -18,7 +18,7 @@ import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
 
 const StyledBox = styled(Box)``
 
-interface WizardProps {
+interface AdminWizardProps {
     electionEvent: Sequent_Backend_Election_Event
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
     setCurrentCeremony: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
@@ -26,7 +26,7 @@ interface WizardProps {
     goBack: () => void
 }
 
-export const Wizard: React.FC<WizardProps> = ({
+export const AdminWizard: React.FC<AdminWizardProps> = ({
     electionEvent,
     currentCeremony,
     setCurrentCeremony,
