@@ -10,6 +10,7 @@ use std::collections::HashSet;
 use tracing::{event, instrument, Level};
 
 use crate::hasura;
+use crate::hasura::keys_ceremony::get_keys_ceremonies;
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
 use crate::services::election_event_board::get_election_event_board;

@@ -74,7 +74,6 @@ pub async fn insert_tally_session(
     tally_session_id: String,
     keys_ceremony_id: String,
     execution_status: TallyExecutionStatus,
-    status: TallyCeremonyStatus,
 ) -> Result<Response<insert_tally_session::ResponseData>> {
     let variables = insert_tally_session::Variables {
         tenant_id: tenant_id,
@@ -84,7 +83,6 @@ pub async fn insert_tally_session(
         tally_session_id: tally_session_id,
         keys_ceremony_id: keys_ceremony_id,
         execution_status: Some(execution_status.to_string()),
-        status: Some(serde_json::to_value(status)?),
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
@@ -183,14 +181,12 @@ pub async fn update_tally_session_status(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-    status: TallyCeremonyStatus,
     execution_status: TallyExecutionStatus,
 ) -> Result<Response<update_tally_session_status::ResponseData>> {
     let variables = update_tally_session_status::Variables {
         tenant_id,
         election_event_id,
         tally_session_id,
-        status: Some(serde_json::to_value(status)?),
         execution_status: Some(execution_status.to_string()),
     };
     let hasura_endpoint =
