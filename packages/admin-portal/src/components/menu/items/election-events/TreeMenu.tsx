@@ -152,7 +152,7 @@ function TreeMenuItem({
 
     const subTreeResourceNames = treeResourceNames.slice(1)
     const nextResourceName = subTreeResourceNames[0] ?? null
-    const hasNext = !!nextResourceName && canCreateElectionEvent
+    const hasNext = !!nextResourceName
 
     const key = mapDataChildren(subTreeResourceNames[0] as ResourceName)
     const data: DynEntityType = useMemo(() => ({}), [])
@@ -208,12 +208,15 @@ function TreeMenuItem({
     return (
         <div className="bg-white">
             <div ref={menuItemRef} className="group flex text-left space-x-2 items-center">
-                {hasNext ? (
+                {canCreateElectionEvent ? (
                     <div className="flex-none w-6 h-6 cursor-pointer text-black" onClick={onClick}>
                         {open ? <ExpandMoreIcon /> : <ChevronRightIcon />}
                     </div>
                 ) : (
-                    <div className="flex-none w-6 h-6"></div>
+                    <div className={cn(
+                        "flex-none h-6",
+                        canCreateElectionEvent && "w-6"
+                    )}></div>
                 )}
                 {isOpenSidebar && (
                     <NavLink
