@@ -12,6 +12,7 @@ export const CustomAppBar: React.FC = () => {
 
     return (
         <AppBar
+            toolbar={<></>}
             position="static"
             sx={{
                 "backgroundColor": adminTheme.palette.lightBackground,
