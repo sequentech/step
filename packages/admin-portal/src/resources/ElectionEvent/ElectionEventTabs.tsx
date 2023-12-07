@@ -23,7 +23,7 @@ export const ElectionEventTabs: React.FC = () => {
         true, authContext.tenantId, IPermissions.ADMIN_DASHBOARD_VIEW
     )
     const showData = authContext.isAuthorized(
-        true, authContext.tenantId, IPermissions.ELECTION_EVENT_READ
+        true, authContext.tenantId, IPermissions.ELECTION_EVENT_WRITE
     )
     const showAreas = authContext.isAuthorized(
         true, authContext.tenantId, IPermissions.AREA_READ

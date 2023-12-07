@@ -19,18 +19,22 @@ import {
     SingleFieldList,
     ChipField,
     FunctionField,
+    useNotify,
 } from "react-admin"
-import {Box, Button, Typography, Chip} from "@mui/material"
-import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
+import {Box, Button, Typography, Chip, Alert} from "@mui/material"
+import {
+    IKeysCeremonyExecutionStatus as EStatus,
+    IExecutionStatus,
+} from "@/services/KeyCeremony"
 import {theme, IconButton} from "@sequentech/ui-essentials"
 import {Wizard} from "@/components/keys-ceremony/Wizard"
 import {statusColor} from "@/components/keys-ceremony/CeremonyStep"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Action, ActionsColumn} from "@/components/ActionButons"
-import {useTranslation} from "react-i18next"
+import {useTranslation, Trans} from "react-i18next"
 import {useContext} from "react"
-import {AuthContext} from "@/providers/AuthContextProvider"
+import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import FileOpenIcon from "@mui/icons-material/FileOpen"
 import KeyIcon from '@mui/icons-material/Key'
@@ -43,6 +47,22 @@ const EmptyBox = styled(Box)`
     text-align: center;
     width: 100%;
 `
+
+// This could be react-router-dom's Link for example
+const Link: (array: any) => any = ({ className, children }) => (
+    <a className={className}>
+        {children}
+    </a>
+)
+
+const NotificationLink = styled(Link)`
+    //text-decoration: underline;
+    //cursor: pointer;
+    //
+    //&:hover {
+    //    text-decoration: none;
+    //}
+`;
 
 const TrusteeKeyIcon = styled(KeyIcon)`
     color: ${theme.palette.brandSuccess};
@@ -82,16 +102,43 @@ const StatusChip: React.FC<StatusLabelProps> = (props) => {
 
 const OMIT_FIELDS: Array<string> = []
 
+// Returns a keys ceremony if there's any in which we have been required to
+// participate and is active
+const getActiveCeremony = 
+    (
+        keyCeremonies: Sequent_Backend_Keys_Ceremony[] | undefined,
+        authContext: AuthContextValues
+    ) => {
+        if (!keyCeremonies) {
+            return
+        } else {
+            return keyCeremonies.find((ceremony) => {
+                const status: IExecutionStatus = ceremony.status
+                return (
+                    (
+                        ceremony.execution_status == EStatus.NOT_STARTED ||
+                        ceremony.execution_status == EStatus.IN_PROCESS
+                    ) &&
+                    status
+                        .trustees
+                        .find((trustee) => trustee.name == authContext.username)
+                )
+            })
+        }
+    }
+
+
 export const EditElectionEventKeys: React.FC = () => {
     const {t} = useTranslation()
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [tenantId] = useTenantStore()
+    const notify = useNotify()
     const authContext = useContext(AuthContext)
     const isTrustee = authContext.isAuthorized(
         true, tenantId, IPermissions.TRUSTEE_READ
     )
 
-    const {data: keyCeremonies} = useGetList<Sequent_Backend_Keys_Ceremony>(
+    const {data: keysCeremonies} = useGetList<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
         {
             sort: {field: "created_at", order: "DESC"},
@@ -101,6 +148,7 @@ export const EditElectionEventKeys: React.FC = () => {
             },
         }
     )
+    let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
 
     // This is the ceremony currently being shown
     const [currentCeremony, setCurrentCeremony] = useState<Sequent_Backend_Keys_Ceremony | null>(
@@ -113,7 +161,7 @@ export const EditElectionEventKeys: React.FC = () => {
     const CreateButton = () => (
         <Button
             onClick={() => setShowCeremony(true)}
-            disabled={!keyCeremonies || keyCeremonies?.length > 0}
+            disabled={!keysCeremonies || keysCeremonies?.length > 0}
         >
             <IconButton icon={faPlus} fontSize="24px" />
             {t("electionEventScreen.keys.createNew")}
@@ -142,7 +190,8 @@ export const EditElectionEventKeys: React.FC = () => {
     }
 
     const viewAction = (id: Identifier) => {
-        const ceremony: Sequent_Backend_Keys_Ceremony | undefined = keyCeremonies?.find(
+        console.log(`viewaction with id=${id}`)
+        const ceremony: Sequent_Backend_Keys_Ceremony | undefined = keysCeremonies?.find(
             (element) => element.id === id
         )
         if (!ceremony) {
@@ -164,6 +213,19 @@ export const EditElectionEventKeys: React.FC = () => {
 
     return (
         <>
+            {isTrustee && activeCeremony && !showCeremony &&
+                <Alert severity="info">
+                    <Trans i18nKey="electionEventScreen.keys.notify.participateNow">
+                        You have been invited to participate in a Keys ceremony. Please
+                        <NotificationLink
+                            onClick={(e: any) => {
+                                console.log("whatever")
+                                e.preventDefault()
+                                viewAction(activeCeremony?.id)
+                            }}
+                            >click on the ceremony Key Action</NotificationLink> to participate.
+                    </Trans>
+                </Alert>}
             {showCeremony ? (
                 <Wizard
                     electionEvent={electionEvent}

@@ -205,6 +205,9 @@ const englishTranslation = {
                     ceremony: "Ceremony",
                     created: "Finished",
                 },
+                notify:{
+                    participateNow: "You have been invited to participate in a Keys ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
+                },
             },
             tabs: {
                 dashboard: "Dashboard",
