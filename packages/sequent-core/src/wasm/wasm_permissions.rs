@@ -42,6 +42,7 @@ export enum IPermissions {
     TRUSTEE_CREATE = "trustee-create",
     TRUSTEE_READ = "trustee-read",
     TRUSTEE_WRITE = "trustee-write",
+    TRUSTEE_CEREMONY = "trustee-ceremony",
     TALLY_READ = "tally-read",
     TALLY_START = "tally-start",
     TALLY_WRITE = "tally-write",

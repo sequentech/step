@@ -83,6 +83,8 @@ pub enum Permissions {
     TRUSTEE_WRITE,
     #[strum(serialize = "tally-read")]
     TALLY_READ,
+    #[strum(serialize = "trustee-ceremony")]
+    TRUSTEE_CEREMONY,
     #[strum(serialize = "tally-start")]
     TALLY_START,
     #[strum(serialize = "tally-write")]

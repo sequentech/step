@@ -31,7 +31,7 @@ export const ElectionEventTabs: React.FC = () => {
     const showKeys = authContext.isAuthorized(
         true,
         authContext.tenantId,
-        [IPermissions.ADMIN_CEREMONY, IPermissions.TRUSTEE_READ]
+        [IPermissions.ADMIN_CEREMONY, IPermissions.TRUSTEE_CEREMONY]
     )
     const showTally = authContext.isAuthorized(
         true,

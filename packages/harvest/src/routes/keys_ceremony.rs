@@ -43,7 +43,7 @@ pub async fn check_private_key(
     body: Json<CheckPrivateKeyInput>,
     claims: JwtClaims,
 ) -> Result<Json<CheckPrivateKeyOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::TRUSTEE_READ])?;
+    authorize(&claims, true, None, vec![Permissions::TRUSTEE_CEREMONY])?;
     let input = body.into_inner();
     // The trustee name is simply the username of the user
     let trustee_name = claims
@@ -103,7 +103,7 @@ pub async fn get_private_key(
     body: Json<GetPrivateKeyInput>,
     claims: JwtClaims,
 ) -> Result<Json<GetPrivateKeyOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::TRUSTEE_READ])?;
+    authorize(&claims, true, None, vec![Permissions::TRUSTEE_CEREMONY])?;
     let input = body.into_inner();
     let auth_headers = keycloak::get_client_credentials()
         .await

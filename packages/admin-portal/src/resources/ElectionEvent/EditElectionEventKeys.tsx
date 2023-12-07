@@ -72,11 +72,11 @@ export function useActionPermissions() {
     const authContext = useContext(AuthContext)
 
     const canAdminCeremony = authContext.isAuthorized(true, tenantId, IPermissions.ADMIN_CEREMONY)
-    const canReadTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_READ)
+    const canTrusteeCeremony = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
 
     return {
         canAdminCeremony,
-        canReadTrustee,
+        canTrusteeCeremony,
     }
 }
 
@@ -143,7 +143,7 @@ export const EditElectionEventKeys: React.FC = () => {
 
     const [showCeremony, setShowCeremony] = useState(false)
     const [showTrusteeCeremony, setShowTrusteeCeremony] = useState(false)
-    const {canAdminCeremony, canReadTrustee} = useActionPermissions()
+    const {canAdminCeremony, canTrusteeCeremony: canWriteTrustee} = useActionPermissions()
 
     const CreateButton = () => (
         <Button
@@ -197,7 +197,7 @@ export const EditElectionEventKeys: React.FC = () => {
     }
     const viewTrusteeCeremony = (id: Identifier) => {
         const ceremony = getCeremony(id)
-        if (!ceremony || !canReadTrustee) {
+        if (!ceremony || !canWriteTrustee) {
             return
         } else {
             setCurrentCeremony(ceremony)
@@ -216,7 +216,7 @@ export const EditElectionEventKeys: React.FC = () => {
             icon: <TrusteeKeyIcon />,
             action: viewTrusteeCeremony,
             showAction: (id: Identifier) => (
-                canReadTrustee &&
+                canWriteTrustee &&
                 !!getCeremony(id)
             ),
         }
@@ -224,7 +224,7 @@ export const EditElectionEventKeys: React.FC = () => {
 
     return (
         <>
-            {canReadTrustee && activeCeremony && !showCeremony && !showTrusteeCeremony &&
+            {canWriteTrustee && activeCeremony && !showCeremony && !showTrusteeCeremony &&
                 <Alert severity="info">
                     <Trans i18nKey="electionEventScreen.keys.notify.participateNow">
                         You have been invited to participate in a Keys ceremony. Please
@@ -245,7 +245,7 @@ export const EditElectionEventKeys: React.FC = () => {
                     goBack={goBack}
                 />
             )}
-            {canReadTrustee && showTrusteeCeremony && currentCeremony && (
+            {canWriteTrustee && showTrusteeCeremony && currentCeremony && (
                 <TrusteeWizard
                     electionEvent={electionEvent}
                     currentCeremony={currentCeremony}
