@@ -13,13 +13,13 @@ use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-use braid_messages::artifact::{Ballots, Configuration, Plaintexts, DkgPublicKey};
-use braid_messages::message::Message;
-use braid_messages::newtypes::PublicKeyHash;
-use braid_messages::newtypes::MAX_TRUSTEES;
-use braid_messages::newtypes::NULL_TRUSTEE;
-use braid_messages::protocol_manager::ProtocolManager;
-use braid_messages::statement::StatementType;
+use board_messages::braid::artifact::{Ballots, Configuration, Plaintexts, DkgPublicKey};
+use board_messages::braid::message::Message;
+use board_messages::braid::newtypes::PublicKeyHash;
+use board_messages::braid::newtypes::MAX_TRUSTEES;
+use board_messages::braid::newtypes::NULL_TRUSTEE;
+use board_messages::braid::protocol_manager::ProtocolManager;
+use board_messages::braid::statement::StatementType;
 
 use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::protocol2::session::Session;

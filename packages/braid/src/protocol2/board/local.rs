@@ -6,11 +6,11 @@ use std::collections::HashMap;
 use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
-use braid_messages::artifact::*;
-use braid_messages::message::VerifiedMessage;
-use braid_messages::statement::{Statement, StatementType};
+use board_messages::braid::artifact::*;
+use board_messages::braid::message::VerifiedMessage;
+use board_messages::braid::statement::{Statement, StatementType};
 
-use braid_messages::newtypes::*;
+use board_messages::braid::newtypes::*;
 use strand::hash::Hash;
 
 ///////////////////////////////////////////////////////////////////////////

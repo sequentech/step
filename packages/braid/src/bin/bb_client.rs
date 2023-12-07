@@ -8,12 +8,12 @@ use tracing::{info, instrument};
 use sequent_core::util::init_log::init_log;
 use immu_board::{Board, BoardClient, BoardMessage};
 
-use braid_messages::artifact::Configuration;
-use braid_messages::artifact::DkgPublicKey;
-use braid_messages::message::Message;
-use braid_messages::newtypes::PublicKeyHash;
-use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use braid_messages::statement::StatementType;
+use board_messages::braid::artifact::Configuration;
+use board_messages::braid::artifact::DkgPublicKey;
+use board_messages::braid::message::Message;
+use board_messages::braid::newtypes::PublicKeyHash;
+use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use board_messages::braid::statement::StatementType;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
@@ -166,12 +166,12 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: C)
 
             let threshold = [1, 2];
             let mut selected_trustees =
-                [braid_messages::newtypes::NULL_TRUSTEE; braid_messages::newtypes::MAX_TRUSTEES];
+                [board_messages::braid::newtypes::NULL_TRUSTEE; board_messages::braid::newtypes::MAX_TRUSTEES];
             selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
-            let ballot_batch = braid_messages::artifact::Ballots::new(ballots);
+            let ballot_batch = board_messages::braid::artifact::Ballots::new(ballots);
             let pm = get_pm(PhantomData::<RistrettoCtx>);
-            let message = braid_messages::message::Message::ballots_msg(
+            let message = board_messages::braid::message::Message::ballots_msg(
                 &configuration,
                 2,
                 &ballot_batch,

@@ -20,16 +20,16 @@ use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol2::action::Action;
 use crate::protocol2::board::local::LocalBoard;
-use braid_messages::artifact::Ballots;
-use braid_messages::artifact::Configuration;
-use braid_messages::message::Message;
-use braid_messages::newtypes::PublicKeyHash;
-use braid_messages::newtypes::NULL_TRUSTEE;
-use braid_messages::protocol_manager::ProtocolManager;
+use board_messages::braid::artifact::Ballots;
+use board_messages::braid::artifact::Configuration;
+use board_messages::braid::message::Message;
+use board_messages::braid::newtypes::PublicKeyHash;
+use board_messages::braid::newtypes::NULL_TRUSTEE;
+use board_messages::braid::protocol_manager::ProtocolManager;
 
 use crate::protocol2::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
-use braid_messages::newtypes::MAX_TRUSTEES;
+use board_messages::braid::newtypes::MAX_TRUSTEES;
 
 #[instrument(skip(log_reload))]
 pub fn dbg<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Result<()> {

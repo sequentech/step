@@ -10,7 +10,7 @@ use tracing::info;
 use std::path::PathBuf;
 use strand::serialization::StrandDeserialize;
 // use strand::serialization::StrandSerialize;
-use braid_messages::message::Message;
+use board_messages::braid::message::Message;
 
 pub struct ImmudbBoard {
     pub(crate) board_client: BoardClient,

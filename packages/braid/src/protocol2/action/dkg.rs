@@ -3,7 +3,7 @@ use super::*;
 use anyhow::anyhow;
 use anyhow::Result;
 use anyhow::Context;
-use braid_messages::artifact::Channel;
+use board_messages::braid::artifact::Channel;
 use strand::elgamal::PublicKey;
 use strand::zkp::Zkp;
 

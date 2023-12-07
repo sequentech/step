@@ -11,18 +11,18 @@ use strand::{context::Ctx, elgamal::PrivateKey};
 
 use crate::protocol2::action::Action;
 use crate::protocol2::board::local::LocalBoard;
-use braid_messages::artifact::Channel;
-use braid_messages::artifact::Configuration;
-use braid_messages::artifact::DkgPublicKey;
-use braid_messages::artifact::Shares;
-use braid_messages::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
-use braid_messages::message::Message;
-use braid_messages::newtypes::*;
-use braid_messages::statement::StatementType;
+use board_messages::braid::artifact::Channel;
+use board_messages::braid::artifact::Configuration;
+use board_messages::braid::artifact::DkgPublicKey;
+use board_messages::braid::artifact::Shares;
+use board_messages::braid::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
+use board_messages::braid::message::Message;
+use board_messages::braid::newtypes::*;
+use board_messages::braid::statement::StatementType;
 
 use crate::protocol2::predicate::Predicate;
 
-use braid_messages::newtypes::PROTOCOL_MANAGER_INDEX;
+use board_messages::braid::newtypes::PROTOCOL_MANAGER_INDEX;
 
 use strand::symm::{self, EncryptionData};
 
@@ -50,7 +50,7 @@ pub struct Trustee<C: Ctx> {
     local_board: LocalBoard<C>,
 }
 
-impl<C: Ctx> braid_messages::message::Signer for Trustee<C> {
+impl<C: Ctx> board_messages::braid::message::Signer for Trustee<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }

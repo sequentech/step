@@ -13,12 +13,12 @@ use strand::elgamal::Ciphertext;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-use braid_messages::artifact::{Ballots, Configuration, Plaintexts};
-use braid_messages::message::Message;
-use braid_messages::newtypes::PublicKeyHash;
-use braid_messages::newtypes::MAX_TRUSTEES;
-use braid_messages::newtypes::NULL_TRUSTEE;
-use braid_messages::protocol_manager::ProtocolManager;
+use board_messages::braid::artifact::{Ballots, Configuration, Plaintexts};
+use board_messages::braid::message::Message;
+use board_messages::braid::newtypes::PublicKeyHash;
+use board_messages::braid::newtypes::MAX_TRUSTEES;
+use board_messages::braid::newtypes::NULL_TRUSTEE;
+use board_messages::braid::protocol_manager::ProtocolManager;
 
 use crate::protocol2::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;

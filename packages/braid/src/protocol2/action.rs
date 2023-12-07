@@ -8,11 +8,11 @@ pub(self) use strand::context::Exponent;
 
 pub(self) use crate::protocol2::datalog::NULL_HASH;
 pub(self) use crate::protocol2::trustee::Trustee;
-pub(self) use braid_messages::artifact::{
+pub(self) use board_messages::braid::artifact::{
     DecryptionFactors, DkgPublicKey, Mix, Plaintexts, Shares,
 };
-pub(self) use braid_messages::message::Message;
-pub(self) use braid_messages::newtypes::*;
+pub(self) use board_messages::braid::message::Message;
+pub(self) use board_messages::braid::newtypes::*;
 
 use crate::util::dbg_hash;
 

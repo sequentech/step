@@ -2,14 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use braid_messages::artifact::DkgPublicKey;
-use braid_messages::artifact::{Ballots, Configuration};
-use braid_messages::message::Message;
-use braid_messages::newtypes::BatchNumber;
-use braid_messages::newtypes::PublicKeyHash;
-use braid_messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
-use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use braid_messages::statement::StatementType;
+use board_messages::braid::artifact::DkgPublicKey;
+use board_messages::braid::artifact::{Ballots, Configuration};
+use board_messages::braid::message::Message;
+use board_messages::braid::newtypes::BatchNumber;
+use board_messages::braid::newtypes::PublicKeyHash;
+use board_messages::braid::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
+use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use board_messages::braid::statement::StatementType;
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
