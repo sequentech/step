@@ -23,7 +23,7 @@ const TallyLogs: React.FC = () => {
 
     useEffect(() => {
         if (data) {
-            console.log("data in resultas", data)
+            // console.log("data in resultas", data)
 
             setDataTally(data)
         }

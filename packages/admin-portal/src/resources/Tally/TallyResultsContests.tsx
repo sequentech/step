@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {useGetList, useGetOne} from "react-admin"
+import {Identifier, RaRecord, useGetList, useGetOne} from "react-admin"
 
-import {Sequent_Backend_Contest, Sequent_Backend_Tally_Session} from "../../gql/graphql"
+import {Sequent_Backend_Area, Sequent_Backend_Contest, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Tab, Tabs} from "@mui/material"
 import * as reactI18next from "react-i18next"
@@ -12,17 +12,19 @@ import {TallyResultsCandidates} from "./TallyResultsCandidates"
 import { TallyResultsContestAreas } from './TallyResultsContestAreas'
 
 interface TallyResultsContestProps {
-    electionId: string
+    areas: RaRecord<Identifier>[] | undefined
+    electionId: string | null
 }
 
-export const TallyResultsContest: React.FC = () => {
-    // const {electionId} = props
+export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) => {
+    const {areas, electionId} = props
     // const [tenantId] = useTenantStore()
-    const [value, setValue] = React.useState(0)
+    const [value, setValue] = React.useState<number | null>(null)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
-    const [electionId, setElectionId] = useState<string | null>()
+    // const [electionId, setElectionId] = useState<string | null>()
     const [electionEventId, setElectionEventId] = useState<string | null>()
     const [tenantId, setTenantId] = useState<string | null>()
+    const [contestId, setContestId] = useState<string | null>()
 
     // const {data: election} = useGetOne("sequent_backend_election", {
     //     id: electionId,
@@ -38,35 +40,21 @@ export const TallyResultsContest: React.FC = () => {
     })
 
     useEffect(() => {
-        console.log("TallyResultsContest :: get storage", electionId)
         setTenantId(localStorage.getItem("selected-results-tenant-id"))
         setElectionEventId(localStorage.getItem("selected-results-election-event-id"))
-        setElectionId(localStorage.getItem("selected-results-election-id"))
-    }, [electionId, electionEventId])
+    }, [])
 
     useEffect(() => {
         if (electionId) {
-            console.log("TallyResultsContest :: election", electionId)
             setContestsData(contests || [])
         }
     }, [electionId, contests])
-
-    useEffect(() => {
-        console.log("TallyResultsContest :: set tab", electionId)
-
-        const selectedTabId = localStorage.getItem("selected-results-contest-tab-id")
-        if (selectedTabId) {
-            setValue(parseInt(selectedTabId))
-        } else {
-            localStorage.setItem("selected-results-contest-tab-id", "0")
-            setValue(0)
-        }
-    }, [electionId])
+    
 
     interface TabPanelProps {
         children?: reactI18next.ReactI18NextChild | Iterable<reactI18next.ReactI18NextChild>
         index: number
-        value: number
+        value: number | null
     }
 
     function CustomTabPanel(props: TabPanelProps) {
@@ -79,22 +67,22 @@ export const TallyResultsContest: React.FC = () => {
         )
     }
 
-    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-        localStorage.setItem("selected-results-contest-id", contestsData?.[newValue]?.id)
-        localStorage.setItem("selected-results-contest-tab-id", newValue.toString())
-        setValue(newValue)
+    const tabClicked = (id: string, index: number) => {
+        // localStorage.setItem("selected-results-contest-tab-id", index.toString())
+        setValue(index)
+        setContestId(id)
     }
 
     return (
         <>
-            <Tabs value={value} onChange={handleChange}>
+            <Tabs value={value} >
                 {contestsData?.map((contest, index) => (
-                    <Tab key={index} label={contest.name} />
+                    <Tab key={index} label={contest.name} onClick={() => tabClicked(contest.id, index)} />
                 ))}
             </Tabs>
             {contestsData?.map((contest, index) => (
                 <CustomTabPanel key={index} index={index} value={value}>
-                    <TallyResultsContestAreas />
+                    <TallyResultsContestAreas areas={areas} contestId={contestId || null}/>
                 </CustomTabPanel>
             ))}
         </>

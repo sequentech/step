@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState, memo} from "react"
-import {useGetOne, useGetMany} from "react-admin"
+import {useGetOne, useGetMany, useGetList} from "react-admin"
 
-import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
+import {Sequent_Backend_Election, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
@@ -27,10 +27,16 @@ const TallyElectionsProgress: React.FC = () => {
         >
     >([])
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
-        "sequent_backend_tally_session",
+    const {data: tally} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
+        id: tallyId,
+    })
+
+    const {data: executions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+        "sequent_backend_tally_session_execution",
         {
-            id: tallyId,
+            filter: {tally_session_id: tallyId},
+            sort: {field: "created_at", order: "DESC"},
+            pagination: {page: 1, perPage: 1},
         },
         {
             refetchInterval: 5000,
@@ -38,7 +44,7 @@ const TallyElectionsProgress: React.FC = () => {
     )
 
     const {data: elections} = useGetMany("sequent_backend_election", {
-        ids: data?.election_ids || [],
+        ids: tally?.election_ids || [],
     })
 
     useEffect(() => {

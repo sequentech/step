@@ -2,80 +2,91 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {useGetList, useGetOne} from "react-admin"
+import {Identifier, RaRecord, useGetList, useGetOne} from "react-admin"
 
 import {
+    Sequent_Backend_Area,
     Sequent_Backend_Area_Contest,
     Sequent_Backend_Candidate,
     Sequent_Backend_Tally_Session,
 } from "../../gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import { Box, Tabs,Tab } from '@mui/material'
+import {Box, Tabs, Tab} from "@mui/material"
 import * as reactI18next from "react-i18next"
 
-// interface TallyResultsContestAreasProps {
-//     contestId: string
-//     electionId: string
-// }
+interface TallyResultsContestAreasProps {
+    areas: RaRecord<Identifier>[] | undefined
+    contestId: string | null
+}
 
-export const TallyResultsContestAreas: React.FC = () => {
-    // const {contestId, electionId} = props
+export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> = (props) => {
+    const {areas, contestId} = props
     // const [tenantId] = useTenantStore()
-    const [value, setValue] = React.useState(0)
+    const [value, setValue] = React.useState<number | null>(null)
     const [areasData, setAreasData] = useState<Array<Sequent_Backend_Area_Contest>>([])
     const [tenantId, setTenantId] = useState<string | null>()
     const [electionEventId, setElectionEventId] = useState<string | null>()
-    const [contestId, setContestId] = useState<string | null>()
+    const [areaContestId, setAreaContestId] = useState<string | null>()
 
-    const {data: areas} = useGetList<Sequent_Backend_Area_Contest>("sequent_backend_area_contest", {
-        filter: {
-            tenant_id: tenantId, 
-            election_event_id: electionEventId,
-            contest_id: contestId
-        },
-    })
+    const {data: contestAreas} = useGetList<Sequent_Backend_Area_Contest>(
+        "sequent_backend_area_contest",
+        {
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                contest_id: contestId,
+            },
+        }
+    )
 
     useEffect(() => {
-        console.log("TallyResultsContest :: get storage", contestId)
         setTenantId(localStorage.getItem("selected-results-tenant-id"))
         setElectionEventId(localStorage.getItem("selected-results-election-event-id"))
-        setContestId(localStorage.getItem("selected-results-contest-id"))
-    }, [contestId, electionEventId])
+    }, [contestId])
 
     useEffect(() => {
         if (contestId) {
-            setAreasData(areas || [])
+            setAreasData(contestAreas || [])
         }
-    }, [contestId, areas])
+    }, [contestId, contestAreas])
 
-        interface TabPanelProps {
-            children?: reactI18next.ReactI18NextChild | Iterable<reactI18next.ReactI18NextChild>
-            index: number
-            value: number
-        }
+    interface TabPanelProps {
+        children?: reactI18next.ReactI18NextChild | Iterable<reactI18next.ReactI18NextChild>
+        index: number
+        value: number | null
+    }
 
-        function CustomTabPanel(props: TabPanelProps) {
-            const {children, value, index, ...other} = props
+    function CustomTabPanel(props: TabPanelProps) {
+        const {children, value, index, ...other} = props
 
-            return (
-                <div role="tabpanel" hidden={value !== index} {...other}>
-                    {value === index && <Box>{children}</Box>}
-                </div>
-            )
-        }
+        return (
+            <div role="tabpanel" hidden={value !== index} {...other}>
+                {value === index && <Box>{children}</Box>}
+            </div>
+        )
+    }
 
-        const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-            localStorage.setItem("selected-results-contest-area-id", areasData?.[newValue]?.id)
-            localStorage.setItem("selected-results-contest-tab-id", newValue.toString())
-            setValue(newValue)
-        }
+   
+    const tabClicked = (areaId: string, index: number) => {        
+        localStorage.setItem("selected-results-contest-area-id", areasData?.[index]?.id)
+        setValue(index)
+
+        setAreaContestId(areaId)
+        localStorage.setItem("selected-results-contest-area-id", areaId)
+    }
 
     return (
         <>
-            <Tabs value={value} onChange={handleChange}>
-                {areasData?.map((area, index) => (
-                    <Tab key={index} label={area.area_id} />
-                ))}
+            <Tabs value={value}>
+                {areasData?.map((area, index) => {
+                    return (
+                        <Tab
+                            key={index}
+                            label={areas?.find((item) => item.id === area.area_id)?.name}
+                            onClick={() => tabClicked(area.id, index)}
+                        />
+                    )
+                })}
             </Tabs>
             {areasData?.map((area, index) => (
                 <CustomTabPanel key={index} index={index} value={value}>

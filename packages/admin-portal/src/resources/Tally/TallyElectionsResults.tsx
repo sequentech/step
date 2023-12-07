@@ -2,9 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {useGetOne, useGetMany} from "react-admin"
+import {useGetOne, useGetMany, useGetList} from "react-admin"
 
-import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
+import {
+    Sequent_Backend_Election,
+    Sequent_Backend_Results_Election,
+    Sequent_Backend_Tally_Session,
+} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
@@ -12,59 +16,97 @@ import {ElectionStatusItem} from "@/components/ElectionStatusItem"
 import styled from "@emotion/styled"
 import {Box, LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
+import {TenantContextProvider} from "@/providers/TenantContextProvider"
 
-// interface TallyElectionsResultsProps {
-//     update: (elections: Array<string>) => void
-// }
+interface TallyElectionsResultsProps {
+    tenantId: string | null
+    electionEventId: string | null
+    electionIds: Array<string>
+}
 
-export const TallyElectionsResults: React.FC = () => {
-    const [tallyId] = useElectionEventTallyStore()
+export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
+    const {tenantId, electionEventId, electionIds} = props
     const {t} = useTranslation()
-
-    const [electionsData, setElectionsData] = useState<
-        Array<
-            Sequent_Backend_Election & {
-                rowId: number
-                id: string
-                status: string
-                method: string
-                voters: number
-                number: number
-                turnout: number
-            }
-        >
+    const [resultsData, setResultsData] = useState<
+        | Array<
+              Sequent_Backend_Election & {
+                  rowId: number
+                  id: string
+                  status: string
+                  method: string
+                  voters: number
+                  number: number
+                  turnout: number
+              }
+          >
     >([])
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
-        "sequent_backend_tally_session",
+    const {data: results, isLoading} = useGetList<Sequent_Backend_Results_Election>(
+        "sequent_backend_results_election",
         {
-            id: tallyId,
+            pagination: {page: 1, perPage: 1},
+            filter: {tenant_id: tenantId, election_event_id: electionEventId},
         },
-        {
-            refetchInterval: 5000,
-        }
+        // {
+        //     refetchInterval: 5000,
+        // }
     )
 
     const {data: elections} = useGetMany("sequent_backend_election", {
-        ids: data?.election_ids || [],
+        ids: electionIds || [],
     })
 
     useEffect(() => {
-        if (elections) {
-            const temp = (elections || []).map((election, index) => ({
-                ...election,
-                rowId: index,
-                id: election.id || "",
-                name: election.name,
-                status: election.status || "",
-                method: election.method,
-                voters: election.voters,
-                number: election.number,
-                turnout: election.turnout,
-            }))
-            setElectionsData(temp)
+        console.log("TallyElectionsResults :: results", results)
+        console.log("TallyElectionsResults :: elections", elections)
+
+        if (results && elections) {
+            const temp:
+                | Array<
+                      Sequent_Backend_Election & {
+                          rowId: number
+                          id: string
+                          status: string
+                          method: string
+                          voters: number
+                          number: number
+                          turnout: number
+                      }
+                  >
+                | undefined = elections?.map((election, index) => {
+                return {
+                    ...election,
+                    rowId: index,
+                    id: election.id || "",
+                    name: election.name,
+                    status: election.status || "",
+                    method: election.method,
+                    voters: election.voters,
+                    number: election.number,
+                    turnout: election.turnout,
+                }
+            })
+
+            setResultsData(temp)
         }
-    }, [elections])
+    }, [results, elections])
+
+    // useEffect(() => {
+    //     if (elections) {
+    //         const temp = (elections || []).map((election, index) => ({
+    //             ...election,
+    //             rowId: index,
+    //             id: election.id || "",
+    //             name: election.name,
+    //             status: election.status || "",
+    //             method: election.method,
+    //             voters: election.voters,
+    //             number: election.number,
+    //             turnout: election.turnout,
+    //         }))
+    //         setElectionsData(temp)
+    //     }
+    // }, [elections])
 
     const columns: GridColDef[] = [
         {
@@ -104,18 +146,20 @@ export const TallyElectionsResults: React.FC = () => {
     ]
 
     return (
-        <DataGrid
-            rows={electionsData}
-            columns={columns}
-            initialState={{
-                pagination: {
-                    paginationModel: {
-                        pageSize: 10,
+        <>
+            <DataGrid
+                rows={resultsData}
+                columns={columns}
+                initialState={{
+                    pagination: {
+                        paginationModel: {
+                            pageSize: 10,
+                        },
                     },
-                },
-            }}
-            pageSizeOptions={[10, 20, 50, 100]}
-            disableRowSelectionOnClick
-        />
+                }}
+                pageSizeOptions={[10, 20, 50, 100]}
+                disableRowSelectionOnClick
+            />
+        </>
     )
 }

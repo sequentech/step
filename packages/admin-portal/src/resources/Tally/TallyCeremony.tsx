@@ -27,6 +27,7 @@ import TallyElectionsProgress from './TallyElectionsProgress'
 import { TallyElectionsResults } from './TallyElectionsResults'
 import TallyResults from './TallyResults'
 import TallyLogs from './TallyLogs'
+import { useGetOne } from 'react-admin'
 
 interface TallyCeremonyProps {
     completed: boolean
@@ -36,7 +37,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     const {completed} = props
 
     const {t} = useTranslation()
-    const [_, setTallyId] = useElectionEventTallyStore()
+    const [tallyId, setTallyId] = useElectionEventTallyStore()
 
     const [openModal, setOpenModal] = useState(false)
     const [page, setPage] = useState<number>(completed ? 2 : 0)
@@ -47,6 +48,10 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     interface IExpanded {
         [key: string]: boolean
     }
+
+    const {data: tally} = useGetOne("sequent_backend_tally_session", {
+        id: tallyId,
+    })
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-general": true,
@@ -241,7 +246,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                         </AccordionSummary>
                         <AccordionDetails>
                             <TallyStartDate />
-                            <TallyElectionsResults />
+                            <TallyElectionsResults tenantId={tally?.tenant_id} electionEventId={tally?.election_event_id} electionIds={tally?.election_ids}/>
                         </AccordionDetails>
                     </Accordion>
 
