@@ -64,7 +64,7 @@ export const CreateElectionList: React.FC = () => {
     const notify = useNotify()
     const [newId, setNewId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
-    const [settings, setSettings] = useState(false)
+    const [settings, setSettings] = useState<any>()
     const {t} = useTranslation()
     const navigate = useNavigate()
     const refresh = useRefresh()
@@ -115,14 +115,12 @@ export const CreateElectionList: React.FC = () => {
     const handleSubmit = async (values: any) => {
         let electionSubmit = values as IElectionEventSubmit
 
-        // TODO: get enabled_language_codes from settings
-
         electionSubmit = {
             ...electionSubmit,
             presentation: {
                 ...electionSubmit.presentation,
                 language_conf: {
-                    enabled_language_codes: ["es", "en"],
+                    enabled_language_codes: settings?.languages ?? [],
                     default_language_code: "en",
                 },
                 i18n: {
