@@ -5,7 +5,7 @@
 import {CreateButton, useGetList} from "react-admin"
 import React, {ReactElement, useEffect} from "react"
 
-import {useNavigate} from "react-router-dom"
+import {useLocation, useNavigate} from "react-router-dom"
 import {CircularProgress, Typography} from "@mui/material"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {styled} from "@mui/material/styles"
@@ -37,6 +37,7 @@ export interface ElectionEventListProps {
 export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => {
     const {t} = useTranslation()
     const navigate = useNavigate()
+    const { pathname } = useLocation()
     const [tenantId] = useTenantStore()
     const [isArchivedElectionEvents] = useAtom(archivedElectionEventSelection)
 
@@ -55,6 +56,8 @@ export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => 
             if (electionEventId) {
                 navigate("/sequent_backend_election_event/" + electionEventId)
             }
+        } else if (pathname != "/sequent_backend_election_event/") {
+            navigate("/sequent_backend_election_event/")
         }
     })
 
