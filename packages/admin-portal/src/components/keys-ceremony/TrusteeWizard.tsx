@@ -16,9 +16,40 @@ import React, {useContext, useState} from "react"
 import {ConfigureStep} from "@/components/keys-ceremony/ConfigureStep"
 import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
 
+export const isTrusteeParticipating =
+    (
+        ceremony: Sequent_Backend_Keys_Ceremony,
+        authContext: AuthContextValues
+    ) => {
+    const status: IExecutionStatus = ceremony.status
+    return (
+        (
+            ceremony.execution_status == EStatus.NOT_STARTED ||
+            ceremony.execution_status == EStatus.IN_PROCESS
+        ) &&
+        status
+            .trustees
+            .find((trustee) => trustee.name == authContext.username)
+    )
+}
+
+const trusteeCheckedKeys = 
+(
+    ceremony: Sequent_Backend_Keys_Ceremony,
+    authContext: AuthContextValues
+) => {
+    const status: IExecutionStatus = ceremony.status
+    return status
+            .trustees
+            .find((trustee) => (
+                trustee.name == authContext.username &&
+                trustee.status == TStatus.KEY_CHECKED
+            ))
+}
+
 const StyledBox = styled(Box)``
 
-interface WizardProps {
+interface TrusteeWizardProps {
     electionEvent: Sequent_Backend_Election_Event
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
     setCurrentCeremony: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
@@ -26,12 +57,17 @@ interface WizardProps {
     goBack: () => void
 }
 
-export const Wizard: React.FC<WizardProps> = ({
+export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     electionEvent,
     currentCeremony,
     setCurrentCeremony,
     goBack,
 }) => {
+    const authContext = useContext(AuthContext)
+    const trusteeParticipating = (
+        currentCeremony &&
+        isTrusteeParticipating(currentCeremony, authContext)
+    )
     const calculateCurrentStep: () => number = () => {
         if (!currentCeremony) {
             return 0 // configure
@@ -46,8 +82,6 @@ export const Wizard: React.FC<WizardProps> = ({
             }
         }
     }
-
-    const authContext = useContext(AuthContext)
     const [currentStep, setCurrentStep] = useState<number>(calculateCurrentStep())
     const openCeremonyStep = () => {
         setCurrentStep(1)

@@ -19,15 +19,14 @@ import {
     SingleFieldList,
     ChipField,
     FunctionField,
-    useNotify,
 } from "react-admin"
 import {Box, Button, Typography, Chip, Alert} from "@mui/material"
-import {
-    IKeysCeremonyExecutionStatus as EStatus,
-    IExecutionStatus,
-} from "@/services/KeyCeremony"
 import {theme, IconButton} from "@sequentech/ui-essentials"
 import {Wizard} from "@/components/keys-ceremony/Wizard"
+import {
+    TrusteeWizard,
+    isTrusteeParticipating
+} from "@/components/keys-ceremony/TrusteeWizard"
 import {statusColor} from "@/components/keys-ceremony/CeremonyStep"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -112,18 +111,9 @@ const getActiveCeremony =
         if (!keyCeremonies) {
             return
         } else {
-            return keyCeremonies.find((ceremony) => {
-                const status: IExecutionStatus = ceremony.status
-                return (
-                    (
-                        ceremony.execution_status == EStatus.NOT_STARTED ||
-                        ceremony.execution_status == EStatus.IN_PROCESS
-                    ) &&
-                    status
-                        .trustees
-                        .find((trustee) => trustee.name == authContext.username)
-                )
-            })
+            return keyCeremonies.find((ceremony) =>
+                isTrusteeParticipating(ceremony, authContext)
+            )
         }
     }
 
@@ -132,11 +122,7 @@ export const EditElectionEventKeys: React.FC = () => {
     const {t} = useTranslation()
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [tenantId] = useTenantStore()
-    const notify = useNotify()
     const authContext = useContext(AuthContext)
-    const isTrustee = authContext.isAuthorized(
-        true, tenantId, IPermissions.TRUSTEE_READ
-    )
 
     const {data: keysCeremonies} = useGetList<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
@@ -156,6 +142,7 @@ export const EditElectionEventKeys: React.FC = () => {
     )
 
     const [showCeremony, setShowCeremony] = useState(false)
+    const [showTrusteeCeremony, setShowTrusteeCeremony] = useState(false)
     const {canAdminCeremony, canReadTrustee} = useActionPermissions()
 
     const CreateButton = () => (
@@ -189,31 +176,52 @@ export const EditElectionEventKeys: React.FC = () => {
         setCurrentCeremony(null)
     }
 
-    const viewAction = (id: Identifier) => {
-        console.log(`viewaction with id=${id}`)
+    const viewAdminCeremony = (id: Identifier) => {
         const ceremony: Sequent_Backend_Keys_Ceremony | undefined = keysCeremonies?.find(
             (element) => element.id === id
         )
-        if (!ceremony) {
+        if (!ceremony || !canAdminCeremony) {
             return
         } else {
             setCurrentCeremony(ceremony)
             setShowCeremony(true)
+            setShowTrusteeCeremony(false)
+        }
+    }
+
+    const viewTrusteeCeremony = (id: Identifier) => {
+        const ceremony: Sequent_Backend_Keys_Ceremony | undefined = keysCeremonies?.find(
+            (element) => element.id === id
+        )
+        if (!ceremony || !canReadTrustee) {
+            return
+        } else {
+            setCurrentCeremony(ceremony)
+            setShowCeremony(false)
+            setShowTrusteeCeremony(true)
         }
     }
 
     const actions: Action[] = [
-        {
-            icon: isTrustee
-                ? <TrusteeKeyIcon />
-                : <FileOpenIcon />,
-            action: viewAction
-        }
+        ...(canAdminCeremony
+            ? [{
+                icon: <FileOpenIcon />,
+                action: viewAdminCeremony,
+            }]
+            : []
+        ),
+        ...(canReadTrustee
+            ? [{
+                icon: <TrusteeKeyIcon />,
+                action: viewTrusteeCeremony,
+            }]
+            : []
+        )
     ]
 
     return (
         <>
-            {isTrustee && activeCeremony && !showCeremony &&
+            {canReadTrustee && activeCeremony && !showCeremony &&
                 <Alert severity="info">
                     <Trans i18nKey="electionEventScreen.keys.notify.participateNow">
                         You have been invited to participate in a Keys ceremony. Please
@@ -221,19 +229,28 @@ export const EditElectionEventKeys: React.FC = () => {
                             onClick={(e: any) => {
                                 console.log("whatever")
                                 e.preventDefault()
-                                viewAction(activeCeremony?.id)
+                                viewAdminCeremony(activeCeremony?.id)
                             }}
                             >click on the ceremony Key Action</NotificationLink> to participate.
                     </Trans>
                 </Alert>}
-            {showCeremony ? (
+            {canAdminCeremony && showCeremony && (
                 <Wizard
                     electionEvent={electionEvent}
                     currentCeremony={currentCeremony}
                     setCurrentCeremony={setCurrentCeremony}
                     goBack={goBack}
                 />
-            ) : (
+            )}
+            {canReadTrustee && showTrusteeCeremony && (
+                <TrusteeWizard
+                    electionEvent={electionEvent}
+                    currentCeremony={currentCeremony}
+                    setCurrentCeremony={setCurrentCeremony}
+                    goBack={goBack}
+                />
+            )}
+            {!showCeremony && !showTrusteeCeremony && (
                 <List
                     resource="sequent_backend_keys_ceremony"
                     actions={<TopToolbar>{canAdminCeremony ? <CreateButton /> : null}</TopToolbar>}
