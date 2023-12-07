@@ -5,18 +5,18 @@ use crate::hasura::area::get_election_event_areas;
 use crate::hasura::keys_ceremony::get_keys_ceremony;
 use crate::hasura::tally_session::get_tally_sessions;
 use crate::hasura::tally_session::insert_tally_session;
-use crate::services::celery_app::get_celery_app;
-use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
-use crate::services::ceremonies::tally_ceremony::get_keys_ceremony::GetKeysCeremonySequentBackendKeysCeremony;
-use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
-use crate::tasks::connect_tally_ceremony::connect_tally_ceremony;
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
+use crate::services::celery_app::get_celery_app;
+use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
+use crate::services::ceremonies::tally_ceremony::get_keys_ceremony::GetKeysCeremonySequentBackendKeysCeremony;
 use crate::services::ceremonies::tally_ceremony::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySession,
-    GetLastTallySessionExecutionSequentBackendTallySessionExecution
+    GetLastTallySessionExecutionSequentBackendTallySessionExecution,
 };
+use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
+use crate::tasks::connect_tally_ceremony::connect_tally_ceremony;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
@@ -31,7 +31,12 @@ pub async fn find_last_tally_session_execution(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-) -> Result<Option<(GetLastTallySessionExecutionSequentBackendTallySessionExecution, GetLastTallySessionExecutionSequentBackendTallySession)>> {
+) -> Result<
+    Option<(
+        GetLastTallySessionExecutionSequentBackendTallySessionExecution,
+        GetLastTallySessionExecutionSequentBackendTallySession,
+    )>,
+> {
     // get all data for the execution: the last tally session execution,
     // the list of tally_session_contest, and the ballot styles
     let data = get_last_tally_session_execution(
@@ -55,9 +60,8 @@ pub async fn find_last_tally_session_execution(
     }
     Ok(Some((
         data.sequent_backend_tally_session_execution[0].clone(),
-        data.sequent_backend_tally_session[0].clone()
+        data.sequent_backend_tally_session[0].clone(),
     )))
-
 }
 
 pub async fn get_tally_session(
@@ -240,7 +244,7 @@ pub async fn create_tally_ceremony(
     .ok_or(anyhow!("can't find tally session"))?
     .returning[0]
         .clone();
-    
+
     let _tally_session_execution = insert_tally_session_execution(
         auth_headers.clone(),
         tenant_id.clone(),

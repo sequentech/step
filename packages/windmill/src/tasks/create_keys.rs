@@ -2,19 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Context;
-use celery::error::TaskError;
-use sequent_core::ballot::ElectionEventStatus;
-use sequent_core::services::keycloak;
-use serde::{Deserialize, Serialize};
-use tracing::instrument;
-use sequent_core::ballot::VotingStatus;
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
 use crate::services::celery_app::*;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::public_keys;
 use crate::types::error::{Error, Result};
+use anyhow::Context;
+use celery::error::TaskError;
+use sequent_core::ballot::ElectionEventStatus;
+use sequent_core::ballot::VotingStatus;
+use sequent_core::services::keycloak;
+use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct CreateKeysBody {

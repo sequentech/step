@@ -68,6 +68,14 @@ pub async fn update_election_status(
     authorize(&claims, true, None, vec![Permissions::ELECTION_STATE_WRITE])?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
+    election_event_status::update_election_voting_status(
+        tenant_id.clone(),
+        input.election_event_id.clone(),
+        input.election_id.clone(),
+        input.voting_status.clone(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(UpdateElectionVotingStatusOutput {
         election_id: input.election_id.clone(),
