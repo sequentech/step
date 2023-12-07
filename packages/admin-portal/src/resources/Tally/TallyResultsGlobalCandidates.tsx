@@ -11,7 +11,16 @@ import {
 } from "../../gql/graphql"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
-import { NoItem } from '@/components/NoItem'
+import {NoItem} from "@/components/NoItem"
+import {
+    Typography,
+    TableContainer,
+    Paper,
+    Table,
+    TableBody,
+    TableRow,
+    TableCell,
+} from "@mui/material"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -114,8 +123,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                 }
             })
 
-            console.log("TallyResultsGlobalCandidates :: temp", temp);
-            
+            console.log("TallyResultsGlobalCandidates :: temp", temp)
 
             setResultsData(temp)
         }
@@ -160,6 +168,64 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
     return (
         <>
+            <Typography variant="h6" component="div" sx={{mt: 8}}>
+                {t("tally.table.global")}
+            </Typography>
+
+            {!general ? (
+                <TableContainer component={Paper}>
+                    <Table sx={{minWidth: 650}} aria-label="simple table">
+                        {/* <TableHead>
+                            <TableRow>
+                                <TableCell>{t("tally.table.concept")}</TableCell>
+                                <TableCell align="right">{t("tally.table.value")}</TableCell>
+                            </TableRow>
+                        </TableHead> */}
+                        <TableBody>
+                            <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                <TableCell component="th" scope="row">
+                                    {t("tally.table.elegible_census")}
+                                </TableCell>
+                                <TableCell align="right">100</TableCell>
+                                {/* <TableCell align="right">{general[0].elegible_census}</TableCell> */}
+                            </TableRow>
+                            <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                <TableCell component="th" scope="row">
+                                    {t("tally.table.total_valid_votes")}
+                                </TableCell>
+                                <TableCell align="right">100</TableCell>
+                                {/* <TableCell align="right">{general[0].total_valid_votes}</TableCell> */}
+                            </TableRow>
+                            <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                <TableCell component="th" scope="row">
+                                    {t("tally.table.explicit_invalid_votes")}
+                                </TableCell>
+                                <TableCell align="right">100</TableCell>
+                                {/* <TableCell align="right">{general[0].explicit_invalid_votes}</TableCell> */}
+                            </TableRow>
+                            <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                <TableCell component="th" scope="row">
+                                    {t("tally.table.implicit_invalid_votes")}
+                                </TableCell>
+                                <TableCell align="right">100</TableCell>
+                                {/* <TableCell align="right">{general[0].implicit_invalid_votes}</TableCell> */}
+                            </TableRow>
+                            <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                <TableCell component="th" scope="row">
+                                    {t("tally.table.blank_votes")}
+                                </TableCell>
+                                <TableCell align="right">100</TableCell>
+                                {/* <TableCell align="right">{general[0].blank_votes}</TableCell> */}
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            ) : null}
+
+            <Typography variant="h6" component="div" sx={{mt: 8}}>
+                {t("tally.table.candidates")}
+            </Typography>
+
             {resultsData.length ? (
                 <DataGrid
                     rows={resultsData}
@@ -174,7 +240,9 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                     pageSizeOptions={[10, 20, 50, 100]}
                     disableRowSelectionOnClick
                 />
-            ) : <NoItem />}
+            ) : (
+                <NoItem />
+            )}
         </>
     )
 }
