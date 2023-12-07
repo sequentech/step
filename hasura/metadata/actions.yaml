@@ -347,6 +347,20 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: publish_ballot
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/publish-ballot
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  - role: publish-write
 - name: set_role_permission
   definition:
     kind: synchronous
@@ -444,4 +458,5 @@ custom_types:
   - name: SetUserRoleOutput
   - name: CreateTallyOutput
   - name: StartTallyOutput
+  - name: PublishBallotOutput
   scalars: []
