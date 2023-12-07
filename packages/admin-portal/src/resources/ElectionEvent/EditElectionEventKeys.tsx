@@ -173,13 +173,20 @@ export const EditElectionEventKeys: React.FC = () => {
 
     const goBack = () => {
         setShowCeremony(false)
+        setShowTrusteeCeremony(false)
         setCurrentCeremony(null)
     }
 
+    const getCeremony = (id: Identifier) => {
+        if (keysCeremonies) {
+            return keysCeremonies?.find(
+                (element) => element.id === id
+            )
+        }
+    }
+
     const viewAdminCeremony = (id: Identifier) => {
-        const ceremony: Sequent_Backend_Keys_Ceremony | undefined = keysCeremonies?.find(
-            (element) => element.id === id
-        )
+        const ceremony = getCeremony(id)
         if (!ceremony || !canAdminCeremony) {
             return
         } else {
@@ -188,11 +195,8 @@ export const EditElectionEventKeys: React.FC = () => {
             setShowTrusteeCeremony(false)
         }
     }
-
     const viewTrusteeCeremony = (id: Identifier) => {
-        const ceremony: Sequent_Backend_Keys_Ceremony | undefined = keysCeremonies?.find(
-            (element) => element.id === id
-        )
+        const ceremony = getCeremony(id)
         if (!ceremony || !canReadTrustee) {
             return
         } else {
@@ -203,31 +207,30 @@ export const EditElectionEventKeys: React.FC = () => {
     }
 
     const actions: Action[] = [
-        ...(canAdminCeremony
-            ? [{
-                icon: <FileOpenIcon />,
-                action: viewAdminCeremony,
-            }]
-            : []
-        ),
-        ...(canReadTrustee
-            ? [{
-                icon: <TrusteeKeyIcon />,
-                action: viewTrusteeCeremony,
-            }]
-            : []
-        )
+        {
+            icon: <FileOpenIcon />,
+            action: viewAdminCeremony,
+            showAction: (id: Identifier) => canAdminCeremony && !!getCeremony(id),
+        },
+        {
+            icon: <TrusteeKeyIcon />,
+            action: viewTrusteeCeremony,
+            showAction: (id: Identifier) => (
+                canReadTrustee &&
+                !!getCeremony(id)
+            ),
+        }
     ]
 
     return (
         <>
-            {canReadTrustee && activeCeremony && !showCeremony &&
+            {canReadTrustee && activeCeremony && !showCeremony && !showTrusteeCeremony &&
                 <Alert severity="info">
                     <Trans i18nKey="electionEventScreen.keys.notify.participateNow">
                         You have been invited to participate in a Keys ceremony. Please
                         <NotificationLink
                             onClick={(e: any) => {
-                                console.log("whatever")
+                                // TODO: this onClick is not being called!
                                 e.preventDefault()
                                 viewAdminCeremony(activeCeremony?.id)
                             }}
@@ -242,7 +245,7 @@ export const EditElectionEventKeys: React.FC = () => {
                     goBack={goBack}
                 />
             )}
-            {canReadTrustee && showTrusteeCeremony && (
+            {canReadTrustee && showTrusteeCeremony && currentCeremony && (
                 <TrusteeWizard
                     electionEvent={electionEvent}
                     currentCeremony={currentCeremony}

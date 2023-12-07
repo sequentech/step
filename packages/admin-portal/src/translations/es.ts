@@ -206,6 +206,11 @@ const spanishTranslation: TranslationType = {
                     configure: "Configurar",
                     ceremony: "Ceremonia",
                     created: "Finished",
+                    start: "Comienzo",
+                    status: "Estado",
+                    download: "Descargar",
+                    check: "Comprobar",
+                    success: "Finalizado",
                 },
                 notify:{
                     participateNow: "Ha sido invitado a participar a una Ceremonia de Claves. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",

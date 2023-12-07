@@ -204,6 +204,11 @@ const englishTranslation = {
                     configure: "Configure",
                     ceremony: "Ceremony",
                     created: "Finished",
+                    start: "Start",
+                    status: "Status",
+                    download: "Download",
+                    check: "Check",
+                    success: "Finished",
                 },
                 notify:{
                     participateNow: "You have been invited to participate in a Keys ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",

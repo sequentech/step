@@ -13,7 +13,7 @@ import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/g
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
 import React, {useContext, useState} from "react"
-import {ConfigureStep} from "@/components/keys-ceremony/ConfigureStep"
+import {StartStep} from "@/components/keys-ceremony/StartStep"
 import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
 
 export const isTrusteeParticipating =
@@ -27,13 +27,13 @@ export const isTrusteeParticipating =
             ceremony.execution_status == EStatus.NOT_STARTED ||
             ceremony.execution_status == EStatus.IN_PROCESS
         ) &&
-        status
+        !!status
             .trustees
             .find((trustee) => trustee.name == authContext.username)
     )
 }
 
-const trusteeCheckedKeys = 
+const hasTrusteeCheckedKeys = 
 (
     ceremony: Sequent_Backend_Keys_Ceremony,
     authContext: AuthContextValues
@@ -51,10 +51,16 @@ const StyledBox = styled(Box)``
 
 interface TrusteeWizardProps {
     electionEvent: Sequent_Backend_Election_Event
-    currentCeremony: Sequent_Backend_Keys_Ceremony | null
+    currentCeremony: Sequent_Backend_Keys_Ceremony
     setCurrentCeremony: (keysCeremony: Sequent_Backend_Keys_Ceremony) => void
 
     goBack: () => void
+}
+
+enum WizardStep {
+    Status = 0,
+    Start = 1,
+    Success = 2,
 }
 
 export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
@@ -68,21 +74,28 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         currentCeremony &&
         isTrusteeParticipating(currentCeremony, authContext)
     )
-    const calculateCurrentStep: () => number = () => {
-        if (!currentCeremony) {
-            return 0 // configure
+    const trusteeCheckedKeys = hasTrusteeCheckedKeys(
+        currentCeremony,
+        authContext
+    )
+    const calculateCurrentStep: () => WizardStep = () => {
+        // If trustee is not participating, it can only status view
+        if (!trusteeParticipating) {
+            return WizardStep.Status
+        // If trustee is participating but is not in process, then it can only
+        // view the ceremony
+        } else if (currentCeremony.execution_status != EStatus.IN_PROCESS) {
+            return WizardStep.Status
+        // if the trustee has not checked the key, then show the start screen
+        } else if (!trusteeCheckedKeys) {
+            return WizardStep.Start
+        // In all other cases, just show the status
         } else {
-            if (
-                currentCeremony.execution_status == EStatus.NOT_STARTED ||
-                currentCeremony.execution_status == EStatus.IN_PROCESS
-            ) {
-                return 1 // ceremony, created
-            } else {
-                return 2 // final state
-            }
+            return WizardStep.Success
         }
     }
-    const [currentStep, setCurrentStep] = useState<number>(calculateCurrentStep())
+    const showStatusNext = trusteeCheckedKeys && trusteeParticipating
+    const [currentStep, setCurrentStep] = useState<WizardStep>(calculateCurrentStep())
     const openCeremonyStep = () => {
         setCurrentStep(1)
     }
@@ -90,29 +103,41 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     return (
         <StyledBox>
             <BreadCrumbSteps
-                labels={[
-                    "electionEventScreen.keys.breadCrumbs.configure",
-                    "electionEventScreen.keys.breadCrumbs.ceremony",
-                    "electionEventScreen.keys.breadCrumbs.created",
-                ]}
+                labels={showStatusNext
+                    ? [
+                        "electionEventScreen.keys.breadCrumbs.status",
+                        "electionEventScreen.keys.breadCrumbs.start",
+                        "electionEventScreen.keys.breadCrumbs.download",
+                        "electionEventScreen.keys.breadCrumbs.check",
+                        "electionEventScreen.keys.breadCrumbs.success",
+                    ]
+                    : [
+                        "electionEventScreen.keys.breadCrumbs.status",
+                    ]}
                 selected={currentStep}
                 variant={BreadCrumbStepsVariant.Circle}
                 colorPreviousSteps={true}
             />
-            {currentStep == 0 && (
-                <ConfigureStep
-                    currentCeremony={currentCeremony}
-                    setCurrentCeremony={setCurrentCeremony}
-                    electionEvent={electionEvent}
-                    openCeremonyStep={openCeremonyStep}
-                    goBack={goBack}
-                />
-            )}
-            {currentStep > 0 && (
+            {(
+                currentStep == WizardStep.Status ||
+                currentStep == WizardStep.Success
+            ) && (
                 <CeremonyStep
                     currentCeremony={currentCeremony}
                     electionEvent={electionEvent}
                     goBack={goBack}
+                    goNext={showStatusNext && currentStep == WizardStep.Status
+                        ? () => setCurrentStep(WizardStep.Start)
+                        : undefined}
+                />
+            )}
+            {currentStep == WizardStep.Start && (
+                <StartStep
+                    currentCeremony={currentCeremony}
+                    setCurrentCeremony={setCurrentCeremony}
+                    electionEvent={electionEvent}
+                    openCeremonyStep={openCeremonyStep}
+                    goBack={() => setCurrentStep(WizardStep.Status)}
                 />
             )}
         </StyledBox>
