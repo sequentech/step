@@ -1,3 +1,8 @@
-{
-    "name": "Test Election Publish Old Event"
-}
+[
+    {
+        "name": "Test Election Publish Old Event",
+        "test": {
+            "name": "Test Sub Json Old"
+        }
+    }
+]
