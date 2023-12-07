@@ -11,6 +11,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::services::ceremonies::tally_ceremony;
+use sequent_core::types::ceremonies::TallyExecutionStatus;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTallyCeremonyInput {
@@ -52,15 +53,16 @@ pub async fn create_tally_ceremony(
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct StartTallyCeremonyInput {
+pub struct UpdateTallyCeremonyInput {
     election_event_id: String,
     tally_session_id: String,
+    status: TallyExecutionStatus,
 }
 
 #[instrument(skip(claims))]
-#[post("/start-tally-ceremony", format = "json", data = "<body>")]
-pub async fn start_tally_ceremony(
-    body: Json<StartTallyCeremonyInput>,
+#[post("/update-tally-ceremony", format = "json", data = "<body>")]
+pub async fn update_tally_ceremony(
+    body: Json<UpdateTallyCeremonyInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateTallyCeremonyOutput>, (Status, String)> {
     authorize(&claims, true, None, vec![Permissions::ADMIN_CEREMONY])?;

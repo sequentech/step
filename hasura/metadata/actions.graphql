@@ -178,9 +178,10 @@ type Mutation {
 }
 
 type Mutation {
-  start_tally_ceremony (
+  update_tally_ceremony (
     election_event_id: uuid!
     tally_session_id: uuid!
+    status: String!
   ): StartTallyOutput
 }
 

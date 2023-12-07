@@ -40,8 +40,9 @@ export interface ICeremonyStatus {
 
 export enum ITallyExecutionStatus {
     NOT_STARTED = "NotStarted",
+    STARTED = "Started",
     CONNECTED = "Connected",
-    IN_PROCESS = "InProcess",
+    IN_PROGRESS = "InProgress",
     SUCCESS = "Success",
     CANCELLED = "Cancelled",
 }
