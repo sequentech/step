@@ -44,7 +44,6 @@ pub async fn get_trustees_by_id(
     response_body.ok()
 }
 
-
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",

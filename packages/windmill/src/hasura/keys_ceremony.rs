@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Result};
-use braid_messages::newtypes::BatchNumber;
+use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use sequent_core::services::connection;
@@ -60,7 +59,7 @@ pub async fn insert_keys_ceremony(
 #[graphql(
     schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/get_keys_ceremony.graphql",
-    response_derives = "Debug"
+    response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
 pub struct GetKeysCeremony;
 
@@ -88,7 +87,6 @@ pub async fn get_keys_ceremony(
     let response_body: Response<get_keys_ceremony::ResponseData> = res.json().await?;
     response_body.ok()
 }
-
 
 #[derive(GraphQLQuery)]
 #[graphql(
