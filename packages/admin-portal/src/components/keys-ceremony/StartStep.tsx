@@ -14,7 +14,7 @@ import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import Button from "@mui/material/Button"
 import {styled} from "@mui/material/styles"
-import {useTranslation} from "react-i18next"
+import {Trans, useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 
 
@@ -33,6 +33,34 @@ const NextButton = styled(Button)`
     margin-left: auto;
 `
 
+const Ol: (data: any) => any = ({className, children}) => (
+    <ol className={className}>
+        {children}
+    </ol>
+)
+  
+const OrderedList = styled(Ol)`
+    padding: 1em;
+    margin-left: 1em;
+    display: block;
+    list-style-type: decimal;
+`
+
+const Li: (data: any) => any = ({className, children}) => (
+    <li className={className}>
+        {children}
+    </li>
+)
+  
+const Item = styled(Li)`
+    padding: 1em;
+    display: list-item;
+`
+
+const Header = styled(Typography)`
+    margin: 25px 0;
+`
+
 export interface ConfigureStepProps {
     goNext: () => void
     goBack: () => void
@@ -46,9 +74,22 @@ export const StartStep: React.FC<ConfigureStepProps> = ({
     const [tenantId] = useTenantStore()
     return (
         <>
-            <Typography variant="h4">{t("keysGeneration.startStep.title")}</Typography>
-            <Typography variant="body2">
-                {t("keysGeneration.startStep.subtitle")}
+            <Header variant="h4">
+                {t("keysGeneration.startStep.title")}
+            </Header>
+            <Typography variant="body1">
+                <p>{t("keysGeneration.startStep.subtitle")}</p>
+                <OrderedList>
+                    <Item>
+                        <Trans i18nKey="keysGeneration.startStep.one"></Trans>
+                    </Item>
+                    <Item>
+                        <Trans i18nKey="keysGeneration.startStep.two"></Trans>
+                    </Item>
+                    <Item>
+                        <Trans i18nKey="keysGeneration.startStep.three"></Trans>
+                    </Item>
+                </OrderedList>
             </Typography>
 
             <StyledToolbar>

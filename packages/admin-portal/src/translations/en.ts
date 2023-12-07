@@ -602,6 +602,13 @@ const englishTranslation = {
                 },
                 emptyLogs: "No logs yet.",
             },
+            startStep: {
+                title: "Keys Ceremony",
+                subtitle: "You are about to participate in the Keys Ceremony as a Trustee. This involves the following steps:",
+                one: "<strong>Download</strong> your private key.",
+                two: "Create multiple <strong>Backups</strong> of the private key.",
+                three: "<strong>Check</strong> that the backup key works well.",
+            },
         },
     },
 }

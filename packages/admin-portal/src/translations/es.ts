@@ -604,6 +604,14 @@ const spanishTranslation: TranslationType = {
                 },
                 emptyLogs: "Sin logs aún.",
             },
+            startStep: {
+                title: "Ceremonia de Claves",
+                subtitle: "Estás a punto de participar en la Ceremonia de Claves como un Autoridad. Esto implica los siguientes pasos:",
+                one: "<strong>Descargar</strong> tu clave privada.",
+                two: "Crear múltiples <strong>Copias de seguridad</strong> de la clave privada.",
+                three: "<strong>Verificar</strong> que la clave de respaldo funcione bien.",
+            },
+            
         },
     },
 }
