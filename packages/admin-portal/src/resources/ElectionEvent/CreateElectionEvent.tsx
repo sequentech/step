@@ -4,7 +4,7 @@
 
 import {useMutation} from "@apollo/client"
 import React, {useContext, useEffect, useState} from "react"
-import {CreateElectionEventMutation} from "@/gql/graphql"
+import {CreateElectionEventMutation, Sequent_Backend_Area, Sequent_Backend_Tenant} from "@/gql/graphql"
 import {v4} from "uuid"
 import {
     BooleanInput,
@@ -64,6 +64,7 @@ export const CreateElectionList: React.FC = () => {
     const notify = useNotify()
     const [newId, setNewId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
+    const [settings, setSettings] = useState(false)
     const {t} = useTranslation()
     const navigate = useNavigate()
     const refresh = useRefresh()
@@ -75,9 +76,23 @@ export const CreateElectionList: React.FC = () => {
     } = useGetOne("sequent_backend_election_event", {
         id: newId,
     })
+    const {
+        data: tenant,
+        isLoading: isOneTenantLoading,
+        error: isTenantError,
+    } = useGetOne("sequent_backend_tenant", {
+        id: tenantId,
+    })
 
     const {setLastCreatedResource} = useContext(NewResourceContext)
     const {refetch: refetchTreeMenu} = useTreeMenuData(false)
+
+    useEffect(() => {
+        if (tenant) {
+            const temp = tenant?.settings
+            setSettings(temp)
+        }
+    }, [tenant])
 
     useEffect(() => {
         if (isNull(newId)) {
