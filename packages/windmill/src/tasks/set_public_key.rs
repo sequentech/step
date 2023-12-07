@@ -2,32 +2,26 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::collections::HashSet;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::services::keycloak;
-use tracing::{event, instrument, Level};
 use serde_json::Value;
+use std::collections::HashSet;
+use tracing::{event, instrument, Level};
 
 use crate::hasura;
-use crate::services::election_event_board::get_election_event_board;
-use crate::hasura::trustee::get_trustees_by_name;
 use crate::hasura::keys_ceremony::get_keys_ceremony;
-use crate::types::keys_ceremony::{
-    CeremonyStatus,
-    ExecutionStatus,
-    Trustee,
-    TrusteeStatus,
-};
+use crate::hasura::trustee::get_trustees_by_name;
+use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::public_keys;
 use crate::types::error::Result;
+use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
 
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 10)]
-pub async fn set_public_key(tenant_id: String, election_event_id: String) 
-    -> Result<()>
-{
+pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
     let election_event_response = hasura::election_event::get_election_event(
         auth_headers.clone(),
@@ -77,7 +71,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String)
 
     if keys_ceremonies.len() == 0 {
         event!(Level::INFO, "Strange, no ceremonies!");
-        return Ok(())
+        return Ok(());
     }
 
     if keys_ceremonies.len() > 1 {
@@ -95,16 +89,11 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String)
         );
         return Err("keys ceremony in wrong execution_status".into());
     }
-    let current_status: CeremonyStatus = serde_json::from_value(
-        keys_ceremony
-            .status
-            .clone()
-            .ok_or(anyhow!("Empty keys ceremony status"))?
-    )
-    .with_context(|| "error parsing keys ceremony current status")?;
+    let current_status: CeremonyStatus = get_keys_ceremony_status(keys_ceremony.status.clone())?;
 
     // verify trustee names and fetch their objects to get their ids
-    let trustee_names = current_status.trustees
+    let trustee_names = current_status
+        .trustees
         .clone()
         .into_iter()
         .map(|trustee| trustee.name)
@@ -131,14 +120,15 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String)
         stop_date: None,
         public_key: Some(public_key.clone()),
         logs: vec![],
-        trustees: current_status.trustees
+        trustees: current_status
+            .trustees
             .clone()
             .into_iter()
             .map(|trustee| Trustee {
                 name: trustee.name,
                 status: TrusteeStatus::KEY_GENERATED,
             })
-            .collect::<Vec<Trustee>>()
+            .collect::<Vec<Trustee>>(),
     })?;
 
     Ok(())

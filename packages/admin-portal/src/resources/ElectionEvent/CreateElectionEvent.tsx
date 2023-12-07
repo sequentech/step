@@ -76,7 +76,7 @@ export const CreateElectionList: React.FC = () => {
         id: newId,
     })
 
-    const {setLastCreatedResourceId} = useContext(NewResourceContext)
+    const {setLastCreatedResource} = useContext(NewResourceContext)
     const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
     useEffect(() => {
@@ -132,7 +132,7 @@ export const CreateElectionList: React.FC = () => {
 
         if (newId) {
             setNewId(newId)
-            setLastCreatedResourceId(newId)
+            setLastCreatedResource({id: newId, type: "sequent_backend_election_event"})
             setIsLoading(true)
         } else {
             notify(t("electionEventScreen.createElectionEventError"), {type: "error"})

@@ -180,6 +180,7 @@ const spanishTranslation: TranslationType = {
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
+                noResult: "No Election Event yet",
             },
             voters: {
                 title: "Votantes",
@@ -200,7 +201,6 @@ const spanishTranslation: TranslationType = {
             keys: {
                 createNew: "Crear Ceremonia de Claves",
                 emptyHeader: "Ninguna Ceremonia de Claves aún.",
-                emptyBody: "¿Quieres crear una?",
                 statusLabel: "Estado",
                 breadCrumbs: {
                     configure: "Configurar",
@@ -419,6 +419,9 @@ const spanishTranslation: TranslationType = {
                 election: "Elección",
                 contest: "Concurso",
                 candidate: "Candidato",
+                noResult: {
+                    askCreate: "¿Quieres crear una?",
+                },
             },
             label: {
                 add: "Añadir",
@@ -435,6 +438,7 @@ const spanishTranslation: TranslationType = {
                 next: "Siguiente",
                 warning: "Aviso",
                 json: "Vista previa",
+                noResult: "Sin resultados",
             },
             language: {
                 es: "Español",

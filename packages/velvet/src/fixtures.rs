@@ -4,8 +4,8 @@
 
 use anyhow::Result;
 use sequent_core::ballot::{
-    BallotStyle, Candidate, CandidatePresentation, Contest, ContestPresentation, ElectionStatus,
-    PublicKeyConfig, VotingStatus,
+    BallotStyle, Candidate, CandidatePresentation, Contest, ContestPresentation,
+    PublicKeyConfig,
 };
 use std::collections::HashMap;
 use std::fs;
