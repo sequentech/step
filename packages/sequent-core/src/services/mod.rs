@@ -12,5 +12,5 @@ pub mod keycloak;
 pub mod pdf;
 #[cfg(feature = "reports")]
 pub mod reports;
-#[cfg(feature = "electoral_log")]
-pub mod electoral_log;
+#[cfg(feature = "boards")]
+pub mod boards;
