@@ -78,6 +78,20 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: create_tally_ceremony
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/create-tally-ceremony
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  - role: admin-ceremony
 - name: create_user
   definition:
     kind: synchronous
@@ -359,6 +373,20 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: start_tally_ceremony
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/start-tally-ceremony
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: trustee-read
+  - role: admin-user
 custom_types:
   enums:
   - name: OrderDirection
@@ -414,4 +442,6 @@ custom_types:
   - name: CreateUserOutput
   - name: SetRolePermissionOutput
   - name: SetUserRoleOutput
+  - name: CreateTallyOutput
+  - name: StartTallyOutput
   scalars: []

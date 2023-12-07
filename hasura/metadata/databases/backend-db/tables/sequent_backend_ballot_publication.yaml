@@ -1,0 +1,3 @@
+table:
+  name: ballot_publication
+  schema: sequent_backend
