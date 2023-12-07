@@ -33,7 +33,7 @@ export const CreateCandidate: React.FC = () => {
     const electionEventId = searchParams.get("electionEventId")
     const contestId = searchParams.get("contestId")
 
-    const {setLastCreatedResourceId} = useContext(NewResourceContext)
+    const {setLastCreatedResource} = useContext(NewResourceContext)
     const {refetch} = useTreeMenuData(false)
 
     return (
@@ -41,7 +41,7 @@ export const CreateCandidate: React.FC = () => {
             mutationOptions={{
                 onSuccess: (data: any) => {
                     refetch()
-                    setLastCreatedResourceId(data.id)
+                    setLastCreatedResource({id: data.id, type: "sequent_backend_candidate"})
                     redirect(`/sequent_backend_candidate/${data.id}`)
                 },
             }}
