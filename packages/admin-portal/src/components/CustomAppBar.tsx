@@ -23,7 +23,14 @@ export const CustomAppBar: React.FC = () => {
                 "boxShadow": "unset",
             }}
         >
-            <Header logoutFn={authContext.isAuthenticated ? authContext.logout : undefined} />
+            <Header
+                appVersion={{main: "10.0.0"}}
+                userProfile={{
+                    username: authContext.username,
+                    openLink: authContext.openProfileLink,
+                }}
+                logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
+            />
         </AppBar>
     )
 }

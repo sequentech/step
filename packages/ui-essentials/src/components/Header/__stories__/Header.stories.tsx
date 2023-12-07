@@ -50,7 +50,7 @@ export const WithUserProfile: Story = {
     args: {
         userProfile: {
             email: "john@sequentech.io",
-            displayName: "John Doe",
+            username: "John Doe",
             openLink() {
                 alert("rouge")
             },
@@ -70,7 +70,7 @@ export const WithUserProfileLong: Story = {
     args: {
         userProfile: {
             email: "johnhasaverysupersuperduperverysuperduperlongname@sequentech.io",
-            displayName: "John has a very super super duper very super duper long name",
+            username: "John has a very super super duper very super duper long name",
             openLink() {
                 alert("rouge")
             },

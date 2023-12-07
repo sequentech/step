@@ -41,8 +41,8 @@ type ApplicationVersion = {
 }
 
 type UserProfile = {
-    displayName: string
-    email: string
+    username: string
+    email?: string
     openLink: Function
 }
 
@@ -130,8 +130,8 @@ export default function Header({
                                                     overflow: "hidden",
                                                 }}
                                             >
-                                                <span title={userProfile?.displayName}>
-                                                    {userProfile?.displayName}
+                                                <span title={userProfile?.username}>
+                                                    {userProfile?.username}
                                                 </span>
                                                 <br />
                                                 <span title={userProfile?.email}>

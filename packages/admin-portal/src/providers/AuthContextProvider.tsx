@@ -77,6 +77,12 @@ interface AuthContextValues {
         someTenantId: string | null,
         role: IPermissions
     ) => boolean
+
+    /**
+     * Open accountManagement from Keycloak
+     * @returns
+     */
+    openProfileLink: () => Promise<void>
 }
 
 /**
@@ -88,9 +94,10 @@ const defaultAuthContextValues: AuthContextValues = {
     username: "",
     tenantId: "",
     logout: () => {},
-    hasRole: (role) => false,
+    hasRole: () => false,
     getAccessToken: () => undefined,
     isAuthorized: () => false,
+    openProfileLink: () => new Promise(() => undefined),
 }
 
 /**
@@ -182,6 +189,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         async function loadProfile() {
             try {
                 const profile = await keycloak.loadUserProfile()
+
                 if (profile.id) {
                     setUserId(profile.id)
                 }
@@ -251,6 +259,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 hasRole,
                 getAccessToken,
                 isAuthorized,
+                openProfileLink: keycloak.accountManagement,
             }}
         >
             {props.children}
