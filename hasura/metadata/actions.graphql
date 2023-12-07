@@ -191,6 +191,20 @@ type Mutation {
   ): StartTallyOutput
 }
 
+type Mutation {
+  update_election_voting_status (
+    election_id: uuid!
+    voting_status: String!
+  ): UpdateElectionVotingStatusOutput
+}
+
+type Mutation {
+  update_event_voting_status (
+    election_event_id: uuid!
+    voting_status: String!
+  ): UpdateEventVotingStatusOutput
+}
+
 enum OrderDirection {
   asc
   desc
@@ -497,5 +511,13 @@ type StartTallyOutput {
 
 type PublishBallotOutput {
   ballot_publication_id : uuid!
+}
+
+type UpdateEventVotingStatusOutput {
+  election_event_id : uuid
+}
+
+type UpdateElectionVotingStatusOutput {
+  election_id : uuid
 }
 
