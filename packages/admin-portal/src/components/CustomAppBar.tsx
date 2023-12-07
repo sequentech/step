@@ -6,6 +6,7 @@ import React, {useContext} from "react"
 import {AppBar} from "react-admin"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {adminTheme} from "@sequentech/ui-essentials"
+import globalSettings from "@/GlobalSettings"
 
 export const CustomAppBar: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -24,7 +25,7 @@ export const CustomAppBar: React.FC = () => {
             }}
         >
             <Header
-                appVersion={{main: "10.0.0"}}
+                appVersion={{main: globalSettings.APP_VERSION}}
                 userProfile={{
                     username: authContext.username,
                     openLink: authContext.openProfileLink,
