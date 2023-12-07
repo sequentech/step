@@ -78,14 +78,6 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
         }
     }
 
-    const transform = (data: any) => {
-        console.log("data", data)
-        return {
-            ...data,
-            keys_ceremony_id: data.keys_ceremony_id,
-        }
-    }
-
     return (
         <>
             {keyCeremony && elections ? (
@@ -93,7 +85,6 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
                     resource="sequent_backend_tally_session"
                     mutationOptions={{onSuccess, onError}}
                     redirect={false}
-                    transform={transform}
                 >
                     <PageHeaderStyles.Wrapper>
                         <SimpleForm toolbar={<SaveButton alwaysEnable />}>
@@ -109,23 +100,22 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
                                 choices={keyCeremony}
                                 label="Key Ceremony"
                                 source="keys_ceremony_id"
-                                defaultValue={"c8bd5b9e-a07b-45da-b057-4d139a2c6fbe"}
                                 optionText={"id"}
                                 optionValue={"id"}
-                                // defaultValue={keyCeremony[0].id}
-                                // style={{display: "none"}}
+                                defaultValue={keyCeremony[0].id}
+                                style={{display: "none"}}
                             />
                             <TextInput
                                 label="Election Event"
                                 source="election_event_id"
                                 defaultValue={record?.id}
-                                // style={{display: "none"}}
+                                style={{display: "none"}}
                             />
                             <TextInput
                                 label="Tenant"
                                 source="tenant_id"
                                 defaultValue={record?.tenant_id}
-                                // style={{display: "none"}}
+                                style={{display: "none"}}
                             />
                             {/* 
                     {trustees ? (

@@ -39,8 +39,7 @@ const TallyResults: React.FC = () => {
 
     useEffect(() => {
         if (elections) {
-            console.log("elections in resultas", elections)
-
+            console.log("TallyResults :: elections", elections)
             setElectionsData(elections)
         }
     }, [elections])
@@ -63,6 +62,9 @@ const TallyResults: React.FC = () => {
 
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         localStorage.setItem("selected-results-election-tab-id", newValue.toString())
+        localStorage.setItem("selected-results-election-event-id", electionsData?.[newValue]?.election_event_id)
+        localStorage.setItem("selected-results-tenant-id", electionsData?.[newValue]?.tenant_id)
+        localStorage.setItem("selected-results-election-id", electionsData?.[newValue]?.id)
         setValue(newValue)
     }
 
@@ -75,7 +77,7 @@ const TallyResults: React.FC = () => {
             </Tabs>
             {electionsData?.map((election, index) => (
                 <CustomTabPanel key={index} index={index} value={value}>
-                    <TallyResultsContest electionId={election.id} tally={data} />
+                    <TallyResultsContest />
                 </CustomTabPanel>
             ))}
         </>

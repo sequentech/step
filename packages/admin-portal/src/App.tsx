@@ -55,7 +55,6 @@ import {CreateContestData} from "./resources/Contest/CreateContestData"
 import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectionsTypesCreate"
 import {adminI18nProvider} from "./services/AdminTranslation"
 import {useTranslation} from "react-i18next"
-import { CreateTally } from './resources/Tally/CreateTally'
 
 export const AppWrapper = () => {
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
@@ -187,11 +186,6 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
                 list={ListBallotStyle}
                 create={CreateBallotStyle}
                 options={{label: "Ballot Styles"}}
-            />
-            <Resource
-                name="sequent_backend_tally_session"
-                create={CreateTally}
-                options={{label: "Tally Session"}}
             />
             <Resource
                 name="sequent_backend_area"

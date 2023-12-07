@@ -2,40 +2,58 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {useGetList} from "react-admin"
+import {useGetList, useGetOne} from "react-admin"
 
 import {Sequent_Backend_Contest, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Tab, Tabs} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsCandidates} from "./TallyResultsCandidates"
+import { TallyResultsContestAreas } from './TallyResultsContestAreas'
 
 interface TallyResultsContestProps {
     electionId: string
-    tally: Sequent_Backend_Tally_Session | undefined
 }
 
-export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) => {
-    const {electionId, tally} = props
-    const [tenantId] = useTenantStore()
+export const TallyResultsContest: React.FC = () => {
+    // const {electionId} = props
+    // const [tenantId] = useTenantStore()
     const [value, setValue] = React.useState(0)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
+    const [electionId, setElectionId] = useState<string | null>()
+    const [electionEventId, setElectionEventId] = useState<string | null>()
+    const [tenantId, setTenantId] = useState<string | null>()
+
+    // const {data: election} = useGetOne("sequent_backend_election", {
+    //     id: electionId,
+    //     meta: {tenant_id: tenantId},
+    // })
 
     const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
         filter: {
             election_id: electionId,
             tenant_id: tenantId,
-            election_event_id: tally?.election_event_id,
+            election_event_id: electionEventId,
         },
     })
 
     useEffect(() => {
-        if (electionId && tally) {
-            setContestsData(contests || [])
-        }
-    }, [electionId, tally, contests])
+        console.log("TallyResultsContest :: get storage", electionId)
+        setTenantId(localStorage.getItem("selected-results-tenant-id"))
+        setElectionEventId(localStorage.getItem("selected-results-election-event-id"))
+        setElectionId(localStorage.getItem("selected-results-election-id"))
+    }, [electionId, electionEventId])
 
     useEffect(() => {
+        if (electionId) {
+            console.log("TallyResultsContest :: election", electionId)
+            setContestsData(contests || [])
+        }
+    }, [electionId, contests])
+
+    useEffect(() => {
+        console.log("TallyResultsContest :: set tab", electionId)
+
         const selectedTabId = localStorage.getItem("selected-results-contest-tab-id")
         if (selectedTabId) {
             setValue(parseInt(selectedTabId))
@@ -43,7 +61,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
             localStorage.setItem("selected-results-contest-tab-id", "0")
             setValue(0)
         }
-    }, [tally])
+    }, [electionId])
 
     interface TabPanelProps {
         children?: reactI18next.ReactI18NextChild | Iterable<reactI18next.ReactI18NextChild>
@@ -62,6 +80,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     }
 
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+        localStorage.setItem("selected-results-contest-id", contestsData?.[newValue]?.id)
         localStorage.setItem("selected-results-contest-tab-id", newValue.toString())
         setValue(newValue)
     }
@@ -75,7 +94,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
             </Tabs>
             {contestsData?.map((contest, index) => (
                 <CustomTabPanel key={index} index={index} value={value}>
-                    <TallyResultsCandidates contestId={contest.id} tally={tally} />
+                    <TallyResultsContestAreas />
                 </CustomTabPanel>
             ))}
         </>
