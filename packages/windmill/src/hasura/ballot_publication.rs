@@ -11,7 +11,6 @@ use crate::services::to_result::ToResult;
 pub use crate::types::hasura_types::*;
 use sequent_core::services::connection;
 
-
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
@@ -26,7 +25,7 @@ pub async fn insert_ballot_publication(
     tenant_id: String,
     election_event_id: String,
     election_ids: Vec<String>,
-    user_id: String
+    user_id: String,
 ) -> Result<Response<insert_ballot_publication::ResponseData>> {
     let variables = insert_ballot_publication::Variables {
         tenant_id,

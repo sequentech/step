@@ -9,8 +9,8 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
-use windmill::services::ceremonies::tally_ceremony;
 use windmill::services::ballot_publication::add_ballot_publication;
+use windmill::services::ceremonies::tally_ceremony;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PublishBallotInput {
