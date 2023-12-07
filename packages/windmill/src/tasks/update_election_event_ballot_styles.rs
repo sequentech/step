@@ -51,6 +51,7 @@ pub async fn update_election_event_ballot_styles(
             tenant_id.clone(),
             election_event_id.clone(),
             ballot_publication.election_ids.clone().unwrap_or(vec![]),
+            ballot_publication.id.clone(),
         )
         .await?;
     }

@@ -186,6 +186,7 @@ pub async fn create_ballot_style(
     tenant_id: String,
     election_event_id: String,
     election_ids: Vec<String>,
+    ballot_publication_id: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
     let lock = PgLock::acquire(
@@ -314,6 +315,7 @@ pub async fn create_ballot_style(
             Some(election_dto_json_string),
             None,
             None,
+            ballot_publication_id.clone(),
         )
         .await?;
     }

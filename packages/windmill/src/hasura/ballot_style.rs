@@ -65,6 +65,7 @@ pub async fn insert_ballot_style(
     ballot_eml: Option<String>,
     ballot_signature: Option<String>,
     status: Option<String>,
+    ballot_publication_id: String,
 ) -> Result<Response<insert_ballot_style::ResponseData>> {
     let variables = insert_ballot_style::Variables {
         id: ballot_style_id,
@@ -75,6 +76,7 @@ pub async fn insert_ballot_style(
         ballot_eml: ballot_eml,
         ballot_signature: ballot_signature,
         status: status,
+        ballot_publication_id,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
