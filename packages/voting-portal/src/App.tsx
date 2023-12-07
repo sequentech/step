@@ -25,7 +25,15 @@ const StyledApp = styled(Stack)`
 const HeaderWithContext: React.FC = () => {
     const authContext = useContext(AuthContext)
 
-    return <Header logoutFn={authContext.isAuthenticated ? authContext.logout : undefined} />
+    return (
+        <Header
+            userProfile={{
+                username: authContext.username,
+                openLink: authContext.openProfileLink,
+            }}
+            logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
+        />
+    )
 }
 
 const App = () => {

@@ -66,6 +66,8 @@ interface AuthContextValues {
     getAccessToken: () => string | undefined
 
     login: (tenantId: string, eventId: string) => void
+
+    openProfileLink: () => Promise<void>
 }
 
 /**
@@ -78,6 +80,7 @@ const defaultAuthContextValues: AuthContextValues = {
     login: (tenantId: string, eventId: string) => {},
     hasRole: (role) => false,
     getAccessToken: () => undefined,
+    openProfileLink: () => new Promise(() => undefined),
 }
 
 /**
@@ -214,6 +217,7 @@ const AuthContextProvider = ({children}: AuthContextProviderProps) => {
                 login,
                 hasRole,
                 getAccessToken,
+                openProfileLink: keycloak.accountManagement,
             }}
         >
             {children}
