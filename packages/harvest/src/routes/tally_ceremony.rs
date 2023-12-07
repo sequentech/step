@@ -69,6 +69,15 @@ pub async fn update_tally_ceremony(
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
+    tally_ceremony::update_tally_ceremony(
+        tenant_id,
+        input.election_event_id.clone(),
+        input.tally_session_id.clone(),
+        input.status.clone(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     Ok(Json(CreateTallyCeremonyOutput {
         tally_session_id: input.tally_session_id.clone(),
     }))
