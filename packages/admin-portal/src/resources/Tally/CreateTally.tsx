@@ -7,28 +7,24 @@ import {
     SimpleForm,
     TextInput,
     SelectInput,
-    ReferenceInput,
     Create,
-    FormDataConsumer,
-    ReferenceField,
-    useRecordContext,
     useRefresh,
     useNotify,
     SaveButton,
     useGetList,
     CheckboxGroupInput,
-    useGetOne,
 } from "react-admin"
-import {JsonInput} from "react-admin-json-view"
 import {
-    Sequent_Backend_Area,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
+    Sequent_Backend_Tally_Session,
     Sequent_Backend_Trustee,
 } from "../../gql/graphql"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
+import {useMutation} from "@apollo/client"
 
 interface CreateTallyProps {
     record: Sequent_Backend_Election_Event
@@ -41,6 +37,8 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
     const notify = useNotify()
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
+
+    const [CreateTallyCeremonyMutation] = useMutation(CREATE_TALLY_CEREMONY)
 
     const {data: keyCeremony} = useGetList<Sequent_Backend_Keys_Ceremony>(
         "sequent_backend_keys_ceremony",
@@ -62,7 +60,7 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
         filter: {tenant_id: tenantId},
     })
 
-    const onSuccess = () => {
+    const onSuccess = (result: Sequent_Backend_Tally_Session) => {
         refresh()
         notify(t("tally.createTallySuccess"), {type: "success"})
         if (close) {
@@ -78,6 +76,25 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
         }
     }
 
+    const transform = async (result: Sequent_Backend_Tally_Session) => {
+
+        console.log("transform :: result", result);
+        
+        const {errors} = await CreateTallyCeremonyMutation({
+            variables: {
+                election_event_id: result.election_event_id,
+                election_ids: result.election_ids,
+            },
+        })
+
+        if (errors) {
+            console.log("errors", errors)
+            notify(t("tally.createTallyError"), {type: "error"})
+        }
+
+        return result
+    }
+
     return (
         <>
             {keyCeremony && elections ? (
@@ -85,6 +102,7 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
                     resource="sequent_backend_tally_session"
                     mutationOptions={{onSuccess, onError}}
                     redirect={false}
+                    transform={transform}
                 >
                     <PageHeaderStyles.Wrapper>
                         <SimpleForm toolbar={<SaveButton alwaysEnable />}>
