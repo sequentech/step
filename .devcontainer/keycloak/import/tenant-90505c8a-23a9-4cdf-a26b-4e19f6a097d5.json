@@ -158,6 +158,14 @@
       "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
       "attributes" : { }
     }, {
+      "id" : "124788ff-8306-4e31-968c-77e49d9d24fa",
+      "name" : "trustee-ceremony",
+      "description" : "",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+      "attributes" : { }
+    }, {
       "id" : "80c8d356-238c-452f-a96a-a5780637f194",
       "name" : "uma_authorization",
       "description" : "${role_uma_authorization}",
@@ -765,7 +773,7 @@
     "name" : "trustee",
     "path" : "/trustee",
     "attributes" : { },
-    "realmRoles" : [ "trustee-write", "tally-read", "trustee-read", "keys-read", "logs-read", "admin-user", "trustee-create", "election-event-read" ],
+    "realmRoles" : [ "tally-read", "trustee-ceremony", "trustee-read", "keys-read", "logs-read", "admin-user", "election-event-read" ],
     "clientRoles" : { },
     "subGroups" : [ ]
   } ],
@@ -786,7 +794,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName" ],
+  "otpSupportedApplications" : [ "totpAppMicrosoftAuthenticatorName", "totpAppFreeOTPName", "totpAppGoogleName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
