@@ -10,6 +10,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::services::ceremonies::tally_ceremony;
+use windmill::services::ballot_publication::add_ballot_publication;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PublishBallotInput {
@@ -31,8 +32,18 @@ pub async fn publish_ballot(
     authorize(&claims, true, None, vec![Permissions::PUBLISH_WRITE])?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let user_id = claims.hasura_claims.user_id.clone();
+
+    let ballot_publication_id = add_ballot_publication(
+        tenant_id.clone(),
+        input.election_event_id.clone(),
+        input.election_ids.clone(),
+        user_id.clone(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(PublishBallotOutput {
-        ballot_publication_id: "".into(),
+        ballot_publication_id,
     }))
 }
