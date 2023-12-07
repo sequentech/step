@@ -634,6 +634,7 @@ const englishTranslation = {
                 cancel: "Cancel",
                 next: "Next",
                 date: "Tally Date",
+                global: "Global",
                 dialog: {
                     ok: "Ok",
                     cancel: "Close",

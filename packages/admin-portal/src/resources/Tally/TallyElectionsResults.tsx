@@ -27,19 +27,17 @@ interface TallyElectionsResultsProps {
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
     const {tenantId, electionEventId, electionIds} = props
     const {t} = useTranslation()
-    const [resultsData, setResultsData] = useState<
-        | Array<
-              Sequent_Backend_Election & {
-                  rowId: number
-                  id: string
-                  status: string
-                  method: string
-                  voters: number
-                  number: number
-                  turnout: number
-              }
-          >
-    >([])
+    const [resultsData, setResultsData] = useState<Array<
+        Sequent_Backend_Election & {
+            rowId: number
+            id: string
+            status: string
+            method: string
+            voters: number
+            number: number
+            turnout: number
+        }
+    >>([])
 
     const {data: results, isLoading} = useGetList<Sequent_Backend_Results_Election>(
         "sequent_backend_results_election",
@@ -47,9 +45,9 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             pagination: {page: 1, perPage: 1},
             filter: {tenant_id: tenantId, election_event_id: electionEventId},
         },
-        // {
-        //     refetchInterval: 5000,
-        // }
+        {
+            refetchInterval: 5000,
+        }
     )
 
     const {data: elections} = useGetMany("sequent_backend_election", {
@@ -147,19 +145,21 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
     return (
         <>
-            <DataGrid
-                rows={resultsData}
-                columns={columns}
-                initialState={{
-                    pagination: {
-                        paginationModel: {
-                            pageSize: 10,
+            {resultsData.length ? (
+                <DataGrid
+                    rows={resultsData}
+                    columns={columns}
+                    initialState={{
+                        pagination: {
+                            paginationModel: {
+                                pageSize: 10,
+                            },
                         },
-                    },
-                }}
-                pageSizeOptions={[10, 20, 50, 100]}
-                disableRowSelectionOnClick
-            />
+                    }}
+                    pageSizeOptions={[10, 20, 50, 100]}
+                    disableRowSelectionOnClick
+                />
+            ) : null}
         </>
     )
 }

@@ -636,6 +636,7 @@ const spanishTranslation: TranslationType = {
                 cancel: "Cancelar",
                 next: "Siguiente",
                 date: "Fecha de Recuento",
+                global: "Global",
                 dialog: {
                     ok: "Ok",
                     cancel: "Cerrar",

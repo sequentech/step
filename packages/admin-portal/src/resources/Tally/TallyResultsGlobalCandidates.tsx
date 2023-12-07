@@ -14,16 +14,17 @@ import {
 } from "../../gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 
-interface TallyResultsCandidatesProps {
-    areaId: string | null | undefined
+interface TallyResultsGlobalCandidatesProps {
     contestId: string
     electionId: string
     electionEventId: string
     tenantId: string
 }
 
-export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (props) => {
-    const {areaId, contestId, electionId, electionEventId, tenantId} = props
+export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidatesProps> = (
+    props
+) => {
+    const {contestId, electionId, electionEventId, tenantId} = props
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Candidate>>([])
 
     const {data: election} = useGetOne("sequent_backend_election", {
@@ -31,15 +32,17 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         meta: {tenant_id: tenantId},
     })
 
-    const {data: candidates} = useGetList<Sequent_Backend_Candidate>(
-        "sequent_backend_candidate",
-        {
-            pagination: {page: 1, perPage: 9999},
-        }
-    )
+    const {data: candidates} = useGetList<Sequent_Backend_Candidate>("sequent_backend_candidate", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {
+            contest_id: contestId,
+            tenant_id: tenantId,
+            election_event_id: election?.election_event_id,
+        },
+    })
 
-    const {data: general} = useGetList<Sequent_Backend_Results_Area_Contest>(
-        "sequent_backend_results_area_contest",
+    const {data: general} = useGetList<Sequent_Backend_Results_Contest>(
+        "sequent_backend_results_contest",
         {
             pagination: {page: 1, perPage: 1},
             filter: {
@@ -54,8 +57,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         }
     )
 
-    const {data: results} = useGetList<Sequent_Backend_Results_Area_Contest_Candidate>(
-        "sequent_backend_results_area_contest_candidate",
+    const {data: results} = useGetList<Sequent_Backend_Results_Contest_Candidate>(
+        "sequent_backend_results_contest_candidate",
         {
             pagination: {page: 1, perPage: 1},
             filter: {
@@ -63,7 +66,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                 tenant_id: tenantId,
                 election_event_id: electionEventId,
                 election_id: electionId,
-                area_id: areaId,
             },
         },
         {
@@ -75,15 +77,14 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         if (election) {
             setContestsData(candidates || [])
         }
-    }, [election, candidates, results])
+    }, [election, candidates])
 
     return (
         <>
             {contestsData?.map((candidate, index) => (
-                <div key={index}>
-                    <div>{candidate.name}</div>
-                    <div>{areaId}</div>
-                </div>
+                <>
+                    <div key={index}>{candidate.name}</div>
+                </>
             ))}
         </>
     )

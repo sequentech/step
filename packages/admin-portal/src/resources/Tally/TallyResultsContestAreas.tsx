@@ -8,11 +8,14 @@ import {
     Sequent_Backend_Area,
     Sequent_Backend_Area_Contest,
     Sequent_Backend_Candidate,
+    Sequent_Backend_Contest,
     Sequent_Backend_Tally_Session,
 } from "../../gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Box, Tabs, Tab} from "@mui/material"
 import * as reactI18next from "react-i18next"
+import {TallyResultsGlobalCandidates} from "./TallyResultsGlobalCandidates"
+import {TallyResultsCandidates} from "./TallyResultsCandidates"
 
 interface TallyResultsContestAreasProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -21,12 +24,15 @@ interface TallyResultsContestAreasProps {
 
 export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> = (props) => {
     const {areas, contestId} = props
+    const {t} = reactI18next.useTranslation()
+
     // const [tenantId] = useTenantStore()
     const [value, setValue] = React.useState<number | null>(null)
     const [areasData, setAreasData] = useState<Array<Sequent_Backend_Area_Contest>>([])
     const [tenantId, setTenantId] = useState<string | null>()
     const [electionEventId, setElectionEventId] = useState<string | null>()
     const [areaContestId, setAreaContestId] = useState<string | null>()
+    const [selectedArea, setSelectedArea] = useState<string | null>()
 
     const {data: contestAreas} = useGetList<Sequent_Backend_Area_Contest>(
         "sequent_backend_area_contest",
@@ -38,6 +44,11 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
             },
         }
     )
+
+    const {data: contest} = useGetOne<Sequent_Backend_Contest>("sequent_backend_contest", {
+        id: contestId,
+        meta: {tenant_id: tenantId},
+    })
 
     useEffect(() => {
         setTenantId(localStorage.getItem("selected-results-tenant-id"))
@@ -66,31 +77,51 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         )
     }
 
-   
-    const tabClicked = (areaId: string, index: number) => {        
+    const tabClicked = (area: Sequent_Backend_Area_Contest, index: number) => {
         localStorage.setItem("selected-results-contest-area-id", areasData?.[index]?.id)
-        setValue(index)
+        setValue(index + 1)
 
-        setAreaContestId(areaId)
-        localStorage.setItem("selected-results-contest-area-id", areaId)
+        setAreaContestId(area.id)
+        setSelectedArea(area.area_id)
+        localStorage.setItem("selected-results-contest-area-id", area.id)
+    }
+
+    const tabGlobalClicked = () => {
+        console.log("tabGlobalClicked")
+        setValue(0)
     }
 
     return (
         <>
             <Tabs value={value}>
+                <Tab label={t("tally.common.global")} onClick={() => tabGlobalClicked()} />
                 {areasData?.map((area, index) => {
                     return (
                         <Tab
                             key={index}
                             label={areas?.find((item) => item.id === area.area_id)?.name}
-                            onClick={() => tabClicked(area.id, index)}
+                            onClick={() => tabClicked(area, index)}
                         />
                     )
                 })}
             </Tabs>
+            <CustomTabPanel index={0} value={value}>
+                <TallyResultsGlobalCandidates
+                    electionEventId={contest?.election_event_id}
+                    tenantId={contest?.tenant_id}
+                    electionId={contest?.election_id}
+                    contestId={contest?.id}
+                    />
+            </CustomTabPanel>
             {areasData?.map((area, index) => (
-                <CustomTabPanel key={index} index={index} value={value}>
-                    {/* <TallyResultsCandidates electionId={electionId} contestId={contest.id} /> */}
+                <CustomTabPanel key={index} index={index + 1} value={value}>
+                    <TallyResultsCandidates
+                        electionEventId={contest?.election_event_id}
+                        tenantId={contest?.tenant_id}
+                        electionId={contest?.election_id}
+                        contestId={contest?.id}
+                        areaId={selectedArea}
+                    />
                 </CustomTabPanel>
             ))}
         </>
