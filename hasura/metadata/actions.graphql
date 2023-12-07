@@ -35,6 +35,13 @@ type Mutation {
 }
 
 type Mutation {
+  create_tally_ceremony (
+    election_event_id: uuid!
+    election_ids: [uuid!]!
+  ): CreateTallyOutput
+}
+
+type Mutation {
   create_user (
     tenant_id: String!
     election_event_id: String
@@ -168,6 +175,13 @@ type Mutation {
     user_id: String!
     role_id: String!
   ): SetUserRoleOutput
+}
+
+type Mutation {
+  start_tally_ceremony (
+    election_event_id: uuid!
+    tally_session_id: uuid!
+  ): StartTallyOutput
 }
 
 enum OrderDirection {
@@ -464,5 +478,13 @@ type SetRolePermissionOutput {
 
 type SetUserRoleOutput {
   id : String
+}
+
+type CreateTallyOutput {
+  tally_session_id : uuid!
+}
+
+type StartTallyOutput {
+  tally_session_id : uuid!
 }
 
