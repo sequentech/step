@@ -28,6 +28,7 @@ const DiffViewStyled = {
         display: flex;
         background-color: #f5f5f5;
         padding: 16px;
+        height: 100%;
     `,
     Json: styled.div`
         width: 100%;
