@@ -271,6 +271,7 @@ input CreateKeysCeremonyInput {
 
 input GetPrivateKeyInput {
   election_event_id : String!
+  keys_ceremony_id : String!
 }
 
 input CheckPrivateKeyInput {

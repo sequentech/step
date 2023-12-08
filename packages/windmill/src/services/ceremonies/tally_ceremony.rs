@@ -2,9 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::area::get_election_event_areas;
-use crate::hasura::keys_ceremony::get_keys_ceremony;
+use crate::hasura::keys_ceremony::get_keys_ceremonies;
 use crate::hasura::tally_session::get_tally_sessions;
 use crate::hasura::tally_session::insert_tally_session;
+use crate::services::celery_app::get_celery_app;
+use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
+use crate::services::ceremonies::tally_ceremony::get_keys_ceremonies::GetKeysCeremoniesSequentBackendKeysCeremony;
+use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
+use crate::tasks::connect_tally_ceremony::connect_tally_ceremony;
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
@@ -101,10 +106,10 @@ pub async fn find_keys_ceremony(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
-) -> Result<GetKeysCeremonySequentBackendKeysCeremony> {
+) -> Result<GetKeysCeremoniesSequentBackendKeysCeremony> {
     // find if there's any previous ceremony. There should be one and it should
     // have finished successfully.
-    let keys_ceremonies = get_keys_ceremony(
+    let keys_ceremonies = get_keys_ceremonies(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),

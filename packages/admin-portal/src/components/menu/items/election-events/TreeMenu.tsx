@@ -100,6 +100,7 @@ function TreeLeaves({
                                 name={resource.name}
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
+                                canCreateElectionEvent={canCreateElectionEvent}
                             />
                         )
                     }
@@ -129,6 +130,7 @@ interface TreeMenuItemProps {
     name: string
     treeResourceNames: ResourceName[]
     isArchivedElectionEvents: boolean
+    canCreateElectionEvent: boolean
 }
 
 function TreeMenuItem({
@@ -139,6 +141,7 @@ function TreeMenuItem({
     name,
     treeResourceNames,
     isArchivedElectionEvents,
+    canCreateElectionEvent,
 }: TreeMenuItemProps) {
     const [isOpenSidebar] = useSidebarState()
 
@@ -205,12 +208,15 @@ function TreeMenuItem({
     return (
         <div className="bg-white">
             <div ref={menuItemRef} className="group flex text-left space-x-2 items-center">
-                {hasNext ? (
+                {hasNext && canCreateElectionEvent ? (
                     <div className="flex-none w-6 h-6 cursor-pointer text-black" onClick={onClick}>
                         {open ? <ExpandMoreIcon /> : <ChevronRightIcon />}
                     </div>
                 ) : (
-                    <div className="flex-none w-6 h-6"></div>
+                    <div className={cn(
+                        "flex-none h-6",
+                        canCreateElectionEvent && "w-6"
+                    )}></div>
                 )}
                 {isOpenSidebar && (
                     <NavLink
@@ -227,14 +233,17 @@ function TreeMenuItem({
                     </NavLink>
                 )}
                 <div className="invisible group-hover:visible">
-                    <MenuActions
-                        isArchivedTab={isArchivedElectionEvents}
-                        resourceId={id}
-                        resourceName={name}
-                        resourceType={treeResourceNames[0]}
-                        parentData={superParentData}
-                        menuItemRef={menuItemRef}
-                    ></MenuActions>
+                    {canCreateElectionEvent
+                        ? <MenuActions
+                            isArchivedTab={isArchivedElectionEvents}
+                            resourceId={id}
+                            resourceName={name}
+                            resourceType={treeResourceNames[0]}
+                            parentData={superParentData}
+                            menuItemRef={menuItemRef}
+                        ></MenuActions>
+                        : null
+                    }
                 </div>
             </div>
             {open && (

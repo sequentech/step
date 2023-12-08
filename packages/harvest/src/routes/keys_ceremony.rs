@@ -14,7 +14,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::hasura::election_event::get_election_event;
-use windmill::hasura::keys_ceremony::get_keys_ceremony;
+use windmill::hasura::keys_ceremony::get_keys_ceremonies;
 use windmill::hasura::trustee::get_trustees_by_name;
 use windmill::services::ceremonies::keys_ceremony;
 use windmill::services::election_event_board::get_election_event_board;
@@ -43,7 +43,7 @@ pub async fn check_private_key(
     body: Json<CheckPrivateKeyInput>,
     claims: JwtClaims,
 ) -> Result<Json<CheckPrivateKeyOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::TRUSTEE_READ])?;
+    authorize(&claims, true, None, vec![Permissions::TRUSTEE_CEREMONY])?;
     let input = body.into_inner();
     // The trustee name is simply the username of the user
     let trustee_name = claims
@@ -82,7 +82,7 @@ pub async fn check_private_key(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Endpoint: /check-private-key
+/// Endpoint: /get-private-key
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -103,7 +103,7 @@ pub async fn get_private_key(
     body: Json<GetPrivateKeyInput>,
     claims: JwtClaims,
 ) -> Result<Json<GetPrivateKeyOutput>, (Status, String)> {
-    authorize(&claims, true, None, vec![Permissions::TRUSTEE_READ])?;
+    authorize(&claims, true, None, vec![Permissions::TRUSTEE_CEREMONY])?;
     let input = body.into_inner();
     let auth_headers = keycloak::get_client_credentials()
         .await
@@ -116,7 +116,7 @@ pub async fn get_private_key(
         .ok_or((Status::Unauthorized, "Empty username".to_string()))?;
 
     // get the keys ceremonies for this election event
-    let keys_ceremony = get_keys_ceremony(
+    let keys_ceremony = get_keys_ceremonies(
         auth_headers.clone(),
         tenant_id.clone(),
         input.election_event_id.clone(),

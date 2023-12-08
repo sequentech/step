@@ -4,7 +4,7 @@
 import React from "react"
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
-import {isNull, sleep} from "@sequentech/ui-essentials"
+import {isArray, isNull, isString, sleep} from "@sequentech/ui-essentials"
 import {IPermissions} from "@/types/keycloak"
 import globalSettings from "@/GlobalSettings"
 
@@ -34,7 +34,7 @@ const keycloak = new Keycloak(keycloakConfig)
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
  */
-interface AuthContextValues {
+export interface AuthContextValues {
     /**
      * Whether or not a user is currently authenticated
      */
@@ -44,9 +44,13 @@ interface AuthContextValues {
      */
     userId: string
     /**
-     * The name of the authenticated user
+     * The user name of the authenticated user
      */
     username: string
+    /**
+     * The first name of the authenticated user
+     */
+    firstName: string
     /**
      * The tenant id of the authenticated user
      */
@@ -74,7 +78,7 @@ interface AuthContextValues {
     isAuthorized: (
         checkSuperAdmin: boolean,
         someTenantId: string | null,
-        role: IPermissions
+        role: IPermissions | IPermissions[]
     ) => boolean
 }
 
@@ -85,6 +89,7 @@ const defaultAuthContextValues: AuthContextValues = {
     isAuthenticated: false,
     userId: "",
     username: "",
+    firstName: "",
     tenantId: "",
     logout: () => {},
     hasRole: (role) => false,
@@ -120,6 +125,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     // Local state that will contain the users name once it is loaded
     const [userId, setUserId] = useState<string>("")
     const [username, setUsername] = useState<string>("")
+    const [firstName, setFirstName] = useState<string>("")
     const [tenantId, setTenantId] = useState<string>("")
     const sleepSecs = 50
     const bufferSecs = 10
@@ -185,8 +191,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     setUserId(profile.id)
                 }
                 if (profile.firstName) {
-                    setUsername(profile.firstName)
-                } else if (profile.username) {
+                    setFirstName(profile.firstName)
+                }
+                if (profile.username) {
                     setUsername(profile.username)
                 }
                 const newTenantId: string | undefined = (profile as any)?.attributes[
@@ -228,14 +235,15 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const isAuthorized = (
         checkSuperAdmin: boolean,
         someTenantId: string | null,
-        role: string
+        role: string | string[]
     ): boolean => {
         const isSuperAdmin = globalSettings.DEFAULT_TENANT_ID === tenantId
         const isValidTenant = tenantId === someTenantId
         if (!((checkSuperAdmin && isSuperAdmin) || (!isNull(someTenantId) && isValidTenant))) {
             return false
         }
-        return hasRole(role)
+        const roleList: string[] = isString(role) ? [role] : role
+        return roleList.find(roleItem => hasRole(roleItem)) != undefined
     }
 
     // Setup the context provider
@@ -245,6 +253,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 isAuthenticated,
                 userId,
                 username,
+                firstName,
                 tenantId,
                 logout,
                 hasRole,

@@ -50,3 +50,24 @@ pub async fn create_tally_ceremony(
     );
     Ok(Json(CreateTallyCeremonyOutput { tally_session_id }))
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StartTallyCeremonyInput {
+    election_event_id: String,
+    tally_session_id: String,
+}
+
+#[instrument(skip(claims))]
+#[post("/start-tally-ceremony", format = "json", data = "<body>")]
+pub async fn start_tally_ceremony(
+    body: Json<StartTallyCeremonyInput>,
+    claims: JwtClaims,
+) -> Result<Json<CreateTallyCeremonyOutput>, (Status, String)> {
+    authorize(&claims, true, None, vec![Permissions::ADMIN_CEREMONY])?;
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+
+    Ok(Json(CreateTallyCeremonyOutput {
+        tally_session_id: input.tally_session_id.clone(),
+    }))
+}

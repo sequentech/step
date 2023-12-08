@@ -7,41 +7,27 @@ import {
     RecordContext,
     SimpleForm,
     TextInput,
-    useRecordContext,
-    useRefresh,
+    Toolbar,
+    SaveButton,
+    DeleteButton,
 } from "react-admin"
 import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid, Button} from "@mui/material"
-import {
-    CreateScheduledEventMutation,
-    GetUploadUrlMutation,
-    Sequent_Backend_Election_Event,
-} from "../../gql/graphql"
-import React, {useState} from "react"
+import React, {useContext, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
-import {ScheduledEventType} from "../../services/ScheduledEvent"
-import {getConfigCreatedStatus} from "../../services/ElectionEventStatus"
-import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
-import {CustomTabPanel} from "../../components/CustomTabPanel"
-import {ElectionHeaderStyles} from "../../components/styles/ElectionHeaderStyles"
-import {useTenantStore} from "../../providers/TenantContextProvider"
-import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
+import {CustomTabPanel} from "@/components/CustomTabPanel"
+import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import { IPermissions } from "@/types/keycloak"
 
 export const EditElectionEventDataForm: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
-    const [tenantId] = useTenantStore()
-    const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
-    //const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
-    const refresh = useRefresh()
-
-    const [showMenu, setShowMenu] = useState(false)
-    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
-    const [showProgress, setShowProgress] = useState(false)
-    const [showCreateKeysDialog, setShowCreateKeysDialog] = useState(false)
-    const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)
     const {t} = useTranslation()
+    const authContext = useContext(AuthContext)
+
+    const canEdit = authContext.isAuthorized(
+        true, authContext.tenantId, IPermissions.ELECTION_EVENT_WRITE
+    )
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("election-event-data-general")
@@ -103,98 +89,9 @@ export const EditElectionEventDataForm: React.FC = () => {
         return temp
     }
 
-    const handleActionsButtonClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
-        setAnchorEl(event.currentTarget)
-        setShowMenu(true)
-    }
-
-    const createBulletinBoardAction = async () => {
-        setShowMenu(false)
-        setShowProgress(true)
-
-        const {data, errors} = await createScheduledEvent({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: record.id,
-                eventProcessor: ScheduledEventType.CREATE_BOARD,
-                cronConfig: undefined,
-                eventPayload: {},
-                createdBy: "admin",
-            },
-        })
-        if (errors) {
-            console.log(errors)
-        }
-        if (data) {
-            console.log(data)
-        }
-        setShowProgress(false)
-        refresh()
-    }
-
-    const setPublicKeysAction = async () => {
-        setShowMenu(false)
-        setShowProgress(true)
-
-        const {data, errors} = await createScheduledEvent({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: record.id,
-                eventProcessor: ScheduledEventType.SET_PUBLIC_KEY,
-                cronConfig: undefined,
-                eventPayload: {},
-                createdBy: "admin",
-            },
-        })
-        if (errors) {
-            console.log(errors)
-        }
-        if (data) {
-            console.log(data)
-        }
-        setShowProgress(false)
-        refresh()
-    }
-
-    const openKeysDialog = () => {
-        console.log("opening...")
-        setShowCreateKeysDialog(true)
-    }
-
-    const openStartTallyDialog = () => {
-        console.log("opening...")
-        setShowStartTallyDialog(true)
-    }
-
-    const createBallotStylesAction = async () => {
-        setShowMenu(false)
-        setShowProgress(true)
-
-        const {data, errors} = await createScheduledEvent({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: record.id,
-                eventProcessor: ScheduledEventType.CREATE_ELECTION_EVENT_BALLOT_STYLES,
-                cronConfig: undefined,
-                eventPayload: {},
-                createdBy: "admin",
-            },
-        })
-        if (errors) {
-            console.log(errors)
-        }
-        if (data) {
-            console.log(data)
-        }
-        setShowProgress(false)
-        refresh()
-    }
-
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
     }
-
-    let configCreatedStatus = getConfigCreatedStatus(record.status)
 
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
@@ -210,6 +107,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             langNodes.push(
                 <BooleanInput
                     key={lang}
+                    disabled={!canEdit}
                     source={`enabled_languages.${lang}`}
                     label={t(`common.language.${lang}`)}
                 />
@@ -223,6 +121,7 @@ export const EditElectionEventDataForm: React.FC = () => {
         for (const channel in parsedValue?.voting_channels) {
             channelNodes.push(
                 <BooleanInput
+                    disabled={!canEdit}
                     key={channel}
                     source={`voting_channels[${channel}]`}
                     label={t(`common.channel.${channel}`)}
@@ -257,14 +156,17 @@ export const EditElectionEventDataForm: React.FC = () => {
                     <CustomTabPanel key={lang} value={value} index={index}>
                         <div style={{marginTop: "16px"}}>
                             <TextInput
+                                disabled={!canEdit}
                                 source={`presentation.i18n[${lang}].name`}
                                 label={t("electionEventScreen.field.name")}
                             />
                             <TextInput
+                                disabled={!canEdit}
                                 source={`presentation.i18n[${lang}].alias`}
                                 label={t("electionEventScreen.field.alias")}
                             />
                             <TextInput
+                                disabled={!canEdit}
                                 source={`presentation.i18n[${lang}].description`}
                                 label={t("electionEventScreen.field.description")}
                             />
@@ -283,7 +185,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                 const parsedValue = parseValues(incoming)
                 console.log("parsedValue :>> ", parsedValue)
                 return (
-                    <SimpleForm validate={formValidator} record={parsedValue}>
+                    <SimpleForm
+                        validate={formValidator}
+                        record={parsedValue}
+                        toolbar={
+                            <Toolbar>
+                                {canEdit ? <SaveButton type="button" /> : null}
+                                {canEdit ? <DeleteButton /> : null}
+                            </Toolbar>
+                        }
+                    >
                         <Accordion
                             sx={{width: "100%"}}
                             expanded={expanded === "election-event-data-general"}
@@ -324,6 +235,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 <Grid container spacing={4}>
                                     <Grid item xs={12} md={6}>
                                         <DateTimeInput
+                                            disabled={!canEdit}
                                             source="dates.start_date"
                                             label={t("electionScreen.field.startDateTime")}
                                             parse={(value) => new Date(value).toISOString()}
@@ -331,6 +243,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                                     </Grid>
                                     <Grid item xs={12} md={6}>
                                         <DateTimeInput
+                                            disabled={!canEdit}
                                             source="dates.end_date"
                                             label={t("electionScreen.field.endDateTime")}
                                             parse={(value) => new Date(value).toISOString()}
