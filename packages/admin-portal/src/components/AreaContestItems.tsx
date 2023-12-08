@@ -4,7 +4,7 @@ import styled from "@emotion/styled"
 import {Chip, IconButton} from "@mui/material"
 import {adminTheme} from "@sequentech/ui-essentials"
 import React, {useEffect} from "react"
-import {Identifier, useGetList, useRecordContext} from "react-admin"
+import {Identifier, RaRecord, useGetList, useRecordContext} from "react-admin"
 
 /*  
         In the component where you want to use the actions column:
@@ -17,7 +17,7 @@ import {Identifier, useGetList, useRecordContext} from "react-admin"
     */
 
 interface AreaContestItemsProps {
-    record: any
+    record: RaRecord<Identifier>
 }
 
 export const AreaContestItems: React.FC<AreaContestItemsProps> = (props) => {

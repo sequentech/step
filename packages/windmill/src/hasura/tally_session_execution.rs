@@ -8,9 +8,9 @@ use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use sequent_core::services::connection;
+use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use std::env;
 use tracing::instrument;
-use sequent_core::types::ceremonies::TallyCeremonyStatus;
 
 #[derive(GraphQLQuery)]
 #[graphql(

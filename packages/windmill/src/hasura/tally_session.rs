@@ -102,6 +102,41 @@ pub async fn insert_tally_session(
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/get_tally_session_by_id.graphql",
+    response_derives = "Debug,Clone,Deserialize,Serialize"
+)]
+pub struct GetTallySessionById;
+
+#[instrument(skip(auth_headers))]
+pub async fn get_tally_session_by_id(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    tally_session_id: String,
+) -> Result<Response<get_tally_session_by_id::ResponseData>> {
+    let variables = get_tally_session_by_id::Variables {
+        tenant_id: tenant_id,
+        election_event_id: election_event_id,
+        tally_session_id,
+    };
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = GetTallySessionById::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<get_tally_session_by_id::ResponseData> = res.json().await?;
+    response_body.ok()
+}
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/get_tally_sessions.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]

@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::tally_session::update_tally_session_status;
+use crate::hasura::tally_session_execution::insert_tally_session_execution;
 use crate::services::ceremonies::tally_ceremony::*;
 use crate::types::error::Result;
 use celery::prelude::TaskError;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
 use tracing::{event, instrument, Level};
-use crate::hasura::tally_session_execution::insert_tally_session_execution;
 
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -30,7 +30,7 @@ pub async fn connect_tally_ceremony(
         return Ok(());
     };
     let execution_status = tally_session.execution_status.unwrap_or("".into());
-    if execution_status != TallyExecutionStatus::NOT_STARTED.to_string() {
+    if execution_status != TallyExecutionStatus::STARTED.to_string() {
         event!(
             Level::INFO,
             "Unexpected execution status {}",
