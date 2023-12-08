@@ -34,7 +34,7 @@ export const initializeLanguages = (externalTranslations: Resource) => {
             },
             react: {
                 transKeepBasicHtmlNodesFor: ["ol", "li", "p", "br", "strong"],
-            }
+            },
         })
 }
 
