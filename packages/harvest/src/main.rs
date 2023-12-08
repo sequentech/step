@@ -29,6 +29,7 @@ fn rocket() -> _ {
         .mount(
             "/",
             routes![
+                routes::ballot_publication::generate_ballot_publication,
                 routes::ballot_publication::publish_ballot,
                 routes::fetch_document::fetch_document,
                 routes::scheduled_event::create_scheduled_event,

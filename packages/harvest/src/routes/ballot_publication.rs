@@ -13,22 +13,22 @@ use windmill::services::ballot_publication::add_ballot_publication;
 use windmill::services::ceremonies::tally_ceremony;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct PublishBallotInput {
+pub struct GenerateBallotPublicationInput {
     election_event_id: String,
     election_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct PublishBallotOutput {
+pub struct GenerateBallotPublicationOutput {
     ballot_publication_id: String,
 }
 
 #[instrument(skip(claims))]
 #[post("/generate-ballot-publication", format = "json", data = "<body>")]
-pub async fn publish_ballot(
-    body: Json<PublishBallotInput>,
+pub async fn generate_ballot_publication(
+    body: Json<GenerateBallotPublicationInput>,
     claims: JwtClaims,
-) -> Result<Json<PublishBallotOutput>, (Status, String)> {
+) -> Result<Json<GenerateBallotPublicationOutput>, (Status, String)> {
     authorize(&claims, true, None, vec![Permissions::PUBLISH_WRITE])?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
@@ -43,7 +43,34 @@ pub async fn publish_ballot(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    Ok(Json(PublishBallotOutput {
+    Ok(Json(GenerateBallotPublicationOutput {
         ballot_publication_id,
+    }))
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PublishBallotInput {
+    election_event_id: String,
+    ballot_publication_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PublishBallotOutput {
+    ballot_publication_id: String,
+}
+
+#[instrument(skip(claims))]
+#[post("/publish-ballot", format = "json", data = "<body>")]
+pub async fn publish_ballot(
+    body: Json<PublishBallotInput>,
+    claims: JwtClaims,
+) -> Result<Json<PublishBallotOutput>, (Status, String)> {
+    authorize(&claims, true, None, vec![Permissions::PUBLISH_WRITE])?;
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+
+    Ok(Json(PublishBallotOutput {
+        ballot_publication_id: input.ballot_publication_id.clone(),
     }))
 }

@@ -169,6 +169,13 @@ type Query {
 }
 
 type Mutation {
+  publish_ballot (
+    election_event_id: uuid!
+    ballot_publication_id: uuid!
+  ): PublishBallotOutput
+}
+
+type Mutation {
   set_role_permission (
     tenant_id: String!
     role_id: String!
