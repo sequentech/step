@@ -35,7 +35,7 @@ pub async fn update_election_event_ballot_styles(
     .sequent_backend_ballot_publication[0];
 
     let areas = get_election_event_areas(
-        auth_headers,
+        auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
         vec![],
@@ -47,6 +47,7 @@ pub async fn update_election_event_ballot_styles(
 
     for area in areas.sequent_backend_area.iter() {
         create_ballot_style(
+            auth_headers.clone(),
             area.id.clone(),
             tenant_id.clone(),
             election_event_id.clone(),
@@ -55,5 +56,14 @@ pub async fn update_election_event_ballot_styles(
         )
         .await?;
     }
+    update_ballot_publication_d(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        ballot_publication_id.clone(),
+        true
+    )
+    .await?;
+
     Ok(())
 }

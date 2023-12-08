@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use std::convert::From;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+use sequent_core::services::connection;
 
 use crate::hasura;
 use crate::hasura::ballot_style::get_ballot_style_area;
@@ -182,13 +183,13 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendArea>
 
 #[instrument]
 pub async fn create_ballot_style(
+    auth_headers: connection::AuthHeaders,
     area_id: String,
     tenant_id: String,
     election_event_id: String,
     election_ids: Vec<String>,
     ballot_publication_id: String,
 ) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
     let lock = PgLock::acquire(
         auth_headers.clone(),
         format!("create_ballot_style-{}-{}", tenant_id, election_event_id),
