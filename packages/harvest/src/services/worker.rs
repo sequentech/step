@@ -21,7 +21,7 @@ use windmill::types::scheduled_event::*;
 #[instrument]
 pub async fn process_scheduled_event(event: CreateEventBody) -> Result<String> {
     let celery_app = get_celery_app().await;
-    let mut element_id: String = Uuid::new_v4().to_string();
+    let element_id: String = Uuid::new_v4().to_string();
     match event.event_processor.clone() {
         EventProcessors::CREATE_REPORT => {
             let body: render_report::RenderTemplateBody =

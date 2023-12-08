@@ -35,6 +35,13 @@ type Mutation {
 }
 
 type Mutation {
+  create_tally_ceremony (
+    election_event_id: uuid!
+    election_ids: [uuid!]!
+  ): CreateTallyOutput
+}
+
+type Mutation {
   create_user (
     tenant_id: String!
     election_event_id: String
@@ -170,6 +177,13 @@ type Mutation {
   ): SetUserRoleOutput
 }
 
+type Mutation {
+  start_tally_ceremony (
+    election_event_id: uuid!
+    tally_session_id: uuid!
+  ): StartTallyOutput
+}
+
 enum OrderDirection {
   asc
   desc
@@ -236,6 +250,7 @@ input CreateKeysCeremonyInput {
 
 input GetPrivateKeyInput {
   election_event_id : String!
+  keys_ceremony_id : String!
 }
 
 input CheckPrivateKeyInput {
@@ -464,5 +479,13 @@ type SetRolePermissionOutput {
 
 type SetUserRoleOutput {
   id : String
+}
+
+type CreateTallyOutput {
+  tally_session_id : uuid!
+}
+
+type StartTallyOutput {
+  tally_session_id : uuid!
 }
 

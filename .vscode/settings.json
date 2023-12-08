@@ -10,5 +10,7 @@
     },
     "java.jdt.ls.java.home": "/nix/store/j11sdzavh0nxipvixmkf81i0pzr0a051-openjdk-19.0.2+7/lib/openjdk",
     "java.compile.nullAnalysis.mode": "automatic",
-    "java.configuration.updateBuildConfiguration": "automatic"
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "docker.containers.label": "ContainerName",
+    "docker.commands.attach": "${containerCommand} exec -it ${containerId} ${shellCommand}",
 }

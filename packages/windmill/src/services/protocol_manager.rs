@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use braid_messages::artifact::{DkgPublicKey, Channel, Ballots, Configuration};
+use braid_messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey};
 use braid_messages::message::Message;
 use braid_messages::newtypes::BatchNumber;
 use braid_messages::newtypes::PublicKeyHash;
@@ -109,13 +109,11 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     Ok(dkgpk.pk)
 }
 
-
 #[instrument]
 pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     board_name: &str,
-    trustee_pub_key: &StrandSignaturePk
-) -> Result<EncryptionData>
-{
+    trustee_pub_key: &StrandSignaturePk,
+) -> Result<EncryptionData> {
     let mut board = get_board_client().await?;
 
     let messages = board.get_messages(board_name, -1).await?;
@@ -124,8 +122,8 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
         .map(|message| Message::strand_deserialize(&message.message))
         .filter_map(|message| message.ok())
         .find(|message| {
-            message.statement.get_kind() == StatementType::Channel &&
-            message.sender.pk == *trustee_pub_key
+            message.statement.get_kind() == StatementType::Channel
+                && message.sender.pk == *trustee_pub_key
         })
         .with_context(|| format!("Private Key not found on board {}", board_name))?;
 

@@ -32,15 +32,15 @@ pub async fn update_voting_status(
         tenant_id.clone(),
         election_event_id.clone(),
     )
-        .await?
-        .data
-        .with_context(|| "can't find election event")?;
+    .await?
+    .data
+    .with_context(|| "can't find election event")?;
     let election_event = &election_event_response.sequent_backend_election_event[0];
     let old_status: ElectionStatus = match election_event.status.clone() {
         Some(status) => serde_json::from_value(status)?,
         None => ElectionStatus {
             voting_status: payload.status.clone(),
-            keys_ceremony: vec![]
+            keys_ceremony: vec![],
         },
     };
     let new_status = ElectionStatus {

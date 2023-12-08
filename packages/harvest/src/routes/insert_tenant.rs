@@ -4,9 +4,7 @@
 
 use crate::services::authorization::authorize;
 use rocket::http::Status;
-use rocket::response::Debug;
 use rocket::serde::json::Json;
-use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};

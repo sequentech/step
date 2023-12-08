@@ -187,6 +187,7 @@ const spanishTranslation: TranslationType = {
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
+                noResult: "No Election Event yet",
             },
             voters: {
                 title: "Votantes",
@@ -207,12 +208,20 @@ const spanishTranslation: TranslationType = {
             keys: {
                 createNew: "Crear Ceremonia de Claves",
                 emptyHeader: "Ninguna Ceremonia de Claves aún.",
-                emptyBody: "¿Quieres crear una?",
                 statusLabel: "Estado",
+                waitingKeys: "Esperando a la Generación de Claves..",
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Ceremonia",
                     created: "Finished",
+                    start: "Comienzo",
+                    status: "Estado",
+                    download: "Descargar",
+                    check: "Comprobar",
+                    success: "Finalizado",
+                },
+                notify:{
+                    participateNow: "Ha sido invitado a participar a una Ceremonia de Claves. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
                 },
             },
             tabs: {
@@ -411,6 +420,9 @@ const spanishTranslation: TranslationType = {
                 election: "Elección",
                 contest: "Concurso",
                 candidate: "Candidato",
+                noResult: {
+                    askCreate: "¿Quieres crear una?",
+                },
             },
             label: {
                 add: "Añadir",
@@ -427,6 +439,7 @@ const spanishTranslation: TranslationType = {
                 next: "Siguiente",
                 warning: "Aviso",
                 json: "Vista previa",
+                noResult: "Sin resultados",
             },
             language: {
                 es: "Español",
@@ -597,6 +610,36 @@ const spanishTranslation: TranslationType = {
                     entry: "Entrada",
                 },
                 emptyLogs: "Sin logs aún.",
+            },
+            startStep: {
+                title: "Ceremonia de Claves de Autoridad",
+                subtitle: "Estás a punto de participar en la Ceremonia de Claves como la Autoridad (<strong>{{name}}</strong>). Esto implica los siguientes pasos:",
+                one: "<strong>Descargar</strong> tu Clave Privada Encriptada.",
+                two: "Crear múltiples <strong>Copias de seguridad</strong> de tu Clave Privada Encriptada.",
+                three: "<strong>Verificar</strong> que las copias de seguridad funcionan correctamente.",
+            },
+            downloadStep: {
+                title: "Descargar Clave Privada Encriptada",
+                subtitle: "Para continuar, por favor descarga y guarda tu Clave Privada Encriptada en al menos dos dispositivos diferentes:",
+                downloadButton: "Descargar tu Clave Privada Encriptada",
+                errorDownloading: "Error de descarga: {{error}}",
+                errorEmptyKey: "Error de descarga, fichero vacío",
+                confirmdDialog: {
+                    ok: "Confirmar copias de seguridad y Continuar",
+                    cancel: "Volver",
+                    title: "Copia de seguridad de tu Clave Privada Encriptada",
+                    description: "Por favor, realiza una copia de seguridad de tu Clave Privada Encriptada en al menos dos ubicaciones seguras diferentes y luego confírmalo a continuación:",
+                    firstCopy: "Primera copia de seguridad realizada",
+                    secondCopy: "Segunda copia de seguridad realizada",
+                    
+                },
+            },
+            checkStep: {
+                title: "Verifica tus Copias de Seguridad de tu Clave Privada Encriptada",
+                subtitle: "Sube la Copia de Seguridad de tu Clave Privada Encriptada para verificar que sea correcta. Puedes intentarlo tantas veces como sea necesario, desde tus diferentes copias de seguridad:",
+                errorUploading: "Error de subida: {{error}}",
+                errorEmptyFile: "Fichero vacío o no encontrado",
+                verified: "Copia de seguridad verificada correctamente.",
             },
         },
     },
