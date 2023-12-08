@@ -13,9 +13,11 @@ use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
 use serde_json::from_value;
 use serde_json::Value;
+use tracing::instrument;
 use tracing::{event, Level};
 use uuid::Uuid;
 
+#[instrument]
 pub fn get_keys_ceremony_status(input: Option<Value>) -> Result<CeremonyStatus> {
     input
         .map(|value| {
@@ -26,6 +28,7 @@ pub fn get_keys_ceremony_status(input: Option<Value>) -> Result<CeremonyStatus> 
         .flatten()
 }
 
+#[instrument]
 pub async fn create_keys_ceremony(
     tenant_id: String,
     election_event_id: String,

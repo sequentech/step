@@ -19,14 +19,16 @@ import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import { IPermissions } from "@/types/keycloak"
+import {IPermissions} from "@/types/keycloak"
 
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
 
     const canEdit = authContext.isAuthorized(
-        true, authContext.tenantId, IPermissions.ELECTION_EVENT_WRITE
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_WRITE
     )
 
     const [value, setValue] = useState(0)

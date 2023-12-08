@@ -138,6 +138,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const notify = useNotify()
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
+    const refresh = useRefresh()
 
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
     const {data: userRoles, refetch} = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
@@ -162,7 +163,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const onSubmit = async () => {
         try {
-            let {data, errors} = await edit_user({
+            let {data} = await edit_user({
                 variables: {
                     body: {
                         user_id: user?.id,
@@ -177,6 +178,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 },
             })
             notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
+            refresh()
             close?.()
         } catch (error) {
             notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})

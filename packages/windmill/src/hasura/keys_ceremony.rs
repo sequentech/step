@@ -93,7 +93,7 @@ pub async fn get_keys_ceremonies(
     schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/update_keys_ceremony_status.graphql",
     response_derives = "Debug",
-    variables_derives = "Debug",
+    variables_derives = "Debug"
 )]
 pub struct UpdateKeysCeremonyStatus;
 
@@ -118,7 +118,6 @@ pub async fn update_keys_ceremony_status(
     let request_body = UpdateKeysCeremonyStatus::build_query(variables);
 
     event!(Level::INFO, "Sending graphql query {:?}", request_body);
-
 
     let client = reqwest::Client::new();
     let res = client

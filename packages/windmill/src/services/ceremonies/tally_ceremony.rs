@@ -3,13 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::area::get_election_event_areas;
 use crate::hasura::keys_ceremony::get_keys_ceremonies;
-use crate::hasura::tally_session::get_tally_sessions;
-use crate::hasura::tally_session::insert_tally_session;
-use crate::services::celery_app::get_celery_app;
-use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
-use crate::services::ceremonies::tally_ceremony::get_keys_ceremonies::GetKeysCeremoniesSequentBackendKeysCeremony;
-use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
-use crate::tasks::connect_tally_ceremony::connect_tally_ceremony;
+use crate::hasura::tally_session::{
+    get_tally_session_by_id, get_tally_sessions, insert_tally_session, update_tally_session_status,
+};
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
@@ -28,9 +24,11 @@ use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
 use serde_json::{from_value, Value};
 use std::collections::HashSet;
+use std::str::FromStr;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+#[instrument(skip(auth_headers))]
 pub async fn find_last_tally_session_execution(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -69,29 +67,32 @@ pub async fn find_last_tally_session_execution(
     )))
 }
 
+#[instrument(skip(auth_headers))]
 pub async fn get_tally_session(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-) -> Result<GetTallySessionsSequentBackendTallySession> {
+) -> Result<GetTallySessionByIdSequentBackendTallySession> {
     // fetch tally_sessions
-    let tally_sessions = get_tally_sessions(
+    let tally_session = get_tally_session_by_id(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
+        tally_session_id.clone(),
     )
     .await?
     .data
     .expect("expected data")
-    .sequent_backend_tally_session;
+    .sequent_backend_tally_session
+    .get(0)
+    .ok_or(anyhow!("Tally session not found"))?
+    .clone();
 
-    tally_sessions
-        .into_iter()
-        .find(|x| x.id == tally_session_id)
-        .ok_or(anyhow!("Tally session not found {}", tally_session_id))
+    Ok(tally_session.clone())
 }
 
+#[instrument]
 pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonyStatus> {
     input
         .map(|value| {
@@ -102,6 +103,7 @@ pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonySt
         .flatten()
 }
 
+#[instrument(skip(auth_headers))]
 pub async fn find_keys_ceremony(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -138,6 +140,7 @@ pub async fn find_keys_ceremony(
     Ok(successful_ceremonies[0].clone())
 }
 
+#[instrument]
 fn generate_initial_tally_status(
     election_ids: &Vec<String>,
     keys_ceremony_status: &CeremonyStatus,
@@ -165,6 +168,7 @@ fn generate_initial_tally_status(
 }
 
 // get area ids that are linked to these election ids
+#[instrument(skip(auth_headers))]
 pub async fn get_area_ids(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -208,13 +212,13 @@ pub async fn get_area_ids(
     Ok(area_ids)
 }
 
+#[instrument]
 pub async fn create_tally_ceremony(
     tenant_id: String,
     election_event_id: String,
     election_ids: Vec<String>,
 ) -> Result<String> {
     let auth_headers = keycloak::get_client_credentials().await?;
-    let celery_app = get_celery_app().await;
     let keys_ceremony = find_keys_ceremony(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -261,19 +265,77 @@ pub async fn create_tally_ceremony(
         None,
     )
     .await?;
+    Ok(tally_session_id.clone())
+}
 
-    // create the public keys in async task
-    let task = celery_app
-        .send_task(connect_tally_ceremony::new(
-            tenant_id.clone(),
-            election_event_id.clone(),
-            tally_session_id.clone(),
-        ))
-        .await?;
-    event!(
-        Level::INFO,
-        "Sent connect_tally_ceremony task {}",
-        task.task_id
-    );
-    Ok(keys_ceremony_id)
+#[instrument]
+pub async fn update_tally_ceremony(
+    tenant_id: String,
+    election_event_id: String,
+    tally_session_id: String,
+    new_execution_status: TallyExecutionStatus,
+) -> Result<()> {
+    let auth_headers = keycloak::get_client_credentials().await?;
+    let celery_app = get_celery_app().await;
+
+    let tally_session = get_tally_session(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session_id.clone(),
+    )
+    .await?;
+
+    let current_status = tally_session
+        .execution_status
+        .map(|value| {
+            TallyExecutionStatus::from_str(&value).unwrap_or(TallyExecutionStatus::NOT_STARTED)
+        })
+        .unwrap_or(TallyExecutionStatus::NOT_STARTED);
+
+    let expected_status: Vec<TallyExecutionStatus> = match current_status {
+        TallyExecutionStatus::NOT_STARTED => vec![
+            TallyExecutionStatus::STARTED,
+            TallyExecutionStatus::CANCELLED,
+        ],
+        TallyExecutionStatus::STARTED => vec![TallyExecutionStatus::CANCELLED],
+        TallyExecutionStatus::CONNECTED => vec![
+            TallyExecutionStatus::IN_PROGRESS,
+            TallyExecutionStatus::CANCELLED,
+        ],
+        TallyExecutionStatus::IN_PROGRESS => vec![TallyExecutionStatus::CANCELLED],
+        TallyExecutionStatus::SUCCESS => vec![TallyExecutionStatus::CANCELLED],
+        TallyExecutionStatus::CANCELLED => vec![TallyExecutionStatus::CANCELLED],
+    };
+
+    if !expected_status.contains(&new_execution_status) {
+        return Err(anyhow!("Unexpected status"));
+    }
+
+    update_tally_session_status(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session_id.clone(),
+        new_execution_status.clone(),
+    )
+    .await?;
+
+    if TallyExecutionStatus::STARTED == new_execution_status {
+        // "connect" trustees in async task
+        let task = celery_app
+            .send_task(connect_tally_ceremony::new(
+                tenant_id.clone(),
+                election_event_id.clone(),
+                tally_session_id.clone(),
+            ))
+            .await?;
+        event!(
+            Level::INFO,
+            "Sent connect_tally_ceremony task {}",
+            task.task_id
+        );
+    }
+
+    Ok(())
 }

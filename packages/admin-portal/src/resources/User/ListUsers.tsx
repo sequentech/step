@@ -14,6 +14,7 @@ import {
     useRefresh,
     useNotify,
     useGetList,
+    FunctionField,
 } from "react-admin"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {ListActions} from "../../components/ListActions"
@@ -29,7 +30,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {DeleteUserMutation} from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
 import {useMutation} from "@apollo/client"
-import {IRole} from "sequent-core"
+import {IRole, IUser} from "sequent-core"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -90,6 +91,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     const editAction = (id: Identifier) => {
         setRecordId(id as string)
     }
+
+    // const handleCloseCreateDrawer = () => {
+    //     setRecordId(undefined)
+    //     setCloseDrawer(new Date().toISOString())
+    // }
 
     const deleteAction = (id: Identifier) => {
         if (!electionEventId && authContext.userId === id) {
@@ -155,12 +161,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                         }
                     />
                 }
-                // actions={
-                //     <TopToolbar>
-                //         <SelectColumnsButton />
-                //         <ExportButton />
-                //     </TopToolbar>
-                // }
                 filter={{tenant_id: tenantId, election_event_id: electionEventId}}
                 aside={aside}
                 filters={Filters}
@@ -173,6 +173,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     <TextField source="first_name" />
                     <TextField source="last_name" />
                     <TextField source="username" />
+                    <FunctionField
+                        label={t("usersAndRolesScreen.users.fields.area")}
+                        render={(record: IUser) => record?.attributes?.["area-id"]?.[0]}
+                    />
 
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />

@@ -16,7 +16,6 @@ interface EditUserProps {
 
 export const EditUser: React.FC<EditUserProps> = ({id, close, electionEventId, rolesList}) => {
     const {data, isLoading} = useListContext()
-    let user: IUser | undefined = data?.find((element) => element.id === id)
 
     const [tenantId] = useTenantStore()
 
@@ -33,6 +32,8 @@ export const EditUser: React.FC<EditUserProps> = ({id, close, electionEventId, r
             <List
                 resource="user"
                 filter={{tenant_id: tenantId, election_event_id: electionEventId}}
+                sx={{padding: "16px"}}
+                actions={false}
             >
                 <EditUserForm
                     id={id}

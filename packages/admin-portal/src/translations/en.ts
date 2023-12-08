@@ -232,6 +232,22 @@ const englishTranslation = {
                 publish: "Publish",
                 logs: "Logs",
             },
+            tally: {
+                title: "Election Event Tally",
+                elections: "Elections",
+                electionNumber: "Number Elections",
+                trustees: "Trustees",
+                status: "Status",
+                create: {
+                    title: "Create Tally",
+                    subtitle: "Create a new Tally for this Election Event",
+                    createButton: "Create Tally",
+                    error: {
+                        create: "Error creating Tally",
+                    },
+                    success: "Tally created",
+                },
+            },
         },
         electionScreen: {
             common: {
@@ -447,6 +463,9 @@ const englishTranslation = {
                 online: "Online",
                 kiosk: "Kiosk",
             },
+            message: {
+                delete: "Are you sure you want to delete this item?",
+            },
         },
         createResource: {
             electionEvent: "Create an Election Event",
@@ -638,6 +657,58 @@ const englishTranslation = {
                 errorEmptyFile: "File empty or not found",
                 verified: "Backup verified successfully.",
             }
+        },
+        tally: {
+            ceremonyTitle: "Elections to Tally",
+            ceremonySubTitle: "Choose the elections you want to tally",
+            tallyTitle: "Elections Tally Progress",
+            logsTitle: "Logs",
+            resultsTitle: "Results & Participation",
+            generalInfoTitle: "General Information",
+            trusteeTallyTitle: "Trustees",
+            trusteeTallySubTitle: "Key fragment import status",
+            createTallySuccess: "Tally created",
+            createTallyError: "Could not create Tally",
+            startTallySuccess: "Tally started",
+            startTallyError: "Could not start Tally",
+            breadcrumbSteps: {
+                ceremony: "Ceremony",
+                tally: "Tally",
+                results: "Results",
+            },
+            common: {
+                title: "Tally",
+                subTitle: "Tally configuration.",
+                cancel: "Cancel",
+                next: "Next",
+                date: "Tally Date",
+                global: "Global",
+                noTrustees: "No trustees yet",
+                dialog: {
+                    ok: "Ok",
+                    cancel: "Close",
+                    title: "Are you sure you want to  start a ceremony?",
+                    message:
+                        "You are about to start a tally ceremony . This action will notify the trustees to import their key fragments.",
+                },
+            },
+            table: {
+                elections: "Elections",
+                selected: "Selected",
+                status: "Status",
+                progress: "Progress",
+                method: "Tally Method",
+                elegible: "Elegible Voters",
+                number: "Number of Votes",
+                turnout: "Turnout (%)",
+                candidates: "Candidates",
+                global: "Global results",
+                elegible_census: "Elegible Voters",
+                total_valid_votes: "Total Valid Votes",
+                explicit_invalid_votes: "Explicitly Invalid Votes",
+                implicit_invalid_votes: "Implicitly Invalid Votes",
+                blank_votes: "Blank Votes",
+            },
         },
     },
 }

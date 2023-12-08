@@ -30,7 +30,7 @@ pub async fn connect_tally_ceremony(
         return Ok(());
     };
     let execution_status = tally_session.execution_status.unwrap_or("".into());
-    if execution_status != TallyExecutionStatus::NOT_STARTED.to_string() {
+    if execution_status != TallyExecutionStatus::STARTED.to_string() {
         event!(
             Level::INFO,
             "Unexpected execution status {}",
