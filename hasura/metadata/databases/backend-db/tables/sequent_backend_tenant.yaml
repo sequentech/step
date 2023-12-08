@@ -11,6 +11,7 @@ insert_permissions:
     - id
     - is_active
     - labels
+    - settings
     - slug
     - updated_at
     - voting_channels
@@ -19,14 +20,15 @@ insert_permissions:
   permission:
     check: {}
     columns:
-    - annotations
-    - created_at
-    - id
     - is_active
+    - annotations
     - labels
-    - slug
-    - updated_at
+    - settings
     - voting_channels
+    - slug
+    - created_at
+    - updated_at
+    - id
   role: service-account
 select_permissions:
 - comment: ""
@@ -38,6 +40,7 @@ select_permissions:
     - id
     - is_active
     - labels
+    - settings
     - slug
     - updated_at
     - voting_channels
@@ -47,27 +50,29 @@ select_permissions:
   permission:
     allow_aggregations: true
     columns:
-    - annotations
-    - created_at
-    - id
     - is_active
+    - annotations
     - labels
-    - slug
-    - updated_at
+    - settings
     - voting_channels
+    - slug
+    - created_at
+    - updated_at
+    - id
     filter: {}
   role: service-account
 - comment: ""
   permission:
     columns:
-    - annotations
-    - created_at
-    - id
     - is_active
+    - annotations
     - labels
-    - slug
-    - updated_at
+    - settings
     - voting_channels
+    - slug
+    - created_at
+    - updated_at
+    - id
     filter:
       id:
         _eq: X-Hasura-Tenant-Id
@@ -77,28 +82,30 @@ update_permissions:
   permission:
     check: {}
     columns:
-    - annotations
-    - created_at
-    - id
     - is_active
+    - annotations
     - labels
-    - slug
-    - updated_at
+    - settings
     - voting_channels
+    - slug
+    - created_at
+    - updated_at
+    - id
     filter: {}
   role: admin-user
 - comment: ""
   permission:
     check: {}
     columns:
-    - annotations
-    - created_at
-    - id
     - is_active
+    - annotations
     - labels
-    - slug
-    - updated_at
+    - settings
     - voting_channels
+    - slug
+    - created_at
+    - updated_at
+    - id
     filter: {}
   role: service-account
 delete_permissions:
