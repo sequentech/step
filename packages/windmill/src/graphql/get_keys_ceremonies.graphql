@@ -1,10 +1,10 @@
-query GetKeysCeremony(
+query GetKeysCeremonies(
     $tenantId: uuid!,
     $electionEventId: uuid!,
 ) {
     sequent_backend_keys_ceremony(
         where: {
-            id: {_eq: $electionEventId},
+            election_event_id: {_eq: $electionEventId},
             tenant_id: {_eq: $tenantId},
         }
     ) {

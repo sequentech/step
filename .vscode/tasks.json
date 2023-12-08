@@ -7,7 +7,6 @@
             "args": [
                 "compose",
                 "logs",
-                "--timestamps",
                 "-f",
                 "harvest",
             ],
@@ -37,7 +36,6 @@
             "args": [
                 "compose",
                 "logs",
-                "--timestamps",
                 "-f",
                 "keycloak",
             ],
@@ -67,7 +65,6 @@
             "args": [
                 "compose",
                 "logs",
-                "--timestamps",
                 "-f",
                 "windmill",
             ],

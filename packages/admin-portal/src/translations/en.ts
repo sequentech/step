@@ -200,10 +200,19 @@ const englishTranslation = {
                 createNew: "Create Keys Ceremony",
                 emptyHeader: "No Keys Ceremony yet.",
                 statusLabel: "Status",
+                waitingKeys: "Waiting for Keys Generation..",
                 breadCrumbs: {
                     configure: "Configure",
                     ceremony: "Ceremony",
                     created: "Finished",
+                    start: "Start",
+                    status: "Status",
+                    download: "Download",
+                    check: "Check",
+                    success: "Finished",
+                },
+                notify:{
+                    participateNow: "You have been invited to participate in a Keys ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
             },
             tabs: {
@@ -610,6 +619,13 @@ const englishTranslation = {
                     entry: "Entry",
                 },
                 emptyLogs: "No logs yet.",
+            },
+            startStep: {
+                title: "Keys Ceremony",
+                subtitle: "You are about to participate in the Keys Ceremony as a Trustee. This involves the following steps:",
+                one: "<strong>Download</strong> your private key.",
+                two: "Create multiple <strong>Backups</strong> of the private key.",
+                three: "<strong>Check</strong> that the backup key works well.",
             },
         },
         tally: {

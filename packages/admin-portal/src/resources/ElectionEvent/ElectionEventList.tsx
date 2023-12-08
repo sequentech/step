@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {CreateButton, useGetList} from "react-admin"
-import React, {ReactElement, useEffect} from "react"
+import React, {ReactElement, useContext, useEffect} from "react"
 
 import {useLocation, useNavigate} from "react-router-dom"
 import {CircularProgress, Typography} from "@mui/material"
@@ -13,6 +13,8 @@ import {Box} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
+import { AuthContext } from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -39,7 +41,11 @@ export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => 
     const navigate = useNavigate()
     const { pathname } = useLocation()
     const [tenantId] = useTenantStore()
+    const authContext = useContext(AuthContext)
     const [isArchivedElectionEvents] = useAtom(archivedElectionEventSelection)
+    const canCreateElections = authContext.isAuthorized(
+        true, tenantId, IPermissions.ELECTION_EVENT_WRITE
+    )
 
     const {data, isLoading} = useGetList("sequent_backend_election_event", {
         sort: {field: "created_at", order: "DESC"},
@@ -66,10 +72,14 @@ export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => 
             <Typography variant="h4" paragraph>
                 {t("electionEventScreen.error.noResult")}
             </Typography>
-            <Typography variant="body1" paragraph>
-                {t("common.resources.noResult.askCreate")}
-            </Typography>
-            <CreateButton />
+            {canCreateElections 
+            ? <>
+                <Typography variant="body1" paragraph>
+                    {t("common.resources.noResult.askCreate")}
+                </Typography>
+                <CreateButton />
+            </>
+            : null}
         </EmptyBox>
     )
 

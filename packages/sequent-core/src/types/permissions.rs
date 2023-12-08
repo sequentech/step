@@ -83,6 +83,8 @@ pub enum Permissions {
     TRUSTEE_WRITE,
     #[strum(serialize = "tally-read")]
     TALLY_READ,
+    #[strum(serialize = "trustee-ceremony")]
+    TRUSTEE_CEREMONY,
     #[strum(serialize = "tally-start")]
     TALLY_START,
     #[strum(serialize = "tally-write")]
@@ -101,4 +103,6 @@ pub enum Permissions {
     DOCUMENT_UPLOAD,
     #[strum(serialize = "admin-ceremony")]
     ADMIN_CEREMONY,
+    #[strum(serialize = "admin-dashboard-view")]
+    ADMIN_DASHBOARD_VIEW,
 }
