@@ -219,6 +219,20 @@ actions:
   permissions:
   - role: publish-write
   - role: admin-user
+- name: get_ballot_publication_changes
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/get-ballot-publication-changes
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: publish-read
+  - role: admin-user
 - name: get_permissions
   definition:
     kind: ""
@@ -503,4 +517,6 @@ custom_types:
   - name: PublishBallotOutput
   - name: UpdateEventVotingStatusOutput
   - name: UpdateElectionVotingStatusOutput
+  - name: BallotPublicationStyles
+  - name: GetBallotPublicationChangesOutput
   scalars: []

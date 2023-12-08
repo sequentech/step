@@ -108,6 +108,13 @@ type Mutation {
   ): PublishBallotOutput
 }
 
+type Mutation {
+  get_ballot_publication_changes (
+    election_event_id: uuid!
+    ballot_publication_id: uuid!
+  ): GetBallotPublicationChangesOutput
+}
+
 type Query {
   get_permissions (
     body: GetPermissionsInput!
@@ -528,5 +535,15 @@ type UpdateEventVotingStatusOutput {
 
 type UpdateElectionVotingStatusOutput {
   election_id : uuid
+}
+
+type BallotPublicationStyles {
+  ballot_publication_id : String!
+  ballot_styles : jsonb!
+}
+
+type GetBallotPublicationChangesOutput {
+  current : BallotPublicationStyles!
+  previous : BallotPublicationStyles!
 }
 
