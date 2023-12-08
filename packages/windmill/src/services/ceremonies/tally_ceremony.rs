@@ -11,7 +11,8 @@ use crate::hasura::tally_session_execution::{
 };
 use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
-use crate::services::ceremonies::tally_ceremony::get_keys_ceremony::GetKeysCeremonySequentBackendKeysCeremony;
+use crate::services::ceremonies::tally_ceremony::get_tally_session_by_id::GetTallySessionByIdSequentBackendTallySession;
+use crate::services::ceremonies::tally_ceremony::get_keys_ceremonies::GetKeysCeremoniesSequentBackendKeysCeremony;
 use crate::services::ceremonies::tally_ceremony::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySession,
     GetLastTallySessionExecutionSequentBackendTallySessionExecution,
