@@ -613,8 +613,8 @@ const spanishTranslation: TranslationType = {
             },
             downloadStep: {
                 title: "Descargar Clave Privada Encriptada",
-                subtitle: "Por favor, descarga y guarda tu Clave Privada Encriptada en al menos dos dispositivos diferentes.",
-                downloadButton: "Haz Clic Aquí para Descargar tu Clave Privada Encriptada",
+                subtitle: "Para continuar, por favor descarga y guarda tu Clave Privada Encriptada en al menos dos dispositivos diferentes:",
+                downloadButton: "Descargar tu Clave Privada Encriptada",
             },
         },
     },

@@ -40,6 +40,11 @@ export const WizardStyles = {
     NextButton: styled(Button)`
         margin-left: auto;
     `,
+    DownloadButton: styled(Button)`
+        width: fit-content;
+        padding: 0 2em;
+        margin: 1em 2em 2em 0;
+    `,
     ContentBox: styled(Box)`
         margin-top: 30px;
         margin-bottom: 30px;

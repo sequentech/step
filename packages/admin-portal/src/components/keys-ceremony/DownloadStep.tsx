@@ -1,18 +1,13 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useContext } from "react"
+import React, { useContext, useState } from "react"
 import {Typography} from "@mui/material"
-import {
-    Toolbar,
-} from "react-admin"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
+import DownloadIcon from '@mui/icons-material/Download'
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
-import Button from "@mui/material/Button"
-import {styled} from "@mui/material/styles"
 import {Trans, useTranslation} from "react-i18next"
 import { AuthContext } from "@/providers/AuthContextProvider"
-import {Box} from "@mui/material"
 import { WizardStyles } from "@/components/styles/WizardStyles"
 
 export interface DownloadStepProps {
@@ -26,6 +21,8 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
 }) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
+    const [downloaded, setDownloaded] = useState<boolean>(false)
+    const download = () => {}
     return (
         <>
             <WizardStyles.ContentBox>
@@ -39,6 +36,13 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                             values={{name: authContext.username}}
                         ></Trans>
                     </Typography>
+                    <WizardStyles.DownloadButton
+                        color="primary"
+                        onClick={download}
+                    >
+                        <DownloadIcon />
+                        {t("keysGeneration.downloadStep.downloadButton")}
+                    </WizardStyles.DownloadButton>
                 </WizardStyles.MainContent>
             </WizardStyles.ContentBox>
 
@@ -47,7 +51,11 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                     <ArrowBackIosIcon />
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
-                <WizardStyles.NextButton color="info" onClick={goNext}>
+                <WizardStyles.NextButton
+                    disabled={!downloaded}
+                    color="info"
+                    onClick={goNext}
+                >
                     <ArrowForwardIosIcon />
                     {t("common.label.next")}
                 </WizardStyles.NextButton>

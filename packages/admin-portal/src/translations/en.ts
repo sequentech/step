@@ -611,8 +611,8 @@ const englishTranslation = {
             },
             downloadStep: {
                 title: "Download Encrypted Private Key",
-                subtitle: "Please download and store your Encrypted Private Key at least into two different devices.",
-                downloadButton: "Click Here to Download your Encrypted Private Key",
+                subtitle: "To continue, please download and store your Encrypted Private Key at least into two different devices:",
+                downloadButton: "Download your Encrypted Private Key",
             },
         },
     },
