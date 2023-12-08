@@ -8,32 +8,35 @@ import {
     useRefresh,
     SimpleForm,
     useGetOne,
-    RecordContext,
     Toolbar,
     SaveButton,
     useUpdate,
     useNotify,
+    RaRecord,
+    Identifier,
 } from "react-admin"
 import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid} from "@mui/material"
 import {
-    CreateScheduledEventMutation,
     GetUploadUrlMutation,
     Sequent_Backend_Candidate,
+    Sequent_Backend_Document,
+    Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {CREATE_SCHEDULED_EVENT} from "../../queries/CreateScheduledEvent"
-import {ScheduledEventType} from "../../services/ScheduledEvent"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "../../components/CustomTabPanel"
 import {DropFile} from "@sequentech/ui-essentials"
-import {useForm} from "react-hook-form"
 import {CandidateStyles} from "../../components/styles/CandidateStyles"
-import {useTenantStore} from "../../providers/TenantContextProvider"
 import {CANDIDATE_TYPES} from "./constants"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
+
+export type Sequent_Backend_Candidate_Extended = RaRecord<Identifier> & {
+    enabled_languages?: {[key: string]: boolean}
+    defaultLanguage?: string
+}
 
 export const CandidateDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Candidate>()
@@ -47,14 +50,17 @@ export const CandidateDataForm: React.FC = () => {
     const [expanded, setExpanded] = useState("candidate-data-general")
     // const [defaultLangValue, setDefaultLangValue] = useState<string>("")
 
-    const {data} = useGetOne("sequent_backend_election_event", {
+    const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
         id: record.election_event_id,
     })
 
-    const {data: imageData, refetch: refetchImage} = useGetOne("sequent_backend_document", {
-        id: record.image_document_id,
-        meta: {tenant_id: record.tenant_id},
-    })
+    const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
+        "sequent_backend_document",
+        {
+            id: record.image_document_id || record.tenant_id,
+            meta: {tenant_id: record.tenant_id},
+        }
+    )
 
     const [updateImage] = useUpdate()
 
@@ -68,6 +74,13 @@ export const CandidateDataForm: React.FC = () => {
         }
         return temp
     }
+
+    const [parsedValue, setParsedValue] = useState<Sequent_Backend_Candidate_Extended | undefined>()
+
+    useEffect(() => {
+        const parsedValue = parseValues(record)
+        setParsedValue(parsedValue)
+    }, [record])
 
     const parseValues = (incoming: any) => {
         const temp = {...incoming}
@@ -173,8 +186,6 @@ export const CandidateDataForm: React.FC = () => {
         // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
 
         const theFile = files?.[0]
-        const fileLink = URL.createObjectURL(theFile as any)
-        console.log("fileLink :>> ", fileLink)
 
         if (theFile) {
             let {data, errors} = await getUploadUrl({
@@ -247,99 +258,83 @@ export const CandidateDataForm: React.FC = () => {
     }
 
     return data ? (
-        <RecordContext.Consumer>
-            {(incoming) => {
-                const parsedValue = parseValues(incoming)
-                console.log("parsedValue :>> ", parsedValue)
-                return (
-                    <SimpleForm
-                        validate={formValidator}
-                        record={parsedValue}
-                        toolbar={
-                            <Toolbar>
-                                <SaveButton />
-                            </Toolbar>
-                        }
-                    >
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expanded === "candidate-data-general"}
-                            onChange={() => setExpanded("candidate-data-general")}
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="candidate-data-general" />}
-                            >
-                                <CandidateStyles.Wrapper>
-                                    <CandidateStyles.Title>
-                                        {t("candidateScreen.edit.general")}
-                                    </CandidateStyles.Title>
-                                </CandidateStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <Tabs value={value} onChange={handleChange}>
-                                    {renderTabs(parsedValue)}
-                                </Tabs>
-                                {renderTabContent(parsedValue)}
-                            </AccordionDetails>
-                        </Accordion>
+        <SimpleForm
+            validate={formValidator}
+            record={parsedValue}
+            toolbar={
+                <Toolbar>
+                    <SaveButton />
+                </Toolbar>
+            }
+        >
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "candidate-data-general"}
+                onChange={() => setExpanded("candidate-data-general")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="candidate-data-general" />}>
+                    <CandidateStyles.Wrapper>
+                        <CandidateStyles.Title>
+                            {t("candidateScreen.edit.general")}
+                        </CandidateStyles.Title>
+                    </CandidateStyles.Wrapper>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <Tabs value={value} onChange={handleChange}>
+                        {renderTabs(parsedValue)}
+                    </Tabs>
+                    {renderTabContent(parsedValue)}
+                </AccordionDetails>
+            </Accordion>
 
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expanded === "candidate-data-type"}
-                            onChange={() => setExpanded("candidate-data-type")}
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="candidate-data-type" />}
-                            >
-                                <CandidateStyles.Wrapper>
-                                    <CandidateStyles.Title>
-                                        {t("candidateScreen.edit.type")}
-                                    </CandidateStyles.Title>
-                                </CandidateStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <SelectInput source="type" choices={CANDIDATE_TYPES(t)} />
-                            </AccordionDetails>
-                        </Accordion>
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "candidate-data-type"}
+                onChange={() => setExpanded("candidate-data-type")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="candidate-data-type" />}>
+                    <CandidateStyles.Wrapper>
+                        <CandidateStyles.Title>
+                            {t("candidateScreen.edit.type")}
+                        </CandidateStyles.Title>
+                    </CandidateStyles.Wrapper>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <SelectInput source="type" choices={CANDIDATE_TYPES(t)} />
+                </AccordionDetails>
+            </Accordion>
 
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expanded === "election-data-image"}
-                            onChange={() => setExpanded("election-data-image")}
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="election-data-image" />}
-                            >
-                                <CandidateStyles.Wrapper>
-                                    <CandidateStyles.Title>
-                                        {t("electionScreen.edit.image")}
-                                    </CandidateStyles.Title>
-                                </CandidateStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <Grid container spacing={1}>
-                                    <Grid item xs={2}>
-                                        {parsedValue.image_document_id &&
-                                        parsedValue.image_document_id !== "" ? (
-                                            <img
-                                                width={200}
-                                                height={200}
-                                                src={`http://localhost:9000/public/tenant-${parsedValue.tenant_id}/document-${parsedValue.image_document_id}/${imageData?.name}`}
-                                                alt={`tenant-${parsedValue.tenant_id}/document-${parsedValue.image_document_id}/${imageData?.name}`}
-                                            />
-                                        ) : null}
-                                    </Grid>
-                                    <Grid item xs={10}>
-                                        <DropFile
-                                            handleFiles={async (files) => handleFiles(files)}
-                                        />
-                                    </Grid>
-                                </Grid>
-                            </AccordionDetails>
-                        </Accordion>
-                    </SimpleForm>
-                )
-            }}
-        </RecordContext.Consumer>
+            <Accordion
+                sx={{width: "100%"}}
+                expanded={expanded === "election-data-image"}
+                onChange={() => setExpanded("election-data-image")}
+            >
+                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-data-image" />}>
+                    <CandidateStyles.Wrapper>
+                        <CandidateStyles.Title>
+                            {t("electionScreen.edit.image")}
+                        </CandidateStyles.Title>
+                    </CandidateStyles.Wrapper>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <Grid container spacing={1}>
+                        <Grid item xs={2}>
+                            {parsedValue?.image_document_id &&
+                            parsedValue?.image_document_id !== "" ? (
+                                <img
+                                    width={200}
+                                    height={200}
+                                    src={`http://localhost:9000/public/tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                    alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                />
+                            ) : null}
+                        </Grid>
+                        <Grid item xs={10}>
+                            <DropFile handleFiles={async (files) => handleFiles(files)} />
+                        </Grid>
+                    </Grid>
+                </AccordionDetails>
+            </Accordion>
+        </SimpleForm>
     ) : null
 }

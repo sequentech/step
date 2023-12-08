@@ -1,0 +1,39 @@
+import styled from "@emotion/styled"
+import {theme} from "@sequentech/ui-essentials"
+import React, {useRef} from "react"
+import {TextField} from "react-admin"
+import {ItemTypes} from "./types"
+import {useDrag, useDrop} from "react-dnd"
+import type {Identifier, XYCoord} from "dnd-core"
+
+export interface JsonViewProps {
+    origin: object
+}
+
+export const JsonView: React.FC<JsonViewProps> = (props) => {
+    const {origin} = props
+
+    const AreaView = styled.div`
+        display: flex;
+        width: 100%;
+        background-color: ${theme.palette.lightBackground};
+        padding: 1rem 2rem;
+        font-size: 0.8rem;
+        max-height: 300px;
+        overflow-y: scroll;
+    `
+
+    const AreaText = styled.pre`
+        white-space: pre-wrap;
+        white-space: -moz-pre-wrap;
+        white-space: -pre-wrap;
+        white-space: -o-pre-wrap;
+        word-wrap: break-word;
+    `
+
+    return (
+        <AreaView>
+            <AreaText>{JSON.stringify(origin, null, 8)}</AreaText>
+        </AreaView>
+    )
+}

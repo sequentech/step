@@ -373,10 +373,10 @@ actions:
       version: 2
   permissions:
   - role: admin-user
-- name: start_tally_ceremony
+- name: update_tally_ceremony
   definition:
     kind: synchronous
-    handler: http://harvest:8400/start-tally-ceremony
+    handler: http://harvest:8400/update-tally-ceremony
     forward_client_headers: true
     request_transform:
       body:
@@ -385,7 +385,7 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
-  - role: trustee-read
+  - role: admin-ceremony
   - role: admin-user
 custom_types:
   enums:

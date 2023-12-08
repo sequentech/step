@@ -1,12 +1,10 @@
 import React from "react"
-import {EditBase} from "react-admin"
+import {EditBase, Identifier, RaRecord} from "react-admin"
 import {ElectionDataForm} from "./ElectionDataForm"
+import {Sequent_Backend_Election_Extended} from "./ElectionDataForm"
 
 export const EditElectionData: React.FC = () => {
-    const transform = (data: any) => {
-        console.log("TRANSFORM ELECTION :: ", data)
-        console.log("TRANSFORM ELECTION :: enabled langs :: ", data.enabled_languages)
-        console.log("TRANSFORM ELECTION :: configuration :: ", data.configuration)
+    const transform = (data: Sequent_Backend_Election_Extended): RaRecord<Identifier> => {
 
         // save presentation object
         // language_conf

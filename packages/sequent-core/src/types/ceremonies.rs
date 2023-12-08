@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 use strum_macros::EnumString;
@@ -46,12 +47,13 @@ pub struct CeremonyStatus {
 }
 
 
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, Default)]
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, Default, JsonSchema)]
 pub enum TallyExecutionStatus {
     #[default]
     NOT_STARTED,
+    STARTED,
     CONNECTED,
-    IN_PROCESS,
+    IN_PROGRESS,
     SUCCESS,
     CANCELLED,
 }

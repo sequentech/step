@@ -147,7 +147,7 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
     };
     let valid_status: Vec<TallyExecutionStatus> = vec![
         TallyExecutionStatus::CONNECTED,
-        TallyExecutionStatus::IN_PROCESS,
+        TallyExecutionStatus::IN_PROGRESS,
     ];
     if !valid_status.contains(&execution_status) {
         event!(
