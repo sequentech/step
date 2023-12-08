@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useMutation} from "@apollo/client"
 import React, { useContext, useState } from "react"
-import {Typography} from "@mui/material"
+import {FormControlLabel, FormGroup, Typography, Checkbox} from "@mui/material"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import DownloadIcon from '@mui/icons-material/Download'
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
@@ -17,6 +17,7 @@ import {
 import { AuthContext } from "@/providers/AuthContextProvider"
 import { WizardStyles } from "@/components/styles/WizardStyles"
 import { GET_PRIVATE_KEY } from "@/queries/GetPrivateKey"
+import {Dialog} from "@sequentech/ui-essentials"
 
 export interface DownloadStepProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -35,7 +36,22 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
     const authContext = useContext(AuthContext)
     const [downloaded, setDownloaded] = useState<boolean>(false)
     const [downloading, setDownloading] = useState<boolean>(false)
+    const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [errors, setErrors] = useState<String | null>(null)
+    const [checkboxState, setCheckboxState] = React.useState({
+      firstCheckbox: false,
+      secondCheckbox: false
+    })
+    const handleCheckboxChange = (
+        event: React.ChangeEvent<HTMLInputElement>
+    ) => {
+        console.log(`checkbox: ${event.target.name}: ${event.target.checked}`)
+        setCheckboxState({
+        ...checkboxState,
+        [event.target.name]: event.target.checked,
+      });
+    }
+    const { firstCheckbox, secondCheckbox } = checkboxState
 
     const [getPrivateKeysMutation] =
     useMutation<GetPrivateKeyMutation>(GET_PRIVATE_KEY)
@@ -58,16 +74,18 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                 ))
                 return null
             } else {
-                const privateKey = "whatever" //data?.get_private_key?.private_key_base64
+                const privateKey = data?.get_private_key?.private_key_base64
                 if (!privateKey) {
                     setErrors(t("keysGeneration.downloadStep.errorEmptyKey"))
                     return
                 }
                 const blob = new Blob(
-                    [privateKey], {type: 'application/octet-stream'}
+                    [privateKey], {type: 'text/plain'}
                 )
                 const blobUrl = window.URL.createObjectURL(blob)
-                const fileName = `encrypted_private_key_trustee_${authContext.username}_${currentCeremony.id}.bin`
+                const username = authContext.username
+                const electionName = electionEvent.alias || electionEvent.name
+                const fileName = `encrypted_private_key_trustee_${username}_${electionName}.txt`
                 var tempLink = document.createElement('a')
                 tempLink.href = blobUrl
                 tempLink.setAttribute('download', fileName)
@@ -123,12 +141,50 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                 <WizardStyles.NextButton
                     disabled={!downloaded}
                     color="info"
-                    onClick={goNext}
+                    onClick={() => setOpenConfirmationModal(true)}
                 >
                     <ArrowForwardIosIcon />
                     {t("common.label.next")}
                 </WizardStyles.NextButton>
             </WizardStyles.Toolbar>
+            <Dialog
+                variant="info"
+                open={openConfirmationModal}
+                ok={t("keysGeneration.downloadStep.confirmdDialog.ok")}
+                okEnabled={() => firstCheckbox && secondCheckbox}
+                cancel={t("keysGeneration.downloadStep.confirmdDialog.cancel")}
+                title={t("keysGeneration.downloadStep.confirmdDialog.title")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        goNext()
+                    }
+                    setOpenConfirmationModal(false)
+                }}
+            >
+                <Typography variant="body1">
+                    {t("keysGeneration.downloadStep.confirmdDialog.description")}
+                </Typography>
+                <FormGroup>
+                    <FormControlLabel
+                        control={<Checkbox
+                            key="firstCheckbox"
+                            checked={firstCheckbox}
+                            onChange={handleCheckboxChange}
+                            name="firstCheckbox"
+                        />}
+                        label={t("keysGeneration.downloadStep.confirmdDialog.firstCopy")}
+                    />
+                    <FormControlLabel
+                        control={<Checkbox
+                            key="secondCheckbox"
+                            checked={secondCheckbox}
+                            onChange={handleCheckboxChange}
+                            name="secondCheckbox"
+                        />}
+                        label={t("keysGeneration.downloadStep.confirmdDialog.secondCopy")}
+                    />
+                </FormGroup>
+            </Dialog>
         </>
     )
 }
