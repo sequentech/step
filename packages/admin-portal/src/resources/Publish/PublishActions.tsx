@@ -3,10 +3,10 @@ import React from 'react'
 import styled from "@emotion/styled"
 
 import { Button } from "react-admin"
-import { Add, PlayCircle, PauseCircle, StopCircle, PublishedWithChanges } from "@mui/icons-material"
 import { useTranslation } from 'react-i18next'
+import { Add, PlayCircle, PauseCircle, StopCircle, PublishedWithChanges } from "@mui/icons-material"
 
-const EditElectionPublishActionsStyled = {
+const PublishActionsStyled = {
     Container: styled.div`
         display: flex;
         margin-bottom: 16px;
@@ -14,11 +14,11 @@ const EditElectionPublishActionsStyled = {
     `
 }
 
-export const EditElectionPublishActions: React.FC<any> = () => {
+export const PublishActions: React.FC<any> = () => {
     const { t } = useTranslation()
 
     return (
-        <EditElectionPublishActionsStyled.Container>
+        <PublishActionsStyled.Container>
             <div className="list-actions">
                 <Button onClick={() =>null} label="START ELECTION">
                     <PlayCircle width={24} />
@@ -33,6 +33,6 @@ export const EditElectionPublishActions: React.FC<any> = () => {
                     <PublishedWithChanges width={24} />
                 </Button>
             </div>
-        </EditElectionPublishActionsStyled.Container>
+        </PublishActionsStyled.Container>
     )
 }

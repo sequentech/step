@@ -13,6 +13,7 @@ import {EditElectionEventTally} from "./EditElectionEventTally"
 import {EditElectionEventPublish} from "./EditElectionEventPublish"
 import {useTranslation} from "react-i18next"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import { Publish } from "../Publish/Publish"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -85,7 +86,7 @@ export const ElectionEventTabs: React.FC = () => {
                 ) : null}
                 {showPublish ? (
                     <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.publish")}>
-                        <EditElectionEventPublish />
+                        <Publish />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showLogs ? (

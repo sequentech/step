@@ -10,9 +10,9 @@ import Summary from "./election-publish.json"
 import OldSummary from "./election-publish-old.json"
 
 import { DiffView } from '@/components/DiffView';
-import { EditElectionPublishActions } from './EditElectionPubllishActions';
+import { PublishActions } from './PublishActions';
 
-const EditElectionPublishStyled = {
+const PublishStyled = {
     Container: styled.div`
         display: flex;
         flex-direction: column;
@@ -28,7 +28,7 @@ const EditElectionPublishStyled = {
     `,
 }
 
-export const EditElectionPublish: React.FC = () => {
+export const Publish: React.FC = () => {
     const [diff, setDiff] = React.useState<any>('')
     const [expan, setExpan] = React.useState<string>('')
     const [oldJsonString, setOldJsonString] = React.useState<string>('')
@@ -55,14 +55,14 @@ export const EditElectionPublish: React.FC = () => {
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
-            <EditElectionPublishActions />
+            <PublishActions />
 
-            <EditElectionPublishStyled.Container>
+            <PublishStyled.Container>
                 <Accordion sx={{width: "100%"}} expanded={expan == 'election-publish-diff'} onChange={() => setExpan('election-publish-diff')}>
                     <AccordionSummary expandIcon={<ExpandMoreIcon id="election-publish-diff" />}>
-                        <EditElectionPublishStyled.AccordionHeaderTitle>
+                        <PublishStyled.AccordionHeaderTitle>
                             Change to be Publish
-                        </EditElectionPublishStyled.AccordionHeaderTitle>
+                        </PublishStyled.AccordionHeaderTitle>
                     </AccordionSummary>
                     <AccordionDetails>
                         <DiffView diff={diff} />
@@ -71,15 +71,15 @@ export const EditElectionPublish: React.FC = () => {
 
                 <Accordion sx={{width: "100%"}} expanded={expan === 'election-publish-history'} onChange={() => setExpan('election-publish-history')}>
                     <AccordionSummary expandIcon={<ExpandMoreIcon id="election-publish-history" />}>
-                        <EditElectionPublishStyled.AccordionHeaderTitle>
+                        <PublishStyled.AccordionHeaderTitle>
                             Publish History
-                        </EditElectionPublishStyled.AccordionHeaderTitle>
+                        </PublishStyled.AccordionHeaderTitle>
                     </AccordionSummary>
                     <AccordionDetails>
                         <span>Add correct resource</span>
                     </AccordionDetails>
                 </Accordion>
-            </EditElectionPublishStyled.Container>
+            </PublishStyled.Container>
         </Box>
     )
 }
