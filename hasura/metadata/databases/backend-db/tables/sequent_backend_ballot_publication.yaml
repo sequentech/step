@@ -7,7 +7,7 @@ insert_permissions:
     check: {}
     columns:
     - election_ids
-    - is_published
+    - is_generated
     - annotations
     - labels
     - created_by_user_id
@@ -22,7 +22,7 @@ insert_permissions:
     check: {}
     columns:
     - election_ids
-    - is_published
+    - is_generated
     - annotations
     - labels
     - created_by_user_id
@@ -38,7 +38,7 @@ select_permissions:
     allow_aggregations: true
     columns:
     - election_ids
-    - is_published
+    - is_generated
     - annotations
     - labels
     - created_by_user_id
@@ -54,7 +54,7 @@ select_permissions:
     allow_aggregations: true
     columns:
     - election_ids
-    - is_published
+    - is_generated
     - annotations
     - labels
     - created_by_user_id
@@ -71,7 +71,7 @@ update_permissions:
     check: {}
     columns:
     - election_ids
-    - is_published
+    - is_generated
     - annotations
     - labels
     - created_by_user_id
@@ -87,7 +87,7 @@ update_permissions:
     check: {}
     columns:
     - election_ids
-    - is_published
+    - is_generated
     - annotations
     - labels
     - created_by_user_id

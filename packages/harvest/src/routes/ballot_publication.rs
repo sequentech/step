@@ -13,9 +13,46 @@ use windmill::services::ballot_publication::add_ballot_publication;
 use windmill::services::ceremonies::tally_ceremony;
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct GenerateBallotPublicationInput {
+    election_event_id: String,
+    election_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GenerateBallotPublicationOutput {
+    ballot_publication_id: String,
+}
+
+#[instrument(skip(claims))]
+#[post("/generate-ballot-publication", format = "json", data = "<body>")]
+pub async fn generate_ballot_publication(
+    body: Json<GenerateBallotPublicationInput>,
+    claims: JwtClaims,
+) -> Result<Json<GenerateBallotPublicationOutput>, (Status, String)> {
+    authorize(&claims, true, None, vec![Permissions::PUBLISH_WRITE])?;
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let user_id = claims.hasura_claims.user_id.clone();
+
+    let ballot_publication_id = add_ballot_publication(
+        tenant_id.clone(),
+        input.election_event_id.clone(),
+        input.election_id.clone(),
+        user_id.clone(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    Ok(Json(GenerateBallotPublicationOutput {
+        ballot_publication_id,
+    }))
+}
+
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct PublishBallotInput {
     election_event_id: String,
-    election_ids: Vec<String>,
+    ballot_publication_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -32,18 +69,8 @@ pub async fn publish_ballot(
     authorize(&claims, true, None, vec![Permissions::PUBLISH_WRITE])?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
-    let user_id = claims.hasura_claims.user_id.clone();
-
-    let ballot_publication_id = add_ballot_publication(
-        tenant_id.clone(),
-        input.election_event_id.clone(),
-        input.election_ids.clone(),
-        user_id.clone(),
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(PublishBallotOutput {
-        ballot_publication_id,
+        ballot_publication_id: input.ballot_publication_id.clone(),
     }))
 }

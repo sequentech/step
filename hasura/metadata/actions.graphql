@@ -101,6 +101,13 @@ type Query {
   ): FetchDocumentOutput
 }
 
+type Mutation {
+  generate_ballot_publication (
+    election_event_id: uuid!
+    election_id: uuid
+  ): PublishBallotOutput
+}
+
 type Query {
   get_permissions (
     body: GetPermissionsInput!
@@ -164,7 +171,7 @@ type Query {
 type Mutation {
   publish_ballot (
     election_event_id: uuid!
-    election_ids: [uuid!]!
+    ballot_publication_id: uuid!
   ): PublishBallotOutput
 }
 
@@ -185,14 +192,6 @@ type Mutation {
 }
 
 type Mutation {
-  update_tally_ceremony (
-    election_event_id: uuid!
-    tally_session_id: uuid!
-    status: String!
-  ): StartTallyOutput
-}
-
-type Mutation {
   update_election_voting_status (
     election_id: uuid!
     voting_status: String!
@@ -204,6 +203,14 @@ type Mutation {
     election_event_id: uuid!
     voting_status: String!
   ): UpdateEventVotingStatusOutput
+}
+
+type Mutation {
+  update_tally_ceremony (
+    election_event_id: uuid!
+    tally_session_id: uuid!
+    status: String!
+  ): StartTallyOutput
 }
 
 enum OrderDirection {
