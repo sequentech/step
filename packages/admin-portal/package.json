@@ -60,8 +60,8 @@
     "lint": "eslint --ext .js,.ts .",
     "lint:fix": "eslint --fix --ext .js,.ts .",
     "storybook": "NODE_OPTIONS=--openssl-legacy-provider sb dev -p 6006 -s public",
-    "build-storybook": "NODE_OPTIONS=--openssl-legacy-provider sb build -s public",
-    "test-storybook": "NODE_OPTIONS=--openssl-legacy-provider test-storybook",
+    "build:storybook": "NODE_OPTIONS=--openssl-legacy-provider sb build -s public",
+    "test:storybook": "NODE_OPTIONS=--openssl-legacy-provider test-storybook",
     "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
     "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=admin graphql-codegen --config codegen.ts"
   },
