@@ -28,6 +28,7 @@ export const CustomAppBar: React.FC = () => {
                 appVersion={{main: globalSettings.APP_VERSION}}
                 userProfile={{
                     username: authContext.username,
+                    email: authContext.email,
                     openLink: authContext.openProfileLink,
                 }}
                 logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}

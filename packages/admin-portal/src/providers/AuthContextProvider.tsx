@@ -49,6 +49,10 @@ interface AuthContextValues {
      */
     username: string
     /**
+     * The email of the authenticated user
+     */
+    email: string
+    /**
      * The tenant id of the authenticated user
      */
     tenantId: string
@@ -92,6 +96,7 @@ const defaultAuthContextValues: AuthContextValues = {
     isAuthenticated: false,
     userId: "",
     username: "",
+    email: "",
     tenantId: "",
     logout: () => {},
     hasRole: () => false,
@@ -128,6 +133,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     // Local state that will contain the users name once it is loaded
     const [userId, setUserId] = useState<string>("")
     const [username, setUsername] = useState<string>("")
+    const [email, setEmail] = useState<string>("")
     const [tenantId, setTenantId] = useState<string>("")
     const sleepSecs = 50
     const bufferSecs = 10
@@ -193,14 +199,19 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 if (profile.id) {
                     setUserId(profile.id)
                 }
+                if (profile.email) {
+                    setEmail(profile.email)
+                }
                 if (profile.firstName) {
                     setUsername(profile.firstName)
                 } else if (profile.username) {
                     setUsername(profile.username)
                 }
+
                 const newTenantId: string | undefined = (profile as any)?.attributes[
                     "tenant-id"
                 ]?.[0]
+
                 if (newTenantId) {
                     setTenantId(newTenantId)
                 }
@@ -254,6 +265,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 isAuthenticated,
                 userId,
                 username,
+                email,
                 tenantId,
                 logout,
                 hasRole,
