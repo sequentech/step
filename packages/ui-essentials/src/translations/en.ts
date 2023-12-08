@@ -86,7 +86,7 @@ const englishTranslation = {
             header: "Version:",
         },
         logout: {
-            buttonText: "logout",
+            buttonText: "Logout",
             modal: {
                 title: "Are you sure you want to logout?",
                 content: "You are about to close this application. This action can not be undone. ",
