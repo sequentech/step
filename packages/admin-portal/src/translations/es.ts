@@ -627,6 +627,11 @@ const spanishTranslation: TranslationType = {
                     
                 },
             },
+            checkStep: {
+                title: "Verifica tus Copias de Seguridad de tu Clave Privada Encriptada",
+                subtitle: "Sube la Copia de Seguridad de tu Clave Privada Encriptada para verificar que sea correcta. Puedes intentarlo tantas veces como sea necesario, desde tus diferentes copias de seguridad:",
+                errorUploading: "Error de subida: {{error}}",
+            },
         },
     },
 }

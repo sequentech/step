@@ -57,6 +57,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
     useMutation<GetPrivateKeyMutation>(GET_PRIVATE_KEY)
     const download = async () => {
         setErrors(null)
+        setDownloaded(false)
         setDownloading(true)
         try {
             const {data, errors} = await getPrivateKeysMutation({
@@ -67,7 +68,6 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
             })
             setDownloading(false)
             if (errors) {
-                setDownloaded(false)
                 setErrors(t(
                     "keysGeneration.downloadStep.errorDownloading",
                     {error: errors.toString()}
@@ -94,7 +94,6 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
             }
         } catch (exception: any) {
             setDownloading(false)
-            setDownloaded(false)
             setErrors(t(
                 "keysGeneration.downloadStep.errorDownloading",
                 {error: exception.toString()}

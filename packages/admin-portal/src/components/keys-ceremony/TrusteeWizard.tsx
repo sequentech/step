@@ -17,6 +17,7 @@ import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
 import { useTranslation } from "react-i18next"
 import { DownloadStep } from "./DownloadStep"
 import {WizardStyles} from "@/components/styles/WizardStyles"
+import { CheckStep } from "./CheckStep"
 
 export const isTrusteeParticipating =
     (
@@ -169,11 +170,19 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                     goNext={() => setCurrentStep(WizardStep.Check)}
                 />
             )}
+            {currentStep === WizardStep.Check && (
+                <CheckStep
+                    currentCeremony={currentCeremony}
+                    electionEvent={electionEvent}
+                    goBack={() => setCurrentStep(WizardStep.Download)}
+                    goNext={() => setCurrentStep(WizardStep.Success)}
+                />
+            )}
             {currentStep === WizardStep.Success && (
                 <CeremonyStep
                     currentCeremony={currentCeremony}
                     electionEvent={electionEvent}
-                    goBack={() => setCurrentStep(WizardStep.Check)}
+                    goBack={goBack}
                 />
             )}
         </WizardStyles.WizardWrapper>

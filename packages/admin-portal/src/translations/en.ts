@@ -624,6 +624,11 @@ const englishTranslation = {
                     secondCopy: "Second backup secured",
                 },
             },
+            checkStep: {
+                title: "Check your Encrypted Private Key Backups",
+                subtitle: "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
+                errorUploading: "Upload error: {{error}}",
+            }
         },
     },
 }
