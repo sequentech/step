@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::services::ballot_publication::{add_ballot_publication, update_publish_ballot};
 use windmill::services::ceremonies::tally_ceremony;
+use serde_json::Value;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationInput {
@@ -79,5 +80,44 @@ pub async fn publish_ballot(
 
     Ok(Json(PublishBallotOutput {
         ballot_publication_id: input.ballot_publication_id.clone(),
+    }))
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetBallotPublicationChangesInput {
+    election_event_id: String,
+    ballot_publication_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct BallotPublicationStyles {
+    ballot_publication_id: String,
+    ballot_styles: Value,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GetBallotPublicationChangesOutput {
+    current: BallotPublicationStyles,
+    previous: BallotPublicationStyles,
+}
+
+#[instrument(skip(claims))]
+#[post("/get-ballot-publication-changes", format = "json", data = "<body>")]
+pub async fn get_ballot_publication_changes(
+    body: Json<GetBallotPublicationChangesInput>,
+    claims: JwtClaims,
+) -> Result<Json<GetBallotPublicationChangesOutput>, (Status, String)> {
+    authorize(&claims, true, None, vec![Permissions::PUBLISH_READ])?;
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+
+    let p = BallotPublicationStyles {
+        ballot_publication_id: input.ballot_publication_id.clone(),
+        ballot_styles: serde_json::from_str("{}").unwrap(),
+    };
+
+    Ok(Json(GetBallotPublicationChangesOutput {
+        current: p.clone(),
+        previous: p.clone(),
     }))
 }
