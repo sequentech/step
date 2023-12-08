@@ -83,7 +83,6 @@ pub async fn get_ballot_publication(
     response_body.ok()
 }
 
-
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",

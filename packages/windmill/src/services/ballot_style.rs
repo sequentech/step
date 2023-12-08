@@ -7,13 +7,13 @@ use anyhow::Context;
 use celery::error::TaskError;
 use chrono::{Duration, Utc};
 use sequent_core;
+use sequent_core::services::connection;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::From;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
-use sequent_core::services::connection;
 
 use crate::hasura;
 use crate::hasura::ballot_style::get_ballot_style_area;

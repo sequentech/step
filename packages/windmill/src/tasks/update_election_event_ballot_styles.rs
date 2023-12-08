@@ -61,7 +61,7 @@ pub async fn update_election_event_ballot_styles(
         tenant_id.clone(),
         election_event_id.clone(),
         ballot_publication_id.clone(),
-        true
+        true,
     )
     .await?;
 

@@ -15,7 +15,7 @@ use windmill::services::ceremonies::tally_ceremony;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PublishBallotInput {
     election_event_id: String,
-    election_ids: Vec<String>,
+    election_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -24,7 +24,7 @@ pub struct PublishBallotOutput {
 }
 
 #[instrument(skip(claims))]
-#[post("/publish-ballot", format = "json", data = "<body>")]
+#[post("/generate-ballot-publication", format = "json", data = "<body>")]
 pub async fn publish_ballot(
     body: Json<PublishBallotInput>,
     claims: JwtClaims,
@@ -37,7 +37,7 @@ pub async fn publish_ballot(
     let ballot_publication_id = add_ballot_publication(
         tenant_id.clone(),
         input.election_event_id.clone(),
-        input.election_ids.clone(),
+        input.election_id.clone(),
         user_id.clone(),
     )
     .await
