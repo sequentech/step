@@ -61,7 +61,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
         [key: string]: boolean
     }
 
-    const {data} = useGetOne(
+    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
         {
             id: tallyId,
