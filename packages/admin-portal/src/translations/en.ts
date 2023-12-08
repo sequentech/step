@@ -613,6 +613,8 @@ const englishTranslation = {
                 title: "Download Encrypted Private Key",
                 subtitle: "To continue, please download and store your Encrypted Private Key at least into two different devices:",
                 downloadButton: "Download your Encrypted Private Key",
+                errorDownloading: "Download error: {{error}}",
+                errorEmptyKey: "Download error, empty file",
             },
         },
     },

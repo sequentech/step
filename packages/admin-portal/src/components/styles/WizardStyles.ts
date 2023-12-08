@@ -11,7 +11,8 @@ import {
     AccordionDetails,
     Box,
     Chip,
-    Typography
+    Typography,
+    CircularProgress
 } from "@mui/material"
 import Button from "@mui/material/Button"
 import DoneOutlineIcon from "@mui/icons-material/DoneOutline"
@@ -45,6 +46,15 @@ export const WizardStyles = {
         padding: 0 2em;
         margin: 1em 2em 2em 0;
     `,
+    CreateButton: muiStyled(SaveButton)`
+        margin-left: auto;
+        flex-direction: row-reverse;
+    `,
+    DownloadProgress: muiStyled(CircularProgress)`
+    `,
+    StatusBox: styled(Box)`
+        min-height: 50px;
+    `,
     ContentBox: styled(Box)`
         margin-top: 30px;
         margin-bottom: 30px;
@@ -66,10 +76,6 @@ export const WizardStyles = {
         margin-left: auto;
         margin-right: 10px;
         font-weight: bold;
-    `,
-    CreateButton: muiStyled(SaveButton)`
-        margin-left: auto;
-        flex-direction: row-reverse;
     `,
     ErrorMessage: styled(Typography)`
         color: ${({theme}) => theme.palette.errorColor};

@@ -163,6 +163,8 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
             )}
             {currentStep === WizardStep.Download && (
                 <DownloadStep
+                    currentCeremony={currentCeremony}
+                    electionEvent={electionEvent}
                     goBack={() => setCurrentStep(WizardStep.Start)}
                     goNext={() => setCurrentStep(WizardStep.Check)}
                 />

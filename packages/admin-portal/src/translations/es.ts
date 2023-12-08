@@ -615,6 +615,8 @@ const spanishTranslation: TranslationType = {
                 title: "Descargar Clave Privada Encriptada",
                 subtitle: "Para continuar, por favor descarga y guarda tu Clave Privada Encriptada en al menos dos dispositivos diferentes:",
                 downloadButton: "Descargar tu Clave Privada Encriptada",
+                errorDownloading: "Error de descarga: {{error}}",
+                errorEmptyKey: "Error de descarga, fichero vacío",
             },
         },
     },
