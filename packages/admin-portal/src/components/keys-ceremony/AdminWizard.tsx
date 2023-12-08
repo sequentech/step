@@ -3,20 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
-import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
-import {
-    IKeysCeremonyExecutionStatus as EStatus,
-    IKeysCeremonyTrusteeStatus as TStatus,
-    IExecutionStatus,
-} from "@/services/KeyCeremony"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
-import {styled} from "@mui/material/styles"
-import {Box} from "@mui/material"
 import React, {useContext, useState} from "react"
 import {ConfigureStep} from "@/components/keys-ceremony/ConfigureStep"
 import {CeremonyStep} from "@/components/keys-ceremony/CeremonyStep"
-
-const StyledBox = styled(Box)``
+import {WizardStyles} from "@/components/styles/WizardStyles"
 
 interface AdminWizardProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -54,7 +47,7 @@ export const AdminWizard: React.FC<AdminWizardProps> = ({
     }
 
     return (
-        <StyledBox>
+        <WizardStyles.WizardWrapper>
             <BreadCrumbSteps
                 labels={[
                     "electionEventScreen.keys.breadCrumbs.configure",
@@ -81,6 +74,6 @@ export const AdminWizard: React.FC<AdminWizardProps> = ({
                     goBack={goBack}
                 />
             )}
-        </StyledBox>
+        </WizardStyles.WizardWrapper>
     )
 }
