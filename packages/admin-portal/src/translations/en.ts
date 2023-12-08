@@ -680,6 +680,7 @@ const englishTranslation = {
                 next: "Next",
                 date: "Tally Date",
                 global: "Global",
+                noTrustees: "No trustees yet",
                 dialog: {
                     ok: "Ok",
                     cancel: "Close",

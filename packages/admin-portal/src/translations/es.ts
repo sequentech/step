@@ -683,6 +683,7 @@ const spanishTranslation: TranslationType = {
                 next: "Siguiente",
                 date: "Fecha de Recuento",
                 global: "Global",
+                noTrustees: "No hay trustees aún",
                 dialog: {
                     ok: "Ok",
                     cancel: "Cerrar",

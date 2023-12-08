@@ -28,6 +28,7 @@ import {TallyElectionsResults} from "./TallyElectionsResults"
 import {TallyResults} from "./TallyResults"
 import TallyLogs from "./TallyLogs"
 import {useGetOne} from "react-admin"
+import {WizardStyles} from "@/components/styles/WizardStyles"
 
 interface TallyCeremonyProps {
     completed: boolean
@@ -110,185 +111,202 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
 
     return (
         <>
-            <TallyStyles.StyledHeader>
-                <BreadCrumbSteps
-                    labels={[
-                        "tally.breadcrumbSteps.ceremony",
-                        "tally.breadcrumbSteps.tally",
-                        "tally.breadcrumbSteps.results",
-                    ]}
-                    selected={page}
-                    variant={BreadCrumbStepsVariant.Circle}
-                    colorPreviousSteps={true}
-                />
-            </TallyStyles.StyledHeader>
-
-            {page === 0 && (
-                <>
-                    <ElectionHeader
-                        title={t("tally.ceremonyTitle")}
-                        subtitle={t("tally.ceremonySubTitle")}
+            <WizardStyles.WizardWrapper>
+                <TallyStyles.StyledHeader>
+                    <BreadCrumbSteps
+                        labels={[
+                            "tally.breadcrumbSteps.ceremony",
+                            "tally.breadcrumbSteps.tally",
+                            "tally.breadcrumbSteps.results",
+                        ]}
+                        selected={page}
+                        variant={BreadCrumbStepsVariant.Circle}
+                        colorPreviousSteps={true}
                     />
+                </TallyStyles.StyledHeader>
 
-                    <TallyElectionsList update={(elections) => setSelectedElections(elections)} />
+                {page === 0 && (
+                    <>
+                        <ElectionHeader
+                            title={t("tally.ceremonyTitle")}
+                            subtitle={t("tally.ceremonySubTitle")}
+                        />
 
-                    {showTrustees && (
-                        <>
-                            <TallyStyles.StyledFooter>
-                                <ElectionHeader
-                                    title={t("tally.trusteeTallyTitle")}
-                                    subtitle={t("tally.trusteeTallySubTitle")}
+                        <TallyElectionsList
+                            update={(elections) => setSelectedElections(elections)}
+                        />
+
+                        {showTrustees && (
+                            <>
+                                <TallyStyles.StyledFooter>
+                                    <ElectionHeader
+                                        title={t("tally.trusteeTallyTitle")}
+                                        subtitle={t("tally.trusteeTallySubTitle")}
+                                    />
+                                    <IconButton
+                                        icon={faKey}
+                                        sx={{color: "#43E3A1"}}
+                                        variant="success"
+                                        onClick={() => {
+                                            console.log("TRUSYTEES KEY PRESSED")
+                                        }}
+                                    />
+                                </TallyStyles.StyledFooter>
+
+                                <TallyTrusteesList
+                                    update={(trustees) => setSelectedTrustees(trustees)}
                                 />
-                                <IconButton
-                                    icon={faKey}
-                                    sx={{color: "#43E3A1"}}
-                                    variant="success"
-                                    onClick={() => {
-                                        console.log("TRUSYTEES KEY PRESSED")
-                                    }}
-                                />
-                            </TallyStyles.StyledFooter>
-
-                            <TallyTrusteesList
-                                update={(trustees) => setSelectedTrustees(trustees)}
-                            />
-                        </>
-                    )}
-                </>
-            )}
-
-            {page === 1 && (
-                <>
-                    <Accordion
-                        sx={{width: "100%"}}
-                        expanded={expandedData["tally-data-general"]}
-                        onChange={() =>
-                            setExpandedData((prev: IExpanded) => ({
-                                ...prev,
-                                "tally-data-general": !prev["tally-data-general"],
-                            }))
-                        }
-                    >
-                        <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-general" />}>
-                            <ElectionStyles.Wrapper>
-                                <ElectionHeader title={t("tally.tallyTitle")} subtitle="" />
-                            </ElectionStyles.Wrapper>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                            <TallyElectionsProgress />
-                        </AccordionDetails>
-                    </Accordion>
-
-                    <Accordion
-                        sx={{width: "100%"}}
-                        expanded={expandedData["tally-data-logs"]}
-                        onChange={() =>
-                            setExpandedData((prev: IExpanded) => ({
-                                ...prev,
-                                "tally-data-logs": !prev["tally-data-logs"],
-                            }))
-                        }
-                    >
-                        <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-logs" />}>
-                            <ElectionStyles.Wrapper>
-                                <ElectionHeader title={t("tally.logsTitle")} subtitle="" />
-                            </ElectionStyles.Wrapper>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                            <TallyLogs />
-                        </AccordionDetails>
-                    </Accordion>
-
-                    <Accordion
-                        sx={{width: "100%"}}
-                        expanded={expandedData["tally-data-results"]}
-                        onChange={() =>
-                            setExpandedData((prev: IExpanded) => ({
-                                ...prev,
-                                "tally-data-results": !prev["tally-data-results"],
-                            }))
-                        }
-                    >
-                        <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-results" />}>
-                            <ElectionStyles.Wrapper>
-                                <ElectionHeader title={t("tally.resultsTitle")} subtitle="" />
-                            </ElectionStyles.Wrapper>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                            <TallyResults />
-                        </AccordionDetails>
-                    </Accordion>
-                </>
-            )}
-
-            {page === 2 && (
-                <>
-                    <TallyStyles.StyledSpacing>
-                        <ListActions withImport={false} withColumns={false} withFilter={false} />
-                    </TallyStyles.StyledSpacing>
-
-                    <Accordion
-                        sx={{width: "100%"}}
-                        expanded={expandedResults["tally-results-general"]}
-                        onChange={() =>
-                            setExpandedResults((prev: IExpanded) => ({
-                                ...prev,
-                                "tally-results-general": !prev["tally-results-general"],
-                            }))
-                        }
-                    >
-                        <AccordionSummary
-                            expandIcon={<ExpandMoreIcon id="tally-results-general" />}
-                        >
-                            <ElectionStyles.Wrapper>
-                                <ElectionHeader title={t("tally.generalInfoTitle")} subtitle="" />
-                            </ElectionStyles.Wrapper>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                            <TallyStartDate />
-                            <TallyElectionsResults
-                                tenantId={tally?.tenant_id}
-                                electionEventId={tally?.election_event_id}
-                                electionIds={tally?.election_ids}
-                            />
-                        </AccordionDetails>
-                    </Accordion>
-
-                    <Accordion
-                        sx={{width: "100%"}}
-                        expanded={expandedResults["tally-results-results"]}
-                        onChange={() =>
-                            setExpandedResults((prev: IExpanded) => ({
-                                ...prev,
-                                "tally-results-results": !prev["tally-results-results"],
-                            }))
-                        }
-                    >
-                        <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-results" />}>
-                            <ElectionStyles.Wrapper>
-                                <ElectionHeader title={t("tally.resultsTitle")} subtitle="" />
-                            </ElectionStyles.Wrapper>
-                        </AccordionSummary>
-                        <AccordionDetails>
-                            <TallyResults />
-                        </AccordionDetails>
-                    </Accordion>
-                </>
-            )}
-
-            <TallyStyles.StyledFooter>
-                <CancelButton className="list-actions" onClick={() => setTallyId(null)}>
-                    {t("tally.common.cancel")}
-                </CancelButton>
-                {page < 2 && (
-                    <NextButton color="primary" onClick={handleNext}>
-                        <>
-                            {t("tally.common.next")}
-                            <ChevronRightIcon />
-                        </>
-                    </NextButton>
+                            </>
+                        )}
+                    </>
                 )}
-            </TallyStyles.StyledFooter>
+
+                {page === 1 && (
+                    <>
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expandedData["tally-data-general"]}
+                            onChange={() =>
+                                setExpandedData((prev: IExpanded) => ({
+                                    ...prev,
+                                    "tally-data-general": !prev["tally-data-general"],
+                                }))
+                            }
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="tally-data-general" />}
+                            >
+                                <ElectionStyles.Wrapper>
+                                    <ElectionHeader title={t("tally.tallyTitle")} subtitle="" />
+                                </ElectionStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <TallyElectionsProgress />
+                            </AccordionDetails>
+                        </Accordion>
+
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expandedData["tally-data-logs"]}
+                            onChange={() =>
+                                setExpandedData((prev: IExpanded) => ({
+                                    ...prev,
+                                    "tally-data-logs": !prev["tally-data-logs"],
+                                }))
+                            }
+                        >
+                            <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-logs" />}>
+                                <ElectionStyles.Wrapper>
+                                    <ElectionHeader title={t("tally.logsTitle")} subtitle="" />
+                                </ElectionStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <TallyLogs />
+                            </AccordionDetails>
+                        </Accordion>
+
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expandedData["tally-data-results"]}
+                            onChange={() =>
+                                setExpandedData((prev: IExpanded) => ({
+                                    ...prev,
+                                    "tally-data-results": !prev["tally-data-results"],
+                                }))
+                            }
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="tally-data-results" />}
+                            >
+                                <ElectionStyles.Wrapper>
+                                    <ElectionHeader title={t("tally.resultsTitle")} subtitle="" />
+                                </ElectionStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <TallyResults />
+                            </AccordionDetails>
+                        </Accordion>
+                    </>
+                )}
+
+                {page === 2 && (
+                    <>
+                        <TallyStyles.StyledSpacing>
+                            <ListActions
+                                withImport={false}
+                                withColumns={false}
+                                withFilter={false}
+                            />
+                        </TallyStyles.StyledSpacing>
+
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expandedResults["tally-results-general"]}
+                            onChange={() =>
+                                setExpandedResults((prev: IExpanded) => ({
+                                    ...prev,
+                                    "tally-results-general": !prev["tally-results-general"],
+                                }))
+                            }
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="tally-results-general" />}
+                            >
+                                <ElectionStyles.Wrapper>
+                                    <ElectionHeader
+                                        title={t("tally.generalInfoTitle")}
+                                        subtitle=""
+                                    />
+                                </ElectionStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <TallyStartDate />
+                                <TallyElectionsResults
+                                    tenantId={tally?.tenant_id}
+                                    electionEventId={tally?.election_event_id}
+                                    electionIds={tally?.election_ids}
+                                />
+                            </AccordionDetails>
+                        </Accordion>
+
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expandedResults["tally-results-results"]}
+                            onChange={() =>
+                                setExpandedResults((prev: IExpanded) => ({
+                                    ...prev,
+                                    "tally-results-results": !prev["tally-results-results"],
+                                }))
+                            }
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="tally-data-results" />}
+                            >
+                                <ElectionStyles.Wrapper>
+                                    <ElectionHeader title={t("tally.resultsTitle")} subtitle="" />
+                                </ElectionStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <TallyResults />
+                            </AccordionDetails>
+                        </Accordion>
+                    </>
+                )}
+
+                <TallyStyles.StyledFooter>
+                    <CancelButton className="list-actions" onClick={() => setTallyId(null)}>
+                        {t("tally.common.cancel")}
+                    </CancelButton>
+                    {page < 2 && (
+                        <NextButton color="primary" onClick={handleNext}>
+                            <>
+                                {t("tally.common.next")}
+                                <ChevronRightIcon />
+                            </>
+                        </NextButton>
+                    )}
+                </TallyStyles.StyledFooter>
+            </WizardStyles.WizardWrapper>
 
             <Dialog
                 variant="warning"

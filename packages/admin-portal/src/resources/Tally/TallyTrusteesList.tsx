@@ -4,13 +4,19 @@
 import React, {useEffect, useState} from "react"
 import {useGetOne, useGetList} from "react-admin"
 
-import {Sequent_Backend_Trustee, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "../../gql/graphql"
+import {
+    Sequent_Backend_Trustee,
+    Sequent_Backend_Tally_Session,
+    Sequent_Backend_Tally_Session_Execution,
+} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import CachedIcon from "@mui/icons-material/Cached"
 import CheckCircleIcon from "@mui/icons-material/CheckCircle"
-import { useTenantStore } from '@/providers/TenantContextProvider'
-import { ITallyCeremonyStatus } from "@/types/ceremonies"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {ITallyCeremonyStatus} from "@/types/ceremonies"
+import {NoItem} from "@/components/NoItem"
+import {useTranslation} from "react-i18next"
 
 interface TallyTrusteesListProps {
     update: (elections: Array<string>) => void
@@ -18,6 +24,7 @@ interface TallyTrusteesListProps {
 
 export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
     const {update} = props
+    const {t} = useTranslation()
 
     const [tallyId] = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
@@ -44,7 +51,7 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
             filter: {
                 tally_session_id: tallyId,
                 tenant_id: tenantId,
-            }
+            },
         },
         {
             refetchInterval: 5000,
@@ -70,7 +77,6 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
             active: status.trustees.find((x) => x.name === trustee.name),
         }))
         setTrusteesData(temp)
-        
     }, [trustees, tallySessionExecutions])
 
     useEffect(() => {
@@ -100,20 +106,25 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
     ]
 
     return (
-        <DataGrid
-            rows={trusteesData}
-            columns={columns}
-            initialState={{
-                pagination: {
-                    paginationModel: {
-                        pageSize: 10,
-                    },
-                },
-            }}
-            pageSizeOptions={[10, 20, 50, 100]}
-            disableRowSelectionOnClick
-        />
+        <>
+            {trusteesData.length ? (
+                <DataGrid
+                    rows={trusteesData}
+                    columns={columns}
+                    initialState={{
+                        pagination: {
+                            paginationModel: {
+                                pageSize: 10,
+                            },
+                        },
+                    }}
+                    pageSizeOptions={[10, 20, 50, 100]}
+                    disableRowSelectionOnClick
+                />
+            ) : (
+                <NoItem item={t("tally.common.noTrustees")} />
+            )}
+        </>
     )
 }
-
 

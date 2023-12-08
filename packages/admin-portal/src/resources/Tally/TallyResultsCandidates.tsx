@@ -165,7 +165,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                 {t("tally.table.global")}
             </Typography>
 
-            {!general ? (
+            {general && general.length ? (
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
                         {/* <TableHead>
@@ -179,41 +179,46 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                 <TableCell component="th" scope="row">
                                     {t("tally.table.elegible_census")}
                                 </TableCell>
-                                <TableCell align="right">100</TableCell>
-                                {/* <TableCell align="right">{general[0].elegible_census}</TableCell> */}
+                                <TableCell align="right">
+                                    {general?.[0].elegible_census ?? 0}
+                                </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
                                     {t("tally.table.total_valid_votes")}
                                 </TableCell>
-                                <TableCell align="right">100</TableCell>
-                                {/* <TableCell align="right">{general[0].total_valid_votes}</TableCell> */}
+                                <TableCell align="right">
+                                    {general?.[0].total_valid_votes ?? 0}
+                                </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
                                     {t("tally.table.explicit_invalid_votes")}
                                 </TableCell>
-                                <TableCell align="right">100</TableCell>
-                                {/* <TableCell align="right">{general[0].explicit_invalid_votes}</TableCell> */}
+                                <TableCell align="right">
+                                    {general?.[0].explicit_invalid_votes ?? 0}
+                                </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
                                     {t("tally.table.implicit_invalid_votes")}
                                 </TableCell>
-                                <TableCell align="right">100</TableCell>
-                                {/* <TableCell align="right">{general[0].implicit_invalid_votes}</TableCell> */}
+                                <TableCell align="right">
+                                    {general?.[0].implicit_invalid_votes ?? 0}
+                                </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
                                     {t("tally.table.blank_votes")}
                                 </TableCell>
-                                <TableCell align="right">100</TableCell>
-                                {/* <TableCell align="right">{general[0].blank_votes}</TableCell> */}
+                                <TableCell align="right">{general?.[0].blank_votes ?? 0}</TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
                 </TableContainer>
-            ) : null}
+            ) : (
+                <NoItem />
+            )}
 
             <Typography variant="h6" component="div" sx={{mt: 8}}>
                 {t("tally.table.candidates")}
