@@ -55,6 +55,9 @@ import {CreateContestData} from "./resources/Contest/CreateContestData"
 import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectionsTypesCreate"
 import {adminI18nProvider} from "./services/AdminTranslation"
 import {useTranslation} from "react-i18next"
+import { CommunicationTemplateEdit } from './resources/CommunicationTemplate/CommunicationTemplateEdit'
+import { CommunicationTemplateList } from './resources/CommunicationTemplate/CommunicationTemplateList'
+import { CommunicationTemplateCreate } from './resources/CommunicationTemplate/CommunicationTemplateCreate'
 
 export const AppWrapper = () => {
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
@@ -221,6 +224,13 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
                 list={ListTrustee}
                 create={CreateTrustee}
                 options={{label: "Trustee"}}
+            />
+            <Resource
+                name="sequent_backend_communication_template"
+                edit={CommunicationTemplateEdit}
+                list={CommunicationTemplateList}
+                create={CommunicationTemplateCreate}
+                options={{label: "Communication Template"}}
             />
             <Resource name="user" edit={EditArea} list={ListUsers} options={{label: "Users"}} />
         </Admin>
