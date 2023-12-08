@@ -1,11 +1,14 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::hasura::ballot_publication::insert_ballot_publication;
+use crate::hasura::ballot_publication::{
+    get_ballot_publication, insert_ballot_publication, update_ballot_publication_d,
+};
 use crate::hasura::election::get_all_elections_for_event;
 use crate::services::celery_app::get_celery_app;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
+use chrono::Utc;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
 use tracing::{event, instrument, Level};
@@ -79,4 +82,51 @@ pub async fn add_ballot_publication(
     );
 
     Ok(ballot_publication.id.clone())
+}
+
+#[instrument]
+pub async fn update_publish_ballot(
+    tenant_id: String,
+    election_event_id: String,
+    ballot_publication_id: String,
+) -> Result<()> {
+    let auth_headers = get_client_credentials().await?;
+
+    let ballot_publication2 = &get_ballot_publication(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        ballot_publication_id.clone(),
+    )
+    .await?
+    .data
+    .with_context(|| "can't find ballot publication")?
+    .sequent_backend_ballot_publication;
+
+    let ballot_publication = ballot_publication2
+        .get(0)
+        .clone()
+        .ok_or(anyhow!("Can't find ballot publication"))?;
+
+    if !ballot_publication.is_generated {
+        return Err(anyhow!(
+            "Ballot publication not generated yet, can't publish."
+        ));
+    }
+
+    if ballot_publication.published_at.is_some() {
+        return Ok(());
+    }
+
+    update_ballot_publication_d(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        ballot_publication_id.clone(),
+        true,
+        Some(Utc::now().naive_utc()),
+    )
+    .await?;
+
+    Ok(())
 }

@@ -9,7 +9,7 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
-use windmill::services::ballot_publication::add_ballot_publication;
+use windmill::services::ballot_publication::{add_ballot_publication, update_publish_ballot};
 use windmill::services::ceremonies::tally_ceremony;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -69,6 +69,13 @@ pub async fn publish_ballot(
     authorize(&claims, true, None, vec![Permissions::PUBLISH_WRITE])?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
+
+    update_publish_ballot(
+        tenant_id.clone(),
+        input.election_event_id.clone(),
+        input.ballot_publication_id.clone(),
+    ).await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(PublishBallotOutput {
         ballot_publication_id: input.ballot_publication_id.clone(),

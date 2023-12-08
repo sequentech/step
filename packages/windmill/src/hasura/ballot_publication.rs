@@ -2,11 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
+use chrono::NaiveDateTime;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use std::env;
 use tracing::instrument;
 
+use crate::services::date::ISO8601;
 use crate::services::to_result::ToResult;
 pub use crate::types::hasura_types::*;
 use sequent_core::services::connection;
@@ -98,12 +100,15 @@ pub async fn update_ballot_publication_d(
     election_event_id: String,
     ballot_publication_id: String,
     is_generated: bool,
+    published_at: Option<NaiveDateTime>,
 ) -> Result<Response<update_ballot_publication::ResponseData>> {
+    let published_at_str = published_at.clone().map(|naive| ISO8601::from_date(&naive));
     let variables = update_ballot_publication::Variables {
         ballot_publication_id: ballot_publication_id,
         election_event_id: election_event_id,
         tenant_id: tenant_id,
         is_generated: is_generated,
+        published_at: published_at_str,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
