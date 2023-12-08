@@ -4,12 +4,13 @@
 import React, {useEffect, useState} from "react"
 import {useGetOne, useGetList} from "react-admin"
 
-import {Sequent_Backend_Trustee, Sequent_Backend_Tally_Session} from "../../gql/graphql"
+import {Sequent_Backend_Trustee, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import CachedIcon from "@mui/icons-material/Cached"
 import CheckCircleIcon from "@mui/icons-material/CheckCircle"
 import { useTenantStore } from '@/providers/TenantContextProvider'
+import { ITallyCeremonyStatus } from "@/types/ceremonies"
 
 interface TallyTrusteesListProps {
     update: (elections: Array<string>) => void
@@ -35,35 +36,42 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
         }
     )
 
+    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+        "sequent_backend_tally_session",
+        {
+            pagination: {page: 1, perPage: 1},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tally_session_id: tallyId,
+                tenant_id: tenantId,
+            }
+        },
+        {
+            refetchInterval: 5000,
+        }
+    )
+
     const {data: trustees} = useGetList("sequent_backend_trustee", {
         pagination: {page: 1, perPage: 1000},
         filter: {tenant_id: tenantId},
     })
 
     useEffect(() => {
-        if (data && trustees) {
-            const temp = (trustees || []).map((trustee, index) => {
-                if (data && data.trustee_ids) {
-                    return {
-                        ...trustee,
-                        rowId: index,
-                        id: trustee.id,
-                        name: trustee.name,
-                        active: data?.trustee_ids?.find((x) => x === trustee.id),
-                    }
-                } else {
-                    return {
-                        ...trustee,
-                        rowId: index,
-                        id: trustee.id,
-                        name: trustee.name,
-                        active: false,
-                    }
-                }
-            })
-            setTrusteesData(temp)
+        if (!tallySessionExecutions?.[0].status || !trustees) {
+            return
         }
-    }, [trustees, data])
+        let status: ITallyCeremonyStatus = tallySessionExecutions[0].status
+
+        const temp = (trustees || []).map((trustee, index) => ({
+            ...trustee,
+            rowId: index,
+            id: trustee.id,
+            name: trustee.name,
+            active: status.trustees.find((x) => x.name === trustee.name),
+        }))
+        setTrusteesData(temp)
+        
+    }, [trustees, tallySessionExecutions])
 
     useEffect(() => {
         if (trusteesData) {
