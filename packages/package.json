@@ -6,14 +6,11 @@
   "proxy": "https://i.imgur.com",
   "workspaces": [
     "ui-essentials",
-    "test-app",
     "voting-portal",
     "admin-portal",
     "ballot-verifier"
   ],
   "scripts": {
-    "dev": "yarn --cwd ./test-app dev",
-    "start:test-app": "yarn --cwd ./test-app start",
     "start": "yarn --cwd ./voting-portal start",
     "start:admin": "yarn --cwd ./admin-portal start",
     "start:admin:container": "yarn --cwd ./admin-portal2 start",
