@@ -29,8 +29,8 @@ import TallyLogs from "./TallyLogs"
 import {useGetOne, useNotify} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
-import { useMutation } from '@apollo/client'
-import { ITallyExecutionStatus } from '@/types/ceremonies'
+import {useMutation} from "@apollo/client"
+import {ITallyExecutionStatus} from "@/types/ceremonies"
 
 interface TallyCeremonyProps {
     completed: boolean
@@ -55,9 +55,15 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
         [key: string]: boolean
     }
 
-    const {data: tally} = useGetOne("sequent_backend_tally_session", {
-        id: tallyId,
-    })
+    const {data: tally} = useGetOne(
+        "sequent_backend_tally_session",
+        {
+            id: tallyId,
+        },
+        {
+            refetchInterval: 5000,
+        }
+    )
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-general": true,
@@ -106,29 +112,42 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     }
 
     const confirmNextAction = async () => {
-        // TODO activate the tally execution with the mutation
-                const {data, errors} = await UpdateTallyCeremonyMutation({
-                    variables: {
-                        election_event_id: tally.election_event_id,
-                        tally_session_id: tally.id,
-                        status: ITallyExecutionStatus.STARTED,
-                    },
-                })
+        const {data, errors} = await UpdateTallyCeremonyMutation({
+            variables: {
+                election_event_id: tally.election_event_id,
+                tally_session_id: tally.id,
+                status: ITallyExecutionStatus.STARTED,
+            },
+        })
 
-                if (errors) {
-                    notify(t("tally.startTallyError"), {type: "error"})
-                }
+        if (errors) {
+            notify(t("tally.startTallyError"), {type: "error"})
+        }
 
-                if (data) {
-                    notify(t("tally.startTallySuccess"), {type: "success"})
-                    setShowTrustees(true)
-                }
+        if (data) {
+            notify(t("tally.startTallySuccess"), {type: "success"})
+            setShowTrustees(true)
+        }
+        setShowTrustees(true)
     }
 
     useEffect(() => {
-        console.log("selectedElections", selectedElections)
-        console.log("selectedTrustees", selectedTrustees)
     }, [selectedElections, selectedTrustees])
+
+    const setDisabled = (): boolean => {
+        if (!tally) {
+            return true
+        } else {
+            if (
+                page === 0 &&
+                showTrustees &&
+                tally?.execution_status !== ITallyExecutionStatus.STARTED
+            ) {
+                return true
+            }
+            return false
+        }
+    }
 
     return (
         <>
@@ -311,7 +330,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                         {t("tally.common.cancel")}
                     </CancelButton>
                     {page < 2 && (
-                        <NextButton color="primary" onClick={handleNext}>
+                        <NextButton color="primary" onClick={handleNext} disabled={setDisabled()}>
                             <>
                                 {t("tally.common.next")}
                                 <ChevronRightIcon />

@@ -14,7 +14,7 @@ import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import CachedIcon from "@mui/icons-material/Cached"
 import CheckCircleIcon from "@mui/icons-material/CheckCircle"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {ITallyCeremonyStatus} from "@/types/ceremonies"
+import {ITallyCeremonyStatus, ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
 import {NoItem} from "@/components/NoItem"
 import {useTranslation} from "react-i18next"
 import { IconButton } from '@sequentech/ui-essentials'
@@ -36,18 +36,8 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
         Array<Sequent_Backend_Trustee & {rowId: number; id: string; active: boolean}>
     >([])
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
-        "sequent_backend_tally_session",
-        {
-            id: tallyId,
-        },
-        {
-            refetchInterval: 5000,
-        }
-    )
-
     const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
-        "sequent_backend_tally_session",
+        "sequent_backend_tally_session_execution",
         {
             pagination: {page: 1, perPage: 1},
             sort: {field: "created_at", order: "DESC"},
@@ -77,7 +67,9 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
             rowId: index,
             id: trustee.id,
             name: trustee.name,
-            active: status.trustees.find((x) => x.name === trustee.name),
+            active:
+                status.trustees.find((x) => x.name === trustee.name)?.status !==
+                ITallyTrusteeStatus.WAITING,
         }))
         setTrusteesData(temp)
     }, [trustees, tallySessionExecutions])
@@ -111,7 +103,15 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
     return (
         <>
             <Box sx={{width: "100%", display: "flex", justifyContent: "flex-end"}}>
-                <IconButton icon={faKey} sx={{color: "#43E3A1"}} variant="success" />
+                <IconButton
+                    icon={faKey}
+                    sx={{
+                        color:
+                            tallySessionExecutions?.[0].status === ITallyExecutionStatus.STARTED
+                                ? "#43E3A1"
+                                : "#d32f2f",
+                    }}
+                />
             </Box>
 
             {trusteesData.length ? (

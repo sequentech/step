@@ -16,6 +16,7 @@ import {
     WrapperField,
     Datagrid,
     FunctionField,
+    DateField,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Drawer} from "@mui/material"
@@ -127,7 +128,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="tenant_id" />
-                    <TextField source="election_event_id" />
+                    <DateField source="created_at" />
 
                     <FunctionField
                         label={t("electionEventScreen.tally.trustees")}
