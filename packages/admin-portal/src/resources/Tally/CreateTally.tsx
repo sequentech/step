@@ -25,6 +25,7 @@ import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation} from "@apollo/client"
+import {FieldValues, SubmitHandler} from "react-hook-form"
 
 interface CreateTallyProps {
     record: Sequent_Backend_Election_Event
@@ -76,10 +77,7 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
         }
     }
 
-    const transform = async (result: Sequent_Backend_Tally_Session) => {
-
-        console.log("transform :: result", result);
-        
+    const onSubmit: SubmitHandler<FieldValues> = async (result) => {
         const {data, errors} = await CreateTallyCeremonyMutation({
             variables: {
                 election_event_id: result.election_event_id,
@@ -88,81 +86,62 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
         })
 
         if (errors) {
-            console.log("errors", errors)
             notify(t("tally.createTallyError"), {type: "error"})
+            close?.()
         }
 
-        return {
-            ...result,
-            id: data?.create_keys_ceremony?.tally_session_id ?? null
+        if (data) {
+            notify(t("tally.createTallySuccess"), {type: "success"})
+            refresh()
+            close?.()
         }
     }
 
     return (
         <>
             {keyCeremony && elections ? (
-                <Create
-                    resource="sequent_backend_tally_session"
-                    mutationOptions={{onSuccess, onError}}
-                    redirect={false}
-                    transform={transform}
-                >
-                    <PageHeaderStyles.Wrapper>
-                        <SimpleForm toolbar={<SaveButton alwaysEnable />}>
-                            <PageHeaderStyles.Title>
-                                {t("tally.common.title")}
-                            </PageHeaderStyles.Title>
-                            <PageHeaderStyles.SubTitle>
-                                {t("tally.common.subTitle")}
-                            </PageHeaderStyles.SubTitle>
+                <PageHeaderStyles.Wrapper>
+                    <SimpleForm toolbar={<SaveButton alwaysEnable />} onSubmit={onSubmit}>
+                        <PageHeaderStyles.Title>{t("tally.common.title")}</PageHeaderStyles.Title>
+                        <PageHeaderStyles.SubTitle>
+                            {t("tally.common.subTitle")}
+                        </PageHeaderStyles.SubTitle>
 
-                            {/* <TextInput source="name" /> */}
-                            <SelectInput
-                                choices={keyCeremony}
-                                label="Key Ceremony"
-                                source="keys_ceremony_id"
-                                optionText={"id"}
-                                optionValue={"id"}
-                                defaultValue={keyCeremony[0]?.id}
-                                style={{display: "none"}}
-                            />
-                            <TextInput
-                                label="Election Event"
-                                source="election_event_id"
-                                defaultValue={record?.id}
-                                style={{display: "none"}}
-                            />
-                            <TextInput
-                                label="Tenant"
-                                source="tenant_id"
-                                defaultValue={record?.tenant_id}
-                                style={{display: "none"}}
-                            />
-                            {/* 
-                    {trustees ? (
-                        <CheckboxGroupInput
-                            label={t("electionEventScreen.tally.trustees")}
-                            source="trustee_ids"
-                            choices={trustees}
-                            optionText="name"
-                            optionValue="id"
-                            row={false}
+                        {/* <TextInput source="name" /> */}
+                        <SelectInput
+                            choices={keyCeremony}
+                            label="Key Ceremony"
+                            source="keys_ceremony_id"
+                            optionText={"id"}
+                            optionValue={"id"}
+                            defaultValue={keyCeremony[0]?.id}
+                            style={{display: "none"}}
                         />
-                    ) : null} */}
+                        <TextInput
+                            label="Election Event"
+                            source="election_event_id"
+                            defaultValue={record?.id}
+                            style={{display: "none"}}
+                        />
+                        <TextInput
+                            label="Tenant"
+                            source="tenant_id"
+                            defaultValue={record?.tenant_id}
+                            style={{display: "none"}}
+                        />
 
-                            {elections ? (
-                                <CheckboxGroupInput
-                                    label={t("electionEventScreen.tally.elections")}
-                                    source="election_ids"
-                                    choices={elections}
-                                    optionText="name"
-                                    optionValue="id"
-                                    row={false}
-                                />
-                            ) : null}
-                        </SimpleForm>
-                    </PageHeaderStyles.Wrapper>
-                </Create>
+                        {elections ? (
+                            <CheckboxGroupInput
+                                label={t("electionEventScreen.tally.elections")}
+                                source="election_ids"
+                                choices={elections}
+                                optionText="name"
+                                optionValue="id"
+                                row={false}
+                            />
+                        ) : null}
+                    </SimpleForm>
+                </PageHeaderStyles.Wrapper>
             ) : null}
         </>
     )

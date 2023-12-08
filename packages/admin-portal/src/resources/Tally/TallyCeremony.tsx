@@ -100,6 +100,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     }
 
     const confirmNextAction = () => {
+        // TODO activate the tally execution with the mutation
         setShowTrustees(true)
     }
 

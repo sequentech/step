@@ -141,7 +141,9 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
                     <FunctionField
                         label={t("electionEventScreen.tally.status")}
-                        render={(record: RaRecord<Identifier>) => <StatusChip status={record.status} />}
+                        render={(record: RaRecord<Identifier>) => (
+                            <StatusChip status={record.execution_status} />
+                        )}
                     />
 
                     <WrapperField source="actions" label="Actions">

@@ -1,5 +1,6 @@
 import {GET_AREA_WITH_AREA_CONTESTS} from "@/queries/GetAreaWithAreaContest"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
+import { ITallyExecutionStatus } from '@/types/ceremonies'
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
 import {Chip, IconButton} from "@mui/material"
@@ -25,11 +26,17 @@ const StyledChip = styled.div`
     align-items: center;
     border-radius: 4px;
     background: ${(props: TrusteeItemsProps) =>
-        props.status === "progress"
+        props.status === ITallyExecutionStatus.NOT_STARTED
             ? "#0F054C"
-            : props.status === "active"
+            : props.status === ITallyExecutionStatus.STARTED
             ? "#d32f2f"
-            : props.status === "results"
+            : props.status === ITallyExecutionStatus.CONNECTED
+            ? "#43E3A1"
+            : props.status === ITallyExecutionStatus.IN_PROGRESS
+            ? "#43E3A1"
+            : props.status === ITallyExecutionStatus.SUCCESS
+            ? "#43E3A1"
+            : props.status === ITallyExecutionStatus.CANCELLED
             ? "#43E3A1"
             : "#d32f2f"};
     padding: 1px 7px;
