@@ -4,7 +4,6 @@
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 
 import React, {useState} from "react"
-import {Toolbar} from "react-admin"
 import {useTranslation} from "react-i18next"
 
 import { theme, Dialog } from "@sequentech/ui-essentials"
@@ -13,16 +12,13 @@ import {
     IKeysCeremonyTrusteeStatus as TStatus,
     IExecutionStatus,
 } from "@/services/KeyCeremony"
-import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
+import {WizardStyles} from "@/components/styles/WizardStyles"
 
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos'
-import DoneOutlineIcon from "@mui/icons-material/DoneOutline"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
-import Button from "@mui/material/Button"
-import {styled} from "@mui/material/styles"
-import {Accordion, AccordionDetails, AccordionSummary, Box, Chip, Typography} from "@mui/material"
+import {Accordion, AccordionSummary, Box, Typography} from "@mui/material"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
 import TableCell from "@mui/material/TableCell"
@@ -44,58 +40,6 @@ export const statusColor: (status: string) => string = (status) => {
         return theme.palette.errorColor
     }
 }
-
-// TODO: use this later when we support multiple ceremonies per election event
-// const CancelButton = styled(Button)`
-//     margin-left: auto;
-//     background-color: ${({theme}) => theme.palette.grey[100]};
-//     color: ${({theme}) => theme.palette.errorColor};
-//     border-color: ${({theme}) => theme.palette.errorColor};
-// 
-//     &:hover {
-//         background-color: ${({theme}) => theme.palette.errorColor};
-//     }
-// `
-
-const StyledToolbar = styled(Toolbar)`
-    flex-direction: row;
-    justify-content: space-between;
-`
-
-const BackButton = styled(Button)`
-    margin-right: auto;
-    background-color: ${({theme}) => theme.palette.grey[100]};
-    color: ${({theme}) => theme.palette.brandColor};
-`
-
-const NextButton = styled(Button)`
-    margin-left: auto;
-`
-
-const StyledBox = styled(Box)`
-    margin-top: 30px;
-    margin-bottom: 30px;
-`
-
-const DoneIcon = styled(DoneOutlineIcon)`
-    color: ${({theme}) => theme.palette.brandSuccess};
-`
-
-const AccordionTitle = styled(ElectionHeaderStyles.Title)`
-    margin-bottom: 0 !important;
-`
-
-const AccordionDetails2 = styled(AccordionDetails)`
-    padding-top: 0;
-    margin-top: -10px;
-`
-
-const CeremonyStatus = styled(Chip)`
-    margin-top: 6px;
-    margin-left: auto;
-    margin-right: 10px;
-    font-weight: bold;
-`
 
 export interface CeremonyStepProps {
     message?: React.ReactNode
@@ -129,7 +73,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
 
     return (
         <>
-            <StyledBox>
+            <WizardStyles.ContentBox>
                 {message}
                 <Accordion
                     sx={{width: "100%"}}
@@ -137,10 +81,10 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                     onChange={() => setProgressExpanded(!progressExpanded)}
                 >
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                        <AccordionTitle>
+                        <WizardStyles.AccordionTitle>
                             {t("keysGeneration.ceremonyStep.progressHeader")}
-                        </AccordionTitle>
-                        <CeremonyStatus
+                        </WizardStyles.AccordionTitle>
+                        <WizardStyles.CeremonyStatus
 
                             sx={{
                                 backgroundColor: statusColor(
@@ -157,7 +101,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                             })}
                         />
                     </AccordionSummary>
-                    <AccordionDetails2>
+                    <WizardStyles.AccordionDetails>
                         <Typography variant="body2">
                             {t("keysGeneration.ceremonyStep.description")}
                         </Typography>
@@ -192,7 +136,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                 {!electionEvent.public_key ? (
                                                     <HourglassEmptyIcon />
                                                 ) : (
-                                                    <DoneIcon />
+                                                    <WizardStyles.DoneIcon />
                                                 )}
                                             </TableCell>
                                             <TableCell align="center">
@@ -200,7 +144,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                 trustee.status == TStatus.KEY_GENERATED ? (
                                                     <HourglassEmptyIcon />
                                                 ) : (
-                                                    <DoneIcon />
+                                                    <WizardStyles.DoneIcon />
                                                 )}
                                             </TableCell>
                                             <TableCell align="center">
@@ -209,7 +153,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                 trustee.status == TStatus.KEY_RETRIEVED ? (
                                                     <HourglassEmptyIcon />
                                                 ) : (
-                                                    <DoneIcon />
+                                                    <WizardStyles.DoneIcon />
                                                 )}
                                             </TableCell>
                                         </TableRow>
@@ -217,7 +161,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                 </TableBody>
                             </Table>
                         </TableContainer>
-                    </AccordionDetails2>
+                    </WizardStyles.AccordionDetails>
                 </Accordion>
 
                 <Accordion
@@ -226,11 +170,11 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                     onChange={() => setLogsExpanded(!logsExpanded)}
                 >
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                        <AccordionTitle>
+                        <WizardStyles.AccordionTitle>
                             {t("keysGeneration.ceremonyStep.logsHeader.title")}
-                        </AccordionTitle>
+                        </WizardStyles.AccordionTitle>
                     </AccordionSummary>
-                    <AccordionDetails2>
+                    <WizardStyles.AccordionDetails>
                         {status?.logs.length > 0 ? (
                             <Paper sx={{width: "100%", overflow: "hidden"}}>
                                 <TableContainer>
@@ -279,25 +223,25 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                 </Typography>
                             </Box>
                         )}
-                    </AccordionDetails2>
+                    </WizardStyles.AccordionDetails>
                 </Accordion>
-            </StyledBox>
-            <StyledToolbar>
-                <BackButton color="info" onClick={goBack}>
+            </WizardStyles.ContentBox>
+            <WizardStyles.Toolbar>
+                <WizardStyles.BackButton color="info" onClick={goBack}>
                     <ArrowBackIosIcon />
                     {t("common.label.back")}
-                </BackButton>
-                {!!goNext && <NextButton color="info" onClick={goNext}>
+                </WizardStyles.BackButton>
+                {!!goNext && <WizardStyles.NextButton color="info" onClick={goNext}>
                     <ArrowForwardIosIcon />
                     {t("common.label.next")}
-                </NextButton>}
+                </WizardStyles.NextButton>}
                 {/*cancellable() ? (
                     <CancelButton onClick={() => setOpenConfirmationModal(true)}>
                         <CloseIcon />
                         {t("keysGeneration.ceremonyStep.cancel")}
                     </CancelButton>
                 ) : null*/}
-            </StyledToolbar>
+            </WizardStyles.Toolbar>
             <Dialog
                 variant="warning"
                 open={openConfirmationModal}

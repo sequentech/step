@@ -13,42 +13,20 @@ import {
     useRefresh,
     SimpleForm,
     TextInput,
-    Toolbar,
-    SaveButton,
     CheckboxGroupInput,
     useGetOne,
     useNotify,
 } from "react-admin"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
-import Button from "@mui/material/Button"
 import {FieldValues, SubmitHandler} from "react-hook-form"
-import {styled} from "@mui/material/styles"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {isNumber} from "lodash"
 import {CREATE_KEYS_CEREMONY} from "@/queries/CreateKeysCeremony"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {isNull, Dialog} from "@sequentech/ui-essentials"
-
-const Error = styled(Typography)`
-    color: ${({theme}) => theme.palette.errorColor};
-`
-
-const StyledToolbar = styled(Toolbar)`
-    flex-direction: row;
-    justify-content: space-between;
-`
-
-const BackButton = styled(Button)`
-    margin-right: auto;
-    background-color: ${({theme}) => theme.palette.grey[100]};
-    color: ${({theme}) => theme.palette.brandColor};
-`
-const CreateButton = styled(SaveButton)`
-    margin-left: auto;
-    flex-direction: row-reverse;
-`
+import { WizardStyles } from "@/components/styles/WizardStyles"
 
 export interface ConfigureStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
@@ -218,68 +196,78 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
 
     return (
         <>
-            <SimpleForm
-                defaultValues={getDefaultValues}
-                onSubmit={onSubmit}
-                toolbar={
-                    <StyledToolbar>
-                        <BackButton color="info" onClick={goBack}>
-                            <ArrowBackIosIcon />
-                            {t("common.label.back")}
-                        </BackButton>
-                        <CreateButton
-                            icon={<ArrowForwardIosIcon />}
-                            label={t("keysGeneration.configureStep.create")}
-                        />
-                    </StyledToolbar>
-                }
-            >
-                <Typography variant="h4">{t("keysGeneration.configureStep.title")}</Typography>
-                <Typography variant="body2">
-                    {t("keysGeneration.configureStep.subtitle")}
-                </Typography>
-
-                <TextInput
-                    source="threshold"
-                    label={t("keysGeneration.configureStep.threshold")}
-                    value={threshold}
-                    validate={thresholdValidator}
-                    type="number"
-                    InputLabelProps={{
-                        shrink: true,
-                    }}
-                    variant="filled"
-                />
-                {trusteeList ? (
-                    <CheckboxGroupInput
-                        validate={trusteeListValidator}
-                        label={t("keysGeneration.configureStep.trusteeList")}
-                        source="trusteeNames"
-                        choices={trusteeList}
-                        translateChoice={false}
-                        optionText="name"
-                        optionValue="name"
-                        row={false}
-                    />
-                ) : null}
-                {errors ? <Error variant="body2">{errors}</Error> : null}
-                {isLoading ? <CircularProgress /> : null}
-            </SimpleForm>
-            <Dialog
-                variant="warning"
-                open={openConfirmationModal}
-                ok={t("keysGeneration.configureStep.confirmdDialog.ok")}
-                cancel={t("keysGeneration.configureStep.confirmdDialog.cancel")}
-                title={t("keysGeneration.configureStep.confirmdDialog.title")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmCreateKeysCeremony()
+            <WizardStyles.ContentBox>
+                <SimpleForm
+                    defaultValues={getDefaultValues}
+                    onSubmit={onSubmit}
+                    toolbar={
+                        <WizardStyles.Toolbar>
+                            <WizardStyles.BackButton color="info" onClick={goBack}>
+                                <ArrowBackIosIcon />
+                                {t("common.label.back")}
+                            </WizardStyles.BackButton>
+                            <WizardStyles.CreateButton
+                                icon={<ArrowForwardIosIcon />}
+                                label={t("keysGeneration.configureStep.create")}
+                            />
+                        </WizardStyles.Toolbar>
                     }
-                    setOpenConfirmationModal(false)
-                }}
-            >
-                {t("keysGeneration.configureStep.confirmdDialog.description")}
-            </Dialog>
+                >
+                    <WizardStyles.MainContent>
+                        <WizardStyles.StepHeader variant="h4">
+                            {t("keysGeneration.configureStep.title")}
+                        </WizardStyles.StepHeader>
+                        <Typography variant="body2">
+                            {t("keysGeneration.configureStep.subtitle")}
+                        </Typography>
+
+                        <TextInput
+                            source="threshold"
+                            label={t("keysGeneration.configureStep.threshold")}
+                            value={threshold}
+                            validate={thresholdValidator}
+                            type="number"
+                            InputLabelProps={{
+                                shrink: true,
+                            }}
+                            variant="filled"
+                        />
+                        {trusteeList ? (
+                            <CheckboxGroupInput
+                                validate={trusteeListValidator}
+                                label={t("keysGeneration.configureStep.trusteeList")}
+                                source="trusteeNames"
+                                choices={trusteeList}
+                                translateChoice={false}
+                                optionText="name"
+                                optionValue="name"
+                                row={false}
+                            />
+                        ) : null}
+                        {errors
+                            ? <WizardStyles.ErrorMessage variant="body2">
+                                {errors}
+                            </WizardStyles.ErrorMessage>
+                            : null}
+                        {isLoading ? <CircularProgress /> : null}
+                    </WizardStyles.MainContent>
+                </SimpleForm>
+                <Dialog
+                    variant="warning"
+                    open={openConfirmationModal}
+                    ok={t("keysGeneration.configureStep.confirmdDialog.ok")}
+                    cancel={t("keysGeneration.configureStep.confirmdDialog.cancel")}
+                    title={t("keysGeneration.configureStep.confirmdDialog.title")}
+                    handleClose={(result: boolean) => {
+                        if (result) {
+                            confirmCreateKeysCeremony()
+                        }
+                        setOpenConfirmationModal(false)
+                    }}
+                >
+                    {t("keysGeneration.configureStep.confirmdDialog.description")}
+                </Dialog>
+            </WizardStyles.ContentBox>
         </>
     )
 }
