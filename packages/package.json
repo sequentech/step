@@ -11,16 +11,15 @@
     "ballot-verifier"
   ],
   "scripts": {
-    "start": "yarn --cwd ./voting-portal start",
+    "start:voting-portal": "yarn --cwd ./voting-portal start",
     "start:admin": "yarn --cwd ./admin-portal start",
-    "start:admin:container": "yarn --cwd ./admin-portal2 start",
     "start:verifier": "yarn --cwd ./ballot-verifier start",
     "storybook:ui-essentials": "yarn --cwd ./ui-essentials storybook",
     "build": "yarn workspaces run build",
     "build:ui-essentials": "yarn --cwd ./ui-essentials build",
     "lint:fix": "yarn --cwd ./voting-portal lint:fix",
     "prettify:fix": "yarn --cwd ./voting-portal prettify:fix",
-    "generate": "yarn --cwd ./voting-portal generate",
+    "generate:voting-portal": "yarn --cwd ./voting-portal generate",
     "generate:admin": "yarn --cwd ./admin-portal generate"
   }
 }
