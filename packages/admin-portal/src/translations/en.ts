@@ -721,6 +721,10 @@ const englishTranslation = {
                 pause: 'PAUSE',
                 generate: 'REGENERATE',
                 publish: 'PUBLISH CHANGES'
+            },
+            label: {
+                current: 'Current',
+                diff: 'CHANGES TO PUBLISH'
             }
         }
     },

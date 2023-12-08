@@ -728,6 +728,10 @@ const spanishTranslation: TranslationType = {
                 pause: 'pausar',
                 generate: 'regenerar',
                 publish: 'publicar cambios'
+            },
+            label: {
+                current: 'Actual',
+                diff: 'Cambios a publicar'
             }
         }
     },

@@ -3,7 +3,6 @@ import React from "react"
 import styled from "@emotion/styled"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import { diffLines } from 'diff';
 import {Box, Accordion, AccordionDetails, AccordionSummary, CircularProgress} from "@mui/material"
 
 import Summary from "./election-publish.json"
@@ -37,33 +36,7 @@ const PublishStyled = {
 
 export const Publish: React.FC = () => {
     const {t} = useTranslation();
-    const [diff, setDiff] = React.useState<any>('')
     const [expan, setExpan] = React.useState<string>('')
-    const [oldJsonString, setOldJsonString] = React.useState<string>('')
-    const [newJsonString, setNewJsonString] = React.useState<string>('')
-
-    React.useEffect(() => {
-        setNewJsonString(JSON.stringify(Summary, null, 2))
-        setOldJsonString(JSON.stringify(OldSummary, null, 2))
-    }, [])
-
-    React.useEffect(() => {
-        if (oldJsonString && newJsonString) {
-            const diffText: any = diffLines(oldJsonString, newJsonString)
-    
-            console.log(diffText);
-    
-            setDiff(diffText)
-        }
-    }, [oldJsonString, newJsonString])
-
-    if (!diff) {
-        return (
-            <PublishStyled.Loading>
-                <CircularProgress />
-            </PublishStyled.Loading>
-        )
-    }
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
@@ -77,7 +50,13 @@ export const Publish: React.FC = () => {
                         </PublishStyled.AccordionHeaderTitle>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <DiffView diff={diff} />
+                        <DiffView
+                            type="modify"
+                            currentTitle={t('publish.label.current')}
+                            diffTitle={t('publish.label.diff')}
+                            current={OldSummary}
+                            modify={Summary}
+                        />
                     </AccordionDetails>
                 </Accordion>
 

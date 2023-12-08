@@ -2,6 +2,9 @@ import React from "react"
 
 import styled from "@emotion/styled"
 
+import { diffLines } from 'diff';
+import { CircularProgress } from "@mui/material"
+
 const DiffViewStyled = {
     Header: styled.span`
         font-family: Roboto;
@@ -48,19 +51,60 @@ const DiffViewStyled = {
         width: 100%;
         font-size: 12px;
     `,
+    Loading: styled.div`
+        display: flex;
+        height: 60vh;
+        justify-content: center;
+        align-items: center;
+    `
 }
 
-export const DiffView: React.FC<{diff: {[key:string]: string}[]}> = ({ diff }) => {
+type TDiffView<T> = {
+    type?: 'simple' | 'modify';
+    diffTitle: string;
+    currentTitle: string;
+    current: T;
+    modify: T;
+};
+
+const DiffViewMemo = React.memo(<T extends {}>({ current, currentTitle, modify, diffTitle, type = 'modify'}: TDiffView<T>) => {
+    const [diff, setDiff] = React.useState<any>('')
+    const [oldJsonString, setOldJsonString] = React.useState<string>('')
+    const [newJsonString, setNewJsonString] = React.useState<string>('')
+
+    React.useEffect(() => {
+        setNewJsonString(JSON.stringify(modify, null, 2))
+        setOldJsonString(JSON.stringify(current, null, 2))
+    }, [])
+
+    React.useEffect(() => {
+        if (oldJsonString && newJsonString) {
+            const diffText: any = diffLines(oldJsonString, newJsonString)
+    
+            console.log(diffText);
+    
+            setDiff(diffText)
+        }
+    }, [oldJsonString, newJsonString])
+
+    if (!diff) {
+        return (
+            <DiffViewStyled.Loading>
+                <CircularProgress />
+            </DiffViewStyled.Loading>
+        )
+    }
+
     return (
       <DiffViewStyled.Container>
         <DiffViewStyled.Content>
             <DiffViewStyled.Header>
-                Actual
+                {currentTitle}
             </DiffViewStyled.Header>
             <DiffViewStyled.Block>
                 <DiffViewStyled.Json>
                     {diff.map((line: any, index: number) => (
-                        !line.added ? line.removed ? (
+                        !line.added ? line.removed && type === 'modify' ? (
                             <DiffViewStyled.Removed key={index}>
                                 {line.value}
                             </DiffViewStyled.Removed>
@@ -74,26 +118,34 @@ export const DiffView: React.FC<{diff: {[key:string]: string}[]}> = ({ diff }) =
             </DiffViewStyled.Block>
         </DiffViewStyled.Content>
 
-        <DiffViewStyled.Content>
-            <DiffViewStyled.Header>
-                CHANGES TO PUBLISH
-            </DiffViewStyled.Header>
-            <DiffViewStyled.Block>
-                <DiffViewStyled.Json>
-                    {diff.map((line: any, index: number) => (
-                        !line.removed ? line.added ? (
-                            <DiffViewStyled.Added key={index}>
-                                {line.value}
-                            </DiffViewStyled.Added>
-                        ) : (
-                            <DiffViewStyled.Line key={index}>
-                                {line.value}
-                            </DiffViewStyled.Line>
-                        ) : null
-                    ))}
-                </DiffViewStyled.Json>
-            </DiffViewStyled.Block>
-        </DiffViewStyled.Content>
+        {type === 'modify' && (
+            <DiffViewStyled.Content>
+                <DiffViewStyled.Header>
+                    {diffTitle}
+                </DiffViewStyled.Header>
+                <DiffViewStyled.Block>
+                    <DiffViewStyled.Json>
+                        {diff.map((line: any, index: number) => (
+                            !line.removed ? line.added ? (
+                                <DiffViewStyled.Added key={index}>
+                                    {line.value}
+                                </DiffViewStyled.Added>
+                            ) : (
+                                <DiffViewStyled.Line key={index}>
+                                    {line.value}
+                                </DiffViewStyled.Line>
+                            ) : null
+                        ))}
+                    </DiffViewStyled.Json>
+                </DiffViewStyled.Block>
+            </DiffViewStyled.Content>
+        )}
       </DiffViewStyled.Container>
     );
-  };
+});
+
+DiffViewMemo.displayName = 'DiffView';
+
+export const DiffView = DiffViewMemo;
+
+
