@@ -2,7 +2,7 @@ mutation UpdateBallotPublication(
         $ballotPublicationId: uuid!
         $electionEventId: uuid!
         $tenantId: uuid!
-        $isPublished: Boolean!
+        $isGenerated: Boolean!
     ) {
         update_sequent_backend_ballot_publication(
             where: {
@@ -10,7 +10,7 @@ mutation UpdateBallotPublication(
                 election_event_id: {_eq: $electionEventId}
                 tenant_id: {_eq: $tenantId}
             }
-            _set: {is_published: $isPublished}
+            _set: {is_generated: $isGenerated}
         ) {
             returning {
                 id

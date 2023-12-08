@@ -22,8 +22,9 @@ mutation InsertBallotPublication(
       created_at
       deleted_at
       created_by_user_id
-      is_published
+      is_generated
       election_ids
+      published_at
     }
   }
 }

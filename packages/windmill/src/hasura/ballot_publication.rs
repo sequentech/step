@@ -98,13 +98,13 @@ pub async fn update_ballot_publication_d(
     tenant_id: String,
     election_event_id: String,
     ballot_publication_id: String,
-    is_published: bool,
+    is_generated: bool,
 ) -> Result<Response<update_ballot_publication::ResponseData>> {
     let variables = update_ballot_publication::Variables {
         ballot_publication_id: ballot_publication_id,
         election_event_id: election_event_id,
         tenant_id: tenant_id,
-        is_published: is_published,
+        is_generated: is_generated,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
