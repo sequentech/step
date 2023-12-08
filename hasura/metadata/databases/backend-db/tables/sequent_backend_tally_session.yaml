@@ -17,7 +17,6 @@ insert_permissions:
     - keys_ceremony_id
     - labels
     - last_updated_at
-    - status
     - tenant_id
   role: admin-user
 - comment: ""
@@ -35,7 +34,6 @@ insert_permissions:
     - keys_ceremony_id
     - labels
     - last_updated_at
-    - status
     - tenant_id
   role: service-account
 select_permissions:
@@ -54,7 +52,6 @@ select_permissions:
     - keys_ceremony_id
     - labels
     - last_updated_at
-    - status
     - tenant_id
     filter: {}
   role: admin-user
@@ -73,7 +70,6 @@ select_permissions:
     - keys_ceremony_id
     - labels
     - last_updated_at
-    - status
     - tenant_id
     filter: {}
   role: service-account
@@ -93,7 +89,6 @@ update_permissions:
     - keys_ceremony_id
     - labels
     - last_updated_at
-    - status
     - tenant_id
     filter: {}
   role: admin-user
@@ -112,7 +107,6 @@ update_permissions:
     - keys_ceremony_id
     - labels
     - last_updated_at
-    - status
     - tenant_id
     filter: {}
   role: service-account
