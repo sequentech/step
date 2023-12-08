@@ -77,11 +77,15 @@ pub async fn update_event_voting_status(
         ));
     }
 
+    status.voting_status = new_status;
+
+    let status_js = serde_json::to_value(&status)?;
+
     update_election_event_status(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
-        election_event.status.clone().unwrap(),
+        status_js,
     )
     .await?;
 
@@ -141,12 +145,16 @@ pub async fn update_election_voting_status(
         ));
     }
 
+    status.voting_status = new_status;
+
+    let status_js = serde_json::to_value(&status)?;
+
     update_election_status(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
         election_id.clone(),
-        election_event.status.clone().unwrap(),
+        status_js,
     )
     .await?;
 
