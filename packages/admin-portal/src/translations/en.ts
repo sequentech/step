@@ -208,6 +208,7 @@ const englishTranslation = {
                 emptyHeader: "No Keys Ceremony yet.",
                 statusLabel: "Status",
                 waitingKeys: "Waiting for Keys Generation..",
+                started: "Started at",
                 breadCrumbs: {
                     configure: "Configure",
                     ceremony: "Ceremony",

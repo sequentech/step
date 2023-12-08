@@ -2,33 +2,31 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {
-    useGetOne,
-    useGetMany,
-    RaRecord,
-    Identifier,
-    useGetList,
-} from "react-admin"
+import {useGetOne, useGetMany, RaRecord, Identifier, useGetList} from "react-admin"
 
-import {
-    Sequent_Backend_Election,
-    Sequent_Backend_Tally_Session,
-} from "../../gql/graphql"
+import {Sequent_Backend_Area, Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {TallyResultsContest} from "./TallyResultsContests"
 import {Box, Tab, Tabs} from "@mui/material"
 import {ReactI18NextChild} from "react-i18next"
 
+interface TallyResultsProps {
+    tally: Sequent_Backend_Tally_Session | undefined
+}
 
-export const TallyResults: React.FC = () => {
-    const [tallyId] = useElectionEventTallyStore()
+export const TallyResults: React.FC<TallyResultsProps> = (props) => {
+    const {tally} = props
+
+    // const [tallyId] = useElectionEventTallyStore()
     const [value, setValue] = React.useState<number | null>(null)
     const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election>>([])
     const [electionId, setElectionId] = useState<string | null>(null)
+    const [data, setData] = useState<Sequent_Backend_Tally_Session | undefined>()
+    const [areasData, setAreasData] = useState <RaRecord<Identifier>[]>()
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
-        id: tallyId,
-    })
+    // const {data} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
+    //     id: tallyId,
+    // })
 
     const {data: areas} = useGetList<RaRecord<Identifier>>("sequent_backend_area", {
         filter: {
@@ -40,6 +38,18 @@ export const TallyResults: React.FC = () => {
     const {data: elections} = useGetMany<Sequent_Backend_Election>("sequent_backend_election", {
         ids: data?.election_ids || [],
     })
+
+    useEffect(() => {
+        if (tally) {
+            setData(tally)
+        }
+    }, [tally])
+
+    useEffect(() => {
+        if (areas) {
+            setAreasData(areas)
+        }
+    }, [areas])
 
     useEffect(() => {
         if (elections) {
@@ -64,8 +74,6 @@ export const TallyResults: React.FC = () => {
         )
     }
 
-    const handleChange = (event: React.SyntheticEvent, newValue: number) => {}
-
     const tabClicked = (id: string, index: number) => {
         setElectionId(id)
         setValue(index)
@@ -73,7 +81,7 @@ export const TallyResults: React.FC = () => {
 
     return (
         <>
-            <Tabs value={value} onChange={handleChange}>
+            <Tabs value={value}>
                 {electionsData?.map((election, index) => (
                     <Tab
                         key={index}
@@ -84,15 +92,14 @@ export const TallyResults: React.FC = () => {
             </Tabs>
             {electionsData?.map((election, index) => (
                 <CustomTabPanel key={index} index={index} value={value}>
-                    <TallyResultsContest 
-                    areas={areas} 
-                    electionId={electionId} 
-                    electionEventId={election.election_event_id}
-                    tenantId={election.tenant_id}
+                    <TallyResultsContest
+                        areas={areasData}
+                        electionId={electionId}
+                        electionEventId={election.election_event_id}
+                        tenantId={election.tenant_id}
                     />
                 </CustomTabPanel>
             ))}
         </>
     )
 }
-
