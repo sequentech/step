@@ -3,20 +3,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::area::get_election_event_areas;
 use crate::hasura::keys_ceremony::get_keys_ceremonies;
-use crate::hasura::tally_session::{update_tally_session_status, get_tally_sessions, insert_tally_session, get_tally_session_by_id};
-use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
-use crate::services::ceremonies::tally_ceremony::get_keys_ceremonies::GetKeysCeremoniesSequentBackendKeysCeremony;
-use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
-use crate::tasks::connect_tally_ceremony::connect_tally_ceremony;
+use crate::hasura::tally_session::{
+    get_tally_session_by_id, get_tally_sessions, insert_tally_session, update_tally_session_status,
+};
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::services::celery_app::get_celery_app;
+use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
+use crate::services::ceremonies::tally_ceremony::get_keys_ceremonies::GetKeysCeremoniesSequentBackendKeysCeremony;
 use crate::services::ceremonies::tally_ceremony::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySession,
     GetLastTallySessionExecutionSequentBackendTallySessionExecution,
 };
 use crate::services::ceremonies::tally_ceremony::get_tally_session_by_id::GetTallySessionByIdSequentBackendTallySession;
+use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
+use crate::tasks::connect_tally_ceremony::connect_tally_ceremony;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
@@ -27,6 +29,7 @@ use std::str::FromStr;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+#[instrument(skip(auth_headers))]
 pub async fn find_last_tally_session_execution(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -65,6 +68,7 @@ pub async fn find_last_tally_session_execution(
     )))
 }
 
+#[instrument(skip(auth_headers))]
 pub async fn get_tally_session(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -72,7 +76,7 @@ pub async fn get_tally_session(
     tally_session_id: String,
 ) -> Result<GetTallySessionByIdSequentBackendTallySession> {
     // fetch tally_sessions
-    let tally_session = &get_tally_session_by_id(
+    let tally_session = get_tally_session_by_id(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -81,11 +85,15 @@ pub async fn get_tally_session(
     .await?
     .data
     .expect("expected data")
-    .sequent_backend_tally_session[0];
+    .sequent_backend_tally_session
+    .get(0)
+    .ok_or(anyhow!("Tally session not found"))?
+    .clone();
 
     Ok(tally_session.clone())
 }
 
+#[instrument]
 pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonyStatus> {
     input
         .map(|value| {
@@ -96,6 +104,7 @@ pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonySt
         .flatten()
 }
 
+#[instrument(skip(auth_headers))]
 pub async fn find_keys_ceremony(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -132,6 +141,7 @@ pub async fn find_keys_ceremony(
     Ok(successful_ceremonies[0].clone())
 }
 
+#[instrument]
 fn generate_initial_tally_status(
     election_ids: &Vec<String>,
     keys_ceremony_status: &CeremonyStatus,
@@ -159,6 +169,7 @@ fn generate_initial_tally_status(
 }
 
 // get area ids that are linked to these election ids
+#[instrument(skip(auth_headers))]
 pub async fn get_area_ids(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -202,6 +213,7 @@ pub async fn get_area_ids(
     Ok(area_ids)
 }
 
+#[instrument]
 pub async fn create_tally_ceremony(
     tenant_id: String,
     election_event_id: String,
@@ -254,9 +266,10 @@ pub async fn create_tally_ceremony(
         None,
     )
     .await?;
-    Ok(keys_ceremony_id)
+    Ok(tally_session_id.clone())
 }
 
+#[instrument]
 pub async fn update_tally_ceremony(
     tenant_id: String,
     election_event_id: String,
@@ -281,27 +294,18 @@ pub async fn update_tally_ceremony(
         })
         .unwrap_or(TallyExecutionStatus::NOT_STARTED);
 
-    let expected_status = match current_status {
+    let expected_status: Vec<TallyExecutionStatus> = match current_status {
         TallyExecutionStatus::NOT_STARTED => vec![
             TallyExecutionStatus::STARTED,
             TallyExecutionStatus::CANCELLED,
         ],
-        TallyExecutionStatus::STARTED => vec![
-            TallyExecutionStatus::CONNECTED,
-            TallyExecutionStatus::CANCELLED,
-        ],
+        TallyExecutionStatus::STARTED => vec![TallyExecutionStatus::CANCELLED],
         TallyExecutionStatus::CONNECTED => vec![
             TallyExecutionStatus::IN_PROGRESS,
             TallyExecutionStatus::CANCELLED,
         ],
-        TallyExecutionStatus::IN_PROGRESS => vec![
-            TallyExecutionStatus::SUCCESS,
-            TallyExecutionStatus::CANCELLED,
-        ],
-        TallyExecutionStatus::SUCCESS => vec![
-            TallyExecutionStatus::CANCELLED,
-            TallyExecutionStatus::CANCELLED,
-        ],
+        TallyExecutionStatus::IN_PROGRESS => vec![TallyExecutionStatus::CANCELLED],
+        TallyExecutionStatus::SUCCESS => vec![TallyExecutionStatus::CANCELLED],
         TallyExecutionStatus::CANCELLED => vec![TallyExecutionStatus::CANCELLED],
     };
 

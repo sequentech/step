@@ -33,7 +33,7 @@ pub async fn create_tally_ceremony(
 ) -> Result<Json<CreateTallyCeremonyOutput>, (Status, String)> {
     authorize(&claims, true, None, vec![Permissions::ADMIN_CEREMONY])?;
     let input = body.into_inner();
-    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let tenant_id: String = claims.hasura_claims.tenant_id.clone();
 
     let tally_session_id = tally_ceremony::create_tally_ceremony(
         tenant_id,

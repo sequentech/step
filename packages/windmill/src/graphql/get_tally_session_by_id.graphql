@@ -7,7 +7,7 @@ query GetTallySessionById(
         where: {
             election_event_id: {_eq: $electionEventId},
             tenant_id: {_eq: $tenantId},
-            id: $tallySessionId,
+            id: {_eq: $tallySessionId},
         }
     ) {
         id
