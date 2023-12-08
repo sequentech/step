@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
 import {isArray, isNull, isString, sleep} from "@sequentech/ui-essentials"
@@ -48,6 +49,10 @@ export interface AuthContextValues {
      */
     username: string
     /**
+     * The email of the authenticated user
+     */
+    email: string
+    /**
      * The first name of the authenticated user
      */
     firstName: string
@@ -80,6 +85,12 @@ export interface AuthContextValues {
         someTenantId: string | null,
         role: IPermissions | IPermissions[]
     ) => boolean
+
+    /**
+     * Open accountManagement from Keycloak
+     * @returns
+     */
+    openProfileLink: () => Promise<void>
 }
 
 /**
@@ -89,12 +100,14 @@ const defaultAuthContextValues: AuthContextValues = {
     isAuthenticated: false,
     userId: "",
     username: "",
+    email: "",
     firstName: "",
     tenantId: "",
     logout: () => {},
-    hasRole: (role) => false,
+    hasRole: () => false,
     getAccessToken: () => undefined,
     isAuthorized: () => false,
+    openProfileLink: () => new Promise(() => undefined),
 }
 
 /**
@@ -125,6 +138,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     // Local state that will contain the users name once it is loaded
     const [userId, setUserId] = useState<string>("")
     const [username, setUsername] = useState<string>("")
+    const [email, setEmail] = useState<string>("")
     const [firstName, setFirstName] = useState<string>("")
     const [tenantId, setTenantId] = useState<string>("")
     const sleepSecs = 50
@@ -187,8 +201,12 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         async function loadProfile() {
             try {
                 const profile = await keycloak.loadUserProfile()
+
                 if (profile.id) {
                     setUserId(profile.id)
+                }
+                if (profile.email) {
+                    setEmail(profile.email)
                 }
                 if (profile.firstName) {
                     setFirstName(profile.firstName)
@@ -196,9 +214,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 if (profile.username) {
                     setUsername(profile.username)
                 }
+
                 const newTenantId: string | undefined = (profile as any)?.attributes[
                     "tenant-id"
                 ]?.[0]
+
                 if (newTenantId) {
                     setTenantId(newTenantId)
                 }
@@ -243,7 +263,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             return false
         }
         const roleList: string[] = isString(role) ? [role] : role
-        return roleList.find(roleItem => hasRole(roleItem)) != undefined
+        return roleList.find((roleItem) => hasRole(roleItem)) != undefined
     }
 
     // Setup the context provider
@@ -253,12 +273,14 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 isAuthenticated,
                 userId,
                 username,
+                email,
                 firstName,
                 tenantId,
                 logout,
                 hasRole,
                 getAccessToken,
                 isAuthorized,
+                openProfileLink: keycloak.accountManagement,
             }}
         >
             {props.children}
