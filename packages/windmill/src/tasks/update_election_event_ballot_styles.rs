@@ -31,7 +31,7 @@ pub async fn update_election_event_ballot_styles(
     )
     .await?
     .data
-    .with_context(|| "can't find election event areas")?
+    .with_context(|| "can't find ballot publication")?
     .sequent_backend_ballot_publication[0];
 
     let areas = get_election_event_areas(
@@ -62,6 +62,7 @@ pub async fn update_election_event_ballot_styles(
         election_event_id.clone(),
         ballot_publication_id.clone(),
         true,
+        None,
     )
     .await?;
 
