@@ -20,7 +20,6 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
 import {TallyTrusteesList} from "./TallyTrusteesList"
-import {faKey} from "@fortawesome/free-solid-svg-icons"
 import {TallyStyles} from "@/components/styles/TallyStyles"
 import {TallyStartDate} from "./TallyStartDate"
 import {TallyElectionsProgress} from "./TallyElectionsProgress"
@@ -142,14 +141,6 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                                     <ElectionHeader
                                         title={t("tally.trusteeTallyTitle")}
                                         subtitle={t("tally.trusteeTallySubTitle")}
-                                    />
-                                    <IconButton
-                                        icon={faKey}
-                                        sx={{color: "#43E3A1"}}
-                                        variant="success"
-                                        onClick={() => {
-                                            console.log("TRUSYTEES KEY PRESSED")
-                                        }}
                                     />
                                 </TallyStyles.StyledFooter>
 

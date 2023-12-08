@@ -32,7 +32,7 @@ export const EditElectionEventTally: React.FC = () => {
                 handleClose={() => setShowStartTallyDialog(false)}
                 electionEvent={recordEvent}
             />
-            <Button onClick={openStartTallyDialog}>Start tally</Button>
+            {/* <Button onClick={openStartTallyDialog}>Start tally</Button> */}
             {tallyId ? (
                 <TallyCeremony completed={record.is_execution_completed} />
             ) : (

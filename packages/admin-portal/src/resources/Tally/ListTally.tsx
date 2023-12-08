@@ -36,6 +36,7 @@ import ElectionHeader from '@/components/ElectionHeader'
 import { EditTally } from './EditTally'
 import { TrusteeItems } from '@/components/TrusteeItems'
 import { useElectionEventTallyStore } from '@/providers/ElectionEventTallyProvider'
+import { StatusChip } from '@/components/StatusChip'
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -60,19 +61,13 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const [tenantId] = useTenantStore()
     const [_, setTallyId] = useElectionEventTallyStore()
-    const [deleteOne, {isLoading, error}] = useDelete()
+    const [deleteOne] = useDelete()
 
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
-
-    // const rowClickHandler = generateRowClickHandler(["election_event_id"])
-    const rowClickHandler = (id: Identifier, resource: string, record: RaRecord) => {
-        setRecordId(id)
-        return ""
-    }
 
     useEffect(() => {
         if (recordId) {
@@ -92,19 +87,8 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         }, 400)
     }
 
-    const editAction = (id: Identifier) => {
-        console.log("edit action", id);
-        setRecordId(id)
-    }
-
     const editDetail = (id: Identifier) => {
         setTallyId(id as string)
-    }
-
-    const deleteAction = (id: Identifier) => {
-        // deleteOne("sequent_backend_area", {id})
-        setOpenDeleteModal(true)
-        setDeleteId(id)
     }
 
     const confirmDeleteAction = () => {
@@ -113,8 +97,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     }
 
     const actions: Action[] = [
-        {icon: <EditIcon />, action: editAction},
-        {icon: <DeleteIcon />, action: deleteAction},
         {icon: <DescriptionIcon />, action: editDetail},
     ]
 
@@ -157,7 +139,10 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         render={(record: RaRecord<Identifier>) => record?.election_ids?.length || 0}
                     />
 
-                    <TextField source="is_execution_completed" />
+                    <FunctionField
+                        label={t("electionEventScreen.tally.status")}
+                        render={(record: RaRecord<Identifier>) => <StatusChip status={record.status} />}
+                    />
 
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />

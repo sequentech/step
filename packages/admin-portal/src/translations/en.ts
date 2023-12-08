@@ -237,6 +237,7 @@ const englishTranslation = {
                 elections: "Elections",
                 electionNumber: "Number Elections",
                 trustees: "Trustees",
+                status: "Status",
                 create: {
                     title: "Create Tally",
                     subtitle: "Create a new Tally for this Election Event",
