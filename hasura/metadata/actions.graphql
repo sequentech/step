@@ -35,6 +35,13 @@ type Mutation {
 }
 
 type Mutation {
+  create_tally_ceremony (
+    election_event_id: uuid!
+    election_ids: [uuid!]!
+  ): CreateTallyOutput
+}
+
+type Mutation {
   create_user (
     tenant_id: String!
     election_event_id: String
@@ -155,6 +162,13 @@ type Query {
 }
 
 type Mutation {
+  publish_ballot (
+    election_event_id: uuid!
+    election_ids: [uuid!]!
+  ): PublishBallotOutput
+}
+
+type Mutation {
   set_role_permission (
     tenant_id: String!
     role_id: String!
@@ -168,6 +182,27 @@ type Mutation {
     user_id: String!
     role_id: String!
   ): SetUserRoleOutput
+}
+
+type Mutation {
+  start_tally_ceremony (
+    election_event_id: uuid!
+    tally_session_id: uuid!
+  ): StartTallyOutput
+}
+
+type Mutation {
+  update_election_voting_status (
+    election_id: uuid!
+    voting_status: String!
+  ): UpdateElectionVotingStatusOutput
+}
+
+type Mutation {
+  update_event_voting_status (
+    election_event_id: uuid!
+    voting_status: String!
+  ): UpdateEventVotingStatusOutput
 }
 
 enum OrderDirection {
@@ -236,6 +271,7 @@ input CreateKeysCeremonyInput {
 
 input GetPrivateKeyInput {
   election_event_id : String!
+  keys_ceremony_id : String!
 }
 
 input CheckPrivateKeyInput {
@@ -464,5 +500,25 @@ type SetRolePermissionOutput {
 
 type SetUserRoleOutput {
   id : String
+}
+
+type CreateTallyOutput {
+  tally_session_id : uuid!
+}
+
+type StartTallyOutput {
+  tally_session_id : uuid!
+}
+
+type PublishBallotOutput {
+  ballot_publication_id : uuid!
+}
+
+type UpdateEventVotingStatusOutput {
+  election_event_id : uuid
+}
+
+type UpdateElectionVotingStatusOutput {
+  election_id : uuid
 }
 

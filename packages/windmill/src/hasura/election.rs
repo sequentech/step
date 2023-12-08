@@ -48,3 +48,38 @@ pub async fn update_election_status(
     let response_body: Response<update_election_status::ResponseData> = res.json().await?;
     response_body.ok()
 }
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/get_election.graphql",
+    response_derives = "Debug, Clone, Deserialize"
+)]
+pub struct GetElection;
+
+#[instrument(skip(auth_headers))]
+pub async fn get_election(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    election_id: String,
+) -> Result<Response<get_election::ResponseData>> {
+    let variables = get_election::Variables {
+        tenant_id: tenant_id,
+        election_event_id: election_event_id,
+        election_id,
+    };
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = GetElection::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<get_election::ResponseData> = res.json().await?;
+    response_body.ok()
+}

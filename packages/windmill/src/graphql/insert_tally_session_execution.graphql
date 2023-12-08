@@ -3,7 +3,9 @@ mutation InsertTallySessionExecution(
   $electionEventId: uuid!,
   $currentMessageId: Int!,
   $tallySessionId: uuid!,
-  $documentId: uuid!
+  $documentId: uuid
+  $status: jsonb,
+  $resultsEventId: uuid,
 ) {
   insert_sequent_backend_tally_session_execution(
     objects:
@@ -12,7 +14,9 @@ mutation InsertTallySessionExecution(
         election_event_id: $electionEventId,
         current_message_id: $currentMessageId,
         tally_session_id: $tallySessionId,
-        document_id: $documentId
+        document_id: $documentId,
+        status: $status,
+        results_event_id: $resultsEventId,
     }
   ) {
     returning {
@@ -26,6 +30,8 @@ mutation InsertTallySessionExecution(
       current_message_id
       tally_session_id
       document_id
+      status
+      results_event_id
     }
   }
 }

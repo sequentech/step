@@ -8,6 +8,7 @@ use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use sequent_core::services::connection;
+use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use std::env;
 use tracing::instrument;
 
@@ -67,10 +68,16 @@ pub async fn insert_tally_session_execution(
     election_event_id: String,
     current_message_id: i64,
     tally_session_id: String,
-    document_id: String,
+    document_id: Option<String>,
+    status: Option<TallyCeremonyStatus>,
+    results_event_id: Option<String>,
 ) -> Result<Response<insert_tally_session_execution::ResponseData>> {
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let json_status = match status {
+        Some(value) => Some(serde_json::to_value(value)?),
+        None => None,
+    };
 
     let variables = insert_tally_session_execution::Variables {
         tenant_id,
@@ -78,6 +85,8 @@ pub async fn insert_tally_session_execution(
         current_message_id,
         tally_session_id,
         document_id,
+        status: json_status,
+        results_event_id,
     };
 
     let request_body = InsertTallySessionExecution::build_query(variables);

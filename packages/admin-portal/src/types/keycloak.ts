@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 export enum IPermissions {
     TENANT_CREATE = "tenant-create",
     TENANT_READ = "tenant-read",
@@ -35,6 +39,7 @@ export enum IPermissions {
     TRUSTEE_CREATE = "trustee-create",
     TRUSTEE_READ = "trustee-read",
     TRUSTEE_WRITE = "trustee-write",
+    TRUSTEE_CEREMONY = "trustee-ceremony",
     TALLY_READ = "tally-read",
     TALLY_START = "tally-start",
     TALLY_WRITE = "tally-write",
@@ -45,4 +50,5 @@ export enum IPermissions {
     KEYS_READ = "keys-read",
     DOCUMENT_UPLOAD = "document-upload",
     ADMIN_CEREMONY = "admin-ceremony",
+    ADMIN_DASHBOARD_VIEW = "admin-dashboard-view",
 }

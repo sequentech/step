@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub mod create_ballot_style;
+pub mod connect_tally_ceremony;
+//pub mod create_ballot_style;
 pub mod create_keys;
 pub mod execute_tally_session;
 pub mod insert_ballots;

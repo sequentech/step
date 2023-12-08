@@ -8,7 +8,7 @@ use keycloak::types::UserRepresentation;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 impl From<UserRepresentation> for User {

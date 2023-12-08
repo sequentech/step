@@ -40,7 +40,7 @@ pub struct UpdateElectionEventPublicKey;
 #[graphql(
     schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/get_election_event.graphql",
-    response_derives = "Debug"
+    response_derives = "Debug, Clone, Deserialize"
 )]
 pub struct GetElectionEvent;
 

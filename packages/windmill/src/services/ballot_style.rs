@@ -180,18 +180,13 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendArea>
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct CreateBallotStylePayload {
-    pub area_id: String,
-}
-
 #[instrument]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
 pub async fn create_ballot_style(
-    body: CreateBallotStylePayload,
+    area_id: String,
     tenant_id: String,
     election_event_id: String,
+    election_ids: Vec<String>,
+    ballot_publication_id: String,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
     let lock = PgLock::acquire(
@@ -205,7 +200,7 @@ pub async fn create_ballot_style(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
-        body.area_id.clone(),
+        area_id.clone(),
     )
     .await?
     .data
@@ -233,7 +228,9 @@ pub async fn create_ballot_style(
             .contest
             .clone()
             .with_context(|| format!("contest not found for area contest {}", area_contest.id))?;
-        let _election_id = contest.election_id.clone();
+        if !election_ids.contains(&contest.election_id) {
+            continue;
+        }
         election_contest_map
             .entry(contest.election_id.clone())
             .and_modify(|contest_ids| contest_ids.push(contest.id.clone()))
@@ -305,7 +302,7 @@ pub async fn create_ballot_style(
             tenant_id.clone(),
             election_event_id.clone(),
             election.id.clone(),
-            body.area_id.clone(),
+            area_id.clone(),
         )
         .await?;
         let _hasura_response = hasura::ballot_style::insert_ballot_style(
@@ -314,10 +311,11 @@ pub async fn create_ballot_style(
             tenant_id.clone(),
             election_event_id.clone(),
             election.id.clone(),
-            body.area_id.clone(),
+            area_id.clone(),
             Some(election_dto_json_string),
             None,
             None,
+            ballot_publication_id.clone(),
         )
         .await?;
     }

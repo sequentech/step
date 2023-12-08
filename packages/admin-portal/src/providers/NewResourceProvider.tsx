@@ -4,26 +4,37 @@
 
 import React, {createContext, useState} from "react"
 
+export type ResourceType =
+    | "sequent_backend_election_event"
+    | "sequent_backend_election"
+    | "sequent_backend_contest"
+    | "sequent_backend_candidate"
+
+export type Resource = {
+    id: string
+    type: ResourceType
+}
+
 interface Context {
-    lastCreatedResourceId: string | null
-    setLastCreatedResourceId: (val: string | null) => void
+    lastCreatedResource: Resource | null
+    setLastCreatedResource: (val: Resource | null) => void
 }
 
 const defaultContext: Context = {
-    lastCreatedResourceId: null,
-    setLastCreatedResourceId: () => undefined,
+    lastCreatedResource: null,
+    setLastCreatedResource: () => undefined,
 }
 
 export const NewResourceContext = createContext<Context>(defaultContext)
 
 export default function NewResourceContextProvider({children}: {children: React.ReactNode}) {
-    const [lastCreatedResourceId, setLastCreatedResourceId] = useState<string | null>(null)
+    const [lastCreatedResource, setLastCreatedResource] = useState<Resource | null>(null)
 
     return (
         <NewResourceContext.Provider
             value={{
-                lastCreatedResourceId,
-                setLastCreatedResourceId,
+                lastCreatedResource: lastCreatedResource,
+                setLastCreatedResource: setLastCreatedResource,
             }}
         >
             {children}

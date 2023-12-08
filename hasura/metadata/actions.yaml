@@ -78,6 +78,20 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: create_tally_ceremony
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/create-tally-ceremony
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  - role: admin-ceremony
 - name: create_user
   definition:
     kind: synchronous
@@ -333,6 +347,20 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: publish_ballot
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/publish-ballot
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  - role: publish-write
 - name: set_role_permission
   definition:
     kind: synchronous
@@ -359,6 +387,48 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: start_tally_ceremony
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/start-tally-ceremony
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: trustee-read
+  - role: admin-user
+- name: update_election_voting_status
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/update-election-voting-status
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: election-state-write
+  - role: admin-user
+- name: update_event_voting_status
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/update-event-voting-status
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  - role: election-state-write
 custom_types:
   enums:
   - name: OrderDirection
@@ -414,4 +484,9 @@ custom_types:
   - name: CreateUserOutput
   - name: SetRolePermissionOutput
   - name: SetUserRoleOutput
+  - name: CreateTallyOutput
+  - name: StartTallyOutput
+  - name: PublishBallotOutput
+  - name: UpdateEventVotingStatusOutput
+  - name: UpdateElectionVotingStatusOutput
   scalars: []

@@ -1,14 +1,15 @@
 import React from "react"
 import {Box} from "@mui/system"
 import {Resource} from "react-admin"
+import {useTranslation} from "react-i18next"
 
 import {Tabs} from "../components/Tabs"
 import {HeaderTitle} from "../components/HeaderTitle"
+import {SettingsLanguages} from "../resources/Settings/SettingsLanguages"
+import {SettingsComunications} from "../resources/Settings/SettingsComunications"
+import {SettingsVotingChannels} from "../resources/Settings/SettingsVotingChannel"
 import {SettingsElectionsTypes} from "../resources/Settings/SettingsElectionsTypes"
 import {SettingsElectionsTypesCreate} from "@/resources/Settings/SettingsElectionsTypesCreate"
-
-import {SettingsVotingChannels} from "../resources/Settings/SettingsVotingChannel"
-import {useTranslation} from "react-i18next"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
@@ -40,8 +41,16 @@ export const SettingsScreen: React.FC = () => {
                             <Resource name="sequent_backend_tenant" list={SettingsVotingChannels} />
                         ),
                     },
-                    {label: t("electionTypeScreen.tabs.communications"), component: () => <></>},
-                    {label: t("electionTypeScreen.tabs.languages"), component: () => <></>},
+                    {
+                        label: t("electionTypeScreen.tabs.communications"), 
+                        component: () => (
+                            <Resource name="sequent_backend_tenant" list={SettingsComunications} />
+                        ),},
+                    {
+                        label: t("electionTypeScreen.tabs.languages"), 
+                        component: () => (
+                            <Resource name="sequent_backend_tenant" list={SettingsLanguages} />
+                        ),},
                 ]}
             />
         </Box>
