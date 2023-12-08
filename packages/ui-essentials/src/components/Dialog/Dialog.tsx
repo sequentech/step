@@ -7,12 +7,7 @@ import MaterialDialog from "@mui/material/Dialog"
 import {Backdrop, Box, Button} from "@mui/material"
 import DialogContent from "@mui/material/DialogContent"
 import DialogActions from "@mui/material/DialogActions"
-import {
-    faTimesCircle,
-    faInfoCircle,
-    faExclamationCircle,
-    faExclamationTriangle,
-} from "@fortawesome/free-solid-svg-icons"
+import {faTimesCircle, faInfoCircle, faExclamationTriangle} from "@fortawesome/free-solid-svg-icons"
 import styledEmotion from "@emotion/styled"
 import Icon from "../Icon/Icon"
 import IconButton from "../IconButton/IconButton"
@@ -27,6 +22,7 @@ export interface DialogProps extends PropsWithChildren {
     title: string
     cancel?: string
     ok: string
+    okEnabled?: () => boolean
     variant?: "warning" | "info" | "action"
 }
 
@@ -37,6 +33,7 @@ const Dialog: React.FC<DialogProps> = ({
     title,
     cancel,
     ok,
+    okEnabled,
     variant,
 }) => {
     const okVariant = "primary"
@@ -67,6 +64,7 @@ const Dialog: React.FC<DialogProps> = ({
                     </Button>
                 ) : undefined}
                 <Button
+                    disabled={okEnabled ? !okEnabled() : undefined}
                     variant={okVariant as any}
                     onClick={clickOk}
                     sx={{minWidth: "unset", flexGrow: 2}}

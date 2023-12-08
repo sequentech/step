@@ -1,21 +1,60 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useEffect} from "react"
+import React, {ReactElement, useContext, useEffect} from "react"
 
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
+import { faPlus } from "@fortawesome/free-solid-svg-icons"
 
-import {Drawer} from "@mui/material"
+import {Box, Button, Drawer, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
+import {styled} from "@mui/material/styles"
+
+import {
+    List,
+    TextField,
+    TextInput,
+    useDelete,
+    Identifier,
+    DatagridConfigurable
+} from "react-admin"
+
 import {Dialog} from "@sequentech/ui-essentials"
-
-import {List, TextField, TextInput, useDelete, Identifier, DatagridConfigurable} from "react-admin"
-
+import {IconButton} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
 import {ActionsColumn} from "@/components/ActionButons"
+import { useTenantStore } from "@/providers/TenantContextProvider"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
+
 import {SettingselectionsTypesEdit} from "./SettingsElectionsTypesEdit"
 import {SettingsElectionsTypesCreate} from "./SettingsElectionsTypesCreate"
+
+
+const EmptyBox = styled(Box)`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+`
+
+const useActionPermissions = () => {
+    const [tenantId] = useTenantStore()
+    const authContext = useContext(AuthContext)
+
+    const canWriteTenant = authContext.isAuthorized(true,
+        tenantId,
+        IPermissions.TENANT_WRITE
+    )
+
+    return {
+        canWriteTenant
+    }
+}
+
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 const Filters: Array<ReactElement> = [<TextInput label="Name" source="name" key={0} />]
@@ -23,6 +62,7 @@ const Filters: Array<ReactElement> = [<TextInput label="Name" source="name" key=
 export const SettingsElectionsTypes: React.FC<void> = () => {
     const {t} = useTranslation()
     const [deleteOne] = useDelete()
+    const {canWriteTenant} = useActionPermissions()
 
     const [open, setOpen] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
@@ -39,6 +79,12 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
         setOpenDrawer(false)
+        setOpen(false)
+    }
+
+    const handleOpenCreateDrawer = () => {
+        setRecordId(undefined)
+        setOpenDrawer(true)
         setOpen(false)
     }
 
@@ -68,6 +114,35 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
         {icon: <DeleteIcon />, action: deleteAction},
     ]
 
+    const CreateButton = () => (
+        <Button
+            onClick={handleOpenCreateDrawer}
+        >
+            <IconButton icon={faPlus} fontSize="24px" />
+            {t("electionTypeScreen.common.createNew")}
+        </Button>
+    )
+
+    const Empty = () => (
+        <EmptyBox m={1}>
+            <Typography variant="h4" paragraph>
+                {t("electionTypeScreen.common.emptyHeader")}
+            </Typography>
+            {canWriteTenant ? (
+                <>
+                    <Typography variant="body1" paragraph>
+                        {t("electionTypeScreen.common.emptyBody")}
+                    </Typography>
+                    <CreateButton />
+                </>
+            ) : null}
+        </EmptyBox>
+    )
+
+    if (!canWriteTenant) {
+        return <Empty />
+    }
+
     return (
         <>
             <List
@@ -81,6 +156,7 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
                         Component={<SettingsElectionsTypesCreate close={handleCloseCreateDrawer} />}
                     />
                 }
+                empty={<Empty />}
             >
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="id" />

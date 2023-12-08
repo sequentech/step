@@ -8,6 +8,7 @@ use celery::Celery;
 use std;
 use tracing::{event, instrument, Level};
 
+use crate::tasks::connect_tally_ceremony::connect_tally_ceremony;
 use crate::tasks::create_ballot_style::create_ballot_style;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::execute_tally_session::execute_tally_session;
@@ -54,6 +55,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
     celery::app!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
+            connect_tally_ceremony,
             create_ballot_style,
             create_keys,
             insert_ballots,
@@ -79,6 +81,7 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "set_public_key" => "short_queue",
             "tally_election_event" => "tally_queue",
             "execute_tally_session" => "tally_queue",
+            "connect_tally_ceremony" => "tally_queue",
             "update_election_event_ballot_styles" => "short_queue",
             "update_voting_status" => "short_queue",
             "insert_election_event_t" => "short_queue",

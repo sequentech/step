@@ -3,22 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
-use crate::types::resources::{
-    Aggregate, DataList, OrderDirection, TotalAggregate,
-};
-use anyhow::{anyhow, Result};
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
+use anyhow::Result;
 use rocket::http::Status;
-use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::User;
 use sequent_core::types::permissions::Permissions;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {

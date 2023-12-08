@@ -1,14 +1,13 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Result};
-use braid_messages::newtypes::BatchNumber;
+use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use sequent_core::services::connection;
 use serde_json::Value;
 use std::env;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 use crate::services::to_result::ToResult;
 pub use crate::types::hasura_types::*;
@@ -28,6 +27,7 @@ pub async fn insert_keys_ceremony(
     tenant_id: String,
     election_event_id: String,
     trustee_ids: Vec<String>,
+    threshold: i64,
     status: Option<Value>,
     execution_status: Option<String>,
 ) -> Result<Response<insert_keys_ceremony::ResponseData>> {
@@ -38,6 +38,7 @@ pub async fn insert_keys_ceremony(
         trustee_ids: Some(trustee_ids),
         status: status,
         execution_status: execution_status,
+        threshold: threshold,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
@@ -57,24 +58,24 @@ pub async fn insert_keys_ceremony(
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/get_keys_ceremony.graphql",
-    response_derives = "Debug"
+    query_path = "src/graphql/get_keys_ceremonies.graphql",
+    response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-pub struct GetKeysCeremony;
+pub struct GetKeysCeremonies;
 
 #[instrument(skip(auth_headers))]
-pub async fn get_keys_ceremony(
+pub async fn get_keys_ceremonies(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
-) -> Result<Response<get_keys_ceremony::ResponseData>> {
-    let variables = get_keys_ceremony::Variables {
+) -> Result<Response<get_keys_ceremonies::ResponseData>> {
+    let variables = get_keys_ceremonies::Variables {
         tenant_id: tenant_id,
         election_event_id: election_event_id,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
-    let request_body = GetKeysCeremony::build_query(variables);
+    let request_body = GetKeysCeremonies::build_query(variables);
 
     let client = reqwest::Client::new();
     let res = client
@@ -83,20 +84,20 @@ pub async fn get_keys_ceremony(
         .json(&request_body)
         .send()
         .await?;
-    let response_body: Response<get_keys_ceremony::ResponseData> = res.json().await?;
+    let response_body: Response<get_keys_ceremonies::ResponseData> = res.json().await?;
     response_body.ok()
 }
 
-
-#[derive(GraphQLQuery)]
+#[derive(GraphQLQuery, Debug)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/update_keys_ceremony_status.graphql",
-    response_derives = "Debug"
+    response_derives = "Debug",
+    variables_derives = "Debug",
 )]
 pub struct UpdateKeysCeremonyStatus;
 
-#[instrument(skip_all)]
+#[instrument(skip(auth_headers))]
 pub async fn update_keys_ceremony_status(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -115,6 +116,9 @@ pub async fn update_keys_ceremony_status(
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
     let request_body = UpdateKeysCeremonyStatus::build_query(variables);
+
+    event!(Level::INFO, "Sending graphql query {:?}", request_body);
+
 
     let client = reqwest::Client::new();
     let res = client
