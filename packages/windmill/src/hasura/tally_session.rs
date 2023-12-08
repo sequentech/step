@@ -112,7 +112,7 @@ pub async fn get_tally_session_by_id(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
-    tally_session_id: String
+    tally_session_id: String,
 ) -> Result<Response<get_tally_session_by_id::ResponseData>> {
     let variables = get_tally_session_by_id::Variables {
         tenant_id: tenant_id,
