@@ -669,6 +669,8 @@ const englishTranslation = {
             trusteeTallySubTitle: "Key fragment import status",
             createTallySuccess: "Tally created",
             createTallyError: "Could not create Tally",
+            startTallySuccess: "Tally started",
+            startTallyError: "Could not start Tally",
             breadcrumbSteps: {
                 ceremony: "Ceremony",
                 tally: "Tally",

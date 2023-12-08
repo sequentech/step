@@ -49,33 +49,10 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
         }
     )
 
-    console.log("keyCeremony", keyCeremony)
-
     const {data: elections} = useGetList("sequent_backend_election", {
         pagination: {page: 1, perPage: 9999},
         filter: {election_event_id: record?.id, tenant_id: record?.tenant_id},
     })
-
-    const {data: trustees} = useGetList<Sequent_Backend_Trustee>("sequent_backend_trustee", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {tenant_id: tenantId},
-    })
-
-    const onSuccess = (result: Sequent_Backend_Tally_Session) => {
-        refresh()
-        notify(t("tally.createTallySuccess"), {type: "success"})
-        if (close) {
-            close()
-        }
-    }
-
-    const onError = async (res: any) => {
-        refresh()
-        notify(t("tally.createTallyError"), {type: "error"})
-        if (close) {
-            close()
-        }
-    }
 
     const onSubmit: SubmitHandler<FieldValues> = async (result) => {
         const {data, errors} = await CreateTallyCeremonyMutation({

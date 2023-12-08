@@ -676,6 +676,8 @@ const spanishTranslation: TranslationType = {
             trusteeTallySubTitle: "Estado de importación del fragmento de clave",
             createTallySuccess: "Recuento creado",
             createTallyError: "Error creando recuento",
+            startTallySuccess: "Recuento iniciado",
+            startTallyError: "Error iniciando recuento",
             breadcrumbSteps: {
                 ceremony: "Ceremonia",
                 tally: "Recuento",

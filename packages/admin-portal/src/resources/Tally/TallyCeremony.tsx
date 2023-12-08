@@ -26,8 +26,11 @@ import {TallyElectionsProgress} from "./TallyElectionsProgress"
 import {TallyElectionsResults} from "./TallyElectionsResults"
 import {TallyResults} from "./TallyResults"
 import TallyLogs from "./TallyLogs"
-import {useGetOne} from "react-admin"
+import {useGetOne, useNotify} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
+import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
+import { useMutation } from '@apollo/client'
+import { ITallyExecutionStatus } from '@/types/ceremonies'
 
 interface TallyCeremonyProps {
     completed: boolean
@@ -38,12 +41,15 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
 
     const {t} = useTranslation()
     const [tallyId, setTallyId] = useElectionEventTallyStore()
+    const notify = useNotify()
 
     const [openModal, setOpenModal] = useState(false)
     const [page, setPage] = useState<number>(completed ? 2 : 0)
     const [showTrustees, setShowTrustees] = useState(false)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<string[]>([])
+
+    const [UpdateTallyCeremonyMutation] = useMutation(UPDATE_TALLY_CEREMONY)
 
     interface IExpanded {
         [key: string]: boolean
@@ -99,9 +105,24 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
         }
     }
 
-    const confirmNextAction = () => {
+    const confirmNextAction = async () => {
         // TODO activate the tally execution with the mutation
-        setShowTrustees(true)
+                const {data, errors} = await UpdateTallyCeremonyMutation({
+                    variables: {
+                        election_event_id: tally.election_event_id,
+                        tally_session_id: tally.id,
+                        status: ITallyExecutionStatus.STARTED,
+                    },
+                })
+
+                if (errors) {
+                    notify(t("tally.startTallyError"), {type: "error"})
+                }
+
+                if (data) {
+                    notify(t("tally.startTallySuccess"), {type: "success"})
+                    setShowTrustees(true)
+                }
     }
 
     useEffect(() => {
