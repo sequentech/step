@@ -53,6 +53,10 @@ interface AuthContextValues {
      */
     username: string
     /**
+     * The name of the authenticated user
+     */
+    email: string
+    /**
      * Function to initiate the logout
      */
     logout: () => void
@@ -76,6 +80,7 @@ interface AuthContextValues {
 const defaultAuthContextValues: AuthContextValues = {
     isAuthenticated: false,
     username: "",
+    email: "",
     logout: () => {},
     login: (tenantId: string, eventId: string) => {},
     hasRole: (role) => false,
@@ -108,6 +113,7 @@ const AuthContextProvider = ({children}: AuthContextProviderProps) => {
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
     // Local state that will contain the users name once it is loaded
     const [username, setUsername] = useState<string>("")
+    const [email, setEmail] = useState<string>("")
 
     const [tenantId, setTenantId] = useState<string | null>(null)
     const [eventId, setEventId] = useState<string | null>(null)
@@ -171,6 +177,9 @@ const AuthContextProvider = ({children}: AuthContextProviderProps) => {
                 } else if (profile.username) {
                     setUsername(profile.username)
                 }
+                if (profile.email) {
+                    setEmail(profile.email)
+                }
             } catch {
                 console.log("error trying to load the users profile")
             }
@@ -213,6 +222,7 @@ const AuthContextProvider = ({children}: AuthContextProviderProps) => {
             value={{
                 isAuthenticated,
                 username,
+                email,
                 logout,
                 login,
                 hasRole,

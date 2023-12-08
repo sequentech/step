@@ -29,6 +29,7 @@ const HeaderWithContext: React.FC = () => {
         <Header
             userProfile={{
                 username: authContext.username,
+                email: authContext.email,
                 openLink: authContext.openProfileLink,
             }}
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
