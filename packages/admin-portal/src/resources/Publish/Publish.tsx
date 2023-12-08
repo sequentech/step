@@ -4,13 +4,14 @@ import styled from "@emotion/styled"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import { diffLines } from 'diff';
-import {Box, Accordion, AccordionDetails, AccordionSummary} from "@mui/material"
+import {Box, Accordion, AccordionDetails, AccordionSummary, CircularProgress} from "@mui/material"
 
 import Summary from "./election-publish.json"
 import OldSummary from "./election-publish-old.json"
 
 import { DiffView } from '@/components/DiffView';
 import { PublishActions } from './PublishActions';
+import { useTranslation } from 'react-i18next';
 
 const PublishStyled = {
     Container: styled.div`
@@ -26,9 +27,16 @@ const PublishStyled = {
         letter-spacing: 0px;
         text-align: left;    
     `,
+    Loading: styled.div`
+        display: flex;
+        height: 60vh;
+        justify-content: center;
+        align-items: center;
+    `
 }
 
 export const Publish: React.FC = () => {
+    const {t} = useTranslation();
     const [diff, setDiff] = React.useState<any>('')
     const [expan, setExpan] = React.useState<string>('')
     const [oldJsonString, setOldJsonString] = React.useState<string>('')
@@ -50,7 +58,11 @@ export const Publish: React.FC = () => {
     }, [oldJsonString, newJsonString])
 
     if (!diff) {
-        return <span>Loading ...</span>
+        return (
+            <PublishStyled.Loading>
+                <CircularProgress />
+            </PublishStyled.Loading>
+        )
     }
 
     return (
@@ -61,7 +73,7 @@ export const Publish: React.FC = () => {
                 <Accordion sx={{width: "100%"}} expanded={expan == 'election-publish-diff'} onChange={() => setExpan('election-publish-diff')}>
                     <AccordionSummary expandIcon={<ExpandMoreIcon id="election-publish-diff" />}>
                         <PublishStyled.AccordionHeaderTitle>
-                            Change to be Publish
+                            {t('publish.header.change')}
                         </PublishStyled.AccordionHeaderTitle>
                     </AccordionSummary>
                     <AccordionDetails>
@@ -72,7 +84,7 @@ export const Publish: React.FC = () => {
                 <Accordion sx={{width: "100%"}} expanded={expan === 'election-publish-history'} onChange={() => setExpan('election-publish-history')}>
                     <AccordionSummary expandIcon={<ExpandMoreIcon id="election-publish-history" />}>
                         <PublishStyled.AccordionHeaderTitle>
-                            Publish History
+                        {t('publish.header.history')}
                         </PublishStyled.AccordionHeaderTitle>
                     </AccordionSummary>
                     <AccordionDetails>

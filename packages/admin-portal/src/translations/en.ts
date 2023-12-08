@@ -218,7 +218,7 @@ const englishTranslation = {
                     check: "Check",
                     success: "Finished",
                 },
-                notify:{
+                notify: {
                     participateNow: "You have been invited to participate in a Keys ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
             },
@@ -710,6 +710,19 @@ const englishTranslation = {
                 blank_votes: "Blank Votes",
             },
         },
+        publish: {
+            header: {
+                change: 'Changes to be Publish',
+                history: 'Publish History'
+            },
+            action: {
+                start: 'START ELECTION',
+                stop: 'STOP ELECTION',
+                pause: 'PAUSE',
+                generate: 'REGENERATE',
+                publish: 'PUBLISH CHANGES'
+            }
+        }
     },
 }
 
