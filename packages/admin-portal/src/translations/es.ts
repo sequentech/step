@@ -605,13 +605,17 @@ const spanishTranslation: TranslationType = {
                 emptyLogs: "Sin logs aún.",
             },
             startStep: {
-                title: "Ceremonia de Claves",
-                subtitle: "Estás a punto de participar en la Ceremonia de Claves como un Autoridad. Esto implica los siguientes pasos:",
-                one: "<strong>Descargar</strong> tu clave privada.",
-                two: "Crear múltiples <strong>Copias de seguridad</strong> de la clave privada.",
-                three: "<strong>Verificar</strong> que la clave de respaldo funcione bien.",
+                title: "Ceremonia de Claves de Autoridad",
+                subtitle: "Estás a punto de participar en la Ceremonia de Claves como la Autoridad (<strong>{{name}}</strong>). Esto implica los siguientes pasos:",
+                one: "<strong>Descargar</strong> tu Clave Privada Encriptada.",
+                two: "Crear múltiples <strong>Copias de seguridad</strong> de tu Clave Privada Encriptada.",
+                three: "<strong>Verificar</strong> que las copias de seguridad funcionan correctamente.",
             },
-            
+            downloadStep: {
+                title: "Descargar Clave Privada Encriptada",
+                subtitle: "Por favor, descarga y guarda tu Clave Privada Encriptada en al menos dos dispositivos diferentes.",
+                downloadButton: "Haz Clic Aquí para Descargar tu Clave Privada Encriptada",
+            },
         },
     },
 }

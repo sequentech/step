@@ -3,20 +3,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, { useContext } from "react"
 import {Typography} from "@mui/material"
+import {
+    Toolbar,
+} from "react-admin"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import Button from "@mui/material/Button"
 import {styled} from "@mui/material/styles"
 import {Trans, useTranslation} from "react-i18next"
 import { AuthContext } from "@/providers/AuthContextProvider"
+import {Box} from "@mui/material"
 import { WizardStyles } from "@/components/styles/WizardStyles"
 
-export interface ConfigureStepProps {
+export interface DownloadStepProps {
     goNext: () => void
     goBack: () => void
 }
 
-export const StartStep: React.FC<ConfigureStepProps> = ({
+export const DownloadStep: React.FC<DownloadStepProps> = ({
     goNext,
     goBack,
 }) => {
@@ -26,27 +30,14 @@ export const StartStep: React.FC<ConfigureStepProps> = ({
         <>
             <WizardStyles.ContentBox>
                 <WizardStyles.StepHeader variant="h4">
-                    {t("keysGeneration.startStep.title")}
+                    {t("keysGeneration.downloadStep.title")}
                 </WizardStyles.StepHeader>
                 <WizardStyles.MainContent>
                     <Typography variant="body1">
-                        <p>
-                            <Trans
-                                i18nKey="keysGeneration.startStep.subtitle"
-                                values={{name: authContext.username}}
-                            ></Trans>
-                        </p>
-                        <WizardStyles.OrderedList>
-                            <WizardStyles.ListItem>
-                                <Trans i18nKey="keysGeneration.startStep.one"></Trans>
-                            </WizardStyles.ListItem>
-                            <WizardStyles.ListItem>
-                                <Trans i18nKey="keysGeneration.startStep.two"></Trans>
-                            </WizardStyles.ListItem>
-                            <WizardStyles.ListItem>
-                                <Trans i18nKey="keysGeneration.startStep.three"></Trans>
-                            </WizardStyles.ListItem>
-                        </WizardStyles.OrderedList>
+                        <Trans
+                            i18nKey="keysGeneration.downloadStep.subtitle"
+                            values={{name: authContext.username}}
+                        ></Trans>
                     </Typography>
                 </WizardStyles.MainContent>
             </WizardStyles.ContentBox>
