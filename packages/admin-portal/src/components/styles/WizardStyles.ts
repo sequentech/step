@@ -80,6 +80,10 @@ export const WizardStyles = {
     ErrorMessage: styled(Typography)`
         color: ${({theme}) => theme.palette.errorColor};
     `,
+    SucessMessage: styled(Typography)`
+        color: ${({theme}) => theme.palette.brandSuccess};
+        font-weight: bold;
+    `,
     StepHeader: styled(Typography)`
         margin: 25px 0;
     `,

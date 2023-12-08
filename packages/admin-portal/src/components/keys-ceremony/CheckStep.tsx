@@ -40,12 +40,33 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
     const [checkPrivateKeysMutation] =
     useMutation<CheckPrivateKeyMutation>(CHECK_PRIVATE_KEY)
     const uploadPrivateKey = async (files: FileList | null) => {
-        const fileContent = files?.[0]?.text()
-        console.log(`uploadPrivateKey(): fileContent: ${fileContent}`)
         setErrors(null)
         setVerified(false)
-        setUploading(true)
+        setUploading(false)
+        if (!files || files.length === 0) {
+            setErrors(t("keysGeneration.checkStep.noFileSelected"))
+            return
+        }
+        const firstFile = files[0]
+        const readFileContent = (file: File) => {
+            return new Promise<string>(
+                (resolve, reject) => {
+                    const fileReader = new FileReader()
+                    fileReader.onload = () => resolve(fileReader.result as string)
+                    fileReader.onerror = (error) => reject(error)
+                    // Read the file as a data URL (base64 encoded string)
+                    fileReader.readAsText(file)
+                }
+            )
+        }
         try {
+            const fileContent = await readFileContent(firstFile)
+            console.log(`uploadPrivateKey(): fileContent: ${fileContent}`)
+            if (fileContent == null) {
+                setErrors(t("keysGeneration.checkStep.noFileSelected"))
+                return
+            }
+            setUploading(true)
             const {data, errors} = await checkPrivateKeysMutation({
                 variables: {
                     electionEventId: electionEvent.id,
@@ -103,6 +124,9 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                                 {errors}
                             </WizardStyles.ErrorMessage>
                             : null}
+                        {verified && <WizardStyles.SucessMessage variant="body1">
+                            {t("keysGeneration.checkStep.verified")}
+                        </WizardStyles.SucessMessage>}
                     </WizardStyles.StatusBox>
                 </WizardStyles.MainContent>
             </WizardStyles.ContentBox>

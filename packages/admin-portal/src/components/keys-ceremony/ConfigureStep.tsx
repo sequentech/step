@@ -213,42 +213,44 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         </WizardStyles.Toolbar>
                     }
                 >
-                    <WizardStyles.StepHeader variant="h4">
-                        {t("keysGeneration.configureStep.title")}
-                    </WizardStyles.StepHeader>
-                    <Typography variant="body2">
-                        {t("keysGeneration.configureStep.subtitle")}
-                    </Typography>
+                    <WizardStyles.MainContent>
+                        <WizardStyles.StepHeader variant="h4">
+                            {t("keysGeneration.configureStep.title")}
+                        </WizardStyles.StepHeader>
+                        <Typography variant="body2">
+                            {t("keysGeneration.configureStep.subtitle")}
+                        </Typography>
 
-                    <TextInput
-                        source="threshold"
-                        label={t("keysGeneration.configureStep.threshold")}
-                        value={threshold}
-                        validate={thresholdValidator}
-                        type="number"
-                        InputLabelProps={{
-                            shrink: true,
-                        }}
-                        variant="filled"
-                    />
-                    {trusteeList ? (
-                        <CheckboxGroupInput
-                            validate={trusteeListValidator}
-                            label={t("keysGeneration.configureStep.trusteeList")}
-                            source="trusteeNames"
-                            choices={trusteeList}
-                            translateChoice={false}
-                            optionText="name"
-                            optionValue="name"
-                            row={false}
+                        <TextInput
+                            source="threshold"
+                            label={t("keysGeneration.configureStep.threshold")}
+                            value={threshold}
+                            validate={thresholdValidator}
+                            type="number"
+                            InputLabelProps={{
+                                shrink: true,
+                            }}
+                            variant="filled"
                         />
-                    ) : null}
-                    {errors
-                        ? <WizardStyles.ErrorMessage variant="body2">
-                            {errors}
-                        </WizardStyles.ErrorMessage>
-                        : null}
-                    {isLoading ? <CircularProgress /> : null}
+                        {trusteeList ? (
+                            <CheckboxGroupInput
+                                validate={trusteeListValidator}
+                                label={t("keysGeneration.configureStep.trusteeList")}
+                                source="trusteeNames"
+                                choices={trusteeList}
+                                translateChoice={false}
+                                optionText="name"
+                                optionValue="name"
+                                row={false}
+                            />
+                        ) : null}
+                        {errors
+                            ? <WizardStyles.ErrorMessage variant="body2">
+                                {errors}
+                            </WizardStyles.ErrorMessage>
+                            : null}
+                        {isLoading ? <CircularProgress /> : null}
+                    </WizardStyles.MainContent>
                 </SimpleForm>
                 <Dialog
                     variant="warning"
