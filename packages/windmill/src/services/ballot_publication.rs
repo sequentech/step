@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::ballot_publication::{
-    get_ballot_publication, insert_ballot_publication, update_ballot_publication_d,
+    get_ballot_publication, insert_ballot_publication, soft_delete_other_ballot_publications,
+    update_ballot_publication_d,
 };
 use crate::hasura::election::get_all_elections_for_event;
 use crate::services::celery_app::get_celery_app;
@@ -92,7 +93,7 @@ pub async fn update_publish_ballot(
 ) -> Result<()> {
     let auth_headers = get_client_credentials().await?;
 
-    let ballot_publication2 = &get_ballot_publication(
+    let ballot_publication_data = &get_ballot_publication(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -103,7 +104,7 @@ pub async fn update_publish_ballot(
     .with_context(|| "can't find ballot publication")?
     .sequent_backend_ballot_publication;
 
-    let ballot_publication = ballot_publication2
+    let ballot_publication = ballot_publication_data
         .get(0)
         .clone()
         .ok_or(anyhow!("Can't find ballot publication"))?;
@@ -117,6 +118,13 @@ pub async fn update_publish_ballot(
     if ballot_publication.published_at.is_some() {
         return Ok(());
     }
+
+    soft_delete_other_ballot_publications(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        ballot_publication_id.clone(),
+    );
 
     update_ballot_publication_d(
         auth_headers.clone(),
