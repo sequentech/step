@@ -80,21 +80,21 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
 
         console.log("transform :: result", result);
         
-        // const {data, errors} = await CreateTallyCeremonyMutation({
-        //     variables: {
-        //         election_event_id: result.election_event_id,
-        //         election_ids: result.election_ids,
-        //     },
-        // })
+        const {data, errors} = await CreateTallyCeremonyMutation({
+            variables: {
+                election_event_id: result.election_event_id,
+                election_ids: result.election_ids,
+            },
+        })
 
-        // if (errors) {
-        //     console.log("errors", errors)
-        //     notify(t("tally.createTallyError"), {type: "error"})
-        // }
+        if (errors) {
+            console.log("errors", errors)
+            notify(t("tally.createTallyError"), {type: "error"})
+        }
 
         return {
             ...result,
-            // id: data?.create_keys_ceremony?.tally_session_id ?? null
+            id: data?.create_keys_ceremony?.tally_session_id ?? null
         }
     }
 
