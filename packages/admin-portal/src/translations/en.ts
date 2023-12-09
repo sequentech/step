@@ -133,12 +133,12 @@ const englishTranslation = {
         },
         electionTypeScreen: {
             common: {
-                title: 'Election Type',
-                subtitle: 'Election type configuration',
-                onlineVoting: 'Online Voting',
-                kioskVoting: 'Kiosk Voting',
-                settingTitle: 'Settings',
-                settingSubtitle: 'General Configuration',
+                title: "Election Type",
+                subtitle: "Election type configuration",
+                onlineVoting: "Online Voting",
+                kioskVoting: "Kiosk Voting",
+                settingTitle: "Settings",
+                settingSubtitle: "General Configuration",
                 sms: "SMS",
                 mail: "Mails",
                 spanish: "Spanish",
@@ -219,8 +219,9 @@ const englishTranslation = {
                     check: "Check",
                     success: "Finished",
                 },
-                notify:{
-                    participateNow: "You have been invited to participate in a Keys ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
+                notify: {
+                    participateNow:
+                        "You have been invited to participate in a Keys ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
             },
             tabs: {
@@ -634,14 +635,16 @@ const englishTranslation = {
             },
             startStep: {
                 title: "Trustee Keys Ceremony",
-                subtitle: "You are about to participate in the Keys Ceremony as a Trustee (<strong>{{name}}</strong>). This involves the following steps:",
+                subtitle:
+                    "You are about to participate in the Keys Ceremony as a Trustee (<strong>{{name}}</strong>). This involves the following steps:",
                 one: "<strong>Download</strong> your Encrypted Private Key.",
                 two: "Create multiple <strong>Backups</strong> of the Encrypted Private Key.",
                 three: "<strong>Check</strong> that the backups works well.",
             },
             downloadStep: {
                 title: "Download Encrypted Private Key",
-                subtitle: "To continue, please download and store your Encrypted Private Key at least into two different devices:",
+                subtitle:
+                    "To continue, please download and store your Encrypted Private Key at least into two different devices:",
                 downloadButton: "Download your Encrypted Private Key",
                 errorDownloading: "Download error: {{error}}",
                 errorEmptyKey: "Download error, empty file",
@@ -649,18 +652,20 @@ const englishTranslation = {
                     ok: "Confirm Backups and Continue",
                     cancel: "Go Back",
                     title: "Backup your Encrypted Private Key",
-                    description: "Please backup your Encrypted Private Key in at least two different secure locations and then confirm it below:",
+                    description:
+                        "Please backup your Encrypted Private Key in at least two different secure locations and then confirm it below:",
                     firstCopy: "First backup secured",
                     secondCopy: "Second backup secured",
                 },
             },
             checkStep: {
                 title: "Check your Encrypted Private Key Backups",
-                subtitle: "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
+                subtitle:
+                    "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
                 errorUploading: "Upload error: {{error}}",
                 errorEmptyFile: "File empty or not found",
                 verified: "Backup verified successfully.",
-            }
+            },
         },
         tally: {
             ceremonyTitle: "Elections to Tally",
@@ -675,15 +680,16 @@ const englishTranslation = {
             createTallyError: "Could not create Tally",
             startTallySuccess: "Tally started",
             startTallyError: "Could not start Tally",
+            trusteeTitle: "Trustees process",
+            trusteeSubTitle: "Please upload you key fragment",
             breadcrumbSteps: {
-                ceremony: "Ceremony",
-                tally: "Tally",
-                results: "Results",
+                start: "Start",
+                finish: "Finish",
             },
             common: {
                 title: "Tally",
                 subTitle: "Tally configuration.",
-                cancel: "Cancel",
+                cancel: "Back",
                 next: "Next",
                 date: "Tally Date",
                 global: "Global",

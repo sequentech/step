@@ -76,7 +76,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             flex: 1,
             editable: true,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
-                <Checkbox checked={true} />
+                <Checkbox checked={true} disabled/>
             ),
         },
     ]
