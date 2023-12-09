@@ -8,23 +8,29 @@ import Box from "@mui/material/Box"
 import Paper from "@mui/material/Paper"
 import {useForwardedRef} from "../../utils/ref"
 
+const StyledForm = styledEmotion.form`
+    height: 16rem;
+    width: 100%;
+    max-width: 100%;
+    text-align: center;
+    position: relative;
+`
+
 const StyledInput = styledEmotion.input`
     display: none;
 `
 
-const BorderContainer = styled(Box)`
-    display: flex;
-    justify-content: center;
-    align-items: center;
-`
-//  border: 2px dashed ${({dragActive, theme}) => dragActive ? theme.palette.customGreen.dark : theme.palette.grey[500]};
-const StyledLabel = styledEmotion(Paper)<{dragActive: boolean}>`
+// const StyledLabel = styledEmotion(Paper)<{dragActive: boolean}>`
+const StyledLabel = styledEmotion.label<{dragActive: boolean}>`
     height: 100%;
-    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 4px;
+    border-style: dashed;
+    border-color: ${({dragActive, theme}) =>
+        dragActive ? theme.palette.customGreen.dark : theme.palette.customGrey.contrastText};
+    border-width: 2px;
     &:hover {
         cursor: pointer;
     }
@@ -87,11 +93,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
         }
 
         return (
-            <Box
-                onDragEnter={handleDrag}
-                onSubmit={(e) => e.preventDefault()}
-                sx={{position: "relative"}}
-            >
+            <StyledForm onDragEnter={handleDrag} onSubmit={(e) => e.preventDefault()}>
                 <StyledInput
                     ref={innerRef}
                     type="file"
@@ -99,16 +101,14 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                     data-testid="drop-input-file"
                     aria-label="Drop Input File"
                 />
-                <BorderContainer>
-                    <StyledLabel
-                        variant="dashed"
-                        dragActive={dragActive}
-                        onClick={onButtonClick}
-                        data-testid="drop-label-file"
-                    >
-                        {children}
-                    </StyledLabel>
-                </BorderContainer>
+                <StyledLabel
+                    // variant="dashed"
+                    dragActive={dragActive}
+                    onClick={onButtonClick}
+                    data-testid="drop-label-file"
+                >
+                    {children}
+                </StyledLabel>
                 {dragActive && (
                     <DragFileElement
                         onDragEnter={handleDrag}
@@ -117,7 +117,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                         onDrop={handleDrop}
                     />
                 )}
-            </Box>
+            </StyledForm>
         )
     }
 )

@@ -19,15 +19,16 @@ const DropFile: React.FC<DropFileProps> = ({handleFiles}) => {
     const inputRef = useRef<HTMLInputElement | null>(null)
 
     // triggers the input when the button is clicked
-    const onButtonClick = () => {
-        inputRef.current?.click()
-    }
+    // const onButtonClick = () => {
+    //     inputRef.current?.click()
+    // }
 
     return (
         <CustomDropFile handleFiles={handleFiles} ref={inputRef}>
             <Paper
                 variant="responsive"
-                sx={{width: "100%", gap: "7px", padding: "16px", backgroundColor: "inherit"}}
+                // sx={{width: "100%", gap: "7px", padding: "16px", backgroundColor: "inherit"}}
+                sx={{backgroundColor: "inherit"}}
             >
                 <Icon variant="info" icon={faCloudArrowUp} fontSize="50px" />
                 <Box
@@ -48,7 +49,7 @@ const DropFile: React.FC<DropFileProps> = ({handleFiles}) => {
                     <Typography
                         variant="body1"
                         component="span"
-                        onClick={onButtonClick}
+                        // onClick={onButtonClick}
                         data-testid="drop-file-button"
                         sx={{fontWeight: "bold", textDecoration: "underline", margin: 0}}
                     >
