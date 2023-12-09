@@ -40,6 +40,7 @@ fn rocket() -> _ {
                 routes::users::create_user,
                 routes::users::delete_user,
                 routes::users::get_users,
+                routes::users::get_user,
                 routes::users::edit_user,
                 routes::roles::list_user_roles,
                 routes::roles::set_user_role,

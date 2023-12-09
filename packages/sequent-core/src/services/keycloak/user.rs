@@ -102,6 +102,16 @@ impl KeycloakAdminClient {
     }
 
     #[instrument(skip(self))]
+    pub async fn get_user(self, realm: &str, user_id: &str) -> Result<User> {
+        let current_user: UserRepresentation = self
+            .client
+            .realm_users_with_id_get(realm, user_id)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(current_user.into())
+    }
+
+    #[instrument(skip(self))]
     pub async fn edit_user(
         self,
         realm: &str,
@@ -176,8 +186,9 @@ impl KeycloakAdminClient {
     #[instrument(skip(self))]
     pub async fn create_user(self, realm: &str, user: &User) -> Result<User> {
         let mut new_user = user.clone();
-        let new_user_id = new_user.id.clone().unwrap_or(Uuid::new_v4().to_string());
-        new_user.id =Some(new_user_id.clone());
+        let new_user_id =
+            new_user.id.clone().unwrap_or(Uuid::new_v4().to_string());
+        new_user.id = Some(new_user_id.clone());
         self.client
             .realm_users_post(realm, new_user.clone().into())
             .await
