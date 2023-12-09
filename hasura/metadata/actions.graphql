@@ -285,6 +285,7 @@ input EditUsersInput {
   last_name : String
   groups : [String!]
   username : String
+  password : String
 }
 
 input DeleteUserInput {

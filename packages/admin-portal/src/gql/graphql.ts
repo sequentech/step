@@ -116,6 +116,7 @@ export type EditUsersInput = {
   first_name?: InputMaybe<Scalars['String']['input']>;
   groups?: InputMaybe<Array<Scalars['String']['input']>>;
   last_name?: InputMaybe<Scalars['String']['input']>;
+  password?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
   user_id: Scalars['String']['input'];
   username?: InputMaybe<Scalars['String']['input']>;
