@@ -13,6 +13,8 @@ insert_permissions:
     - created_by_user_id
     - created_at
     - deleted_at
+    - last_updated_at
+    - published_at
     - election_event_id
     - id
     - tenant_id
@@ -28,6 +30,8 @@ insert_permissions:
     - created_by_user_id
     - created_at
     - deleted_at
+    - last_updated_at
+    - published_at
     - election_event_id
     - id
     - tenant_id
@@ -44,6 +48,8 @@ select_permissions:
     - created_by_user_id
     - created_at
     - deleted_at
+    - last_updated_at
+    - published_at
     - election_event_id
     - id
     - tenant_id
@@ -60,6 +66,8 @@ select_permissions:
     - created_by_user_id
     - created_at
     - deleted_at
+    - last_updated_at
+    - published_at
     - election_event_id
     - id
     - tenant_id
@@ -77,6 +85,8 @@ update_permissions:
     - created_by_user_id
     - created_at
     - deleted_at
+    - last_updated_at
+    - published_at
     - election_event_id
     - id
     - tenant_id
@@ -93,6 +103,8 @@ update_permissions:
     - created_by_user_id
     - created_at
     - deleted_at
+    - last_updated_at
+    - published_at
     - election_event_id
     - id
     - tenant_id
