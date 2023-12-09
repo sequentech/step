@@ -170,6 +170,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         tenant_id: tenantId,
                         election_event_id: electionEventId,
                         first_name: user?.first_name,
+                        last_name: user?.last_name,
                         email: user?.email,
                         attributes: {
                             "area-id": [user?.attributes?.["area-id"]?.[0]],
