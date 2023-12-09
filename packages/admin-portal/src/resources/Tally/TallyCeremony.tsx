@@ -47,9 +47,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     const notify = useNotify()
 
     const [openModal, setOpenModal] = useState(false)
-    const [page, setPage] = useState<number>(
-        ITallyExecutionStatus.CONNECTED ? 1 : ITallyExecutionStatus.IN_PROGRESS ? 2 : 0
-    )
+    const [page, setPage] = useState<number>(0)
     const [showTrustees, setShowTrustees] = useState(false)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<string[]>([])
@@ -73,9 +71,15 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
 
     useEffect(() => {
         if (data) {
+            setPage(
+                data.execution_status === ITallyExecutionStatus.CONNECTED
+                    ? 1
+                    : data.execution_status === ITallyExecutionStatus.IN_PROGRESS
+                    ? 2
+                    : 0
+            )
             if (tally?.last_updated_at !== data.last_updated_at) {
-                console.log("TallyCeremony :: data", data);
-                
+                console.log("TallyCeremony :: data", data)
                 setTally(data)
             }
         }
