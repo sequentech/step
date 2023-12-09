@@ -12,6 +12,8 @@ use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tracing::{event, instrument, Level};
 
 #[instrument]
@@ -137,4 +139,33 @@ pub async fn update_publish_ballot(
     .await?;
 
     Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PublicationStyles {
+    ballot_publication_id: String,
+    ballot_styles: Value,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PublicationDiff {
+    current: PublicationStyles,
+    previous: Option<PublicationStyles>,
+}
+
+#[instrument]
+pub async fn get_ballot_publication_diff(
+    tenant_id: String,
+    election_event_id: String,
+    ballot_publication_id: String,
+) -> Result<PublicationDiff> {
+    let p = PublicationStyles {
+        ballot_publication_id: ballot_publication_id.clone(),
+        ballot_styles: serde_json::from_str("{}").unwrap(),
+    };
+
+    Ok(PublicationDiff {
+        current: p.clone(),
+        previous: None,
+    })
 }

@@ -8,10 +8,13 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
-use windmill::services::ballot_publication::{add_ballot_publication, update_publish_ballot};
-use windmill::services::ceremonies::tally_ceremony;
 use serde_json::Value;
+use tracing::{event, instrument, Level};
+use windmill::services::ballot_publication::{
+    add_ballot_publication, get_ballot_publication_diff, update_publish_ballot,
+    PublicationDiff,
+};
+use windmill::services::ceremonies::tally_ceremony;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationInput {
@@ -49,7 +52,6 @@ pub async fn generate_ballot_publication(
     }))
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PublishBallotInput {
     election_event_id: String,
@@ -75,7 +77,8 @@ pub async fn publish_ballot(
         tenant_id.clone(),
         input.election_event_id.clone(),
         input.ballot_publication_id.clone(),
-    ).await
+    )
+    .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(PublishBallotOutput {
@@ -106,18 +109,18 @@ pub struct GetBallotPublicationChangesOutput {
 pub async fn get_ballot_publication_changes(
     body: Json<GetBallotPublicationChangesInput>,
     claims: JwtClaims,
-) -> Result<Json<GetBallotPublicationChangesOutput>, (Status, String)> {
+) -> Result<Json<PublicationDiff>, (Status, String)> {
     authorize(&claims, true, None, vec![Permissions::PUBLISH_READ])?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
-    let p = BallotPublicationStyles {
-        ballot_publication_id: input.ballot_publication_id.clone(),
-        ballot_styles: serde_json::from_str("{}").unwrap(),
-    };
+    let diff = get_ballot_publication_diff(
+        tenant_id.clone(),
+        input.election_event_id.clone(),
+        input.ballot_publication_id.clone(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    Ok(Json(GetBallotPublicationChangesOutput {
-        current: p.clone(),
-        previous: None,
-    }))
+    Ok(Json(diff))
 }

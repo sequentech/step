@@ -214,8 +214,6 @@ pub async fn edit_user(
     Ok(Json(user))
 }
 
-
-
 #[derive(Deserialize, Debug)]
 pub struct GetUserBody {
     tenant_id: String,
@@ -251,10 +249,7 @@ pub async fn get_user(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let user = client
-        .get_user(
-            &realm,
-            &input.user_id,
-        )
+        .get_user(&realm, &input.user_id)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
