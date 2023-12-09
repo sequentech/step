@@ -274,6 +274,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         name={"username"}
                         onChange={handleChange}
                     />
+                    <TextField
+                        variant="outlined"
+                        type="password"
+                        label={t("usersAndRolesScreen.users.fields.password")}
+                        value={user.password || ""}
+                        name={"password"}
+                        onChange={handleChange}
+                    />
                     {electionEventId ? (
                         <FormControl fullWidth>
                             <ElectionHeaderStyles.Title>

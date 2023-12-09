@@ -329,6 +329,7 @@ const spanishTranslation: TranslationType = {
                     groups: "Grupos",
                     attributes: "Atributos",
                     area: "Área",
+                    password: "Contraseña",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",

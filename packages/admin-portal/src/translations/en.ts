@@ -327,6 +327,7 @@ const englishTranslation = {
                     groups: "Groups",
                     attributes: "Attributes",
                     area: "Area",
+                    password: "Password",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",
