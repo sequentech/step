@@ -157,11 +157,15 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     }
 
     const actions: Action[] = [
-        {icon: <DescriptionIcon />, action: viewAdminTally},
+        {
+            icon: <DescriptionIcon />, 
+            action: viewAdminTally, 
+            showAction: (id: Identifier) => canAdminCeremony,
+        },
         {
             icon: <TrusteeKeyIcon />,
             action: viewTrusteeTally,
-            // showAction: (id: Identifier) => canWriteTrustee && !!getCeremony(id),
+            showAction: (id: Identifier) => canTrusteeCeremony,
         },
     ]
 

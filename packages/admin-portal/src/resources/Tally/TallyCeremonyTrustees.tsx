@@ -65,15 +65,18 @@ export const TallyCeremonyTrustees: React.FC = () => {
         "sequent_backend_tally_session",
         {
             id: tallyId,
-        },
-        {
-            refetchInterval: 5000,
         }
     )
 
     useEffect(() => {
         if (data) {
-            setPage(0)
+            // TODO: uncomment to control the screen state depending on tally_execution_status
+            // setShowTrustees(
+            //     data?.execution_status === ITallyExecutionStatus.NOT_STARTED ||
+            //         data?.execution_status === ITallyExecutionStatus.STARTED
+            //         ? false
+            //         : true
+            // )
             if (tally?.last_updated_at !== data.last_updated_at) {
                 console.log("TallyCeremony :: data", data)
                 setTally(data)
@@ -249,16 +252,16 @@ export const TallyCeremonyTrustees: React.FC = () => {
                             update={(elections) => setSelectedElections(elections)}
                         />
 
-                        <ElectionHeader
-                            title={t("tally.trusteeTitle")}
-                            subtitle={t("tally.trusteeSubTitle")}
-                        />
-
                         {!showTrustees ? (
                             <>
                                 <Box>
-                                    <DropFile handleFiles={uploadPrivateKey} />
+                                    <ElectionHeader
+                                        title={t("tally.trusteeTitle")}
+                                        subtitle={t("tally.trusteeSubTitle")}
+                                    />
 
+                                    <DropFile handleFiles={uploadPrivateKey} />
+                                    
                                     <WizardStyles.StatusBox>
                                         {uploading ? <WizardStyles.DownloadProgress /> : null}
                                         {errors ? (
@@ -315,7 +318,11 @@ export const TallyCeremonyTrustees: React.FC = () => {
                         {t("tally.common.cancel")}
                     </CancelButton>
                     {!showTrustees && (
-                        <NextButton color="primary" onClick={() => setShowTrustees(true)} disabled={!verified}>
+                        <NextButton
+                            color="primary"
+                            onClick={() => setShowTrustees(true)}
+                            disabled={!verified}
+                        >
                             <>
                                 {t("tally.common.next")}
                                 <ChevronRightIcon />
