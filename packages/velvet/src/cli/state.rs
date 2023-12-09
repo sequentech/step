@@ -7,6 +7,8 @@ use super::CliRun;
 use crate::pipes::error::Error as PipesError;
 use crate::pipes::PipeManager;
 use crate::{config::Config, pipes::pipe_name::PipeName};
+use crate::pipes::pipe_inputs::PipeInputs;
+use crate::pipes::generate_reports::GenerateReports;
 
 #[derive(Debug)]
 pub struct State {
@@ -59,7 +61,7 @@ impl State {
         })
     }
 
-    pub fn get_next(&mut self) -> Option<PipeName> {
+    pub fn get_next(&self) -> Option<PipeName> {
         let stage_name = self.cli.stage.clone();
         self.get_stage(&stage_name)
             .map(|stage| stage.next_pipe())
@@ -69,20 +71,17 @@ impl State {
     pub fn exec_next(&mut self) -> Result<()> {
         let stage_name = self.cli.stage.clone();
         let stage = self.get_stage(&stage_name).ok_or(Error::PipeNotFound)?;
-        println!("FF stage_name {}", stage_name);
 
         let cli = self.cli.clone();
-        {
-            let pm = PipeManager::get_pipe(cli, stage.clone())?.ok_or(Error::PipeNotFound)?;
+        let pm = PipeManager::get_pipe(cli, stage.clone())?.ok_or(Error::PipeNotFound)?;
 
-            let res = pm.exec();
+        let res = pm.exec();
 
-            if let Err(e) = res {
-                if let PipesError::FileAccess(file, _) = e {
-                    println!("File not found: {} -- Not processed", file.display())
-                } else {
-                    return Err(Error::FromPipe(e));
-                }
+        if let Err(e) = res {
+            if let PipesError::FileAccess(file, _) = e {
+                println!("File not found: {} -- Not processed", file.display())
+            } else {
+                return Err(Error::FromPipe(e));
             }
         }
 
@@ -107,8 +106,24 @@ impl State {
         Ok(())
     }
 
-    pub fn get_results(&self) -> Option<String> {
-        Some("test".to_string())
+    pub fn get_results(&self) -> Result<String> {
+        let next_pipename = self.get_next();
+
+        // not all pipelines have been executed, bail out
+        if next_pipename.is_some() {
+            return Err(Error::PipeNotFound);
+        }
+
+        let stage_name = self.cli.stage.clone();
+        let stage_ref = self.get_stage(&stage_name).ok_or(Error::PipeNotFound)?;
+        let mut stage = stage_ref.clone();
+        stage.current_pipe = Some(PipeName::GenerateReports);
+        let cli = self.cli.clone();
+        let pipe_inputs = PipeInputs::new(cli, stage.clone())?;
+
+        let gen_reports = GenerateReports::new(pipe_inputs);
+        //PipeName::GenerateReports
+        Ok("test".to_string())
     }
 }
 
