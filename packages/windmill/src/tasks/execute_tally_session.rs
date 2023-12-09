@@ -315,7 +315,10 @@ async fn map_plaintext_data(
 }
 
 #[instrument(skip_all)]
-async fn save_results(results: Vec<ElectionReportDataComputed>) -> Result<()> {
+async fn save_results(
+    results: Vec<ElectionReportDataComputed>,
+    results_event_id: &str,
+) -> Result<()> {
     Ok(())
 }
 
@@ -323,6 +326,7 @@ async fn save_results(results: Vec<ElectionReportDataComputed>) -> Result<()> {
 async fn tally_area_contest(
     area_contest_plaintext: AreaContestDataType,
     base_tempdir: PathBuf,
+    results_event_id: &str,
 ) -> Result<()> {
     let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext;
 
@@ -434,12 +438,13 @@ async fn tally_area_contest(
         })?;
     }
     if let Ok(results) = state.get_results() {
-        save_results(results).await?;
+        save_results(results, results_event_id).await?;
     }
 
     Ok(())
 }
 
+#[instrument(skip(auth_headers))]
 async fn create_results_event(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,
@@ -496,13 +501,14 @@ pub async fn execute_tally_session(
     let base_tempdir = tempdir()?;
 
     let results_event_id =
-        create_results_event(&auth_headers, &tenant_id, &election_event_id).await;
+        create_results_event(&auth_headers, &tenant_id, &election_event_id).await?;
 
     // perform tallies with velvet
     for area_contest_plaintext in plaintexts_data.iter() {
         tally_area_contest(
             area_contest_plaintext.clone(),
             base_tempdir.path().to_path_buf(),
+            &results_event_id,
         )
         .await
         .map_err(|err| {

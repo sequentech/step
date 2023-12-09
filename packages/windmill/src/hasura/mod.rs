@@ -12,6 +12,7 @@ pub mod election_event;
 pub mod event_execution;
 pub mod keys_ceremony;
 pub mod lock;
+pub mod results_election;
 pub mod results_event;
 pub mod scheduled_event;
 pub mod tally_session;
