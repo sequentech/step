@@ -6,7 +6,7 @@ use chrono::NaiveDateTime;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use std::env;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 use crate::services::date::ISO8601;
 use crate::services::to_result::ToResult;
@@ -129,11 +129,12 @@ pub async fn update_ballot_publication_d(
 #[graphql(
     schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/soft_delete_other_ballot_publications.graphql",
-    response_derives = "Debug,Clone,Deserialize,Serialize"
+    response_derives = "Debug,Clone,Deserialize,Serialize",
+    variables_derives = "Debug,Clone",
 )]
 pub struct SoftDeleteOtherBallotPublications;
 
-#[instrument(skip_all)]
+#[instrument(skip(auth_headers))]
 pub async fn soft_delete_other_ballot_publications(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -145,6 +146,7 @@ pub async fn soft_delete_other_ballot_publications(
         election_event_id: election_event_id,
         tenant_id: tenant_id,
     };
+    event!(Level::INFO, "request_body {:?}", variables.clone());
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
     let request_body = SoftDeleteOtherBallotPublications::build_query(variables);

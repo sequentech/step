@@ -298,14 +298,6 @@ pub async fn create_ballot_style(
             candidates,
         );
         let election_dto_json_string = serde_json::to_string(&election_dto)?;
-        let _delete_current_response = hasura::ballot_style::soft_delete_ballot_style(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-            election.id.clone(),
-            area_id.clone(),
-        )
-        .await?;
         let _hasura_response = hasura::ballot_style::insert_ballot_style(
             auth_headers.clone(),
             ballot_style_id.to_string(),
