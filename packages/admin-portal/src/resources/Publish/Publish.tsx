@@ -51,7 +51,6 @@ export const Publish: React.FC = () => {
                     </AccordionSummary>
                     <AccordionDetails>
                         <DiffView
-                            type="modify"
                             currentTitle={t('publish.label.current')}
                             diffTitle={t('publish.label.diff')}
                             current={OldSummary}
