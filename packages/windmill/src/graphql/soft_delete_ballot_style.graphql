@@ -11,6 +11,7 @@ mutation SoftDeleteBallotStyle(
       election_event_id: {_eq: $electionEventId}
       tenant_id: {_eq: $tenantId}
       area_id: {_eq: $areaId}
+      deleted_at: {_is_null: true}
     }
     _set: {
         deleted_at: "NOW()"
