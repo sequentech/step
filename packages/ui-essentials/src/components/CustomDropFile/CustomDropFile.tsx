@@ -102,7 +102,6 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                     aria-label="Drop Input File"
                 />
                 <StyledLabel
-                    // variant="dashed"
                     dragActive={dragActive}
                     onClick={onButtonClick}
                     data-testid="drop-label-file"
