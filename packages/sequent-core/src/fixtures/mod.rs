@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-#[cfg(test)]
 pub mod ballot_codec;
 
 #[cfg(test)]
