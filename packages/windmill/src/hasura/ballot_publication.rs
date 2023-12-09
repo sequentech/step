@@ -194,7 +194,41 @@ pub async fn get_previous_publication(
         .json(&request_body)
         .send()
         .await?;
-    let response_body: Response<get_previous_publication::ResponseData> =
-        res.json().await?;
+    let response_body: Response<get_previous_publication::ResponseData> = res.json().await?;
+    response_body.ok()
+}
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/get_publication_ballot_styles.graphql",
+    response_derives = "Debug,Clone,Deserialize,Serialize"
+)]
+pub struct GetPublicationBallotStyles;
+
+#[instrument(skip_all)]
+pub async fn get_publication_ballot_styles(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    ballot_publication_id: String,
+) -> Result<Response<get_publication_ballot_styles::ResponseData>> {
+    let variables = get_publication_ballot_styles::Variables {
+        ballot_publication_id: ballot_publication_id,
+        election_event_id: election_event_id,
+        tenant_id: tenant_id,
+    };
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = GetPublicationBallotStyles::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<get_publication_ballot_styles::ResponseData> = res.json().await?;
     response_body.ok()
 }
