@@ -12,8 +12,8 @@
   ],
   "scripts": {
     "start:voting-portal": "yarn --cwd ./voting-portal start",
-    "start:admin": "yarn --cwd ./admin-portal start",
-    "start:verifier": "yarn --cwd ./ballot-verifier start",
+    "start:admin-portal": "yarn --cwd ./admin-portal start",
+    "start:ballot-verifier": "yarn --cwd ./ballot-verifier start",
     "storybook:ui-essentials": "yarn --cwd ./ui-essentials storybook",
     "build": "yarn workspaces run build",
     "build:ui-essentials": "yarn --cwd ./ui-essentials build",
