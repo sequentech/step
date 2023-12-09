@@ -58,7 +58,12 @@ impl State {
         })
     }
 
-    pub fn exec_next(&mut self) -> Result<()> {
+    pub fn get_next(&self) -> Option<&Stage> {
+        let stage_name = self.cli.stage.clone();
+        self.get_stage(&stage_name)
+    }
+
+    pub fn exec_next(&mut self) -> Result<String> {
         let stage_name = self.cli.stage.clone();
         let stage = self.get_stage(&stage_name).ok_or(Error::PipeNotFound)?;
 
@@ -79,7 +84,7 @@ impl State {
             self.set_current_pipe(&stage_name, pipe)?;
         }
 
-        Ok(())
+        Ok(stage_name)
     }
 
     fn get_stage(&self, stage_name: &str) -> Option<&Stage> {
