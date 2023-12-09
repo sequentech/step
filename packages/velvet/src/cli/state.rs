@@ -18,7 +18,7 @@ pub struct State {
 pub struct Stage {
     pub name: String,
     pub pipeline: Vec<PipeName>,
-    pub current_pipe: PipeName,
+    pub current_pipe: Option<PipeName>,
 }
 
 impl State {
@@ -36,18 +36,19 @@ impl State {
                         "Pipeline is not defined for stage '{stage_name}'"
                     )))?
                     .pipeline;
+                let current_pipe = pipeline
+                    .iter()
+                    .find(|p| p.id == cli.pipe_id)
+                    .ok_or(Error::StageDefinition(format!(
+                        "Pipe '{}' is not found",
+                        cli.pipe_id
+                    )))?
+                    .pipe;
 
                 Ok(Stage {
                     name: stage_name.to_string(),
                     pipeline: pipeline.iter().map(|p| p.pipe).collect(),
-                    current_pipe: pipeline
-                        .iter()
-                        .find(|p| p.id == cli.pipe_id)
-                        .ok_or(Error::StageDefinition(format!(
-                            "Pipe '{}' is not found",
-                            cli.pipe_id
-                        )))?
-                        .pipe,
+                    current_pipe: Some(current_pipe),
                 })
             })
             .collect::<Result<Vec<Stage>>>()?;
@@ -58,40 +59,43 @@ impl State {
         })
     }
 
-    pub fn get_next(&self) -> Option<&Stage> {
+    pub fn get_next(&mut self) -> Option<PipeName> {
         let stage_name = self.cli.stage.clone();
         self.get_stage(&stage_name)
+            .map(|stage| stage.next_pipe())
+            .flatten()
     }
 
-    pub fn exec_next(&mut self) -> Result<String> {
+    pub fn exec_next(&mut self) -> Result<()> {
         let stage_name = self.cli.stage.clone();
         let stage = self.get_stage(&stage_name).ok_or(Error::PipeNotFound)?;
+        println!("FF stage_name {}", stage_name);
 
         let cli = self.cli.clone();
-        let pm = PipeManager::get_pipe(cli, stage.clone())?.ok_or(Error::PipeNotFound)?;
+        {
+            let pm = PipeManager::get_pipe(cli, stage.clone())?.ok_or(Error::PipeNotFound)?;
 
-        let res = pm.exec();
+            let res = pm.exec();
 
-        if let Err(e) = res {
-            if let PipesError::FileAccess(file, _) = e {
-                println!("File not found: {} -- Not processed", file.display())
-            } else {
-                return Err(Error::FromPipe(e));
+            if let Err(e) = res {
+                if let PipesError::FileAccess(file, _) = e {
+                    println!("File not found: {} -- Not processed", file.display())
+                } else {
+                    return Err(Error::FromPipe(e));
+                }
             }
         }
 
-        if let Some(pipe) = stage.next_pipe() {
-            self.set_current_pipe(&stage_name, pipe)?;
-        }
+        self.set_current_pipe(&stage_name, stage.next_pipe())?;
 
-        Ok(stage_name)
+        Ok(())
     }
 
     fn get_stage(&self, stage_name: &str) -> Option<&Stage> {
         self.stages.iter().find(|s| s.name == stage_name)
     }
 
-    fn set_current_pipe(&mut self, stage_name: &str, next_pipe: PipeName) -> Result<()> {
+    fn set_current_pipe(&mut self, stage_name: &str, next_pipe: Option<PipeName>) -> Result<()> {
         let stage = self
             .stages
             .iter_mut()
@@ -102,26 +106,38 @@ impl State {
 
         Ok(())
     }
+
+    pub fn get_results(&self) -> Option<String> {
+        Some("test".to_string())
+    }
 }
 
 impl Stage {
     pub fn previous_pipe(&self) -> Option<PipeName> {
-        let curr_index = self.pipeline.iter().position(|p| *p == self.current_pipe);
-        if let Some(curr_index) = curr_index {
-            if curr_index > 0 {
-                return Some(self.pipeline[curr_index - 1]);
+        if let Some(current_pipe) = self.current_pipe {
+            let curr_index = self.pipeline.iter().position(|p| *p == current_pipe);
+            if let Some(curr_index) = curr_index {
+                if curr_index > 0 {
+                    return Some(self.pipeline[curr_index - 1]);
+                }
             }
+            None
+        } else {
+            Some(self.pipeline[self.pipeline.len() - 1])
         }
-        None
     }
     pub fn next_pipe(&self) -> Option<PipeName> {
-        let curr_index = self.pipeline.iter().position(|p| *p == self.current_pipe);
-        if let Some(curr_index) = curr_index {
-            if curr_index + 1 < self.pipeline.len() {
-                return Some(self.pipeline[curr_index + 1]);
+        if let Some(current_pipe) = self.current_pipe {
+            let curr_index = self.pipeline.iter().position(|p| *p == current_pipe);
+            if let Some(curr_index) = curr_index {
+                if curr_index + 1 < self.pipeline.len() {
+                    return Some(self.pipeline[curr_index + 1]);
+                }
             }
+            None
+        } else {
+            None
         }
-        None
     }
 }
 
@@ -184,7 +200,7 @@ mod tests {
         assert_eq!(state.stages.len(), 1);
         assert_eq!(stage.name, "main");
         assert_eq!(stage.previous_pipe(), Some(PipeName::DecodeBallots));
-        assert_eq!(stage.current_pipe, PipeName::DoTally);
+        assert_eq!(stage.current_pipe, Some(PipeName::DoTally));
         assert_eq!(stage.next_pipe(), Some(PipeName::MarkWinners));
 
         Ok(())
@@ -240,12 +256,21 @@ mod tests {
         };
 
         let mut state = State::new(&cli, &config)?;
+        assert_eq!(state.cli.stage, "main");
+        assert_eq!(state.cli.pipe_id, "do-tally");
+
         assert_eq!(state.stages.len(), 1);
         assert_eq!(state.stages[0].name, "main");
-        assert_eq!(state.stages[0].current_pipe, PipeName::DoTally);
+        assert_eq!(state.stages[0].current_pipe, Some(PipeName::DoTally));
 
         state.exec_next()?;
-        assert_eq!(state.stages[0].current_pipe, PipeName::MarkWinners);
+        assert_eq!(state.cli.stage, "main");
+        assert_eq!(state.cli.pipe_id, "do-tally");
+        assert_eq!(state.stages[0].current_pipe, Some(PipeName::MarkWinners));
+
+        state.exec_next()?;
+        assert_eq!(state.cli.pipe_id, "do-tally");
+        assert_eq!(state.stages[0].current_pipe, None);
 
         Ok(())
     }
