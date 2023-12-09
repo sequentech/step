@@ -15,11 +15,6 @@ insert_permissions:
 - comment: ""
   permission:
     check: {}
-    columns: []
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
     columns:
     - annotations
     - created_at
@@ -49,7 +44,9 @@ select_permissions:
     - tenant_id
     - threshold
     - trustee_ids
-    filter: {}
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
@@ -70,31 +67,26 @@ select_permissions:
   role: service-account
 - comment: ""
   permission:
-    allow_aggregations: true
     columns:
-    - annotations
-    - created_at
-    - election_event_id
-    - execution_status
-    - id
-    - labels
-    - last_updated_at
-    - status
-    - tenant_id
-    - threshold
     - trustee_ids
-    filter: {}
-  role: trustee-read
+    - threshold
+    - annotations
+    - labels
+    - status
+    - execution_status
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: trustee-ceremony
 update_permissions:
 - comment: ""
   permission:
     check: {}
-    columns: []
-    filter: {}
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
     columns:
     - annotations
     - created_at
@@ -107,5 +99,10 @@ update_permissions:
     - tenant_id
     - threshold
     - trustee_ids
+    filter: {}
+  role: service-account
+delete_permissions:
+- comment: ""
+  permission:
     filter: {}
   role: service-account
