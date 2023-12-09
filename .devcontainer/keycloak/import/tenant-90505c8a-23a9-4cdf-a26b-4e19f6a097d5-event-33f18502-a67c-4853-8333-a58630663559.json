@@ -370,7 +370,7 @@
   "otpPolicyLookAheadWindow" : 1,
   "otpPolicyPeriod" : 30,
   "otpPolicyCodeReusable" : false,
-  "otpSupportedApplications" : [ "totpAppGoogleName", "totpAppFreeOTPName", "totpAppMicrosoftAuthenticatorName" ],
+  "otpSupportedApplications" : [ "totpAppFreeOTPName", "totpAppGoogleName", "totpAppMicrosoftAuthenticatorName" ],
   "webAuthnPolicyRpEntityName" : "keycloak",
   "webAuthnPolicySignatureAlgorithms" : [ "ES256" ],
   "webAuthnPolicyRpId" : "",
@@ -1307,6 +1307,15 @@
       "subType" : "anonymous",
       "subComponents" : { },
       "config" : { }
+    } ],
+    "org.keycloak.userprofile.UserProfileProvider" : [ {
+      "id" : "a1cc38f7-d65f-476e-8ed7-3f50ccf8521e",
+      "providerId" : "declarative-user-profile",
+      "subComponents" : { },
+      "config" : {
+        "config-pieces-count" : [ "1" ],
+        "config-piece-0" : [ "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}}},{\"name\":\"email\",\"displayName\":\"${email}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"email\":{},\"length\":{\"max\":255}}},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}}},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.mobile-number\",\"displayName\":\"Phone Number\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}},{\"name\":\"sequent.read-only.otp-method\",\"displayName\":\"OTP Method\",\"permissions\":{\"edit\":[\"admin\"],\"view\":[\"user\",\"admin\"]},\"annotations\":{},\"validations\":{}}]}" ]
+      }
     } ],
     "org.keycloak.keys.KeyProvider" : [ {
       "id" : "806edf26-692b-4f1b-af0e-36a554a9953d",
@@ -2361,7 +2370,7 @@
     "clientOfflineSessionMaxLifespan" : "0",
     "oauth2DevicePollingInterval" : "5",
     "clientSessionIdleTimeout" : "0",
-    "userProfileEnabled" : "false",
+    "userProfileEnabled" : "true",
     "clientOfflineSessionIdleTimeout" : "0",
     "cibaInterval" : "5",
     "realmReusableOtpCode" : "false",
