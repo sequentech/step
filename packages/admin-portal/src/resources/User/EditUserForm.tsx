@@ -15,7 +15,15 @@ import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IRole, IUser} from "sequent-core"
-import {FormControl, MenuItem, Select, SelectChangeEvent, TextField} from "@mui/material"
+import {
+    FormControl,
+    MenuItem,
+    Select,
+    SelectChangeEvent,
+    TextField,
+    FormControlLabel,
+    Checkbox,
+} from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
     DeleteUserRoleMutation,
@@ -28,7 +36,6 @@ import {EDIT_USER} from "@/queries/EditUser"
 import {LIST_USER_ROLES} from "@/queries/ListUserRoles"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {isUndefined} from "@sequentech/ui-essentials"
-import Checkbox from "@mui/material/Checkbox"
 import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
 import {SET_USER_ROLE} from "@/queries/SetUserRole"
 
@@ -171,6 +178,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         election_event_id: electionEventId,
                         first_name: user?.first_name,
                         last_name: user?.last_name,
+                        enabled: user?.enabled,
+                        password: user?.password ?? undefined,
                         email: user?.email,
                         attributes: {
                             "area-id": [user?.attributes?.["area-id"]?.[0]],
@@ -234,6 +243,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         value={user.first_name || ""}
                         name={"first_name"}
                         onChange={handleChange}
+                    />
+                    <FormControlLabel
+                        label={t("usersAndRolesScreen.users.fields.enabled")}
+                        control={<Checkbox
+                            checked={user.enabled || false}
+                            onChange={(event: any) => {
+                                setUser({...user, enabled: event.target.checked})
+                            }}
+                        />}
                     />
                     <TextField
                         variant="outlined"
