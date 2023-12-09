@@ -25,5 +25,4 @@ pub mod util;
 // FIXME uncomment
 // pub mod wasm;
 
-#[cfg(test)]
 pub mod fixtures;
