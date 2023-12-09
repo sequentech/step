@@ -98,7 +98,7 @@ pub struct BallotPublicationStyles {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GetBallotPublicationChangesOutput {
     current: BallotPublicationStyles,
-    previous: BallotPublicationStyles,
+    previous: Option<BallotPublicationStyles>,
 }
 
 #[instrument(skip(claims))]
@@ -118,6 +118,6 @@ pub async fn get_ballot_publication_changes(
 
     Ok(Json(GetBallotPublicationChangesOutput {
         current: p.clone(),
-        previous: p.clone(),
+        previous: None,
     }))
 }
