@@ -47,16 +47,16 @@ pub async fn check_private_key(
     authorize(&claims, true, None, vec![Permissions::TRUSTEE_CEREMONY])?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
-    let encrypted_private_key = keys_ceremony::get_private_key(
+    let is_valid = keys_ceremony::check_private_key(
         claims,
         tenant_id,
         input.election_event_id.clone(),
         input.keys_ceremony_id.clone(),
+        input.private_key_base64.clone(),
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::BadRequest, format!("{:?}", e)))?;
 
-    let is_valid = encrypted_private_key == input.private_key_base64;
     event!(
         Level::INFO,
         "Checking given private key, electionEventId={}, keysCeremonyId={}, is_valid={}",
