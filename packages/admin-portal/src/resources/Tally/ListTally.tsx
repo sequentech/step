@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useContext, useEffect} from "react"
+import {styled as MUIStiled} from "@mui/material/styles"
 import {
     DatagridConfigurable,
     List,
@@ -14,31 +15,36 @@ import {
     WrapperField,
     FunctionField,
     DateField,
-    AuthContext,
     useGetList,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {Drawer} from "@mui/material"
+import {Box, Button, Drawer, Typography} from "@mui/material"
 import {CreateTally} from "./CreateTally"
 import {Sequent_Backend_Election_Event, Sequent_Backend_Tally_Session} from "../../gql/graphql"
-import {Dialog} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import DescriptionIcon from "@mui/icons-material/Description"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {useParams} from "react-router"
 import ElectionHeader from "@/components/ElectionHeader"
-import {EditTally} from "./EditTally"
 import {TrusteeItems} from "@/components/TrusteeItems"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {StatusChip} from "@/components/StatusChip"
 import KeyIcon from "@mui/icons-material/Key"
-import {styled as MUIStiled} from "@mui/material/styles"
-import {theme} from "@sequentech/ui-essentials"
+import {theme, IconButton} from "@sequentech/ui-essentials"
+import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
-import { AuthContextValues } from '@/providers/AuthContextProvider'
-import { isTrusteeParticipating } from '@/components/keys-ceremony/TrusteeWizard'
+import {faPlus} from "@fortawesome/free-solid-svg-icons"
+
+const EmptyBox = MUIStiled(Box)`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+`
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -61,6 +67,7 @@ export interface ListAreaProps {
 export const ListTally: React.FC<ListAreaProps> = (props) => {
     const {t} = useTranslation()
     const {id} = useParams()
+    const {canAdminCeremony, canTrusteeCeremony} = useActionPermissions()
 
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
@@ -85,6 +92,32 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 election_event_id: electionEvent.id,
             },
         }
+    )
+
+    const CreateButton = () => (
+        <Button
+            onClick={() => setOpen(true)}
+            disabled={!keysCeremonies || keysCeremonies?.length > 0}
+        >
+            <IconButton icon={faPlus} fontSize="24px" />
+            {t("electionEventScreen.keys.createNew")}
+        </Button>
+    )
+
+    const Empty = () => (
+        <EmptyBox m={1}>
+            <Typography variant="h4" paragraph>
+                {t("electionEventScreen.keys.emptyHeader")}
+            </Typography>
+            {canAdminCeremony ? (
+                <>
+                    <Typography variant="body1" paragraph>
+                        {t("common.resources.noResult.askCreate")}
+                    </Typography>
+                    <CreateButton />
+                </>
+            ) : null}
+        </EmptyBox>
     )
 
     // Returns a keys ceremony if there's any in which we have been required to
@@ -112,7 +145,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
-        setOpenDrawer(false)
+        setOpen(false)
     }
 
     const viewAdminTally = (id: Identifier) => {
@@ -147,7 +180,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         Component={<CreateTally record={record} close={handleCloseCreateDrawer} />}
                     />
                 }
-                empty={false}
+                empty={<Empty />}
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,
@@ -183,6 +216,17 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     </WrapperField>
                 </DatagridConfigurable>
             </List>
+
+            <Drawer
+                anchor="right"
+                open={open}
+                onClose={handleCloseCreateDrawer}
+                PaperProps={{
+                    sx: {width: "40%"},
+                }}
+            >
+                <CreateTally record={record} close={handleCloseCreateDrawer} />
+            </Drawer>
         </>
     )
 }

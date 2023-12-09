@@ -106,8 +106,6 @@ export const ElectionDataForm: React.FC = () => {
         return temp
     }
 
-    const [parsedValue, setParsedValue] = useState<Sequent_Backend_Election_Extended | undefined>()
-
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Election_Extended): Sequent_Backend_Election_Extended => {
             if (!data) {
@@ -152,9 +150,6 @@ export const ElectionDataForm: React.FC = () => {
                               )
                             : false
 
-                    console.log("isInEnabled :>> ", isInEnabled)
-                    console.log("temp.enabled_languages :>> ", temp.enabled_languages)
-
                     if (isInEnabled) {
                         enabled_item[setting] = true
                     } else {
@@ -168,6 +163,7 @@ export const ElectionDataForm: React.FC = () => {
             } else {
                 // if presentation has no lang then use always de default settings
                 languageSettings = buildLanguageSettings()
+
                 temp.defaultLanguage = ""
                 let enabled_items: any = {}
                 for (const item of languageSettings) {
@@ -199,13 +195,11 @@ export const ElectionDataForm: React.FC = () => {
             // name, alias and description fields
             if (!temp.presentation || !temp.presentation?.i18n) {
                 temp.presentation = {i18n: {en: {}}}
-                console.log("presentation antes :>> ", temp.presentation)
             }
             temp.presentation.i18n.en.name = temp.name
             temp.presentation.i18n.en.alias = temp.alias
             temp.presentation.i18n.en.description = temp.description
 
-            console.log("presentation despues :>> ", temp.presentation)
 
             return temp
         },

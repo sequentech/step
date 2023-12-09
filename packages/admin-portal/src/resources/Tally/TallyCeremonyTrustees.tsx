@@ -7,6 +7,7 @@ import {
     BreadCrumbSteps,
     BreadCrumbStepsVariant,
     Dialog,
+    DropFile,
     IconButton,
 } from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
@@ -35,13 +36,11 @@ import {faKey} from "@fortawesome/free-solid-svg-icons"
 import {Box} from "@mui/material"
 import {Sequent_Backend_Area, Sequent_Backend_Tally_Session} from "@/gql/graphql"
 
-interface TallyCeremonyTrusteesProps {
-    completed: boolean
-}
+// interface TallyCeremonyTrusteesProps {
+//     completed: boolean
+// }
 
-export const TallyCeremonyTrustees: React.FC<TallyCeremonyTrusteesProps> = (props) => {
-    const {completed} = props
-
+export const TallyCeremonyTrustees: React.FC = () => {
     const {t} = useTranslation()
     const [tallyId, setTallyId] = useElectionEventTallyStore()
     const notify = useNotify()
@@ -52,6 +51,9 @@ export const TallyCeremonyTrustees: React.FC<TallyCeremonyTrusteesProps> = (prop
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<string[]>([])
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
+    const [verified, setVerified] = useState<boolean>(false)
+    const [uploading, setUploading] = useState<boolean>(false)
+    const [errors, setErrors] = useState<String | null>(null)
 
     const [UpdateTallyCeremonyMutation] = useMutation(UPDATE_TALLY_CEREMONY)
 
@@ -71,13 +73,7 @@ export const TallyCeremonyTrustees: React.FC<TallyCeremonyTrusteesProps> = (prop
 
     useEffect(() => {
         if (data) {
-            setPage(
-                data.execution_status === ITallyExecutionStatus.CONNECTED
-                    ? 1
-                    : data.execution_status === ITallyExecutionStatus.IN_PROGRESS
-                    ? 2
-                    : 0
-            )
+            setPage(0)
             if (tally?.last_updated_at !== data.last_updated_at) {
                 console.log("TallyCeremony :: data", data)
                 setTally(data)
@@ -170,6 +166,62 @@ export const TallyCeremonyTrustees: React.FC<TallyCeremonyTrusteesProps> = (prop
         }
     }
 
+    // const [checkPrivateKeysMutation] = useMutation<CheckPrivateKeyMutation>(CHECK_PRIVATE_KEY)
+    const uploadPrivateKey = async (files: FileList | null) => {
+        //TODO:i todo upload key
+        console.log("TallyCeremonyTrustees :: uploadPrivateKey :: files", files)
+        setVerified(true)
+
+        // setErrors(null)
+        // setVerified(false)
+        // setUploading(false)
+        // if (!files || files.length === 0) {
+        //     setErrors(t("keysGeneration.checkStep.noFileSelected"))
+        //     return
+        // }
+        // const firstFile = files[0]
+        // const readFileContent = (file: File) => {
+        //     return new Promise<string>((resolve, reject) => {
+        //         const fileReader = new FileReader()
+        //         fileReader.onload = () => resolve(fileReader.result as string)
+        //         fileReader.onerror = (error) => reject(error)
+        //         // Read the file as a data URL (base64 encoded string)
+        //         fileReader.readAsText(file)
+        //     })
+        // }
+        // try {
+        //     const fileContent = await readFileContent(firstFile)
+        //     console.log(`uploadPrivateKey(): fileContent: ${fileContent}`)
+        //     if (fileContent == null) {
+        //         setErrors(t("keysGeneration.checkStep.noFileSelected"))
+        //         return
+        //     }
+        //     setUploading(true)
+        //     const {data, errors} = await checkPrivateKeysMutation({
+        //         variables: {
+        //             electionEventId: electionEvent.id,
+        //             keysCeremonyId: currentCeremony.id,
+        //             privateKeyBase64: fileContent,
+        //         },
+        //     })
+        //     setUploading(false)
+        //     if (errors) {
+        //         setErrors(t("keysGeneration.checkStep.errorUploading", {error: errors.toString()}))
+        //         return
+        //     } else {
+        //         const isValid = data?.check_private_key?.is_valid
+        //         if (!isValid) {
+        //             setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
+        //             return
+        //         }
+        //         setVerified(true)
+        //     }
+        // } catch (exception: any) {
+        //     setUploading(false)
+        //     setErrors(t("keysGeneration.checkStep.errorUploading", {error: exception.toString()}))
+        // }
+    }
+
     return (
         <>
             <WizardStyles.WizardWrapper>
@@ -197,7 +249,32 @@ export const TallyCeremonyTrustees: React.FC<TallyCeremonyTrusteesProps> = (prop
                             update={(elections) => setSelectedElections(elections)}
                         />
 
-                        {showTrustees && (
+                        <ElectionHeader
+                            title={t("tally.trusteeTitle")}
+                            subtitle={t("tally.trusteeSubTitle")}
+                        />
+
+                        {!showTrustees ? (
+                            <>
+                                <Box>
+                                    <DropFile handleFiles={uploadPrivateKey} />
+
+                                    <WizardStyles.StatusBox>
+                                        {uploading ? <WizardStyles.DownloadProgress /> : null}
+                                        {errors ? (
+                                            <WizardStyles.ErrorMessage variant="body2">
+                                                {errors}
+                                            </WizardStyles.ErrorMessage>
+                                        ) : null}
+                                        {verified && (
+                                            <WizardStyles.SucessMessage variant="body1">
+                                                {t("keysGeneration.checkStep.verified")}
+                                            </WizardStyles.SucessMessage>
+                                        )}
+                                    </WizardStyles.StatusBox>
+                                </Box>
+                            </>
+                        ) : (
                             <>
                                 <TallyStyles.StyledFooter>
                                     <ElectionHeader
@@ -233,144 +310,12 @@ export const TallyCeremonyTrustees: React.FC<TallyCeremonyTrusteesProps> = (prop
                     </>
                 )}
 
-                {page === 1 && (
-                    <>
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedData["tally-data-general"]}
-                            onChange={() =>
-                                setExpandedData((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-data-general": !prev["tally-data-general"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="tally-data-general" />}
-                            >
-                                <ElectionStyles.Wrapper>
-                                    <ElectionHeader title={t("tally.tallyTitle")} subtitle="" />
-                                </ElectionStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <TallyElectionsProgress />
-                            </AccordionDetails>
-                        </Accordion>
-
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedData["tally-data-logs"]}
-                            onChange={() =>
-                                setExpandedData((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-data-logs": !prev["tally-data-logs"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-logs" />}>
-                                <ElectionStyles.Wrapper>
-                                    <ElectionHeader title={t("tally.logsTitle")} subtitle="" />
-                                </ElectionStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <TallyLogs />
-                            </AccordionDetails>
-                        </Accordion>
-
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedData["tally-data-results"]}
-                            onChange={() =>
-                                setExpandedData((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-data-results": !prev["tally-data-results"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="tally-data-results" />}
-                            >
-                                <ElectionStyles.Wrapper>
-                                    <ElectionHeader title={t("tally.resultsTitle")} subtitle="" />
-                                </ElectionStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <TallyResults tally={tally} />
-                            </AccordionDetails>
-                        </Accordion>
-                    </>
-                )}
-
-                {page === 2 && (
-                    <>
-                        <TallyStyles.StyledSpacing>
-                            <ListActions
-                                withImport={false}
-                                withColumns={false}
-                                withFilter={false}
-                            />
-                        </TallyStyles.StyledSpacing>
-
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedResults["tally-results-general"]}
-                            onChange={() =>
-                                setExpandedResults((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-results-general": !prev["tally-results-general"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="tally-results-general" />}
-                            >
-                                <ElectionStyles.Wrapper>
-                                    <ElectionHeader
-                                        title={t("tally.generalInfoTitle")}
-                                        subtitle=""
-                                    />
-                                </ElectionStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <TallyStartDate />
-                                <TallyElectionsResults
-                                    tenantId={tally?.tenant_id}
-                                    electionEventId={tally?.election_event_id}
-                                    electionIds={tally?.election_ids}
-                                />
-                            </AccordionDetails>
-                        </Accordion>
-
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedResults["tally-results-results"]}
-                            onChange={() =>
-                                setExpandedResults((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-results-results": !prev["tally-results-results"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="tally-data-results" />}
-                            >
-                                <ElectionStyles.Wrapper>
-                                    <ElectionHeader title={t("tally.resultsTitle")} subtitle="" />
-                                </ElectionStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <TallyResults tally={tally} />
-                            </AccordionDetails>
-                        </Accordion>
-                    </>
-                )}
-
                 <TallyStyles.StyledFooter>
                     <CancelButton className="list-actions" onClick={() => setTallyId(null)}>
                         {t("tally.common.cancel")}
                     </CancelButton>
-                    {page < 2 && (
-                        <NextButton color="primary" onClick={handleNext} disabled={setDisabled()}>
+                    {!showTrustees && (
+                        <NextButton color="primary" onClick={() => setShowTrustees(true)} disabled={!verified}>
                             <>
                                 {t("tally.common.next")}
                                 <ChevronRightIcon />
