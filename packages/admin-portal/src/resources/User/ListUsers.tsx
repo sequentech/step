@@ -55,6 +55,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     const [tenantId] = useTenantStore()
 
     const [open, setOpen] = React.useState(false)
+    const [openNew, setOpenNew] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState(false)
@@ -83,7 +84,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
                     </Typography>
                     <Button
-                        onClick={() => setOpenDrawer(true)}
+                        onClick={() => setOpenNew(true)}
                     >
                         <ResourceListStyles.CreateIcon icon={faPlus} />
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.create.subtitle`)}
@@ -96,6 +97,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
         setOpenDrawer(false)
+    }
+    const handleCloseNewDrawer = () => {
+        setOpenNew(false)
+        setTimeout(() => {
+            setRecordId(undefined)
+        }, 400)
     }
 
     const handleCloseEditDrawer = () => {
@@ -216,6 +223,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     electionEventId={electionEventId}
                     close={handleCloseEditDrawer}
                     rolesList={rolesList || []}
+                />
+            </Drawer>
+
+            <Drawer
+                anchor="right"
+                open={openNew}
+                onClose={handleCloseNewDrawer}
+                PaperProps={{
+                    sx: {width: "40%"},
+                }}
+            >
+                <CreateUser
+                    electionEventId={electionEventId}
+                    close={handleCloseNewDrawer}
                 />
             </Drawer>
 
