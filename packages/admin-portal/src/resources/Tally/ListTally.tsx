@@ -1,43 +1,44 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useEffect} from "react"
+import React, {ReactElement, useContext, useEffect} from "react"
 import {
     DatagridConfigurable,
     List,
     TextField,
-    ReferenceField,
-    ReferenceManyField,
     TextInput,
     Identifier,
     RaRecord,
     useRecordContext,
     useDelete,
     WrapperField,
-    Datagrid,
     FunctionField,
     DateField,
+    AuthContext,
+    useGetList,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {Drawer} from "@mui/material"
-import {ChipList} from "../../components/ChipList"
-// import {EditArea} from "./EditArea"
 import {CreateTally} from "./CreateTally"
 import {Sequent_Backend_Election_Event, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Action, ActionsColumn} from "../../components/ActionButons"
-import EditIcon from "@mui/icons-material/Edit"
-import DeleteIcon from "@mui/icons-material/Delete"
 import DescriptionIcon from "@mui/icons-material/Description"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
 import {useParams} from "react-router"
-import {AreaContestItems} from "@/components/AreaContestItems"
-import ElectionHeader from '@/components/ElectionHeader'
-import { EditTally } from './EditTally'
-import { TrusteeItems } from '@/components/TrusteeItems'
-import { useElectionEventTallyStore } from '@/providers/ElectionEventTallyProvider'
-import { StatusChip } from '@/components/StatusChip'
+import ElectionHeader from "@/components/ElectionHeader"
+import {EditTally} from "./EditTally"
+import {TrusteeItems} from "@/components/TrusteeItems"
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {StatusChip} from "@/components/StatusChip"
+import KeyIcon from "@mui/icons-material/Key"
+import {styled as MUIStiled} from "@mui/material/styles"
+import {theme} from "@sequentech/ui-essentials"
+import {IPermissions} from "@/types/keycloak"
+import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
+import { AuthContextValues } from '@/providers/AuthContextProvider'
+import { isTrusteeParticipating } from '@/components/keys-ceremony/TrusteeWizard'
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -49,9 +50,12 @@ const Filters: Array<ReactElement> = [
     <TextInput source="election_event_id" key={3} />,
 ]
 
+const TrusteeKeyIcon = MUIStiled(KeyIcon)`
+    color: ${theme.palette.brandSuccess};
+`
+
 export interface ListAreaProps {
     record: Sequent_Backend_Tally_Session
-    aside?: ReactElement
 }
 
 export const ListTally: React.FC<ListAreaProps> = (props) => {
@@ -61,6 +65,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const [tenantId] = useTenantStore()
+    const authContext = useContext(AuthContext)
     const [_, setTallyId] = useElectionEventTallyStore()
     const [deleteOne] = useDelete()
 
@@ -69,6 +74,35 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
+    const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
+
+    const {data: keysCeremonies} = useGetList<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEvent.id,
+            },
+        }
+    )
+
+    // Returns a keys ceremony if there's any in which we have been required to
+    // participate and is active
+    // const getActiveCeremony = (
+    //     keyCeremonies: Sequent_Backend_Tally_Session[] | undefined,
+    //     authContext: AuthContextValues
+    // ) => {
+    //     if (!keyCeremonies) {
+    //         return
+    //     } else {
+    //         return keyCeremonies.find((ceremony) => isTrusteeParticipating(ceremony, authContext))
+    //     }
+    // }
+
+    // let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
+
+    // const {canAdminCeremony, canTrusteeCeremony: canWriteTrustee} = useActionPermissions()
 
     useEffect(() => {
         if (recordId) {
@@ -81,24 +115,21 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         setOpenDrawer(false)
     }
 
-    const handleCloseEditDrawer = () => {
-        setOpen(false)
-        setTimeout(() => {
-            setRecordId(undefined)
-        }, 400)
+    const viewAdminTally = (id: Identifier) => {
+        setTallyId(id as string, false)
     }
 
-    const editDetail = (id: Identifier) => {
-        setTallyId(id as string)
-    }
-
-    const confirmDeleteAction = () => {
-        deleteOne("sequent_backend_area", {id: deleteId})
-        setDeleteId(undefined)
+    const viewTrusteeTally = (id: Identifier) => {
+        setTallyId(id as string, true)
     }
 
     const actions: Action[] = [
-        {icon: <DescriptionIcon />, action: editDetail},
+        {icon: <DescriptionIcon />, action: viewAdminTally},
+        {
+            icon: <TrusteeKeyIcon />,
+            action: viewTrusteeTally,
+            // showAction: (id: Identifier) => canWriteTrustee && !!getCeremony(id),
+        },
     ]
 
     return (
@@ -152,33 +183,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     </WrapperField>
                 </DatagridConfigurable>
             </List>
-
-            <Drawer
-                anchor="right"
-                open={open}
-                onClose={handleCloseEditDrawer}
-                PaperProps={{
-                    sx: {width: "40%"},
-                }}
-            >
-                <EditTally id={recordId} electionEventId={id} close={handleCloseEditDrawer} />
-            </Drawer>
-
-            <Dialog
-                variant="warning"
-                open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmDeleteAction()
-                    }
-                    setOpenDeleteModal(false)
-                }}
-            >
-                {t("common.message.delete")}
-            </Dialog>
         </>
     )
 }
