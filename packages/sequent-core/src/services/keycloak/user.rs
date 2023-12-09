@@ -4,7 +4,7 @@
 use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
 use anyhow::{anyhow, Result};
-use keycloak::types::UserRepresentation;
+use keycloak::types::{UserRepresentation, CredentialRepresentation};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
@@ -112,6 +112,7 @@ impl KeycloakAdminClient {
         first_name: Option<String>,
         last_name: Option<String>,
         username: Option<String>,
+        password: Option<String>,
     ) -> Result<User> {
         let mut current_user: UserRepresentation = self
             .client
@@ -154,6 +155,29 @@ impl KeycloakAdminClient {
         current_user.username = match username {
             Some(val) => Some(val),
             None => current_user.username,
+        };
+
+        current_user.credentials = match password {
+            Some(val) => Some([
+                // the new credential
+                vec![CredentialRepresentation {
+                    type_: Some("password".to_string()),
+                    temporary: Some(true),
+                    value: Some(val),
+                    ..Default::default()
+                }],
+                // the filtered list, without password
+                current_user
+                    .credentials
+                    .unwrap_or(vec![])
+                    .clone()
+                    .into_iter()
+                    .filter(|credential|
+                        credential.type_ != Some("password".to_string())
+                    )
+                    .collect()
+            ].concat()),
+            None => current_user.credentials,
         };
 
         self.client
