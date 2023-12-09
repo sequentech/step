@@ -424,7 +424,9 @@ fn tally_area_contest(
             Error::String(format!("Error during {}: {}", stage_name, e.to_string()))
         })?;
     }
-    if let Some(results) = state.get_results() {}
+    if let Ok(results) = state.get_results() {
+
+    }
 
     Ok(())
 }
