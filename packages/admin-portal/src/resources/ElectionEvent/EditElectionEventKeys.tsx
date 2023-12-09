@@ -11,7 +11,6 @@ import {
     DatagridConfigurable,
     List,
     TextField,
-    TopToolbar,
     useGetList,
     useRecordContext,
     DateField,
@@ -21,7 +20,7 @@ import {
     ChipField,
     FunctionField,
 } from "react-admin"
-import {Box, Button, Typography, Chip, Alert} from "@mui/material"
+import {Button, Typography, Chip, Alert} from "@mui/material"
 import {theme, IconButton} from "@sequentech/ui-essentials"
 import {AdminWizard} from "@/components/keys-ceremony/AdminWizard"
 import {TrusteeWizard, isTrusteeParticipating} from "@/components/keys-ceremony/TrusteeWizard"
@@ -35,18 +34,7 @@ import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import FileOpenIcon from "@mui/icons-material/FileOpen"
 import KeyIcon from "@mui/icons-material/Key"
-
-const EmptyBox = MUIStiled(Box)`
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    width: 100%;
-`
-
-// This could be react-router-dom's Link for example
-const Link: (array: any) => any = ({className, children}) => <a className={className}>{children}</a>
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 
 const NotificationLink = styled.span`
     text-decoration: underline;
@@ -138,20 +126,20 @@ export const EditElectionEventKeys: React.FC = () => {
 
     const [showCeremony, setShowCeremony] = useState(false)
     const [showTrusteeCeremony, setShowTrusteeCeremony] = useState(false)
-    const {canAdminCeremony, canTrusteeCeremony: canWriteTrustee} = useActionPermissions()
+    const {canAdminCeremony, canTrusteeCeremony} = useActionPermissions()
 
     const CreateButton = () => (
         <Button
             onClick={() => setShowCeremony(true)}
             disabled={!keysCeremonies || keysCeremonies?.length > 0}
         >
-            <IconButton icon={faPlus} fontSize="24px" />
+            <ResourceListStyles.CreateIcon icon={faPlus} />
             {t("electionEventScreen.keys.createNew")}
         </Button>
     )
 
     const Empty = () => (
-        <EmptyBox m={1}>
+        <ResourceListStyles.EmptyBox>
             <Typography variant="h4" paragraph>
                 {t("electionEventScreen.keys.emptyHeader")}
             </Typography>
@@ -163,7 +151,7 @@ export const EditElectionEventKeys: React.FC = () => {
                     <CreateButton />
                 </>
             ) : null}
-        </EmptyBox>
+        </ResourceListStyles.EmptyBox>
     )
 
     const goBack = () => {
@@ -196,7 +184,7 @@ export const EditElectionEventKeys: React.FC = () => {
     }
     const viewTrusteeCeremony = (id: Identifier) => {
         const ceremony = getCeremony(id)
-        if (!ceremony || !canWriteTrustee) {
+        if (!ceremony || !canTrusteeCeremony) {
             return
         } else {
             setCurrentCeremony(ceremony)
@@ -214,13 +202,13 @@ export const EditElectionEventKeys: React.FC = () => {
         {
             icon: <TrusteeKeyIcon />,
             action: viewTrusteeCeremony,
-            showAction: (id: Identifier) => canWriteTrustee && !!getCeremony(id),
+            showAction: (id: Identifier) => canTrusteeCeremony && !!getCeremony(id),
         },
     ]
 
     return (
         <>
-            {canWriteTrustee && activeCeremony && !showCeremony && !showTrusteeCeremony && (
+            {canTrusteeCeremony && activeCeremony && !showCeremony && !showTrusteeCeremony && (
                 <Alert severity="info">
                     <Trans i18nKey="electionEventScreen.keys.notify.participateNow">
                         You have been invited to participate in a Keys ceremony. Please
@@ -247,7 +235,7 @@ export const EditElectionEventKeys: React.FC = () => {
                     goBack={goBack}
                 />
             )}
-            {canWriteTrustee && showTrusteeCeremony && currentCeremony && (
+            {canTrusteeCeremony && showTrusteeCeremony && currentCeremony && (
                 <TrusteeWizard
                     electionEvent={electionEvent}
                     currentCeremony={currentCeremony}

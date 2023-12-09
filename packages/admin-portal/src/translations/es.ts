@@ -341,6 +341,8 @@ const spanishTranslation: TranslationType = {
             voters: {
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                emptyHeader: "Ningún votante aún.",
+                askCreate: "¿Quieres crear uno?",
                 create: {
                     title: "Votante",
                     subtitle: "Crear votante",
