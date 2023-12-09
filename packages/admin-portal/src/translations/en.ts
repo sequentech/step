@@ -340,8 +340,10 @@ const englishTranslation = {
                 subtitle: "View and edit voter data",
                 create: {
                     title: "Voter",
-                    subtitle: "Create voter",
+                    subtitle: "Create Voter",
                 },
+                emptyHeader: "No voters yet.",
+                askCreate: "Do you want to create one?",
                 errors: {
                     editError: "Error editing voter",
                     editSuccess: "Voter edited",

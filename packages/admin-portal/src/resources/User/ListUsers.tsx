@@ -16,12 +16,13 @@ import {
     useGetList,
     FunctionField,
 } from "react-admin"
-import {useTenantStore} from "../../providers/TenantContextProvider"
-import {ListActions} from "../../components/ListActions"
-import {Drawer} from "@mui/material"
+import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {ListActions} from "@/components/ListActions"
+import {Button, Drawer, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
-import {Action, ActionsColumn} from "../../components/ActionButons"
+import {Action, ActionsColumn} from "@/components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {EditUser} from "./EditUser"
@@ -30,6 +31,8 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {DeleteUserMutation} from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
 import {useMutation} from "@apollo/client"
+import {IPermissions} from "@/types/keycloak"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
 
 const OMIT_FIELDS: Array<string> = []
@@ -67,6 +70,28 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
             tenant_id: tenantId,
         },
     })
+    const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
+
+    const Empty = () => (
+        <ResourceListStyles.EmptyBox>
+            <Typography variant="h4" paragraph>
+                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.emptyHeader`)}
+            </Typography>
+            {canEditUsers ? (
+                <>
+                    <Typography variant="body1" paragraph>
+                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
+                    </Typography>
+                    <Button
+                        onClick={() => setOpenDrawer(true)}
+                    >
+                        <ResourceListStyles.CreateIcon icon={faPlus} />
+                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.create.subtitle`)}
+                    </Button>
+                </>
+            ) : null}
+        </ResourceListStyles.EmptyBox>
+    )
 
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
@@ -92,16 +117,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         setRecordId(id as string)
     }
 
-    // const handleCloseCreateDrawer = () => {
-    //     setRecordId(undefined)
-    //     setCloseDrawer(new Date().toISOString())
-    // }
-
     const deleteAction = (id: Identifier) => {
         if (!electionEventId && authContext.userId === id) {
             return
         }
-        // deleteOne("sequent_backend_area", {id})
         setOpenDeleteModal(true)
         setDeleteId(id as string)
     }
@@ -147,7 +166,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         <>
             <List
                 resource="user"
-                empty={false}
+                empty={<Empty />}
                 actions={
                     <ListActions
                         withImport={false}
