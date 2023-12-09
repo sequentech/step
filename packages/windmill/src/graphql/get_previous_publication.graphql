@@ -1,16 +1,19 @@
 query GetPreviousPublication(
     $tenantId: uuid!,
     $electionEventId: uuid!,
-    $createdAt: String!,
+    $publishedAt: String!,
     $electionIds: [uuid!],
 ) {
   sequent_backend_ballot_publication(
       where: {
           election_event_id: {_eq: $electionEventId}
           tenant_id: {_eq: $tenantId}
-          created_at: {_lt: $createdAt}
           election_ids: {_eq: $electionIds}
           id: {_eq: $ballotPublicationId}
+          published_at: {
+            _is_null: false
+            _lt: $publishedAt
+          }
       }
       order_by: {published_at: desc}
       limit: 1
