@@ -121,6 +121,7 @@ pub async fn update_publish_ballot(
     ballot_publication_id: String,
 ) -> Result<()> {
     let auth_headers = get_client_credentials().await?;
+    event!(Level::INFO, "FF 1");
 
     let ballot_publication = get_ballot_publication_by_id(
         auth_headers.clone(),
@@ -129,23 +130,27 @@ pub async fn update_publish_ballot(
         ballot_publication_id.clone(),
     )
     .await?;
+    event!(Level::INFO, "FF 2");
 
     if !ballot_publication.is_generated {
         return Err(anyhow!(
             "Ballot publication not generated yet, can't publish."
         ));
     }
+    event!(Level::INFO, "FF 3");
 
     if ballot_publication.published_at.is_some() {
         return Ok(());
     }
+    event!(Level::INFO, "FF 4");
 
     soft_delete_other_ballot_publications(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
         ballot_publication_id.clone(),
-    );
+    ).await?;
+    event!(Level::INFO, "FF 5");
 
     update_ballot_publication_d(
         auth_headers.clone(),
