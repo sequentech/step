@@ -1,25 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>, Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
-use celery::prelude::TaskError;
-use chrono::{Duration, Utc};
-use sequent_core::ballot::{BallotStyle, Contest};
-use sequent_core::ballot_codec::PlaintextCodec;
-use sequent_core::services::keycloak;
-use sequent_core::types::ceremonies::TallyExecutionStatus;
-use std::fs::{self, File};
-use std::io::Write;
-use std::path::PathBuf;
-use std::str::FromStr;
-use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
-use tempfile::tempdir;
-use tracing::{event, instrument, Level};
-use uuid::Uuid;
-use velvet::cli::state::State;
-use velvet::cli::CliRun;
-use velvet::fixtures;
-
 use crate::hasura;
 use crate::hasura::tally_session::set_tally_session_completed;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
@@ -34,6 +15,25 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::types::error::{Error, Result};
+use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
+use celery::prelude::TaskError;
+use chrono::{Duration, Utc};
+use sequent_core::ballot::{BallotStyle, Contest};
+use sequent_core::ballot_codec::PlaintextCodec;
+use sequent_core::services::keycloak;
+use sequent_core::types::ceremonies::TallyExecutionStatus;
+use std::fs::{self, File};
+use std::io::Write;
+use std::path::PathBuf;
+use std::str::FromStr;
+use std::string::ToString;
+use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
+use tempfile::tempdir;
+use tracing::{event, instrument, Level};
+use uuid::Uuid;
+use velvet::cli::state::State;
+use velvet::cli::CliRun;
+use velvet::fixtures;
 
 type AreaContestDataType = (
     Vec<<RistrettoCtx as Ctx>::P>,
@@ -418,12 +418,13 @@ fn tally_area_contest(
     let mut state = State::new(&cli, &config).map_err(|e| Error::String(e.to_string()))?;
 
     while let Some(next_stage) = state.get_next() {
-        let stage_name = next_stage.name.clone();
+        let stage_name = next_stage.to_string();
         event!(Level::INFO, "Exec {}", stage_name);
         state.exec_next().map_err(|e| {
             Error::String(format!("Error during {}: {}", stage_name, e.to_string()))
         })?;
     }
+    if let Some(results) = state.get_results() {}
 
     Ok(())
 }

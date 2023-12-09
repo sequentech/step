@@ -188,7 +188,7 @@ impl Pipe for GenerateReports {
                 for (key, value) in defaults {
                     contest_result.invalid_votes.entry(key).or_insert(value);
                 }
-                
+
                 let winners = self.read_winners(&election_input.id, &contest_input.id, None)?;
 
                 reports.push(ReportData {
