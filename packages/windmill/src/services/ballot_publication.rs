@@ -149,7 +149,8 @@ pub async fn update_publish_ballot(
         tenant_id.clone(),
         election_event_id.clone(),
         ballot_publication_id.clone(),
-    ).await?;
+    )
+    .await?;
     event!(Level::INFO, "FF 5");
 
     update_ballot_publication_d(
