@@ -160,3 +160,41 @@ pub async fn soft_delete_other_ballot_publications(
         res.json().await?;
     response_body.ok()
 }
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/get_previous_publication.graphql",
+    response_derives = "Debug,Clone,Deserialize,Serialize"
+)]
+pub struct GetPreviousPublication;
+
+#[instrument(skip_all)]
+pub async fn get_previous_publication(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    created_at: String,
+    election_ids: Option<Vec<String>>,
+) -> Result<Response<get_previous_publication::ResponseData>> {
+    let variables = get_previous_publication::Variables {
+        tenant_id,
+        election_event_id,
+        created_at,
+        election_ids,
+    };
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = GetPreviousPublication::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<get_previous_publication::ResponseData> =
+        res.json().await?;
+    response_body.ok()
+}

@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::ballot_publication::{
     get_ballot_publication, insert_ballot_publication, soft_delete_other_ballot_publications,
-    update_ballot_publication_d,
+    update_ballot_publication_d, get_previous_publication
 };
 use crate::hasura::election::get_all_elections_for_event;
+use crate::services::ballot_publication::get_ballot_publication::GetBallotPublicationSequentBackendBallotPublication;
 use crate::services::celery_app::get_celery_app;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use anyhow::{anyhow, Context, Result};
@@ -16,7 +17,32 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{event, instrument, Level};
 
-#[instrument]
+#[instrument(skip(auth_headers))]
+async fn get_ballot_publication_by_id(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    ballot_publication_id: String,
+) -> Result<GetBallotPublicationSequentBackendBallotPublication> {
+    let ballot_publication = (&get_ballot_publication(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        ballot_publication_id.clone(),
+    )
+    .await?
+    .data
+    .with_context(|| "can't find ballot publication")?
+    .sequent_backend_ballot_publication)
+        .get(0)
+        .clone()
+        .ok_or(anyhow!("Can't find ballot publication"))?
+        .clone();
+
+    Ok(ballot_publication)
+}
+
+#[instrument(skip(auth_headers))]
 async fn get_election_ids_for_publication(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -95,21 +121,13 @@ pub async fn update_publish_ballot(
 ) -> Result<()> {
     let auth_headers = get_client_credentials().await?;
 
-    let ballot_publication_data = &get_ballot_publication(
+    let ballot_publication = get_ballot_publication_by_id(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
         ballot_publication_id.clone(),
     )
-    .await?
-    .data
-    .with_context(|| "can't find ballot publication")?
-    .sequent_backend_ballot_publication;
-
-    let ballot_publication = ballot_publication_data
-        .get(0)
-        .clone()
-        .ok_or(anyhow!("Can't find ballot publication"))?;
+    .await?;
 
     if !ballot_publication.is_generated {
         return Err(anyhow!(
@@ -159,10 +177,28 @@ pub async fn get_ballot_publication_diff(
     election_event_id: String,
     ballot_publication_id: String,
 ) -> Result<PublicationDiff> {
+    let auth_headers = get_client_credentials().await?;
+
     let p = PublicationStyles {
         ballot_publication_id: ballot_publication_id.clone(),
         ballot_styles: serde_json::from_str("{}").unwrap(),
     };
+
+    let ballot_publication = get_ballot_publication_by_id(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        ballot_publication_id.clone(),
+    )
+    .await?;
+
+    let previous_publication = get_previous_publication(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        ballot_publication.created_at.clone(),
+        ballot_publication.election_ids.clone(),
+    ).await?;
 
     Ok(PublicationDiff {
         current: p.clone(),

@@ -1,0 +1,30 @@
+query GetPreviousPublication(
+    $tenantId: uuid!,
+    $electionEventId: uuid!,
+    $createdAt: String!,
+    $electionIds: [uuid!],
+) {
+  sequent_backend_ballot_publication(
+      where: {
+          election_event_id: {_eq: $electionEventId}
+          tenant_id: {_eq: $tenantId}
+          created_at: {_lt: $createdAt}
+          election_ids: {_eq: $electionIds}
+          id: {_eq: $ballotPublicationId}
+      }
+      order_by: {published_at: desc}
+      limit: 1
+  ) {
+    id
+    tenant_id
+    election_event_id
+    labels
+    annotations
+    created_at
+    deleted_at
+    created_by_user_id
+    is_generated
+    election_ids
+    published_at
+  }
+}
