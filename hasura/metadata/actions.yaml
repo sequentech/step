@@ -14,8 +14,8 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: trustee-ceremony
   - role: admin-user
-  - role: trustee-read
   comment: check private key
 - name: createScheduledEvent
   definition:
@@ -234,8 +234,8 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: trustee-ceremony
   - role: admin-user
-  - role: trustee-read
   comment: get private key
 - name: get_roles
   definition:
@@ -385,7 +385,7 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
-  - role: admin-ceremony
+  - role: trustee-read
   - role: admin-user
 custom_types:
   enums:
