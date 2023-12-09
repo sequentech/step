@@ -5,10 +5,10 @@
 use super::error::{Error, Result};
 use super::CliRun;
 use crate::pipes::error::Error as PipesError;
+use crate::pipes::generate_reports::{GenerateReports, ElectionReportDataComputed};
+use crate::pipes::pipe_inputs::PipeInputs;
 use crate::pipes::PipeManager;
 use crate::{config::Config, pipes::pipe_name::PipeName};
-use crate::pipes::pipe_inputs::PipeInputs;
-use crate::pipes::generate_reports::GenerateReports;
 
 #[derive(Debug)]
 pub struct State {
@@ -106,7 +106,7 @@ impl State {
         Ok(())
     }
 
-    pub fn get_results(&self) -> Result<String> {
+    pub fn get_results(&self) -> Result<Vec<ElectionReportDataComputed>> {
         let next_pipename = self.get_next();
 
         // not all pipelines have been executed, bail out
@@ -122,8 +122,8 @@ impl State {
         let pipe_inputs = PipeInputs::new(cli, stage.clone())?;
 
         let gen_reports = GenerateReports::new(pipe_inputs);
-        //PipeName::GenerateReports
-        Ok("test".to_string())
+        let reports = gen_reports.read_reports()?;
+        Ok(reports)
     }
 }
 

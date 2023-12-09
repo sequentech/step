@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura;
+use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session::set_tally_session_completed;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySessionContest, ResponseData,
@@ -15,11 +16,13 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::types::error::{Error, Result};
+use anyhow::{anyhow, Context};
 use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::{Duration, Utc};
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
+use sequent_core::services::connection;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use std::fs::{self, File};
@@ -34,6 +37,7 @@ use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
 use velvet::fixtures;
+use velvet::pipes::generate_reports::ElectionReportDataComputed;
 
 type AreaContestDataType = (
     Vec<<RistrettoCtx as Ctx>::P>,
@@ -311,7 +315,12 @@ async fn map_plaintext_data(
 }
 
 #[instrument(skip_all)]
-fn tally_area_contest(
+async fn save_results(results: Vec<ElectionReportDataComputed>) -> Result<()> {
+    Ok(())
+}
+
+#[instrument(skip_all)]
+async fn tally_area_contest(
     area_contest_plaintext: AreaContestDataType,
     base_tempdir: PathBuf,
 ) -> Result<()> {
@@ -425,10 +434,26 @@ fn tally_area_contest(
         })?;
     }
     if let Ok(results) = state.get_results() {
-
+        save_results(results).await?;
     }
 
     Ok(())
+}
+
+async fn create_results_event(
+    auth_headers: &connection::AuthHeaders,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<String> {
+    let results_event = &insert_results_event(auth_headers, &tenant_id, &election_event_id)
+        .await?
+        .data
+        .with_context(|| "can't find results_event")?
+        .insert_sequent_backend_results_event
+        .with_context(|| "can't find results_event")?
+        .returning[0];
+
+    Ok(results_event.id.clone())
 }
 
 #[instrument]
@@ -470,24 +495,21 @@ pub async fn execute_tally_session(
     // base temp folder
     let base_tempdir = tempdir()?;
 
-    // perform tallies with velvet
+    let results_event_id =
+        create_results_event(&auth_headers, &tenant_id, &election_event_id).await;
 
-    let tallies_result: Result<Vec<()>> = plaintexts_data
-        .iter()
-        .map(|area_contest_plaintext| {
-            tally_area_contest(
-                area_contest_plaintext.clone(),
-                base_tempdir.path().to_path_buf(),
-            )
-        })
-        .collect();
-    match tallies_result {
-        Ok(o) => o,
-        Err(e) => {
-            event!(Level::ERROR, "Tally area contest: {e}");
-            return Err(e);
-        }
-    };
+    // perform tallies with velvet
+    for area_contest_plaintext in plaintexts_data.iter() {
+        tally_area_contest(
+            area_contest_plaintext.clone(),
+            base_tempdir.path().to_path_buf(),
+        )
+        .await
+        .map_err(|err| {
+            event!(Level::ERROR, "Tally area contest: {err}");
+            err
+        })?;
+    }
 
     // compressed file with the tally
     let data = compress_folder(base_tempdir.path())?;
