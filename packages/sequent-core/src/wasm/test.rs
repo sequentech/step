@@ -9,6 +9,8 @@ use crate::interpret_plaintext::{get_layout_properties, get_points};
 use crate::plaintext::*;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::util::normalize_vote::normalize_vote_contest;
+use crate::encrypt;
+use crate::fixtures::ballot_codec::*;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
@@ -319,6 +321,34 @@ pub fn get_write_in_available_characters_js(
     serde_wasm_bindgen::to_value(&num_available_chars)
         .map_err(|err| {
             format!("Error converting decoded contest to json {:?}", err)
+        })
+        .into_json()
+}
+
+#[wasm_bindgen]
+pub fn generate_sample_auditable_ballot_js(
+) -> Result<JsValue, JsValue> {
+    let ctx = RistrettoCtx;
+    let ballot_style = get_writein_ballot_style();
+    let decoded_contest = get_writein_plaintext();
+    let auditable_ballot =
+        encrypt::encrypt_decoded_contest::<RistrettoCtx>(
+            &ctx,
+            &vec![decoded_contest.clone()],
+            &ballot_style,
+        )
+        .unwrap();
+
+    let auditable_ballot_serialized: String =
+        Base64Serialize::serialize(&auditable_ballot)
+            .map_err(|err| {
+                format!("Error serializing auditable ballot {:?}", err)
+            })
+            .into_json()?;
+    
+    serde_wasm_bindgen::to_value(&auditable_ballot_serialized)
+        .map_err(|err| {
+            format!("Error converting auditable ballot to json {:?}", err)
         })
         .into_json()
 }
