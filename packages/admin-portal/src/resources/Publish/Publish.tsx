@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 
 import styled from "@emotion/styled"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -15,6 +15,7 @@ import {useMutation} from "@apollo/client"
 import {GENERATE_BALLOT_PUBLICATION} from "@/queries/GenerateBallotPublication"
 import {PUBLISH_BALLOT} from "@/queries/PublishBallot"
 import {GenerateBallotPublicationMutation, PublishBallotMutation} from "@/gql/graphql"
+import {PublishContext} from "@/providers/PublishContextProvider"
 
 const PublishStyled = {
     Container: styled.div`
@@ -46,7 +47,7 @@ export interface PublishProps {
 export const Publish: React.FC<PublishProps> = ({electionEventId, electionId}) => {
     const {t} = useTranslation()
     const [expan, setExpan] = useState<string>("election-publish-diff")
-    const [ballotPublicationId, setBallotPublicationId] = useState<string | null>(null)
+    const publishContext = useContext(PublishContext)
     const [isPublished, setIsPublished] = useState<boolean>(false)
     const [generateBallotPublication] = useMutation<GenerateBallotPublicationMutation>(
         GENERATE_BALLOT_PUBLICATION
@@ -63,22 +64,33 @@ export const Publish: React.FC<PublishProps> = ({electionEventId, electionId}) =
 
         if (data?.generate_ballot_publication?.ballot_publication_id) {
             setIsPublished(false)
-            setBallotPublicationId(data.generate_ballot_publication?.ballot_publication_id)
+            publishContext.setBallotPublicationId(
+                data.generate_ballot_publication?.ballot_publication_id
+            )
         }
     }
 
     useEffect(() => {
+        if (
+            publishContext.electionEventId !== electionEventId ||
+            publishContext.electionId !== electionId
+        ) {
+            publishContext.setEvent(electionEventId, electionId || null)
+        }
+        if (!publishContext.electionEventId || publishContext.ballotPublicationId) {
+            return
+        }
         generateNewPublication()
-    }, [])
+    }, [publishContext.electionEventId, publishContext.electionId])
 
     const onPublish = async () => {
-        if (!ballotPublicationId) {
+        if (!publishContext.ballotPublicationId) {
             return
         }
         const {data} = await publishBallot({
             variables: {
                 electionEventId,
-                ballotPublicationId,
+                ballotPublicationId: publishContext.ballotPublicationId,
             },
         })
 
@@ -89,7 +101,7 @@ export const Publish: React.FC<PublishProps> = ({electionEventId, electionId}) =
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
-            <PublishActions onPublish={generateNewPublication} onGenerate={onPublish} />
+            <PublishActions onPublish={onPublish} onGenerate={generateNewPublication} />
 
             <PublishStyled.Container>
                 <Accordion

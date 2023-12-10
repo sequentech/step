@@ -29,7 +29,7 @@ export const ElectionTabs: React.FC = () => {
                     a
                 </TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label={t("electionScreen.tabs.publish")}>
-                    <Publish electionEventId={record.election_event_id} electionId={record.id} />
+                    <Publish electionEventId={record?.election_event_id} electionId={record?.id} />
                 </TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label={t("electionScreen.tabs.logs")}>a</TabbedShowLayout.Tab>
             </TabbedShowLayout>

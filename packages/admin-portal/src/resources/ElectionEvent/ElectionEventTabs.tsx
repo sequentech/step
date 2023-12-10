@@ -96,7 +96,7 @@ export const ElectionEventTabs: React.FC = () => {
                 ) : null}
                 {showPublish ? (
                     <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.publish")}>
-                        <Publish electionEventId={record.id} />
+                        <Publish electionEventId={record?.id} />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showLogs ? (
