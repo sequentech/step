@@ -35,31 +35,29 @@ import {ITallyExecutionStatus} from "@/types/ceremonies"
 import {faKey} from "@fortawesome/free-solid-svg-icons"
 import {Box} from "@mui/material"
 import {Sequent_Backend_Area, Sequent_Backend_Tally_Session} from "@/gql/graphql"
+import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 
 // interface TallyCeremonyTrusteesProps {
 //     completed: boolean
 // }
+
+const WizardSteps = {
+    Start: 0,
+    Status: 1,
+}
 
 export const TallyCeremonyTrustees: React.FC = () => {
     const {t} = useTranslation()
     const [tallyId, setTallyId] = useElectionEventTallyStore()
     const notify = useNotify()
 
-    const [openModal, setOpenModal] = useState(false)
-    const [page, setPage] = useState<number>(0)
-    const [showTrustees, setShowTrustees] = useState(false)
+    const [page, setPage] = useState<number>(WizardSteps.Start)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<string[]>([])
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [verified, setVerified] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
-
-    const [UpdateTallyCeremonyMutation] = useMutation(UPDATE_TALLY_CEREMONY)
-
-    interface IExpanded {
-        [key: string]: boolean
-    }
 
     const {data} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
         id: tallyId,
@@ -71,30 +69,15 @@ export const TallyCeremonyTrustees: React.FC = () => {
             // setPage(
             //     data?.execution_status === ITallyExecutionStatus.NOT_STARTED ||
             //         data?.execution_status === ITallyExecutionStatus.STARTED
-            //         ? 0
-            //         : 1
+            //         ? WizardSteps.Start
+            //         : WizardSteps.Status
             // )
             if (tally?.last_updated_at !== data.last_updated_at) {
-                console.log("TallyCeremony :: data", data)
                 setTally(data)
             }
         }
     }, [data])
 
-    useEffect(() => {
-        console.log("TallyCeremony :: tally", tally)
-    }, [tally])
-
-    const [expandedData, setExpandedData] = useState<IExpanded>({
-        "tally-data-general": true,
-        "tally-data-logs": true,
-        "tally-data-results": true,
-    })
-
-    const [expandedResults, setExpandedResults] = useState<IExpanded>({
-        "tally-results-general": true,
-        "tally-results-results": true,
-    })
 
     const CancelButton = styled(Button)`
         background-color: ${({theme}) => theme.palette.white};
@@ -118,37 +101,6 @@ export const TallyCeremonyTrustees: React.FC = () => {
             color: ${({theme}) => theme.palette.brandColor};
         }
     `
-
-    const handleNext = () => {
-        if (page === 0) {
-            if (showTrustees) {
-                setPage(page < 2 ? page + 1 : 0)
-            } else {
-                setOpenModal(true)
-            }
-        } else {
-            setPage(page < 2 ? page + 1 : 0)
-        }
-    }
-
-    const confirmNextAction = async () => {
-        const {data, errors} = await UpdateTallyCeremonyMutation({
-            variables: {
-                election_event_id: tally?.election_event_id,
-                tally_session_id: tally?.id,
-                status: ITallyExecutionStatus.STARTED,
-            },
-        })
-
-        if (errors) {
-            notify(t("tally.startTallyError"), {type: "error"})
-        }
-
-        if (data) {
-            notify(t("tally.startTallySuccess"), {type: "success"})
-            setPage(1)
-        }
-    }
 
     // const [checkPrivateKeysMutation] = useMutation<CheckPrivateKeyMutation>(CHECK_PRIVATE_KEY)
     const uploadPrivateKey = async (files: FileList | null) => {
@@ -218,7 +170,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                     />
                 </TallyStyles.StyledHeader>
 
-                {page === 0 && (
+                {page === WizardSteps.Start && (
                     <>
                         <ElectionHeader
                             title={t("tally.ceremonyTitle")}
@@ -254,7 +206,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                     </>
                 )}
 
-                {page === 1 && (
+                {page === WizardSteps.Status && (
                     <>
                         <ElectionHeader
                             title={t("tally.ceremonyTitle")}
@@ -298,12 +250,8 @@ export const TallyCeremonyTrustees: React.FC = () => {
                     <CancelButton className="list-actions" onClick={() => setTallyId(null)}>
                         {t("tally.common.cancel")}
                     </CancelButton>
-                    {page === 0 && (
-                        <NextButton
-                            color="primary"
-                            onClick={() => setPage(1)}
-                            disabled={!verified}
-                        >
+                    {page === WizardSteps.Start && (
+                        <NextButton color="primary" onClick={() => setPage(WizardSteps.Status)} disabled={!verified}>
                             <>
                                 {t("tally.common.next")}
                                 <ChevronRightIcon />
@@ -313,21 +261,6 @@ export const TallyCeremonyTrustees: React.FC = () => {
                 </TallyStyles.StyledFooter>
             </WizardStyles.WizardWrapper>
 
-            <Dialog
-                variant="warning"
-                open={openModal}
-                ok={t("tally.common.dialog.ok")}
-                cancel={t("tally.common.dialog.cancel")}
-                title={t("tally.common.dialog.title")}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmNextAction()
-                    }
-                    setOpenModal(false)
-                }}
-            >
-                {t("tally.common.dialog.message")}
-            </Dialog>
         </>
     )
 }

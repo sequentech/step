@@ -35,12 +35,13 @@ import {IPermissions} from "@/types/keycloak"
 import FileOpenIcon from "@mui/icons-material/FileOpen"
 import KeyIcon from "@mui/icons-material/Key"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {ListActions} from "../../components/ListActions"
 
 const NotificationLink = styled.span`
     text-decoration: underline;
     cursor: pointer;
     padding: 2px;
-    
+
     &:hover {
         text-decoration: none;
     }
@@ -115,6 +116,8 @@ export const EditElectionEventKeys: React.FC = () => {
                 tenant_id: tenantId,
                 election_event_id: electionEvent.id,
             },
+        },{
+            refetchInterval: 5000
         }
     )
     let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
@@ -167,13 +170,7 @@ export const EditElectionEventKeys: React.FC = () => {
     }
 
     const viewAdminCeremony = (id: Identifier) => {
-        
         const ceremony = getCeremony(id)
-
-        console.log("viewAdminCeremony", id);
-        console.log("ceremony", ceremony)
-        console.log("ceremony", canAdminCeremony)
-        
         if (!ceremony || !canAdminCeremony) {
             return
         } else {
@@ -215,8 +212,8 @@ export const EditElectionEventKeys: React.FC = () => {
                         <NotificationLink
                             onClick={(e: any) => {
                                 // TODO: this onClick is not being called!
-                                console.log("clicked");
-                                
+                                console.log("clicked")
+
                                 e.preventDefault()
                                 viewTrusteeCeremony(activeCeremony?.id)
                             }}
@@ -245,12 +242,12 @@ export const EditElectionEventKeys: React.FC = () => {
             {!showCeremony && !showTrusteeCeremony && (
                 <List
                     resource="sequent_backend_keys_ceremony"
-                    // actions={<TopToolbar>{canAdminCeremony ? <CreateButton /> : null}</TopToolbar>}
                     filter={{
                         tenant_id: tenantId || undefined,
                         election_event_id: electionEvent?.id || undefined,
                     }}
                     empty={<Empty />}
+                    actions={<ListActions withFilter={false} withImport={false}/>}
                 >
                     <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                         <TextField source="id" />
