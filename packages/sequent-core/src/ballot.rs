@@ -388,9 +388,8 @@ pub enum VotingStatus {
 )]
 pub struct KeyCeremonyLog {
     pub created_date: String,
-    pub log_text: String, 
+    pub log_text: String,
 }
-
 
 #[allow(non_camel_case_types)]
 #[derive(
@@ -444,7 +443,7 @@ pub enum KeyCeremonyTrusteeStatus {
 )]
 pub struct KeyCeremonyTrustee {
     pub name: String,
-    pub status: KeyCeremonyTrusteeStatus
+    pub status: KeyCeremonyTrusteeStatus,
 }
 
 #[derive(

@@ -4,12 +4,11 @@
 use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-use windmill::services::users::list_users;
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::services::keycloak;
 use sequent_core::services::jwt;
+use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::User;
@@ -18,6 +17,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::instrument;
+use windmill::services::users::list_users;
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {
@@ -88,8 +88,7 @@ pub async fn get_users(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
-    let auth_headers = 
-        keycloak::get_client_credentials()
+    let auth_headers = keycloak::get_client_credentials()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
@@ -103,18 +102,18 @@ pub async fn get_users(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let (users, count) = list_users(
-            auth_headers.clone(),
-            &client,
-            input.tenant_id.clone(),
-            input.election_event_id.clone(),
-            &realm,
-            input.search,
-            input.email,
-            input.limit,
-            input.offset,
-        )
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        auth_headers.clone(),
+        &client,
+        input.tenant_id.clone(),
+        input.election_event_id.clone(),
+        &realm,
+        input.search,
+        input.email,
+        input.limit,
+        input.offset,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(Json(DataList {
         items: users,
         total: TotalAggregate {

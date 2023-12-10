@@ -4,7 +4,7 @@
 use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
 use anyhow::{anyhow, Result};
-use keycloak::types::{UserRepresentation, CredentialRepresentation};
+use keycloak::types::{CredentialRepresentation, UserRepresentation};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
@@ -162,25 +162,28 @@ impl KeycloakAdminClient {
         };
 
         current_user.credentials = match password {
-            Some(val) => Some([
-                // the new credential
-                vec![CredentialRepresentation {
-                    type_: Some("password".to_string()),
-                    temporary: Some(true),
-                    value: Some(val),
-                    ..Default::default()
-                }],
-                // the filtered list, without password
-                current_user
-                    .credentials
-                    .unwrap_or(vec![])
-                    .clone()
-                    .into_iter()
-                    .filter(|credential|
-                        credential.type_ != Some("password".to_string())
-                    )
-                    .collect()
-            ].concat()),
+            Some(val) => Some(
+                [
+                    // the new credential
+                    vec![CredentialRepresentation {
+                        type_: Some("password".to_string()),
+                        temporary: Some(true),
+                        value: Some(val),
+                        ..Default::default()
+                    }],
+                    // the filtered list, without password
+                    current_user
+                        .credentials
+                        .unwrap_or(vec![])
+                        .clone()
+                        .into_iter()
+                        .filter(|credential| {
+                            credential.type_ != Some("password".to_string())
+                        })
+                        .collect(),
+                ]
+                .concat(),
+            ),
             None => current_user.credentials,
         };
 
@@ -204,8 +207,9 @@ impl KeycloakAdminClient {
     #[instrument(skip(self))]
     pub async fn create_user(self, realm: &str, user: &User) -> Result<User> {
         let mut new_user = user.clone();
-        let new_user_id = new_user.id.clone().unwrap_or(Uuid::new_v4().to_string());
-        new_user.id =Some(new_user_id.clone());
+        let new_user_id =
+            new_user.id.clone().unwrap_or(Uuid::new_v4().to_string());
+        new_user.id = Some(new_user_id.clone());
         self.client
             .realm_users_post(realm, new_user.clone().into())
             .await

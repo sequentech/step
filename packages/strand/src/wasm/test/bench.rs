@@ -12,8 +12,8 @@ use crate::elgamal::{PrivateKey, PublicKey};
 use crate::rng::StrandRng;
 // use crate::serialization::StrandSerialize;
 use crate::util;
-use crate::zkp::Zkp;
 use crate::util::StrandError;
+use crate::zkp::Zkp;
 
 #[wasm_bindgen]
 extern "C" {
