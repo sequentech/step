@@ -5,6 +5,7 @@ import React, {useState, useEffect, PropsWithChildren} from "react"
 import Typography from "@mui/material/Typography"
 import Paper, {PaperProps} from "@mui/material/Paper"
 import Box from "@mui/material/Box"
+import {useNavigate} from "react-router-dom"
 import {Link as RouterLink} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
@@ -15,6 +16,7 @@ import Button from "@mui/material/Button"
 import {
     faCircleQuestion,
     faTimesCircle,
+    faPrint,
     faAngleLeft,
     faAngleRight,
 } from "@fortawesome/free-solid-svg-icons"
@@ -314,6 +316,7 @@ interface ActionButtonProps {}
 
 const ActionButtons: React.FC<ActionButtonProps> = ({}) => {
     const {t} = useTranslation()
+    const triggerPrint = () => window.print()
 
     return (
         <ActionsContainer>
@@ -323,6 +326,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({}) => {
                     <span>{t("confirmationScreen.backButton")}</span>
                 </StyledButton>
             </StyledLink>
+            <StyledButton
+                onClick={triggerPrint}
+                variant="secondary"
+                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+            >
+                <Icon icon={faPrint} size="sm" />
+                <Box>{t("confirmationScreen.printButton")}</Box>
+            </StyledButton>
             {/*<StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
                 <span>{t("confirmationScreen.finishButton")}</span>
                 <Icon icon={faAngleRight} size="sm" />
@@ -427,11 +438,16 @@ export const ConfirmationScreen: React.FC<IProps> = ({
     ballotId,
 }) => {
     const {t} = useTranslation()
+    const navigate = useNavigate()
     const [isLoading, setIsLoading] = useState(confirmationBallot === null)
 
     useEffect(() => {
         setIsLoading(confirmationBallot === null)
+        if (confirmationBallot == null) {
+            navigate("/")
+        }
     }, [confirmationBallot])
+
 
     return (
         <PageLimit maxWidth="md">

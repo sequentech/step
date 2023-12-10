@@ -57,6 +57,7 @@ const spanishTranslation: TranslationType = {
                     "Esta es la Id de la Boleta que escribiste en el anterior paso y que recogiste de la Cabina de Votación.",
             },
             backButton: "Atrás",
+            printButton: "Imprimir",
             finishButton: "Verificado",
             verifySelectionsTitle: "Verifica tus selecciones en la boleta",
             verifySelectionsDescription:
