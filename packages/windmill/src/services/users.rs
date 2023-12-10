@@ -3,11 +3,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::area::get_areas_by_ids;
-use sequent_core::services::keycloak::KeycloakAdminClient;
+use anyhow::{anyhow, Context, Result};
+use keycloak::types::{CredentialRepresentation, UserRepresentation};
 use sequent_core::services::connection;
+use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::*;
-use anyhow::{anyhow, Result, Context};
-use keycloak::types::{UserRepresentation, CredentialRepresentation};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
@@ -49,9 +49,7 @@ pub async fn list_users(
         .map_err(|err| anyhow!("{:?}", err))?;
     let count: i32 = admin
         .client
-        .realm_users_count_get(
-            realm, email, None, None, None, None, search, None,
-        )
+        .realm_users_count_get(realm, email, None, None, None, None, search, None)
         .await
         .map_err(|err| anyhow!("{:?}", err))?;
     let users: Vec<User> = user_representations

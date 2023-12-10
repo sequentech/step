@@ -46,7 +46,6 @@ pub async fn get_election_event_areas(
     response_body.ok()
 }
 
-
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",

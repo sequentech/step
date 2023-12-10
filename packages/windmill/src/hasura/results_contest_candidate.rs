@@ -28,9 +28,9 @@ pub async fn insert_results_contest_candidate(
     contest_id: &str,
     candidate_id: &str,
     results_event_id: &str,
-    cast_votes: &Option<i64>,
-    winning_position: &Option<i64>,
-    points: &Option<i64>,
+    cast_votes: Option<i64>,
+    winning_position: Option<i64>,
+    points: Option<i64>,
 ) -> Result<Response<insert_results_contest_candidate::ResponseData>> {
     let variables = insert_results_contest_candidate::Variables {
         tenant_id: tenant_id.to_string(),
@@ -39,9 +39,9 @@ pub async fn insert_results_contest_candidate(
         contest_id: Some(contest_id.to_string()),
         candidate_id: Some(candidate_id.to_string()),
         results_event_id: results_event_id.to_string(),
-        cast_votes: cast_votes.clone(),
-        winning_position: winning_position.clone(),
-        points: points.clone(),
+        cast_votes,
+        winning_position,
+        points,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
@@ -54,6 +54,7 @@ pub async fn insert_results_contest_candidate(
         .json(&request_body)
         .send()
         .await?;
-    let response_body: Response<insert_results_contest_candidate::ResponseData> = res.json().await?;
+    let response_body: Response<insert_results_contest_candidate::ResponseData> =
+        res.json().await?;
     response_body.ok()
 }
