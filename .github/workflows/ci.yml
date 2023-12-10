@@ -13,18 +13,34 @@ jobs:
           - service: keycloak
             context: packages
             file: packages/Dockerfile.keycloak
-          - service: frontend
+            
+          - service: voting-portal
             context: packages
             file: packages/Dockerfile.prod
+            spa_name: "voting-portal"
+            
+          - service: admin-portal
+            context: packages
+            file: packages/Dockerfile.prod
+            spa_name: "admin-portal"
+
+          - service: ballot-verifier
+            context: packages
+            file: packages/Dockerfile.prod
+            spa_name: "ballot-verifier"
+
           - service: harvest
             context: packages
             file: packages/harvest/Dockerfile.prod
+            
           - service: braid
             context: packages
             file: packages/braid/Dockerfile.prod
+            
           - service: windmill
             context: packages
             file: packages/windmill/Dockerfile.prod
+            
       fail-fast: false
 
     steps:
@@ -54,3 +70,4 @@ jobs:
         tags: ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
         cache-from: type=gha,scope=${{ matrix.service }}
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+        build-args: SPA_NAME=${{ matrix.spa_name }}
