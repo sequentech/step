@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod ballot_publication;
+pub mod ballot_style;
 pub mod celery_app;
 pub mod ceremonies;
 pub mod compress;
@@ -17,4 +19,5 @@ pub mod public_keys;
 pub mod s3;
 pub mod temp_path;
 pub mod to_result;
+pub mod users;
 pub mod vault;

@@ -7,6 +7,12 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct UserArea {
+    pub id: Option<String>,
+    pub name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct User {
     pub id: Option<String>,
     pub attributes: Option<HashMap<String, Value>>,
@@ -16,6 +22,7 @@ pub struct User {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub username: Option<String>,
+    pub area: Option<UserArea>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]

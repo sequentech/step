@@ -1,0 +1,30 @@
+mutation InsertBallotPublication(
+  $tenantId: uuid!,
+  $electionEventId: uuid!,
+  $electionIds: [uuid!]!,
+  $userId: String!,
+) {
+  insert_sequent_backend_ballot_publication(
+    objects:
+    {
+      election_ids: $electionIds,
+      election_event_id: $electionEventId,
+      tenant_id: $tenantId,
+      created_by_user_id: $userId,
+    }
+  ) {
+    returning {
+      id
+      tenant_id
+      election_event_id
+      labels
+      annotations
+      created_at
+      deleted_at
+      created_by_user_id
+      is_generated
+      election_ids
+      published_at
+    }
+  }
+}

@@ -1,0 +1,23 @@
+[
+    {
+        "name": "Test Election Publish New Event",
+        "test": "Test Election Publish New Event 2",
+        "user": {
+            "name": "Isaac",
+            "surname": "Martin",
+            "age": 35,
+            "birthdate": "1/4/88"
+        },
+        "profile": {
+            "user_id": 1,
+            "activity_id": 2,
+            "tenant_id": "1231312312312312321"
+        },
+        "communications": [
+            {
+                "key": "1",
+                "value": "1"
+            }
+        ]
+    }
+]

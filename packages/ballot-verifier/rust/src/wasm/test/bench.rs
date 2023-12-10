@@ -6,8 +6,8 @@ use sequent_core::encrypt::*;
 use sequent_core::interpret_plaintext::{get_layout_properties, get_points};
 use sequent_core::plaintext::map_to_decoded_contest;
 use sequent_core::plaintext::*;
-use strand::backend::ristretto::RistrettoCtx;
 use serde_wasm_bindgen;
+use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
 use std::panic;
@@ -28,25 +28,25 @@ extern "C" {
 //         .map(|_| true)
 //         .map_err(|err| format!("Error parsing auditable ballot: {}", err))
 // }
-// 
+//
 // #[allow(clippy::all)]
 // #[wasm_bindgen]
 // pub fn hash_ballot(val: JsValue) -> Result<String, String> {
-//     let ballot: AuditableBallot<RistrettoCtx> = serde_wasm_bindgen::from_value(val)
-//         .map_err(|err| format!("Error parsing auditable ballot: {}", err))?;
-//     hash_to(&ballot).map_err(|err| format!("{:?}", err))
-//     Err(String::from(""))
+//     let ballot: AuditableBallot<RistrettoCtx> =
+// serde_wasm_bindgen::from_value(val)         .map_err(|err| format!("Error
+// parsing auditable ballot: {}", err))?;     hash_to(&ballot).map_err(|err|
+// format!("{:?}", err))     Err(String::from(""))
 // }
 //
 // #[allow(clippy::all)]
 // #[wasm_bindgen]
 // pub fn map_to_decoded_ballot(val: JsValue) -> Result<JsValue, String> {
-//     let ballot: AuditableBallot<RistrettoCtx> = serde_wasm_bindgen::from_value(val)
-//         .map_err(|err| format!("Error parsing auditable ballot: {}", err))?;
-//     let plaintext = map_to_decoded_contest(&ballot)?;
-//     // https://crates.io/crates/serde-wasm-bindgen
-//     serde_wasm_bindgen::to_value(&plaintext).map_err(|err| format!("{:?}", err))//
-// }
+//     let ballot: AuditableBallot<RistrettoCtx> =
+// serde_wasm_bindgen::from_value(val)         .map_err(|err| format!("Error
+// parsing auditable ballot: {}", err))?;     let plaintext =
+// map_to_decoded_contest(&ballot)?;     // https://crates.io/crates/serde-wasm-bindgen
+//     serde_wasm_bindgen::to_value(&plaintext).map_err(|err| format!("{:?}",
+// err))// }
 
 #[wasm_bindgen]
 pub fn set_hooks() {

@@ -120,7 +120,7 @@ export const CreateElectionList: React.FC = () => {
             presentation: {
                 ...electionSubmit.presentation,
                 language_conf: {
-                    enabled_language_codes: settings?.languages ?? [],
+                    enabled_language_codes: settings?.languages ?? ["en"],
                     default_language_code: "en",
                 },
                 i18n: {

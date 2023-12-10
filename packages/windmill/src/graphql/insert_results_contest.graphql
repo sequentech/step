@@ -1,0 +1,53 @@
+mutation InsertResultsContest(
+    $tenantId: uuid!,
+    $electionEventId: uuid!,
+    $electionId: uuid,
+    $contestId: uuid,
+    $resultsEventId: uuid!,
+    $elegibleCensus: Int,
+    $totalValidVotes: Int,
+    $explicitInvalidVotes: Int,
+    $implicitInvalidVotes: Int,
+    $blankVotes: Int,
+    $votingType: String,
+    $countingAlgorithm: String,
+    $name: String,
+) {
+  insert_sequent_backend_results_contest(
+    objects:
+    {
+        tenant_id: $tenantId,
+        election_event_id: $electionEventId,
+        election_id: $electionId,
+        contest_id: $contestId,
+        results_event_id: $resultsEventId,
+        elegible_census: $elegibleCensus,
+        total_valid_votes: $totalValidVotes,
+        explicit_invalid_votes: $explicitInvalidVotes,
+        implicit_invalid_votes: $implicitInvalidVotes,
+        blank_votes: $blankVotes,
+        voting_type: $votingType,
+        counting_algorithm: $countingAlgorithm,
+        name: $name,
+    }
+  ) {
+    returning {
+        id
+        tenant_id
+        election_event_id
+        election_id
+        contest_id
+        results_event_id
+        elegible_census
+        total_valid_votes
+        explicit_invalid_votes
+        implicit_invalid_votes
+        blank_votes
+        name
+        created_at
+        last_updated_at
+        labels
+        annotations
+    }
+  }
+}

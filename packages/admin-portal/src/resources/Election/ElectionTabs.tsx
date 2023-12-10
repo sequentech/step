@@ -1,10 +1,14 @@
 import React from "react"
-import {TabbedShowLayout, useRecordContext} from "react-admin"
-import {Sequent_Backend_Election} from "../../gql/graphql"
+
+import { useTranslation } from "react-i18next"
+import { TabbedShowLayout, useRecordContext } from "react-admin"
+
 import ElectionHeader from "../../components/ElectionHeader"
-import {EditElectionData} from "./ElectionData"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
-import {useTranslation} from "react-i18next"
+
+import { Publish } from "../Publish/Publish"
+import { EditElectionData } from "./ElectionData"
+import { Sequent_Backend_Election } from "../../gql/graphql"
 
 export const ElectionTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -20,11 +24,10 @@ export const ElectionTabs: React.FC = () => {
                 <TabbedShowLayout.Tab label={t("electionScreen.tabs.data")}>
                     <EditElectionData />
                 </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label={t("electionScreen.tabs.voters")}>
-                    a
-                </TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label="Dashboard">a</TabbedShowLayout.Tab>
+                <TabbedShowLayout.Tab label={t("electionScreen.tabs.voters")}>a</TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label={t("electionScreen.tabs.publish")}>
-                    a
+                    <Publish />
                 </TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label={t("electionScreen.tabs.logs")}>a</TabbedShowLayout.Tab>
             </TabbedShowLayout>

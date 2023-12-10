@@ -6,11 +6,13 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::default::Default;
 use strum_macros::Display;
 use strum_macros::EnumString;
-use std::default::Default;
 
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
 pub enum ExecutionStatus {
     NOT_STARTED,
     IN_PROCESS,
@@ -24,7 +26,9 @@ pub struct Log {
     pub log_text: String,
 }
 
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
 pub enum TrusteeStatus {
     WAITING,
     KEY_GENERATED,
@@ -46,8 +50,18 @@ pub struct CeremonyStatus {
     pub trustees: Vec<Trustee>,
 }
 
-
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, Default, JsonSchema)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
 pub enum TallyExecutionStatus {
     #[default]
     NOT_STARTED,
@@ -58,8 +72,17 @@ pub enum TallyExecutionStatus {
     CANCELLED,
 }
 
-
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, Default)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+)]
 pub enum TallyTrusteeStatus {
     #[default]
     WAITING,
@@ -73,7 +96,17 @@ pub struct TallyTrustee {
     pub status: TallyTrusteeStatus,
 }
 
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, Default)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+)]
 pub enum TallyElectionStatus {
     #[default]
     WAITING,

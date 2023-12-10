@@ -17,9 +17,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ITallyCeremonyStatus, ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
 import {NoItem} from "@/components/NoItem"
 import {useTranslation} from "react-i18next"
-import { IconButton } from '@sequentech/ui-essentials'
-import {faKey} from "@fortawesome/free-solid-svg-icons"
-import {Box} from "@mui/material"
+
 
 interface TallyTrusteesListProps {
     update: (elections: Array<string>) => void
@@ -102,18 +100,6 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
 
     return (
         <>
-            <Box sx={{width: "100%", display: "flex", justifyContent: "flex-end"}}>
-                <IconButton
-                    icon={faKey}
-                    sx={{
-                        color:
-                            tallySessionExecutions?.[0].status === ITallyExecutionStatus.STARTED
-                                ? "#43E3A1"
-                                : "#d32f2f",
-                    }}
-                />
-            </Box>
-
             {trusteesData.length ? (
                 <DataGrid
                     rows={trusteesData}

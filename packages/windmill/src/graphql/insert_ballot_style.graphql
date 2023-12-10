@@ -6,7 +6,8 @@ mutation InsertBallotStyle(
   $areaId: uuid!,
   $ballotEml: String,
   $ballotSignature: bytea,
-  $status: String
+  $status: String,
+  $ballotPublicationId: uuid!,
 ) {
   insert_sequent_backend_ballot_style(
     objects:
@@ -19,6 +20,7 @@ mutation InsertBallotStyle(
       ballot_eml: $ballotEml,
       ballot_signature: $ballotSignature,
       status: $status,
+      ballot_publication_id: $ballotPublicationId,
     }
   ) {
     returning {

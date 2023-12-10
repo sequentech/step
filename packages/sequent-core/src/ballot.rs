@@ -343,16 +343,12 @@ impl Contest {
 )]
 pub struct ElectionEventStatus {
     pub config_created: Option<bool>,
-    pub stopped: Option<bool>,
+    pub voting_status: VotingStatus,
 }
 
 impl ElectionEventStatus {
     pub fn is_config_created(&self) -> bool {
         self.config_created.unwrap_or(false)
-    }
-
-    pub fn is_stopped(&self) -> bool {
-        self.stopped.unwrap_or(false)
     }
 }
 
@@ -368,6 +364,7 @@ impl ElectionEventStatus {
     Eq,
     Clone,
     EnumString,
+    JsonSchema,
 )]
 pub enum VotingStatus {
     NOT_STARTED,
@@ -388,9 +385,8 @@ pub enum VotingStatus {
 )]
 pub struct KeyCeremonyLog {
     pub created_date: String,
-    pub log_text: String, 
+    pub log_text: String,
 }
-
 
 #[allow(non_camel_case_types)]
 #[derive(
@@ -444,7 +440,7 @@ pub enum KeyCeremonyTrusteeStatus {
 )]
 pub struct KeyCeremonyTrustee {
     pub name: String,
-    pub status: KeyCeremonyTrusteeStatus
+    pub status: KeyCeremonyTrusteeStatus,
 }
 
 #[derive(

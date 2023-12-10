@@ -4,21 +4,36 @@
 
 import {StartTallyDialog} from "@/components/StartTallyDialog"
 import {Sequent_Backend_Election_Event, Sequent_Backend_Tally_Session} from "@/gql/graphql"
-import {Box, Button} from "@mui/material"
+import {Box, Button, Typography} from "@mui/material"
 import React, {useState} from "react"
-import {useRecordContext} from "react-admin"
-import { ListTally } from '../Tally/ListTally'
-import { useElectionEventTallyStore } from '@/providers/ElectionEventTallyProvider'
-import { TallyCeremony } from '../Tally/TallyCeremony'
+import {CreateButton, useRecordContext} from "react-admin"
+import {ListTally} from "../Tally/ListTally"
+import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
+import {TallyCeremony} from "../Tally/TallyCeremony"
+import {TallyCeremonyTrustees} from "../Tally/TallyCeremonyTrustees"
+import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
+import {styled as MUIStiled} from "@mui/material/styles"
+import {useActionPermissions} from "./EditElectionEventKeys"
+import {useTranslation} from "react-i18next"
+
+const EmptyBox = MUIStiled(Box)`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+`
 
 export const EditElectionEventTally: React.FC = () => {
+    const {t} = useTranslation()
     const recordEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const record = useRecordContext<Sequent_Backend_Tally_Session>()
     const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)
-    const [tallyId] = useElectionEventTallyStore()
+    const [tallyId, setTallyId, isTrustee] = useElectionEventTallyStore()
 
     console.log("EditElectionEventTally :: tallyId :: ", tallyId)
-    
 
     const openStartTallyDialog = () => {
         console.log("opening...")
@@ -34,9 +49,15 @@ export const EditElectionEventTally: React.FC = () => {
             />
             {/* <Button onClick={openStartTallyDialog}>Start tally</Button> */}
             {tallyId ? (
-                <TallyCeremony completed={record.is_execution_completed} />
+                <>
+                    {!isTrustee ? (
+                        <TallyCeremony completed={record.is_execution_completed} />
+                    ) : (
+                        <TallyCeremonyTrustees />
+                    )}
+                </>
             ) : (
-                <ListTally record={record} />
+                <ListTally record={record}/>
             )}
         </Box>
     )
