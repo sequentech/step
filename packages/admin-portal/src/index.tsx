@@ -16,7 +16,7 @@ import {ElectionEventContextProvider} from "./providers/ElectionEventContextProv
 import {ElectionContextProvider} from "./providers/ElectionContextProvider"
 import {ContestContextProvider} from "./providers/ContestContextProvider"
 import {CandidateContextProvider} from "./providers/CandidateContextProvider"
-import { ElectionEventTallyContextProvider } from './providers/ElectionEventTallyProvider'
+import {ElectionEventTallyContextProvider} from "./providers/ElectionEventTallyProvider"
 import NewResourceContextProvider from "./providers/NewResourceProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
@@ -29,17 +29,17 @@ root.render(
             <TenantContextProvider>
                 <NewResourceContextProvider>
                     <ElectionEventContextProvider>
-                    <ElectionContextProvider>
-                        <ContestContextProvider>
-                            <CandidateContextProvider>
-                                <ElectionEventTallyContextProvider>
-                                    <ThemeProvider theme={fullAdminTheme}>
-                                        <AppWrapper />
-                                    </ThemeProvider>
-                                </ElectionEventTallyContextProvider>
-                            </CandidateContextProvider>
-                        </ContestContextProvider>
-                    </ElectionContextProvider>
+                        <ElectionContextProvider>
+                            <ContestContextProvider>
+                                <CandidateContextProvider>
+                                    <ElectionEventTallyContextProvider>
+                                        <ThemeProvider theme={fullAdminTheme}>
+                                            <AppWrapper />
+                                        </ThemeProvider>
+                                    </ElectionEventTallyContextProvider>
+                                </CandidateContextProvider>
+                            </ContestContextProvider>
+                        </ElectionContextProvider>
                     </ElectionEventContextProvider>
                 </NewResourceContextProvider>
             </TenantContextProvider>

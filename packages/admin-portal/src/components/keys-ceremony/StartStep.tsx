@@ -1,23 +1,20 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useContext } from "react"
+import React, {useContext} from "react"
 import {Typography} from "@mui/material"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {Trans, useTranslation} from "react-i18next"
-import { AuthContext } from "@/providers/AuthContextProvider"
-import { WizardStyles } from "@/components/styles/WizardStyles"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {WizardStyles} from "@/components/styles/WizardStyles"
 
 export interface ConfigureStepProps {
     goNext: () => void
     goBack: () => void
 }
 
-export const StartStep: React.FC<ConfigureStepProps> = ({
-    goNext,
-    goBack,
-}) => {
+export const StartStep: React.FC<ConfigureStepProps> = ({goNext, goBack}) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     return (

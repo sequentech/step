@@ -153,7 +153,7 @@ export const ContestDataForm: React.FC = () => {
                     } else {
                         enabled_item[setting] = false // setting[Object.keys(setting)[0]]
                     }
-                    
+
                     temp.enabled_languages = {
                         ...temp.enabled_languages,
                         ...enabled_item,

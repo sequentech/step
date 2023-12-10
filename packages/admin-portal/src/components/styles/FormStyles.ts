@@ -1,4 +1,4 @@
-import { TextInput, PasswordInput } from "react-admin"
+import {TextInput, PasswordInput} from "react-admin"
 import {styled as muiStyled} from "@mui/material/styles"
 import {FormControlLabel} from "@mui/material"
 
@@ -15,5 +15,5 @@ export const FormStyles = {
     `,
     CheckboxControlLabel: muiStyled(FormControlLabel)`
         padding-bottom: 2em !important;
-    `
+    `,
 }

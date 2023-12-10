@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useMutation} from "@apollo/client"
-import React, { useContext, useState } from "react"
+import React, {useContext, useState} from "react"
 import {FormControlLabel, FormGroup, Typography, Checkbox} from "@mui/material"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
-import DownloadIcon from '@mui/icons-material/Download'
+import DownloadIcon from "@mui/icons-material/Download"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {Trans, useTranslation} from "react-i18next"
 
@@ -14,9 +14,9 @@ import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
 } from "@/gql/graphql"
-import { AuthContext } from "@/providers/AuthContextProvider"
-import { WizardStyles } from "@/components/styles/WizardStyles"
-import { GET_PRIVATE_KEY } from "@/queries/GetPrivateKey"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {WizardStyles} from "@/components/styles/WizardStyles"
+import {GET_PRIVATE_KEY} from "@/queries/GetPrivateKey"
 import {Dialog} from "@sequentech/ui-essentials"
 
 export interface DownloadStepProps {
@@ -39,22 +39,19 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [errors, setErrors] = useState<String | null>(null)
     const [checkboxState, setCheckboxState] = React.useState({
-      firstCheckbox: false,
-      secondCheckbox: false
+        firstCheckbox: false,
+        secondCheckbox: false,
     })
-    const handleCheckboxChange = (
-        event: React.ChangeEvent<HTMLInputElement>
-    ) => {
+    const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         console.log(`checkbox: ${event.target.name}: ${event.target.checked}`)
         setCheckboxState({
-        ...checkboxState,
-        [event.target.name]: event.target.checked,
-      });
+            ...checkboxState,
+            [event.target.name]: event.target.checked,
+        })
     }
-    const { firstCheckbox, secondCheckbox } = checkboxState
+    const {firstCheckbox, secondCheckbox} = checkboxState
 
-    const [getPrivateKeysMutation] =
-    useMutation<GetPrivateKeyMutation>(GET_PRIVATE_KEY)
+    const [getPrivateKeysMutation] = useMutation<GetPrivateKeyMutation>(GET_PRIVATE_KEY)
     const download = async () => {
         setErrors(null)
         setDownloaded(false)
@@ -68,10 +65,9 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
             })
             setDownloading(false)
             if (errors) {
-                setErrors(t(
-                    "keysGeneration.downloadStep.errorDownloading",
-                    {error: errors.toString()}
-                ))
+                setErrors(
+                    t("keysGeneration.downloadStep.errorDownloading", {error: errors.toString()})
+                )
                 return null
             } else {
                 const privateKey = data?.get_private_key?.private_key_base64
@@ -79,25 +75,22 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                     setErrors(t("keysGeneration.downloadStep.errorEmptyKey"))
                     return
                 }
-                const blob = new Blob(
-                    [privateKey], {type: 'text/plain'}
-                )
+                const blob = new Blob([privateKey], {type: "text/plain"})
                 const blobUrl = window.URL.createObjectURL(blob)
                 const username = authContext.username
                 const electionName = electionEvent.alias || electionEvent.name
                 const fileName = `encrypted_private_key_trustee_${username}_${electionName}.txt`
-                var tempLink = document.createElement('a')
+                var tempLink = document.createElement("a")
                 tempLink.href = blobUrl
-                tempLink.setAttribute('download', fileName)
+                tempLink.setAttribute("download", fileName)
                 tempLink.click()
                 setDownloaded(true)
             }
         } catch (exception: any) {
             setDownloading(false)
-            setErrors(t(
-                "keysGeneration.downloadStep.errorDownloading",
-                {error: exception.toString()}
-            ))
+            setErrors(
+                t("keysGeneration.downloadStep.errorDownloading", {error: exception.toString()})
+            )
             return null
         }
     }
@@ -114,20 +107,17 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                             values={{name: authContext.username}}
                         ></Trans>
                     </Typography>
-                    <WizardStyles.DownloadButton
-                        color="primary"
-                        onClick={download}
-                    >
+                    <WizardStyles.DownloadButton color="primary" onClick={download}>
                         <DownloadIcon />
                         {t("keysGeneration.downloadStep.downloadButton")}
                     </WizardStyles.DownloadButton>
                     <WizardStyles.StatusBox>
                         {downloading ? <WizardStyles.DownloadProgress /> : null}
-                        {errors
-                            ? <WizardStyles.ErrorMessage variant="body2">
+                        {errors ? (
+                            <WizardStyles.ErrorMessage variant="body2">
                                 {errors}
                             </WizardStyles.ErrorMessage>
-                            : null}
+                        ) : null}
                     </WizardStyles.StatusBox>
                 </WizardStyles.MainContent>
             </WizardStyles.ContentBox>
@@ -165,21 +155,25 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                 </Typography>
                 <FormGroup>
                     <FormControlLabel
-                        control={<Checkbox
-                            key="firstCheckbox"
-                            checked={firstCheckbox}
-                            onChange={handleCheckboxChange}
-                            name="firstCheckbox"
-                        />}
+                        control={
+                            <Checkbox
+                                key="firstCheckbox"
+                                checked={firstCheckbox}
+                                onChange={handleCheckboxChange}
+                                name="firstCheckbox"
+                            />
+                        }
                         label={t("keysGeneration.downloadStep.confirmdDialog.firstCopy")}
                     />
                     <FormControlLabel
-                        control={<Checkbox
-                            key="secondCheckbox"
-                            checked={secondCheckbox}
-                            onChange={handleCheckboxChange}
-                            name="secondCheckbox"
-                        />}
+                        control={
+                            <Checkbox
+                                key="secondCheckbox"
+                                checked={secondCheckbox}
+                                onChange={handleCheckboxChange}
+                                name="secondCheckbox"
+                            />
+                        }
                         label={t("keysGeneration.downloadStep.confirmdDialog.secondCopy")}
                     />
                 </FormGroup>

@@ -83,11 +83,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     <Typography variant="body1" paragraph>
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
                     </Typography>
-                    <Button
-                        onClick={() => setOpenNew(true)}
-                    >
+                    <Button onClick={() => setOpenNew(true)}>
                         <ResourceListStyles.CreateIcon icon={faPlus} />
-                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.create.subtitle`)}
+                        {t(
+                            `usersAndRolesScreen.${
+                                electionEventId ? "voters" : "users"
+                            }.create.subtitle`
+                        )}
                     </Button>
                 </>
             ) : null}
@@ -199,12 +201,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     <TextField source="first_name" />
                     <TextField source="last_name" />
                     <TextField source="username" />
-                    {electionEventId && <FunctionField
-                        label={t("usersAndRolesScreen.users.fields.area")}
-                        render={(record: IUser) => <Chip
-                            label={record?.area?.name || ""}
-                        />}
-                    />}
+                    {electionEventId && (
+                        <FunctionField
+                            label={t("usersAndRolesScreen.users.fields.area")}
+                            render={(record: IUser) => <Chip label={record?.area?.name || ""} />}
+                        />
+                    )}
 
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />
@@ -236,10 +238,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     sx: {width: "40%"},
                 }}
             >
-                <CreateUser
-                    electionEventId={electionEventId}
-                    close={handleCloseNewDrawer}
-                />
+                <CreateUser electionEventId={electionEventId} close={handleCloseNewDrawer} />
             </Drawer>
 
             <Dialog

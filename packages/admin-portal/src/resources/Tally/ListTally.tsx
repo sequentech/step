@@ -158,8 +158,8 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     const actions: Action[] = [
         {
-            icon: <DescriptionIcon />, 
-            action: viewAdminTally, 
+            icon: <DescriptionIcon />,
+            action: viewAdminTally,
             showAction: (id: Identifier) => canAdminCeremony,
         },
         {
