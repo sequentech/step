@@ -155,7 +155,7 @@ pub async fn find_keys_ceremony(
     }
     Ok(successful_ceremonies[0].clone())
 }
-
+ 
 #[instrument]
 fn generate_initial_tally_status(
     election_ids: &Vec<String>,
