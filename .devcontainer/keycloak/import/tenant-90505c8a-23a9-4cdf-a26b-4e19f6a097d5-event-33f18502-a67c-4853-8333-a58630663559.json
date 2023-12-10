@@ -400,8 +400,7 @@
     "emailVerified" : true,
     "email" : "felix@sequentech.io",
     "attributes" : {
-      "sequent.read-only.mobile-number" : [ "+34666000111" ],
-      "area-id" : [ "2f312a36-f39c-46e4-9670-1d1ce4625745" ],
+      "sequent.read-only.mobile-number" : [ "+34666000222" ],
       "tenant-id" : [ "90505c8a-23a9-4cdf-a26b-4e19f6a097d5" ]
     },
     "credentials" : [ {
