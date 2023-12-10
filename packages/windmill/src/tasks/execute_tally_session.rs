@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura;
+use crate::hasura::results_election::insert_results_election;
 use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session::set_tally_session_completed;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
@@ -317,8 +318,27 @@ async fn map_plaintext_data(
 #[instrument(skip_all)]
 async fn save_results(
     results: Vec<ElectionReportDataComputed>,
+    tenant_id: &str,
+    election_event_id: &str,
     results_event_id: &str,
 ) -> Result<()> {
+    let auth_headers = keycloak::get_client_credentials().await?;
+    for election in results.iter() {
+        insert_results_election(
+            &auth_headers,
+            tenant_id,
+            election_event_id,
+            results_event_id,
+            &election.election_id,
+            &None, // name
+            &None, // elegible_census,
+            &None, // total_valid_votes,
+            &None, // explicit_invalid_votes,
+            &None, // implicit_invalid_votes,
+            &None, // blank_votes,
+        )
+        .await?;
+    }
     Ok(())
 }
 
@@ -438,7 +458,13 @@ async fn tally_area_contest(
         })?;
     }
     if let Ok(results) = state.get_results() {
-        save_results(results, results_event_id).await?;
+        save_results(
+            results,
+            &contest.tenant_id,
+            &contest.election_event_id,
+            results_event_id,
+        )
+        .await?;
     }
 
     Ok(())
