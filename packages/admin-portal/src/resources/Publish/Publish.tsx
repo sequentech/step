@@ -36,7 +36,7 @@ const PublishStyled = {
 
 export const Publish: React.FC = () => {
     const {t} = useTranslation();
-    const [expan, setExpan] = React.useState<string>('')
+    const [expan, setExpan] = React.useState<string>('election-publish-diff')
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
