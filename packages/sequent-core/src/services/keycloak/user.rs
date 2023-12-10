@@ -106,6 +106,16 @@ impl KeycloakAdminClient {
     }
 
     #[instrument(skip(self))]
+    pub async fn get_user(self, realm: &str, user_id: &str) -> Result<User> {
+        let current_user: UserRepresentation = self
+            .client
+            .realm_users_with_id_get(realm, user_id)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(current_user.into())
+    }
+
+    #[instrument(skip(self))]
     pub async fn edit_user(
         self,
         realm: &str,

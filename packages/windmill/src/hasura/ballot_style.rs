@@ -65,6 +65,7 @@ pub async fn insert_ballot_style(
     ballot_eml: Option<String>,
     ballot_signature: Option<String>,
     status: Option<String>,
+    ballot_publication_id: String,
 ) -> Result<Response<insert_ballot_style::ResponseData>> {
     let variables = insert_ballot_style::Variables {
         id: ballot_style_id,
@@ -75,6 +76,7 @@ pub async fn insert_ballot_style(
         ballot_eml: ballot_eml,
         ballot_signature: ballot_signature,
         status: status,
+        ballot_publication_id,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
@@ -88,42 +90,5 @@ pub async fn insert_ballot_style(
         .send()
         .await?;
     let response_body: Response<insert_ballot_style::ResponseData> = res.json().await?;
-    response_body.ok()
-}
-
-#[derive(GraphQLQuery)]
-#[graphql(
-    schema_path = "src/graphql/schema.json",
-    query_path = "src/graphql/soft_delete_ballot_style.graphql",
-    response_derives = "Debug,Clone,Deserialize,Serialize"
-)]
-pub struct SoftDeleteBallotStyle;
-
-#[instrument(skip_all)]
-pub async fn soft_delete_ballot_style(
-    auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    election_event_id: String,
-    election_id: String,
-    area_id: String,
-) -> Result<Response<soft_delete_ballot_style::ResponseData>> {
-    let variables = soft_delete_ballot_style::Variables {
-        tenant_id: tenant_id,
-        election_event_id: election_event_id,
-        election_id: election_id,
-        area_id: area_id,
-    };
-    let hasura_endpoint =
-        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
-    let request_body = SoftDeleteBallotStyle::build_query(variables);
-
-    let client = reqwest::Client::new();
-    let res = client
-        .post(hasura_endpoint)
-        .header(auth_headers.key, auth_headers.value)
-        .json(&request_body)
-        .send()
-        .await?;
-    let response_body: Response<soft_delete_ballot_style::ResponseData> = res.json().await?;
     response_body.ok()
 }

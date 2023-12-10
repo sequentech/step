@@ -9,7 +9,6 @@ use std;
 use tracing::{event, instrument, Level};
 
 use crate::tasks::connect_tally_ceremony::connect_tally_ceremony;
-use crate::tasks::create_ballot_style::create_ballot_style;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::insert_ballots::insert_ballots;
@@ -56,7 +55,6 @@ pub async fn generate_celery_app() -> Arc<Celery> {
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
             connect_tally_ceremony,
-            create_ballot_style,
             create_keys,
             insert_ballots,
             review_boards,
@@ -72,7 +70,6 @@ pub async fn generate_celery_app() -> Arc<Celery> {
         ],
         // Route certain tasks to certain queues based on glob matching.
         task_routes = [
-            "create_ballot_style" => "short_queue",
             "create_keys" => "short_queue",
             "insert_ballots" => "tally_queue",
             "review_boards" => "beat",
