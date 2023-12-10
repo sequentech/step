@@ -4,11 +4,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::hasura::election_event::get_election_event;
-use crate::hasura::keys_ceremony::{get_keys_ceremonies, insert_keys_ceremony};
+use crate::hasura::keys_ceremony::{
+    get_keys_ceremonies,
+    insert_keys_ceremony,
+    update_keys_ceremony_status
+};
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::celery_app::get_celery_app;
+use crate::services::election_event_board::get_election_event_board;
+use crate::services::private_keys::get_trustee_encrypted_private_key;
 use crate::tasks::create_keys::{create_keys, CreateKeysBody};
+
 use anyhow::{anyhow, Context, Result};
+use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
 use serde_json::from_value;
@@ -26,6 +34,329 @@ pub fn get_keys_ceremony_status(input: Option<Value>) -> Result<CeremonyStatus> 
         })
         .ok_or(anyhow!("Missing keys ceremony status"))
         .flatten()
+}
+
+#[instrument]
+pub async fn get_private_key(
+    claims: JwtClaims,
+    tenant_id: String,
+    election_event_id: String,
+    keys_ceremony_id: String,
+) -> Result<String> {
+    let auth_headers = keycloak::get_client_credentials().await?;
+    let celery_app = get_celery_app().await;
+
+    // The trustee name is simply the username of the user
+    let trustee_name = claims
+        .preferred_username
+        .ok_or(anyhow!("username not found"))?;
+
+    // get the keys ceremonies for this election event
+    let keys_ceremony =
+        get_keys_ceremonies(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+        )
+        .await?
+        .data
+        .with_context(|| "error listing existing keys ceremonies")?
+        .sequent_backend_keys_ceremony
+        .into_iter()
+        .find(|ceremony| ceremony.id == keys_ceremony_id)
+        .with_context(|| "error listing existing keys ceremonies")?;
+    // check keys_ceremony has correct execution status
+    if keys_ceremony.execution_status != Some(ExecutionStatus::IN_PROCESS.to_string())
+    {
+        return Err(
+            anyhow!("Keys ceremony not in ExecutionStatus::IN_PROCESS")
+        );
+    }
+
+    // get ceremony status
+    let current_status: CeremonyStatus =
+        serde_json::from_value(
+            keys_ceremony
+                .status
+                .clone()
+                .ok_or(anyhow!("Empty keys ceremony status"))?,
+        )
+        .with_context(|| "error parsing keys ceremony current status")?;
+
+    // check the trustee is part of this ceremony
+    if let None = current_status
+        .trustees
+        .clone()
+        .into_iter()
+        .find(|trustee| trustee.name == trustee_name)
+    {
+        return Err(anyhow!(
+            "Trustee not part of the keys ceremony"
+        ));
+    }
+
+    // fetch election_event
+    let election_event = 
+        &get_election_event(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+        )
+        .await
+        .with_context(|| "error fetching election event")?
+        .data
+        .with_context(|| "error fetching election event")?
+        .sequent_backend_election_event[0];
+
+    // get board name
+    let board_name = 
+        get_election_event_board(
+            election_event.bulletin_board_reference.clone(),
+        )
+        .with_context(|| "missing bulletin board")?;
+
+    let trustee_public_key = 
+        get_trustees_by_name(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            vec![trustee_name.clone()],
+        )
+        .await
+        .with_context(|| "can't find trustee in the database")?
+        .data
+        .with_context(|| "error fetching election event")?
+        .sequent_backend_trustee[0]
+        .public_key
+        .clone()
+        .ok_or(anyhow!(
+            "can't get election event"
+        ))?;
+
+    // get the encrypted private key
+    let encrypted_private_key = 
+        get_trustee_encrypted_private_key(
+            board_name.as_str(),
+            trustee_public_key.as_str(),
+        )
+        .await?;
+
+    // Update ceremony with the information that this trustee did get the
+    // private key
+    let status: Value =
+        serde_json::to_value(CeremonyStatus {
+            stop_date: None,
+            public_key: current_status.public_key.clone(),
+            logs: current_status.logs.clone(),
+            trustees: current_status
+                .trustees
+                .clone()
+                .into_iter()
+                .map(|trustee| {
+                    if (trustee.name == trustee_name) {
+                        Ok(Trustee {
+                            name: trustee.name,
+                            status: TrusteeStatus::KEY_RETRIEVED,
+                        })
+                    } else {
+                        Ok(trustee.clone())
+                    }
+                })
+                .collect::<Result<Vec<Trustee>>>()?,
+        })?;
+
+    // update keys-ceremony into the database using graphql
+    update_keys_ceremony_status(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        keys_ceremony_id.clone(),
+        /* status */ status,
+        /* execution_status */ keys_ceremony
+            .execution_status
+            .with_context(|| "empty current execution_status")?,
+    )
+    .await
+    .with_context(|| "couldn't update keys ceremony")?;
+
+    event!(
+        Level::INFO,
+        "Retrieved private key for electionEventId={}, keysCeremonyId={}, trusteeName={}",
+        election_event_id.clone(),
+        keys_ceremony_id.clone(),
+        trustee_name.clone()
+    );
+    Ok(encrypted_private_key)
+}
+
+
+#[instrument]
+pub async fn check_private_key(
+    claims: JwtClaims,
+    tenant_id: String,
+    election_event_id: String,
+    keys_ceremony_id: String,
+    private_key_base64: String,
+) -> Result<bool> {
+    let auth_headers = keycloak::get_client_credentials().await?;
+    let celery_app = get_celery_app().await;
+
+    // The trustee name is simply the username of the user
+    let trustee_name = claims
+        .preferred_username
+        .ok_or(anyhow!("username not found"))?;
+
+    // get the keys ceremonies for this election event
+    let keys_ceremony =
+        get_keys_ceremonies(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+        )
+        .await?
+        .data
+        .with_context(|| "error listing existing keys ceremonies")?
+        .sequent_backend_keys_ceremony
+        .into_iter()
+        .find(|ceremony| ceremony.id == keys_ceremony_id)
+        .with_context(|| "error listing existing keys ceremonies")?;
+    // check keys_ceremony has correct execution status
+    if keys_ceremony.execution_status != Some(ExecutionStatus::IN_PROCESS.to_string())
+    {
+        return Err(
+            anyhow!("Keys ceremony not in ExecutionStatus::IN_PROCESS")
+        );
+    }
+
+    // get ceremony status
+    let current_status: CeremonyStatus =
+        serde_json::from_value(
+            keys_ceremony
+                .status
+                .clone()
+                .ok_or(anyhow!("Empty keys ceremony status"))?,
+        )
+        .with_context(|| "error parsing keys ceremony current status")?;
+
+    // check the trustee is part of this ceremony
+    if let None = current_status
+        .trustees
+        .clone()
+        .into_iter()
+        .find(|trustee| (
+            trustee.name == trustee_name &&
+            (
+                trustee.status == TrusteeStatus::KEY_GENERATED ||
+                trustee.status == TrusteeStatus::KEY_RETRIEVED ||
+                trustee.status == TrusteeStatus::KEY_CHECKED
+            )
+        ))
+    {
+        return Err(anyhow!(
+            "Trustee not part of the keys ceremony or has invalid state"
+        ));
+    }
+
+    // fetch election_event
+    let election_event = 
+        &get_election_event(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+        )
+        .await
+        .with_context(|| "error fetching election event")?
+        .data
+        .with_context(|| "error fetching election event")?
+        .sequent_backend_election_event[0];
+
+    // get board name
+    let board_name = 
+        get_election_event_board(
+            election_event.bulletin_board_reference.clone(),
+        )
+        .with_context(|| "missing bulletin board")?;
+
+    let trustee_public_key = 
+        get_trustees_by_name(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            vec![trustee_name.clone()],
+        )
+        .await
+        .with_context(|| "can't find trustee in the database")?
+        .data
+        .with_context(|| "error fetching election event")?
+        .sequent_backend_trustee[0]
+        .public_key
+        .clone()
+        .ok_or(anyhow!(
+            "can't get election event"
+        ))?;
+
+    // get the encrypted private key
+    let encrypted_private_key = 
+        get_trustee_encrypted_private_key(
+            board_name.as_str(),
+            trustee_public_key.as_str(),
+        )
+        .await?;
+
+    if encrypted_private_key != private_key_base64 {
+        return Ok(false)
+    }
+
+    // Update ceremony with the information that this trustee did get the
+    // private key
+    let new_status = CeremonyStatus {
+            stop_date: None,
+            public_key: current_status.public_key.clone(),
+            logs: current_status.logs.clone(),
+            trustees: current_status
+                .trustees
+                .iter()
+                .map(|trustee| {
+                    if (trustee.name == trustee_name) {
+                        Ok(Trustee {
+                            name: trustee.name.clone(),
+                            status: TrusteeStatus::KEY_CHECKED,
+                        })
+                    } else {
+                        Ok(trustee.clone())
+                    }
+                })
+                .collect::<Result<Vec<Trustee>>>()?,
+        };
+    
+    let all_trustees_checked = new_status
+        .trustees
+        .iter()
+        .all(|trustee| trustee.status == TrusteeStatus::KEY_CHECKED);
+    let new_execution_status = if all_trustees_checked {
+        ExecutionStatus::SUCCESS
+    } else {
+        ExecutionStatus::IN_PROCESS
+    };
+
+    // update keys-ceremony into the database using graphql
+    update_keys_ceremony_status(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        keys_ceremony_id.clone(),
+        /* status */ serde_json::to_value(new_status)?,
+        /* execution_status */ new_execution_status.to_string(),
+    )
+    .await
+    .with_context(|| "couldn't update keys ceremony")?;
+
+    event!(
+        Level::INFO,
+        "Retrieved private key for electionEventId={}, keysCeremonyId={}, trusteeName={}",
+        election_event_id.clone(),
+        keys_ceremony_id.clone(),
+        trustee_name.clone()
+    );
+    Ok(true)
 }
 
 #[instrument]
