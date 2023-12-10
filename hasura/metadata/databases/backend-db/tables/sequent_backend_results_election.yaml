@@ -11,7 +11,31 @@ insert_permissions:
     - explicit_invalid_votes
     - implicit_invalid_votes
     - total_valid_votes
+    - annotations
+    - labels
     - name
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - election_id
+    - id
+    - results_event_id
+    - tenant_id
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - blank_votes
+    - elegible_census
+    - explicit_invalid_votes
+    - implicit_invalid_votes
+    - total_valid_votes
+    - annotations
+    - labels
+    - name
+    - created_at
+    - last_updated_at
     - election_event_id
     - election_id
     - id
@@ -28,7 +52,32 @@ select_permissions:
     - explicit_invalid_votes
     - implicit_invalid_votes
     - total_valid_votes
+    - annotations
+    - labels
     - name
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - election_id
+    - id
+    - results_event_id
+    - tenant_id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - blank_votes
+    - elegible_census
+    - explicit_invalid_votes
+    - implicit_invalid_votes
+    - total_valid_votes
+    - annotations
+    - labels
+    - name
+    - created_at
+    - last_updated_at
     - election_event_id
     - election_id
     - id
@@ -46,7 +95,32 @@ update_permissions:
     - explicit_invalid_votes
     - implicit_invalid_votes
     - total_valid_votes
+    - annotations
+    - labels
     - name
+    - created_at
+    - last_updated_at
+    - election_event_id
+    - election_id
+    - id
+    - results_event_id
+    - tenant_id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - blank_votes
+    - elegible_census
+    - explicit_invalid_votes
+    - implicit_invalid_votes
+    - total_valid_votes
+    - annotations
+    - labels
+    - name
+    - created_at
+    - last_updated_at
     - election_event_id
     - election_id
     - id
