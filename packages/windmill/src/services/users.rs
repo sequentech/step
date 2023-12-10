@@ -3,15 +3,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::area::get_areas_by_ids;
-use sequent_core::services::keycloak::KeycloakAdminClient;
+use anyhow::{anyhow, Context, Result};
+use keycloak::types::{CredentialRepresentation, UserRepresentation};
 use sequent_core::services::connection;
+use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::*;
-use anyhow::{anyhow, Result, Context};
-use keycloak::types::{UserRepresentation, CredentialRepresentation};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
-use tracing::{instrument, event, Level};
+use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 #[instrument(skip(auth_headers, admin))]
@@ -49,9 +49,7 @@ pub async fn list_users(
         .map_err(|err| anyhow!("{:?}", err))?;
     let count: i32 = admin
         .client
-        .realm_users_count_get(
-            realm, email, None, None, None, None, search, None,
-        )
+        .realm_users_count_get(realm, email, None, None, None, None, search, None)
         .await
         .map_err(|err| anyhow!("{:?}", err))?;
     let users: Vec<User> = user_representations
@@ -63,47 +61,38 @@ pub async fn list_users(
         let area_ids: Vec<String> = user_representations
             .iter()
             .filter_map(|user| {
-                Some(user
-                    .attributes
-                    .as_ref()?
-                    .get("area-id")?
-                    .as_array()?[0]
-                    .as_str()?
-                    .to_string()
+                Some(
+                    user.attributes.as_ref()?.get("area-id")?.as_array()?[0]
+                        .as_str()?
+                        .to_string(),
                 )
             })
             .collect();
-        let areas_by_ids = 
-            get_areas_by_ids(
-                auth_headers.clone(),
-                tenant_id,
-                some_election_event_id.clone(),
-                area_ids,
-            ).await
-            .map_err(|err| anyhow!("{:?}", err))?
-            .data
-            .with_context(|| "can't find areas by ids")?
-            .sequent_backend_area;
+        let areas_by_ids = get_areas_by_ids(
+            auth_headers.clone(),
+            tenant_id,
+            some_election_event_id.clone(),
+            area_ids,
+        )
+        .await
+        .map_err(|err| anyhow!("{:?}", err))?
+        .data
+        .with_context(|| "can't find areas by ids")?
+        .sequent_backend_area;
         let get_area = |user: &User| {
-            let area_id = user
-                .attributes
-                .as_ref()?
-                .get("area-id")?
-                .as_array()?[0]
+            let area_id = user.attributes.as_ref()?.get("area-id")?.as_array()?[0]
                 .as_str()?
                 .to_string();
-            return areas_by_ids
-                .iter()
-                .find_map(|area| {
-                    if (area.id == area_id) {
-                        Some(UserArea {
-                            id: Some(area.id.clone()),
-                            name: area.name.clone(),
-                        })
-                    } else {
-                        None
-                    }
-                });
+            return areas_by_ids.iter().find_map(|area| {
+                if (area.id == area_id) {
+                    Some(UserArea {
+                        id: Some(area.id.clone()),
+                        name: area.name.clone(),
+                    })
+                } else {
+                    None
+                }
+            });
         };
         let users_with_area = users
             .into_iter()
