@@ -6,7 +6,7 @@ import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/g
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
 
-import { theme, Dialog } from "@sequentech/ui-essentials"
+import {theme, Dialog} from "@sequentech/ui-essentials"
 import {
     IKeysCeremonyExecutionStatus as EStatus,
     IKeysCeremonyTrusteeStatus as TStatus,
@@ -16,7 +16,7 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
-import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos'
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
 import {Accordion, AccordionSummary, Box, Typography} from "@mui/material"
 import Table from "@mui/material/Table"
@@ -85,17 +85,14 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                             {t("keysGeneration.ceremonyStep.progressHeader")}
                         </WizardStyles.AccordionTitle>
                         <WizardStyles.CeremonyStatus
-
                             sx={{
                                 backgroundColor: statusColor(
-                                    currentCeremony?.execution_status
-                                        ?? EStatus.NOT_STARTED
+                                    currentCeremony?.execution_status ?? EStatus.NOT_STARTED
                                 ),
                                 color: theme.palette.background.default,
                             }}
-                            label={t(
-                                "keysGeneration.ceremonyStep.executionStatus",
-                                {status: electionEvent.public_key
+                            label={t("keysGeneration.ceremonyStep.executionStatus", {
+                                status: electionEvent.public_key
                                     ? EStatus.IN_PROCESS
                                     : currentCeremony?.execution_status,
                             })}
@@ -231,10 +228,12 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                     <ArrowBackIosIcon />
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
-                {!!goNext && <WizardStyles.NextButton color="info" onClick={goNext}>
-                    <ArrowForwardIosIcon />
-                    {t("common.label.next")}
-                </WizardStyles.NextButton>}
+                {!!goNext && (
+                    <WizardStyles.NextButton color="info" onClick={goNext}>
+                        <ArrowForwardIosIcon />
+                        {t("common.label.next")}
+                    </WizardStyles.NextButton>
+                )}
                 {/*cancellable() ? (
                     <CancelButton onClick={() => setOpenConfirmationModal(true)}>
                         <CloseIcon />

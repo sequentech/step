@@ -5,32 +5,24 @@ import React, {ReactElement, useContext, useEffect} from "react"
 
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
-import { faPlus } from "@fortawesome/free-solid-svg-icons"
+import {faPlus} from "@fortawesome/free-solid-svg-icons"
 
 import {Box, Button, Drawer, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 
-import {
-    List,
-    TextField,
-    TextInput,
-    useDelete,
-    Identifier,
-    DatagridConfigurable
-} from "react-admin"
+import {List, TextField, TextInput, useDelete, Identifier, DatagridConfigurable} from "react-admin"
 
 import {Dialog} from "@sequentech/ui-essentials"
 import {IconButton} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
 import {ActionsColumn} from "@/components/ActionButons"
-import { useTenantStore } from "@/providers/TenantContextProvider"
+import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 
 import {SettingselectionsTypesEdit} from "./SettingsElectionsTypesEdit"
 import {SettingsElectionsTypesCreate} from "./SettingsElectionsTypesCreate"
-
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -45,16 +37,12 @@ const useActionPermissions = () => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
-    const canWriteTenant = authContext.isAuthorized(true,
-        tenantId,
-        IPermissions.TENANT_WRITE
-    )
+    const canWriteTenant = authContext.isAuthorized(true, tenantId, IPermissions.TENANT_WRITE)
 
     return {
-        canWriteTenant
+        canWriteTenant,
     }
 }
-
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 const Filters: Array<ReactElement> = [<TextInput label="Name" source="name" key={0} />]
@@ -115,9 +103,7 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
     ]
 
     const CreateButton = () => (
-        <Button
-            onClick={handleOpenCreateDrawer}
-        >
+        <Button onClick={handleOpenCreateDrawer}>
             <IconButton icon={faPlus} fontSize="24px" />
             {t("electionTypeScreen.common.createNew")}
         </Button>

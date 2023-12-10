@@ -9,12 +9,10 @@ export enum IExecutionStatus {
     CANCELLED = "CANCELLED",
 }
 
-
 export interface ILog {
-    created_date: string;
-    log_text: string;
+    created_date: string
+    log_text: string
 }
-
 
 export enum ITrusteeStatus {
     WAITING = "WAITING",
@@ -23,20 +21,17 @@ export enum ITrusteeStatus {
     KEY_CHECKED = "KEY_CHECKED",
 }
 
-
 export interface ITrustee {
-    name: string;
-    status: ITrusteeStatus;
+    name: string
+    status: ITrusteeStatus
 }
-
 
 export interface ICeremonyStatus {
-    stop_date?: string;
-    public_key: string;
-    logs: Array<ILog>;
-    trustees: Array<ITrustee>;
+    stop_date?: string
+    public_key: string
+    logs: Array<ILog>
+    trustees: Array<ITrustee>
 }
-
 
 export enum ITallyExecutionStatus {
     NOT_STARTED = "NOT_STARTED",
@@ -47,19 +42,16 @@ export enum ITallyExecutionStatus {
     CANCELLED = "CANCELLED",
 }
 
-
 export enum ITallyTrusteeStatus {
     WAITING = "WAITING",
     KEY_RESTORED = "KEY_RESTORED",
     KEY_CHECKED = "KEY_CHECKED",
 }
 
-
 export interface ITallyTrustee {
-    name: string;
-    status: ITallyTrusteeStatus;
+    name: string
+    status: ITallyTrusteeStatus
 }
-
 
 export enum ITallyElectionStatus {
     WAITING = "WAITING",
@@ -70,18 +62,15 @@ export enum ITallyElectionStatus {
     ERROR = "ERROR",
 }
 
-
 export interface ITallyElection {
-    election_id: string;
-    status: ITallyElectionStatus;
-    progress: number;
+    election_id: string
+    status: ITallyElectionStatus
+    progress: number
 }
-
 
 export interface ITallyCeremonyStatus {
-    stop_date?: string;
-    logs: Array<ILog>;
-    trustees: Array<ITallyTrustee>;
-    elections_status: Array<ITallyElection>;
+    stop_date?: string
+    logs: Array<ILog>
+    trustees: Array<ITallyTrustee>
+    elections_status: Array<ITallyElection>
 }
-

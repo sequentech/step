@@ -15,5 +15,5 @@ export const ResourceListStyles = {
     CreateIcon: styled(IconButton)`
         font-size: 24px;
         margin-right: 0.5em;
-    `
+    `,
 }

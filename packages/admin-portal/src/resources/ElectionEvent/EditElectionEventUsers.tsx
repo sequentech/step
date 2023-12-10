@@ -12,7 +12,6 @@ export const EditElectionEventUsers: React.FC = () => {
     const [tenantId] = useTenantStore()
     const showUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_READ)
 
-
     if (!showUsers) {
         return null
     }

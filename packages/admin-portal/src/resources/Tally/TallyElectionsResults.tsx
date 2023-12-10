@@ -4,10 +4,7 @@
 import React, {useEffect, useState} from "react"
 import {useGetMany, useGetList} from "react-admin"
 
-import {
-    Sequent_Backend_Election,
-    Sequent_Backend_Results_Election,
-} from "../../gql/graphql"
+import {Sequent_Backend_Election, Sequent_Backend_Results_Election} from "../../gql/graphql"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
 

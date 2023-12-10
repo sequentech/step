@@ -50,8 +50,11 @@ export const ElectionEventTallyContextProvider = (
     )
 }
 
-
-export const useElectionEventTallyStore: () => [string | null, (tallyId: string | null, isTrustee?: boolean | undefined) => void, boolean | undefined] = () => {
+export const useElectionEventTallyStore: () => [
+    string | null,
+    (tallyId: string | null, isTrustee?: boolean | undefined) => void,
+    boolean | undefined
+] = () => {
     const {tallyId, setTallyId, isTrustee} = useContext(ElectionEventTallyContext)
     return [tallyId, setTallyId, isTrustee]
 }

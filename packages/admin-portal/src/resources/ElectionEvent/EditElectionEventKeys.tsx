@@ -116,8 +116,9 @@ export const EditElectionEventKeys: React.FC = () => {
                 tenant_id: tenantId,
                 election_event_id: electionEvent.id,
             },
-        },{
-            refetchInterval: 5000
+        },
+        {
+            refetchInterval: 5000,
         }
     )
     let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
@@ -247,7 +248,7 @@ export const EditElectionEventKeys: React.FC = () => {
                         election_event_id: electionEvent?.id || undefined,
                     }}
                     empty={<Empty />}
-                    actions={<ListActions withFilter={false} withImport={false}/>}
+                    actions={<ListActions withFilter={false} withImport={false} />}
                 >
                     <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                         <TextField source="id" />
