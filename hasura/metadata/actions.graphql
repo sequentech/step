@@ -419,6 +419,11 @@ type InsertTenantOutput {
   slug : String!
 }
 
+type KeycloakUserArea {
+  id : uuid
+  name : String
+}
+
 type KeycloakUser {
   id : String
   attributes : jsonb
@@ -429,6 +434,7 @@ type KeycloakUser {
   groups : [String!]
   last_name : String
   username : String
+  area: KeycloakUserArea
 }
 
 type GetUsersOutput {

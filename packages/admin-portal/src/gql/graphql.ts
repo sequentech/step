@@ -258,6 +258,7 @@ export type KeycloakRole2 = {
 
 export type KeycloakUser = {
   __typename?: 'KeycloakUser';
+  area?: Maybe<KeycloakUserArea>;
   attributes?: Maybe<Scalars['jsonb']['output']>;
   email?: Maybe<Scalars['String']['output']>;
   email_verified?: Maybe<Scalars['Boolean']['output']>;
@@ -279,6 +280,12 @@ export type KeycloakUser2 = {
   id?: InputMaybe<Scalars['String']['input']>;
   last_name?: InputMaybe<Scalars['String']['input']>;
   username?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type KeycloakUserArea = {
+  __typename?: 'KeycloakUserArea';
+  id?: Maybe<Scalars['uuid']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
 };
 
 export enum OrderDirection {

@@ -4,9 +4,11 @@
 use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
+use windmill::services::users::list_users;
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::services::keycloak;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
@@ -86,8 +88,13 @@ pub async fn get_users(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    let auth_headers = 
+        keycloak::get_client_credentials()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     let realm = match input.election_event_id {
-        Some(election_event_id) => {
+        Some(ref election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
@@ -95,8 +102,11 @@ pub async fn get_users(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let (users, count) = client
-        .list_users(
+    let (users, count) = list_users(
+            auth_headers.clone(),
+            &client,
+            input.tenant_id.clone(),
+            input.election_event_id.clone(),
             &realm,
             input.search,
             input.email,

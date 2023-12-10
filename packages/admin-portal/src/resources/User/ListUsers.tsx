@@ -19,7 +19,7 @@ import {
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
-import {Button, Drawer, Typography} from "@mui/material"
+import {Button, Chip, Drawer, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -199,10 +199,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     <TextField source="first_name" />
                     <TextField source="last_name" />
                     <TextField source="username" />
-                    <FunctionField
+                    {electionEventId && <FunctionField
                         label={t("usersAndRolesScreen.users.fields.area")}
-                        render={(record: IUser) => record?.attributes?.["area-id"]?.[0]}
-                    />
+                        render={(record: IUser) => <Chip
+                            label={record?.area?.name || ""}
+                        />}
+                    />}
 
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />

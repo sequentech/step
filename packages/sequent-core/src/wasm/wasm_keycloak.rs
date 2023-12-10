@@ -5,6 +5,20 @@
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(typescript_custom_section)]
+const IUserArea: &'static str = r#"
+interface IUserArea {
+    id?: string;
+    name?: string;
+}
+"#;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "IUserArea")]
+    pub type IUserArea;
+}
+
+#[wasm_bindgen(typescript_custom_section)]
 const IUSER: &'static str = r#"
 interface IUser {
     id?: string;
@@ -16,6 +30,7 @@ interface IUser {
     last_name?: string;
     username?: string;
     password?: string;
+    area?: IUserArea;
 }
 "#;
 

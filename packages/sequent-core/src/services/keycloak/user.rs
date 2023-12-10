@@ -22,6 +22,7 @@ impl From<UserRepresentation> for User {
             first_name: item.first_name.clone(),
             last_name: item.last_name.clone(),
             username: item.username.clone(),
+            area: None,
         }
     }
 }
@@ -60,6 +61,8 @@ impl KeycloakAdminClient {
     #[instrument(skip(self))]
     pub async fn list_users(
         self,
+        tenant_id: &str,
+        election_event_id: &str,
         realm: &str,
         search: Option<String>,
         email: Option<String>,
@@ -95,6 +98,7 @@ impl KeycloakAdminClient {
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         let users = user_representations
+            .clone()
             .into_iter()
             .map(|user| user.into())
             .collect();
