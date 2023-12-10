@@ -104,7 +104,7 @@ const spanishTranslation: TranslationType = {
             downloadButton: "Descargar",
             step2Title: "2. Verifica tu boleta",
             step2Description:
-                "(<a href='{{linkToBallotVerifier}}' target='_blank'>Acceso al verificador de boletas</a>, se abrirá una nueva pestaña en tu navegador)",
+                "<a href='{{linkToBallotVerifier}}' target='_blank'>Accede al verificador del voto</a>, que se abrirá una nueva pestaña en tu navegador.",
             step2HelpDialog: {
                 title: "Tutorial sobre la Auditoría del Voto",
                 content:
