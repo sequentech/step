@@ -125,7 +125,7 @@ pub async fn tally_election_event(
         let task = celery_app
             .send_task(insert_ballots::new(
                 InsertBallotsPayload {
-                    trustee_pks: body.trustee_ids.clone(),
+                    trustee_names: body.trustee_ids.clone(),
                 },
                 tenant_id.clone(),
                 election_event_id.clone(),
