@@ -1,5 +1,4 @@
-FROM rust:1.70.0 as builder
-RUN rustup default nightly
+FROM rustlang/rust:nightly-slim as builder
 
 WORKDIR /app
 
@@ -7,6 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     protobuf-compiler \
     libprotobuf-dev \
+    m4 \
+    make \
     && rm -rf /var/lib/apt/lists/*
 
 #TODO: Copy only necessary files
@@ -24,12 +25,12 @@ WORKDIR /app/harvest
 RUN cargo build --release
 
 
-FROM debian:bullseye
+FROM debian:bookworm
 ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=8400
 EXPOSE 8400
 # Some shared libraries (extra-runtime-dependencies) may need to be installed:
-RUN apt-get update && apt-get install -y --no-install-recommends libssl1.1 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libssl3 && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binary from the builder stage
 COPY --from=builder /app/harvest/target/release/harvest /usr/local/bin/harvest

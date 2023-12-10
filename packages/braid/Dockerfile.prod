@@ -1,11 +1,12 @@
-FROM rust:1.72.0 as builder
-RUN rustup default nightly
+FROM rustlang/rust:nightly-slim as builder
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     protobuf-compiler \
     libprotobuf-dev \
+    m4 \
+    make \
     && rm -rf /var/lib/apt/lists/*
 
 # copy projects

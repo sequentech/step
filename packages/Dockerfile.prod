@@ -1,17 +1,29 @@
-FROM node:20-alpine
-
+FROM node:20-alpine as builder
 WORKDIR /usr/src/app/
-EXPOSE 3000
 
-# Install security updates and Yarn
-RUN apk update && \
-    apk upgrade && \
-    apk add --no-cache yarn
 
 #TODO: copy only necessary files, exclude source code from the runtime image
 COPY . .
 
-RUN yarn --pure-lockfile --non-interactive; \
-    yarn build:ui-essentials;
+# Install dependencies
+RUN yarn install --frozen-lockfile --non-interactive
 
-ENTRYPOINT ["yarn", "start"]
+ARG SPA_NAME
+
+# Build the specified SPA with release optimizations
+RUN yarn --cwd ./${SPA_NAME} build
+
+
+
+FROM nginx:alpine
+# Remove default nginx static assets
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copy the built SPA from the 'dist' directory of the build stage to the Nginx server
+COPY --from=builder /usr/src/app/${SPA_NAME}/dist /usr/share/nginx/html
+
+# Expose port 80 for the Nginx server
+EXPOSE 80
+
+# Start Nginx in the foreground
+CMD ["nginx", "-g", "daemon off;"]
