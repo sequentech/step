@@ -758,6 +758,7 @@ const spanishTranslation: TranslationType = {
             schedule: "Calendario",
             nowInput: "Enviar ahora",
             dateInput: "Fecha y hora de comienzo de envío",
+            languages: "Idiomas",
             votersSelection: {
                 ALL_USERS: "Todos",
                 NOT_VOTED: "Los que no votaron",

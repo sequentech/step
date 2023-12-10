@@ -3,11 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, { useState } from "react"
 import {
-    SaveButton, SimpleForm, useListContext, useNotify, useRefresh,
-    Toolbar, BooleanInput, DateTimeInput,
+    SaveButton,
+    SimpleForm,
+    useListContext,
+    Toolbar,
+    DateTimeInput,
 } from "react-admin"
 import {
-    AccordionDetails, AccordionSummary, MenuItem, FormControlLabel, Switch
+    AccordionDetails,
+    AccordionSummary,
+    MenuItem,
+    FormControlLabel,
+    Switch,
+    Grid,
 } from "@mui/material"
 import {SubmitHandler} from "react-hook-form"
 import MailIcon from '@mui/icons-material/Mail'
@@ -39,23 +47,21 @@ interface ICommunication {
         now: boolean
         date?: Date
     }
-    presentation: {
-        i18n: {
-            [lang_code: string]: {
-                email?: {
-                    subject: string
-                    plaintext_body: string
-                    html_body: string
-                },
-                sms?: {
-                    message: string
-                }
+    i18n: {
+        [lang_code: string]: {
+            email?: {
+                subject: string
+                plaintext_body: string
+                html_body: string
+            },
+            sms?: {
+                message: string
             }
         }
-        language_conf: {
-            enabled_language_codes: Array<string>
-            default_language_code: string
-        }
+    }
+    language_conf: {
+        enabled_languages: Array<string>
+        default_language_code: string
     }
 }
 
@@ -70,6 +76,8 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
 }) => {
     const {data, isLoading} = useListContext()
     const [tenantId] = useTenantStore()
+    const {t} = useTranslation()
+    const possibleLanguages = ["en", "es"]
     const [communication, setCommunication] = useState<ICommunication>({
         voters: {
             selection: IVotersSelection.SELECTED,
@@ -84,29 +92,34 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
             now: true,
             date: undefined,
         },
-        presentation: {
-            i18n: {
-                en: {
-                    email: {
-                        subject: "",
-                        plaintext_body: "",
-                        html_body: "",
-                    },
-                    sms: {
-                        message: ""
-                    },
+        i18n: {
+            en: {
+                email: {
+                    subject: "",
+                    plaintext_body: "",
+                    html_body: "",
+                },
+                sms: {
+                    message: ""
                 },
             },
-            language_conf: {
-                enabled_language_codes: [],
-                default_language_code: "en"
+            es: {
+                email: {
+                    subject: "",
+                    plaintext_body: "",
+                    html_body: "",
+                },
+                sms: {
+                    message: ""
+                },
             },
-        }
+        },
+        language_conf: {
+            enabled_languages: ["en"],
+            default_language_code: "en"
+        },
     })
     //const [sendCommunication] = useMutation<SendCommunicationMutationVariables>(SEND_COMMUNICATION)
-    const notify = useNotify()
-    const refresh = useRefresh()
-    const {t} = useTranslation()
 
 
     const onSubmit: SubmitHandler<any> = async () => {
@@ -124,6 +137,50 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         var newCommunication = {...communication}
         newCommunication.voters.selection = value
         setCommunication(newCommunication)
+    }
+    const handleLangChange = 
+        (lang:string) =>
+        async (e: React.ChangeEvent<HTMLInputElement>) =>
+    {
+        const {checked} = e.target
+        var newCommunication = {...communication}
+        if (checked) {
+            // Add the language if it's not already in the array
+            if (!newCommunication
+                .language_conf
+                .enabled_languages
+                .includes(lang)
+            ) {
+                newCommunication.language_conf.enabled_languages.push(lang)
+            }
+        } else {
+            // Remove the language if it's in the array
+            newCommunication.language_conf.enabled_languages = 
+                newCommunication
+                .language_conf
+                .enabled_languages
+                .filter(l => l !== lang)
+        }
+        setCommunication(newCommunication)
+    }
+
+    const renderLangs = () => {
+        let langNodes = []
+        for (let lang of possibleLanguages) {
+            let checked = communication.language_conf.enabled_languages.includes(lang)
+            console.log(`lang(${lang}) in communication.language_conf.enabled_languages(${communication.language_conf.enabled_languages}) = checked(${checked})`)
+            langNodes.push(
+                <FormControlLabel
+                    sx={{width: "100%"}}
+                    label={t(`common.language.${lang}`)}
+                    control={<Switch
+                        checked={checked}
+                        onChange={handleLangChange(lang)}
+                    />}
+                />
+            )
+        }
+        return <div>{langNodes}</div>
     }
 
 
@@ -148,6 +205,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                     {t(`sendCommunication.subtitle`)}
                 </PageHeaderStyles.SubTitle>
 
+                {/* Voters */}
                 <FormStyles.AccordionExpanded expanded={true} disableGutters>
                     <AccordionSummary
                         expandIcon={<ExpandMoreIcon
@@ -177,6 +235,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                     </AccordionDetails>
                 </FormStyles.AccordionExpanded>
 
+                {/* Schedule */}
                 <FormStyles.AccordionExpanded expanded={true} disableGutters>
                     <AccordionSummary
                         expandIcon={<ExpandMoreIcon
@@ -204,6 +263,28 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             parse={(value) => new Date(value).toISOString()}
                         />
 
+                    </AccordionDetails>
+                </FormStyles.AccordionExpanded>
+
+                {/* Languages */}
+                <FormStyles.AccordionExpanded expanded={true} disableGutters>
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon
+                            id="send-communication-languages"
+                        />}
+                    >
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("sendCommunication.languages")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <Grid container spacing={4}>
+                            <Grid item xs={12} md={6}>
+                                {renderLangs()}
+                            </Grid>
+                        </Grid>
                     </AccordionDetails>
                 </FormStyles.AccordionExpanded>
             </SimpleForm>

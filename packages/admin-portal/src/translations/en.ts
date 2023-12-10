@@ -755,6 +755,7 @@ const englishTranslation = {
             schedule: "Schedule",
             nowInput: "Send now",
             dateInput: "Date and time to start sending notifications",
+            languages: "Languages",
             votersSelection: {
                 ALL_USERS: "Everyone",
                 NOT_VOTED: "Those who didn't vote yet",
