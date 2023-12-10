@@ -749,7 +749,15 @@ const spanishTranslation: TranslationType = {
                 current: 'Actual',
                 diff: 'Cambios a publicar'
             }
-        }
+        },
+        sendCommunication: {
+            title: "Enviar Notificación",
+            subtitle: "Enviar una notificación a usuarios/votantes.",
+            sendButton: "Enviar Notificación",
+            email: {
+                subject: "Subject",
+            },
+        },
     },
 }
 

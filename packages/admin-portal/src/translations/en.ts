@@ -746,7 +746,15 @@ const englishTranslation = {
                 current: 'Current',
                 diff: 'CHANGES TO PUBLISH'
             }
-        }
+        },
+        sendCommunication: {
+            title: "Send Notification",
+            subtitle: "Send a notification to users/votes.",
+            sendButton: "Send Notification",
+            email: {
+                subject: "Subject",
+            },
+        },
     },
 }
 

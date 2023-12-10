@@ -1,11 +1,14 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
-import {List, useListContext} from "react-admin"
+import React, { useState } from "react"
+import {List, SaveButton, SimpleForm, useListContext, useNotify, useRefresh} from "react-admin"
+import {SubmitHandler} from "react-hook-form"
+import MailIcon from '@mui/icons-material/Mail'
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import {IRole} from "sequent-core"
-import {SendCommunicationForm} from "./SendCommunicationForm"
+import { PageHeaderStyles } from "@/components/styles/PageHeaderStyles"
+import {useTranslation} from "react-i18next"
+import { FormStyles } from "@/components/styles/FormStyles"
 
 interface SendCommunicationProps {
     id?: string
@@ -18,30 +21,53 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
 }) => {
     const {data, isLoading} = useListContext()
     const [tenantId] = useTenantStore()
-    const [renderUI, setRenderUI] = useState(true)
+    const [communication, setCommunication] = useState({
+        email: {
+            subject: "Foo",
+        },
+    })
+    //const [sendCommunication] = useMutation<SendCommunicationMutationVariables>(SEND_COMMUNICATION)
+    const notify = useNotify()
+    const refresh = useRefresh()
+    const {t} = useTranslation()
 
-    useEffect(() => {
-        if (isLoading && data) {
-            setRenderUI(true)
-        }
-    }, [isLoading, data])
 
-    if (renderUI) {
-        return (
-            <List
-                resource="user"
-                filter={{tenant_id: tenantId, election_event_id: electionEventId}}
-                sx={{padding: "16px"}}
-                actions={false}
-            >
-                <SendCommunicationForm
-                    id={id}
-                    electionEventId={electionEventId}
-                    close={close}
-                />
-            </List>
-        )
-    } else {
-        return null
+    const onSubmit: SubmitHandler<any> = async () => {
+        console.log("sending notification")
     }
+
+    const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const {name, value} = e.target
+        setCommunication({...communication, [name]: value})
+    }
+
+    return (
+        <PageHeaderStyles.Wrapper>
+            <SimpleForm
+                toolbar={
+                    <SaveButton 
+                        icon={<MailIcon />}
+                        label={t("sendCommunication.sendButton")}
+                        alwaysEnable
+                    />
+                }
+                record={communication}
+                onSubmit={onSubmit}
+                sanitizeEmptyValues
+            >
+                <PageHeaderStyles.Title>
+                    {t(`sendCommunication.title`)}
+                </PageHeaderStyles.Title>
+                <PageHeaderStyles.SubTitle>
+                    {t(`sendCommunication.subtitle`)}
+                </PageHeaderStyles.SubTitle>
+
+                <FormStyles.TextInput
+                    label={t("sendCommunication.email.subject")}
+                    source="email.subject"
+                    onChange={handleChange}
+                />
+            </SimpleForm>
+        </PageHeaderStyles.Wrapper>
+    )
 }
