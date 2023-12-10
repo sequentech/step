@@ -24,7 +24,7 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
-import MailIcon from '@mui/icons-material/Mail'
+import MailIcon from "@mui/icons-material/Mail"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {EditUser} from "./EditUser"
 import {SendCommunication} from "./SendCommunication"
@@ -75,7 +75,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         },
     })
     const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
-    const canSendCommunications = authContext.isAuthorized(true, tenantId, IPermissions.NOTIFICATION_SEND)
+    const canSendCommunications = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.NOTIFICATION_SEND
+    )
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
@@ -87,11 +91,13 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     <Typography variant="body1" paragraph>
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.askCreate`)}
                     </Typography>
-                    <Button
-                        onClick={() => setOpenNew(true)}
-                    >
+                    <Button onClick={() => setOpenNew(true)}>
                         <ResourceListStyles.CreateIcon icon={faPlus} />
-                        {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.create.subtitle`)}
+                        {t(
+                            `usersAndRolesScreen.${
+                                electionEventId ? "voters" : "users"
+                            }.create.subtitle`
+                        )}
                     </Button>
                 </>
             ) : null}
@@ -121,7 +127,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         setOpenSendCommunication(true)
         setRecordId(id as string)
     }
-
 
     const deleteAction = (id: Identifier) => {
         if (!electionEventId && authContext.userId === id) {
@@ -195,10 +200,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={
-                            <CreateUser
-                                electionEventId={electionEventId}
-                                close={handleClose}
-                            />
+                            <CreateUser electionEventId={electionEventId} close={handleClose} />
                         }
                     />
                 }
@@ -214,12 +216,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     <TextField source="first_name" />
                     <TextField source="last_name" />
                     <TextField source="username" />
-                    {electionEventId && <FunctionField
-                        label={t("usersAndRolesScreen.users.fields.area")}
-                        render={(record: IUser) => <Chip
-                            label={record?.area?.name || ""}
-                        />}
-                    />}
+                    {electionEventId && (
+                        <FunctionField
+                            label={t("usersAndRolesScreen.users.fields.area")}
+                            render={(record: IUser) => <Chip label={record?.area?.name || ""} />}
+                        />
+                    )}
 
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />
@@ -266,10 +268,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     sx: {width: "40%"},
                 }}
             >
-                <CreateUser
-                    electionEventId={electionEventId}
-                    close={handleClose}
-                />
+                <CreateUser electionEventId={electionEventId} close={handleClose} />
             </Drawer>
 
             <Dialog

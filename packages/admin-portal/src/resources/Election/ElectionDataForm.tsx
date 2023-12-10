@@ -200,7 +200,6 @@ export const ElectionDataForm: React.FC = () => {
             temp.presentation.i18n.en.alias = temp.alias
             temp.presentation.i18n.en.description = temp.description
 
-
             return temp
         },
         [data]

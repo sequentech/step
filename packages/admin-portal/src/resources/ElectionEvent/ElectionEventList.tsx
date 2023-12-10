@@ -13,7 +13,7 @@ import {Box} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {useAtom} from "jotai"
 import archivedElectionEventSelection from "@/atoms/archived-election-event-selection"
-import { AuthContext } from "@/providers/AuthContextProvider"
+import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 
 const EmptyBox = styled(Box)`
@@ -39,12 +39,14 @@ export interface ElectionEventListProps {
 export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => {
     const {t} = useTranslation()
     const navigate = useNavigate()
-    const { pathname } = useLocation()
+    const {pathname} = useLocation()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const [isArchivedElectionEvents] = useAtom(archivedElectionEventSelection)
     const canCreateElections = authContext.isAuthorized(
-        true, tenantId, IPermissions.ELECTION_EVENT_WRITE
+        true,
+        tenantId,
+        IPermissions.ELECTION_EVENT_WRITE
     )
 
     const {data, isLoading} = useGetList("sequent_backend_election_event", {
@@ -72,14 +74,14 @@ export const ElectionEventList: React.FC<ElectionEventListProps> = ({aside}) => 
             <Typography variant="h4" paragraph>
                 {t("electionEventScreen.error.noResult")}
             </Typography>
-            {canCreateElections 
-            ? <>
-                <Typography variant="body1" paragraph>
-                    {t("common.resources.noResult.askCreate")}
-                </Typography>
-                <CreateButton />
-            </>
-            : null}
+            {canCreateElections ? (
+                <>
+                    <Typography variant="body1" paragraph>
+                        {t("common.resources.noResult.askCreate")}
+                    </Typography>
+                    <CreateButton />
+                </>
+            ) : null}
         </EmptyBox>
     )
 

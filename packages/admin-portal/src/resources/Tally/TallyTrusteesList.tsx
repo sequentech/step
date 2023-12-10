@@ -18,7 +18,6 @@ import {ITallyCeremonyStatus, ITallyExecutionStatus, ITallyTrusteeStatus} from "
 import {NoItem} from "@/components/NoItem"
 import {useTranslation} from "react-i18next"
 
-
 interface TallyTrusteesListProps {
     update: (elections: Array<string>) => void
 }
@@ -120,4 +119,3 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
         </>
     )
 }
-

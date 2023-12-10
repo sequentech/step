@@ -1,4 +1,4 @@
-import { TextInput, PasswordInput } from "react-admin"
+import {TextInput, PasswordInput} from "react-admin"
 import {styled as muiStyled} from "@mui/material/styles"
 import {FormControlLabel} from "@mui/material"
 import {Accordion, Select} from "@mui/material"
@@ -35,6 +35,5 @@ export const FormStyles = {
     `,
     Select: muiStyled(Select)`
         width: 100%;
-    `
-
+    `,
 }

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useMutation} from "@apollo/client"
-import React, { useContext, useState } from "react"
+import React, {useContext, useState} from "react"
 import {Typography} from "@mui/material"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
@@ -13,9 +13,9 @@ import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
 } from "@/gql/graphql"
-import { AuthContext } from "@/providers/AuthContextProvider"
-import { WizardStyles } from "@/components/styles/WizardStyles"
-import { CHECK_PRIVATE_KEY } from "@/queries/CheckPrivateKey"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {WizardStyles} from "@/components/styles/WizardStyles"
+import {CHECK_PRIVATE_KEY} from "@/queries/CheckPrivateKey"
 import {DropFile} from "@sequentech/ui-essentials"
 
 export interface DownloadStepProps {
@@ -37,8 +37,7 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
 
-    const [checkPrivateKeysMutation] =
-    useMutation<CheckPrivateKeyMutation>(CHECK_PRIVATE_KEY)
+    const [checkPrivateKeysMutation] = useMutation<CheckPrivateKeyMutation>(CHECK_PRIVATE_KEY)
     const uploadPrivateKey = async (files: FileList | null) => {
         setErrors(null)
         setVerified(false)
@@ -49,15 +48,13 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
         }
         const firstFile = files[0]
         const readFileContent = (file: File) => {
-            return new Promise<string>(
-                (resolve, reject) => {
-                    const fileReader = new FileReader()
-                    fileReader.onload = () => resolve(fileReader.result as string)
-                    fileReader.onerror = (error) => reject(error)
-                    // Read the file as a data URL (base64 encoded string)
-                    fileReader.readAsText(file)
-                }
-            )
+            return new Promise<string>((resolve, reject) => {
+                const fileReader = new FileReader()
+                fileReader.onload = () => resolve(fileReader.result as string)
+                fileReader.onerror = (error) => reject(error)
+                // Read the file as a data URL (base64 encoded string)
+                fileReader.readAsText(file)
+            })
         }
         try {
             const fileContent = await readFileContent(firstFile)
@@ -71,33 +68,24 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                 variables: {
                     electionEventId: electionEvent.id,
                     keysCeremonyId: currentCeremony.id,
-                    privateKeyBase64: fileContent
+                    privateKeyBase64: fileContent,
                 },
             })
             setUploading(false)
             if (errors) {
-                setErrors(t(
-                    "keysGeneration.checkStep.errorUploading",
-                    {error: errors.toString()}
-                ))
+                setErrors(t("keysGeneration.checkStep.errorUploading", {error: errors.toString()}))
                 return
             } else {
                 const isValid = data?.check_private_key?.is_valid
                 if (!isValid) {
-                    setErrors(t(
-                        "keysGeneration.checkStep.errorUploading",
-                        {error: "empty"}
-                    ))
+                    setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
                     return
                 }
                 setVerified(true)
             }
         } catch (exception: any) {
             setUploading(false)
-            setErrors(t(
-                "keysGeneration.checkStep.errorUploading",
-                {error: exception.toString()}
-            ))
+            setErrors(t("keysGeneration.checkStep.errorUploading", {error: exception.toString()}))
         }
     }
     return (
@@ -114,19 +102,19 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                         ></Trans>
                     </Typography>
 
-                    <DropFile
-                        handleFiles={uploadPrivateKey}
-                    />
+                    <DropFile handleFiles={uploadPrivateKey} />
                     <WizardStyles.StatusBox>
                         {uploading ? <WizardStyles.DownloadProgress /> : null}
-                        {errors
-                            ? <WizardStyles.ErrorMessage variant="body2">
+                        {errors ? (
+                            <WizardStyles.ErrorMessage variant="body2">
                                 {errors}
                             </WizardStyles.ErrorMessage>
-                            : null}
-                        {verified && <WizardStyles.SucessMessage variant="body1">
-                            {t("keysGeneration.checkStep.verified")}
-                        </WizardStyles.SucessMessage>}
+                        ) : null}
+                        {verified && (
+                            <WizardStyles.SucessMessage variant="body1">
+                                {t("keysGeneration.checkStep.verified")}
+                            </WizardStyles.SucessMessage>
+                        )}
                     </WizardStyles.StatusBox>
                 </WizardStyles.MainContent>
             </WizardStyles.ContentBox>
@@ -136,11 +124,7 @@ export const CheckStep: React.FC<DownloadStepProps> = ({
                     <ArrowBackIosIcon />
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
-                <WizardStyles.NextButton
-                    disabled={!verified}
-                    color="info"
-                    onClick={goNext}
-                >
+                <WizardStyles.NextButton disabled={!verified} color="info" onClick={goNext}>
                     <ArrowForwardIosIcon />
                     {t("common.label.next")}
                 </WizardStyles.NextButton>

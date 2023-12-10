@@ -44,7 +44,7 @@ export const EditElectionEventTally: React.FC = () => {
                     )}
                 </>
             ) : (
-                <ListTally record={record}/>
+                <ListTally record={record} />
             )}
         </Box>
     )

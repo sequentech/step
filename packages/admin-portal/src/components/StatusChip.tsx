@@ -1,6 +1,6 @@
 import {GET_AREA_WITH_AREA_CONTESTS} from "@/queries/GetAreaWithAreaContest"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
-import { ITallyExecutionStatus } from '@/types/ceremonies'
+import {ITallyExecutionStatus} from "@/types/ceremonies"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
 import {Chip, IconButton} from "@mui/material"
@@ -59,6 +59,6 @@ export const StatusChip: React.FC<TrusteeItemsProps> = (props) => {
             <StyledChip status={status}>
                 <StyledChipLabel>{status?.length ? status.toUpperCase() : "-"}</StyledChipLabel>
             </StyledChip>
-            </StyledChips>
+        </StyledChips>
     )
 }

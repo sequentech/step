@@ -21,7 +21,6 @@ interface TrusteeItemsProps {
     record: RaRecord<Identifier>
 }
 
-
 const StyledChips = styled.div`
     display: flex;
     padding: 1px 7px;

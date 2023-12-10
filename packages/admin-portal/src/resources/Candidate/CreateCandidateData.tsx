@@ -4,7 +4,6 @@ import {CandidateDataForm, Sequent_Backend_Candidate_Extended} from "./Candidate
 
 export const CreateCandidateData: React.FC = () => {
     const transform = (data: Sequent_Backend_Candidate_Extended): RaRecord<Identifier> => {
-
         // save presentation object
         // language_conf
         console.log("data before :: ", data)
