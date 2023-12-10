@@ -68,5 +68,6 @@ pub async fn connect_tally_ceremony(
         None,
     )
     .await?;
+
     Ok(())
 }
