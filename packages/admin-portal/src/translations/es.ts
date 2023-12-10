@@ -753,6 +753,9 @@ const spanishTranslation: TranslationType = {
                 diff: "Cambios a publicar",
             },
         },
+        emailEditor: {
+            subject: "Asunto del Email",
+        },
         sendCommunication: {
             title: "Enviar Notificación",
             subtitle: "Enviar una notificación a usuarios/votantes.",
@@ -761,12 +764,18 @@ const spanishTranslation: TranslationType = {
             schedule: "Calendario",
             nowInput: "Enviar ahora",
             dateInput: "Fecha y hora de comienzo de envío",
+            chooseDate: "Por favor escoge una fecha",
             languages: "Idiomas",
             votersSelection: {
                 ALL_USERS: "Todos",
                 NOT_VOTED: "Los que no votaron",
                 VOTED: "Los que ya votaron",
                 SELECTED: "Votantes seleccionados",
+            },
+            methodTitle: "Método de Comunicación",
+            communicationMethod: {
+                EMAIL: "Email",
+                SMS: "SMS",
             },
             email: {
                 subject: "Subject",

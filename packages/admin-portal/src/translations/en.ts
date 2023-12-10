@@ -751,6 +751,9 @@ const englishTranslation = {
                 diff: "CHANGES TO PUBLISH",
             },
         },
+        emailEditor: {
+            subject: "Email Subject",
+        },
         sendCommunication: {
             title: "Send Notification",
             subtitle: "Send a notification to voters.",
@@ -759,12 +762,18 @@ const englishTranslation = {
             schedule: "Schedule",
             nowInput: "Send now",
             dateInput: "Date and time to start sending notifications",
+            chooseDate: "Please choose a date",
             languages: "Languages",
             votersSelection: {
                 ALL_USERS: "Everyone",
                 NOT_VOTED: "Those who didn't vote yet",
                 VOTED: "Those who already voted",
                 SELECTED: "Selected voters",
+            },
+            methodTitle: "Método de Comunicación",
+            communicationMethod: {
+                EMAIL: "Email",
+                SMS: "SMS",
             },
             email: {
                 subject: "Subject",
