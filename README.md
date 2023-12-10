@@ -69,14 +69,14 @@ To launch the `admin-portal` in development mode, execute (the first time):
 ```bash
 cd /workspaces/backend-services/packages/
 yarn && yarn build:ui-essentials # only needed the first time
-yarn start:admin
+yarn start:admin-portal
 ```
 
 For subsequent runs, you only need:
 
 ```bash
 cd /workspaces/backend-services/packages/
-yarn start:admin
+yarn start:admin-portal
 ```
 
 Then it should open the admin-portal in the web browser, or else enter 
@@ -318,7 +318,7 @@ Afterwards, you need to regenerate the typescript auto-generated types using
 
 ```bash
 cd /workspaces/backend-services/packages/
-yarn generate:admin
+yarn generate:admin-portal
 ```
 
 Additionally, the same graphql schema file is needed in `windmill` to generate 
@@ -542,7 +542,7 @@ docker compose build frontend && docker compose up -d --no-deps frontend
 
 Add the query/mutation to the `packages/voting-portal/src/queries/` folder and 
 then run `yarn generate` from the `packages/` folder to update the types.  Similarly,
-run `yarn generate:admin` to update the types of the `admin-portal` if you need it.
+run `yarn generate:admin-portal` to update the types of the `admin-portal` if you need it.
 
 ### The voting portal will not load any elections
 

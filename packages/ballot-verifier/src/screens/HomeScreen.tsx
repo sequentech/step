@@ -181,7 +181,7 @@ export const HomeScreen: React.FC<IProps> = ({
                     labels={[
                         "breadcrumbSteps.import",
                         "breadcrumbSteps.verify",
-                        "breadcrumbSteps.finish",
+                        //"breadcrumbSteps.finish",
                     ]}
                     selected={0}
                 />
