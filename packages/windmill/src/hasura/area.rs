@@ -5,7 +5,7 @@ use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use std::env;
-use tracing::instrument;
+use tracing::{instrument, event, Level};
 
 use crate::services::to_result::ToResult;
 pub use crate::types::hasura_types::*;
@@ -19,7 +19,7 @@ use sequent_core::services::connection;
 )]
 pub struct GetElectionEventAreas;
 
-#[instrument(skip_all)]
+#[instrument(skip(auth_headers))]
 pub async fn get_election_event_areas(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -55,7 +55,7 @@ pub async fn get_election_event_areas(
 )]
 pub struct GetAreasByIds;
 
-#[instrument(skip_all)]
+#[instrument(skip(auth_headers))]
 pub async fn get_areas_by_ids(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

@@ -25,6 +25,10 @@ export const getUsers = (fields: any) => {
                     groups
                     last_name
                     username
+                    area {
+                        id
+                        name
+                    }
                 }
                 total {
                     aggregate {
