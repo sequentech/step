@@ -90,7 +90,7 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<String> {
             );
         }
         EventProcessors::CREATE_ELECTION_EVENT_BALLOT_STYLES => {
-            let task = celery_app
+            /*let task = celery_app
                 .send_task(update_election_event_ballot_styles::new(
                     event.tenant_id,
                     event.election_event_id.clone(),
@@ -100,7 +100,7 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<String> {
                 Level::INFO,
                 "Sent CREATE_ELECTION_EVENT_BALLOT_STYLES task {}",
                 task.task_id
-            );
+            );*/
         }
     }
     Ok(element_id)

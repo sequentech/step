@@ -213,3 +213,45 @@ pub async fn edit_user(
 
     Ok(Json(user))
 }
+
+#[derive(Deserialize, Debug)]
+pub struct GetUserBody {
+    tenant_id: String,
+    election_event_id: Option<String>,
+    user_id: String,
+}
+
+#[instrument(skip(claims))]
+#[post("/get-user", format = "json", data = "<body>")]
+pub async fn get_user(
+    claims: jwt::JwtClaims,
+    body: Json<GetUserBody>,
+) -> Result<Json<User>, (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_READ
+    } else {
+        Permissions::USER_READ
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let user = client
+        .get_user(&realm, &input.user_id)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    Ok(Json(user))
+}

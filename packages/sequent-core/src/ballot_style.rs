@@ -14,6 +14,9 @@ pub fn create_ballot_style(
     contests: Vec<hasura_types::Contest>,        // Contest
     candidates: Vec<hasura_types::Candidate>,    // Candidate
 ) -> ballot::BallotStyle {
+    let mut sorted_contests = contests.clone();
+    sorted_contests.sort_by_key(|k| k.id.clone());
+
     ballot::BallotStyle {
         id,
         tenant_id: election.tenant_id,
@@ -33,7 +36,7 @@ pub fn create_ballot_style(
                 }),
         ),
         area_id: area.id,
-        contests: contests
+        contests: sorted_contests
             .into_iter()
             .map(|contest| {
                 let election_candidates = candidates
@@ -51,6 +54,9 @@ fn create_contest(
     contest: hasura_types::Contest,
     candidates: Vec<hasura_types::Candidate>,
 ) -> ballot::Contest {
+    let mut sorted_candidates = candidates.clone();
+    sorted_candidates.sort_by_key(|k| k.id.clone());
+
     ballot::Contest {
         id: contest.id.clone(),
         tenant_id: contest.tenant_id,
@@ -64,7 +70,7 @@ fn create_contest(
         voting_type: contest.voting_type,
         counting_algorithm: contest.counting_algorithm,
         is_encrypted: contest.is_encrypted.unwrap_or(false),
-        candidates: candidates
+        candidates: sorted_candidates
             .iter()
             .enumerate()
             .map(|(_i, candidate)| ballot::Candidate {
