@@ -205,6 +205,34 @@ actions:
   permissions:
   - role: admin-user
   comment: fetch document
+- name: generate_ballot_publication
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/generate-ballot-publication
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: publish-write
+  - role: admin-user
+- name: get_ballot_publication_changes
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/get-ballot-publication-changes
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: publish-read
+  - role: admin-user
 - name: get_permissions
   definition:
     kind: ""
@@ -263,6 +291,21 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: get_user
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/get-user
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: user-read
+  - role: voter-read
+  - role: admin-user
 - name: get_users
   definition:
     kind: ""
@@ -275,6 +318,8 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: voter-read
+  - role: user-read
   - role: admin-user
 - name: insertElectionEvent
   definition:
@@ -347,6 +392,20 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: publish_ballot
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/publish-ballot
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: publish-write
+  - role: admin-user
 - name: set_role_permission
   definition:
     kind: synchronous
@@ -373,6 +432,34 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: update_election_voting_status
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/update-election-voting-status
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: election-state-write
+  - role: admin-user
+- name: update_event_voting_status
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/update-event-voting-status
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  - role: election-state-write
 - name: update_tally_ceremony
   definition:
     kind: synchronous
@@ -444,4 +531,9 @@ custom_types:
   - name: SetUserRoleOutput
   - name: CreateTallyOutput
   - name: StartTallyOutput
+  - name: PublishBallotOutput
+  - name: UpdateEventVotingStatusOutput
+  - name: UpdateElectionVotingStatusOutput
+  - name: BallotPublicationStyles
+  - name: GetBallotPublicationChangesOutput
   scalars: []

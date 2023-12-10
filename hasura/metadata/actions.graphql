@@ -101,6 +101,20 @@ type Query {
   ): FetchDocumentOutput
 }
 
+type Mutation {
+  generate_ballot_publication (
+    election_event_id: uuid!
+    election_id: uuid
+  ): PublishBallotOutput
+}
+
+type Mutation {
+  get_ballot_publication_changes (
+    election_event_id: uuid!
+    ballot_publication_id: uuid!
+  ): GetBallotPublicationChangesOutput
+}
+
 type Query {
   get_permissions (
     body: GetPermissionsInput!
@@ -125,6 +139,14 @@ type Mutation {
     media_type: String!
     size: Int!
   ): GetUploadUrlOutput
+}
+
+type Mutation {
+  get_user (
+    tenant_id: uuid!
+    election_event_id: uuid
+    user_id: String!
+  ): KeycloakUser!
 }
 
 type Query {
@@ -162,6 +184,13 @@ type Query {
 }
 
 type Mutation {
+  publish_ballot (
+    election_event_id: uuid!
+    ballot_publication_id: uuid!
+  ): PublishBallotOutput
+}
+
+type Mutation {
   set_role_permission (
     tenant_id: String!
     role_id: String!
@@ -175,6 +204,20 @@ type Mutation {
     user_id: String!
     role_id: String!
   ): SetUserRoleOutput
+}
+
+type Mutation {
+  update_election_voting_status (
+    election_id: uuid!
+    voting_status: String!
+  ): UpdateElectionVotingStatusOutput
+}
+
+type Mutation {
+  update_event_voting_status (
+    election_event_id: uuid!
+    voting_status: String!
+  ): UpdateEventVotingStatusOutput
 }
 
 type Mutation {
@@ -488,5 +531,27 @@ type CreateTallyOutput {
 
 type StartTallyOutput {
   tally_session_id : uuid!
+}
+
+type PublishBallotOutput {
+  ballot_publication_id : uuid!
+}
+
+type UpdateEventVotingStatusOutput {
+  election_event_id : uuid
+}
+
+type UpdateElectionVotingStatusOutput {
+  election_id : uuid
+}
+
+type BallotPublicationStyles {
+  ballot_publication_id : String!
+  ballot_styles : jsonb!
+}
+
+type GetBallotPublicationChangesOutput {
+  current : BallotPublicationStyles!
+  previous : BallotPublicationStyles
 }
 
