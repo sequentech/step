@@ -227,9 +227,23 @@ async fn map_plaintext_data(
     .data
     .expect("expected data");
 
-    let Some(_execution_status) = get_execution_status(tally_session_data.sequent_backend_tally_session[0].execution_status.clone()) else {
+    let tally_session = &tally_session_data.sequent_backend_tally_session[0];
+
+    let Some(execution_status) = get_execution_status(tally_session.execution_status.clone()) else {
         return Ok(None);
     };
+
+    if execution_status != TallyExecutionStatus::IN_PROGRESS {
+        event!(
+            Level::INFO,
+            "Skipping tally session {} for event {} as execution status '{}' is not '{}'",
+            tally_session.id,
+            tally_session.election_event_id,
+            execution_status.to_string(),
+            TallyExecutionStatus::IN_PROGRESS.to_string()
+        );
+        return Ok(None);
+    }
 
     // get last message id
     let last_message_id = if !tally_session_data
@@ -621,7 +635,7 @@ pub async fn execute_tally_session(
             err
         })?;
     }
- 
+
     // compressed file with the tally
     let data = compress_folder(base_tempdir.path())?;
 
