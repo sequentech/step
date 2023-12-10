@@ -314,7 +314,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         validate={equalToPassword}
                         onChange={handleChange}
                     />
-                    <FormControlLabel
+                    <FormStyles.CheckboxControlLabel
                         label={t("usersAndRolesScreen.users.fields.enabled")}
                         control={<Checkbox
                             checked={user.enabled || false}

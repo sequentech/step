@@ -235,6 +235,7 @@ const englishTranslation = {
                 logs: "Logs",
             },
             tally: {
+                emptyHeader: "No Tally yet.",
                 title: "Election Event Tally",
                 elections: "Elections",
                 electionNumber: "Number Elections",

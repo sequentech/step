@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura;
+use crate::hasura::results_contest::insert_results_contest;
+use crate::hasura::results_contest_candidate::insert_results_contest_candidate;
 use crate::hasura::results_election::insert_results_election;
 use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session::set_tally_session_completed;
@@ -338,6 +340,43 @@ async fn save_results(
             &None, // blank_votes,
         )
         .await?;
+
+        for contest in election.reports.iter() {
+            insert_results_contest(
+                &auth_headers,
+                tenant_id,
+                election_event_id,
+                &election.election_id,
+                &contest.contest.id,
+                results_event_id,
+                None, // elegible_census
+                Some(contest.contest_result.total_votes as i64),
+                // missing total valid votes
+                Some(contest.contest_result.total_invalid_votes as i64),
+                None, // implicit_invalid_votes
+                None, //blank_votes
+                contest.contest.voting_type.clone(),
+                contest.contest.counting_algorithm.clone(),
+                contest.contest.name.clone(),
+            )
+            .await?;
+
+            for candidate in contest.candidate_result.iter() {
+                insert_results_contest_candidate(
+                    &auth_headers,
+                    tenant_id,
+                    election_event_id,
+                    &election.election_id,
+                    &contest.contest.id,
+                    &candidate.candidate.id,
+                    results_event_id,
+                    Some(candidate.total_count as i64),
+                    candidate.winning_position.map(|val| val as i64),
+                    None, //points
+                )
+                .await?;
+            }
+        }
     }
     Ok(())
 }

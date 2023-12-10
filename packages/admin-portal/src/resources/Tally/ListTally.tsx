@@ -100,14 +100,14 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             disabled={!keysCeremonies || keysCeremonies?.length > 0}
         >
             <IconButton icon={faPlus} fontSize="24px" />
-            {t("electionEventScreen.keys.createNew")}
+            {t("electionEventScreen.tally.create.createButton")}
         </Button>
     )
 
     const Empty = () => (
         <EmptyBox m={1}>
             <Typography variant="h4" paragraph>
-                {t("electionEventScreen.keys.emptyHeader")}
+                {t("electionEventScreen.tally.emptyHeader")}
             </Typography>
             {canAdminCeremony ? (
                 <>
