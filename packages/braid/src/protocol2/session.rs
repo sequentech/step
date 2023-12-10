@@ -2,6 +2,7 @@ use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::protocol2::trustee::Trustee;
 use anyhow::Result;
 use strand::context::Ctx;
+use std::path::PathBuf;
 use tracing::info;
 
 pub struct Session<C: Ctx> {
@@ -44,5 +45,41 @@ impl<C: Ctx> Session<C> {
         }
 
         Ok(())
+    }
+}
+
+pub struct BoardParams {
+    server_url: String,
+    user: String,
+    password: String,
+    board_name: String,
+    store_root: PathBuf,
+}
+impl BoardParams {
+    
+    pub fn new(
+        server_url: &str,
+        user: &str,
+        password: &str,
+        board_dbname: String,
+        store_root: PathBuf,
+    ) -> BoardParams {
+        BoardParams {
+            server_url: server_url.to_string(),
+            user: user.to_string(),
+            password: password.to_string(),
+            board_name: board_dbname.to_string(),
+            store_root: store_root,
+        }
+    }
+
+    pub async fn get_board(&self) -> Result<ImmudbBoard> {
+        ImmudbBoard::new(
+            &self.server_url,
+            &self.user,
+            &self.password,
+            &self.board_name,
+            self.store_root.clone(),
+        ).await
     }
 }

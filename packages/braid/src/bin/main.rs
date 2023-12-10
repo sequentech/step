@@ -112,7 +112,7 @@ async fn main() -> Result<()> {
                 &args.server_url,
                 IMMUDB_USER,
                 IMMUDB_PW,
-                board_name.clone(),
+                &board_name,
                 store_root.clone(),
             )
             .await;
