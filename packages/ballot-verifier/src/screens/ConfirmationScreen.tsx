@@ -323,10 +323,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({}) => {
                     <span>{t("confirmationScreen.backButton")}</span>
                 </StyledButton>
             </StyledLink>
-            <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+            {/*<StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
                 <span>{t("confirmationScreen.finishButton")}</span>
                 <Icon icon={faAngleRight} size="sm" />
-            </StyledButton>
+            </StyledButton>*/}
         </ActionsContainer>
     )
 }
@@ -440,7 +440,7 @@ export const ConfirmationScreen: React.FC<IProps> = ({
                     labels={[
                         "breadcrumbSteps.import",
                         "breadcrumbSteps.verify",
-                        "breadcrumbSteps.finish",
+                        //"breadcrumbSteps.finish",
                     ]}
                     selected={1}
                 />

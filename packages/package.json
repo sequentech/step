@@ -20,6 +20,6 @@
     "lint:fix": "yarn --cwd ./voting-portal lint:fix",
     "prettify:fix": "yarn --cwd ./voting-portal prettify:fix",
     "generate:voting-portal": "yarn --cwd ./voting-portal generate",
-    "generate:admin": "yarn --cwd ./admin-portal generate"
+    "generate:admin-portal": "yarn --cwd ./admin-portal generate"
   }
 }
