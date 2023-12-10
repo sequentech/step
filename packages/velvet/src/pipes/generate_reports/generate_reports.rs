@@ -89,6 +89,7 @@ impl GenerateReports {
                 ReportDataComputed {
                     contest: r.contest.clone(),
                     contest_result: r.contest_result.clone(),
+                    area_id: r.area_id.clone(),
                     candidate_result,
                 }
             })
@@ -193,15 +194,33 @@ impl GenerateReports {
                 reports.push(ReportData {
                     contest: contest_input.contest.clone(),
                     contest_result,
+                    area_id: None,
                     winners,
-                })
+                });
+                for area in &contest_input.area_list {
+                    let contest_result = self.read_contest_result(
+                        &election_input.id,
+                        &contest_input.id,
+                        Some(&area.id),
+                    )?;
+
+                    let winners =
+                        self.read_winners(&election_input.id, &contest_input.id, Some(&area.id))?;
+
+                    reports.push(ReportData {
+                        contest: contest_input.contest.clone(),
+                        contest_result,
+                        area_id: Some(area.id.to_string()),
+                        winners,
+                    });
+                }
             }
             let computed_reports = self.compute_reports(reports)?;
             election_reports.push(ElectionReportDataComputed {
                 election_id: election_input.id.clone().to_string(),
                 area_id: None,
                 reports: computed_reports,
-            })
+            });
         }
         Ok(election_reports)
     }
@@ -225,6 +244,7 @@ impl Pipe for GenerateReports {
                 reports.push(ReportData {
                     contest: contest_input.contest.clone(),
                     contest_result,
+                    area_id: None,
                     winners,
                 })
             }
@@ -262,6 +282,7 @@ fn default_invalid_votes() -> HashMap<InvalidVote, u64> {
 #[derive(Debug)]
 pub struct ReportData {
     pub contest: Contest,
+    pub area_id: Option<String>,
     pub contest_result: ContestResult,
     pub winners: Vec<WinnerResult>,
 }
@@ -276,6 +297,7 @@ pub struct ElectionReportDataComputed {
 #[derive(Debug, Serialize)]
 pub struct ReportDataComputed {
     pub contest: Contest,
+    pub area_id: Option<String>,
     pub contest_result: ContestResult,
     pub candidate_result: Vec<CandidateResultForReport>,
 }

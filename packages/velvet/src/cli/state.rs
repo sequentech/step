@@ -5,7 +5,7 @@
 use super::error::{Error, Result};
 use super::CliRun;
 use crate::pipes::error::Error as PipesError;
-use crate::pipes::generate_reports::{GenerateReports, ElectionReportDataComputed};
+use crate::pipes::generate_reports::{ElectionReportDataComputed, GenerateReports};
 use crate::pipes::pipe_inputs::PipeInputs;
 use crate::pipes::PipeManager;
 use crate::{config::Config, pipes::pipe_name::PipeName};
