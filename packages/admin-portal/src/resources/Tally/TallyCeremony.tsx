@@ -176,7 +176,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                 <TallyStyles.StyledHeader>
                     <BreadCrumbSteps
                         labels={[
-                            "tally.breadcrumbSteps.ceremony",
+                            "tally.breadcrumbSteps.start",
                             "tally.breadcrumbSteps.tally",
                             "tally.breadcrumbSteps.results",
                         ]}

@@ -696,6 +696,8 @@ const spanishTranslation: TranslationType = {
             breadcrumbSteps: {
                 start: "Inicio",
                 finish: "Final",
+                tally: "Recuento",
+                results: "Resultados",
             },
             common: {
                 title: "Recuento",

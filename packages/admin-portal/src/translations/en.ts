@@ -694,6 +694,8 @@ const englishTranslation = {
             breadcrumbSteps: {
                 start: "Start",
                 finish: "Finish",
+                tally: "Start",
+                results: "Results",
             },
             common: {
                 title: "Tally",
