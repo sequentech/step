@@ -6,7 +6,7 @@ import React, {useContext} from "react"
 import {AppBar} from "react-admin"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {adminTheme} from "@sequentech/ui-essentials"
-import globalSettings from "@/GlobalSettings"
+import globalSettings from "@/global-settings"
 
 export const CustomAppBar: React.FC = () => {
     const authContext = useContext(AuthContext)

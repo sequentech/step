@@ -6,24 +6,20 @@
   "proxy": "https://i.imgur.com",
   "workspaces": [
     "ui-essentials",
-    "test-app",
     "voting-portal",
     "admin-portal",
     "ballot-verifier"
   ],
   "scripts": {
-    "dev": "yarn --cwd ./test-app dev",
-    "start:test-app": "yarn --cwd ./test-app start",
-    "start": "yarn --cwd ./voting-portal start",
-    "start:admin": "yarn --cwd ./admin-portal start",
-    "start:admin:container": "yarn --cwd ./admin-portal2 start",
-    "start:verifier": "yarn --cwd ./ballot-verifier start",
+    "start:voting-portal": "yarn --cwd ./voting-portal start",
+    "start:admin-portal": "yarn --cwd ./admin-portal start",
+    "start:ballot-verifier": "yarn --cwd ./ballot-verifier start",
     "storybook:ui-essentials": "yarn --cwd ./ui-essentials storybook",
     "build": "yarn workspaces run build",
     "build:ui-essentials": "yarn --cwd ./ui-essentials build",
     "lint:fix": "yarn --cwd ./voting-portal lint:fix",
     "prettify:fix": "yarn --cwd ./voting-portal prettify:fix",
-    "generate": "yarn --cwd ./voting-portal generate",
-    "generate:admin": "yarn --cwd ./admin-portal generate"
+    "generate:voting-portal": "yarn --cwd ./voting-portal generate",
+    "generate:admin-portal": "yarn --cwd ./admin-portal generate"
   }
 }
