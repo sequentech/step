@@ -5,7 +5,7 @@ use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use std::env;
-use tracing::{instrument, event, Level};
+use tracing::{event, instrument, Level};
 
 use crate::services::to_result::ToResult;
 pub use crate::types::hasura_types::*;
