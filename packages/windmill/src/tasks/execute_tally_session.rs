@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura;
+use crate::hasura::results_area_contest::insert_results_area_contest;
+use crate::hasura::results_area_contest_candidate::insert_results_area_contest_candidate;
 use crate::hasura::results_contest::insert_results_contest;
 use crate::hasura::results_contest_candidate::insert_results_contest_candidate;
 use crate::hasura::results_election::insert_results_election;
@@ -325,7 +327,7 @@ async fn save_results(
     results_event_id: &str,
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
-    for election in results.iter() {
+    for election in &results {
         insert_results_election(
             &auth_headers,
             tenant_id,
@@ -341,40 +343,78 @@ async fn save_results(
         )
         .await?;
 
-        for contest in election.reports.iter() {
-            insert_results_contest(
-                &auth_headers,
-                tenant_id,
-                election_event_id,
-                &election.election_id,
-                &contest.contest.id,
-                results_event_id,
-                None, // elegible_census
-                Some(contest.contest_result.total_votes as i64),
-                // missing total valid votes
-                Some(contest.contest_result.total_invalid_votes as i64),
-                None, // implicit_invalid_votes
-                None, //blank_votes
-                contest.contest.voting_type.clone(),
-                contest.contest.counting_algorithm.clone(),
-                contest.contest.name.clone(),
-            )
-            .await?;
-
-            for candidate in contest.candidate_result.iter() {
-                insert_results_contest_candidate(
+        for contest in &election.reports {
+            if let Some(area_id) = &contest.area_id {
+                insert_results_area_contest(
                     &auth_headers,
                     tenant_id,
                     election_event_id,
                     &election.election_id,
                     &contest.contest.id,
-                    &candidate.candidate.id,
+                    area_id,
                     results_event_id,
-                    Some(candidate.total_count as i64),
-                    candidate.winning_position.map(|val| val as i64),
-                    None, //points
+                    None, // elegible_census
+                    Some(contest.contest_result.total_votes as i64),
+                    // missing total valid votes
+                    Some(contest.contest_result.total_invalid_votes as i64),
+                    None, // implicit_invalid_votes
+                    None, // blank_votes
+                    contest.contest.voting_type.clone(),
+                    contest.contest.counting_algorithm.clone(),
                 )
                 .await?;
+
+                for candidate in &contest.candidate_result {
+                    insert_results_area_contest_candidate(
+                        &auth_headers,
+                        tenant_id,
+                        election_event_id,
+                        &election.election_id,
+                        &contest.contest.id,
+                        area_id,
+                        &candidate.candidate.id,
+                        results_event_id,
+                        Some(candidate.total_count as i64),
+                        candidate.winning_position.map(|val| val as i64),
+                        None, // points
+                    )
+                    .await?;
+                }
+            } else {
+                insert_results_contest(
+                    &auth_headers,
+                    tenant_id,
+                    election_event_id,
+                    &election.election_id,
+                    &contest.contest.id,
+                    results_event_id,
+                    None, // elegible_census
+                    Some(contest.contest_result.total_votes as i64),
+                    // missing total valid votes
+                    Some(contest.contest_result.total_invalid_votes as i64),
+                    None, // implicit_invalid_votes
+                    None, // blank_votes
+                    contest.contest.voting_type.clone(),
+                    contest.contest.counting_algorithm.clone(),
+                    contest.contest.name.clone(),
+                )
+                .await?;
+
+                for candidate in &contest.candidate_result {
+                    insert_results_contest_candidate(
+                        &auth_headers,
+                        tenant_id,
+                        election_event_id,
+                        &election.election_id,
+                        &contest.contest.id,
+                        &candidate.candidate.id,
+                        results_event_id,
+                        Some(candidate.total_count as i64),
+                        candidate.winning_position.map(|val| val as i64),
+                        None, // points
+                    )
+                    .await?;
+                }
             }
         }
     }
