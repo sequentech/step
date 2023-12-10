@@ -213,10 +213,7 @@ function TreeMenuItem({
                         {open ? <ExpandMoreIcon /> : <ChevronRightIcon />}
                     </div>
                 ) : (
-                    <div className={cn(
-                        "flex-none h-6",
-                        canCreateElectionEvent && "w-6"
-                    )}></div>
+                    <div className={cn("flex-none h-6", canCreateElectionEvent && "w-6")}></div>
                 )}
                 {isOpenSidebar && (
                     <NavLink
@@ -233,8 +230,8 @@ function TreeMenuItem({
                     </NavLink>
                 )}
                 <div className="invisible group-hover:visible">
-                    {canCreateElectionEvent
-                        ? <MenuActions
+                    {canCreateElectionEvent ? (
+                        <MenuActions
                             isArchivedTab={isArchivedElectionEvents}
                             resourceId={id}
                             resourceName={name}
@@ -242,8 +239,7 @@ function TreeMenuItem({
                             parentData={superParentData}
                             menuItemRef={menuItemRef}
                         ></MenuActions>
-                        : null
-                    }
+                    ) : null}
                 </div>
             </div>
             {open && (

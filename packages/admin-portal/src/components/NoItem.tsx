@@ -6,7 +6,7 @@ import Paper from "@mui/material/Paper"
 import {useTranslation} from "react-i18next"
 import {Box, Typography} from "@mui/material"
 import InboxIcon from "@mui/icons-material/Inbox"
-import { theme } from '@sequentech/ui-essentials'
+import {theme} from "@sequentech/ui-essentials"
 
 interface NoItemProps {
     item?: string
@@ -21,7 +21,7 @@ export const NoItem: React.FC<NoItemProps> = ({item}) => {
             sx={{width: "100%", gap: "7px", padding: "16px", backgroundColor: "inherit"}}
         >
             <InboxIcon sx={{fontSize: "8rem", color: theme.palette.customGrey.dark}} />
-            
+
             <Box>
                 <Typography
                     sx={{

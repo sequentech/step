@@ -3,17 +3,8 @@
 import styled from "@emotion/styled"
 import {styled as muiStyled} from "@mui/material/styles"
 
-import {
-    SaveButton,
-    Toolbar,
-} from "react-admin"
-import {
-    AccordionDetails,
-    Box,
-    Chip,
-    Typography,
-    CircularProgress
-} from "@mui/material"
+import {SaveButton, Toolbar} from "react-admin"
+import {AccordionDetails, Box, Chip, Typography, CircularProgress} from "@mui/material"
 import Button from "@mui/material/Button"
 import DoneOutlineIcon from "@mui/icons-material/DoneOutline"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
@@ -115,7 +106,7 @@ export const WizardStyles = {
     //     background-color: ${({theme}) => theme.palette.grey[100]};
     //     color: ${({theme}) => theme.palette.errorColor};
     //     border-color: ${({theme}) => theme.palette.errorColor};
-    // 
+    //
     //     &:hover {
     //         background-color: ${({theme}) => theme.palette.errorColor};
     //     }

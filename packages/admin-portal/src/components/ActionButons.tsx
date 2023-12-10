@@ -17,7 +17,7 @@ import {Identifier, useRecordContext} from "react-admin"
 export interface Action {
     icon: React.ReactNode
     action: (id: Identifier) => void
-    showAction?:  (id: Identifier) => boolean
+    showAction?: (id: Identifier) => boolean
 }
 
 interface ActionsColumnProps {
@@ -34,17 +34,15 @@ export const ActionsColumn: React.FC<ActionsColumnProps> = (props) => {
         font-size: 18px;
         margin-left: 8px;
     `
-    const filteredActions = actions.filter((action) => 
-        !action.showAction || action.showAction(record.id)
+    const filteredActions = actions.filter(
+        (action) => !action.showAction || action.showAction(record.id)
     )
 
     return (
         <>
             {filteredActions && filteredActions.length > 0
                 ? filteredActions.map((action, index) => (
-                      <StyledIconButton
-                        key={index} 
-                        onClick={() => action.action(record.id)}>
+                      <StyledIconButton key={index} onClick={() => action.action(record.id)}>
                           {action.icon}
                       </StyledIconButton>
                   ))
