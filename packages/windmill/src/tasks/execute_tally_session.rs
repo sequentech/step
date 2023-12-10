@@ -621,7 +621,7 @@ pub async fn execute_tally_session(
             err
         })?;
     }
-
+ 
     // compressed file with the tally
     let data = compress_folder(base_tempdir.path())?;
 
