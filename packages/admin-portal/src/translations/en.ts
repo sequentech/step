@@ -749,8 +749,15 @@ const englishTranslation = {
         },
         sendCommunication: {
             title: "Send Notification",
-            subtitle: "Send a notification to users/votes.",
+            subtitle: "Send a notification to voters.",
             sendButton: "Send Notification",
+            voters: "Votantes",
+            votersSelection: {
+                ALL_USERS: "Everyone",
+                NOT_VOTED: "Those who didn't vote yet",
+                VOTED: "Those who already voted",
+                SELECTED: "Selected voters",
+            },
             email: {
                 subject: "Subject",
             },
