@@ -224,6 +224,38 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
+    const validatePassword = (value: any) => {
+        if (!value || value.length == 0) {
+            return
+        }
+
+        const hasEnoughChars = (value.length < 8)
+        const hasUpperCase = /[A-Z]/.test(value)
+        const hasLowerCase = /[a-z]/.test(value)
+        const hasDigit = /\d/.test(value)
+        const hasSpecialChar = /[^a-zA-Z\d]/.test(value)
+
+        if (hasEnoughChars) {
+            return t("usersAndRolesScreen.users.fields.passwordLengthValidate")
+        }
+
+        if (!hasUpperCase) {
+            return t("usersAndRolesScreen.users.fields.passwordUppercaseValidate")
+        }
+
+        if (!hasLowerCase) {
+            return t("usersAndRolesScreen.users.fields.passwordLowercaseValidate")
+        }
+
+        if (!hasDigit) {
+            return t("usersAndRolesScreen.users.fields.passwordDigitValidate")
+        }
+
+        if (!hasSpecialChar) {
+            return t("usersAndRolesScreen.users.fields.passwordSpecialCharValidate")
+        }
+    }
+
     const equalToPassword = (value: any, allValues: any) => {
         if (!allValues.password || allValues.password.length == 0) {
             return
@@ -273,6 +305,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     <FormStyles.PasswordInput
                         label={t("usersAndRolesScreen.users.fields.password")}
                         source="password"
+                        validate={validatePassword}
                         onChange={handleChange}
                     />
                     <FormStyles.PasswordInput

@@ -330,6 +330,11 @@ const englishTranslation = {
                     password: "Password",
                     repeatPassword: "Repeat Password",
                     passwordMismatch: "Passwords must match",
+                    passwordLengthValidate: "Password must be at least 8 characters long",
+                    passwordUppercaseValidate: "Password must contain at least one uppercase letter",
+                    passwordLowercaseValidate: "Password must contain at least one lowercase letter",
+                    passwordDigitValidate: "Password must contain at least one digit",
+                    passwordSpecialCharValidate: "Password must contain at least one special character",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",

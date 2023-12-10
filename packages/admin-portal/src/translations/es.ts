@@ -332,6 +332,11 @@ const spanishTranslation: TranslationType = {
                     password: "Contraseña",
                     repeatPassword: "Repetir Contraseña",
                     passwordMismatch: "Las contraseñas deben de coincidir",
+                    passwordLengthValidate: "La contraseña debe tener al menos 8 caracteres",
+                    passwordUppercaseValidate: "La contraseña debe contener al menos una letra mayúscula",
+                    passwordLowercaseValidate: "La contraseña debe contener al menos una letra minúscula",
+                    passwordDigitValidate: "La contraseña debe contener al menos un dígito",
+                    passwordSpecialCharValidate: "La contraseña debe contener al menos un carácter especial"
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
