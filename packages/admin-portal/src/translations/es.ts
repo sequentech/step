@@ -755,6 +755,10 @@ const spanishTranslation: TranslationType = {
         },
         emailEditor: {
             subject: "Asunto del Email",
+            tabs: {
+                plaintext: "Cuerpo de Texto Plano",
+                richtext: "Cuerpo de Texto Enriquecido",
+            },
         },
         sendCommunication: {
             title: "Enviar Notificación",
@@ -766,6 +770,7 @@ const spanishTranslation: TranslationType = {
             dateInput: "Fecha y hora de comienzo de envío",
             chooseDate: "Por favor escoge una fecha",
             languages: "Idiomas",
+            smsMessage: "Mensaje SMS",
             votersSelection: {
                 ALL_USERS: "Todos",
                 NOT_VOTED: "Los que no votaron",

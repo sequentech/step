@@ -753,6 +753,10 @@ const englishTranslation = {
         },
         emailEditor: {
             subject: "Email Subject",
+            tabs: {
+                plaintext: "Plain Text Body",
+                richtext: "Rich Text Body",
+            },
         },
         sendCommunication: {
             title: "Send Notification",
@@ -764,13 +768,14 @@ const englishTranslation = {
             dateInput: "Date and time to start sending notifications",
             chooseDate: "Please choose a date",
             languages: "Languages",
+            smsMessage: "SMS Message",
             votersSelection: {
                 ALL_USERS: "Everyone",
                 NOT_VOTED: "Those who didn't vote yet",
                 VOTED: "Those who already voted",
                 SELECTED: "Selected voters",
             },
-            methodTitle: "Método de Comunicación",
+            methodTitle: "Communication Method",
             communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",

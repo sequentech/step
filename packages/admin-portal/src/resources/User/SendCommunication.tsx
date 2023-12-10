@@ -3,14 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
 import {SaveButton, SimpleForm, useListContext, Toolbar, DateTimeInput} from "react-admin"
-import {
-    AccordionDetails,
-    AccordionSummary,
-    MenuItem,
-    FormControlLabel,
-    Switch,
-    Grid,
-} from "@mui/material"
+import {AccordionDetails, AccordionSummary, MenuItem, FormControlLabel, Switch} from "@mui/material"
 import {SubmitHandler} from "react-hook-form"
 import MailIcon from "@mui/icons-material/Mail"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -20,6 +13,7 @@ import {EmailEditor} from "@/components/EmailEditor"
 import {useTranslation} from "react-i18next"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
+import globalSettings from "@/global-settings"
 
 enum IVotersSelection {
     ALL_USERS = "ALL_USERS",
@@ -96,9 +90,9 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         i18n: {
             en: {
                 email: {
-                    subject: "",
-                    plaintext_body: "",
-                    html_body: "",
+                    subject: globalSettings.DEFAULT_EMAIL_SUBJECT,
+                    plaintext_body: globalSettings.DEFAULT_EMAIL_PLAINTEXT_BODY,
+                    html_body: globalSettings.DEFAULT_EMAIL_HTML_BODY,
                 },
                 sms: {
                     message: "",
@@ -132,6 +126,13 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         newCommunication.schedule.now = checked
         setCommunication(newCommunication)
     }
+    const handleSmsChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const {value} = e.target
+        var newCommunication = {...communication}
+        newCommunication.i18n["en"].sms = {message: value}
+        setCommunication(newCommunication)
+    }
+
     const handleSelectChange = async (e: any) => {
         const {value} = e.target
         var newCommunication = {...communication}
@@ -319,6 +320,16 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             <EmailEditor
                                 record={communication.i18n["en"].email}
                                 setRecord={setEmail}
+                            />
+                        )}
+                        {communication.communication_method == ICommunicationMethod.SMS && (
+                            <FormStyles.TextField
+                                name="sms"
+                                label={t("sendCommunication.smsMessage")}
+                                value={communication.i18n["en"].sms?.message}
+                                onChange={handleSmsChange}
+                                multiline={true}
+                                minRows={4}
                             />
                         )}
                     </AccordionDetails>
