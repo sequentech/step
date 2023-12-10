@@ -102,9 +102,9 @@ const spanishTranslation: TranslationType = {
                 ok: "OK",
             },
             downloadButton: "Descargar",
-            step2Title: "2. Siga los pasos de este tutorial",
+            step2Title: "2. Verifica tu boleta",
             step2Description:
-                '(<a href="https://github.com/sequentech/new-ballot-verifier/blob/main/README.md">haga click aquí</a>, se abrirá una nueva pestaña en su navegador)',
+                "<a href='{{linkToBallotVerifier}}' target='_blank'>Accede al verificador del voto</a>, que se abrirá una nueva pestaña en tu navegador.",
             step2HelpDialog: {
                 title: "Tutorial sobre la Auditoría del Voto",
                 content:
@@ -112,7 +112,7 @@ const spanishTranslation: TranslationType = {
                 ok: "OK",
             },
             bottomWarning:
-                "Por motivos de seguridad, cuando audite su papeleta, deberá invalidarla. Para continuar con el proceso de votación, haga clic en ‘<b>Iniciar votación/b>’.",
+                "Por motivos de seguridad, cuando audite su papeleta, deberá invalidarla. Para continuar con el proceso de votación, haga clic en ‘<b>Iniciar votación</b>’.",
         },
         electionSelectionScreen: {
             title: "Lista de Votaciones",

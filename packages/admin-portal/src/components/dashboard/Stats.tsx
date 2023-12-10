@@ -17,7 +17,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
 import StatItem from "./StatItem"
-import globalSettings from "@/GlobalSettings"
+import globalSettings from "@/global-settings"
 
 const CardList = styled(Box)`
     display: flex;
