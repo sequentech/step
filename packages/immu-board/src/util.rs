@@ -30,8 +30,9 @@ pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     reload_handle
 }
 
-pub fn get_event_board(tenant_id: &str, election_event_id: &str)
--> String {
+pub fn get_event_board(tenant_id: &str, election_event_id: &str) -> String {
     format!("tenant{}event{}", tenant_id, election_event_id)
-    .chars().filter(|&c| c != '-').collect()
+        .chars()
+        .filter(|&c| c != '-')
+        .collect()
 }

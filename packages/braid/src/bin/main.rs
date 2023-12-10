@@ -17,8 +17,8 @@ use braid::protocol2::session::Session;
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
 use braid::util::assert_folder;
-use sequent_core::util::init_log::init_log;
 use sequent_core::serialization::base64::Base64Deserialize;
+use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
@@ -75,7 +75,6 @@ async fn main() -> Result<()> {
 
     let ignored_boards = get_ignored_boards();
     info!("ignored boards {:?}", ignored_boards);
-
 
     let mut board_index = ImmudbBoardIndex::new(
         &args.server_url,

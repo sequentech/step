@@ -6,8 +6,8 @@ use std::fs;
 use std::marker::PhantomData;
 use tracing::{info, instrument};
 
-use sequent_core::util::init_log::init_log;
 use immu_board::{Board, BoardClient, BoardMessage};
+use sequent_core::util::init_log::init_log;
 
 use braid_messages::artifact::Configuration;
 use braid_messages::artifact::DkgPublicKey;

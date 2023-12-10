@@ -14,7 +14,7 @@ import {useTranslation} from "react-i18next"
 interface TallyElectionsResultsProps {
     tenantId: string | null
     electionEventId: string | null
-    electionIds: Array<string>
+    electionIds: any
 }
 
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {

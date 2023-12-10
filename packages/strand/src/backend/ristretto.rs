@@ -538,7 +538,6 @@ mod tests {
         test_distributed_serialization_generic(&ctx, ps);
     }
 
-    
     #[cfg(not(feature = "wasm"))]
     #[test]
     fn test_shuffle() {

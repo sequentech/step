@@ -25,12 +25,15 @@ import {TallyStartDate} from "./TallyStartDate"
 import {TallyElectionsProgress} from "./TallyElectionsProgress"
 import {TallyElectionsResults} from "./TallyElectionsResults"
 import {TallyResults} from "./TallyResults"
-import TallyLogs from "./TallyLogs"
+import {TallyLogs} from "./TallyLogs"
 import {useGetOne, useNotify} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {useMutation} from "@apollo/client"
 import {ITallyExecutionStatus} from "@/types/ceremonies"
+import {faKey} from "@fortawesome/free-solid-svg-icons"
+import {Box} from "@mui/material"
+import {Sequent_Backend_Area, Sequent_Backend_Tally_Session} from "@/gql/graphql"
 
 interface TallyCeremonyProps {
     completed: boolean
@@ -44,10 +47,11 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     const notify = useNotify()
 
     const [openModal, setOpenModal] = useState(false)
-    const [page, setPage] = useState<number>(completed ? 2 : 0)
+    const [page, setPage] = useState<number>(0)
     const [showTrustees, setShowTrustees] = useState(false)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<string[]>([])
+    const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
 
     const [UpdateTallyCeremonyMutation] = useMutation(UPDATE_TALLY_CEREMONY)
 
@@ -55,7 +59,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
         [key: string]: boolean
     }
 
-    const {data: tally} = useGetOne(
+    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
         {
             id: tallyId,
@@ -64,6 +68,26 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
             refetchInterval: 5000,
         }
     )
+
+    useEffect(() => {
+        if (data) {
+            setPage(
+                data.execution_status === ITallyExecutionStatus.CONNECTED
+                    ? 1
+                    : data.execution_status === ITallyExecutionStatus.IN_PROGRESS
+                    ? 2
+                    : 0
+            )
+            if (tally?.last_updated_at !== data.last_updated_at) {
+                console.log("TallyCeremony :: data", data)
+                setTally(data)
+            }
+        }
+    }, [data])
+
+    useEffect(() => {
+        console.log("TallyCeremony :: tally", tally)
+    }, [tally])
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-general": true,
@@ -114,8 +138,8 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     const confirmNextAction = async () => {
         const {data, errors} = await UpdateTallyCeremonyMutation({
             variables: {
-                election_event_id: tally.election_event_id,
-                tally_session_id: tally.id,
+                election_event_id: tally?.election_event_id,
+                tally_session_id: tally?.id,
                 status: ITallyExecutionStatus.STARTED,
             },
         })
@@ -131,9 +155,6 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
         setShowTrustees(true)
     }
 
-    useEffect(() => {
-    }, [selectedElections, selectedTrustees])
-
     const setDisabled = (): boolean => {
         if (!tally) {
             return true
@@ -141,7 +162,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
             if (
                 page === 0 &&
                 showTrustees &&
-                tally?.execution_status !== ITallyExecutionStatus.STARTED
+                tally?.execution_status !== ITallyExecutionStatus.CONNECTED
             ) {
                 return true
             }
@@ -155,7 +176,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                 <TallyStyles.StyledHeader>
                     <BreadCrumbSteps
                         labels={[
-                            "tally.breadcrumbSteps.ceremony",
+                            "tally.breadcrumbSteps.start",
                             "tally.breadcrumbSteps.tally",
                             "tally.breadcrumbSteps.results",
                         ]}
@@ -184,6 +205,25 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                                         subtitle={t("tally.trusteeTallySubTitle")}
                                     />
                                 </TallyStyles.StyledFooter>
+
+                                <Box
+                                    sx={{
+                                        width: "100%",
+                                        display: "flex",
+                                        justifyContent: "flex-end",
+                                    }}
+                                >
+                                    <IconButton
+                                        icon={faKey}
+                                        sx={{
+                                            color:
+                                                tally?.execution_status ===
+                                                ITallyExecutionStatus.CONNECTED
+                                                    ? "#43E3A1"
+                                                    : "#d32f2f",
+                                        }}
+                                    />
+                                </Box>
 
                                 <TallyTrusteesList
                                     update={(trustees) => setSelectedTrustees(trustees)}
@@ -255,7 +295,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <TallyResults />
+                                <TallyResults tally={tally} />
                             </AccordionDetails>
                         </Accordion>
                     </>
@@ -319,7 +359,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <TallyResults />
+                                <TallyResults tally={tally} />
                             </AccordionDetails>
                         </Accordion>
                     </>
