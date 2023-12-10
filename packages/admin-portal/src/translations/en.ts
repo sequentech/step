@@ -328,6 +328,8 @@ const englishTranslation = {
                     attributes: "Attributes",
                     area: "Area",
                     password: "Password",
+                    repeatPassword: "Repeat Password",
+                    passwordMismatch: "Passwords must match",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",

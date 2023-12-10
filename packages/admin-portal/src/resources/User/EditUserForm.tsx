@@ -20,7 +20,6 @@ import {
     MenuItem,
     Select,
     SelectChangeEvent,
-    TextField,
     FormControlLabel,
     Checkbox,
 } from "@mui/material"
@@ -38,6 +37,7 @@ import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {isUndefined} from "@sequentech/ui-essentials"
 import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
 import {SET_USER_ROLE} from "@/queries/SetUserRole"
+import { FormStyles } from "@/components/styles/FormStyles"
 
 interface ListUserRolesProps {
     userId: string
@@ -179,7 +179,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         first_name: user?.first_name,
                         last_name: user?.last_name,
                         enabled: user?.enabled,
-                        password: user?.password ?? undefined,
+                        password: (user?.password && user?.password.length > 0)
+                            ? user.password
+                            : undefined,
                         email: user?.email,
                         attributes: {
                             "area-id": [user?.attributes?.["area-id"]?.[0]],
@@ -222,10 +224,21 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
+    const equalToPassword = (value: any, allValues: any) => {
+        if (!allValues.password || allValues.password.length == 0) {
+            return
+        }
+        if (value !== allValues.password) {
+            return t("usersAndRolesScreen.users.fields.passwordMismatch")
+        }
+    }
+    
+
     return (
         <PageHeaderStyles.Wrapper>
             <SimpleForm
                 toolbar={<SaveButton alwaysEnable />}
+                record={user}
                 onSubmit={onSubmit}
                 sanitizeEmptyValues
             >
@@ -237,11 +250,35 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.subtitle`)}
                     </PageHeaderStyles.SubTitle>
 
-                    <TextField
-                        variant="outlined"
+                    <FormStyles.TextInput
                         label={t("usersAndRolesScreen.users.fields.first_name")}
-                        value={user.first_name || ""}
-                        name={"first_name"}
+                        source="first_name"
+                        onChange={handleChange}
+                    />
+                    <FormStyles.TextInput
+                        label={t("usersAndRolesScreen.users.fields.last_name")}
+                        source="last_name"
+                        onChange={handleChange}
+                    />
+                    <FormStyles.TextInput
+                        label={t("usersAndRolesScreen.users.fields.email")}
+                        source="email"
+                        onChange={handleChange}
+                    />
+                    <FormStyles.TextInput
+                        label={t("usersAndRolesScreen.users.fields.username")}
+                        source="username"
+                        onChange={handleChange}
+                    />
+                    <FormStyles.PasswordInput
+                        label={t("usersAndRolesScreen.users.fields.password")}
+                        source="password"
+                        onChange={handleChange}
+                    />
+                    <FormStyles.PasswordInput
+                        label={t("usersAndRolesScreen.users.fields.repeatPassword")}
+                        source="repeat_password"
+                        validate={equalToPassword}
                         onChange={handleChange}
                     />
                     <FormControlLabel
@@ -252,35 +289,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 setUser({...user, enabled: event.target.checked})
                             }}
                         />}
-                    />
-                    <TextField
-                        variant="outlined"
-                        label={t("usersAndRolesScreen.users.fields.last_name")}
-                        value={user.last_name || ""}
-                        name={"last_name"}
-                        onChange={handleChange}
-                    />
-                    <TextField
-                        variant="outlined"
-                        label={t("usersAndRolesScreen.users.fields.email")}
-                        value={user.email || ""}
-                        name={"email"}
-                        onChange={handleChange}
-                    />
-                    <TextField
-                        variant="outlined"
-                        label={t("usersAndRolesScreen.users.fields.username")}
-                        value={user.username || ""}
-                        name={"username"}
-                        onChange={handleChange}
-                    />
-                    <TextField
-                        variant="outlined"
-                        type="password"
-                        label={t("usersAndRolesScreen.users.fields.password")}
-                        value={user.password || ""}
-                        name={"password"}
-                        onChange={handleChange}
                     />
                     {electionEventId ? (
                         <FormControl fullWidth>

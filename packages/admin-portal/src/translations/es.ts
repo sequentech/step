@@ -330,6 +330,8 @@ const spanishTranslation: TranslationType = {
                     attributes: "Atributos",
                     area: "Área",
                     password: "Contraseña",
+                    repeatPassword: "Repetir Contraseña",
+                    passwordMismatch: "Las contraseñas deben de coincidir",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
