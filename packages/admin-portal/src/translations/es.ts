@@ -755,6 +755,9 @@ const spanishTranslation: TranslationType = {
             subtitle: "Enviar una notificación a usuarios/votantes.",
             sendButton: "Enviar Notificación",
             voters: "Votantes",
+            schedule: "Calendario",
+            nowInput: "Enviar ahora",
+            dateInput: "Fecha y hora de comienzo de envío",
             votersSelection: {
                 ALL_USERS: "Todos",
                 NOT_VOTED: "Los que no votaron",

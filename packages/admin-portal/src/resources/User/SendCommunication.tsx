@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, { useState } from "react"
 import {
-    List, SaveButton, SimpleForm, useListContext, useNotify, useRefresh,
-    Toolbar,
+    SaveButton, SimpleForm, useListContext, useNotify, useRefresh,
+    Toolbar, BooleanInput, DateTimeInput,
 } from "react-admin"
 import {
-    Accordion, AccordionDetails, AccordionSummary, Tabs, Select, MenuItem, SelectChangeEvent
+    AccordionDetails, AccordionSummary, MenuItem, FormControlLabel, Switch
 } from "@mui/material"
 import {SubmitHandler} from "react-hook-form"
 import MailIcon from '@mui/icons-material/Mail'
@@ -82,6 +82,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         },
         schedule: {
             now: true,
+            date: undefined,
         },
         presentation: {
             i18n: {
@@ -112,9 +113,11 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         console.log("sending notification")
     }
 
-    const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const {name, value} = e.target
-        setCommunication({...communication, [name]: value})
+    const handleNowChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const {checked} = e.target
+        var newCommunication = {...communication}
+        newCommunication.schedule.now = checked
+        setCommunication(newCommunication)
     }
     const handleSelectChange = async (e: any) => {
         const {value} = e.target
@@ -174,11 +177,35 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                     </AccordionDetails>
                 </FormStyles.AccordionExpanded>
 
-                <FormStyles.TextInput
-                    label={t("sendCommunication.email.subject")}
-                    source="email.subject"
-                    onChange={handleChange}
-                />
+                <FormStyles.AccordionExpanded expanded={true} disableGutters>
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon
+                            id="send-communication-schedule"
+                        />}
+                    >
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("sendCommunication.schedule")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <FormControlLabel
+                            label={t("sendCommunication.nowInput")}
+                            control={<Switch
+                                checked={communication.schedule.now}
+                                onChange={handleNowChange}
+                            />}
+                        />
+                        <DateTimeInput
+                            disabled={communication.schedule.now}
+                            source="schedule.date"
+                            label={t("sendCommunication.dateInput")}
+                            parse={(value) => new Date(value).toISOString()}
+                        />
+
+                    </AccordionDetails>
+                </FormStyles.AccordionExpanded>
             </SimpleForm>
         </PageHeaderStyles.Wrapper>
     )

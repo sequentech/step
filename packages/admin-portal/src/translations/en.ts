@@ -751,7 +751,10 @@ const englishTranslation = {
             title: "Send Notification",
             subtitle: "Send a notification to voters.",
             sendButton: "Send Notification",
-            voters: "Votantes",
+            voters: "Voters",
+            schedule: "Schedule",
+            nowInput: "Send now",
+            dateInput: "Date and time to start sending notifications",
             votersSelection: {
                 ALL_USERS: "Everyone",
                 NOT_VOTED: "Those who didn't vote yet",
