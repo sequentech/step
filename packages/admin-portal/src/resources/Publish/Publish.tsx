@@ -23,6 +23,7 @@ import {
     PublishBallotMutation,
     Sequent_Backend_Ballot_Publication,
 } from "@/gql/graphql"
+import globalSettings from "@/global-settings"
 
 const PublishStyled = {
     Container: styled.div`
@@ -89,7 +90,19 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             GENERATE_BALLOT_PUBLICATION
         )
 
-        const onPublish = () => null
+        const onPublish = async () => {
+            if (!ballotPublicationId) {
+                return
+            }
+            const {data} = await publishBallot({
+                variables: {
+                    electionEventId,
+                    ballotPublicationId: ballotPublicationId,
+                },
+            })
+            notify(t("publish.notifications.published"), {type: "success"})
+            refetch()
+        }
 
         const onGenerate = async () => {
             setStatus(EPublishStatus.Generated)
@@ -107,6 +120,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             if (data?.generate_ballot_publication?.ballot_publication_id) {
                 setBallotPublicationId(data?.generate_ballot_publication?.ballot_publication_id)
             }
+            setTimeout(() => {
+                refetch()
+            }, 4000)
         }
 
         const getPublishChanges = async () => {
@@ -165,18 +181,14 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                                 {t("publish.header.change")}
                             </PublishStyled.AccordionHeaderTitle>
                         </AccordionSummary>
-                        {
-                            currentData === null
-                            ? null
-                            : <AccordionDetails>
-                                <DiffView
-                                    currentTitle={t("publish.label.current")}
-                                    diffTitle={t("publish.label.diff")}
-                                    current={currentData}
-                                    modify={previousData}
-                                />
-                            </AccordionDetails>
-                        }
+                        <AccordionDetails>
+                            <DiffView
+                                currentTitle={t("publish.label.current")}
+                                diffTitle={t("publish.label.diff")}
+                                current={OldSummary}
+                                modify={Summary}
+                            />
+                        </AccordionDetails>
                         
                     </Accordion>
 
