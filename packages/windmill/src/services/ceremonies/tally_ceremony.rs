@@ -528,7 +528,7 @@ pub async fn set_private_key(
         .collect::<Vec<_>>();
 
     // enough trustees connected, so change tally execution status to connected
-    if connected_trustees.len() as i64 > keys_ceremony.threshold {
+    if connected_trustees.len() as i64 >= keys_ceremony.threshold {
         update_tally_session_status(
             auth_headers.clone(),
             tenant_id.to_string(),
