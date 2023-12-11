@@ -41,7 +41,7 @@ export const TallyElectionsProgress: React.FC = () => {
         }
     )
 
-    const {data: executions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+    const {data: execution} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
         {
             filter: {tally_session_id: tallyId},
@@ -84,9 +84,10 @@ export const TallyElectionsProgress: React.FC = () => {
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, string>) => {
-                return (
-                    <ElectionStatusItem name={props["value"] !== "" ? props["value"] : "Pending"} />
+                const election_data = execution?.[0].status?.elections_status?.find(
+                    (item: any) => item.election_id === props["id"]
                 )
+                return <ElectionStatusItem name={election_data?.status ?? "PENDING"} />
             },
         },
         {
@@ -95,15 +96,20 @@ export const TallyElectionsProgress: React.FC = () => {
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, number>) => {
+                const election_data = execution?.[0].status?.elections_status?.find((item: any) => item.election_id === props["id"])
+                
                 return (
                     <ProgressBarDiv>
-                        <BorderLinearProgress variant="determinate" value={rand} />
+                        <BorderLinearProgress
+                            variant="determinate"
+                            value={election_data?.progress ?? 0}
+                        />
                         <Typography
                             variant="body2"
                             color="text.secondary"
                             sx={{marginLeft: "1rem", display: "flex", justifyContent: "end"}}
                         >
-                            {rand}%
+                            {election_data?.progress ?? 0}%
                         </Typography>
                     </ProgressBarDiv>
                 )

@@ -486,7 +486,7 @@ services:
       "cargo",
       "watch",
       "-x",
-      "run --bin main consume -q short_queue tally_queue beat reports_queue"
+      "run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue"
     ]
     volumes:
       - ./keycloak/import:/import
