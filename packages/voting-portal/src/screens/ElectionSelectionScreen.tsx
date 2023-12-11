@@ -18,7 +18,7 @@ import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
-import {useNavigate} from "react-router-dom"
+import {useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {GetBallotStylesQuery, GetElectionsQuery} from "../gql/graphql"
@@ -30,6 +30,7 @@ import {AppDispatch} from "../store/store"
 import {DISABLE_AUTH} from "../Config"
 import {ELECTIONS_LIST} from "../fixtures/election"
 import {TenantEventContext} from ".."
+import {AuthContext} from "../providers/AuthContextProvider"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -175,6 +176,15 @@ const convertToElection = (input: IElectionDTO): IElection => ({
 })
 
 export const ElectionSelectionScreen: React.FC = () => {
+    const authContext = useContext(AuthContext)
+    let {tenantId, eventId} = useParams()
+
+    useEffect(() => {
+        if (!authContext.isAuthenticated && tenantId && eventId) {
+            authContext.login(tenantId, eventId)
+        }
+    }, [authContext, tenantId, eventId])
+
     const [ballotStyleElectionIds, setBallotStyleElectionIds] = useState<Array<string>>([])
     const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
     const {
