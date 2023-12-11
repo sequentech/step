@@ -73,26 +73,6 @@ pub async fn process_scheduled_event(
                 .await?;
             event!(Level::INFO, "Sent SET_PUBLIC_KEY task {}", task.task_id);
         }
-        EventProcessors::TALLY_ELECTION_EVENT => {
-            let payload: TallyElectionBody =
-                serde_json::from_value(event.event_payload.clone())?;
-            let election_event_id = event
-                .election_event_id
-                .ok_or(anyhow!("empty election_event_id"))?;
-            let task = celery_app
-                .send_task(tally_election_event::new(
-                    payload,
-                    event.tenant_id,
-                    election_event_id.clone(),
-                    element_id.clone(),
-                ))
-                .await?;
-            event!(
-                Level::INFO,
-                "Sent TALLY_ELECTION_EVENT task {}",
-                task.task_id
-            );
-        }
         EventProcessors::SEND_COMMUNICATION => {
             let payload: SendCommunicationBody =
                 serde_json::from_value(event.event_payload.clone())?;
