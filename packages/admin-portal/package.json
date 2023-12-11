@@ -33,7 +33,6 @@
     "lodash": "^4.17.21",
     "mui-image": "1.0.7",
     "ra-data-hasura": "0.6.0",
-    "raw-loader": "^4.0.2",
     "react": "18.1.0",
     "react-admin": "4.12.4",
     "react-admin-import-csv": "4.0.1",
