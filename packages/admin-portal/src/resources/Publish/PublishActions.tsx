@@ -2,12 +2,12 @@ import React from "react"
 
 import styled from "@emotion/styled"
 
-import { Button } from "react-admin"
-import { useTranslation } from "react-i18next"
-import { CircularProgress } from "@mui/material"
-import { Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle } from "@mui/icons-material"
+import {Button} from "react-admin"
+import {useTranslation} from "react-i18next"
+import {CircularProgress} from "@mui/material"
+import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
 
-import { EPublishStatus } from './EPublishStatus'
+import {EPublishStatus} from "./EPublishStatus"
 
 const PublishActionsStyled = {
     Container: styled.div`
@@ -18,15 +18,15 @@ const PublishActionsStyled = {
 }
 
 export type PublishActionsProps = {
-    status: null|number;
-    onPublish: () => void;
-    onGenerate: () => void;
+    status: null | number
+    onPublish: () => void
+    onGenerate: () => void
 }
 
-export const PublishActions: React.FC<PublishActionsProps> = ({ status, onPublish, onGenerate }) => {
+export const PublishActions: React.FC<PublishActionsProps> = ({status, onPublish, onGenerate}) => {
     const {t} = useTranslation()
 
-    const IconOrProgress = ({ st, Icon }: any) => {
+    const IconOrProgress = ({st, Icon}: any) => {
         return status === st && status !== EPublishStatus.Void ? (
             <CircularProgress size={16} />
         ) : (

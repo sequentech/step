@@ -138,7 +138,8 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     }
 
     const confirmNextAction = async () => {
-        let nextAction = page === 1? ITallyExecutionStatus.IN_PROGRESS : ITallyExecutionStatus.STARTED
+        let nextAction =
+            page === 1 ? ITallyExecutionStatus.IN_PROGRESS : ITallyExecutionStatus.STARTED
 
         const {data, errors} = await UpdateTallyCeremonyMutation({
             variables: {
