@@ -12,9 +12,7 @@ use strum_macros::EnumString;
 pub enum EventProcessors {
     CREATE_REPORT,
     UPDATE_VOTING_STATUS,
-    CREATE_KEYS,
     SET_PUBLIC_KEY,
-    CREATE_ELECTION_EVENT_BALLOT_STYLES,
     TALLY_ELECTION_EVENT,
     SEND_COMMUNICATION,
 }
@@ -31,5 +29,4 @@ pub struct ScheduledEvent {
     pub event_processor: Option<EventProcessors>,
     pub cron_config: Option<String>,
     pub event_payload: Option<Value>,
-    pub created_by: Option<String>,
 }

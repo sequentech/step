@@ -757,20 +757,36 @@ const spanishTranslation: TranslationType = {
                 published: "Papeleta publicada",
             },
         },
+        emailEditor: {
+            subject: "Asunto del Email",
+            tabs: {
+                plaintext: "Cuerpo de Texto Plano",
+                richtext: "Cuerpo de Texto Enriquecido",
+            },
+        },
         sendCommunication: {
             title: "Enviar Notificación",
             subtitle: "Enviar una notificación a usuarios/votantes.",
             sendButton: "Enviar Notificación",
-            voters: "Votantes",
+            voters: "Audiencia",
             schedule: "Calendario",
             nowInput: "Enviar ahora",
             dateInput: "Fecha y hora de comienzo de envío",
+            chooseDate: "Por favor escoge una fecha",
             languages: "Idiomas",
+            smsMessage: "Mensaje SMS",
+            errorSending: "Error enviando la notificación: {{error}}",
+            successSending: "Notificación programada/enviada con éxito",
             votersSelection: {
                 ALL_USERS: "Todos",
                 NOT_VOTED: "Los que no votaron",
                 VOTED: "Los que ya votaron",
-                SELECTED: "Votantes seleccionados",
+                SELECTED: "A {{total}} Votantes seleccionados",
+            },
+            methodTitle: "Método de Comunicación",
+            communicationMethod: {
+                EMAIL: "Email",
+                SMS: "SMS",
             },
             email: {
                 subject: "Subject",

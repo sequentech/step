@@ -27,7 +27,6 @@ export const EditElectionEventPublish: React.FC = () => {
                 eventProcessor: ScheduledEventType.CREATE_ELECTION_EVENT_BALLOT_STYLES,
                 cronConfig: undefined,
                 eventPayload: {},
-                createdBy: "admin",
             },
         })
         if (errors) {
