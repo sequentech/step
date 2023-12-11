@@ -9,6 +9,7 @@ export const GET_AREAS_EXTENDED = gql`
         sequent_backend_area_contest(
             where: {_and: {election_event_id: {_eq: $electionEventId}, area_id: {_eq: $areaId}}}
         ) {
+            
             contest {
                 id
                 name
