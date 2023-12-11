@@ -24,8 +24,10 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import EditIcon from "@mui/icons-material/Edit"
+import MailIcon from "@mui/icons-material/Mail"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {EditUser} from "./EditUser"
+import {SendCommunication} from "./SendCommunication"
 import {CreateUser} from "./CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {DeleteUserMutation} from "@/gql/graphql"
@@ -56,6 +58,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
 
     const [open, setOpen] = React.useState(false)
     const [openNew, setOpenNew] = React.useState(false)
+    const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState(false)
@@ -72,6 +75,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         },
     })
     const canEditUsers = authContext.isAuthorized(true, tenantId, IPermissions.VOTER_WRITE)
+    const canSendCommunications = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.NOTIFICATION_SEND
+    )
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
@@ -96,33 +104,27 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         </ResourceListStyles.EmptyBox>
     )
 
-    const handleCloseCreateDrawer = () => {
+    const handleClose = () => {
         setRecordId(undefined)
+        setOpenSendCommunication(false)
         setOpenDrawer(false)
-    }
-    const handleCloseNewDrawer = () => {
         setOpenNew(false)
-        setTimeout(() => {
-            setRecordId(undefined)
-        }, 400)
-    }
-
-    const handleCloseEditDrawer = () => {
         setOpen(false)
-        setTimeout(() => {
-            setRecordId(undefined)
-        }, 400)
     }
-
-    useEffect(() => {
-        if (recordId) {
-            setTimeout(() => {
-                setOpen(true)
-            }, 400)
-        }
-    }, [recordId])
 
     const editAction = (id: Identifier) => {
+        setOpen(true)
+        setOpenNew(false)
+        setOpenDeleteModal(false)
+        setOpenSendCommunication(false)
+        setRecordId(id as string)
+    }
+
+    const sendCommunicationAction = (id: Identifier) => {
+        setOpen(false)
+        setOpenNew(false)
+        setOpenDeleteModal(false)
+        setOpenSendCommunication(true)
         setRecordId(id as string)
     }
 
@@ -130,6 +132,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         if (!electionEventId && authContext.userId === id) {
             return
         }
+        setOpen(false)
+        setOpenNew(false)
+        setOpenSendCommunication(false)
         setOpenDeleteModal(true)
         setDeleteId(id as string)
     }
@@ -167,8 +172,21 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     }
 
     const actions: Action[] = [
-        {icon: <EditIcon />, action: editAction},
-        {icon: <DeleteIcon />, action: deleteAction},
+        {
+            icon: <MailIcon />,
+            action: sendCommunicationAction,
+            showAction: (id: Identifier) => canSendCommunications,
+        },
+        {
+            icon: <EditIcon />,
+            action: editAction,
+            showAction: (id: Identifier) => canEditUsers,
+        },
+        {
+            icon: <DeleteIcon />,
+            action: deleteAction,
+            showAction: (id: Identifier) => canEditUsers,
+        },
     ]
 
     return (
@@ -182,10 +200,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={
-                            <CreateUser
-                                electionEventId={electionEventId}
-                                close={handleCloseCreateDrawer}
-                            />
+                            <CreateUser electionEventId={electionEventId} close={handleClose} />
                         }
                     />
                 }
@@ -217,7 +232,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
             <Drawer
                 anchor="right"
                 open={open}
-                onClose={handleCloseEditDrawer}
+                onClose={handleClose}
                 PaperProps={{
                     sx: {width: "40%"},
                 }}
@@ -225,20 +240,35 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                 <EditUser
                     id={recordId}
                     electionEventId={electionEventId}
-                    close={handleCloseEditDrawer}
+                    close={handleClose}
                     rolesList={rolesList || []}
                 />
             </Drawer>
 
             <Drawer
                 anchor="right"
-                open={openNew}
-                onClose={handleCloseNewDrawer}
+                open={openSendCommunication}
+                onClose={handleClose}
                 PaperProps={{
                     sx: {width: "40%"},
                 }}
             >
-                <CreateUser electionEventId={electionEventId} close={handleCloseNewDrawer} />
+                <SendCommunication
+                    id={recordId}
+                    electionEventId={electionEventId}
+                    close={handleClose}
+                />
+            </Drawer>
+
+            <Drawer
+                anchor="right"
+                open={openNew}
+                onClose={handleClose}
+                PaperProps={{
+                    sx: {width: "40%"},
+                }}
+            >
+                <CreateUser electionEventId={electionEventId} close={handleClose} />
             </Drawer>
 
             <Dialog

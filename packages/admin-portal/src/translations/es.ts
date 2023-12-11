@@ -753,6 +753,25 @@ const spanishTranslation: TranslationType = {
                 diff: "Cambios a publicar",
             },
         },
+        sendCommunication: {
+            title: "Enviar Notificación",
+            subtitle: "Enviar una notificación a usuarios/votantes.",
+            sendButton: "Enviar Notificación",
+            voters: "Votantes",
+            schedule: "Calendario",
+            nowInput: "Enviar ahora",
+            dateInput: "Fecha y hora de comienzo de envío",
+            languages: "Idiomas",
+            votersSelection: {
+                ALL_USERS: "Todos",
+                NOT_VOTED: "Los que no votaron",
+                VOTED: "Los que ya votaron",
+                SELECTED: "Votantes seleccionados",
+            },
+            email: {
+                subject: "Subject",
+            },
+        },
     },
 }
 

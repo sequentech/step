@@ -751,6 +751,25 @@ const englishTranslation = {
                 diff: "CHANGES TO PUBLISH",
             },
         },
+        sendCommunication: {
+            title: "Send Notification",
+            subtitle: "Send a notification to voters.",
+            sendButton: "Send Notification",
+            voters: "Voters",
+            schedule: "Schedule",
+            nowInput: "Send now",
+            dateInput: "Date and time to start sending notifications",
+            languages: "Languages",
+            votersSelection: {
+                ALL_USERS: "Everyone",
+                NOT_VOTED: "Those who didn't vote yet",
+                VOTED: "Those who already voted",
+                SELECTED: "Selected voters",
+            },
+            email: {
+                subject: "Subject",
+            },
+        },
     },
 }
 

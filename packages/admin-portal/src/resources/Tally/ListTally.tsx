@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useContext, useEffect} from "react"
@@ -32,19 +33,10 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {StatusChip} from "@/components/StatusChip"
 import KeyIcon from "@mui/icons-material/Key"
 import {theme, IconButton} from "@sequentech/ui-essentials"
-import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
-import {IPermissions} from "@/types/keycloak"
+import {AuthContext} from "@/providers/AuthContextProvider"
 import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
-
-const EmptyBox = MUIStiled(Box)`
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    width: 100%;
-`
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -72,7 +64,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const [tenantId] = useTenantStore()
-    const authContext = useContext(AuthContext)
     const [_, setTallyId] = useElectionEventTallyStore()
     const [deleteOne] = useDelete()
 
@@ -105,7 +96,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     )
 
     const Empty = () => (
-        <EmptyBox m={1}>
+        <ResourceListStyles.EmptyBox>
             <Typography variant="h4" paragraph>
                 {t("electionEventScreen.tally.emptyHeader")}
             </Typography>
@@ -117,7 +108,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                     <CreateButton />
                 </>
             ) : null}
-        </EmptyBox>
+        </ResourceListStyles.EmptyBox>
     )
 
     // Returns a keys ceremony if there's any in which we have been required to
