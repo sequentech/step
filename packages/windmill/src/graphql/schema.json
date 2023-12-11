@@ -6792,8 +6792,6 @@
             "deprecationReason": null
           },
           {
-<<<<<<< HEAD
-=======
             "name": "get_ballot_publication_changes",
             "description": null,
             "args": [
@@ -6835,7 +6833,6 @@
             "deprecationReason": null
           },
           {
->>>>>>> origin/main
             "name": "get_private_key",
             "description": "get private key",
             "args": [
