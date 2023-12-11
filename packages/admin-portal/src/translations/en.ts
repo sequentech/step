@@ -770,6 +770,7 @@ const englishTranslation = {
             languages: "Languages",
             smsMessage: "SMS Message",
             errorSending: "Error sending the notification: {{error}}",
+            successSending: "Notification programmed/sent successfully",
             votersSelection: {
                 ALL_USERS: "Everyone",
                 NOT_VOTED: "Those who didn't vote yet",

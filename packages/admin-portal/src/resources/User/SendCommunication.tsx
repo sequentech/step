@@ -2,7 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-import {SaveButton, SimpleForm, useListContext, Toolbar, DateTimeInput} from "react-admin"
+import {
+    SaveButton,
+    SimpleForm,
+    useListContext,
+    useNotify,
+    Toolbar,
+    DateTimeInput,
+} from "react-admin"
 import {AccordionDetails, AccordionSummary, MenuItem, FormControlLabel, Switch} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {SubmitHandler} from "react-hook-form"
@@ -96,6 +103,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     const {data, isLoading} = useListContext()
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
+    const notify = useNotify()
     const [errors, setErrors] = useState<String | null>(null)
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const [showProgress, setShowProgress] = useState(false)
@@ -113,22 +121,12 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         i18n: {
             en: {
                 email: {
-                    subject: globalSettings.DEFAULT_EMAIL_SUBJECT,
-                    plaintext_body: globalSettings.DEFAULT_EMAIL_PLAINTEXT_BODY,
-                    html_body: globalSettings.DEFAULT_EMAIL_HTML_BODY,
+                    subject: globalSettings.DEFAULT_EMAIL_SUBJECT["en"] ?? "",
+                    plaintext_body: globalSettings.DEFAULT_EMAIL_PLAINTEXT_BODY["en"] ?? "",
+                    html_body: globalSettings.DEFAULT_EMAIL_HTML_BODY["en"] ?? "",
                 },
                 sms: {
-                    message: "",
-                },
-            },
-            es: {
-                email: {
-                    subject: "",
-                    plaintext_body: "",
-                    html_body: "",
-                },
-                sms: {
-                    message: "",
+                    message: globalSettings.DEFAULT_SMS_MESSAGE["en"] ?? "",
                 },
             },
         },
@@ -156,19 +154,27 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     const onSubmit: SubmitHandler<any> = async (formData: ICommunication) => {
         setErrors(null)
         setShowProgress(true)
-        const {data, errors} = await createScheduledEvent({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: electionEventId,
-                eventProcessor: ScheduledEventType.CREATE_REPORT,
-                cronConfig: undefined,
-                eventPayload: getPayload(formData),
-            },
-        })
-        setShowProgress(false)
-        if (errors) {
-            setErrors(t("sendCommunication.errorSending", {error: errors.toString()}))
-            return
+        try {
+            const {data, errors} = await createScheduledEvent({
+                variables: {
+                    tenantId: tenantId,
+                    electionEventId: electionEventId,
+                    eventProcessor: ScheduledEventType.CREATE_REPORT,
+                    cronConfig: undefined,
+                    eventPayload: getPayload(formData),
+                },
+            })
+            setShowProgress(false)
+            if (errors) {
+                setErrors(t("sendCommunication.errorSending", {error: errors.toString()}))
+                return
+            } else {
+                notify(t("sendCommunication.successSending"), {type: "success"})
+                close?.()
+            }
+        } catch (error: any) {
+            setShowProgress(false)
+            setErrors(t("sendCommunication.errorSending", {error: error.toString()}))
         }
     }
 

@@ -772,6 +772,7 @@ const spanishTranslation: TranslationType = {
             languages: "Idiomas",
             smsMessage: "Mensaje SMS",
             errorSending: "Error enviando la notificación: {{error}}",
+            successSending: "Notificación programada/enviada con éxito",
             votersSelection: {
                 ALL_USERS: "Todos",
                 NOT_VOTED: "Los que no votaron",
