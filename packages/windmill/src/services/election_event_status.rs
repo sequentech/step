@@ -49,6 +49,8 @@ pub async fn update_event_voting_status(
     let mut status =
         get_election_event_status(election_event.status.clone()).unwrap_or(ElectionEventStatus {
             config_created: Some(false),
+            keys_ceremony_finished: Some(false),
+            tally_ceremony_finished: Some(false),
             voting_status: VotingStatus::NOT_STARTED,
         });
 
