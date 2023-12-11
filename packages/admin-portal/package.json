@@ -24,6 +24,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "diff": "^5.1.0",
+    "fs-extra": "^11.2.0",
     "graphql": "16.7.1",
     "i18next": "^21.8.16",
     "i18next-browser-languagedetector": "^6.1.4",
@@ -32,7 +33,6 @@
     "lodash": "^4.17.21",
     "mui-image": "1.0.7",
     "ra-data-hasura": "0.6.0",
-    "raw-loader": "^4.0.2",
     "react": "18.1.0",
     "react-admin": "4.12.4",
     "react-admin-import-csv": "4.0.1",
@@ -68,7 +68,8 @@
     "build:storybook": "NODE_OPTIONS=--openssl-legacy-provider sb build -s public",
     "test:storybook": "NODE_OPTIONS=--openssl-legacy-provider test-storybook",
     "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
-    "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=admin graphql-codegen --config codegen.ts"
+    "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=admin graphql-codegen --config codegen.ts",
+    "postinstall": "node ./postinstall.js"
   },
   "proxy": "https://i.imgur.com",
   "browserslist": {
