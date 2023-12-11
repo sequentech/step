@@ -518,6 +518,7 @@ custom_types:
   - name: SampleOutput
   - name: CreateElectionEventOutput
   - name: InsertTenantOutput
+  - name: KeycloakUserArea
   - name: KeycloakUser
   - name: GetUsersOutput
   - name: GetPermissionsOutput

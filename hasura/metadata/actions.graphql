@@ -462,8 +462,8 @@ type InsertTenantOutput {
 }
 
 type KeycloakUserArea {
-  id: uuid
-  name: String
+  id : uuid
+  name : String
 }
 
 type KeycloakUser {
