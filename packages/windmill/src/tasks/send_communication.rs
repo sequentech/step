@@ -13,11 +13,16 @@ use crate::tasks::send_communication::get_election_event::GetElectionEventSequen
 use crate::types::error::Result;
 
 use anyhow::{anyhow, Context};
-use braid_messages::newtypes::BatchNumber;
-use celery::error::TaskError;
-use lettre::message::header::ContentType;
+
+use aws_config::meta::region::RegionProviderChain;
+use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as AwsMessage};
+use aws_sdk_sesv2::{config::Region, meta::PKG_VERSION, Client as AwsClient, Error};
+use lettre::message::{header::ContentType, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
+
+use braid_messages::newtypes::BatchNumber;
+use celery::error::TaskError;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::services::{keycloak, pdf, reports};
 use sequent_core::types::ceremonies::*;
@@ -120,14 +125,125 @@ fn get_variables(
             )),
         );
     }
-    return Ok(variables);
+    Ok(variables)
 }
 
-#[instrument]
-fn send_communication_email(
+enum EmailTransport {
+    AwsSes(AwsClient),
+    Console,
+}
+
+struct EmailSender {
+    transport: EmailTransport,
+    email_from: String,
+}
+
+impl EmailSender {
+    async fn new() -> Result<Self> {
+        let email_from =
+            std::env::var("EMAIL_FROM").map_err(|err| anyhow!("EMAIL_FROM env var missing"))?;
+        let email_transport_name = std::env::var("EMAIL_TRANSPORT_NAME")
+            .map_err(|err| anyhow!("EMAIL_TRANSPORT_NAME env var missing"))?;
+
+        event!(
+            Level::INFO,
+            "EmailTransport: from_address={email_from}, email_transport_name={email_transport_name}"
+        );
+
+        Ok(EmailSender {
+            transport: match email_transport_name.as_str() {
+                "AwsSes" => {
+                    let region_provider = RegionProviderChain::first_try(Region::new(
+                        std::env::var("AWS_REGION")
+                            .map_err(|err| anyhow!("AWS_REGION env var missing"))?,
+                    ))
+                    .or_default_provider()
+                    .or_else(Region::new("us-west-2"));
+                    let shared_config = aws_config::from_env().region(region_provider).load().await;
+                    EmailTransport::AwsSes(AwsClient::new(&shared_config))
+                }
+                _ => EmailTransport::Console,
+            },
+            email_from,
+        })
+    }
+
+    async fn send(
+        &self,
+        receiver: String,
+        subject: String,
+        plaintext_body: String,
+        html_body: String,
+    ) -> Result<()> {
+        match self.transport {
+            EmailTransport::AwsSes(ref aws_client) => {
+                event!(
+                    Level::INFO,
+                    "EmailTransport::AwsSes: Sending email:\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
+                );
+                let mut dest: Destination = Destination::builder().build();
+                dest.to_addresses = Some(vec![receiver]);
+                let subject_content = Content::builder()
+                    .data(subject)
+                    .charset("UTF-8")
+                    .build()
+                    .map_err(|err| anyhow!("invalid subject: {:?}", err))?;
+                let body_content = Content::builder()
+                    .data(plaintext_body)
+                    .charset("UTF-8")
+                    .build()
+                    .map_err(|err| anyhow!("invalid body: {:?}", err))?;
+                let body = Body::builder().text(body_content).build();
+
+                let msg = AwsMessage::builder()
+                    .subject(subject_content)
+                    .body(body)
+                    .build();
+
+                let email_content = EmailContent::builder().simple(msg).build();
+
+                aws_client
+                    .send_email()
+                    .from_email_address(self.email_from.as_str())
+                    .destination(dest)
+                    .content(email_content)
+                    .send()
+                    .await
+                    .map_err(|err| anyhow!("invalid subject: {:?}", err))?;
+            }
+            EmailTransport::Console => {
+                let email = Message::builder()
+                    .from(
+                        self.email_from
+                            .parse()
+                            .map_err(|err| anyhow!("invalid email_from: {:?}", err))?,
+                    )
+                    .to(receiver
+                        .parse()
+                        .map_err(|err| anyhow!("invalid receiver: {:?}", err))?)
+                    .subject(subject.clone())
+                    .multipart(MultiPart::alternative_plain_html(
+                        plaintext_body.clone(),
+                        html_body.clone(),
+                    ))
+                    .map_err(|error| format!("{:?}", error))?;
+
+                event!(
+                    Level::INFO,
+                    "EmailTransport::Console: Sending email:\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
+#[instrument(skip(sender))]
+async fn send_communication_email(
     receiver: &Option<String>,
     template: &Option<EmailConfig>,
     variables: &Map<String, Value>,
+    sender: &EmailSender,
 ) -> Result<()> {
     event!(
         Level::INFO,
@@ -140,10 +256,10 @@ fn send_communication_email(
             reports::render_template_text(config.plaintext_body.as_str(), variables.clone())?;
         let html_body =
             reports::render_template_text(config.html_body.as_str(), variables.clone())?;
-        event!(
-            Level::INFO,
-            "Sending email:\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
-        );
+
+        sender
+            .send(receiver.to_string(), subject, plaintext_body, html_body)
+            .await?;
     } else {
         event!(Level::INFO, "Receiver empty, ignoring..");
     }
@@ -198,40 +314,44 @@ pub async fn send_communication(
         None,
     )
     .await?;
-    users
-        .iter()
-        .filter(|user| {
-            (body.audience_selection == AudienceSelection::ALL_USERS
-                || (body.audience_selection == AudienceSelection::SELECTED
-                    && user.id.is_some()
-                    && body
-                        .audience_voter_ids
-                        .as_ref()
-                        .unwrap_or(&vec![])
-                        .contains(&user.id.as_ref().unwrap())))
-        })
-        .try_for_each(|user| -> Result<()> {
-            event!(
-                Level::INFO,
-                "Sending communication to user with id={:?} and email={:?}",
-                id = user.id,
-                email = user.email,
-            );
-            let variables: Map<String, Value> =
-                get_variables(user, election_event.clone(), tenant_id.clone())?;
-            match body.communication_method {
-                CommunicationMethod::EMAIL => {
-                    send_communication_email(
-                        /* to */ &user.email,
-                        /* template */ &body.email,
-                        /* variables */ &Default::default(),
-                    )?;
+
+    let email_sender = EmailSender::new().await?;
+
+    for user in users.iter().filter(|user| {
+        (body.audience_selection == AudienceSelection::ALL_USERS
+            || (body.audience_selection == AudienceSelection::SELECTED
+                && user.id.is_some()
+                && body
+                    .audience_voter_ids
+                    .as_ref()
+                    .unwrap_or(&vec![])
+                    .contains(&user.id.as_ref().unwrap())))
+    }) {
+        event!(
+            Level::INFO,
+            "Sending communication to user with id={:?} and email={:?}",
+            id = user.id,
+            email = user.email,
+        );
+        let variables: Map<String, Value> =
+            get_variables(user, election_event.clone(), tenant_id.clone())?;
+        match body.communication_method {
+            CommunicationMethod::EMAIL => {
+                let sending_result = send_communication_email(
+                    /* to */ &user.email,
+                    /* template */ &body.email,
+                    /* variables */ &variables,
+                    /* sender */ &email_sender,
+                )
+                .await;
+                if let Err(error) = sending_result {
+                    event!(Level::ERROR, "error sending email: {error:?}, continuing..");
                 }
-                CommunicationMethod::SMS => {
-                    event!(Level::INFO, "TODO: Send SMS");
-                }
-            };
-            Ok(())
-        })?;
+            }
+            CommunicationMethod::SMS => {
+                event!(Level::INFO, "TODO: Send SMS");
+            }
+        };
+    }
     Ok(())
 }
