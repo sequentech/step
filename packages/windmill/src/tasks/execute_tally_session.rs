@@ -373,8 +373,6 @@ async fn save_results(
                     Some(contest.contest_result.total_invalid_votes as i64),
                     None, // implicit_invalid_votes
                     None, // blank_votes
-                    contest.contest.voting_type.clone(),
-                    contest.contest.counting_algorithm.clone(),
                 )
                 .await?;
 

@@ -1,4 +1,4 @@
-import React from "react"
+import React, {useContext, useEffect, useState} from "react"
 
 import styled from "@emotion/styled"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -11,6 +11,11 @@ import OldSummary from "./election-publish-old.json"
 import {DiffView} from "@/components/DiffView"
 import {PublishActions} from "./PublishActions"
 import {useTranslation} from "react-i18next"
+import {useMutation} from "@apollo/client"
+import {GENERATE_BALLOT_PUBLICATION} from "@/queries/GenerateBallotPublication"
+import {PUBLISH_BALLOT} from "@/queries/PublishBallot"
+import {GenerateBallotPublicationMutation, PublishBallotMutation} from "@/gql/graphql"
+import {PublishContext} from "@/providers/PublishContextProvider"
 
 const PublishStyled = {
     Container: styled.div`
@@ -34,13 +39,69 @@ const PublishStyled = {
     `,
 }
 
-export const Publish: React.FC = () => {
+export interface PublishProps {
+    electionEventId: string
+    electionId?: string
+}
+
+export const Publish: React.FC<PublishProps> = ({electionEventId, electionId}) => {
     const {t} = useTranslation()
-    const [expan, setExpan] = React.useState<string>("election-publish-diff")
+    const [expan, setExpan] = useState<string>("election-publish-diff")
+    const publishContext = useContext(PublishContext)
+    const [isPublished, setIsPublished] = useState<boolean>(false)
+    const [generateBallotPublication] = useMutation<GenerateBallotPublicationMutation>(
+        GENERATE_BALLOT_PUBLICATION
+    )
+    const [publishBallot] = useMutation<PublishBallotMutation>(PUBLISH_BALLOT)
+
+    const generateNewPublication = async () => {
+        const {data} = await generateBallotPublication({
+            variables: {
+                electionEventId,
+                electionId,
+            },
+        })
+
+        if (data?.generate_ballot_publication?.ballot_publication_id) {
+            setIsPublished(false)
+            publishContext.setBallotPublicationId(
+                data.generate_ballot_publication?.ballot_publication_id
+            )
+        }
+    }
+
+    useEffect(() => {
+        if (
+            publishContext.electionEventId !== electionEventId ||
+            publishContext.electionId !== electionId
+        ) {
+            publishContext.setEvent(electionEventId, electionId || null)
+        }
+        if (!publishContext.electionEventId || publishContext.ballotPublicationId) {
+            return
+        }
+        generateNewPublication()
+    }, [publishContext.electionEventId, publishContext.electionId])
+
+    const onPublish = async () => {
+        if (!publishContext.ballotPublicationId) {
+            return
+        }
+        const {data} = await publishBallot({
+            variables: {
+                electionEventId,
+                ballotPublicationId: publishContext.ballotPublicationId,
+            },
+        })
+
+        if (data?.publish_ballot?.ballot_publication_id) {
+            setIsPublished(true)
+        }
+    }
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
-            <PublishActions />
+            <PublishActions onPublish={onPublish} onGenerate={generateNewPublication} />
 
             <PublishStyled.Container>
                 <Accordion
