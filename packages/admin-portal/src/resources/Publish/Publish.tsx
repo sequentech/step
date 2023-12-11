@@ -3,7 +3,7 @@ import React, {ComponentType, useEffect, useRef, useState} from "react"
 import styled from "@emotion/styled"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import {useGetList} from "react-admin"
+import {useGetList, useNotify} from "react-admin"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {Box, Accordion, AccordionDetails, AccordionSummary} from "@mui/material"
@@ -56,12 +56,13 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         let current: any
 
         const {t} = useTranslation()
+        const notify = useNotify()
         const ref = useRef(null)
         const [expan, setExpan] = useState<string>("election-publish-diff")
         const [status, setStatus] = useState<null | number>(EPublishStatus.Void)
         const [ballotPublicationId, setBallotPublicationId] = useState<null | string>(null)
-        const [currentData, setCurrentData] = useState<any>(OldSummary)
-        const [previousData, setPreviousData] = useState<any>(Summary)
+        const [currentData, setCurrentData] = useState<any>(null)
+        const [previousData, setPreviousData] = useState<any>([])
 
         const {data, isLoading, error, refetch} = useGetList<Sequent_Backend_Ballot_Publication>(
             "sequent_backend_ballot_publication",
@@ -101,6 +102,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             })
 
             setStatus(EPublishStatus.Void)
+            notify(t("publish.notifications.generated"), {type: "success"})
 
             if (data?.generate_ballot_publication?.ballot_publication_id) {
                 setBallotPublicationId(data?.generate_ballot_publication?.ballot_publication_id)
@@ -163,14 +165,19 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                                 {t("publish.header.change")}
                             </PublishStyled.AccordionHeaderTitle>
                         </AccordionSummary>
-                        <AccordionDetails>
-                            <DiffView
-                                currentTitle={t("publish.label.current")}
-                                diffTitle={t("publish.label.diff")}
-                                current={currentData}
-                                modify={previousData}
-                            />
-                        </AccordionDetails>
+                        {
+                            currentData === null
+                            ? null
+                            : <AccordionDetails>
+                                <DiffView
+                                    currentTitle={t("publish.label.current")}
+                                    diffTitle={t("publish.label.diff")}
+                                    current={currentData}
+                                    modify={previousData}
+                                />
+                            </AccordionDetails>
+                        }
+                        
                     </Accordion>
 
                     <Accordion
