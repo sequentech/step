@@ -21,6 +21,10 @@ use std::collections::{HashMap, HashSet};
 use std::default::Default;
 use strum_macros::{Display, EnumString};
 use tracing::{event, instrument, Level};
+use lettre::message::header::ContentType;
+use lettre::transport::smtp::authentication::Credentials;
+use lettre::{Message, SmtpTransport, Transport};
+
 
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
@@ -77,6 +81,18 @@ pub struct SendCommunicationBody {
     sms: Option<SmsConfig>,
 }
 
+fn send_communication_email(
+    receiver: &Option<String>,
+    template: &Option<EmailConfig>
+) -> Result<()> {
+    event!(
+        Level::INFO,
+        "TODO: Send email receiver={:?}",
+        receiver=receiver,
+    );
+    Ok(())
+}
+
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
@@ -122,13 +138,25 @@ pub async fn send_communication(
                     .contains(&user.id.as_ref().unwrap())
             )
         ))
-        .for_each(|user| {
+        .try_for_each(|user| -> Result<()> {
             event!(
                 Level::INFO,
                 "Sending communication to user with id={:?} and email={:?}",
                 id=user.id,
                 email=user.email,
             );
-        });
+            match body.communication_method {
+                CommunicationMethod::EMAIL => {
+                    send_communication_email(
+                        /* to */ &user.email,
+                        /* template */ &body.email,
+                    )?;
+                },
+                CommunicationMethod::SMS => {
+                    event!(Level::INFO,"TODO: Send SMS");
+                },
+            };
+            Ok(())
+        })?;
     Ok(())
 }
