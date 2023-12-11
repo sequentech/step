@@ -267,7 +267,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                     <CancelButton className="list-actions" onClick={() => setTallyId(null)}>
                         {t("tally.common.cancel")}
                     </CancelButton>
-                    {page === WizardSteps.Start && (
+                    {page < WizardSteps.Status && (
                         <NextButton
                             color="primary"
                             onClick={() => setPage(WizardSteps.Status)}
