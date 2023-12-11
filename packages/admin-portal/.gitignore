@@ -43,3 +43,5 @@ Cargo.lock
 rust-toolchain
 result
 #rust/pkg
+
+/public/tinymce/

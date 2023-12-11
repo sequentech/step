@@ -1,6 +1,6 @@
 import React, {useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
-//import BundledEditor from './BundledEditor'
+import Editor from "@/components/Editor"
 import {Tabs, Tab} from "@mui/material"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
@@ -18,7 +18,6 @@ type EmailEditorProps = {
 }
 
 export const EmailEditor: React.FC<EmailEditorProps> = ({record, setRecord}) => {
-    const editorRef = useRef<any>(null)
     const {t} = useTranslation()
     const [tab, setTab] = useState<number>(0)
 
@@ -26,6 +25,15 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({record, setRecord}) => 
         const {name, value} = e.target
         setRecord({...(record as any), [name]: value})
     }
+
+    const editorRef = useRef<any>(null)
+
+    const log = () => {
+        if (editorRef.current) {
+            console.log(editorRef.current.getContent())
+        }
+    }
+
     const changeTab = (event: React.SyntheticEvent, newValue: number) => {
         setTab(newValue)
     }
@@ -33,6 +41,7 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({record, setRecord}) => 
     if (!record) {
         return <></>
     }
+
     return (
         <>
             <FormStyles.TextField
@@ -56,24 +65,11 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({record, setRecord}) => 
                 />
             </CustomTabPanel>
             <CustomTabPanel key="richtext" value={tab} index={1}>
-                {/*<BundledEditor
-                    onInit={(evt: any, editor: any) => editorRef.current = editor}
-                    initialValue={globalSettings.DEFAULT_EMAIL_HTML_BODY}
-                    init={{
-                        height: 500,
-                        menubar: true,
-                        plugins: [
-                            'advlist autolink lists link image charmap preview anchor',
-                            'searchreplace visualblocks code fullscreen',
-                            'insertdatetime media table paste code help wordcount'
-                        ],
-                        toolbar: 'undo redo | formatselect | ' +
-                        'bold italic backcolor | alignleft aligncenter ' +
-                        'alignright alignjustify | bullist numlist outdent indent | ' +
-                        'removeformat | help',
-                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }'
-                    }}
-                />*/}
+                <Editor
+                    editorRef={editorRef}
+                    initialValue={globalSettings.DEFAULT_EMAIL_HTML_BODY.en}
+                ></Editor>
+                <button onClick={log}>Log editor content</button>
             </CustomTabPanel>
         </>
     )
