@@ -16,11 +16,11 @@ const globalSettings: GlobalSettings = {
     ONLINE_VOTING_CLIENT_ID: "admin-portal",
     KEYCLOAK_URL: "http://127.0.0.1:8090/",
     APP_VERSION: "10.0.0",
-    DEFAULT_EMAIL_SUBJECT: {en: "Participate in __TITLE__"},
-    DEFAULT_EMAIL_HTML_BODY: {en: "<p>Vote in __URL__ with Code __CODE__</p>"},
-    DEFAULT_EMAIL_PLAINTEXT_BODY: {en: "Vote in __URL__ with Code __CODE__"},
+    DEFAULT_EMAIL_SUBJECT: {en: "Participate in {{title}}"},
+    DEFAULT_EMAIL_HTML_BODY: {en: "<p>Enter in {{vote_url}} to vote</p>"},
+    DEFAULT_EMAIL_PLAINTEXT_BODY: {en: "Enter in {{vote_url}} to vote"},
     DEFAULT_SMS_MESSAGE: {
-        en: "Your authentication code is __CODE__ and is valid for __expiration_mins__ minutes.",
+        en: "Enter in {{vote_url}} to vote",
     },
 }
 
