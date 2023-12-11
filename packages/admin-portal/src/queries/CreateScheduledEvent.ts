@@ -6,7 +6,7 @@ import {gql} from "@apollo/client"
 export const CREATE_SCHEDULED_EVENT = gql`
     mutation CreateScheduledEvent(
         $tenantId: String!
-        $electionEventId: String!
+        $electionEventId: String
         $eventProcessor: String!
         $cronConfig: String
         $eventPayload: jsonb!
