@@ -525,9 +525,13 @@ pub async fn set_private_key(
         .trustees
         .iter()
         .map(|trustee| {
-            let mut new_trustee = trustee.clone();
-            new_trustee.status = TallyTrusteeStatus::KEY_RESTORED;
-            new_trustee
+            if trustee.name == found_trustee.name {
+                let mut new_trustee = trustee.clone();
+                new_trustee.status = TallyTrusteeStatus::KEY_RESTORED;
+                new_trustee
+            } else {
+                trustee.clone()
+            }
         })
         .collect();
     insert_tally_session_execution(
