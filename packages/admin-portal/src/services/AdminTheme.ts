@@ -95,6 +95,19 @@ export const fullAdminTheme = {
                 },
             },
         },
+        MuiDrawer: {
+            styleOverrides: {
+                root: {
+                    "& .MuiDrawer-paper": {
+                        width: "50%",
+                    },
+                    // doesn't work but it's a good try..
+                    [mixedAdminTheme.breakpoints.down("xs") + "& .MuiDrawer-paper"]: {
+                        width: "50%",
+                    },
+                },
+            },
+        },
         RaLayout: {
             styleOverrides: {
                 root: {

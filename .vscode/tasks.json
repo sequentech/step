@@ -65,7 +65,7 @@
         },
         {
             "label": "logs: windmill",
-            "command": "bash",
+            "command": "docker",
             "args": [
                 "compose",
                 "logs",

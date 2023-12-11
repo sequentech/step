@@ -10,7 +10,6 @@ export const CREATE_SCHEDULED_EVENT = gql`
         $eventProcessor: String!
         $cronConfig: String
         $eventPayload: jsonb!
-        $createdBy: String!
     ) {
         createScheduledEvent(
             tenant_id: $tenantId
@@ -18,7 +17,6 @@ export const CREATE_SCHEDULED_EVENT = gql`
             event_processor: $eventProcessor
             cron_config: $cronConfig
             event_payload: $eventPayload
-            created_by: $createdBy
         ) {
             id
         }

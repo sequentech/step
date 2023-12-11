@@ -4,6 +4,10 @@ type GlobalSettings = {
     ONLINE_VOTING_CLIENT_ID: string
     KEYCLOAK_URL: string
     APP_VERSION: string
+    DEFAULT_EMAIL_SUBJECT: {[langCode: string]: string}
+    DEFAULT_EMAIL_HTML_BODY: {[langCode: string]: string}
+    DEFAULT_EMAIL_PLAINTEXT_BODY: {[langCode: string]: string}
+    DEFAULT_SMS_MESSAGE: {[langCode: string]: string}
 }
 
 const globalSettings: GlobalSettings = {
@@ -12,6 +16,12 @@ const globalSettings: GlobalSettings = {
     ONLINE_VOTING_CLIENT_ID: "admin-portal",
     KEYCLOAK_URL: "http://127.0.0.1:8090/",
     APP_VERSION: "10.0.0",
+    DEFAULT_EMAIL_SUBJECT: {en: "Participate in {{title}}"},
+    DEFAULT_EMAIL_HTML_BODY: {en: "<p>Enter in {{vote_url}} to vote</p>"},
+    DEFAULT_EMAIL_PLAINTEXT_BODY: {en: "Enter in {{vote_url}} to vote"},
+    DEFAULT_SMS_MESSAGE: {
+        en: "Enter in {{vote_url}} to vote",
+    },
 }
 
 export default globalSettings
