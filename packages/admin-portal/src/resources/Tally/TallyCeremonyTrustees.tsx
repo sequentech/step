@@ -78,7 +78,6 @@ export const TallyCeremonyTrustees: React.FC = () => {
         }
     }, [data])
 
-
     const CancelButton = styled(Button)`
         background-color: ${({theme}) => theme.palette.white};
         color: ${({theme}) => theme.palette.brandColor};
@@ -251,7 +250,11 @@ export const TallyCeremonyTrustees: React.FC = () => {
                         {t("tally.common.cancel")}
                     </CancelButton>
                     {page === WizardSteps.Start && (
-                        <NextButton color="primary" onClick={() => setPage(WizardSteps.Status)} disabled={!verified}>
+                        <NextButton
+                            color="primary"
+                            onClick={() => setPage(WizardSteps.Status)}
+                            disabled={!verified}
+                        >
                             <>
                                 {t("tally.common.next")}
                                 <ChevronRightIcon />
@@ -260,7 +263,6 @@ export const TallyCeremonyTrustees: React.FC = () => {
                     )}
                 </TallyStyles.StyledFooter>
             </WizardStyles.WizardWrapper>
-
         </>
     )
 }

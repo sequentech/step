@@ -220,7 +220,8 @@ const englishTranslation = {
                     success: "Finished",
                 },
                 notify: {
-                    participateNow: "You have been invited to participate in a Keys ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
+                    participateNow:
+                        "You have been invited to participate in a Keys ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
             },
             tabs: {
@@ -331,10 +332,13 @@ const englishTranslation = {
                     repeatPassword: "Repeat Password",
                     passwordMismatch: "Passwords must match",
                     passwordLengthValidate: "Password must be at least 8 characters long",
-                    passwordUppercaseValidate: "Password must contain at least one uppercase letter",
-                    passwordLowercaseValidate: "Password must contain at least one lowercase letter",
+                    passwordUppercaseValidate:
+                        "Password must contain at least one uppercase letter",
+                    passwordLowercaseValidate:
+                        "Password must contain at least one lowercase letter",
                     passwordDigitValidate: "Password must contain at least one digit",
-                    passwordSpecialCharValidate: "Password must contain at least one special character",
+                    passwordSpecialCharValidate:
+                        "Password must contain at least one special character",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",
@@ -732,21 +736,40 @@ const englishTranslation = {
         },
         publish: {
             header: {
-                change: 'Changes to be Publish',
-                history: 'Publish History'
+                change: "Changes to be Publish",
+                history: "Publish History",
             },
             action: {
-                start: 'START ELECTION',
-                stop: 'STOP ELECTION',
-                pause: 'PAUSE',
-                generate: 'REGENERATE',
-                publish: 'PUBLISH CHANGES'
+                start: "START ELECTION",
+                stop: "STOP ELECTION",
+                pause: "PAUSE",
+                generate: "REGENERATE",
+                publish: "PUBLISH CHANGES",
             },
             label: {
-                current: 'Current',
-                diff: 'CHANGES TO PUBLISH'
-            }
-        }
+                current: "Current",
+                diff: "CHANGES TO PUBLISH",
+            },
+        },
+        sendCommunication: {
+            title: "Send Notification",
+            subtitle: "Send a notification to voters.",
+            sendButton: "Send Notification",
+            voters: "Voters",
+            schedule: "Schedule",
+            nowInput: "Send now",
+            dateInput: "Date and time to start sending notifications",
+            languages: "Languages",
+            votersSelection: {
+                ALL_USERS: "Everyone",
+                NOT_VOTED: "Those who didn't vote yet",
+                VOTED: "Those who already voted",
+                SELECTED: "Selected voters",
+            },
+            email: {
+                subject: "Subject",
+            },
+        },
     },
 }
 

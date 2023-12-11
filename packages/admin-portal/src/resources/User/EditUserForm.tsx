@@ -37,7 +37,7 @@ import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {isUndefined} from "@sequentech/ui-essentials"
 import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
 import {SET_USER_ROLE} from "@/queries/SetUserRole"
-import { FormStyles } from "@/components/styles/FormStyles"
+import {FormStyles} from "@/components/styles/FormStyles"
 
 interface ListUserRolesProps {
     userId: string
@@ -179,9 +179,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         first_name: user?.first_name,
                         last_name: user?.last_name,
                         enabled: user?.enabled,
-                        password: (user?.password && user?.password.length > 0)
-                            ? user.password
-                            : undefined,
+                        password:
+                            user?.password && user?.password.length > 0 ? user.password : undefined,
                         email: user?.email,
                         attributes: {
                             "area-id": [user?.attributes?.["area-id"]?.[0]],
@@ -229,7 +228,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             return
         }
 
-        const hasEnoughChars = (value.length < 8)
+        const hasEnoughChars = value.length < 8
         const hasUpperCase = /[A-Z]/.test(value)
         const hasLowerCase = /[a-z]/.test(value)
         const hasDigit = /\d/.test(value)
@@ -264,7 +263,6 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             return t("usersAndRolesScreen.users.fields.passwordMismatch")
         }
     }
-    
 
     return (
         <PageHeaderStyles.Wrapper>
@@ -316,12 +314,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     />
                     <FormStyles.CheckboxControlLabel
                         label={t("usersAndRolesScreen.users.fields.enabled")}
-                        control={<Checkbox
-                            checked={user.enabled || false}
-                            onChange={(event: any) => {
-                                setUser({...user, enabled: event.target.checked})
-                            }}
-                        />}
+                        control={
+                            <Checkbox
+                                checked={user.enabled || false}
+                                onChange={(event: any) => {
+                                    setUser({...user, enabled: event.target.checked})
+                                }}
+                            />
+                        }
                     />
                     {electionEventId ? (
                         <FormControl fullWidth>

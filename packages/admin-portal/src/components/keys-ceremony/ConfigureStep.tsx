@@ -26,7 +26,7 @@ import {isNumber} from "lodash"
 import {CREATE_KEYS_CEREMONY} from "@/queries/CreateKeysCeremony"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {isNull, Dialog} from "@sequentech/ui-essentials"
-import { WizardStyles } from "@/components/styles/WizardStyles"
+import {WizardStyles} from "@/components/styles/WizardStyles"
 
 export interface ConfigureStepProps {
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
@@ -244,11 +244,11 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                 row={false}
                             />
                         ) : null}
-                        {errors
-                            ? <WizardStyles.ErrorMessage variant="body2">
+                        {errors ? (
+                            <WizardStyles.ErrorMessage variant="body2">
                                 {errors}
                             </WizardStyles.ErrorMessage>
-                            : null}
+                        ) : null}
                         {isLoading ? <CircularProgress /> : null}
                     </WizardStyles.MainContent>
                 </SimpleForm>

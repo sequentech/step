@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { TranslationType } from "./en"
+import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
@@ -334,10 +334,13 @@ const spanishTranslation: TranslationType = {
                     repeatPassword: "Repetir Contraseña",
                     passwordMismatch: "Las contraseñas deben de coincidir",
                     passwordLengthValidate: "La contraseña debe tener al menos 8 caracteres",
-                    passwordUppercaseValidate: "La contraseña debe contener al menos una letra mayúscula",
-                    passwordLowercaseValidate: "La contraseña debe contener al menos una letra minúscula",
+                    passwordUppercaseValidate:
+                        "La contraseña debe contener al menos una letra mayúscula",
+                    passwordLowercaseValidate:
+                        "La contraseña debe contener al menos una letra minúscula",
                     passwordDigitValidate: "La contraseña debe contener al menos un dígito",
-                    passwordSpecialCharValidate: "La contraseña debe contener al menos un carácter especial"
+                    passwordSpecialCharValidate:
+                        "La contraseña debe contener al menos un carácter especial",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
@@ -735,21 +738,40 @@ const spanishTranslation: TranslationType = {
         },
         publish: {
             header: {
-                change: 'Cambios a publicar',
-                history: 'Historico de cambios'
+                change: "Cambios a publicar",
+                history: "Historico de cambios",
             },
             action: {
-                start: 'Empezar elección',
-                stop: 'Parar eleccion',
-                pause: 'pausar',
-                generate: 'regenerar',
-                publish: 'publicar cambios'
+                start: "Empezar elección",
+                stop: "Parar eleccion",
+                pause: "pausar",
+                generate: "regenerar",
+                publish: "publicar cambios",
             },
             label: {
-                current: 'Actual',
-                diff: 'Cambios a publicar'
-            }
-        }
+                current: "Actual",
+                diff: "Cambios a publicar",
+            },
+        },
+        sendCommunication: {
+            title: "Enviar Notificación",
+            subtitle: "Enviar una notificación a usuarios/votantes.",
+            sendButton: "Enviar Notificación",
+            voters: "Votantes",
+            schedule: "Calendario",
+            nowInput: "Enviar ahora",
+            dateInput: "Fecha y hora de comienzo de envío",
+            languages: "Idiomas",
+            votersSelection: {
+                ALL_USERS: "Todos",
+                NOT_VOTED: "Los que no votaron",
+                VOTED: "Los que ya votaron",
+                SELECTED: "Votantes seleccionados",
+            },
+            email: {
+                subject: "Subject",
+            },
+        },
     },
 }
 

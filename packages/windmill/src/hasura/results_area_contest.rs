@@ -19,7 +19,7 @@ use sequent_core::services::connection;
 )]
 pub struct InsertResultsAreaContest;
 
-#[instrument(skip_all)]
+#[instrument(skip(auth_headers))]
 pub async fn insert_results_area_contest(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,
@@ -33,8 +33,6 @@ pub async fn insert_results_area_contest(
     explicit_invalid_votes: Option<i64>,
     implicit_invalid_votes: Option<i64>,
     blank_votes: Option<i64>,
-    voting_type: Option<String>,
-    counting_algorithm: Option<String>,
 ) -> Result<Response<insert_results_area_contest::ResponseData>> {
     let variables = insert_results_area_contest::Variables {
         tenant_id: tenant_id.to_string(),
@@ -48,8 +46,6 @@ pub async fn insert_results_area_contest(
         explicit_invalid_votes,
         implicit_invalid_votes,
         blank_votes,
-        voting_type,
-        counting_algorithm,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
