@@ -19,7 +19,6 @@ use crate::tasks::render_report::render_report;
 use crate::tasks::send_communication::send_communication;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::set_public_key::set_public_key;
-use crate::tasks::tally_election_event::tally_election_event;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use crate::tasks::update_voting_status::update_voting_status;
 
@@ -62,7 +61,6 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             process_board,
             render_report,
             set_public_key,
-            tally_election_event,
             execute_tally_session,
             update_election_event_ballot_styles,
             update_voting_status,
@@ -78,7 +76,6 @@ pub async fn generate_celery_app() -> Arc<Celery> {
             "process_board" => "beat",
             "render_report" => "reports_queue",
             "set_public_key" => "short_queue",
-            "tally_election_event" => "tally_queue",
             "execute_tally_session" => "tally_queue",
             "connect_tally_ceremony" => "tally_queue",
             "update_election_event_ballot_styles" => "short_queue",

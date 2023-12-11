@@ -12,6 +12,7 @@ use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::services::celery_app::get_celery_app;
+use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
 use crate::services::ceremonies::tally_ceremony::get_keys_ceremonies::GetKeysCeremoniesSequentBackendKeysCeremony;
 use crate::services::ceremonies::tally_ceremony::get_last_tally_session_execution::{
@@ -29,6 +30,7 @@ use crate::tasks::insert_ballots::InsertBallotsPayload;
 use anyhow::{anyhow, Context, Result};
 use braid_messages::newtypes::BatchNumber;
 use sequent_core::services::connection;
+use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
 use serde_json::{from_value, Value};
@@ -155,7 +157,7 @@ pub async fn find_keys_ceremony(
     }
     Ok(successful_ceremonies[0].clone())
 }
- 
+
 #[instrument]
 fn generate_initial_tally_status(
     election_ids: &Vec<String>,
@@ -452,4 +454,55 @@ pub async fn update_tally_ceremony(
     }
 
     Ok(())
+}
+
+#[instrument]
+pub async fn set_private_key(
+    claims: &JwtClaims,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    private_key_base64: &str,
+) -> Result<bool> {
+    let auth_headers = keycloak::get_client_credentials().await?;
+
+    // The trustee name is simply the username of the user
+    let trustee_name = claims
+        .preferred_username
+        .clone()
+        .ok_or(anyhow!("username not found"))?;
+
+    let Some((tally_session_execution, tally_session)) = find_last_tally_session_execution(
+        auth_headers.clone(),
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+        tally_session_id.to_string(),
+    ).await? else {
+        return Err(anyhow!("Can't find tally session or tally session execution"))
+    };
+
+    let tally_ceremony_status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
+
+    let found_trustee_opt = tally_ceremony_status
+        .trustees
+        .clone()
+        .into_iter()
+        .find(|trustee| trustee.name == trustee_name);
+
+    let Some(found_trustee) = found_trustee_opt else {
+        return Err(anyhow!(
+            "Trustee not part of the keys ceremony or has invalid state"
+        ));
+    };
+
+    // get the encrypted private key
+    let encrypted_private_key =
+        find_trustee_private_key(&auth_headers, &tenant_id, &election_event_id, &trustee_name)
+            .await?;
+
+    if encrypted_private_key != private_key_base64 {
+        return Ok(false);
+    }
+
+    Ok(false)
 }
