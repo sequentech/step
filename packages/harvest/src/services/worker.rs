@@ -5,7 +5,7 @@
 use crate::routes::scheduled_event;
 use crate::services::authorization::authorize;
 use crate::services::worker::scheduled_event::CreateEventBody;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use tracing::{event, instrument, Level};
@@ -33,7 +33,9 @@ pub async fn process_scheduled_event(
         EventProcessors::CREATE_REPORT => {
             let body: render_report::RenderTemplateBody =
                 serde_json::from_value(event.event_payload.clone())?;
-            let election_event_id = event.election_event_id.ok_or(anyhow!("empty election_event_id"))?;
+            let election_event_id = event
+                .election_event_id
+                .ok_or(anyhow!("empty election_event_id"))?;
             let task = celery_app
                 .send_task(render_report::render_report::new(
                     body,
@@ -46,8 +48,10 @@ pub async fn process_scheduled_event(
         EventProcessors::UPDATE_VOTING_STATUS => {
             let payload: update_voting_status::UpdateVotingStatusPayload =
                 serde_json::from_value(event.event_payload.clone())?;
-            let election_event_id = event.election_event_id.ok_or(anyhow!("empty election_event_id"))?;
-                let task = celery_app
+            let election_event_id = event
+                .election_event_id
+                .ok_or(anyhow!("empty election_event_id"))?;
+            let task = celery_app
                 .send_task(update_voting_status::update_voting_status::new(
                     payload,
                     event.tenant_id,
@@ -61,7 +65,9 @@ pub async fn process_scheduled_event(
             );
         }
         EventProcessors::SET_PUBLIC_KEY => {
-            let election_event_id = event.election_event_id.ok_or(anyhow!("empty election_event_id"))?;
+            let election_event_id = event
+                .election_event_id
+                .ok_or(anyhow!("empty election_event_id"))?;
             let task = celery_app
                 .send_task(set_public_key::new(
                     event.tenant_id,
@@ -73,8 +79,10 @@ pub async fn process_scheduled_event(
         EventProcessors::TALLY_ELECTION_EVENT => {
             let payload: TallyElectionBody =
                 serde_json::from_value(event.event_payload.clone())?;
-            let election_event_id = event.election_event_id.ok_or(anyhow!("empty election_event_id"))?;
-                let task = celery_app
+            let election_event_id = event
+                .election_event_id
+                .ok_or(anyhow!("empty election_event_id"))?;
+            let task = celery_app
                 .send_task(tally_election_event::new(
                     payload,
                     event.tenant_id,
