@@ -769,6 +769,7 @@ const englishTranslation = {
             chooseDate: "Please choose a date",
             languages: "Languages",
             smsMessage: "SMS Message",
+            errorSending: "Error sending the notification: {{error}}",
             votersSelection: {
                 ALL_USERS: "Everyone",
                 NOT_VOTED: "Those who didn't vote yet",

@@ -11,7 +11,6 @@ type Mutation {
     event_processor: String!
     cron_config: String
     event_payload: jsonb!
-    created_by: String!
   ): ScheduledEventOutput3
 }
 

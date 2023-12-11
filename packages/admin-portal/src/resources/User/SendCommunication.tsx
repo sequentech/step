@@ -4,6 +4,7 @@
 import React, {useState} from "react"
 import {SaveButton, SimpleForm, useListContext, Toolbar, DateTimeInput} from "react-admin"
 import {AccordionDetails, AccordionSummary, MenuItem, FormControlLabel, Switch} from "@mui/material"
+import {useMutation} from "@apollo/client"
 import {SubmitHandler} from "react-hook-form"
 import MailIcon from "@mui/icons-material/Mail"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
@@ -13,9 +14,12 @@ import {EmailEditor} from "@/components/EmailEditor"
 import {useTranslation} from "react-i18next"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
+import {CREATE_SCHEDULED_EVENT} from "@/queries/CreateScheduledEvent"
+import {CreateScheduledEventMutation} from "@/gql/graphql"
 import globalSettings from "@/global-settings"
+import {ScheduledEventType} from "@/services/ScheduledEvent"
 
-enum IVotersSelection {
+enum IAudienceSelection {
     ALL_USERS = "ALL_USERS",
     NOT_VOTED = "NOT_VOTED",
     VOTED = "VOTED",
@@ -32,9 +36,26 @@ enum ICommunicationMethod {
     SMS = "SMS",
 }
 
+interface ICommunicationPayload {
+    audience_selection: IAudienceSelection
+    audience_voter_ids?: Array<string>
+    communication_type: ICommunicationType
+    communication_method: ICommunicationMethod
+    schedule_now: boolean
+    schedule_date?: Date
+    email?: {
+        subject: string
+        plaintext_body: string
+        html_body: string
+    }
+    sms?: {
+        message: string
+    }
+}
+
 interface ICommunication {
-    voters: {
-        selection: IVotersSelection
+    audience: {
+        selection: IAudienceSelection
         voter_ids?: Array<string>
     }
     communication_type: ICommunicationType
@@ -75,11 +96,13 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     const {data, isLoading} = useListContext()
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
-    const possibleLanguages = ["en", "es"]
+    const [errors, setErrors] = useState<String | null>(null)
+    const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
+    const [showProgress, setShowProgress] = useState(false)
     const [communication, setCommunication] = useState<ICommunication>({
-        voters: {
-            selection: IVotersSelection.SELECTED,
-            voter_ids: [id ?? ""],
+        audience: {
+            selection: IAudienceSelection.SELECTED,
+            voter_ids: id ? [id] : undefined,
         },
         communication_type: ICommunicationType.CREDENTIALS,
         communication_method: ICommunicationMethod.EMAIL,
@@ -114,10 +137,39 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
             default_language_code: "en",
         },
     })
-    //const [sendCommunication] = useMutation<SendCommunicationMutationVariables>(SEND_COMMUNICATION)
 
-    const onSubmit: SubmitHandler<any> = async () => {
-        console.log("sending notification")
+    const getPayload: (formData: ICommunication) => ICommunicationPayload = (
+        formData: ICommunication
+    ) => {
+        return {
+            audience_selection: formData.audience.selection,
+            audience_voter_ids: formData.audience.voter_ids,
+            communication_type: formData.communication_type,
+            communication_method: formData.communication_method,
+            schedule_now: formData.schedule.now,
+            schedule_date: formData.schedule.date,
+            email: formData.i18n["en"].email,
+            sms: formData.i18n["en"].sms,
+        }
+    }
+
+    const onSubmit: SubmitHandler<any> = async (formData: ICommunication) => {
+        setErrors(null)
+        setShowProgress(true)
+        const {data, errors} = await createScheduledEvent({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventId,
+                eventProcessor: ScheduledEventType.CREATE_REPORT,
+                cronConfig: undefined,
+                eventPayload: getPayload(formData),
+            },
+        })
+        setShowProgress(false)
+        if (errors) {
+            setErrors(t("sendCommunication.errorSending", {error: errors.toString()}))
+            return
+        }
     }
 
     const handleNowChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,7 +188,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     const handleSelectChange = async (e: any) => {
         const {value} = e.target
         var newCommunication = {...communication}
-        newCommunication.voters.selection = value
+        newCommunication.audience.selection = value
         setCommunication(newCommunication)
     }
     const handleSelectMethodChange = async (e: any) => {
@@ -174,20 +226,25 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         }
     }
 
-    const renderLangs = () => {
-        let langNodes = []
-        for (let lang of possibleLanguages) {
-            let checked = communication.language_conf.enabled_languages.includes(lang)
-            langNodes.push(
-                <FormControlLabel
-                    key={lang}
-                    sx={{width: "100%"}}
-                    label={t(`common.language.${lang}`)}
-                    control={<Switch checked={checked} onChange={handleLangChange(lang)} />}
-                />
-            )
-        }
-        return <div>{langNodes}</div>
+    //const possibleLanguages = ["en", "es"]
+    //const renderLangs = () => {
+    //    let langNodes = []
+    //    for (let lang of possibleLanguages) {
+    //        let checked = communication.language_conf.enabled_languages.includes(lang)
+    //        langNodes.push(
+    //            <FormControlLabel
+    //                key={lang}
+    //                sx={{width: "100%"}}
+    //                label={t(`common.language.${lang}`)}
+    //                control={<Switch checked={checked} onChange={handleLangChange(lang)} />}
+    //            />
+    //        )
+    //    }
+    //    return <div>{langNodes}</div>
+    //}
+
+    if (isLoading) {
+        return <></>
     }
 
     return (
@@ -224,11 +281,11 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                     </AccordionSummary>
                     <AccordionDetails>
                         <FormStyles.Select
-                            name="voters.selection"
-                            value={communication.voters.selection}
+                            name="audience.selection"
+                            value={communication.audience.selection}
                             onChange={handleSelectChange}
                         >
-                            {(Object.keys(IVotersSelection) as Array<IVotersSelection>).map(
+                            {(Object.keys(IAudienceSelection) as Array<IAudienceSelection>).map(
                                 (key) => (
                                     <MenuItem key={key} value={key}>
                                         {t(`sendCommunication.votersSelection.${key}`)}
@@ -334,6 +391,12 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                         )}
                     </AccordionDetails>
                 </FormStyles.AccordionExpanded>
+                <FormStyles.StatusBox>
+                    {showProgress ? <FormStyles.ShowProgress /> : null}
+                    {errors ? (
+                        <FormStyles.ErrorMessage variant="body2">{errors}</FormStyles.ErrorMessage>
+                    ) : null}
+                </FormStyles.StatusBox>
             </SimpleForm>
         </PageHeaderStyles.Wrapper>
     )

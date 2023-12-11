@@ -221,7 +221,6 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
                     trustee_ids: selectedTrustees.map((t) => t.id),
                     election_ids: selectedElections.map((e) => e.id),
                 },
-                createdBy: "admin",
             },
         })
         if (data?.createScheduledEvent?.id && !tallySessionId) {

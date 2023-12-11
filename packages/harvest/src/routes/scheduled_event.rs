@@ -2,14 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::authorization::authorize;
+
+use sequent_core::services::connection;
+use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::permissions::Permissions;
+use windmill::types::scheduled_event::*;
+
 use anyhow::Result;
+use rocket::http::Status;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
-use sequent_core::services::connection;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
-use windmill::types::scheduled_event::*;
 
 use crate::services;
 
@@ -20,7 +26,6 @@ pub struct CreateEventBody {
     pub event_processor: EventProcessors,
     pub cron_config: Option<String>,
     pub event_payload: Value,
-    pub created_by: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -28,16 +33,29 @@ pub struct CreateEventOutput {
     pub id: String,
 }
 
-#[instrument(skip(_auth_headers))]
+#[instrument(skip(claims))]
 #[post("/scheduled-event", format = "json", data = "<body>")]
 pub async fn create_scheduled_event(
     body: Json<CreateEventBody>,
-    _auth_headers: connection::AuthHeaders,
-) -> Result<Json<CreateEventOutput>, Debug<anyhow::Error>> {
+    claims: JwtClaims,
+) -> Result<Json<CreateEventOutput>, (Status, String)> {
     let input = body.into_inner();
+    match input.event_processor.clone() {
+        EventProcessors::SEND_COMMUNICATION => {
+            authorize(
+                &claims,
+                true,
+                None,
+                vec![Permissions::NOTIFICATION_SEND],
+            )?;
+        }
+        _ => {}
+    };
 
     let element_id =
-        services::worker::process_scheduled_event(input.clone()).await?;
+        services::worker::process_scheduled_event(input.clone(), claims)
+            .await
+            .map_err(|e| (Status::BadRequest, format!("{:?}", e)))?;
 
     Ok(Json(CreateEventOutput { id: element_id }))
 }

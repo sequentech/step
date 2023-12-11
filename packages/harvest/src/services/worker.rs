@@ -3,8 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::routes::scheduled_event;
+use crate::services::authorization::authorize;
 use crate::services::worker::scheduled_event::CreateEventBody;
 use anyhow::Result;
+use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::permissions::Permissions;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
@@ -20,7 +23,10 @@ use windmill::tasks::update_voting_status;
 use windmill::types::scheduled_event::*;
 
 #[instrument]
-pub async fn process_scheduled_event(event: CreateEventBody) -> Result<String> {
+pub async fn process_scheduled_event(
+    event: CreateEventBody,
+    claims: JwtClaims,
+) -> Result<String> {
     let celery_app = get_celery_app().await;
     let element_id: String = Uuid::new_v4().to_string();
     match event.event_processor.clone() {
@@ -52,18 +58,6 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<String> {
                 task.task_id
             );
         }
-        EventProcessors::CREATE_KEYS => {
-            let payload: create_keys::CreateKeysBody =
-                serde_json::from_value(event.event_payload.clone())?;
-            let task = celery_app
-                .send_task(create_keys::create_keys::new(
-                    payload,
-                    event.tenant_id,
-                    event.election_event_id,
-                ))
-                .await?;
-            event!(Level::INFO, "Sent CREATE_KEYS task {}", task.task_id);
-        }
         EventProcessors::SET_PUBLIC_KEY => {
             let task = celery_app
                 .send_task(set_public_key::new(
@@ -89,19 +83,6 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<String> {
                 "Sent TALLY_ELECTION_EVENT task {}",
                 task.task_id
             );
-        }
-        EventProcessors::CREATE_ELECTION_EVENT_BALLOT_STYLES => {
-            /*let task = celery_app
-                .send_task(update_election_event_ballot_styles::new(
-                    event.tenant_id,
-                    event.election_event_id.clone(),
-                ))
-                .await?;
-            event!(
-                Level::INFO,
-                "Sent CREATE_ELECTION_EVENT_BALLOT_STYLES task {}",
-                task.task_id
-            );*/
         }
         EventProcessors::SEND_COMMUNICATION => {
             let payload: SendCommunicationBody =

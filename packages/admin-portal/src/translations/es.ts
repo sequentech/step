@@ -771,6 +771,7 @@ const spanishTranslation: TranslationType = {
             chooseDate: "Por favor escoge una fecha",
             languages: "Idiomas",
             smsMessage: "Mensaje SMS",
+            errorSending: "Error enviando la notificación: {{error}}",
             votersSelection: {
                 ALL_USERS: "Todos",
                 NOT_VOTED: "Los que no votaron",

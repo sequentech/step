@@ -16,50 +16,62 @@ use sequent_core::types::ceremonies::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::default::Default;
+use strum_macros::{Display, EnumString};
 use tracing::{event, instrument, Level};
 
-#[derive(Deserialize, Debug, Serialize, Clone)]
-pub enum SendCommunicationAudience {
-    AllCensus,
-    NotVoted,
-    Voted,
-    UserIds(Vec<String>),
+#[allow(non_camel_case_types)]
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+pub enum IAudienceSelection {
+    #[strum(serialize = "ALL_USERS")]
+    ALL_USERS,
+    #[strum(serialize = "NOT_VOTED")]
+    NOT_VOTED,
+    #[strum(serialize = "VOTED")]
+    VOTED,
+    #[strum(serialize = "SELECTED")]
+    SELECTED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+enum ICommunicationType {
+    #[strum(serialize = "CREDENTIALS")]
+    CREDENTIALS,
+    #[strum(serialize = "RECEIPT")]
+    RECEIPT,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+enum ICommunicationMethod {
+    #[strum(serialize = "EMAIL")]
+    EMAIL,
+    #[strum(serialize = "SMS")]
+    SMS,
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
-pub enum SendCommunicationMethod {
-    Email,
-    Sms,
+pub struct EmailConfig {
+    subject: String,
+    plaintext_body: String,
+    html_body: String,
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
-pub enum SendCommunicationMethods {
-    FromTemplate,
-    Custom(Vec<SendCommunicationMethod>),
-}
-
-#[derive(Deserialize, Debug, Serialize, Clone)]
-pub enum SendCommunicationLanguages {
-    FromTemplate,
-    Custom(Vec<String>),
-}
-
-#[derive(Deserialize, Debug, Serialize, Clone)]
-pub enum SendCommunicationTemplate {
-    Id((String, SendCommunicationMethods, SendCommunicationLanguages)),
-    Custom(
-        (
-            HashMap<String, String>,
-            Vec<SendCommunicationMethod>,
-            Vec<String>,
-        ),
-    ),
+pub struct SmsConfig {
+    message: String,
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct SendCommunicationBody {
-    audience: SendCommunicationAudience,
-    template: SendCommunicationTemplate,
+    audience_selection: IAudienceSelection,
+    audience_voter_ids: Option<Vec<String>>,
+    communication_type: ICommunicationType,
+    communication_method: ICommunicationMethod,
+    schedule_now: bool,
+    schedule_date: Option<String>,
+    email: Option<EmailConfig>,
+    sms: Option<SmsConfig>,
 }
 
 #[instrument]
