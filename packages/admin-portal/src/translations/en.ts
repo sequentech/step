@@ -306,6 +306,7 @@ const englishTranslation = {
             common: {
                 title: "Users and Roles",
                 subtitle: "General configuration",
+                mobileNumber: "Mobile",
             },
             users: {
                 title: "Users",
