@@ -13,33 +13,30 @@ interface Email {
 }
 
 type EmailEditorProps = {
-    record: Email | undefined
+    record: Email
     setRecord: (newRecord: Email) => void
 }
 
-export const EmailEditor: React.FC<EmailEditorProps> = ({record, setRecord}) => {
+export default function EmailEditor({record, setRecord}: EmailEditorProps) {
     const {t} = useTranslation()
+
     const [tab, setTab] = useState<number>(0)
 
-    const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const editorRef = useRef<any>(null)
+
+    function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
         const {name, value} = e.target
         setRecord({...(record as any), [name]: value})
     }
 
-    const editorRef = useRef<any>(null)
-
-    const log = () => {
+    function handleHtmlChange() {
         if (editorRef.current) {
-            console.log(editorRef.current.getContent())
+            setRecord({...(record as any), html_body: editorRef.current.getContent()})
         }
     }
 
-    const changeTab = (event: React.SyntheticEvent, newValue: number) => {
+    const changeTab = (_event: React.SyntheticEvent, newValue: number) => {
         setTab(newValue)
-    }
-
-    if (!record) {
-        return <></>
     }
 
     return (
@@ -68,8 +65,8 @@ export const EmailEditor: React.FC<EmailEditorProps> = ({record, setRecord}) => 
                 <Editor
                     editorRef={editorRef}
                     initialValue={globalSettings.DEFAULT_EMAIL_HTML_BODY.en}
+                    onEditorChange={handleHtmlChange}
                 ></Editor>
-                <button onClick={log}>Log editor content</button>
             </CustomTabPanel>
         </>
     )

@@ -4,9 +4,10 @@ import {Editor} from "@tinymce/tinymce-react"
 type Props = {
     initialValue: string
     editorRef: any
+    onEditorChange?: () => void
 }
 
-export default function MyEditor({initialValue, editorRef}: Props) {
+export default function MyEditor({initialValue, editorRef, onEditorChange}: Props) {
     return (
         <>
             <Editor
@@ -43,6 +44,7 @@ export default function MyEditor({initialValue, editorRef}: Props) {
                     content_style:
                         "body { font-family:Helvetica,Arial,sans-serif; font-size:14px }",
                 }}
+                onEditorChange={onEditorChange}
             />
         </>
     )
