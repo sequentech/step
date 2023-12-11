@@ -17,7 +17,7 @@ import MailIcon from "@mui/icons-material/Mail"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
-import {EmailEditor} from "@/components/EmailEditor"
+import EmailEditor from "@/components/EmailEditor"
 import {useTranslation} from "react-i18next"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
@@ -381,13 +381,14 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                                 )
                             )}
                         </FormStyles.Select>
-                        {communication.communication_method == ICommunicationMethod.EMAIL && (
-                            <EmailEditor
-                                record={communication.i18n["en"].email}
-                                setRecord={setEmail}
-                            />
-                        )}
-                        {communication.communication_method == ICommunicationMethod.SMS && (
+                        {communication.communication_method === ICommunicationMethod.EMAIL &&
+                            communication.i18n["en"].email && (
+                                <EmailEditor
+                                    record={communication.i18n["en"].email}
+                                    setRecord={setEmail}
+                                />
+                            )}
+                        {communication.communication_method === ICommunicationMethod.SMS && (
                             <FormStyles.TextField
                                 name="sms"
                                 label={t("sendCommunication.smsMessage")}
