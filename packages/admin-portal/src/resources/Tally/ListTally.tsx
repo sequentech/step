@@ -128,15 +128,10 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
 
     // const {canAdminCeremony, canTrusteeCeremony: canWriteTrustee} = useActionPermissions()
 
-    useEffect(() => {
-        if (recordId) {
-            setOpen(true)
-        }
-    }, [recordId])
-
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
         setOpen(false)
+        setOpenDrawer(false)
     }
 
     const viewAdminTally = (id: Identifier) => {

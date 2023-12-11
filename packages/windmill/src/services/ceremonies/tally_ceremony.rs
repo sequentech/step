@@ -549,7 +549,7 @@ pub async fn set_private_key(
     let connected_trustees = new_status
         .trustees
         .iter()
-        .filter(|trustee| TallyTrusteeStatus::WAITING == trustee.status)
+        .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
         .collect::<Vec<_>>();
 
     // enough trustees connected, so change tally execution status to connected
