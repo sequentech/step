@@ -751,20 +751,36 @@ const englishTranslation = {
                 diff: "CHANGES TO PUBLISH",
             },
         },
+        emailEditor: {
+            subject: "Email Subject",
+            tabs: {
+                plaintext: "Plain Text Body",
+                richtext: "Rich Text Body",
+            },
+        },
         sendCommunication: {
             title: "Send Notification",
             subtitle: "Send a notification to voters.",
             sendButton: "Send Notification",
-            voters: "Voters",
+            voters: "Audience",
             schedule: "Schedule",
             nowInput: "Send now",
             dateInput: "Date and time to start sending notifications",
+            chooseDate: "Please choose a date",
             languages: "Languages",
+            smsMessage: "SMS Message",
+            errorSending: "Error sending the notification: {{error}}",
+            successSending: "Notification programmed/sent successfully",
             votersSelection: {
                 ALL_USERS: "Everyone",
                 NOT_VOTED: "Those who didn't vote yet",
                 VOTED: "Those who already voted",
-                SELECTED: "Selected voters",
+                SELECTED: "To {{total}} Selected Voters",
+            },
+            methodTitle: "Communication Method",
+            communicationMethod: {
+                EMAIL: "Email",
+                SMS: "SMS",
             },
             email: {
                 subject: "Subject",

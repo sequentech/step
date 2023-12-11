@@ -19,7 +19,7 @@ import {
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
-import {Button, Chip, Drawer, Typography} from "@mui/material"
+import {Button, Chip, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -40,11 +40,10 @@ import {IRole, IUser} from "sequent-core"
 const OMIT_FIELDS: Array<string> = []
 
 const Filters: Array<ReactElement> = [
-    <TextInput label="Name" source="name" key={0} />,
-    <TextInput label="Description" source="description" key={1} />,
-    <TextInput label="ID" source="id" key={2} />,
-    <TextInput label="Type" source="type" key={3} />,
-    <TextInput source="election_event_id" key={3} />,
+    <TextInput key="email" source="email" />,
+    <TextInput key="first_name" source="first_name" />,
+    <TextInput key="last_name" source="last_name" />,
+    <TextInput key="username" source="username" />,
 ]
 
 export interface ListUsersProps {
@@ -229,47 +228,30 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                 </DatagridConfigurable>
             </List>
 
-            <Drawer
-                anchor="right"
-                open={open}
-                onClose={handleClose}
-                PaperProps={{
-                    sx: {width: "40%"},
-                }}
-            >
+            <ResourceListStyles.Drawer anchor="right" open={open} onClose={handleClose}>
                 <EditUser
                     id={recordId}
                     electionEventId={electionEventId}
                     close={handleClose}
                     rolesList={rolesList || []}
                 />
-            </Drawer>
+            </ResourceListStyles.Drawer>
 
-            <Drawer
+            <ResourceListStyles.Drawer
                 anchor="right"
                 open={openSendCommunication}
                 onClose={handleClose}
-                PaperProps={{
-                    sx: {width: "40%"},
-                }}
             >
                 <SendCommunication
                     id={recordId}
                     electionEventId={electionEventId}
                     close={handleClose}
                 />
-            </Drawer>
+            </ResourceListStyles.Drawer>
 
-            <Drawer
-                anchor="right"
-                open={openNew}
-                onClose={handleClose}
-                PaperProps={{
-                    sx: {width: "40%"},
-                }}
-            >
+            <ResourceListStyles.Drawer anchor="right" open={openNew} onClose={handleClose}>
                 <CreateUser electionEventId={electionEventId} close={handleClose} />
-            </Drawer>
+            </ResourceListStyles.Drawer>
 
             <Dialog
                 variant="warning"

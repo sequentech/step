@@ -1,10 +1,15 @@
 import {TextInput, PasswordInput} from "react-admin"
 import {styled as muiStyled} from "@mui/material/styles"
-import {FormControlLabel} from "@mui/material"
-import {Accordion, Select} from "@mui/material"
+import {FormControlLabel, Typography, Box, CircularProgress} from "@mui/material"
+import {Accordion, Select, TextField} from "@mui/material"
 
 export const FormStyles = {
     TextInput: muiStyled(TextInput)`
+        input {
+            padding: 16.50px 14px;
+        }
+    `,
+    TextField: muiStyled(TextField)`
         input {
             padding: 16.50px 14px;
         }
@@ -13,6 +18,14 @@ export const FormStyles = {
         input {
             padding: 16.50px 14px;
         }
+    `,
+    StatusBox: muiStyled(Box)`
+        min-height: 50px;
+    `,
+    ErrorMessage: muiStyled(Typography)`
+        color: ${({theme}) => theme.palette.errorColor};
+    `,
+    ShowProgress: muiStyled(CircularProgress)`
     `,
     CheckboxControlLabel: muiStyled(FormControlLabel)`
         padding-bottom: 2em !important;
