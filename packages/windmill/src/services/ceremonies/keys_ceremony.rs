@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::hasura::election_event::get_election_event;
+use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::keys_ceremony::{
     get_keys_ceremonies, insert_keys_ceremony, update_keys_ceremony_status,
 };
@@ -14,6 +14,7 @@ use crate::services::private_keys::get_trustee_encrypted_private_key;
 use crate::tasks::create_keys::{create_keys, CreateKeysBody};
 
 use anyhow::{anyhow, Context, Result};
+use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
@@ -87,16 +88,12 @@ pub async fn get_private_key(
     }
 
     // fetch election_event
-    let election_event = &get_election_event(
+    let election_event = get_election_event_helper(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
     )
-    .await
-    .with_context(|| "error fetching election event")?
-    .data
-    .with_context(|| "error fetching election event")?
-    .sequent_backend_election_event[0];
+    .await?;
 
     // get board name
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
@@ -165,6 +162,40 @@ pub async fn get_private_key(
     Ok(encrypted_private_key)
 }
 
+#[instrument(skip(auth_headers))]
+pub async fn find_trustee_private_key(
+    auth_headers: &connection::AuthHeaders,
+    tenant_id: &str,
+    election_event_id: &str,
+    trustee_name: &str,
+) -> Result<String> {
+    // fetch election_event
+    let election_event = get_election_event_helper(
+        auth_headers.clone(),
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+    )
+    .await?;
+
+    // get board name
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "missing bulletin board")?;
+
+    let trustee_public_key =
+        get_trustees_by_name(auth_headers, tenant_id, &vec![trustee_name.to_string()])
+            .await
+            .with_context(|| "can't find trustee in the database")?
+            .data
+            .with_context(|| "error fetching election event")?
+            .sequent_backend_trustee[0]
+            .public_key
+            .clone()
+            .ok_or(anyhow!("can't get election event"))?;
+
+    // get the encrypted private key
+    get_trustee_encrypted_private_key(board_name.as_str(), trustee_public_key.as_str()).await
+}
+
 #[instrument]
 pub async fn check_private_key(
     claims: JwtClaims,
@@ -174,7 +205,6 @@ pub async fn check_private_key(
     private_key_base64: String,
 ) -> Result<bool> {
     let auth_headers = keycloak::get_client_credentials().await?;
-    let celery_app = get_celery_app().await;
 
     // The trustee name is simply the username of the user
     let trustee_name = claims
@@ -220,36 +250,10 @@ pub async fn check_private_key(
         ));
     }
 
-    // fetch election_event
-    let election_event = &get_election_event(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-    )
-    .await
-    .with_context(|| "error fetching election event")?
-    .data
-    .with_context(|| "error fetching election event")?
-    .sequent_backend_election_event[0];
-
-    // get board name
-    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
-        .with_context(|| "missing bulletin board")?;
-
-    let trustee_public_key =
-        get_trustees_by_name(&auth_headers, &tenant_id, &vec![trustee_name.clone()])
-            .await
-            .with_context(|| "can't find trustee in the database")?
-            .data
-            .with_context(|| "error fetching election event")?
-            .sequent_backend_trustee[0]
-            .public_key
-            .clone()
-            .ok_or(anyhow!("can't get election event"))?;
-
     // get the encrypted private key
     let encrypted_private_key =
-        get_trustee_encrypted_private_key(board_name.as_str(), trustee_public_key.as_str()).await?;
+        find_trustee_private_key(&auth_headers, &tenant_id, &election_event_id, &trustee_name)
+            .await?;
 
     if encrypted_private_key != private_key_base64 {
         return Ok(false);
@@ -340,16 +344,12 @@ pub async fn create_keys_ceremony(
         .collect();
 
     // get the election event
-    let _election_event = &get_election_event(
+    let _election_event = get_election_event_helper(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
     )
-    .await
-    .with_context(|| "can't get election event")?
-    .data
-    .ok_or(anyhow!("can't get election event"))?
-    .sequent_backend_election_event[0];
+    .await?;
 
     // find if there's any previous ceremony and if so, stop. shouldn't happen,
     // we only allow one per election event
