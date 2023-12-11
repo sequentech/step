@@ -9,8 +9,8 @@ use crate::hasura::trustee::get_trustees_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::users::list_users;
 use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
-use crate::types::error::Result;
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
+use crate::types::error::Result;
 
 use anyhow::{anyhow, Context};
 use braid_messages::newtypes::BatchNumber;
@@ -18,13 +18,13 @@ use celery::error::TaskError;
 use lettre::message::header::ContentType;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
-use sequent_core::services::keycloak::{KeycloakAdminClient, get_event_realm, get_tenant_realm};
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::services::{keycloak, pdf, reports};
 use sequent_core::types::ceremonies::*;
 use sequent_core::types::keycloak::User;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::{Map, Value};
-use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::default::Default;
 use strum_macros::{Display, EnumString};
@@ -98,29 +98,26 @@ fn get_variables(
             "last_name": user.last_name.clone(),
             "username": user.username.clone(),
             "first_name": user.first_name.clone(),
-        })
+        }),
     );
-    variables.insert(
-        "tenant_id".to_string(),
-        json!(tenant_id.clone()),
-    );
+    variables.insert("tenant_id".to_string(), json!(tenant_id.clone()));
     if let Some(ref election_event) = election_event {
         variables.insert(
             "election_event".to_string(),
             json!({
                 "id": election_event.id.clone(),
                 "name": election_event.name.clone(),
-            })
+            }),
         );
         variables.insert(
             "vote_url".to_string(),
             json!(format!(
                 "{base_url}/tenant/{tenant_id}/event/{event_id}/login",
-                base_url=std::env::var("VOTING_PORTAL_URL")
+                base_url = std::env::var("VOTING_PORTAL_URL")
                     .map_err(|err| anyhow!("VOTING_PORTAL_URL env var missing"))?,
-                tenant_id=tenant_id,
-                event_id=election_event.id,
-            ))
+                tenant_id = tenant_id,
+                event_id = election_event.id,
+            )),
         );
     }
     return Ok(variables);
@@ -138,23 +135,15 @@ fn send_communication_email(
         receiver = receiver,
     );
     if let (Some(receiver), Some(config)) = (receiver, template) {
-        let subject = reports::render_template_text(
-            config.subject.as_str(),
-            variables.clone()
-        )?;
-        let plaintext_body = reports::render_template_text(
-            config.plaintext_body.as_str(),
-            variables.clone()
-        )?;
-        let html_body = reports::render_template_text(
-            config.html_body.as_str(),
-            variables.clone()
-        )?;
+        let subject = reports::render_template_text(config.subject.as_str(), variables.clone())?;
+        let plaintext_body =
+            reports::render_template_text(config.plaintext_body.as_str(), variables.clone())?;
+        let html_body =
+            reports::render_template_text(config.html_body.as_str(), variables.clone())?;
         event!(
             Level::INFO,
             "Sending email:\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
         );
-
     } else {
         event!(Level::INFO, "Receiver empty, ignoring..");
     }
@@ -180,22 +169,21 @@ pub async fn send_communication(
     let election_event = match election_event_id.clone() {
         None => None,
         Some(election_event_id) => {
-            let event =
-                get_election_event(
-                    auth_headers.clone(),
-                    tenant_id.clone(),
-                    election_event_id.clone(),
-                )
-                .await?
-                .data
-                .ok_or(anyhow!("Election event not found: {}", election_event_id))?
-                .sequent_backend_election_event;
+            let event = get_election_event(
+                auth_headers.clone(),
+                tenant_id.clone(),
+                election_event_id.clone(),
+            )
+            .await?
+            .data
+            .ok_or(anyhow!("Election event not found: {}", election_event_id))?
+            .sequent_backend_election_event;
             if (event.is_empty()) {
                 None
             } else {
                 Some(event[0].clone())
             }
-        },
+        }
     };
 
     let (users, count) = list_users(
@@ -229,11 +217,8 @@ pub async fn send_communication(
                 id = user.id,
                 email = user.email,
             );
-            let variables: Map<String, Value> = get_variables(
-                user,
-                election_event.clone(),
-                tenant_id.clone(),
-            )?;
+            let variables: Map<String, Value> =
+                get_variables(user, election_event.clone(), tenant_id.clone())?;
             match body.communication_method {
                 CommunicationMethod::EMAIL => {
                     send_communication_email(

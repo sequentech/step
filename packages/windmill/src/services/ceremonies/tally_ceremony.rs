@@ -25,7 +25,6 @@ use crate::services::ceremonies::tally_ceremony::get_tally_session_by_id::{
     GetTallySessionByIdSequentBackendTallySessionContest,
 };
 use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
-use crate::tasks::connect_tally_ceremony::connect_tally_ceremony;
 use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::insert_ballots::InsertBallotsPayload;
 use anyhow::{anyhow, Context, Result};
@@ -407,21 +406,7 @@ pub async fn update_tally_ceremony(
     )
     .await?;
 
-    if TallyExecutionStatus::STARTED == new_execution_status {
-        // "connect" trustees in async task
-        let task = celery_app
-            .send_task(connect_tally_ceremony::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                tally_session_id.clone(),
-            ))
-            .await?;
-        event!(
-            Level::INFO,
-            "Sent connect_tally_ceremony task {}",
-            task.task_id
-        );
-    } else if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
+    if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
         let Some((tally_session_execution, _)) = find_last_tally_session_execution(
             auth_headers.clone(),
             tenant_id.clone(),
