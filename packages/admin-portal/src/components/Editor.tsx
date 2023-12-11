@@ -15,6 +15,8 @@ export default function MyEditor({initialValue, editorRef, onEditorChange}: Prop
                 onInit={(_evt, editor) => (editorRef.current = editor)}
                 initialValue={initialValue}
                 init={{
+                    promotion: false,
+                    branding: false,
                     height: 500,
                     menubar: false,
                     plugins: [
