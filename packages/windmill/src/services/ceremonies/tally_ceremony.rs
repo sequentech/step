@@ -27,6 +27,9 @@ use crate::services::ceremonies::tally_ceremony::get_tally_session_by_id::{
 use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
 use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::insert_ballots::InsertBallotsPayload;
+use crate::hasura::election_event::update_election_event_status;
+use crate::services::election_event_status::get_election_event_status;
+use crate::hasura::election_event::get_election_event_helper;
 use anyhow::{anyhow, Context, Result};
 use braid_messages::newtypes::BatchNumber;
 use sequent_core::services::connection;
@@ -406,7 +409,25 @@ pub async fn update_tally_ceremony(
     )
     .await?;
 
-    if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
+    if TallyExecutionStatus::SUCCESS == new_execution_status {
+        // get the election event
+        let election_event = get_election_event_helper(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+        )
+        .await?;
+        let current_status = get_election_event_status(election_event.status).unwrap();
+        let mut new_status = current_status.clone();
+        new_status.tally_ceremony_finished = Some(true);
+        let new_status_js = serde_json::to_value(new_status)?;
+        update_election_event_status(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            new_status_js,
+        ).await?;
+    } else if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
         let Some((tally_session_execution, _)) = find_last_tally_session_execution(
             auth_headers.clone(),
             tenant_id.clone(),

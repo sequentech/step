@@ -96,8 +96,10 @@ export const TallyElectionsProgress: React.FC = () => {
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, number>) => {
-                const election_data = execution?.[0].status?.elections_status?.find((item: any) => item.election_id === props["id"])
-                
+                const election_data = execution?.[0].status?.elections_status?.find(
+                    (item: any) => item.election_id === props["id"]
+                )
+
                 return (
                     <ProgressBarDiv>
                         <BorderLinearProgress

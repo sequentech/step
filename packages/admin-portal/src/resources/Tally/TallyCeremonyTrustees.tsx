@@ -26,8 +26,7 @@ import {faKey} from "@fortawesome/free-solid-svg-icons"
 import {Box} from "@mui/material"
 import {Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "@/gql/graphql"
 import {AuthContext} from "@/providers/AuthContextProvider"
-import { useTenantStore } from '@/providers/TenantContextProvider'
-
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 const WizardSteps = {
     Start: 0,
@@ -79,7 +78,9 @@ export const TallyCeremonyTrustees: React.FC = () => {
     useEffect(() => {
         if (tallySessionExecutions) {
             const username = authContext?.username
-            const trusteeStatus = tallySessionExecutions?.[0]?.status?.trustees.find((item: any) => item.name === username)?.status
+            const trusteeStatus = tallySessionExecutions?.[0]?.status?.trustees.find(
+                (item: any) => item.name === username
+            )?.status
             setTrusteeStatus(trusteeStatus)
         }
     }, [tallySessionExecutions])

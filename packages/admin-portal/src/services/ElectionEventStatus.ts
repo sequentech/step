@@ -5,6 +5,9 @@
 
 export interface IElectionEventStatus {
     config_created?: boolean
+    keys_ceremony_finished?: boolean
+    tally_ceremony_finished?: boolean
+    voting_status: IVotingStatus
 }
 
 export enum IVotingStatus {
