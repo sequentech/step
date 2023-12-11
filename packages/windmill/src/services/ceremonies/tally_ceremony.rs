@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::area::get_election_event_areas;
 use crate::hasura::keys_ceremony::get_keys_ceremonies;
+use crate::hasura::keys_ceremony::get_keys_ceremony_by_id;
 use crate::hasura::tally_session::get_tally_session_highest_batch;
 use crate::hasura::tally_session::{
     get_tally_session_by_id, get_tally_sessions, insert_tally_session, update_tally_session_status,
@@ -12,6 +13,7 @@ use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::services::celery_app::get_celery_app;
+use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
 use crate::services::ceremonies::tally_ceremony::get_keys_ceremonies::GetKeysCeremoniesSequentBackendKeysCeremony;
 use crate::services::ceremonies::tally_ceremony::get_last_tally_session_execution::{
@@ -23,12 +25,15 @@ use crate::services::ceremonies::tally_ceremony::get_tally_session_by_id::{
     GetTallySessionByIdSequentBackendTallySessionContest,
 };
 use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
-use crate::tasks::connect_tally_ceremony::connect_tally_ceremony;
 use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::insert_ballots::InsertBallotsPayload;
+use crate::hasura::election_event::update_election_event_status;
+use crate::services::election_event_status::get_election_event_status;
+use crate::hasura::election_event::get_election_event_helper;
 use anyhow::{anyhow, Context, Result};
 use braid_messages::newtypes::BatchNumber;
 use sequent_core::services::connection;
+use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
 use serde_json::{from_value, Value};
@@ -404,20 +409,24 @@ pub async fn update_tally_ceremony(
     )
     .await?;
 
-    if TallyExecutionStatus::STARTED == new_execution_status {
-        // "connect" trustees in async task
-        let task = celery_app
-            .send_task(connect_tally_ceremony::new(
-                tenant_id.clone(),
-                election_event_id.clone(),
-                tally_session_id.clone(),
-            ))
-            .await?;
-        event!(
-            Level::INFO,
-            "Sent connect_tally_ceremony task {}",
-            task.task_id
-        );
+    if TallyExecutionStatus::SUCCESS == new_execution_status {
+        // get the election event
+        let election_event = get_election_event_helper(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+        )
+        .await?;
+        let current_status = get_election_event_status(election_event.status).unwrap();
+        let mut new_status = current_status.clone();
+        new_status.tally_ceremony_finished = Some(true);
+        let new_status_js = serde_json::to_value(new_status)?;
+        update_election_event_status(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            new_status_js,
+        ).await?;
     } else if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
         let Some((tally_session_execution, _)) = find_last_tally_session_execution(
             auth_headers.clone(),
@@ -452,4 +461,104 @@ pub async fn update_tally_ceremony(
     }
 
     Ok(())
+}
+
+#[instrument]
+pub async fn set_private_key(
+    claims: &JwtClaims,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    private_key_base64: &str,
+) -> Result<bool> {
+    let auth_headers = keycloak::get_client_credentials().await?;
+
+    // The trustee name is simply the username of the user
+    let trustee_name = claims
+        .preferred_username
+        .clone()
+        .ok_or(anyhow!("username not found"))?;
+
+    let Some((tally_session_execution, tally_session)) = find_last_tally_session_execution(
+        auth_headers.clone(),
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+        tally_session_id.to_string(),
+    ).await? else {
+        return Err(anyhow!("Can't find tally session or tally session execution"))
+    };
+
+    // get the keys ceremonies for this election event
+    let keys_ceremony = get_keys_ceremony_by_id(
+        &auth_headers.clone(),
+        &tenant_id.clone(),
+        &election_event_id.clone(),
+        &tally_session.keys_ceremony_id,
+    )
+    .await?;
+
+    let tally_ceremony_status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
+
+    let found_trustee_opt = tally_ceremony_status
+        .trustees
+        .clone()
+        .into_iter()
+        .find(|trustee| trustee.name == trustee_name);
+
+    let Some(found_trustee) = found_trustee_opt else {
+        return Err(anyhow!(
+            "Trustee not part of the keys ceremony or has invalid state"
+        ));
+    };
+
+    // get the encrypted private key
+    let encrypted_private_key =
+        find_trustee_private_key(&auth_headers, &tenant_id, &election_event_id, &trustee_name)
+            .await?;
+
+    if encrypted_private_key != private_key_base64 {
+        return Ok(false);
+    }
+    let status = get_tally_ceremony_status(tally_session_execution.status)?;
+    let mut new_status = status.clone();
+    new_status.trustees = new_status
+        .trustees
+        .iter()
+        .map(|trustee| {
+            let mut new_trustee = trustee.clone();
+            new_trustee.status = TallyTrusteeStatus::KEY_RESTORED;
+            new_trustee
+        })
+        .collect();
+    insert_tally_session_execution(
+        auth_headers.clone(),
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+        tally_session_execution.current_message_id,
+        tally_session_id.to_string(),
+        None,
+        Some(new_status.clone()),
+        None,
+    )
+    .await?;
+
+    let connected_trustees = new_status
+        .trustees
+        .iter()
+        .filter(|trustee| TallyTrusteeStatus::WAITING == trustee.status)
+        .collect::<Vec<_>>();
+
+    // enough trustees connected, so change tally execution status to connected
+    if connected_trustees.len() as i64 >= keys_ceremony.threshold {
+        update_tally_session_status(
+            auth_headers.clone(),
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+            tally_session_id.to_string(),
+            TallyExecutionStatus::CONNECTED,
+        )
+        .await?;
+    }
+
+    Ok(true)
 }

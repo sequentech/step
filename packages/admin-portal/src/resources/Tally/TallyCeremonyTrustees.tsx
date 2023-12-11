@@ -6,7 +6,6 @@ import Button from "@mui/material/Button"
 import {
     BreadCrumbSteps,
     BreadCrumbStepsVariant,
-    Dialog,
     DropFile,
     IconButton,
 } from "@sequentech/ui-essentials"
@@ -15,32 +14,19 @@ import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import styled from "@emotion/styled"
-import {Accordion, AccordionDetails, AccordionSummary} from "@mui/material"
-import {ElectionStyles} from "@/components/styles/ElectionStyles"
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
 import {TallyTrusteesList} from "./TallyTrusteesList"
 import {TallyStyles} from "@/components/styles/TallyStyles"
-import {TallyStartDate} from "./TallyStartDate"
-import {TallyElectionsProgress} from "./TallyElectionsProgress"
-import {TallyElectionsResults} from "./TallyElectionsResults"
-import {TallyResults} from "./TallyResults"
-import {TallyLogs} from "./TallyLogs"
-import {useGetList, useGetOne, useNotify} from "react-admin"
+import {useGetList, useGetOne} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {useMutation} from "@apollo/client"
-import {ITallyExecutionStatus, ITallyTrusteeStatus, ITrusteeStatus} from "@/types/ceremonies"
+import {ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
 import {faKey} from "@fortawesome/free-solid-svg-icons"
 import {Box} from "@mui/material"
-import {Sequent_Backend_Area, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "@/gql/graphql"
-import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
-import { useTenantStore } from '@/providers/TenantContextProvider'
-
-// interface TallyCeremonyTrusteesProps {
-//     completed: boolean
-// }
+import {Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "@/gql/graphql"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 const WizardSteps = {
     Start: 0,
@@ -50,7 +36,6 @@ const WizardSteps = {
 export const TallyCeremonyTrustees: React.FC = () => {
     const {t} = useTranslation()
     const [tallyId, setTallyId] = useElectionEventTallyStore()
-    const notify = useNotify()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
@@ -93,16 +78,14 @@ export const TallyCeremonyTrustees: React.FC = () => {
     useEffect(() => {
         if (tallySessionExecutions) {
             const username = authContext?.username
-            const trusteeStatus = tallySessionExecutions?.[0]?.status?.trustees.find((item: any) => item.name === username)?.status
-            console.log("TRUSTEE STATUS BEFORE :: ", trusteeStatus)
+            const trusteeStatus = tallySessionExecutions?.[0]?.status?.trustees.find(
+                (item: any) => item.name === username
+            )?.status
             setTrusteeStatus(trusteeStatus)
         }
     }, [tallySessionExecutions])
 
     useEffect(() => {
-        // TODO: uncomment to control the screen state depending on tally_execution_status
-        console.log("TRUSTEE STATUS :: ", trusteeStatus)
-
         setPage(
             !trusteeStatus
                 ? WizardSteps.Start
@@ -142,54 +125,54 @@ export const TallyCeremonyTrustees: React.FC = () => {
         console.log("TallyCeremonyTrustees :: uploadPrivateKey :: files", files)
         setVerified(true)
 
-        // setErrors(null)
-        // setVerified(false)
-        // setUploading(false)
-        // if (!files || files.length === 0) {
-        //     setErrors(t("keysGeneration.checkStep.noFileSelected"))
-        //     return
-        // }
-        // const firstFile = files[0]
-        // const readFileContent = (file: File) => {
-        //     return new Promise<string>((resolve, reject) => {
-        //         const fileReader = new FileReader()
-        //         fileReader.onload = () => resolve(fileReader.result as string)
-        //         fileReader.onerror = (error) => reject(error)
-        //         // Read the file as a data URL (base64 encoded string)
-        //         fileReader.readAsText(file)
-        //     })
-        // }
-        // try {
-        //     const fileContent = await readFileContent(firstFile)
-        //     console.log(`uploadPrivateKey(): fileContent: ${fileContent}`)
-        //     if (fileContent == null) {
-        //         setErrors(t("keysGeneration.checkStep.noFileSelected"))
-        //         return
-        //     }
-        //     setUploading(true)
-        //     const {data, errors} = await checkPrivateKeysMutation({
-        //         variables: {
-        //             electionEventId: electionEvent.id,
-        //             keysCeremonyId: currentCeremony.id,
-        //             privateKeyBase64: fileContent,
-        //         },
-        //     })
-        //     setUploading(false)
-        //     if (errors) {
-        //         setErrors(t("keysGeneration.checkStep.errorUploading", {error: errors.toString()}))
-        //         return
-        //     } else {
-        //         const isValid = data?.check_private_key?.is_valid
-        //         if (!isValid) {
-        //             setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
-        //             return
-        //         }
-        //         setVerified(true)
-        //     }
-        // } catch (exception: any) {
-        //     setUploading(false)
-        //     setErrors(t("keysGeneration.checkStep.errorUploading", {error: exception.toString()}))
-        // }
+        setErrors(null)
+        setVerified(false)
+        setUploading(false)
+        if (!files || files.length === 0) {
+            setErrors(t("keysGeneration.checkStep.noFileSelected"))
+            return
+        }
+        const firstFile = files[0]
+        const readFileContent = (file: File) => {
+            return new Promise<string>((resolve, reject) => {
+                const fileReader = new FileReader()
+                fileReader.onload = () => resolve(fileReader.result as string)
+                fileReader.onerror = (error) => reject(error)
+                // Read the file as a data URL (base64 encoded string)
+                fileReader.readAsText(file)
+            })
+        }
+        try {
+            const fileContent = await readFileContent(firstFile)
+            console.log(`uploadPrivateKey(): fileContent: ${fileContent}`)
+            if (fileContent == null) {
+                setErrors(t("keysGeneration.checkStep.noFileSelected"))
+                return
+            }
+            setUploading(true)
+            // const {data, errors} = await checkPrivateKeysMutation({
+            //     variables: {
+            //         electionEventId: tally.election_event_id,
+            //         keysCeremonyId: tally.id,
+            //         privateKeyBase64: fileContent,
+            //     },
+            // })
+            setUploading(false)
+            // if (errors) {
+            //     setErrors(t("keysGeneration.checkStep.errorUploading", {error: errors.toString()}))
+            //     return
+            // } else {
+            //     const isValid = data?.check_private_key?.is_valid
+            //     if (!isValid) {
+            //         setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
+            //         return
+            //     }
+            //     setVerified(true)
+            // }
+        } catch (exception: any) {
+            setUploading(false)
+            setErrors(t("keysGeneration.checkStep.errorUploading", {error: exception.toString()}))
+        }
     }
 
     return (
@@ -207,8 +190,8 @@ export const TallyCeremonyTrustees: React.FC = () => {
                 {page === WizardSteps.Start && (
                     <>
                         <ElectionHeader
-                            title={t("tally.ceremonyTitle")}
-                            subtitle={t("tally.ceremonySubTitle")}
+                            title={"tally.ceremonyTitle"}
+                            subtitle={"tally.ceremonySubTitle"}
                         />
 
                         <TallyElectionsList
@@ -217,8 +200,8 @@ export const TallyCeremonyTrustees: React.FC = () => {
 
                         <Box>
                             <ElectionHeader
-                                title={t("tally.trusteeTitle")}
-                                subtitle={t("tally.trusteeSubTitle")}
+                                title={"tally.trusteeTitle"}
+                                subtitle={"tally.trusteeSubTitle"}
                             />
 
                             <DropFile handleFiles={uploadPrivateKey} />
@@ -243,8 +226,8 @@ export const TallyCeremonyTrustees: React.FC = () => {
                 {page === WizardSteps.Status && (
                     <>
                         <ElectionHeader
-                            title={t("tally.ceremonyTitle")}
-                            subtitle={t("tally.ceremonySubTitle")}
+                            title={"tally.ceremonyTitle"}
+                            subtitle={"tally.ceremonySubTitle"}
                         />
 
                         <TallyElectionsList
@@ -253,8 +236,8 @@ export const TallyCeremonyTrustees: React.FC = () => {
 
                         <TallyStyles.StyledFooter>
                             <ElectionHeader
-                                title={t("tally.trusteeTallyTitle")}
-                                subtitle={t("tally.trusteeTallySubTitle")}
+                                title={"tally.trusteeTallyTitle"}
+                                subtitle={"tally.trusteeTallySubTitle"}
                             />
                         </TallyStyles.StyledFooter>
 

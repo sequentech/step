@@ -39,6 +39,12 @@ interface TallyCeremonyProps {
     completed: boolean
 }
 
+const WizardSteps = {
+    Start: 0,
+    Tally: 1,
+    Results: 2,
+}
+
 export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     const {completed} = props
 
@@ -47,7 +53,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     const notify = useNotify()
 
     const [openModal, setOpenModal] = useState(false)
-    const [page, setPage] = useState<number>(0)
+    const [page, setPage] = useState<number>(WizardSteps.Start)
     const [showTrustees, setShowTrustees] = useState(false)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<string[]>([])
@@ -73,10 +79,10 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
         if (data) {
             setPage(
                 data.execution_status === ITallyExecutionStatus.CONNECTED
-                    ? 1
+                    ? WizardSteps.Tally
                     : data.execution_status === ITallyExecutionStatus.IN_PROGRESS
-                    ? 2
-                    : 0
+                    ? WizardSteps.Results
+                    : WizardSteps.Start
             )
             if (tally?.last_updated_at !== data.last_updated_at) {
                 console.log("TallyCeremony :: data", data)
@@ -124,13 +130,13 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     `
 
     const handleNext = () => {
-        if (page === 0) {
+        if (page === WizardSteps.Start) {
             if (showTrustees) {
                 setPage(page < 2 ? page + 1 : 0)
             } else {
                 setOpenModal(true)
             }
-        } else if (1 === page) {
+        } else if (WizardSteps.Tally === page) {
             setOpenModal(true)
         } else {
             setPage(page < 2 ? page + 1 : 0)
@@ -138,7 +144,8 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
     }
 
     const confirmNextAction = async () => {
-        let nextAction = page === 1? ITallyExecutionStatus.IN_PROGRESS : ITallyExecutionStatus.STARTED
+        let nextAction =
+            page === 1 ? ITallyExecutionStatus.IN_PROGRESS : ITallyExecutionStatus.STARTED
 
         const {data, errors} = await UpdateTallyCeremonyMutation({
             variables: {
@@ -164,7 +171,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
             return true
         } else {
             if (
-                page === 0 &&
+                page === WizardSteps.Start &&
                 showTrustees &&
                 tally?.execution_status !== ITallyExecutionStatus.CONNECTED
             ) {
@@ -190,11 +197,11 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                     />
                 </TallyStyles.StyledHeader>
 
-                {page === 0 && (
+                {page === WizardSteps.Start && (
                     <>
                         <ElectionHeader
-                            title={t("tally.ceremonyTitle")}
-                            subtitle={t("tally.ceremonySubTitle")}
+                            title={"tally.ceremonyTitle"}
+                            subtitle={"tally.ceremonySubTitle"}
                         />
 
                         <TallyElectionsList
@@ -205,8 +212,8 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                             <>
                                 <TallyStyles.StyledFooter>
                                     <ElectionHeader
-                                        title={t("tally.trusteeTallyTitle")}
-                                        subtitle={t("tally.trusteeTallySubTitle")}
+                                        title={"tally.trusteeTallyTitle"}
+                                        subtitle={"tally.trusteeTallySubTitle"}
                                     />
                                 </TallyStyles.StyledFooter>
 
@@ -237,7 +244,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                     </>
                 )}
 
-                {page === 1 && (
+                {page === WizardSteps.Tally && (
                     <>
                         <Accordion
                             sx={{width: "100%"}}
@@ -253,7 +260,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                                 expandIcon={<ExpandMoreIcon id="tally-data-general" />}
                             >
                                 <ElectionStyles.Wrapper>
-                                    <ElectionHeader title={t("tally.tallyTitle")} subtitle="" />
+                                    <ElectionHeader title={"tally.tallyTitle"} subtitle="" />
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
@@ -273,7 +280,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                         >
                             <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-logs" />}>
                                 <ElectionStyles.Wrapper>
-                                    <ElectionHeader title={t("tally.logsTitle")} subtitle="" />
+                                    <ElectionHeader title={"tally.logsTitle"} subtitle="" />
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
@@ -295,7 +302,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                                 expandIcon={<ExpandMoreIcon id="tally-data-results" />}
                             >
                                 <ElectionStyles.Wrapper>
-                                    <ElectionHeader title={t("tally.resultsTitle")} subtitle="" />
+                                    <ElectionHeader title={"tally.resultsTitle"} subtitle="" />
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
@@ -305,7 +312,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                     </>
                 )}
 
-                {page === 2 && (
+                {page === WizardSteps.Results && (
                     <>
                         <TallyStyles.StyledSpacing>
                             <ListActions
@@ -329,10 +336,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                                 expandIcon={<ExpandMoreIcon id="tally-results-general" />}
                             >
                                 <ElectionStyles.Wrapper>
-                                    <ElectionHeader
-                                        title={t("tally.generalInfoTitle")}
-                                        subtitle=""
-                                    />
+                                    <ElectionHeader title={"tally.generalInfoTitle"} subtitle="" />
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
@@ -373,7 +377,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                     <CancelButton className="list-actions" onClick={() => setTallyId(null)}>
                         {t("tally.common.cancel")}
                     </CancelButton>
-                    {page < 2 && (
+                    {page < WizardSteps.Results && (
                         <NextButton color="primary" onClick={handleNext} disabled={setDisabled()}>
                             <>
                                 {t("tally.common.next")}

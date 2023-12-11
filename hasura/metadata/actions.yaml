@@ -406,6 +406,20 @@ actions:
   permissions:
   - role: publish-write
   - role: admin-user
+- name: restore_private_key
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/restore-private-key
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.object}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: trustee-ceremony
+  - role: admin-user
 - name: set_role_permission
   definition:
     kind: synchronous
@@ -502,6 +516,7 @@ custom_types:
   - name: KeycloakPermission2
   - name: CreatePermissionInput
   - name: KeycloakRole2
+  - name: RestorePrivateKeyInput
   objects:
   - name: CreateKeysCeremonyOutput
   - name: GetPrivateKeyOutput
@@ -537,4 +552,5 @@ custom_types:
   - name: UpdateElectionVotingStatusOutput
   - name: BallotPublicationStyles
   - name: GetBallotPublicationChangesOutput
+  - name: RestorePrivateKeyOutput
   scalars: []
