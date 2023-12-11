@@ -159,7 +159,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                 variables: {
                     tenantId: tenantId,
                     electionEventId: electionEventId,
-                    eventProcessor: ScheduledEventType.CREATE_REPORT,
+                    eventProcessor: ScheduledEventType.SEND_COMMUNICATION,
                     cronConfig: undefined,
                     eventPayload: getPayload(formData),
                 },
@@ -294,7 +294,9 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             {(Object.keys(IAudienceSelection) as Array<IAudienceSelection>).map(
                                 (key) => (
                                     <MenuItem key={key} value={key}>
-                                        {t(`sendCommunication.votersSelection.${key}`)}
+                                        {t(`sendCommunication.votersSelection.${key}`, {
+                                            total: communication.audience.voter_ids?.length ?? 0,
+                                        })}
                                     </MenuItem>
                                 )
                             )}
