@@ -24,5 +24,4 @@ pub mod util;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
-#[cfg(test)]
 pub mod fixtures;

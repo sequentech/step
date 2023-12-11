@@ -6,7 +6,7 @@ import {
     GET_CAST_VOTES_BY_DATERANGE,
     GET_CAST_VOTES_FOR_ELECTION,
 } from "@/queries/GetCastVotes"
-import globalSettings from "@/GlobalSettings"
+import globalSettings from "@/global-settings"
 
 export function useVotesHook({
     electionEventId,

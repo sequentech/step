@@ -42,15 +42,17 @@ export const SettingsScreen: React.FC = () => {
                         ),
                     },
                     {
-                        label: t("electionTypeScreen.tabs.communications"), 
+                        label: t("electionTypeScreen.tabs.communications"),
                         component: () => (
                             <Resource name="sequent_backend_tenant" list={SettingsComunications} />
-                        ),},
+                        ),
+                    },
                     {
-                        label: t("electionTypeScreen.tabs.languages"), 
+                        label: t("electionTypeScreen.tabs.languages"),
                         component: () => (
                             <Resource name="sequent_backend_tenant" list={SettingsLanguages} />
-                        ),},
+                        ),
+                    },
                 ]}
             />
         </Box>

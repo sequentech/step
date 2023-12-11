@@ -1,10 +1,10 @@
 import React, {useContext} from "react"
-import {ListUsers} from "../User/ListUsers"
-import {Sequent_Backend_Election_Event} from "../../gql/graphql"
+import {ListUsers} from "@/resources/User/ListUsers"
+import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {useRecordContext} from "react-admin"
-import {AuthContext} from "../../providers/AuthContextProvider"
-import {useTenantStore} from "../../providers/TenantContextProvider"
-import {IPermissions} from "../../types/keycloak"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {IPermissions} from "@/types/keycloak"
 
 export const EditElectionEventUsers: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()

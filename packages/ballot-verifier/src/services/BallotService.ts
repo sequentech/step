@@ -7,6 +7,7 @@ import {
     get_layout_properties_from_contest_js,
     get_candidate_points_js,
     get_ballot_style_from_auditable_ballot_js,
+    generate_sample_auditable_ballot_js,
     IBallotStyle,
     IDecodedVoteContest,
     IContest,
@@ -29,6 +30,7 @@ export interface IBallotService {
     getBallotStyleFromAuditableBallot: (
         auditableBallot: string
     ) => IBallotStyle | null
+    generateSampleAuditableBallot: () => string | null
 }
 
 export const hashBallot512 = (auditableBallot: string): string => {
@@ -84,10 +86,21 @@ export const getPoints = (question: IContest, answer: IDecodedVoteChoice): numbe
     }
 }
 
+export const generateSampleAuditableBallot =  (): string | null => {
+    try {
+        let auditableBallot: string = generate_sample_auditable_ballot_js()
+        return auditableBallot
+    } catch (error) {
+        console.log(error)
+        return null
+    }
+}
+
 export const provideBallotService = (): IBallotService => ({
     hashBallot512,
     decodeAuditableBallot,
     getLayoutProperties,
     getPoints,
     getBallotStyleFromAuditableBallot,
+    generateSampleAuditableBallot,
 })

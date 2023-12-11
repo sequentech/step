@@ -4,7 +4,6 @@ import {ContestDataForm, Sequent_Backend_Contest_Extended} from "./EditContestDa
 
 export const EditContestData: React.FC = () => {
     const transform = (data: Sequent_Backend_Contest_Extended): RaRecord<Identifier> => {
-
         // save presentation object
         // language_conf
         const enabled_language_codes = []

@@ -30,6 +30,7 @@ import {Typography} from "@mui/material"
 import {useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {provideBallotService} from "../services/BallotService"
+import globalSettings from "../global-settings"
 
 const ActionsContainer = styled(Box)`
     display: flex;
@@ -211,24 +212,30 @@ export const AuditScreen: React.FC = () => {
             <AuditableBallotData>{auditableBallot || ""}</AuditableBallotData>
             <StyledTitle variant="h5" fontWeight="bold" fontSize="18px">
                 <Box>{t("auditScreen.step2Title")}</Box>
-                <IconButton
-                    icon={faCircleQuestion}
-                    sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                    fontSize="16px"
-                    onClick={() => setOpenStep2Help(true)}
-                />
-                <Dialog
-                    handleClose={() => setOpenStep2Help(false)}
-                    open={openStep2Help}
-                    title={t("auditScreen.step2HelpDialog.title")}
-                    ok={t("auditScreen.step2HelpDialog.ok")}
-                    variant="info"
-                >
-                    {stringToHtml(t("auditScreen.step2HelpDialog.content"))}
-                </Dialog>
+                {
+                    // <IconButton
+                    //     icon={faCircleQuestion}
+                    //     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                    //     fontSize="16px"
+                    //     onClick={() => setOpenStep2Help(true)}
+                    // />
+                    // <Dialog
+                    //     handleClose={() => setOpenStep2Help(false)}
+                    //     open={openStep2Help}
+                    //     title={t("auditScreen.step2HelpDialog.title")}
+                    //     ok={t("auditScreen.step2HelpDialog.ok")}
+                    //     variant="info"
+                    // >
+                    //     {stringToHtml(t("auditScreen.step2HelpDialog.content"))}
+                    // </Dialog>
+                }
             </StyledTitle>
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                {stringToHtml(t("auditScreen.step2Description"))}
+                {stringToHtml(
+                    t("auditScreen.step2Description", {
+                        linkToBallotVerifier: globalSettings.BALLOT_VERIFIER_URL,
+                    })
+                )}
             </Typography>
             <Box margin="15px 0 25px 0">
                 <WarnBox variant="warning">{stringToHtml(t("auditScreen.bottomWarning"))}</WarnBox>

@@ -8,6 +8,7 @@ use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
+use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::User;
@@ -16,6 +17,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::instrument;
+use windmill::services::users::list_users;
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {
@@ -86,8 +88,12 @@ pub async fn get_users(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    let auth_headers = keycloak::get_client_credentials()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     let realm = match input.election_event_id {
-        Some(election_event_id) => {
+        Some(ref election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
@@ -95,16 +101,19 @@ pub async fn get_users(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let (users, count) = client
-        .list_users(
-            &realm,
-            input.search,
-            input.email,
-            input.limit,
-            input.offset,
-        )
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let (users, count) = list_users(
+        auth_headers.clone(),
+        &client,
+        input.tenant_id.clone(),
+        input.election_event_id.clone(),
+        &realm,
+        input.search,
+        input.email,
+        input.limit,
+        input.offset,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     Ok(Json(DataList {
         items: users,
         total: TotalAggregate {
@@ -168,6 +177,7 @@ pub struct EditUserBody {
     first_name: Option<String>,
     last_name: Option<String>,
     username: Option<String>,
+    password: Option<String>,
 }
 
 #[instrument(skip(claims))]
@@ -207,6 +217,7 @@ pub async fn edit_user(
             input.first_name.clone(),
             input.last_name.clone(),
             input.username.clone(),
+            input.password.clone(),
         )
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

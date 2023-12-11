@@ -10,8 +10,8 @@ use base64::Engine;
 use braid::run::config::TrusteeConfig;
 use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use clap::Parser;
-use std::marker::PhantomData;
 use sequent_core::serialization::base64::Base64Serialize;
+use std::marker::PhantomData;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;

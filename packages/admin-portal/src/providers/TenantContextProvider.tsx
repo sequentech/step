@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useState} from "react"
-import globalSettings from "@/GlobalSettings"
+import globalSettings from "@/global-settings"
 
 interface TenantContextProps {
     tenantId: string | null

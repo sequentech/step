@@ -1,4 +1,4 @@
-import React, {useContext} from "react"
+import React, {useContext, useEffect} from "react"
 import {TabbedShowLayout, useRecordContext} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
@@ -13,12 +13,17 @@ import {EditElectionEventTally} from "./EditElectionEventTally"
 import {EditElectionEventPublish} from "./EditElectionEventPublish"
 import {useTranslation} from "react-i18next"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import { Publish } from "../Publish/Publish"
+import {useLocation, useNavigate} from "react-router"
+import {Publish} from "@/resources/Publish/Publish"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
     const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
+
+    const location = useLocation()
+    const navigate = useNavigate()
+
     const showDashboard = authContext.isAuthorized(
         true,
         authContext.tenantId,
@@ -46,6 +51,11 @@ export const ElectionEventTabs: React.FC = () => {
     const showLogs = authContext.isAuthorized(true, authContext.tenantId, IPermissions.LOGS_READ)
     const {t} = useTranslation()
     const [_, setTallyId] = useElectionEventTallyStore()
+
+    useEffect(() => {
+        const locArr = location.pathname.split("/").slice(0, 3).join("/")
+        navigate(locArr)
+    }, [])
 
     return (
         <>
@@ -86,7 +96,7 @@ export const ElectionEventTabs: React.FC = () => {
                 ) : null}
                 {showPublish ? (
                     <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.publish")}>
-                        <Publish />
+                        <Publish electionEventId={record?.id} />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showLogs ? (
@@ -97,4 +107,7 @@ export const ElectionEventTabs: React.FC = () => {
             </TabbedShowLayout>
         </>
     )
+}
+function userRef() {
+    throw new Error("Function not implemented.")
 }

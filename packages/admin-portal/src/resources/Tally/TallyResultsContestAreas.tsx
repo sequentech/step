@@ -4,10 +4,7 @@
 import React, {useEffect, useState} from "react"
 import {Identifier, RaRecord, useGetList, useGetOne} from "react-admin"
 
-import {
-    Sequent_Backend_Area_Contest,
-    Sequent_Backend_Contest,
-} from "../../gql/graphql"
+import {Sequent_Backend_Area_Contest, Sequent_Backend_Contest} from "../../gql/graphql"
 import {Box, Tabs, Tab} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsGlobalCandidates} from "./TallyResultsGlobalCandidates"
@@ -99,7 +96,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                     tenantId={contest?.tenant_id}
                     electionId={contest?.election_id}
                     contestId={contest?.id}
-                    />
+                />
             </CustomTabPanel>
             {areasData?.map((area, index) => (
                 <CustomTabPanel key={index} index={index + 1} value={value}>

@@ -8,6 +8,8 @@
                 "compose",
                 "logs",
                 "-f",
+                "--tail",
+                "200",
                 "harvest",
             ],
             "options": {
@@ -37,6 +39,8 @@
                 "compose",
                 "logs",
                 "-f",
+                "--tail",
+                "200",
                 "keycloak",
             ],
             "options": {
@@ -66,6 +70,8 @@
                 "compose",
                 "logs",
                 "-f",
+                "--tail",
+                "200",
                 "windmill",
             ],
             "options": {

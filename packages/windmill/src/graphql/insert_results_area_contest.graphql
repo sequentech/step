@@ -1,0 +1,49 @@
+mutation InsertResultsAreaContest(
+    $tenantId: uuid!,
+    $electionEventId: uuid!,
+    $electionId: uuid,
+    $contestId: uuid,
+    $areaId: uuid,
+    $resultsEventId: uuid!,
+    $elegibleCensus: Int,
+    $totalValidVotes: Int,
+    $explicitInvalidVotes: Int,
+    $implicitInvalidVotes: Int,
+    $blankVotes: Int,
+) {
+  insert_sequent_backend_results_area_contest(
+    objects:
+    {
+        tenant_id: $tenantId,
+        election_event_id: $electionEventId,
+        election_id: $electionId,
+        contest_id: $contestId,
+        area_id: $areaId,
+        results_event_id: $resultsEventId,
+        elegible_census: $elegibleCensus,
+        total_valid_votes: $totalValidVotes,
+        explicit_invalid_votes: $explicitInvalidVotes,
+        implicit_invalid_votes: $implicitInvalidVotes,
+        blank_votes: $blankVotes,
+    }
+  ) {
+    returning {
+        id
+        tenant_id
+        election_event_id
+        election_id
+        contest_id
+        area_id
+        results_event_id
+        elegible_census
+        total_valid_votes
+        explicit_invalid_votes
+        implicit_invalid_votes
+        blank_votes
+        created_at
+        last_updated_at
+        labels
+        annotations
+    }
+  }
+}

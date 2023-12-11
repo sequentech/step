@@ -14,6 +14,7 @@ import {
     useNotify,
     RaRecord,
     Identifier,
+    RecordContext,
 } from "react-admin"
 import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid} from "@mui/material"
 import {
@@ -22,7 +23,7 @@ import {
     Sequent_Backend_Document,
     Sequent_Backend_Election_Event,
 } from "../../gql/graphql"
-import React, {useEffect, useState} from "react"
+import React, {useCallback, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {useMutation} from "@apollo/client"
@@ -75,27 +76,26 @@ export const CandidateDataForm: React.FC = () => {
         return temp
     }
 
-    const [parsedValue, setParsedValue] = useState<Sequent_Backend_Candidate_Extended | undefined>()
+    const parseValues = useCallback(
+        (incoming: Sequent_Backend_Candidate_Extended): Sequent_Backend_Candidate_Extended => {
+            if (!data) {
+                return incoming as Sequent_Backend_Candidate_Extended
+            }
+            const temp = {...(incoming as Sequent_Backend_Candidate_Extended)}
 
-    useEffect(() => {
-        const parsedValue = parseValues(record)
-        setParsedValue(parsedValue)
-    }, [record])
+            let languageSettings
+            // const languageSettings = buildLanguageSettings()
+            const votingSettings = data?.voting_channels
 
-    const parseValues = (incoming: any) => {
-        const temp = {...incoming}
+            // languages
+            temp.enabled_languages = {}
 
-        const languageSettings = buildLanguageSettings()
-        const votingSettings = data?.voting_channels
-
-        // languages
-        temp.enabled_languages = {}
-
-        if (languageSettings) {
             if (
                 incoming?.presentation?.language_conf?.enabled_language_codes &&
                 incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
             ) {
+                languageSettings = incoming?.presentation?.language_conf?.enabled_language_codes
+
                 // if presentation has lang then set from event
                 // setDefaultLangValue(incoming?.presentation?.language_conf?.default_language_code)
                 temp.defaultLanguage = incoming?.presentation?.language_conf?.default_language_code
@@ -105,54 +105,64 @@ export const CandidateDataForm: React.FC = () => {
                     const isInEnabled =
                         incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
                             ? incoming?.presentation?.language_conf?.enabled_language_codes.find(
-                                  (item: any) => Object.keys(setting)[0] === item
+                                  (item: any) => setting === item
                               )
                             : false
 
                     if (isInEnabled) {
-                        enabled_item[Object.keys(setting)[0]] = true
+                        enabled_item[setting] = true
                     } else {
-                        enabled_item[Object.keys(setting)[0]] = false // setting[Object.keys(setting)[0]]
+                        enabled_item[setting] = false // setting[Object.keys(setting)[0]]
                     }
-                    temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
+
+                    temp.enabled_languages = {
+                        ...temp.enabled_languages,
+                        ...enabled_item,
+                    }
                 }
             } else {
                 // if presentation has no lang then use always de default settings
+                languageSettings = buildLanguageSettings()
+
                 temp.defaultLanguage = ""
+                let enabled_items: any = {}
                 for (const item of languageSettings) {
-                    temp.enabled_languages = {...temp.enabled_languages, ...item}
+                    enabled_items = {...enabled_items, ...item}
                 }
+                temp.enabled_languages = {...temp.enabled_languages, ...enabled_items}
             }
-        }
 
-        // set english first lang always
-        const en = {en: temp.enabled_languages["en"]}
-        delete temp.enabled_languages.en
-        const rest = temp.enabled_languages
-        temp.enabled_languages = {...en, ...rest}
+            // set english first lang always
+            if (temp.enabled_languages) {
+                const en = {en: temp.enabled_languages["en"]}
+                delete temp.enabled_languages.en
+                const rest = temp.enabled_languages
+                temp.enabled_languages = {...en, ...rest}
+            }
 
-        // voting channels
-        const all_channels = {...incoming?.voting_channels}
-        delete incoming.voting_channels
-        temp.voting_channels = {}
-        for (const setting in votingSettings) {
-            const enabled_item: any = {}
-            enabled_item[setting] =
-                setting in all_channels ? all_channels[setting] : votingSettings[setting]
-            temp.voting_channels = {...temp.voting_channels, ...enabled_item}
-        }
+            // voting channels
+            const all_channels = {...incoming?.voting_channels}
+            delete incoming.voting_channels
+            temp.voting_channels = {}
+            for (const setting in votingSettings) {
+                const enabled_item: any = {}
+                enabled_item[setting] =
+                    setting in all_channels ? all_channels[setting] : votingSettings[setting]
+                temp.voting_channels = {...temp.voting_channels, ...enabled_item}
+            }
 
-        // name, alias and description fields
-        if (!temp.presentation || !temp.presentation?.i18n) {
-            temp.presentation = {i18n: {en: {}}}
-        }
-        console.log("temp.presentation :>> ", temp.presentation)
-        temp.presentation.i18n.en.name = temp.name
-        temp.presentation.i18n.en.alias = temp.alias
-        temp.presentation.i18n.en.description = temp.description
+            // name, alias and description fields
+            if (!temp.presentation || !temp.presentation?.i18n) {
+                temp.presentation = {i18n: {en: {}}}
+            }
+            temp.presentation.i18n.en.name = temp.name
+            temp.presentation.i18n.en.alias = temp.alias
+            temp.presentation.i18n.en.description = temp.description
 
-        return temp
-    }
+            return temp
+        },
+        [data]
+    )
 
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
@@ -258,83 +268,99 @@ export const CandidateDataForm: React.FC = () => {
     }
 
     return data ? (
-        <SimpleForm
-            validate={formValidator}
-            record={parsedValue}
-            toolbar={
-                <Toolbar>
-                    <SaveButton />
-                </Toolbar>
-            }
-        >
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "candidate-data-general"}
-                onChange={() => setExpanded("candidate-data-general")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="candidate-data-general" />}>
-                    <CandidateStyles.Wrapper>
-                        <CandidateStyles.Title>
-                            {t("candidateScreen.edit.general")}
-                        </CandidateStyles.Title>
-                    </CandidateStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <Tabs value={value} onChange={handleChange}>
-                        {renderTabs(parsedValue)}
-                    </Tabs>
-                    {renderTabContent(parsedValue)}
-                </AccordionDetails>
-            </Accordion>
+        <RecordContext.Consumer>
+            {(incoming) => {
+                const parsedValue = parseValues(incoming as Sequent_Backend_Candidate_Extended)
+                console.log("parsedValue :>> ", parsedValue)
+                return (
+                    <SimpleForm
+                        validate={formValidator}
+                        record={parsedValue}
+                        toolbar={
+                            <Toolbar>
+                                <SaveButton />
+                            </Toolbar>
+                        }
+                    >
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "candidate-data-general"}
+                            onChange={() => setExpanded("candidate-data-general")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="candidate-data-general" />}
+                            >
+                                <CandidateStyles.Wrapper>
+                                    <CandidateStyles.Title>
+                                        {t("candidateScreen.edit.general")}
+                                    </CandidateStyles.Title>
+                                </CandidateStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Tabs value={value} onChange={handleChange}>
+                                    {renderTabs(parsedValue)}
+                                </Tabs>
+                                {renderTabContent(parsedValue)}
+                            </AccordionDetails>
+                        </Accordion>
 
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "candidate-data-type"}
-                onChange={() => setExpanded("candidate-data-type")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="candidate-data-type" />}>
-                    <CandidateStyles.Wrapper>
-                        <CandidateStyles.Title>
-                            {t("candidateScreen.edit.type")}
-                        </CandidateStyles.Title>
-                    </CandidateStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <SelectInput source="type" choices={CANDIDATE_TYPES(t)} />
-                </AccordionDetails>
-            </Accordion>
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "candidate-data-type"}
+                            onChange={() => setExpanded("candidate-data-type")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="candidate-data-type" />}
+                            >
+                                <CandidateStyles.Wrapper>
+                                    <CandidateStyles.Title>
+                                        {t("candidateScreen.edit.type")}
+                                    </CandidateStyles.Title>
+                                </CandidateStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <SelectInput source="type" choices={CANDIDATE_TYPES(t)} />
+                            </AccordionDetails>
+                        </Accordion>
 
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "election-data-image"}
-                onChange={() => setExpanded("election-data-image")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-data-image" />}>
-                    <CandidateStyles.Wrapper>
-                        <CandidateStyles.Title>
-                            {t("electionScreen.edit.image")}
-                        </CandidateStyles.Title>
-                    </CandidateStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <Grid container spacing={1}>
-                        <Grid item xs={2}>
-                            {parsedValue?.image_document_id &&
-                            parsedValue?.image_document_id !== "" ? (
-                                <img
-                                    width={200}
-                                    height={200}
-                                    src={`http://localhost:9000/public/tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
-                                    alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
-                                />
-                            ) : null}
-                        </Grid>
-                        <Grid item xs={10}>
-                            <DropFile handleFiles={async (files) => handleFiles(files)} />
-                        </Grid>
-                    </Grid>
-                </AccordionDetails>
-            </Accordion>
-        </SimpleForm>
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "election-data-image"}
+                            onChange={() => setExpanded("election-data-image")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="election-data-image" />}
+                            >
+                                <CandidateStyles.Wrapper>
+                                    <CandidateStyles.Title>
+                                        {t("electionScreen.edit.image")}
+                                    </CandidateStyles.Title>
+                                </CandidateStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Grid container spacing={1}>
+                                    <Grid item xs={2}>
+                                        {parsedValue?.image_document_id &&
+                                        parsedValue?.image_document_id !== "" ? (
+                                            <img
+                                                width={200}
+                                                height={200}
+                                                src={`http://localhost:9000/public/tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                                alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                            />
+                                        ) : null}
+                                    </Grid>
+                                    <Grid item xs={10}>
+                                        <DropFile
+                                            handleFiles={async (files) => handleFiles(files)}
+                                        />
+                                    </Grid>
+                                </Grid>
+                            </AccordionDetails>
+                        </Accordion>
+                    </SimpleForm>
+                )
+            }}
+        </RecordContext.Consumer>
     ) : null
 }

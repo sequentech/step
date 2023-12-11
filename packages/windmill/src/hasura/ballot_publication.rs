@@ -130,7 +130,7 @@ pub async fn update_ballot_publication_d(
     schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/soft_delete_other_ballot_publications.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize",
-    variables_derives = "Debug,Clone",
+    variables_derives = "Debug,Clone"
 )]
 pub struct SoftDeleteOtherBallotPublications;
 

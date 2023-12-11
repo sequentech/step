@@ -4,7 +4,11 @@
 
 import {useMutation} from "@apollo/client"
 import React, {useContext, useEffect, useState} from "react"
-import {CreateElectionEventMutation, Sequent_Backend_Area, Sequent_Backend_Tenant} from "@/gql/graphql"
+import {
+    CreateElectionEventMutation,
+    Sequent_Backend_Area,
+    Sequent_Backend_Tenant,
+} from "@/gql/graphql"
 import {v4} from "uuid"
 import {
     BooleanInput,
@@ -120,7 +124,7 @@ export const CreateElectionList: React.FC = () => {
             presentation: {
                 ...electionSubmit.presentation,
                 language_conf: {
-                    enabled_language_codes: settings?.languages ?? [],
+                    enabled_language_codes: settings?.languages ?? ["en"],
                     default_language_code: "en",
                 },
                 i18n: {

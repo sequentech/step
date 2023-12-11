@@ -99,9 +99,9 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
         .map(|trustee| trustee.name)
         .collect::<HashSet<String>>();
     let trustees_by_name = get_trustees_by_name(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        trustee_names.clone().into_iter().collect::<Vec<_>>(),
+        &auth_headers,
+        &tenant_id,
+        &trustee_names.clone().into_iter().collect::<Vec<_>>(),
     )
     .await?
     .data

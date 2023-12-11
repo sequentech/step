@@ -7,7 +7,7 @@ import {Identifier, RaRecord, useGetList} from "react-admin"
 import {Sequent_Backend_Contest} from "../../gql/graphql"
 import {Box, Tab, Tabs} from "@mui/material"
 import * as reactI18next from "react-i18next"
-import { TallyResultsContestAreas } from './TallyResultsContestAreas'
+import {TallyResultsContestAreas} from "./TallyResultsContestAreas"
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -22,21 +22,51 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
     const [contestId, setContestId] = useState<string | null>()
 
+    const [electionData, setElectionData] = useState<string | null>(null)
+    const [electionEventData, setElectionEventData] = useState<string | null>(null)
+    const [tenantData, setTenantData] = useState<string | null>(null)
+    const [areasData, setAreasData] = useState<RaRecord<Identifier>[]>()
+
+    // console.log("TallyResultsContest :: contestsData", contestsData)
 
     const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
         filter: {
-            election_id: electionId,
-            tenant_id: tenantId,
-            election_event_id: electionEventId,
+            election_id: electionData,
+            tenant_id: tenantData,
+            election_event_id: electionEventData,
         },
     })
 
     useEffect(() => {
         if (electionId) {
+            setElectionData(electionId)
+        }
+    }, [electionId])
+
+    useEffect(() => {
+        if (electionEventId) {
+            setElectionEventData(electionEventId)
+        }
+    }, [electionEventId])
+
+    useEffect(() => {
+        if (tenantId) {
+            setTenantData(tenantId)
+        }
+    }, [tenantId])
+
+    useEffect(() => {
+        if (areas) {
+            setAreasData(areas)
+        }
+    }, [areas])
+
+    useEffect(() => {
+        console.log("TallyResultsContest :: in effect contestsData", contests)
+        if (electionData) {
             setContestsData(contests || [])
         }
-    }, [electionId, contests])
-    
+    }, [electionData, contests])
 
     interface TabPanelProps {
         children?: reactI18next.ReactI18NextChild | Iterable<reactI18next.ReactI18NextChild>
@@ -73,7 +103,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
             {contestsData?.map((contest, index) => (
                 <CustomTabPanel key={index} index={index} value={value}>
                     <TallyResultsContestAreas
-                        areas={areas}
+                        areas={areasData}
                         contestId={contestId || null}
                         electionId={contest?.election_id}
                         electionEventId={contest?.election_event_id}

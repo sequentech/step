@@ -9,6 +9,10 @@ query GetPublicationBallotStyles(
           tenant_id: {_eq: $tenantId},
           ballot_publication_id: {_eq: $ballotPublicationId},
       }
+      order_by: [
+        {election_id: asc},
+        {area_id: asc}
+      ]
   ) {
       id
       tenant_id

@@ -10,6 +10,7 @@ use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::create_keys;
 use windmill::tasks::render_report;
+use windmill::tasks::send_communication::*;
 use windmill::tasks::set_public_key::*;
 use windmill::tasks::tally_election_event::{
     tally_election_event, TallyElectionBody,
@@ -101,6 +102,22 @@ pub async fn process_scheduled_event(event: CreateEventBody) -> Result<String> {
                 "Sent CREATE_ELECTION_EVENT_BALLOT_STYLES task {}",
                 task.task_id
             );*/
+        }
+        EventProcessors::SEND_COMMUNICATION => {
+            let payload: SendCommunicationBody =
+                serde_json::from_value(event.event_payload.clone())?;
+            let task = celery_app
+                .send_task(send_communication::new(
+                    payload,
+                    event.tenant_id,
+                    event.election_event_id.clone(),
+                ))
+                .await?;
+            event!(
+                Level::INFO,
+                "Sent SEND_COMMUNICATION task {}",
+                task.task_id
+            );
         }
     }
     Ok(element_id)

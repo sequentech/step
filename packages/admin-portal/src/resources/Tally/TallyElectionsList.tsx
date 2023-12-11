@@ -4,18 +4,11 @@
 import React, {useEffect, useState} from "react"
 import {useGetOne, useGetMany} from "react-admin"
 
-import {
-    Sequent_Backend_Election,
-    Sequent_Backend_Tally_Session,
-} from "../../gql/graphql"
+import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {
-    DataGrid,
-    GridColDef,
-    GridRenderCellParams,
-} from "@mui/x-data-grid"
+import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
-import { useTranslation } from 'react-i18next'
+import {useTranslation} from "react-i18next"
 
 interface TallyElectionsListProps {
     update: (elections: Array<string>) => void
@@ -31,13 +24,9 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
         Array<Sequent_Backend_Election & {rowId: number; id: string; active: boolean}>
     >([])
 
-
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
-        "sequent_backend_tally_session",
-        {
-            id: tallyId,
-        }
-    )
+    const {data} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
+        id: tallyId,
+    })
 
     const {data: elections} = useGetMany("sequent_backend_election", {
         ids: data?.election_ids || [],
@@ -58,7 +47,9 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
 
     useEffect(() => {
         if (electionsData) {
-            const temp = electionsData.filter((election) => election.active).map((election) => election.id)
+            const temp = electionsData
+                .filter((election) => election.active)
+                .map((election) => election.id)
             update(temp)
         }
     }, [electionsData])
@@ -76,7 +67,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             flex: 1,
             editable: true,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
-                <Checkbox checked={props.value} onChange={() => handleConfirmChange(props.row)} />
+                <Checkbox checked={true} disabled />
             ),
         },
     ]

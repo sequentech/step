@@ -17,6 +17,7 @@ import {
     useUpdate,
     RaRecord,
     Identifier,
+    RecordContext,
 } from "react-admin"
 import {
     Accordion,
@@ -36,7 +37,7 @@ import {
     Sequent_Backend_Tenant,
 } from "../../gql/graphql"
 
-import React, {useEffect, useState} from "react"
+import React, {useCallback, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {useMutation} from "@apollo/client"
@@ -99,91 +100,110 @@ export const ElectionDataForm: React.FC = () => {
             }
         }
 
+        console.log("buildLanguageSettings :: tempSettings :>> ", tempSettings)
+        console.log("buildLanguageSettings :: temp :>> ", temp)
+
         return temp
     }
 
-    const [parsedValue, setParsedValue] = useState<Sequent_Backend_Election_Extended | undefined>()
+    const parseValues = useCallback(
+        (incoming: Sequent_Backend_Election_Extended): Sequent_Backend_Election_Extended => {
+            if (!data) {
+                return incoming as Sequent_Backend_Election_Extended
+            }
 
-    useEffect(() => {
-        const parsedValue = parseValues(record)
-        setParsedValue(parsedValue)
-    }, [record])
+            const temp: Sequent_Backend_Election_Extended = {
+                ...incoming,
+            }
 
-    const parseValues = (incoming: RaRecord<Identifier>): Sequent_Backend_Election_Extended => {
-        const temp: Sequent_Backend_Election_Extended = {
-            ...incoming,
-        }
+            let languageSettings
+            // if (!incoming?.presentation) languageSettings = buildLanguageSettings()
+            const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
-        const languageSettings = buildLanguageSettings()
-        const votingSettings = data?.voting_channels || tenantData?.voting_channels
+            // languages
+            // temp.configuration = {...jsonConfiguration}
+            temp.enabled_languages = {}
 
-        // languages
-        // temp.configuration = {...jsonConfiguration}
-        temp.enabled_languages = {}
-
-        if (languageSettings) {
+            // if (languageSettings) {
             if (
                 incoming?.presentation?.language_conf?.enabled_language_codes &&
                 incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
             ) {
+                languageSettings = incoming?.presentation?.language_conf?.enabled_language_codes
+
                 // if presentation has lang then set from event
                 setDefaultLangValue(incoming?.presentation?.language_conf?.default_language_code)
                 temp.defaultLanguage = incoming?.presentation?.language_conf?.default_language_code
                 for (const setting of languageSettings) {
                     const enabled_item: any = {}
 
+                    console.log("setting :>> ", setting)
+                    console.log(
+                        "enabled_language_codes :>> ",
+                        incoming?.presentation?.language_conf?.enabled_language_codes
+                    )
+
                     const isInEnabled =
                         incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
                             ? incoming?.presentation?.language_conf?.enabled_language_codes.find(
-                                  (item: any) => Object.keys(setting)[0] === item
+                                  (item: any) => setting === item
                               )
                             : false
 
                     if (isInEnabled) {
-                        enabled_item[Object.keys(setting)[0]] = true
+                        enabled_item[setting] = true
                     } else {
-                        enabled_item[Object.keys(setting)[0]] = false // setting[Object.keys(setting)[0]]
+                        enabled_item[setting] = false // setting[Object.keys(setting)[0]]
                     }
+
+                    console.log("enabled_item :>> ", enabled_item)
+
                     temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
                 }
             } else {
                 // if presentation has no lang then use always de default settings
+                languageSettings = buildLanguageSettings()
+
                 temp.defaultLanguage = ""
+                let enabled_items: any = {}
                 for (const item of languageSettings) {
-                    temp.enabled_languages = {...temp.enabled_languages, ...item}
+                    enabled_items = {...enabled_items, ...item}
                 }
+                temp.enabled_languages = {...temp.enabled_languages, ...enabled_items}
             }
-        }
+            // }
 
-        // set english first lang always
-        if (temp.enabled_languages) {
-            const en = {en: temp.enabled_languages["en"]}
-            delete temp.enabled_languages.en
-            const rest = temp.enabled_languages
-            temp.enabled_languages = {...en, ...rest}
-        }
+            // set english first lang always
+            if (temp.enabled_languages) {
+                const en = {en: temp.enabled_languages["en"]}
+                delete temp.enabled_languages.en
+                const rest = temp.enabled_languages
+                temp.enabled_languages = {...en, ...rest}
+            }
 
-        // voting channels
-        const all_channels = {...incoming?.voting_channels}
-        delete incoming.voting_channels
-        temp.voting_channels = {}
-        for (const setting in votingSettings) {
-            const enabled_item: any = {}
-            enabled_item[setting] =
-                setting in all_channels ? all_channels[setting] : votingSettings[setting]
-            temp.voting_channels = {...temp.voting_channels, ...enabled_item}
-        }
+            // voting channels
+            const all_channels = {...incoming?.voting_channels}
+            delete incoming.voting_channels
+            temp.voting_channels = {}
+            for (const setting in votingSettings) {
+                const enabled_item: any = {}
+                enabled_item[setting] =
+                    setting in all_channels ? all_channels[setting] : votingSettings[setting]
+                temp.voting_channels = {...temp.voting_channels, ...enabled_item}
+            }
 
-        // name, alias and description fields
-        if (!temp.presentation || !temp.presentation?.i18n) {
-            temp.presentation = {i18n: {en: {}}}
-        }
-        temp.presentation.i18n.en.name = temp.name
-        temp.presentation.i18n.en.alias = temp.alias
-        temp.presentation.i18n.en.description = temp.description
+            // name, alias and description fields
+            if (!temp.presentation || !temp.presentation?.i18n) {
+                temp.presentation = {i18n: {en: {}}}
+            }
+            temp.presentation.i18n.en.name = temp.name
+            temp.presentation.i18n.en.alias = temp.alias
+            temp.presentation.i18n.en.description = temp.description
 
-        return temp
-    }
+            return temp
+        },
+        [data]
+    )
 
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
@@ -326,221 +346,249 @@ export const ElectionDataForm: React.FC = () => {
     }
 
     return data ? (
-        <SimpleForm
-            validate={formValidator}
-            record={parsedValue}
-            toolbar={
-                <Toolbar>
-                    <SaveButton />
-                </Toolbar>
-            }
-        >
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "election-data-general"}
-                onChange={() => setExpanded("election-data-general")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-data-general" />}>
-                    <ElectionStyles.Wrapper>
-                        <ElectionStyles.Title>
-                            {t("electionScreen.edit.general")}
-                        </ElectionStyles.Title>
-                    </ElectionStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <Tabs value={value} onChange={handleChange}>
-                        {renderTabs(parsedValue)}
-                    </Tabs>
-                    {renderTabContent(parsedValue)}
-                </AccordionDetails>
-            </Accordion>
+        <RecordContext.Consumer>
+            {(incoming) => {
+                const parsedValue = parseValues(incoming as Sequent_Backend_Election_Extended)
+                console.log("parsedValue :>> ", parsedValue)
+                return (
+                    <SimpleForm
+                        validate={formValidator}
+                        record={parsedValue}
+                        toolbar={
+                            <Toolbar>
+                                <SaveButton />
+                            </Toolbar>
+                        }
+                    >
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "election-data-general"}
+                            onChange={() => setExpanded("election-data-general")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="election-data-general" />}
+                            >
+                                <ElectionStyles.Wrapper>
+                                    <ElectionStyles.Title>
+                                        {t("electionScreen.edit.general")}
+                                    </ElectionStyles.Title>
+                                </ElectionStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Tabs value={value} onChange={handleChange}>
+                                    {renderTabs(parsedValue)}
+                                </Tabs>
+                                {renderTabContent(parsedValue)}
+                            </AccordionDetails>
+                        </Accordion>
 
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "election-data-dates"}
-                onChange={() => setExpanded("election-data-dates")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-data-dates" />}>
-                    <ElectionStyles.Wrapper>
-                        <ElectionStyles.Title>
-                            {t("electionScreen.edit.dates")}
-                        </ElectionStyles.Title>
-                    </ElectionStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <Grid container spacing={4}>
-                        <Grid item xs={12} md={6}>
-                            <DateTimeInput
-                                source={`dates.start_date`}
-                                label={t("electionScreen.field.startDateTime")}
-                                parse={(value) => new Date(value).toISOString()}
-                            />
-                        </Grid>
-                        <Grid item xs={12} md={6}>
-                            <DateTimeInput
-                                source="dates.end_date"
-                                label={t("electionScreen.field.endDateTime")}
-                                parse={(value) => new Date(value).toISOString()}
-                            />
-                        </Grid>
-                    </Grid>
-                </AccordionDetails>
-            </Accordion>
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "election-data-dates"}
+                            onChange={() => setExpanded("election-data-dates")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="election-data-dates" />}
+                            >
+                                <ElectionStyles.Wrapper>
+                                    <ElectionStyles.Title>
+                                        {t("electionScreen.edit.dates")}
+                                    </ElectionStyles.Title>
+                                </ElectionStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Grid container spacing={4}>
+                                    <Grid item xs={12} md={6}>
+                                        <DateTimeInput
+                                            source={`dates.start_date`}
+                                            label={t("electionScreen.field.startDateTime")}
+                                            parse={(value) => new Date(value).toISOString()}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} md={6}>
+                                        <DateTimeInput
+                                            source="dates.end_date"
+                                            label={t("electionScreen.field.endDateTime")}
+                                            parse={(value) => new Date(value).toISOString()}
+                                        />
+                                    </Grid>
+                                </Grid>
+                            </AccordionDetails>
+                        </Accordion>
 
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "election-data-language"}
-                onChange={() => setExpanded("election-data-language")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-data-language" />}>
-                    <ElectionStyles.Wrapper>
-                        <ElectionStyles.Title>
-                            {t("electionScreen.edit.language")}
-                        </ElectionStyles.Title>
-                    </ElectionStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <ElectionStyles.AccordionContainer>
-                        <ElectionStyles.AccordionWrapper>
-                            {renderLangs(parsedValue)}
-                            {renderDefaultLangs(parsedValue)}
-                        </ElectionStyles.AccordionWrapper>
-                    </ElectionStyles.AccordionContainer>
-                </AccordionDetails>
-            </Accordion>
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "election-data-language"}
+                            onChange={() => setExpanded("election-data-language")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="election-data-language" />}
+                            >
+                                <ElectionStyles.Wrapper>
+                                    <ElectionStyles.Title>
+                                        {t("electionScreen.edit.language")}
+                                    </ElectionStyles.Title>
+                                </ElectionStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <ElectionStyles.AccordionContainer>
+                                    <ElectionStyles.AccordionWrapper>
+                                        {renderLangs(parsedValue)}
+                                        {renderDefaultLangs(parsedValue)}
+                                    </ElectionStyles.AccordionWrapper>
+                                </ElectionStyles.AccordionContainer>
+                            </AccordionDetails>
+                        </Accordion>
 
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "election-data-allowed"}
-                onChange={() => setExpanded("election-data-allowed")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-data-allowed" />}>
-                    <ElectionStyles.Wrapper>
-                        <ElectionStyles.Title>
-                            {t("electionScreen.edit.allowed")}
-                        </ElectionStyles.Title>
-                    </ElectionStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <Grid container spacing={4}>
-                        <Grid item xs={12} md={6}>
-                            {renderVotingChannels(parsedValue)}
-                        </Grid>
-                    </Grid>
-                </AccordionDetails>
-            </Accordion>
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "election-data-allowed"}
+                            onChange={() => setExpanded("election-data-allowed")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="election-data-allowed" />}
+                            >
+                                <ElectionStyles.Wrapper>
+                                    <ElectionStyles.Title>
+                                        {t("electionScreen.edit.allowed")}
+                                    </ElectionStyles.Title>
+                                </ElectionStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Grid container spacing={4}>
+                                    <Grid item xs={12} md={6}>
+                                        {renderVotingChannels(parsedValue)}
+                                    </Grid>
+                                </Grid>
+                            </AccordionDetails>
+                        </Accordion>
 
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "election-data-receipts"}
-                onChange={() => setExpanded("election-data-receipts")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-data-receipts" />}>
-                    <ElectionStyles.Wrapper>
-                        <ElectionStyles.Title>
-                            {t("electionScreen.edit.receipts")}
-                        </ElectionStyles.Title>
-                    </ElectionStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <ElectionStyles.AccordionContainer>
-                        <ElectionStyles.AccordionWrapper alignment="center">
-                            <BooleanInput source="allowed.sms" label={"SMS"} defaultValue={true} />
-                            <SelectInput
-                                source="template.sms"
-                                choices={[
-                                    {id: "tech", name: "Tech"},
-                                    {id: "lifestyle", name: "Lifestyle"},
-                                    {id: "people", name: "People"},
-                                ]}
-                            />
-                        </ElectionStyles.AccordionWrapper>
-                        <ElectionStyles.AccordionWrapper alignment="center">
-                            <BooleanInput
-                                source="allowed.email"
-                                label={"EMAIL"}
-                                defaultValue={true}
-                            />
-                            <SelectInput
-                                source="template.email"
-                                choices={[
-                                    {id: "tech", name: "Tech"},
-                                    {id: "lifestyle", name: "Lifestyle"},
-                                    {id: "people", name: "People"},
-                                ]}
-                            />
-                        </ElectionStyles.AccordionWrapper>
-                        <ElectionStyles.AccordionWrapper alignment="center">
-                            <BooleanInput
-                                source="allowed.print"
-                                label={"PRINT"}
-                                defaultValue={true}
-                            />
-                            <SelectInput
-                                source="template.print"
-                                choices={[
-                                    {id: "tech", name: "Tech"},
-                                    {id: "lifestyle", name: "Lifestyle"},
-                                    {id: "people", name: "People"},
-                                ]}
-                            />
-                        </ElectionStyles.AccordionWrapper>
-                    </ElectionStyles.AccordionContainer>
-                </AccordionDetails>
-            </Accordion>
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "election-data-receipts"}
+                            onChange={() => setExpanded("election-data-receipts")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="election-data-receipts" />}
+                            >
+                                <ElectionStyles.Wrapper>
+                                    <ElectionStyles.Title>
+                                        {t("electionScreen.edit.receipts")}
+                                    </ElectionStyles.Title>
+                                </ElectionStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <ElectionStyles.AccordionContainer>
+                                    <ElectionStyles.AccordionWrapper alignment="center">
+                                        <BooleanInput
+                                            source="allowed.sms"
+                                            label={"SMS"}
+                                            defaultValue={true}
+                                        />
+                                        <SelectInput
+                                            source="template.sms"
+                                            choices={[
+                                                {id: "tech", name: "Tech"},
+                                                {id: "lifestyle", name: "Lifestyle"},
+                                                {id: "people", name: "People"},
+                                            ]}
+                                        />
+                                    </ElectionStyles.AccordionWrapper>
+                                    <ElectionStyles.AccordionWrapper alignment="center">
+                                        <BooleanInput
+                                            source="allowed.email"
+                                            label={"EMAIL"}
+                                            defaultValue={true}
+                                        />
+                                        <SelectInput
+                                            source="template.email"
+                                            choices={[
+                                                {id: "tech", name: "Tech"},
+                                                {id: "lifestyle", name: "Lifestyle"},
+                                                {id: "people", name: "People"},
+                                            ]}
+                                        />
+                                    </ElectionStyles.AccordionWrapper>
+                                    <ElectionStyles.AccordionWrapper alignment="center">
+                                        <BooleanInput
+                                            source="allowed.print"
+                                            label={"PRINT"}
+                                            defaultValue={true}
+                                        />
+                                        <SelectInput
+                                            source="template.print"
+                                            choices={[
+                                                {id: "tech", name: "Tech"},
+                                                {id: "lifestyle", name: "Lifestyle"},
+                                                {id: "people", name: "People"},
+                                            ]}
+                                        />
+                                    </ElectionStyles.AccordionWrapper>
+                                </ElectionStyles.AccordionContainer>
+                            </AccordionDetails>
+                        </Accordion>
 
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "election-data-image"}
-                onChange={() => setExpanded("election-data-image")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-data-image" />}>
-                    <ElectionStyles.Wrapper>
-                        <ElectionStyles.Title>
-                            {t("electionScreen.edit.image")}
-                        </ElectionStyles.Title>
-                    </ElectionStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <Grid container spacing={1}>
-                        <Grid item xs={2}>
-                            {parsedValue?.image_document_id &&
-                            parsedValue?.image_document_id !== "" ? (
-                                <img
-                                    width={200}
-                                    height={200}
-                                    src={`http://localhost:9000/public/tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
-                                    alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "election-data-image"}
+                            onChange={() => setExpanded("election-data-image")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="election-data-image" />}
+                            >
+                                <ElectionStyles.Wrapper>
+                                    <ElectionStyles.Title>
+                                        {t("electionScreen.edit.image")}
+                                    </ElectionStyles.Title>
+                                </ElectionStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Grid container spacing={1}>
+                                    <Grid item xs={2}>
+                                        {parsedValue?.image_document_id &&
+                                        parsedValue?.image_document_id !== "" ? (
+                                            <img
+                                                width={200}
+                                                height={200}
+                                                src={`http://localhost:9000/public/tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                                alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                            />
+                                        ) : null}
+                                    </Grid>
+                                    <Grid item xs={10}>
+                                        <DropFile
+                                            handleFiles={async (files) => handleFiles(files)}
+                                        />
+                                    </Grid>
+                                </Grid>
+                            </AccordionDetails>
+                        </Accordion>
+
+                        <Accordion
+                            sx={{width: "100%"}}
+                            expanded={expanded === "election-data-advanced"}
+                            onChange={() => setExpanded("election-data-advanced")}
+                        >
+                            <AccordionSummary
+                                expandIcon={<ExpandMoreIcon id="election-data-advanced" />}
+                            >
+                                <ElectionStyles.Wrapper>
+                                    <ElectionStyles.Title>
+                                        {t("electionScreen.edit.advanced")}
+                                    </ElectionStyles.Title>
+                                </ElectionStyles.Wrapper>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <FileJsonInput
+                                    parsedValue={parsedValue}
+                                    fileSource="configuration"
+                                    jsonSource="presentation"
                                 />
-                            ) : null}
-                        </Grid>
-                        <Grid item xs={10}>
-                            <DropFile handleFiles={async (files) => handleFiles(files)} />
-                        </Grid>
-                    </Grid>
-                </AccordionDetails>
-            </Accordion>
-
-            <Accordion
-                sx={{width: "100%"}}
-                expanded={expanded === "election-data-advanced"}
-                onChange={() => setExpanded("election-data-advanced")}
-            >
-                <AccordionSummary expandIcon={<ExpandMoreIcon id="election-data-advanced" />}>
-                    <ElectionStyles.Wrapper>
-                        <ElectionStyles.Title>
-                            {t("electionScreen.edit.advanced")}
-                        </ElectionStyles.Title>
-                    </ElectionStyles.Wrapper>
-                </AccordionSummary>
-                <AccordionDetails>
-                    <FileJsonInput
-                        parsedValue={parsedValue}
-                        fileSource="configuration"
-                        jsonSource="presentation"
-                    />
-                </AccordionDetails>
-            </Accordion>
-        </SimpleForm>
+                            </AccordionDetails>
+                        </Accordion>
+                    </SimpleForm>
+                )
+            }}
+        </RecordContext.Consumer>
     ) : null
 }

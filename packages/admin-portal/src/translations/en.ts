@@ -133,12 +133,12 @@ const englishTranslation = {
         },
         electionTypeScreen: {
             common: {
-                title: 'Election Type',
-                subtitle: 'Election type configuration',
-                onlineVoting: 'Online Voting',
-                kioskVoting: 'Kiosk Voting',
-                settingTitle: 'Settings',
-                settingSubtitle: 'General Configuration',
+                title: "Election Type",
+                subtitle: "Election type configuration",
+                onlineVoting: "Online Voting",
+                kioskVoting: "Kiosk Voting",
+                settingTitle: "Settings",
+                settingSubtitle: "General Configuration",
                 sms: "SMS",
                 mail: "Mails",
                 spanish: "Spanish",
@@ -208,6 +208,7 @@ const englishTranslation = {
                 emptyHeader: "No Keys Ceremony yet.",
                 statusLabel: "Status",
                 waitingKeys: "Waiting for Keys Generation..",
+                started: "Started at",
                 breadCrumbs: {
                     configure: "Configure",
                     ceremony: "Ceremony",
@@ -219,7 +220,8 @@ const englishTranslation = {
                     success: "Finished",
                 },
                 notify: {
-                    participateNow: "You have been invited to participate in a Keys ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
+                    participateNow:
+                        "You have been invited to participate in a Keys ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
             },
             tabs: {
@@ -233,6 +235,7 @@ const englishTranslation = {
                 logs: "Logs",
             },
             tally: {
+                emptyHeader: "No Tally yet.",
                 title: "Election Event Tally",
                 elections: "Elections",
                 electionNumber: "Number Elections",
@@ -277,6 +280,7 @@ const englishTranslation = {
             error: {
                 endDate: "End date must be after start date",
                 fileError: "Error uploading file",
+                fileLoaded: "File loaded",
             },
             createElectionEventSuccess: "Election Event created",
             createElectionEventError: "Error creating election event",
@@ -324,6 +328,17 @@ const englishTranslation = {
                     groups: "Groups",
                     attributes: "Attributes",
                     area: "Area",
+                    password: "Password",
+                    repeatPassword: "Repeat Password",
+                    passwordMismatch: "Passwords must match",
+                    passwordLengthValidate: "Password must be at least 8 characters long",
+                    passwordUppercaseValidate:
+                        "Password must contain at least one uppercase letter",
+                    passwordLowercaseValidate:
+                        "Password must contain at least one lowercase letter",
+                    passwordDigitValidate: "Password must contain at least one digit",
+                    passwordSpecialCharValidate:
+                        "Password must contain at least one special character",
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",
@@ -338,8 +353,10 @@ const englishTranslation = {
                 subtitle: "View and edit voter data",
                 create: {
                     title: "Voter",
-                    subtitle: "Create voter",
+                    subtitle: "Create Voter",
                 },
+                emptyHeader: "No voters yet.",
+                askCreate: "Do you want to create one?",
                 errors: {
                     editError: "Error editing voter",
                     editSuccess: "Voter edited",
@@ -630,14 +647,16 @@ const englishTranslation = {
             },
             startStep: {
                 title: "Trustee Keys Ceremony",
-                subtitle: "You are about to participate in the Keys Ceremony as a Trustee (<strong>{{name}}</strong>). This involves the following steps:",
+                subtitle:
+                    "You are about to participate in the Keys Ceremony as a Trustee (<strong>{{name}}</strong>). This involves the following steps:",
                 one: "<strong>Download</strong> your Encrypted Private Key.",
                 two: "Create multiple <strong>Backups</strong> of the Encrypted Private Key.",
                 three: "<strong>Check</strong> that the backups works well.",
             },
             downloadStep: {
                 title: "Download Encrypted Private Key",
-                subtitle: "To continue, please download and store your Encrypted Private Key at least into two different devices:",
+                subtitle:
+                    "To continue, please download and store your Encrypted Private Key at least into two different devices:",
                 downloadButton: "Download your Encrypted Private Key",
                 errorDownloading: "Download error: {{error}}",
                 errorEmptyKey: "Download error, empty file",
@@ -645,18 +664,20 @@ const englishTranslation = {
                     ok: "Confirm Backups and Continue",
                     cancel: "Go Back",
                     title: "Backup your Encrypted Private Key",
-                    description: "Please backup your Encrypted Private Key in at least two different secure locations and then confirm it below:",
+                    description:
+                        "Please backup your Encrypted Private Key in at least two different secure locations and then confirm it below:",
                     firstCopy: "First backup secured",
                     secondCopy: "Second backup secured",
                 },
             },
             checkStep: {
                 title: "Check your Encrypted Private Key Backups",
-                subtitle: "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
+                subtitle:
+                    "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
                 errorUploading: "Upload error: {{error}}",
                 errorEmptyFile: "File empty or not found",
                 verified: "Backup verified successfully.",
-            }
+            },
         },
         tally: {
             ceremonyTitle: "Elections to Tally",
@@ -671,15 +692,18 @@ const englishTranslation = {
             createTallyError: "Could not create Tally",
             startTallySuccess: "Tally started",
             startTallyError: "Could not start Tally",
+            trusteeTitle: "Trustees process",
+            trusteeSubTitle: "Please upload you key fragment",
             breadcrumbSteps: {
-                ceremony: "Ceremony",
-                tally: "Tally",
+                start: "Start",
+                finish: "Finish",
+                tally: "Start",
                 results: "Results",
             },
             common: {
                 title: "Tally",
                 subTitle: "Tally configuration.",
-                cancel: "Cancel",
+                cancel: "Back",
                 next: "Next",
                 date: "Tally Date",
                 global: "Global",
@@ -712,21 +736,40 @@ const englishTranslation = {
         },
         publish: {
             header: {
-                change: 'Changes to be Publish',
-                history: 'Publish History'
+                change: "Changes to be Publish",
+                history: "Publish History",
             },
             action: {
-                start: 'START ELECTION',
-                stop: 'STOP ELECTION',
-                pause: 'PAUSE',
-                generate: 'REGENERATE',
-                publish: 'PUBLISH CHANGES'
+                start: "START ELECTION",
+                stop: "STOP ELECTION",
+                pause: "PAUSE",
+                generate: "REGENERATE",
+                publish: "PUBLISH CHANGES",
             },
             label: {
-                current: 'Current',
-                diff: 'CHANGES TO PUBLISH'
-            }
-        }
+                current: "Current",
+                diff: "CHANGES TO PUBLISH",
+            },
+        },
+        sendCommunication: {
+            title: "Send Notification",
+            subtitle: "Send a notification to voters.",
+            sendButton: "Send Notification",
+            voters: "Voters",
+            schedule: "Schedule",
+            nowInput: "Send now",
+            dateInput: "Date and time to start sending notifications",
+            languages: "Languages",
+            votersSelection: {
+                ALL_USERS: "Everyone",
+                NOT_VOTED: "Those who didn't vote yet",
+                VOTED: "Those who already voted",
+                SELECTED: "Selected voters",
+            },
+            email: {
+                subject: "Subject",
+            },
+        },
     },
 }
 

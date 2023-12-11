@@ -325,8 +325,10 @@ input EditUsersInput {
   attributes : jsonb
   email : String
   first_name : String
+  last_name : String
   groups : [String!]
   username : String
+  password : String
 }
 
 input DeleteUserInput {
@@ -460,6 +462,11 @@ type InsertTenantOutput {
   slug : String!
 }
 
+type KeycloakUserArea {
+  id : uuid
+  name : String
+}
+
 type KeycloakUser {
   id : String
   attributes : jsonb
@@ -470,6 +477,7 @@ type KeycloakUser {
   groups : [String!]
   last_name : String
   username : String
+  area : KeycloakUserArea
 }
 
 type GetUsersOutput {
