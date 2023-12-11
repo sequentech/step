@@ -123,7 +123,7 @@ fn get_variables(
             ))
         );
     }
-    return Ok(variables);
+    Ok(variables)
 }
 
 #[instrument]
@@ -239,7 +239,7 @@ pub async fn send_communication(
                     send_communication_email(
                         /* to */ &user.email,
                         /* template */ &body.email,
-                        /* variables */ &Default::default(),
+                        /* variables */ &variables,
                     )?;
                 }
                 CommunicationMethod::SMS => {
