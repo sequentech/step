@@ -5,7 +5,7 @@
 
 use crate::hasura::election_event::get_election_event_helper;
 use crate::hasura::keys_ceremony::{
-    get_keys_ceremonies, insert_keys_ceremony, update_keys_ceremony_status,
+    get_keys_ceremonies, get_keys_ceremony_by_id, insert_keys_ceremony, update_keys_ceremony_status,
 };
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::celery_app::get_celery_app;
@@ -212,18 +212,13 @@ pub async fn check_private_key(
         .ok_or(anyhow!("username not found"))?;
 
     // get the keys ceremonies for this election event
-    let keys_ceremony = get_keys_ceremonies(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
+    let keys_ceremony = get_keys_ceremony_by_id(
+        &auth_headers.clone(),
+        &tenant_id.clone(),
+        &election_event_id.clone(),
+        &keys_ceremony_id,
     )
-    .await?
-    .data
-    .with_context(|| "error listing existing keys ceremonies")?
-    .sequent_backend_keys_ceremony
-    .into_iter()
-    .find(|ceremony| ceremony.id == keys_ceremony_id)
-    .with_context(|| "error listing existing keys ceremonies")?;
+    .await?;
     // check keys_ceremony has correct execution status
     if keys_ceremony.execution_status != Some(ExecutionStatus::IN_PROCESS.to_string()) {
         return Err(anyhow!("Keys ceremony not in ExecutionStatus::IN_PROCESS"));

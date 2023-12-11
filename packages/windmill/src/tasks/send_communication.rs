@@ -12,6 +12,9 @@ use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use braid_messages::newtypes::BatchNumber;
 use celery::error::TaskError;
+use lettre::message::header::ContentType;
+use lettre::transport::smtp::authentication::Credentials;
+use lettre::{Message, SmtpTransport, Transport};
 use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
@@ -21,10 +24,6 @@ use std::collections::{HashMap, HashSet};
 use std::default::Default;
 use strum_macros::{Display, EnumString};
 use tracing::{event, instrument, Level};
-use lettre::message::header::ContentType;
-use lettre::transport::smtp::authentication::Credentials;
-use lettre::{Message, SmtpTransport, Transport};
-
 
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
@@ -83,12 +82,12 @@ pub struct SendCommunicationBody {
 
 fn send_communication_email(
     receiver: &Option<String>,
-    template: &Option<EmailConfig>
+    template: &Option<EmailConfig>,
 ) -> Result<()> {
     event!(
         Level::INFO,
         "TODO: Send email receiver={:?}",
-        receiver=receiver,
+        receiver = receiver,
     );
     Ok(())
 }
@@ -103,12 +102,9 @@ pub async fn send_communication(
 ) -> Result<()> {
     let auth_headers = keycloak::get_client_credentials().await?;
     let celery_app = get_celery_app().await;
-    let client = KeycloakAdminClient::new()
-        .await?;
+    let client = KeycloakAdminClient::new().await?;
     let realm = match election_event_id {
-        Some(ref election_event_id) => {
-            get_event_realm(&tenant_id, &election_event_id)
-        }
+        Some(ref election_event_id) => get_event_realm(&tenant_id, &election_event_id),
         None => get_tenant_realm(&tenant_id),
     };
 
@@ -121,29 +117,27 @@ pub async fn send_communication(
         None,
         None,
         None,
-        None
+        None,
     )
     .await?;
     users
         .iter()
-        .filter(|user| (
-            body.audience_selection == AudienceSelection::ALL_USERS ||
-            (
-                body.audience_selection == AudienceSelection::SELECTED &&
-                user.id.is_some() &&
-                body
-                    .audience_voter_ids
-                    .as_ref()
-                    .unwrap_or(&vec![])
-                    .contains(&user.id.as_ref().unwrap())
-            )
-        ))
+        .filter(|user| {
+            (body.audience_selection == AudienceSelection::ALL_USERS
+                || (body.audience_selection == AudienceSelection::SELECTED
+                    && user.id.is_some()
+                    && body
+                        .audience_voter_ids
+                        .as_ref()
+                        .unwrap_or(&vec![])
+                        .contains(&user.id.as_ref().unwrap())))
+        })
         .try_for_each(|user| -> Result<()> {
             event!(
                 Level::INFO,
                 "Sending communication to user with id={:?} and email={:?}",
-                id=user.id,
-                email=user.email,
+                id = user.id,
+                email = user.email,
             );
             match body.communication_method {
                 CommunicationMethod::EMAIL => {
@@ -151,10 +145,10 @@ pub async fn send_communication(
                         /* to */ &user.email,
                         /* template */ &body.email,
                     )?;
-                },
+                }
                 CommunicationMethod::SMS => {
-                    event!(Level::INFO,"TODO: Send SMS");
-                },
+                    event!(Level::INFO, "TODO: Send SMS");
+                }
             };
             Ok(())
         })?;
