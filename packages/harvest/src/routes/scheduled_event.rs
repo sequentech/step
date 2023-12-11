@@ -22,7 +22,7 @@ use crate::services;
 #[derive(Deserialize, Debug, Clone)]
 pub struct CreateEventBody {
     pub tenant_id: String,
-    pub election_event_id: String,
+    pub election_event_id: Option<String>,
     pub event_processor: EventProcessors,
     pub cron_config: Option<String>,
     pub event_payload: Value,
