@@ -193,8 +193,8 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                 {page === 0 && (
                     <>
                         <ElectionHeader
-                            title={t("tally.ceremonyTitle")}
-                            subtitle={t("tally.ceremonySubTitle")}
+                            title={"tally.ceremonyTitle"}
+                            subtitle={"tally.ceremonySubTitle"}
                         />
 
                         <TallyElectionsList
@@ -205,8 +205,8 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                             <>
                                 <TallyStyles.StyledFooter>
                                     <ElectionHeader
-                                        title={t("tally.trusteeTallyTitle")}
-                                        subtitle={t("tally.trusteeTallySubTitle")}
+                                        title={"tally.trusteeTallyTitle"}
+                                        subtitle={"tally.trusteeTallySubTitle"}
                                     />
                                 </TallyStyles.StyledFooter>
 
@@ -253,7 +253,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                                 expandIcon={<ExpandMoreIcon id="tally-data-general" />}
                             >
                                 <ElectionStyles.Wrapper>
-                                    <ElectionHeader title={t("tally.tallyTitle")} subtitle="" />
+                                    <ElectionHeader title={"tally.tallyTitle"} subtitle="" />
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
@@ -273,7 +273,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                         >
                             <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-logs" />}>
                                 <ElectionStyles.Wrapper>
-                                    <ElectionHeader title={t("tally.logsTitle")} subtitle="" />
+                                    <ElectionHeader title={"tally.logsTitle"} subtitle="" />
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
@@ -295,7 +295,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                                 expandIcon={<ExpandMoreIcon id="tally-data-results" />}
                             >
                                 <ElectionStyles.Wrapper>
-                                    <ElectionHeader title={t("tally.resultsTitle")} subtitle="" />
+                                    <ElectionHeader title={"tally.resultsTitle"} subtitle="" />
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
@@ -330,7 +330,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                             >
                                 <ElectionStyles.Wrapper>
                                     <ElectionHeader
-                                        title={t("tally.generalInfoTitle")}
+                                        title={"tally.generalInfoTitle"}
                                         subtitle=""
                                     />
                                 </ElectionStyles.Wrapper>
