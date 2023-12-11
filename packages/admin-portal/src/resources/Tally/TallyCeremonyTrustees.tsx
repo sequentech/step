@@ -17,25 +17,17 @@ import styled from "@emotion/styled"
 import {TallyElectionsList} from "./TallyElectionsList"
 import {TallyTrusteesList} from "./TallyTrusteesList"
 import {TallyStyles} from "@/components/styles/TallyStyles"
-import {TallyStartDate} from "./TallyStartDate"
-import {TallyElectionsProgress} from "./TallyElectionsProgress"
-import {TallyElectionsResults} from "./TallyElectionsResults"
-import {TallyResults} from "./TallyResults"
-import {TallyLogs} from "./TallyLogs"
-import {useGetList, useGetOne, useNotify} from "react-admin"
+import {useGetList, useGetOne} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {useMutation} from "@apollo/client"
-import {ITallyExecutionStatus, ITallyTrusteeStatus, ITrusteeStatus} from "@/types/ceremonies"
+import {ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
 import {faKey} from "@fortawesome/free-solid-svg-icons"
 import {Box} from "@mui/material"
-import {Sequent_Backend_Area, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "@/gql/graphql"
-import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
+import {Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "@/gql/graphql"
+import {AuthContext} from "@/providers/AuthContextProvider"
 import { useTenantStore } from '@/providers/TenantContextProvider'
 
-// interface TallyCeremonyTrusteesProps {
-//     completed: boolean
-// }
 
 const WizardSteps = {
     Start: 0,
@@ -45,7 +37,6 @@ const WizardSteps = {
 export const TallyCeremonyTrustees: React.FC = () => {
     const {t} = useTranslation()
     const [tallyId, setTallyId] = useElectionEventTallyStore()
-    const notify = useNotify()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
@@ -89,15 +80,11 @@ export const TallyCeremonyTrustees: React.FC = () => {
         if (tallySessionExecutions) {
             const username = authContext?.username
             const trusteeStatus = tallySessionExecutions?.[0]?.status?.trustees.find((item: any) => item.name === username)?.status
-            console.log("TRUSTEE STATUS BEFORE :: ", trusteeStatus)
             setTrusteeStatus(trusteeStatus)
         }
     }, [tallySessionExecutions])
 
     useEffect(() => {
-        // TODO: uncomment to control the screen state depending on tally_execution_status
-        console.log("TRUSTEE STATUS :: ", trusteeStatus)
-
         setPage(
             !trusteeStatus
                 ? WizardSteps.Start
