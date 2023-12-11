@@ -176,8 +176,40 @@ impl EmailSender {
         html_body: String,
     ) -> Result<()> {
         match self.transport {
-            EmailTransport::AwsSes(ref aws_sender) => {
-                // TODO
+            EmailTransport::AwsSes(ref aws_client) => {
+                event!(
+                    Level::INFO,
+                    "EmailTransport::AwsSes: Sending email:\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
+                );
+                let mut dest: Destination = Destination::builder().build();
+                dest.to_addresses = Some(vec![receiver]);
+                let subject_content = Content::builder()
+                    .data(subject)
+                    .charset("UTF-8")
+                    .build()
+                    .map_err(|err| anyhow!("invalid subject: {:?}", err))?;
+                let body_content = Content::builder()
+                    .data(plaintext_body)
+                    .charset("UTF-8")
+                    .build()
+                    .map_err(|err| anyhow!("invalid body: {:?}", err))?;
+                let body = Body::builder().text(body_content).build();
+
+                let msg = AwsMessage::builder()
+                    .subject(subject_content)
+                    .body(body)
+                    .build();
+
+                let email_content = EmailContent::builder().simple(msg).build();
+
+                aws_client
+                    .send_email()
+                    .from_email_address(self.email_from.as_str())
+                    .destination(dest)
+                    .content(email_content)
+                    .send()
+                    .await
+                    .map_err(|err| anyhow!("invalid subject: {:?}", err))?;
             }
             EmailTransport::Console => {
                 let email = Message::builder()
