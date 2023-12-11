@@ -130,17 +130,21 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
             } else {
                 setOpenModal(true)
             }
+        } else if (1 === page) {
+            setOpenModal(true)
         } else {
             setPage(page < 2 ? page + 1 : 0)
         }
     }
 
     const confirmNextAction = async () => {
+        let nextAction = page === 1? ITallyExecutionStatus.IN_PROGRESS : ITallyExecutionStatus.STARTED
+
         const {data, errors} = await UpdateTallyCeremonyMutation({
             variables: {
                 election_event_id: tally?.election_event_id,
                 tally_session_id: tally?.id,
-                status: ITallyExecutionStatus.STARTED,
+                status: nextAction,
             },
         })
 

@@ -14,7 +14,12 @@ const PublishActionsStyled = {
     `,
 }
 
-export const PublishActions: React.FC<any> = () => {
+export interface PublishActionsProps {
+    onPublish: () => void
+    onGenerate: () => void
+}
+
+export const PublishActions: React.FC<PublishActionsProps> = ({onPublish, onGenerate}) => {
     const {t} = useTranslation()
 
     return (
@@ -29,10 +34,10 @@ export const PublishActions: React.FC<any> = () => {
                 <Button onClick={() => null} label={t("publish.action.stop")}>
                     <StopCircle width={24} />
                 </Button>
-                <Button onClick={() => null} label={t("publish.action.publish")}>
+                <Button onClick={onPublish} label={t("publish.action.publish")}>
                     <Publish width={24} />
                 </Button>
-                <Button onClick={() => null} label={t("publish.action.generate")}>
+                <Button onClick={onGenerate} label={t("publish.action.generate")}>
                     <RotateLeft width={24} />
                 </Button>
             </div>

@@ -18,6 +18,7 @@ import {ContestContextProvider} from "./providers/ContestContextProvider"
 import {CandidateContextProvider} from "./providers/CandidateContextProvider"
 import {ElectionEventTallyContextProvider} from "./providers/ElectionEventTallyProvider"
 import NewResourceContextProvider from "./providers/NewResourceProvider"
+import {PublishContextProvider} from "./providers/PublishContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -33,9 +34,11 @@ root.render(
                             <ContestContextProvider>
                                 <CandidateContextProvider>
                                     <ElectionEventTallyContextProvider>
-                                        <ThemeProvider theme={fullAdminTheme}>
-                                            <AppWrapper />
-                                        </ThemeProvider>
+                                        <PublishContextProvider>
+                                            <ThemeProvider theme={fullAdminTheme}>
+                                                <AppWrapper />
+                                            </ThemeProvider>
+                                        </PublishContextProvider>
                                     </ElectionEventTallyContextProvider>
                                 </CandidateContextProvider>
                             </ContestContextProvider>

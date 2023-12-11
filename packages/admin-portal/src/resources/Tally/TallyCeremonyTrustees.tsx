@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import Button from "@mui/material/Button"
 import {
     BreadCrumbSteps,
@@ -27,15 +27,16 @@ import {TallyElectionsProgress} from "./TallyElectionsProgress"
 import {TallyElectionsResults} from "./TallyElectionsResults"
 import {TallyResults} from "./TallyResults"
 import {TallyLogs} from "./TallyLogs"
-import {useGetOne, useNotify} from "react-admin"
+import {useGetList, useGetOne, useNotify} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {useMutation} from "@apollo/client"
-import {ITallyExecutionStatus} from "@/types/ceremonies"
+import {ITallyExecutionStatus, ITallyTrusteeStatus, ITrusteeStatus} from "@/types/ceremonies"
 import {faKey} from "@fortawesome/free-solid-svg-icons"
 import {Box} from "@mui/material"
-import {Sequent_Backend_Area, Sequent_Backend_Tally_Session} from "@/gql/graphql"
+import {Sequent_Backend_Area, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "@/gql/graphql"
 import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
+import { useTenantStore } from '@/providers/TenantContextProvider'
 
 // interface TallyCeremonyTrusteesProps {
 //     completed: boolean
@@ -50,6 +51,8 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const {t} = useTranslation()
     const [tallyId, setTallyId] = useElectionEventTallyStore()
     const notify = useNotify()
+    const [tenantId] = useTenantStore()
+    const authContext = useContext(AuthContext)
 
     const [page, setPage] = useState<number>(WizardSteps.Start)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
@@ -58,25 +61,57 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const [verified, setVerified] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
+    const [trusteeStatus, setTrusteeStatus] = useState<String | null>(null)
 
     const {data} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
         id: tallyId,
     })
 
+    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+        "sequent_backend_tally_session_execution",
+        {
+            pagination: {page: 1, perPage: 1},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tally_session_id: tallyId,
+                tenant_id: tenantId,
+            },
+        },
+        {
+            refetchInterval: 5000,
+        }
+    )
+
     useEffect(() => {
         if (data) {
-            // TODO: uncomment to control the screen state depending on tally_execution_status
-            // setPage(
-            //     data?.execution_status === ITallyExecutionStatus.NOT_STARTED ||
-            //         data?.execution_status === ITallyExecutionStatus.STARTED
-            //         ? WizardSteps.Start
-            //         : WizardSteps.Status
-            // )
             if (tally?.last_updated_at !== data.last_updated_at) {
                 setTally(data)
             }
         }
     }, [data])
+
+    useEffect(() => {
+        if (tallySessionExecutions) {
+            const username = authContext?.username
+            const trusteeStatus = tallySessionExecutions?.[0]?.status?.trustees.find((item: any) => item.name === username)?.status
+            console.log("TRUSTEE STATUS BEFORE :: ", trusteeStatus)
+            setTrusteeStatus(trusteeStatus)
+        }
+    }, [tallySessionExecutions])
+
+    useEffect(() => {
+        // TODO: uncomment to control the screen state depending on tally_execution_status
+        console.log("TRUSTEE STATUS :: ", trusteeStatus)
+
+        setPage(
+            !trusteeStatus
+                ? WizardSteps.Start
+                : trusteeStatus === ITallyTrusteeStatus.WAITING ||
+                  trusteeStatus === ITallyTrusteeStatus.KEY_RESTORED
+                ? WizardSteps.Start
+                : WizardSteps.Status
+        )
+    }, [trusteeStatus])
 
     const CancelButton = styled(Button)`
         background-color: ${({theme}) => theme.palette.white};
