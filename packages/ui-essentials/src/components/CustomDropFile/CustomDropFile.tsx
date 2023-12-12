@@ -14,6 +14,7 @@ const StyledForm = styledEmotion.form`
     max-width: 100%;
     text-align: center;
     position: relative;
+    z-index: 10;
 `
 
 const StyledInput = styledEmotion.input`
