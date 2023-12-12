@@ -25,10 +25,16 @@ const DropFile: React.FC<DropFileProps> = ({handleFiles}) => {
 
     return (
         <CustomDropFile handleFiles={handleFiles} ref={inputRef}>
-            <Paper
-                variant="responsive"
+            <div
+                // variant="responsive"
                 // sx={{width: "100%", gap: "7px", padding: "16px", backgroundColor: "inherit"}}
-                sx={{backgroundColor: "inherit"}}
+                style={{
+                    backgroundColor: "inherit",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                }}
             >
                 <Icon variant="info" icon={faCloudArrowUp} fontSize="50px" />
                 <Box
@@ -68,7 +74,7 @@ const DropFile: React.FC<DropFileProps> = ({handleFiles}) => {
                         {t("dragNDrop.format")}
                     </Typography>
                 </Box>
-            </Paper>
+            </div>
         </CustomDropFile>
     )
 }
