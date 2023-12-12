@@ -21,7 +21,7 @@ use lettre::message::{header::ContentType, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 
-use braid_messages::newtypes::BatchNumber;
+use board_messages::braid::newtypes::BatchNumber;
 use celery::error::TaskError;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::services::{keycloak, pdf, reports};

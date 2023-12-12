@@ -6,11 +6,11 @@ use std::collections::HashMap;
 use strand::context::Ctx;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
-use braid_messages::artifact::*;
-use braid_messages::message::VerifiedMessage;
-use braid_messages::statement::{ArtifactType, Statement, StatementType};
+use board_messages::braid::artifact::*;
+use board_messages::braid::message::VerifiedMessage;
+use board_messages::braid::statement::{Statement, StatementType};
 
-use braid_messages::newtypes::*;
+use board_messages::braid::newtypes::*;
 use strand::hash::Hash;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -85,8 +85,7 @@ impl<C: Ctx> LocalBoard<C> {
         if self.configuration.is_none() {
             let artifact_bytes = &message
                 .artifact
-                .ok_or(anyhow!("Missing artifact in configuration message"))?
-                .1;
+                .ok_or(anyhow!("Missing artifact in configuration message"))?;
             let configuration = Configuration::<C>::strand_deserialize(artifact_bytes);
 
             if let Ok(configuration) = configuration {
@@ -150,9 +149,9 @@ impl<C: Ctx> LocalBoard<C> {
             );
 
             // The statement is new, we check the artifact
-            if let Some((artifact_type, artifact)) = message.artifact {
+            if let Some(artifact) = message.artifact {
                 let artifact_identifier =
-                    self.get_artifact_entry_identifier(&statement_identifier, &artifact_type);
+                    self.get_artifact_entry_identifier(&statement_identifier);
                 let artifact_hash = strand::hash::hash_to_array(&artifact)?;
 
                 let artifact_entry = self.artifacts.get(&artifact_identifier);
@@ -250,20 +249,18 @@ impl<C: Ctx> LocalBoard<C> {
         &self,
         commitments_h: &ChannelHash,
         signer_position: TrusteePosition,
-    ) -> Option<Channel<C>> {
+    ) -> Result<Channel<C>> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Channel,
             signer_position,
             0,
             0,
-            &ArtifactType::Channel,
         );
-        let entry = self.artifacts.get(&aei)?;
+        let entry = self.artifacts.get(&aei).ok_or(anyhow!("Channel not found"))?;
         if commitments_h.0 != entry.0 {
-            warn!("Hash mismatch when attempting to retrieve commitments");
-            None
+            Err(anyhow!("Hash mismatch when attempting to retrieve commitments"))
         } else {
-            Channel::<C>::strand_deserialize(&entry.1).ok()
+            Ok(Channel::<C>::strand_deserialize(&entry.1)?)
         }
     }
 
@@ -271,20 +268,18 @@ impl<C: Ctx> LocalBoard<C> {
         &self,
         shares_h: &SharesHash,
         signer_position: TrusteePosition,
-    ) -> Option<Shares<C>> {
+    ) -> Result<Shares<C>> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Shares,
             signer_position,
             0,
             0,
-            &ArtifactType::Shares,
         );
-        let entry = self.artifacts.get(&aei)?;
+        let entry = self.artifacts.get(&aei).ok_or(anyhow!("Shares not found"))?;
         if shares_h.0 != entry.0 {
-            warn!("Hash mismatch when attempting to retrieve shares");
-            None
+            Err(anyhow!("Hash mismatch when attempting to retrieve shares"))
         } else {
-            Shares::strand_deserialize(&entry.1).ok()
+            Ok(Shares::strand_deserialize(&entry.1)?)
         }
     }
 
@@ -292,20 +287,18 @@ impl<C: Ctx> LocalBoard<C> {
         &self,
         pk_h: &PublicKeyHash,
         signer_position: TrusteePosition,
-    ) -> Option<DkgPublicKey<C>> {
+    ) -> Result<DkgPublicKey<C>> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::PublicKey,
             signer_position,
             0,
             0,
-            &ArtifactType::PublicKey,
         );
-        let entry = self.artifacts.get(&aei)?;
+        let entry = self.artifacts.get(&aei).ok_or(anyhow!("DkgPublicKey not found"))?;
         if pk_h.0 != entry.0 {
-            warn!("Hash mismatch when attempting to retrieve public key");
-            None
+            Err(anyhow!("Hash mismatch when attempting to retrieve public key"))
         } else {
-            DkgPublicKey::<C>::strand_deserialize(&entry.1).ok()
+            Ok(DkgPublicKey::<C>::strand_deserialize(&entry.1)?)
         }
     }
 
@@ -314,20 +307,18 @@ impl<C: Ctx> LocalBoard<C> {
         b_h: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Ballots<C>> {
+    ) -> Result<Ballots<C>> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Ballots,
             signer_position,
             batch,
             0,
-            &ArtifactType::Ballots,
         );
-        let entry = self.artifacts.get(&aei)?;
+        let entry = self.artifacts.get(&aei).ok_or(anyhow!("Ballots not found"))?;
         if b_h.0 != entry.0 {
-            warn!("Hash mismatch when attempting to retrieve ballots");
-            None
+            Err(anyhow!("Hash mismatch when attempting to retrieve ballots"))
         } else {
-            Ballots::<C>::strand_deserialize(&entry.1).ok()
+            Ok(Ballots::<C>::strand_deserialize(&entry.1)?)
         }
     }
 
@@ -336,20 +327,18 @@ impl<C: Ctx> LocalBoard<C> {
         m_h: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Mix<C>> {
+    ) -> Result<Mix<C>> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Mix,
             signer_position,
             batch,
             0,
-            &ArtifactType::Mix,
         );
-        let entry = self.artifacts.get(&aei)?;
+        let entry = self.artifacts.get(&aei).ok_or(anyhow!("Mix not found"))?;
         if m_h.0 != entry.0 {
-            warn!("Hash mismatch when attempting to retrieve mix");
-            None
+            Err(anyhow!("Hash mismatch when attempting to retrieve mix"))
         } else {
-            Mix::<C>::strand_deserialize(&entry.1).ok()
+            Ok(Mix::<C>::strand_deserialize(&entry.1)?)
         }
     }
 
@@ -358,20 +347,18 @@ impl<C: Ctx> LocalBoard<C> {
         m_h: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<DecryptionFactors<C>> {
+    ) -> Result<DecryptionFactors<C>> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::DecryptionFactors,
             signer_position,
             batch,
             0,
-            &ArtifactType::DecryptionFactors,
         );
-        let entry = self.artifacts.get(&aei)?;
+        let entry = self.artifacts.get(&aei).ok_or(anyhow!("DecryptionFactors not found"))?;
         if m_h.0 != entry.0 {
-            warn!("Hash mismatch when attempting to retrieve decryption factors");
-            None
+            Err(anyhow!("Hash mismatch when attempting to retrieve decryption factors"))
         } else {
-            DecryptionFactors::<C>::strand_deserialize(&entry.1).ok()
+            Ok(DecryptionFactors::<C>::strand_deserialize(&entry.1)?)
         }
     }
 
@@ -380,20 +367,18 @@ impl<C: Ctx> LocalBoard<C> {
         m_h: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Plaintexts<C>> {
+    ) -> Result<Plaintexts<C>> {
         let aei = self.get_artifact_entry_identifier_ext(
             StatementType::Plaintexts,
             signer_position,
             batch,
             0,
-            &ArtifactType::Plaintexts,
         );
-        let entry = self.artifacts.get(&aei)?;
+        let entry = self.artifacts.get(&aei).ok_or(anyhow!("Plaintexts not found"))?;
         if m_h.0 != entry.0 {
-            warn!("Hash mismatch when attempting to retrieve plaintexts");
-            None
+            Err(anyhow!("Hash mismatch when attempting to retrieve plaintexts"))
         } else {
-            Plaintexts::<C>::strand_deserialize(&entry.1).ok()
+            Ok(Plaintexts::<C>::strand_deserialize(&entry.1)?)
         }
     }
 
@@ -408,7 +393,6 @@ impl<C: Ctx> LocalBoard<C> {
             signer_position,
             0,
             0,
-            &ArtifactType::PublicKey,
         );
         let entry = self.artifacts.get(&aei)?;
         DkgPublicKey::<C>::strand_deserialize(&entry.1).ok()
@@ -426,7 +410,6 @@ impl<C: Ctx> LocalBoard<C> {
             signer_position,
             batch,
             0,
-            &ArtifactType::Plaintexts,
         );
         let entry = self.artifacts.get(&aei)?;
 
@@ -442,7 +425,7 @@ impl<C: Ctx> LocalBoard<C> {
         statement: &Statement,
         signer_position: usize,
     ) -> StatementEntryIdentifier {
-        let (kind, _, batch, mix_number, _, _) = statement.get_data();
+        let (kind, _, batch, mix_number, _) = statement.get_data();
 
         StatementEntryIdentifier {
             kind,
@@ -454,14 +437,12 @@ impl<C: Ctx> LocalBoard<C> {
     pub(crate) fn get_artifact_entry_identifier(
         &self,
         statement_entry: &StatementEntryIdentifier,
-        artifact_type: &ArtifactType,
     ) -> ArtifactEntryIdentifier {
         self.get_artifact_entry_identifier_ext(
             statement_entry.kind.clone(),
             statement_entry.signer_position,
             statement_entry.batch,
             statement_entry.mix_number,
-            &artifact_type.clone(),
         )
     }
 
@@ -471,7 +452,6 @@ impl<C: Ctx> LocalBoard<C> {
         signer_position: usize,
         batch: BatchNumber,
         mix_number: MixNumber,
-        artifact_type: &ArtifactType,
     ) -> ArtifactEntryIdentifier {
         let sti = StatementEntryIdentifier {
             kind: statement_type,
@@ -481,7 +461,6 @@ impl<C: Ctx> LocalBoard<C> {
         };
         ArtifactEntryIdentifier {
             statement_entry: sti,
-            artifact_type: artifact_type.clone(),
         }
     }
 }
@@ -514,5 +493,5 @@ pub struct StatementEntryIdentifier {
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct ArtifactEntryIdentifier {
     pub statement_entry: StatementEntryIdentifier,
-    pub artifact_type: ArtifactType,
+    // pub artifact_type: ArtifactType,
 }
