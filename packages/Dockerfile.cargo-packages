@@ -2,14 +2,15 @@
 # for the devcontainer prebuilds. However, each package has its own Dockerfile,
 # for example packages/windmill/Dockerfile, packages/harvest/Dockerfile, etc.
 
-FROM rust:1.72.0
+
+FROM rustlang/rust:nightly-slim
+
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    m4 chromium libssl-dev protobuf-compiler libprotobuf-dev curl pkg-config && \
+    m4 make chromium libssl-dev protobuf-compiler libprotobuf-dev curl pkg-config && \
     curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash && \
     cargo binstall -y cargo-watch && \
     # cleanups
     apt-get clean && \
     apt-get autoremove
-RUN rustup default nightly

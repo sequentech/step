@@ -1,0 +1,43 @@
+FROM rustlang/rust:nightly-slim as builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    protobuf-compiler \
+    libprotobuf-dev \
+    m4 \
+    make \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+#TODO: Copy only necessary files
+COPY ./harvest ./harvest
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
+COPY ./strand ./strand
+COPY ./board-messages ./board-messages
+COPY ./sequent-core ./sequent-core
+COPY ./windmill ./windmill
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./velvet ./velvet
+
+WORKDIR /app/harvest
+RUN cargo build --release
+
+
+FROM debian:bookworm
+ENV ROCKET_ADDRESS=0.0.0.0
+ENV ROCKET_PORT=8400
+EXPOSE 8400
+# Some shared libraries (extra-runtime-dependencies) may need to be installed:
+RUN apt-get update && apt-get install -y --no-install-recommends libssl3 && rm -rf /var/lib/apt/lists/*
+
+# Copy the compiled binary from the builder stage
+COPY --from=builder /app/harvest/target/release/harvest /usr/local/bin/harvest
+
+WORKDIR /usr/local/bin
+
+# Run the application
+CMD ["harvest"]
