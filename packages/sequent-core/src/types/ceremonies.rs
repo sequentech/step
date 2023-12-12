@@ -87,7 +87,6 @@ pub enum TallyTrusteeStatus {
     #[default]
     WAITING,
     KEY_RESTORED,
-    KEY_CHECKED,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]

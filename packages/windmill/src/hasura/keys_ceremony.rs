@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::to_result::ToResult;
+pub use crate::types::hasura_types::*;
+use anyhow::Context;
 use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
@@ -8,9 +11,6 @@ use sequent_core::services::connection;
 use serde_json::Value;
 use std::env;
 use tracing::{event, instrument, Level};
-
-use crate::services::to_result::ToResult;
-pub use crate::types::hasura_types::*;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -128,4 +128,25 @@ pub async fn update_keys_ceremony_status(
         .await?;
     let response_body: Response<update_keys_ceremony_status::ResponseData> = res.json().await?;
     response_body.ok()
+}
+
+#[instrument(skip(auth_headers))]
+pub async fn get_keys_ceremony_by_id(
+    auth_headers: &connection::AuthHeaders,
+    tenant_id: &str,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+) -> Result<get_keys_ceremonies::GetKeysCeremoniesSequentBackendKeysCeremony> {
+    get_keys_ceremonies(
+        auth_headers.clone(),
+        tenant_id.to_string(),
+        election_event_id.to_string(),
+    )
+    .await?
+    .data
+    .with_context(|| "error listing existing keys ceremonies")?
+    .sequent_backend_keys_ceremony
+    .into_iter()
+    .find(|ceremony| ceremony.id == keys_ceremony_id.to_string())
+    .with_context(|| "error listing existing keys ceremonies")
 }

@@ -82,3 +82,49 @@ pub async fn update_tally_ceremony(
         tally_session_id: input.tally_session_id.clone(),
     }))
 }
+
+////////////////////////////////////////////////////////////////////////////////
+/// Endpoint: /restore-private-key
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SetPrivateKeyInput {
+    election_event_id: String,
+    private_key_base64: String,
+    tally_session_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SetPrivateKeyOutput {
+    is_valid: bool,
+}
+
+// The main function to restore the private key
+#[instrument(skip(claims))]
+#[post("/restore-private-key", format = "json", data = "<body>")]
+pub async fn restore_private_key(
+    body: Json<SetPrivateKeyInput>,
+    claims: JwtClaims,
+) -> Result<Json<SetPrivateKeyOutput>, (Status, String)> {
+    authorize(&claims, true, None, vec![Permissions::TRUSTEE_CEREMONY])?;
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let is_valid = tally_ceremony::set_private_key(
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+        &input.tally_session_id,
+        &input.private_key_base64,
+    )
+    .await
+    .map_err(|e| (Status::BadRequest, format!("{:?}", e)))?;
+
+    event!(
+        Level::INFO,
+        "Restoring given private key, election_event_id={}, tally_session_id={}, is_valid={}",
+        input.election_event_id,
+        input.tally_session_id,
+        is_valid,
+    );
+    Ok(Json(SetPrivateKeyOutput { is_valid }))
+}
