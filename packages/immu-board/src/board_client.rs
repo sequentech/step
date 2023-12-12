@@ -6,15 +6,15 @@ use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
 
 enum Table {
-    BoardMessages,
-    ElectoralLogdMessages,
+    BraidMessages,
+    ElectoralLogMessages,
 }
 
 impl Table {
     fn as_str(&self) -> &'static str {
         match self {
-            Table::BoardMessages => "board-messages",
-            Table::ElectoralLogdMessages => "electoral_log_messages"
+            Table::BraidMessages => "braid-messages",
+            Table::ElectoralLogMessages => "electoral_log_messages"
         }
     }
 }
@@ -140,14 +140,14 @@ impl BoardClient {
         board_db: &str,
         last_id: i64,
     ) -> Result<Vec<BoardMessage>> {
-        self.get(board_db, Table::BoardMessages, last_id).await
+        self.get(board_db, Table::BraidMessages, last_id).await
     }
 
     pub async fn get_electoral_log_messages(
         &mut self,
         board_db: &str,
     ) -> Result<Vec<BoardMessage>> {
-        self.get(board_db, Table::ElectoralLogdMessages, 0).await
+        self.get(board_db, Table::ElectoralLogMessages, 0).await
     }
     
     /// Get all messages whose id is bigger than `last_id`
@@ -199,7 +199,7 @@ impl BoardClient {
         kind: &str,
         sender_pk: &str
     ) -> Result<Vec<BoardMessage>> {
-        self.get_from_kind(board_db, Table::BoardMessages, kind, sender_pk).await
+        self.get_from_kind(board_db, Table::BraidMessages, kind, sender_pk).await
     }
 
     pub async fn get_electoral_log_messages_from_kind(
@@ -208,7 +208,7 @@ impl BoardClient {
         kind: &str,
         sender_pk: &str
     ) -> Result<Vec<BoardMessage>> {
-        self.get_from_kind(board_db, Table::ElectoralLogdMessages, kind, sender_pk).await
+        self.get_from_kind(board_db, Table::ElectoralLogMessages, kind, sender_pk).await
     }
 
     /// Get all messages whose id is bigger than `last_id`
@@ -265,7 +265,7 @@ impl BoardClient {
         board_db: &str,
         messages: &Vec<BoardMessage>,
     ) -> Result<()> {
-        self.insert(board_db, Table::BoardMessages, messages).await
+        self.insert(board_db, Table::BraidMessages, messages).await
     }
 
     pub async fn insert_electoral_log_messages(
@@ -273,7 +273,7 @@ impl BoardClient {
         board_db: &str,
         messages: &Vec<BoardMessage>,
     ) -> Result<()> {
-        self.insert(board_db, Table::ElectoralLogdMessages, messages).await
+        self.insert(board_db, Table::ElectoralLogMessages, messages).await
     }
     
     async fn insert(
@@ -525,8 +525,8 @@ impl BoardClient {
             PRIMARY KEY id
         );
         "#,
-        Table::BoardMessages.as_str(),
-        Table::ElectoralLogdMessages.as_str()
+        Table::BraidMessages.as_str(),
+        Table::ElectoralLogMessages.as_str()
         );
        self.upsert_database(
             board_dbname,
