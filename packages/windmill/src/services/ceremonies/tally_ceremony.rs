@@ -322,7 +322,8 @@ pub async fn create_tally_ceremony(
         area_ids.clone(),
         tally_session_id.clone(),
         keys_ceremony_id.clone(),
-        TallyExecutionStatus::NOT_STARTED,
+        TallyExecutionStatus::STARTED,
+        keys_ceremony.threshold,
     )
     .await?
     .data
