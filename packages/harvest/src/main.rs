@@ -58,6 +58,7 @@ fn rocket() -> _ {
                 routes::keys_ceremony::get_private_key,
                 routes::keys_ceremony::check_private_key,
                 routes::tally_ceremony::create_tally_ceremony,
+                routes::tally_ceremony::restore_private_key,
                 routes::voting_status::update_event_status,
                 routes::voting_status::update_election_status,
                 routes::tally_ceremony::update_tally_ceremony,

@@ -183,7 +183,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 }}
                 filters={Filters}
             >
-                <ElectionHeader title={t("electionEventScreen.tally.title")} subtitle="" />
+                <ElectionHeader title={"electionEventScreen.tally.title"} subtitle="" />
 
                 <DatagridConfigurable omit={OMIT_FIELDS}>
                     <TextField source="tenant_id" />

@@ -7,10 +7,11 @@ type Mutation {
 type Mutation {
   createScheduledEvent (
     tenant_id: String!
-    election_event_id: String
+    election_event_id: String!
     event_processor: String!
     cron_config: String
     event_payload: jsonb!
+    created_by: String!
   ): ScheduledEventOutput3
 }
 
@@ -187,6 +188,12 @@ type Mutation {
     election_event_id: uuid!
     ballot_publication_id: uuid!
   ): PublishBallotOutput
+}
+
+type Mutation {
+  restore_private_key (
+    object: RestorePrivateKeyInput!
+  ): RestorePrivateKeyOutput
 }
 
 type Mutation {
@@ -376,6 +383,12 @@ input KeycloakRole2 {
   client_roles : jsonb
 }
 
+input RestorePrivateKeyInput {
+  election_event_id : String!
+  private_key_base64 : String!
+  tally_session_id : String!
+}
+
 type CreateKeysCeremonyOutput {
   keys_ceremony_id : String!
 }
@@ -560,5 +573,9 @@ type BallotPublicationStyles {
 type GetBallotPublicationChangesOutput {
   current : BallotPublicationStyles!
   previous : BallotPublicationStyles
+}
+
+type RestorePrivateKeyOutput {
+  is_valid : Boolean!
 }
 

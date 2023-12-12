@@ -343,6 +343,8 @@ impl Contest {
 )]
 pub struct ElectionEventStatus {
     pub config_created: Option<bool>,
+    pub keys_ceremony_finished: Option<bool>,
+    pub tally_ceremony_finished: Option<bool>,
     pub voting_status: VotingStatus,
 }
 

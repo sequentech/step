@@ -13,7 +13,6 @@ pub enum EventProcessors {
     CREATE_REPORT,
     UPDATE_VOTING_STATUS,
     SET_PUBLIC_KEY,
-    TALLY_ELECTION_EVENT,
     SEND_COMMUNICATION,
 }
 

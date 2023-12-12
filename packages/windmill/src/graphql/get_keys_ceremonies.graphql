@@ -16,5 +16,6 @@ query GetKeysCeremonies(
         execution_status
         created_at
         last_updated_at
+        threshold
     }
 }
