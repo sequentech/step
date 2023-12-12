@@ -7,11 +7,11 @@ type Mutation {
 type Mutation {
   createScheduledEvent (
     tenant_id: String!
-    election_event_id: String!
+    election_event_id: uuid
     event_processor: String!
     cron_config: String
     event_payload: jsonb!
-    created_by: String!
+    created_by: String
   ): ScheduledEventOutput3
 }
 

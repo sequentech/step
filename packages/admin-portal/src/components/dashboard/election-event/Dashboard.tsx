@@ -68,12 +68,6 @@ export default function DashboardElectionEvent() {
 
                 <Box>
                     <Stats forElection={true} />
-                    <Link
-                        to={`http://localhost:3000/tenant/${tenantId}/event/${record.id}/login`}
-                        target="#"
-                    >
-                        <Button>Vote</Button>
-                    </Link>
 
                     <Container>
                         <VotesByDay width={cardWidth} height={cardHeight} />

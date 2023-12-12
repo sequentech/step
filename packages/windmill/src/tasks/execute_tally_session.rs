@@ -21,6 +21,8 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::types::error::{Error, Result};
+use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
+use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use anyhow::{anyhow, Context};
 use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
@@ -597,6 +599,13 @@ pub async fn execute_tally_session(
         Some(Utc::now().naive_utc() + Duration::seconds(120)),
     )
     .await?;
+
+    let (tally_session_execution, tally_session) = find_last_tally_session_execution(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session_id.clone(),
+    ).await?.unwrap();
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
         tenant_id.clone(),
@@ -652,6 +661,7 @@ pub async fn execute_tally_session(
         "tally.tar.gz".into(),
     )
     .await?;
+    let new_status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 
     // insert tally_session_execution
     insert_tally_session_execution(
@@ -661,8 +671,8 @@ pub async fn execute_tally_session(
         newest_message_id,
         tally_session_id.clone(),
         Some(document.id.clone()),
-        None,
-        None,
+        Some(new_status),
+        Some(results_event_id),
     )
     .await?;
 
