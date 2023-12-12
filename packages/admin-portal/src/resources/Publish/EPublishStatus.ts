@@ -9,4 +9,5 @@ export enum EPublishStatus {
     Published = 4,
     PublishedLoading = 4.1,
     Generated = 5,
+    GeneratedLoading = 5.1,
 }

@@ -43,7 +43,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({status, onPublish
                 color: '#ccc',
                 cursor: 'not-allowed'
             } : {}} 
-            disabled={st === status || (st+0.1) === status}
+            disabled={st === status}
         >
             <IconOrProgress st={st} Icon={Icon} />
         </Button>

@@ -3,7 +3,7 @@ import React, { ComponentType, useEffect, useRef, useState } from "react"
 import styled from "@emotion/styled"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import { useGetList } from 'react-admin'
+import { useGetList, useNotify } from 'react-admin'
 import { useMutation } from "@apollo/client"
 import { useTranslation } from "react-i18next"
 import { Box, Accordion, AccordionDetails, AccordionSummary } from "@mui/material"
@@ -51,8 +51,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 }: TPublish): React.JSX.Element => {
     let current: any;
 
-    const {t} = useTranslation()
     const ref = useRef(null);
+    const notify = useNotify()
+    const {t} = useTranslation()
     const [expan, setExpan] = useState<string>('election-publish-diff');
     const [status, setStatus] = useState<null|number>(EPublishStatus.Void);
     const [ballotPublicationId, setBallotPublicationId] = useState<null|string>(null);
@@ -100,14 +101,16 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             setBallotPublicationId(data?.publish_ballot?.ballot_publication_id)
         }
 
-        setStatus(EPublishStatus.Published)
+        notify(t('publish.notifications.published'), {
+            type: 'success'
+        })
 
-        notify(t('publish.notifications.published'), {type: 'success'})
         refetch()
+        setStatus(EPublishStatus.Published)
     };
 
     const onGenerate = async () => {
-        setStatus(EPublishStatus.Generated)
+        setStatus(EPublishStatus.GeneratedLoading)
 
         const { data } = await generateBallotPublication({
             variables: {
@@ -201,7 +204,3 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 PublishMemo.displayName = 'Publish';
 
 export const Publish = PublishMemo;
-
-function notify(arg0: any, arg1: { type: string }) {
-    throw new Error('Function not implemented.')
-}
