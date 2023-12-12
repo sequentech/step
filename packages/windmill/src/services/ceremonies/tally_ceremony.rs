@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::area::get_election_event_areas;
+use crate::hasura::election_event::get_election_event_helper;
+use crate::hasura::election_event::update_election_event_status;
 use crate::hasura::keys_ceremony::get_keys_ceremonies;
 use crate::hasura::keys_ceremony::get_keys_ceremony_by_id;
 use crate::hasura::tally_session::get_tally_session_highest_batch;
@@ -25,11 +27,9 @@ use crate::services::ceremonies::tally_ceremony::get_tally_session_by_id::{
     GetTallySessionByIdSequentBackendTallySessionContest,
 };
 use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
+use crate::services::election_event_status::get_election_event_status;
 use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::insert_ballots::InsertBallotsPayload;
-use crate::hasura::election_event::update_election_event_status;
-use crate::services::election_event_status::get_election_event_status;
-use crate::hasura::election_event::get_election_event_helper;
 use anyhow::{anyhow, Context, Result};
 use braid_messages::newtypes::BatchNumber;
 use sequent_core::services::connection;
@@ -426,7 +426,8 @@ pub async fn update_tally_ceremony(
             tenant_id.clone(),
             election_event_id.clone(),
             new_status_js,
-        ).await?;
+        )
+        .await?;
     } else if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
         let Some((tally_session_execution, _)) = find_last_tally_session_execution(
             auth_headers.clone(),

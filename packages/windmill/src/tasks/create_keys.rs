@@ -14,6 +14,7 @@ use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::VotingStatus;
 use sequent_core::services::keycloak;
 use serde::{Deserialize, Serialize};
+use std::default::Default;
 use tracing::instrument;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
@@ -67,18 +68,15 @@ pub async fn create_keys(
     .await?;
 
     // update election event with status: keys created
-    let new_status = serde_json::to_value(ElectionEventStatus {
-        config_created: Some(true),
-        keys_ceremony_finished: Some(false),
-        tally_ceremony_finished: Some(false),
-        voting_status: VotingStatus::NOT_STARTED,
-    })?;
+    let mut new_status: ElectionEventStatus = Default::default();
+    new_status.config_created = Some(true);
+    let new_status_js = serde_json::to_value(new_status)?;
 
     update_election_event_status(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
-        new_status,
+        new_status_js,
     )
     .await?;
 

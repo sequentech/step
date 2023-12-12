@@ -8,6 +8,7 @@ use sequent_core::ballot::VotingStatus;
 use sequent_core::ballot::*;
 use sequent_core::services::keycloak::get_client_credentials;
 use serde_json::value::Value;
+use std::default::Default;
 
 pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
     status_json_opt.and_then(|status_json| serde_json::from_value(status_json).ok())
@@ -47,12 +48,7 @@ pub async fn update_event_voting_status(
         .ok_or(anyhow!("Election event not found: {}", election_event_id))?;
 
     let mut status =
-        get_election_event_status(election_event.status.clone()).unwrap_or(ElectionEventStatus {
-            config_created: Some(false),
-            keys_ceremony_finished: Some(false),
-            tally_ceremony_finished: Some(false),
-            voting_status: VotingStatus::NOT_STARTED,
-        });
+        get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
 
     let current_voting_status = status.voting_status.clone();
 
