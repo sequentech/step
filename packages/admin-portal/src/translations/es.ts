@@ -753,6 +753,10 @@ const spanishTranslation: TranslationType = {
                 current: "Actual",
                 diff: "Cambios a publicar",
             },
+            notifications: {
+                generated: "Papeleta generada",
+                published: "Papeleta publicada",
+            },
         },
         emailEditor: {
             subject: "Asunto del Email",

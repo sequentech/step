@@ -751,6 +751,10 @@ const englishTranslation = {
                 current: "Current",
                 diff: "CHANGES TO PUBLISH",
             },
+            notifications: {
+                generated: "Ballot generated",
+                published: "Ballot published",
+            },
         },
         emailEditor: {
             subject: "Email Subject",
