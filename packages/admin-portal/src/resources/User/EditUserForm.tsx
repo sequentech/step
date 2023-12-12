@@ -184,6 +184,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         email: user?.email,
                         attributes: {
                             "area-id": [user?.attributes?.["area-id"]?.[0]],
+                            "sequent.read-only.mobile-number": [user?.attributes?.["sequent.read-only.mobile-number"]?.[0]],
                         },
                     },
                 },
@@ -199,7 +200,24 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const {name, value} = e.target
-        setUser({...user, [name]: value})
+        let newUser = {...user, [name]: value}
+        console.log(`newUser = `)
+        console.log(newUser)
+        setUser(newUser)
+    }
+
+    const handleAttrChange = (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const {value} = e.target
+        let newUser = {
+            ...user,
+            attributes: {
+                ...user?.attributes ?? {},
+                [attrName]: [value]
+            }
+        }
+        console.log(`newUser = `)
+        console.log(newUser)
+        setUser(newUser)
     }
 
     if (!user) {
@@ -299,6 +317,11 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         label={t("usersAndRolesScreen.users.fields.username")}
                         source="username"
                         onChange={handleChange}
+                    />
+                    <FormStyles.TextField
+                        label={t("usersAndRolesScreen.common.mobileNumber")}
+                        value={user?.attributes?.['sequent.read-only.mobile-number']?.[0]}
+                        onChange={handleAttrChange('sequent.read-only.mobile-number')}
                     />
                     <FormStyles.PasswordInput
                         label={t("usersAndRolesScreen.users.fields.password")}

@@ -308,6 +308,7 @@ const spanishTranslation: TranslationType = {
             common: {
                 title: "Usuarios y Roles",
                 subtitle: "Configuración general",
+                mobileNumber: "Móvil",
             },
             users: {
                 title: "Usuarios",
@@ -751,6 +752,10 @@ const spanishTranslation: TranslationType = {
             label: {
                 current: "Actual",
                 diff: "Cambios a publicar",
+            },
+            notifications: {
+                generated: "Papeleta generada",
+                published: "Papeleta publicada",
             },
         },
         emailEditor: {

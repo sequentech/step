@@ -162,7 +162,7 @@ const AuthContextProvider = ({children}: AuthContextProviderProps) => {
         }
 
         initializeKeycloak()
-    }, [tenantId, eventId])
+    }, [tenantId, eventId, isAuthenticated])
 
     // This effect loads the users profile in order to extract the username
     useEffect(() => {

@@ -76,7 +76,7 @@ const DiffViewMemo = React.memo(
         React.useEffect(() => {
             setNewJsonString(JSON.stringify(modify, null, 2))
             setOldJsonString(JSON.stringify(current, null, 2))
-        }, [])
+        }, [modify, current])
 
         React.useEffect(() => {
             if (oldJsonString && newJsonString) {

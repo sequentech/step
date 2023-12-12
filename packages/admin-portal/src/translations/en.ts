@@ -306,6 +306,7 @@ const englishTranslation = {
             common: {
                 title: "Users and Roles",
                 subtitle: "General configuration",
+                mobileNumber: "Mobile",
             },
             users: {
                 title: "Users",
@@ -749,6 +750,10 @@ const englishTranslation = {
             label: {
                 current: "Current",
                 diff: "CHANGES TO PUBLISH",
+            },
+            notifications: {
+                generated: "Ballot generated",
+                published: "Ballot published",
             },
         },
         emailEditor: {
