@@ -12,7 +12,7 @@ COPY ./strand ./strand
 COPY ./wrap-map-err ./wrap-map-err
 
 RUN apt-get update && apt-get install -y protobuf-compiler libprotobuf-dev
-RUN rustup default nightly-2023-05-21
+RUN rustup default nightly
 
 # build projects
 WORKDIR /app/immu-board

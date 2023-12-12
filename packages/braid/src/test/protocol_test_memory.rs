@@ -24,7 +24,7 @@ use crate::protocol2::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
 use crate::test::vector_session::VectorSession;
 
-pub fn run<C: Ctx>(ciphertexts: u32, batches: usize, ctx: C) {
+pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     let n_trustees = rand::thread_rng().gen_range(2..13);
     let n_threshold = rand::thread_rng().gen_range(2..=n_trustees);
     // To test all trustees participating
@@ -51,7 +51,7 @@ pub fn run<C: Ctx>(ciphertexts: u32, batches: usize, ctx: C) {
     );
 }
 
-fn run_protocol_test<C: Ctx>(
+fn run_protocol_test<C: Ctx + 'static>(
     test: ProtocolTest<C>,
     ciphertexts: u32,
     batches: usize,

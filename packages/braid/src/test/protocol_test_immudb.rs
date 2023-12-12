@@ -31,7 +31,7 @@ const SERVER_URL: &str = "http://immudb:3322";
 const BOARD_DB: &str = "protocoltestdb";
 const INDEX_DB: &str = "protocoltestindexdb";
 
-pub async fn run_immudb<C: Ctx>(ciphertexts: u32, batches: usize, ctx: C) {
+pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     let n_trustees = rand::thread_rng().gen_range(2..13);
     let n_threshold = rand::thread_rng().gen_range(2..=n_trustees);
     // To test all trustees participating
@@ -66,7 +66,7 @@ pub struct ProtocolTestImmudb<C: Ctx> {
     pub trustees: Vec<Trustee<C>>,
 }
 
-async fn run_protocol_test_immudb<C: Ctx>(
+async fn run_protocol_test_immudb<C: Ctx + 'static>(
     test: ProtocolTestImmudb<C>,
     ciphertexts: u32,
     batches: usize,
