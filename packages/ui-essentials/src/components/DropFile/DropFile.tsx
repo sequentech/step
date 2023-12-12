@@ -28,7 +28,13 @@ const DropFile: React.FC<DropFileProps> = ({handleFiles}) => {
             <div
                 // variant="responsive"
                 // sx={{width: "100%", gap: "7px", padding: "16px", backgroundColor: "inherit"}}
-                style={{backgroundColor: "#ff000", zIndex: -10}}
+                style={{
+                    backgroundColor: "inherit",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                }}
             >
                 <Icon variant="info" icon={faCloudArrowUp} fontSize="50px" />
                 <Box
