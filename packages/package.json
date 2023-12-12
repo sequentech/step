@@ -15,7 +15,7 @@
     "start:admin-portal": "yarn --cwd ./admin-portal start",
     "start:ballot-verifier": "yarn --cwd ./ballot-verifier start",
     "storybook:ui-essentials": "yarn --cwd ./ui-essentials storybook",
-    "build": "yarn workspaces run build",
+    "build": "yarn --cwd ./admin-portal build",
     "build:ui-essentials": "yarn --cwd ./ui-essentials build",
     "lint:fix": "yarn --cwd ./voting-portal lint:fix",
     "prettify:fix": "yarn --cwd ./voting-portal prettify:fix",
