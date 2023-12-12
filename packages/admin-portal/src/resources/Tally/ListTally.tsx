@@ -227,7 +227,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         withExport={false}
                         withAction={true}
                         doAction={() => setCreatingFlag(true)}
-                        actionLabel="common.label.add"
+                        actionLabel="electionEventScreen.tally.create.createButton"
                     />
                 }
                 empty={<Empty />}

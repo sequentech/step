@@ -246,7 +246,7 @@ const spanishTranslation: TranslationType = {
                 create: {
                     title: "Crear Recuento",
                     subtitle: "Crear un nuevo Recuento para este Evento Electoral",
-                    createButton: "Crear Recuento",
+                    createButton: "Iniciar la Ceremonia de Recuento",
                     error: {
                         create: "Error creando Recuento",
                     },
@@ -714,6 +714,7 @@ const spanishTranslation: TranslationType = {
                 noTrustees: "No hay trustees aún",
                 imported: " trustees han importado su fragmento de clave",
                 needed: " trustees necesarios para el recuento",
+                start: "Iniciar Recuento",
                 dialog: {
                     ok: "Ok",
                     cancel: "Cerrar",

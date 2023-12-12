@@ -244,7 +244,7 @@ const englishTranslation = {
                 create: {
                     title: "Create Tally",
                     subtitle: "Create a new Tally for this Election Event",
-                    createButton: "Create Tally",
+                    createButton: "Start Tally Ceremony",
                     error: {
                         create: "Error creating Tally",
                     },
@@ -712,6 +712,7 @@ const englishTranslation = {
                 noTrustees: "No trustees yet",
                 imported: " trustees imported the key",
                 needed: " trustees needed",
+                start: "Start Tally",
                 dialog: {
                     ok: "Ok",
                     cancel: "Close",
