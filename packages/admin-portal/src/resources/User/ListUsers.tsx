@@ -213,6 +213,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     <BooleanField source="email_verified" />
                     <BooleanField source="enabled" />
                     <TextField source="first_name" />
+                    <TextField 
+                        label={t("usersAndRolesScreen.common.mobileNumber")}
+                        source="attributes['sequent.read-only.mobile-number'][0]"
+                    />
                     <TextField source="last_name" />
                     <TextField source="username" />
                     {electionEventId && (

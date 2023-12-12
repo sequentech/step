@@ -19,12 +19,12 @@ import {TallyTrusteesList} from "./TallyTrusteesList"
 import {TallyStyles} from "@/components/styles/TallyStyles"
 import {useGetList, useGetOne} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
-import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
+import {RESTORE_PRIVATE_KEY} from "@/queries/RestorePrivateKey"
 import {useMutation} from "@apollo/client"
 import {ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
 import {faKey} from "@fortawesome/free-solid-svg-icons"
 import {Box} from "@mui/material"
-import {Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "@/gql/graphql"
+import {RestorePrivateKeyMutation, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "@/gql/graphql"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 
@@ -52,7 +52,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
         id: tallyId,
     })
 
-    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+    const {data: tallySessionExecutions, refetch} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
         {
             pagination: {page: 1, perPage: 1},
@@ -89,8 +89,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
         setPage(
             !trusteeStatus
                 ? WizardSteps.Start
-                : trusteeStatus === ITallyTrusteeStatus.WAITING ||
-                  trusteeStatus === ITallyTrusteeStatus.KEY_RESTORED
+                : trusteeStatus === ITallyTrusteeStatus.WAITING
                 ? WizardSteps.Start
                 : WizardSteps.Status
         )
@@ -119,7 +118,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
         }
     `
 
-    // const [checkPrivateKeysMutation] = useMutation<CheckPrivateKeyMutation>(CHECK_PRIVATE_KEY)
+    const [restorePrivateKeyMutation] = useMutation<RestorePrivateKeyMutation>(RESTORE_PRIVATE_KEY)
     const uploadPrivateKey = async (files: FileList | null) => {
         //TODO:i todo upload key
         console.log("TallyCeremonyTrustees :: uploadPrivateKey :: files", files)
@@ -150,25 +149,25 @@ export const TallyCeremonyTrustees: React.FC = () => {
                 return
             }
             setUploading(true)
-            // const {data, errors} = await checkPrivateKeysMutation({
-            //     variables: {
-            //         electionEventId: tally.election_event_id,
-            //         keysCeremonyId: tally.id,
-            //         privateKeyBase64: fileContent,
-            //     },
-            // })
+            const {data, errors} = await restorePrivateKeyMutation({
+                variables: {
+                    electionEventId: tally?.election_event_id,
+                    tallySessionId: tally?.id,
+                    privateKeyBase64: fileContent,
+                },
+            })
             setUploading(false)
-            // if (errors) {
-            //     setErrors(t("keysGeneration.checkStep.errorUploading", {error: errors.toString()}))
-            //     return
-            // } else {
-            //     const isValid = data?.check_private_key?.is_valid
-            //     if (!isValid) {
-            //         setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
-            //         return
-            //     }
-            //     setVerified(true)
-            // }
+            if (errors) {
+                setErrors(t("keysGeneration.checkStep.errorUploading", {error: errors.toString()}))
+                return
+            } else {
+                const isValid = data?.restore_private_key?.is_valid
+                if (!isValid) {
+                    setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
+                    return
+                }
+                setVerified(true)
+            }
         } catch (exception: any) {
             setUploading(false)
             setErrors(t("keysGeneration.checkStep.errorUploading", {error: exception.toString()}))
@@ -267,7 +266,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                     <CancelButton className="list-actions" onClick={() => setTallyId(null)}>
                         {t("tally.common.cancel")}
                     </CancelButton>
-                    {page === WizardSteps.Start && (
+                    {page < WizardSteps.Status && (
                         <NextButton
                             color="primary"
                             onClick={() => setPage(WizardSteps.Status)}

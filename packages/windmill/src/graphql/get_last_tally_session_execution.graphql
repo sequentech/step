@@ -10,7 +10,7 @@ query GetLastTallySessionExecution(
             tally_session_id: {_eq: $tallySessionId}
         },
         order_by: {
-            current_message_id: desc
+            created_at: desc
         },
         limit: 1
     ) {

@@ -308,6 +308,7 @@ const spanishTranslation: TranslationType = {
             common: {
                 title: "Usuarios y Roles",
                 subtitle: "Configuración general",
+                mobileNumber: "Móvil",
             },
             users: {
                 title: "Usuarios",
