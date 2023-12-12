@@ -52,7 +52,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
         id: tallyId,
     })
 
-    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+    const {data: tallySessionExecutions, refetch} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
         {
             pagination: {page: 1, perPage: 1},
@@ -89,8 +89,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
         setPage(
             !trusteeStatus
                 ? WizardSteps.Start
-                : trusteeStatus === ITallyTrusteeStatus.WAITING ||
-                  trusteeStatus === ITallyTrusteeStatus.KEY_RESTORED
+                : trusteeStatus === ITallyTrusteeStatus.WAITING
                 ? WizardSteps.Start
                 : WizardSteps.Status
         )
