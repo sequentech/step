@@ -9,6 +9,29 @@ insert_permissions:
     - cast_votes
     - points
     - winning_position
+    - annotations
+    - labels
+    - created_at
+    - last_updated_at
+    - candidate_id
+    - contest_id
+    - election_event_id
+    - election_id
+    - id
+    - results_event_id
+    - tenant_id
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - cast_votes
+    - points
+    - winning_position
+    - annotations
+    - labels
+    - created_at
+    - last_updated_at
     - candidate_id
     - contest_id
     - election_event_id
@@ -25,6 +48,30 @@ select_permissions:
     - cast_votes
     - points
     - winning_position
+    - annotations
+    - labels
+    - created_at
+    - last_updated_at
+    - candidate_id
+    - contest_id
+    - election_event_id
+    - election_id
+    - id
+    - results_event_id
+    - tenant_id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    allow_aggregations: true
+    columns:
+    - cast_votes
+    - points
+    - winning_position
+    - annotations
+    - labels
+    - created_at
+    - last_updated_at
     - candidate_id
     - contest_id
     - election_event_id
@@ -42,6 +89,30 @@ update_permissions:
     - cast_votes
     - points
     - winning_position
+    - annotations
+    - labels
+    - created_at
+    - last_updated_at
+    - candidate_id
+    - contest_id
+    - election_event_id
+    - election_id
+    - id
+    - results_event_id
+    - tenant_id
+    filter: {}
+  role: admin-user
+- comment: ""
+  permission:
+    check: {}
+    columns:
+    - cast_votes
+    - points
+    - winning_position
+    - annotations
+    - labels
+    - created_at
+    - last_updated_at
     - candidate_id
     - contest_id
     - election_event_id

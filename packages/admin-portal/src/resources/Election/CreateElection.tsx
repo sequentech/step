@@ -14,6 +14,7 @@ import {
     SelectInput,
     SimpleForm,
     TextInput,
+    useGetOne,
     useRedirect,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
@@ -34,12 +35,23 @@ export const CreateElection: React.FC = () => {
 
     const electionEventId = searchParams.get("electionEventId")
 
+    const {data: electionEvent} = useGetOne("sequent_backend_election_event", {
+        id: electionEventId,
+    })
+
     const {refetch} = useTreeMenuData(false)
 
     const {setLastCreatedResource} = useContext(NewResourceContext)
 
+    const transform = (data: any) => {
+        return {
+            ...data,
+        }
+    }
+
     return (
         <Create
+            transform={transform}
             mutationOptions={{
                 onSuccess: (data: any) => {
                     refetch()

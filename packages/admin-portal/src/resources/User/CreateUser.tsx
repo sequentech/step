@@ -36,6 +36,7 @@ export const CreateUser: React.FC<CreateUserProps> = ({electionEventId, close}) 
                     user,
                 },
             })
+            close?.()
             if (errors) {
                 notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
                 console.log(`Error creating user: ${errors}`)
@@ -43,11 +44,10 @@ export const CreateUser: React.FC<CreateUserProps> = ({electionEventId, close}) 
                 notify(t("usersAndRolesScreen.voters.errors.createSuccess"), {type: "success"})
                 refresh()
             }
-            close?.()
         } catch (error) {
+            close?.()
             notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
             console.log(`Error creating user: ${error}`)
-            close?.()
         }
     }
 

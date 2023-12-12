@@ -57,11 +57,7 @@ impl GenerateReports {
         }
     }
 
-    pub fn generate_report(
-        &self,
-        ballot_style: &BallotStyle,
-        reports: Vec<ReportData>,
-    ) -> Result<Vec<u8>> {
+    pub fn compute_reports(&self, reports: Vec<ReportData>) -> Result<Vec<ReportDataComputed>> {
         let reports = reports
             .iter()
             .map(|r| {
@@ -93,10 +89,20 @@ impl GenerateReports {
                 ReportDataComputed {
                     contest: r.contest.clone(),
                     contest_result: r.contest_result.clone(),
+                    area_id: r.area_id.clone(),
                     candidate_result,
                 }
             })
             .collect::<Vec<ReportDataComputed>>();
+        Ok(reports)
+    }
+
+    pub fn generate_report(
+        &self,
+        ballot_style: &BallotStyle,
+        reports: Vec<ReportData>,
+    ) -> Result<Vec<u8>> {
+        let reports = self.compute_reports(reports)?;
 
         let mut map = Map::new();
         map.insert(
@@ -174,6 +180,50 @@ impl GenerateReports {
 
         Ok(res)
     }
+
+    pub fn read_reports(&self) -> Result<Vec<ElectionReportDataComputed>> {
+        let mut election_reports: Vec<ElectionReportDataComputed> = vec![];
+        for election_input in &self.pipe_inputs.election_list {
+            let mut reports = vec![];
+            for contest_input in &election_input.contest_list {
+                let contest_result =
+                    self.read_contest_result(&election_input.id, &contest_input.id, None)?;
+
+                let winners = self.read_winners(&election_input.id, &contest_input.id, None)?;
+
+                reports.push(ReportData {
+                    contest: contest_input.contest.clone(),
+                    contest_result,
+                    area_id: None,
+                    winners,
+                });
+                for area in &contest_input.area_list {
+                    let contest_result = self.read_contest_result(
+                        &election_input.id,
+                        &contest_input.id,
+                        Some(&area.id),
+                    )?;
+
+                    let winners =
+                        self.read_winners(&election_input.id, &contest_input.id, Some(&area.id))?;
+
+                    reports.push(ReportData {
+                        contest: contest_input.contest.clone(),
+                        contest_result,
+                        area_id: Some(area.id.to_string()),
+                        winners,
+                    });
+                }
+            }
+            let computed_reports = self.compute_reports(reports)?;
+            election_reports.push(ElectionReportDataComputed {
+                election_id: election_input.id.clone().to_string(),
+                area_id: None,
+                reports: computed_reports,
+            });
+        }
+        Ok(election_reports)
+    }
 }
 
 impl Pipe for GenerateReports {
@@ -188,12 +238,13 @@ impl Pipe for GenerateReports {
                 for (key, value) in defaults {
                     contest_result.invalid_votes.entry(key).or_insert(value);
                 }
-                
+
                 let winners = self.read_winners(&election_input.id, &contest_input.id, None)?;
 
                 reports.push(ReportData {
                     contest: contest_input.contest.clone(),
                     contest_result,
+                    area_id: None,
                     winners,
                 })
             }
@@ -231,13 +282,22 @@ fn default_invalid_votes() -> HashMap<InvalidVote, u64> {
 #[derive(Debug)]
 pub struct ReportData {
     pub contest: Contest,
+    pub area_id: Option<String>,
     pub contest_result: ContestResult,
     pub winners: Vec<WinnerResult>,
 }
 
 #[derive(Debug, Serialize)]
+pub struct ElectionReportDataComputed {
+    pub election_id: String,
+    pub area_id: Option<String>,
+    pub reports: Vec<ReportDataComputed>,
+}
+
+#[derive(Debug, Serialize)]
 pub struct ReportDataComputed {
     pub contest: Contest,
+    pub area_id: Option<String>,
     pub contest_result: ContestResult,
     pub candidate_result: Vec<CandidateResultForReport>,
 }

@@ -75,7 +75,6 @@ async fn main() -> Result<()> {
     let ignored_boards = get_ignored_boards();
     info!("ignored boards {:?}", ignored_boards);
 
-
     let mut board_index = ImmudbBoardIndex::new(
         &args.server_url,
         &args.user,

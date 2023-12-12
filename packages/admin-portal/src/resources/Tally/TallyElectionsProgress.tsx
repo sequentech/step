@@ -2,20 +2,26 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {useGetOne, useGetMany, useGetList} from "react-admin"
+import {useGetOne, useGetMany, useGetList, useReferenceOneFieldController} from "react-admin"
 
-import {Sequent_Backend_Election, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "../../gql/graphql"
+import {
+    Sequent_Backend_Election,
+    Sequent_Backend_Tally_Session,
+    Sequent_Backend_Tally_Session_Execution,
+} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {ElectionStatusItem} from "@/components/ElectionStatusItem"
 import styled from "@emotion/styled"
 import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
-import { useTranslation } from 'react-i18next'
-
+import {useTranslation} from "react-i18next"
 
 export const TallyElectionsProgress: React.FC = () => {
+    console.log("TallyElectionsProgress :: render")
+
     const [tallyId] = useElectionEventTallyStore()
     const {t} = useTranslation()
+    const [rand, setRand] = useState<number>(0)
 
     const [electionsData, setElectionsData] = useState<
         Array<
@@ -23,9 +29,17 @@ export const TallyElectionsProgress: React.FC = () => {
         >
     >([])
 
-    const {data: tally} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
-        id: tallyId,
-    })
+    useEffect(() => {
+        let rand: number = Math.floor(Math.random() * (100 + 1) + 0)
+        setRand(rand)
+    }, [tallyId])
+
+    const {data: tally} = useGetOne<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            id: tallyId,
+        }
+    )
 
     const {data: executions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
@@ -81,7 +95,6 @@ export const TallyElectionsProgress: React.FC = () => {
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, number>) => {
-                let rand: number = Math.floor(Math.random() * (100 + 1) + 0)
                 return (
                     <ProgressBarDiv>
                         <BorderLinearProgress variant="determinate" value={rand} />
@@ -133,4 +146,3 @@ export const TallyElectionsProgress: React.FC = () => {
         />
     )
 }
-

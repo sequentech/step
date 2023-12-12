@@ -210,6 +210,7 @@ const spanishTranslation: TranslationType = {
                 emptyHeader: "Ninguna Ceremonia de Claves aún.",
                 statusLabel: "Estado",
                 waitingKeys: "Esperando a la Generación de Claves..",
+                started: "Iniciada en",
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Ceremonia",
@@ -236,19 +237,20 @@ const spanishTranslation: TranslationType = {
                 logs: "Logs",
             },
             tally: {
-                title: "Tally del Evento Electoral",
+                emptyHeader: "Ningún Recuento aún.",
+                title: "Recuento del Evento Electoral",
                 elections: "Elecciones",
                 electionNumber: "Número de Elecciones",
                 trustees: "Trustees",
                 status: "Estado",
                 create: {
-                    title: "Create Tally",
-                    subtitle: "Create a new Tally for this Election Event",
-                    createButton: "Create Tally",
+                    title: "Crear Recuento",
+                    subtitle: "Crear un nuevo Recuento para este Evento Electoral",
+                    createButton: "Crear Recuento",
                     error: {
-                        create: "Error creating Tally",
+                        create: "Error creando Recuento",
                     },
-                    success: "Tally created",
+                    success: "Recuento creado",
                 },
             },
         },
@@ -280,6 +282,7 @@ const spanishTranslation: TranslationType = {
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
                 fileError: "Error al cargar el archivo",
+                fileLoaded: "Archivo cargado",
             },
             createElectionEventSuccess: "Creada la elección",
             createElectionEventError: "Error Creando la elección",
@@ -327,6 +330,14 @@ const spanishTranslation: TranslationType = {
                     groups: "Grupos",
                     attributes: "Atributos",
                     area: "Área",
+                    password: "Contraseña",
+                    repeatPassword: "Repetir Contraseña",
+                    passwordMismatch: "Las contraseñas deben de coincidir",
+                    passwordLengthValidate: "La contraseña debe tener al menos 8 caracteres",
+                    passwordUppercaseValidate: "La contraseña debe contener al menos una letra mayúscula",
+                    passwordLowercaseValidate: "La contraseña debe contener al menos una letra minúscula",
+                    passwordDigitValidate: "La contraseña debe contener al menos un dígito",
+                    passwordSpecialCharValidate: "La contraseña debe contener al menos un carácter especial"
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
@@ -339,6 +350,8 @@ const spanishTranslation: TranslationType = {
             voters: {
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                emptyHeader: "Ningún votante aún.",
+                askCreate: "¿Quieres crear uno?",
                 create: {
                     title: "Votante",
                     subtitle: "Crear votante",
@@ -678,15 +691,18 @@ const spanishTranslation: TranslationType = {
             createTallyError: "Error creando recuento",
             startTallySuccess: "Recuento iniciado",
             startTallyError: "Error iniciando recuento",
+            trusteeTitle: "Proceso del trustee",
+            trusteeSubTitle: "Por favor, importe su fragmento de clave",
             breadcrumbSteps: {
-                ceremony: "Ceremonia",
+                start: "Inicio",
+                finish: "Final",
                 tally: "Recuento",
                 results: "Resultados",
             },
             common: {
                 title: "Recuento",
                 subTitle: "Configuración del Recuento.",
-                cancel: "Cancelar",
+                cancel: "Atras",
                 next: "Siguiente",
                 date: "Fecha de Recuento",
                 global: "Global",

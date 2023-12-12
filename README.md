@@ -416,7 +416,7 @@ Finally you'll need to rebuild/restart harvest:
 ## Update Sequent Core
 
 ```bash
-cd packages/sequent-core
+cd /workspaces/backend-services/packages/sequent-core
 wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
 wasm-pack -v pack .
 
@@ -434,13 +434,14 @@ wasm-pack -v pack .
   version "0.1.0"
   resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
 
-# luego ejecutar en packages/
+# luego ejecutar:
+cd /workspaces/backend-services/packages/
 rm ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
 
-rm -rf node_modules voting-portal/node_modules ballot-verifier/node_modules
+rm -rf node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules
 
 # y luego:
 

@@ -22,9 +22,6 @@ tempfile = "3.8.0"
 flate2 = "1.0.28"
 tar = "0.4.40"
 graphql_client = "0.13.0"
-# TODO: for now forcing rustix 0.38.26 until this gets resolved:
-# https://github.com/bytecodealliance/rustix/issues/945#issuecomment-1848417811
-rustix = "0.38.26"
 rust-s3 = "0.33.0"
 strum = "0.25"
 strum_macros = "0.25"

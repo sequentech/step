@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use log::info;
-use tracing::{event, Level, instrument};
+use tracing::{event, instrument, Level};
 
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
@@ -131,6 +131,7 @@ impl BoardClient {
     ) -> Result<BoardClient> {
         let mut client = Client::new(&server_url, username, password).await?;
         client.login().await?;
+
         Ok(BoardClient { client: client })
     }
 

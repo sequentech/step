@@ -1,35 +1,46 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {memo, useEffect, useState} from "react"
-import {useGetOne} from "react-admin"
+import React, {useEffect, useState} from "react"
+import {useGetList} from "react-admin"
 
-import {Sequent_Backend_Tally_Session} from "../../gql/graphql"
+import {Sequent_Backend_Tally_Session_Execution} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {JsonView} from "@/components/JsonView"
 import {JSON_MOCK} from "./constants"
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
-// interface TallyLogsProps {
-//     tally: Sequent_Backend_Tally_Session | undefined
-// }
-
-const TallyLogs: React.FC = () => {
+export const TallyLogs: React.FC = () => {
     const [tallyId] = useElectionEventTallyStore()
-    const [dataTally, setDataTally] = useState<Sequent_Backend_Tally_Session>()
+    const [tenantId] = useTenantStore()
+    const [dataTally, setDataTally] = useState<string | null>(null)
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
-        id: tallyId,
-    })
+    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+        "sequent_backend_tally_session_execution",
+        {
+            pagination: {page: 1, perPage: 1},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tally_session_id: tallyId,
+                tenant_id: tenantId,
+            },
+        },
+        {
+            refetchInterval: 5000,
+        }
+    )
 
     useEffect(() => {
-        if (data) {
-            // console.log("data in resultas", data)
-
-            setDataTally(data)
+        if (!tallySessionExecutions?.[0].status) {
+            return
         }
-    }, [data])
 
-    return <JsonView origin={JSON_MOCK} />
+        let jsonData = null
+        if (tallySessionExecutions?.[0].status.logs[0]) {
+            jsonData = JSON.parse(tallySessionExecutions?.[0].status.logs[0])
+        }
+        setDataTally(jsonData)
+    }, [tallySessionExecutions])
+
+    return <>{dataTally ? <JsonView origin={JSON_MOCK} /> : <p>No logs available</p>}</>
 }
-
-export default memo(TallyLogs)

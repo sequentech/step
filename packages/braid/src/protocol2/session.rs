@@ -37,7 +37,6 @@ impl<C: Ctx> Session<C> {
 
         if 0 == messages.len() {
             info!("No messages in board, no action taken");
-
             return Ok(self)
         }
 

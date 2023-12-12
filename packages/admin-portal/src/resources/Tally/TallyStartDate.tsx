@@ -24,7 +24,7 @@ export const TallyStartDate: React.FC = () => {
             sx={{width: "100%"}}
             disabled
             label={t("tally.common.date")}
-            defaultValue={data?.created_at}
+            defaultValue={new Date(data?.created_at).toLocaleDateString().slice(0, 10)}
             InputProps={{
                 endAdornment: (
                     <InputAdornment position="end">

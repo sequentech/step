@@ -6,8 +6,8 @@ use tracing::instrument;
 
 use braid::protocol2::board::immudb::ImmudbBoard;
 use braid::protocol2::trustee::Trustee;
-use sequent_core::util::init_log::init_log;
 use braid::verify::verifier::Verifier;
+use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 

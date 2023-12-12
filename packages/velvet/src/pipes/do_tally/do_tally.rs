@@ -62,7 +62,9 @@ impl Pipe for DoTally {
                         vec![decoded_ballots_file.clone()],
                     )
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-                    let res = ca.tally().map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                    let res = ca
+                        .tally()
+                        .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
                     let mut file = PipeInputs::build_path(
                         &output_dir,
@@ -83,7 +85,9 @@ impl Pipe for DoTally {
 
                 let ca = tally::create_tally(&contest_input.contest, contest_ballot_files)
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-                let res = ca.tally().map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                let res = ca
+                    .tally()
+                    .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
                 let mut file = PipeInputs::build_path(
                     &output_dir,
