@@ -17,7 +17,7 @@ import { EPublishStatus } from "./EPublishStatus"
 import { PUBLISH_BALLOT } from "@/queries/PublishBallot"
 import { GENERATE_BALLOT_PUBLICATION } from "@/queries/GenerateBallotPublication"
 import { GET_BALLOT_PUBLICATION_CHANGE } from '@/queries/GetBallotPublicationChanges'
-import { GenerateBallotPublicationMutation, GetBallotPublicationChangesOutput, PublishBallotMutation } from "@/gql/graphql"
+import { GenerateBallotPublicationMutation, GetBallotPublicationChangesOutput, PublishBallotMutation, Sequent_Backend_Ballot_Publication } from "@/gql/graphql"
 import { EPublishType } from './EPublishType'
 
 const PublishStyled = {
@@ -53,14 +53,16 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 }: TPublish): React.JSX.Element => {
     let current: any;
 
-    const ref = useRef(null);
+    const ref = useRef(null)
     const notify = useNotify()
     const {t} = useTranslation()
-    const [expan, setExpan] = useState<string>('election-publish-diff');
-    const [status, setStatus] = useState<null|number>(EPublishStatus.Void);
-    const [ballotPublicationId, setBallotPublicationId] = useState<null|string>(null);
+    const [expan, setExpan] = useState<string>('election-publish-diff')
+    const [status, setStatus] = useState<null|number>(EPublishStatus.Void)
+    const [ballotPublicationId, setBallotPublicationId] = useState<null|string>(null)
+    const [currentState, setCurrentState] = useState<null | any>(null)
+    const [previousState, setPreviousState] = useState<null | any>(null)
 
-    const { data, isLoading, error, refetch } = useGetList(
+    const { data, isLoading, error, refetch } = useGetList<Sequent_Backend_Ballot_Publication>(
         'sequent_backend_ballot_publication',
         {
             pagination: {
@@ -89,6 +91,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         if (!ballotPublicationId) {
             return
         }
+
 
         setStatus(EPublishStatus.PublishedLoading)
 
@@ -139,13 +142,28 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         })
 
         console.log('PUBLISH :: Get publish changes data =>', data);
+        if (!data) {
+            return
+        }
+        setCurrentState(data.current)
+        if (data?.previous) {
+            setPreviousState([])
+        }
     }
 
     useEffect(() => {
-        if (ballotPublicationId) {
+        if (null ===  ballotPublicationId) {
+            return
+        }
+        let foundPublication = data?.find(p => p.id === ballotPublicationId)
+        if (!foundPublication) {
+            return
+        }
+        if (foundPublication.is_generated && null === currentState) {
             getPublishChanges()
         }
-    }, [ballotPublicationId])
+    }, [ballotPublicationId, data])
+
 
     useEffect(() => {
         if (!current) {
@@ -174,14 +192,19 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                             {t("publish.header.change")}
                         </PublishStyled.AccordionHeaderTitle>
                     </AccordionSummary>
-                    <AccordionDetails>
-                        <DiffView
-                            currentTitle={t("publish.label.current")}
-                            diffTitle={t("publish.label.diff")}
-                            current={OldSummary}
-                            modify={Summary}
-                        />
-                    </AccordionDetails>
+                    {
+                        currentState
+                        ? <AccordionDetails>
+                            <DiffView
+                                currentTitle={t("publish.label.current")}
+                                diffTitle={t("publish.label.diff")}
+                                current={currentState}
+                                modify={previousState}
+                            />
+                        </AccordionDetails>
+                        : null
+                    }
+                    
                 </Accordion>
 
                 <Accordion
