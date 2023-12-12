@@ -18,6 +18,7 @@ import { PUBLISH_BALLOT } from "@/queries/PublishBallot"
 import { GENERATE_BALLOT_PUBLICATION } from "@/queries/GenerateBallotPublication"
 import { GET_BALLOT_PUBLICATION_CHANGE } from '@/queries/GetBallotPublicationChanges'
 import { GenerateBallotPublicationMutation, GetBallotPublicationChangesOutput, PublishBallotMutation } from "@/gql/graphql"
+import { EPublishType } from './EPublishType'
 
 const PublishStyled = {
     Container: styled.div`
@@ -44,6 +45,7 @@ const PublishStyled = {
 export type TPublish = {
     electionId?: string;
     electionEventId: string;
+    type: EPublishType.Election | EPublishType.Event;
 }
 
 const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.memo(({ 
