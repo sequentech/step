@@ -26,32 +26,41 @@ export type PublishActionsProps = {
 export const PublishActions: React.FC<PublishActionsProps> = ({status, onPublish, onGenerate}) => {
     const {t} = useTranslation()
 
-    const IconOrProgress = ({st, Icon}: any) => {
-        return status === st && status !== EPublishStatus.Void ? (
+    const IconOrProgress = ({ st, Icon }: any) => {
+        return status === (st+0.1) && status !== EPublishStatus.Void ? (
             <CircularProgress size={16} />
         ) : (
             <Icon width={24} />
         )
     }
 
+    const ButtonDisabledOrNot = ({ st, label, onClick, Icon }: any) => (
+        <Button 
+            onClick={onClick} 
+            label={t(label)}
+            style={st === status ? { 
+                backgroundColor: '#eee', 
+                color: '#ccc',
+                cursor: 'not-allowed'
+            } : {}} 
+            disabled={st === status}
+        >
+            <IconOrProgress st={st} Icon={Icon} />
+        </Button>
+    )
+
     return (
         <PublishActionsStyled.Container>
             <div className="list-actions">
-                <Button onClick={() => null} label={t("publish.action.start")}>
-                    <IconOrProgress st={EPublishStatus.Started} Icon={PlayCircle} />
-                </Button>
-                <Button onClick={() => null} label={t("publish.action.pause")}>
-                    <IconOrProgress st={EPublishStatus.Paused} Icon={PauseCircle} />
-                </Button>
-                <Button onClick={() => null} label={t("publish.action.stop")}>
-                    <IconOrProgress st={EPublishStatus.Stopped} Icon={StopCircle} />
-                </Button>
-                <Button onClick={onPublish} label={t("publish.action.publish")} >
-                    <IconOrProgress st={EPublishStatus.Published} Icon={Publish} />
-                </Button>
-                <Button onClick={onGenerate} label={t("publish.action.generate")}>
-                    <IconOrProgress st={EPublishStatus.Generated} Icon={RotateLeft} />
-                </Button>
+                <ButtonDisabledOrNot onClick={() => null} label={t("publish.action.start")} st={EPublishStatus.Started} Icon={PlayCircle} />
+
+                <ButtonDisabledOrNot onClick={() => null} label={t("publish.action.pause")} st={EPublishStatus.Paused} Icon={PauseCircle} />
+
+                <ButtonDisabledOrNot onClick={() => null} label={t("publish.action.stop")} st={EPublishStatus.Stopped} Icon={StopCircle} />
+
+                <ButtonDisabledOrNot onClick={onPublish} label={t("publish.action.publish")} st={EPublishStatus.Published} Icon={Publish} />
+
+                <ButtonDisabledOrNot onClick={onGenerate} label={t("publish.action.generate")}  st={EPublishStatus.Generated} Icon={RotateLeft} />
             </div>
         </PublishActionsStyled.Container>
     )
