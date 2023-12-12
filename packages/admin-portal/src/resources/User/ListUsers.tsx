@@ -17,6 +17,7 @@ import {
     FunctionField,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import EmailIcon from "@mui/icons-material/Email"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
 import {Button, Chip, Typography} from "@mui/material"
@@ -201,6 +202,17 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                         Component={
                             <CreateUser electionEventId={electionEventId} close={handleClose} />
                         }
+                        extraActions={[
+                            <Button
+                                key="send-notification"
+                                onClick={() => {
+                                    console.log("ewerw")
+                                }}
+                            >
+                                <EmailIcon />
+                                {t("sendCommunication.send")}
+                            </Button>,
+                        ]}
                     />
                 }
                 filter={{tenant_id: tenantId, election_event_id: electionEventId}}
@@ -213,7 +225,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     <BooleanField source="email_verified" />
                     <BooleanField source="enabled" />
                     <TextField source="first_name" />
-                    <TextField 
+                    <TextField
                         label={t("usersAndRolesScreen.common.mobileNumber")}
                         source="attributes['sequent.read-only.mobile-number'][0]"
                     />

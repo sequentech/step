@@ -764,6 +764,7 @@ const englishTranslation = {
             },
         },
         sendCommunication: {
+            send: "Send",
             title: "Send Notification",
             subtitle: "Send a notification to voters.",
             sendButton: "Send Notification",
