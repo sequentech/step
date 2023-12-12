@@ -13,5 +13,6 @@ export interface IElectionEventStatus {
     config_created?: boolean
     keys_ceremony_finished?: boolean
     tally_ceremony_finished?: boolean
+    is_published?: boolean
     voting_status: EVotingStatus
 }
