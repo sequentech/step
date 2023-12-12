@@ -8,13 +8,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     m4 \
     make \
     && rm -rf /var/lib/apt/lists/*
+RUN rustup default nightly-2023-05-21
 
 # copy projects
 #TODO: Copy only necessary files
 WORKDIR /app
 COPY ./braid/scripts/Cargo.toml ./Cargo.toml
 COPY ./braid ./braid
-COPY ./braid-messages ./braid-messages
+COPY ./board-messages ./board-messages
 COPY ./sequent-core ./sequent-core
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
