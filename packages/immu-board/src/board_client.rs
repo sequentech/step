@@ -13,7 +13,7 @@ enum Table {
 impl Table {
     fn as_str(&self) -> &'static str {
         match self {
-            Table::BraidMessages => "braid-messages",
+            Table::BraidMessages => "braid_messages",
             Table::ElectoralLogMessages => "electoral_log_messages"
         }
     }
