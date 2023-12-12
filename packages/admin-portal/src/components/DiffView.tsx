@@ -1,10 +1,11 @@
-import React from "react"
+import React, { useEffect, useState } from "react"
 
 import styled from "@emotion/styled"
 
 import {diffLines} from "diff"
 import {CircularProgress} from "@mui/material"
 
+// TODO: Fix responsive in Block
 const DiffViewStyled = {
     Header: styled.span`
         font-family: Roboto;
@@ -15,23 +16,37 @@ const DiffViewStyled = {
         text-align: left;
         text-transform: uppercase;
     `,
-    Content: styled.div`
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    `,
     Container: styled.div`
+        gap: 16px;
         display: flex;
         justify-content: space-around;
-        gap: 16px;
+    `,
+    Content: styled.div`
+        gap: 12px;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
     `,
     Block: styled.div`
-        width: 100%;
         display: flex;
         background-color: #f5f5f5;
         padding: 16px;
         height: 100%;
+        width: 100%;
+        overflow-x: auto;
+        max-height: 500px;
+
+        @media (max-width: 2700px) {
+            width: 1070px;
+        }
+
+        @media (max-width: 2400px) {
+            width: 700px;
+        }
+
+        @media (max-width: 1440px) {
+            width: 520px;
+        }
     `,
     Json: styled.div`
         width: 100%;
@@ -69,16 +84,16 @@ type TDiffView<T> = {
 
 const DiffViewMemo = React.memo(
     <T extends {}>({current, currentTitle, modify, diffTitle, type = "modify"}: TDiffView<T>) => {
-        const [diff, setDiff] = React.useState<any>("")
-        const [oldJsonString, setOldJsonString] = React.useState<string>("")
-        const [newJsonString, setNewJsonString] = React.useState<string>("")
+        const [diff, setDiff] = useState<any>("")
+        const [oldJsonString, setOldJsonString] = useState<string>("")
+        const [newJsonString, setNewJsonString] = useState<string>("")
 
-        React.useEffect(() => {
+        useEffect(() => {
             setNewJsonString(JSON.stringify(modify, null, 2))
             setOldJsonString(JSON.stringify(current, null, 2))
         }, [modify, current])
 
-        React.useEffect(() => {
+        useEffect(() => {
             if (oldJsonString && newJsonString) {
                 const diffText: any = diffLines(oldJsonString, newJsonString)
 
@@ -110,7 +125,7 @@ const DiffViewMemo = React.memo(
                                         </DiffViewStyled.Removed>
                                     ) : (
                                         <DiffViewStyled.Line key={index}>
-                                            {line.value}
+                                            {line.value === 'null' ? 'Cargando datos ...' : line.value}
                                         </DiffViewStyled.Line>
                                     )
                                 ) : null
@@ -132,7 +147,7 @@ const DiffViewMemo = React.memo(
                                             </DiffViewStyled.Added>
                                         ) : (
                                             <DiffViewStyled.Line key={index}>
-                                                {line.value}
+                                                {line.value === 'null' ? 'Cargando datos ...' : line.value}
                                             </DiffViewStyled.Line>
                                         )
                                     ) : null

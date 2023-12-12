@@ -3,22 +3,28 @@ import React, { ComponentType, useEffect, useRef, useState } from "react"
 import styled from "@emotion/styled"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import { useGetList, useNotify } from 'react-admin'
 import { useMutation } from "@apollo/client"
 import { useTranslation } from "react-i18next"
+import { useGetList, useNotify } from 'react-admin'
 import { Box, Accordion, AccordionDetails, AccordionSummary } from "@mui/material"
 
 import Summary from "./election-publish.json"
 import OldSummary from "./election-publish-old.json"
 
+import { EPublishType } from './EPublishType'
 import { DiffView } from "@/components/DiffView"
 import { PublishActions } from "./PublishActions"
 import { EPublishStatus } from "./EPublishStatus"
 import { PUBLISH_BALLOT } from "@/queries/PublishBallot"
 import { GENERATE_BALLOT_PUBLICATION } from "@/queries/GenerateBallotPublication"
 import { GET_BALLOT_PUBLICATION_CHANGE } from '@/queries/GetBallotPublicationChanges'
-import { GenerateBallotPublicationMutation, GetBallotPublicationChangesOutput, PublishBallotMutation, Sequent_Backend_Ballot_Publication } from "@/gql/graphql"
-import { EPublishType } from './EPublishType'
+
+import { 
+    PublishBallotMutation, 
+    GenerateBallotPublicationMutation, 
+    GetBallotPublicationChangesOutput, 
+    Sequent_Backend_Ballot_Publication,
+} from "@/gql/graphql"
 
 const PublishStyled = {
     Container: styled.div`
@@ -51,16 +57,16 @@ export type TPublish = {
 const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.memo(({ 
     electionEventId, electionId 
 }: TPublish): React.JSX.Element => {
-    let current: any;
+    let current: any
 
     const ref = useRef(null)
     const notify = useNotify()
     const {t} = useTranslation()
+    const [currentState, setCurrentState] = useState<null|any>(null)
+    const [previousState, setPreviouseState] = useState<null|any>(null)
     const [expan, setExpan] = useState<string>('election-publish-diff')
     const [status, setStatus] = useState<null|number>(EPublishStatus.Void)
     const [ballotPublicationId, setBallotPublicationId] = useState<null|string>(null)
-    const [currentState, setCurrentState] = useState<null | any>(null)
-    const [previousState, setPreviousState] = useState<null | any>(null)
 
     const { data, isLoading, error, refetch } = useGetList<Sequent_Backend_Ballot_Publication>(
         'sequent_backend_ballot_publication',
@@ -110,7 +116,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             type: 'success'
         })
 
-        refetch()
         setStatus(EPublishStatus.Published)
     };
 
@@ -134,36 +139,33 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
     };
 
     const getPublishChanges = async () => {
-        const { data } = await getBallotPublicationChanges({
+        const { data: { get_ballot_publication_changes: data } } = await getBallotPublicationChanges({
             variables: {
                 electionEventId,
                 ballotPublicationId,
             }
-        })
-
-        console.log('PUBLISH :: Get publish changes data =>', data);
-        if (!data) {
-            return
-        }
-        setCurrentState(data.current)
-        if (data?.previous) {
-            setPreviousState([])
-        }
+        }) as any
+        
+        setCurrentState(data?.current || {});
+        setPreviouseState(data?.previous || {});
     }
 
     useEffect(() => {
-        if (null ===  ballotPublicationId) {
+        if (!data || !ballotPublicationId) {
             return
         }
-        let foundPublication = data?.find(p => p.id === ballotPublicationId)
-        if (!foundPublication) {
+
+        const currentBallotPublication = data.find((element) => element.id === ballotPublicationId)
+
+        if (!currentBallotPublication) {
             return
         }
-        if (foundPublication.is_generated && null === currentState) {
+
+        console.log('PUBLISH :: CurrentBallotPublication', currentBallotPublication)
+        if (currentBallotPublication.is_generated) {
             getPublishChanges()
         }
-    }, [ballotPublicationId, data])
-
+    }, [data, ballotPublicationId])
 
     useEffect(() => {
         if (!current) {
@@ -172,6 +174,17 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             onGenerate();
         }
     }, [ref]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            console.log('PUBLISH :: Interval')
+            refetch()
+        }, 1000)
+
+        return () => {
+            clearInterval(interval)
+        }
+    }, [])
     
     return (
         <Box ref={ref} sx={{flexGrow: 2, flexShrink: 0}}>
@@ -192,19 +205,14 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                             {t("publish.header.change")}
                         </PublishStyled.AccordionHeaderTitle>
                     </AccordionSummary>
-                    {
-                        currentState
-                        ? <AccordionDetails>
-                            <DiffView
-                                currentTitle={t("publish.label.current")}
-                                diffTitle={t("publish.label.diff")}
-                                current={currentState}
-                                modify={previousState}
-                            />
-                        </AccordionDetails>
-                        : null
-                    }
-                    
+                    <AccordionDetails>
+                        <DiffView
+                            currentTitle={t("publish.label.current")}
+                            diffTitle={t("publish.label.diff")}
+                            current={currentState}
+                            modify={previousState}
+                        />
+                    </AccordionDetails>
                 </Accordion>
 
                 <Accordion
