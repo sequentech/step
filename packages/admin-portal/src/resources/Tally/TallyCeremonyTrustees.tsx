@@ -24,7 +24,11 @@ import {useMutation} from "@apollo/client"
 import {ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
 import {faKey} from "@fortawesome/free-solid-svg-icons"
 import {Box} from "@mui/material"
-import {RestorePrivateKeyMutation, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "@/gql/graphql"
+import {
+    RestorePrivateKeyMutation,
+    Sequent_Backend_Tally_Session,
+    Sequent_Backend_Tally_Session_Execution,
+} from "@/gql/graphql"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 
@@ -35,13 +39,13 @@ const WizardSteps = {
 
 export const TallyCeremonyTrustees: React.FC = () => {
     const {t} = useTranslation()
-    const [tallyId, setTallyId] = useElectionEventTallyStore()
+    const {tallyId, setTallyId} = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
     const [page, setPage] = useState<number>(WizardSteps.Start)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
-    const [selectedTrustees, setSelectedTrustees] = useState<string[]>([])
+    const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [verified, setVerified] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
@@ -52,20 +56,21 @@ export const TallyCeremonyTrustees: React.FC = () => {
         id: tallyId,
     })
 
-    const {data: tallySessionExecutions, refetch} = useGetList<Sequent_Backend_Tally_Session_Execution>(
-        "sequent_backend_tally_session_execution",
-        {
-            pagination: {page: 1, perPage: 1},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                tally_session_id: tallyId,
-                tenant_id: tenantId,
+    const {data: tallySessionExecutions, refetch} =
+        useGetList<Sequent_Backend_Tally_Session_Execution>(
+            "sequent_backend_tally_session_execution",
+            {
+                pagination: {page: 1, perPage: 1},
+                sort: {field: "created_at", order: "DESC"},
+                filter: {
+                    tally_session_id: tallyId,
+                    tenant_id: tenantId,
+                },
             },
-        },
-        {
-            refetchInterval: 5000,
-        }
-    )
+            {
+                refetchInterval: 5000,
+            }
+        )
 
     useEffect(() => {
         if (data) {
@@ -194,6 +199,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                         />
 
                         <TallyElectionsList
+                            disabled={true}
                             update={(elections) => setSelectedElections(elections)}
                         />
 
@@ -233,32 +239,10 @@ export const TallyCeremonyTrustees: React.FC = () => {
                             update={(elections) => setSelectedElections(elections)}
                         />
 
-                        <TallyStyles.StyledFooter>
-                            <ElectionHeader
-                                title={"tally.trusteeTallyTitle"}
-                                subtitle={"tally.trusteeTallySubTitle"}
-                            />
-                        </TallyStyles.StyledFooter>
-
-                        <Box
-                            sx={{
-                                width: "100%",
-                                display: "flex",
-                                justifyContent: "flex-end",
-                            }}
-                        >
-                            <IconButton
-                                icon={faKey}
-                                sx={{
-                                    color:
-                                        tally?.execution_status === ITallyExecutionStatus.CONNECTED
-                                            ? "#43E3A1"
-                                            : "#d32f2f",
-                                }}
-                            />
-                        </Box>
-
-                        <TallyTrusteesList update={(trustees) => setSelectedTrustees(trustees)} />
+                        <TallyTrusteesList
+                            tally={tally}
+                            update={(trustees) => setSelectedTrustees(trustees)}
+                        />
                     </>
                 )}
 

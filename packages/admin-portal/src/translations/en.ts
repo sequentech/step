@@ -700,6 +700,7 @@ const englishTranslation = {
                 finish: "Finish",
                 tally: "Tally",
                 results: "Results",
+                ceremony: "Ceremony",
             },
             common: {
                 title: "Tally",
@@ -709,6 +710,8 @@ const englishTranslation = {
                 date: "Tally Date",
                 global: "Global",
                 noTrustees: "No trustees yet",
+                imported: " trustees imported the key",
+                needed: " trustees needed",
                 dialog: {
                     ok: "Ok",
                     cancel: "Close",

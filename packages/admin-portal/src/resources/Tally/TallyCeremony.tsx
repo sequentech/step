@@ -26,39 +26,45 @@ import {TallyElectionsProgress} from "./TallyElectionsProgress"
 import {TallyElectionsResults} from "./TallyElectionsResults"
 import {TallyResults} from "./TallyResults"
 import {TallyLogs} from "./TallyLogs"
-import {useGetOne, useNotify} from "react-admin"
+import {useGetList, useGetOne, useNotify, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
+import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation} from "@apollo/client"
 import {ITallyExecutionStatus} from "@/types/ceremonies"
 import {faKey} from "@fortawesome/free-solid-svg-icons"
 import {Box} from "@mui/material"
-import {Sequent_Backend_Area, Sequent_Backend_Tally_Session} from "@/gql/graphql"
-
-interface TallyCeremonyProps {
-    completed: boolean
-}
+import {
+    Sequent_Backend_Election_Event,
+    Sequent_Backend_Keys_Ceremony,
+    Sequent_Backend_Tally_Session,
+} from "@/gql/graphql"
 
 const WizardSteps = {
     Start: 0,
-    Tally: 1,
-    Results: 2,
+    Ceremony: 1,
+    Tally: 2,
+    Results: 3,
 }
 
-export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
-    const {completed} = props
+export const TallyCeremony: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+
+    console.log("TallyCeremony :: recordEvent", record)
 
     const {t} = useTranslation()
-    const [tallyId, setTallyId] = useElectionEventTallyStore()
+    const {tallyId, setTallyId, setCreatingFlag} = useElectionEventTallyStore()
     const notify = useNotify()
 
     const [openModal, setOpenModal] = useState(false)
     const [page, setPage] = useState<number>(WizardSteps.Start)
-    const [showTrustees, setShowTrustees] = useState(false)
-    const [selectedElections, setSelectedElections] = useState<string[]>([])
-    const [selectedTrustees, setSelectedTrustees] = useState<string[]>([])
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
+    const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
 
+    const [selectedElections, setSelectedElections] = useState<string[]>([])
+    const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
+
+    const [CreateTallyCeremonyMutation] = useMutation(CREATE_TALLY_CEREMONY)
     const [UpdateTallyCeremonyMutation] = useMutation(UPDATE_TALLY_CEREMONY)
 
     interface IExpanded {
@@ -75,25 +81,44 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
         }
     )
 
+    const {data: keyCeremony} = useGetList<Sequent_Backend_Keys_Ceremony>(
+        "sequent_backend_keys_ceremony",
+        {
+            pagination: {page: 1, perPage: 9999},
+            filter: {election_event_id: record?.id, tenant_id: record?.tenant_id},
+        }
+    )
+
     useEffect(() => {
         if (data) {
-            setPage(
-                data.execution_status === ITallyExecutionStatus.CONNECTED
-                    ? WizardSteps.Tally
-                    : data.execution_status === ITallyExecutionStatus.IN_PROGRESS
-                    ? WizardSteps.Results
-                    : WizardSteps.Start
-            )
             if (tally?.last_updated_at !== data.last_updated_at) {
-                console.log("TallyCeremony :: data", data)
+                setPage(
+                    data.execution_status === ITallyExecutionStatus.STARTED
+                        ? WizardSteps.Ceremony
+                        : data.execution_status === ITallyExecutionStatus.CONNECTED
+                        ? WizardSteps.Tally
+                        : data.execution_status === ITallyExecutionStatus.IN_PROGRESS
+                        ? WizardSteps.Results
+                        : WizardSteps.Start
+                )
                 setTally(data)
             }
         }
     }, [data])
 
+    // useEffect(() => {
+    //     console.log("TallyCeremony selectedTrustees EFFECT:: page", page)
+    // }, [page])
+
     useEffect(() => {
-        console.log("TallyCeremony :: tally", tally)
-    }, [tally])
+        setIsButtonDisabled(
+            page === WizardSteps.Start && selectedElections.length === 0 ? true : false
+        )
+    }, [selectedElections])
+
+    useEffect(() => {
+        setIsButtonDisabled(page === WizardSteps.Ceremony && !selectedTrustees)
+    }, [selectedTrustees])
 
     const [expandedData, setExpandedData] = useState<IExpanded>({
         "tally-data-general": true,
@@ -131,55 +156,103 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
 
     const handleNext = () => {
         if (page === WizardSteps.Start) {
-            if (showTrustees) {
-                setPage(page < 2 ? page + 1 : 0)
-            } else {
-                setOpenModal(true)
-            }
-        } else if (WizardSteps.Tally === page) {
             setOpenModal(true)
+        } else if (page === WizardSteps.Ceremony) {
+            // setOpenModal(true)
+        } else if (page === WizardSteps.Tally) {
+            setPage(page < 2 ? page + 1 : 0)
         } else {
             setPage(page < 2 ? page + 1 : 0)
         }
     }
 
-    const confirmNextAction = async () => {
-        let nextAction = (tally?.execution_status === ITallyExecutionStatus.STARTED)
-            ? ITallyExecutionStatus.IN_PROGRESS : ITallyExecutionStatus.STARTED
+    const confirmStartAction = async () => {
+        try {
+            const {data, errors} = await CreateTallyCeremonyMutation({
+                variables: {
+                    tenant_id: record?.tenant_id,
+                    election_event_id: record?.id,
+                    keys_ceremony_id: keyCeremony?.[0].id,
+                    election_ids: selectedElections,
+                },
+            })
 
-        const {data, errors} = await UpdateTallyCeremonyMutation({
-            variables: {
-                election_event_id: tally?.election_event_id,
-                tally_session_id: tally?.id,
-                status: nextAction,
-            },
-        })
+            if (errors) {
+                notify(t("tally.createTallyError"), {type: "error"})
+            }
 
-        if (errors) {
+            if (data) {
+                notify(t("tally.createTallySuccess"), {type: "success"})
+                console.log("TallyCeremony :: confirmStartAction :: data", data)
+
+                const {data: nextStatus, errors} = await UpdateTallyCeremonyMutation({
+                    variables: {
+                        election_event_id: record?.id,
+                        tally_session_id: data.create_tally_ceremony.tally_session_id,
+                        status: ITallyExecutionStatus.STARTED,
+                    },
+                })
+
+                if (errors) {
+                    notify(t("tally.startTallyError"), {type: "error"})
+                }
+
+                if (nextStatus) {
+                    notify(t("tally.startTallySuccess"), {type: "success"})
+                    setCreatingFlag(false)
+                    setPage(WizardSteps.Ceremony)
+                }
+            }
+        } catch (error) {
+            console.log("TallyCeremony :: confirmStartAction :: error", error)
             notify(t("tally.startTallyError"), {type: "error"})
         }
-
-        if (data) {
-            notify(t("tally.startTallySuccess"), {type: "success"})
-            setShowTrustees(true)
-        }
-        setShowTrustees(true)
     }
 
-    const setDisabled = (): boolean => {
-        if (!tally) {
-            return true
-        } else {
-            if (
-                page === WizardSteps.Start &&
-                showTrustees &&
-                tally?.execution_status !== ITallyExecutionStatus.CONNECTED
-            ) {
-                return true
-            }
-            return false
-        }
-    }
+    // const confirmNextAction = async () => {
+    //     let nextAction =
+    //         tally?.execution_status === ITallyExecutionStatus.STARTED
+    //             ? ITallyExecutionStatus.IN_PROGRESS
+    //             : ITallyExecutionStatus.STARTED
+
+    //     const {data, errors} = await UpdateTallyCeremonyMutation({
+    //         variables: {
+    //             election_event_id: tally?.election_event_id,
+    //             tally_session_id: tally?.id,
+    //             status: nextAction,
+    //         },
+    //     })
+
+    //     if (errors) {
+    //         notify(t("tally.startTallyError"), {type: "error"})
+    //     }
+
+    //     if (data) {
+    //         notify(t("tally.startTallySuccess"), {type: "success"})
+    //         setShowTrustees(true)
+    //     }
+    //     setShowTrustees(true)
+    // }
+
+    // const setDisabled = (): boolean => {
+
+    //     console.log("TallyCeremony :: setDisabled", page, selectedElections.length);
+
+    //     if (!tally) {
+    //         return true
+    //     }
+    //     if (page === WizardSteps.Start && selectedElections.length === 0) {
+    //         return true
+    //     }
+    //     if (
+    //         page === WizardSteps.Ceremony &&
+    //         showTrustees &&
+    //         tally?.execution_status !== ITallyExecutionStatus.CONNECTED
+    //     ) {
+    //         return true
+    //     }
+    //     return false
+    // }
 
     return (
         <>
@@ -188,6 +261,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                     <BreadCrumbSteps
                         labels={[
                             "tally.breadcrumbSteps.start",
+                            "tally.breadcrumbSteps.ceremony",
                             "tally.breadcrumbSteps.tally",
                             "tally.breadcrumbSteps.results",
                         ]}
@@ -207,40 +281,22 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                         <TallyElectionsList
                             update={(elections) => setSelectedElections(elections)}
                         />
+                    </>
+                )}
 
-                        {showTrustees && (
-                            <>
-                                <TallyStyles.StyledFooter>
-                                    <ElectionHeader
-                                        title={"tally.trusteeTallyTitle"}
-                                        subtitle={"tally.trusteeTallySubTitle"}
-                                    />
-                                </TallyStyles.StyledFooter>
+                {page === WizardSteps.Ceremony && (
+                    <>
+                        <TallyElectionsList
+                            disabled={true}
+                            update={(elections) => setSelectedElections(elections)}
+                        />
 
-                                <Box
-                                    sx={{
-                                        width: "100%",
-                                        display: "flex",
-                                        justifyContent: "flex-end",
-                                    }}
-                                >
-                                    <IconButton
-                                        icon={faKey}
-                                        sx={{
-                                            color:
-                                                tally?.execution_status ===
-                                                ITallyExecutionStatus.CONNECTED
-                                                    ? "#43E3A1"
-                                                    : "#d32f2f",
-                                        }}
-                                    />
-                                </Box>
-
-                                <TallyTrusteesList
-                                    update={(trustees) => setSelectedTrustees(trustees)}
-                                />
-                            </>
-                        )}
+                        <TallyTrusteesList
+                            tally={tally}
+                            update={(trustees) => {
+                                setSelectedTrustees(trustees)
+                            }}
+                        />
                     </>
                 )}
 
@@ -374,11 +430,21 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                 )}
 
                 <TallyStyles.StyledFooter>
-                    <CancelButton className="list-actions" onClick={() => setTallyId(null)}>
+                    <CancelButton
+                        className="list-actions"
+                        onClick={() => {
+                            setTallyId(null)
+                            setCreatingFlag(false)
+                        }}
+                    >
                         {t("tally.common.cancel")}
                     </CancelButton>
                     {page < WizardSteps.Results && (
-                        <NextButton color="primary" onClick={handleNext} disabled={setDisabled()}>
+                        <NextButton
+                            color="primary"
+                            onClick={handleNext}
+                            disabled={isButtonDisabled}
+                        >
                             <>
                                 {t("tally.common.next")}
                                 <ChevronRightIcon />
@@ -396,7 +462,7 @@ export const TallyCeremony: React.FC<TallyCeremonyProps> = (props) => {
                 title={t("tally.common.dialog.title")}
                 handleClose={(result: boolean) => {
                     if (result) {
-                        confirmNextAction()
+                        confirmStartAction()
                     }
                     setOpenModal(false)
                 }}

@@ -11,7 +11,7 @@ import {JSON_MOCK} from "./constants"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 
 export const TallyLogs: React.FC = () => {
-    const [tallyId] = useElectionEventTallyStore()
+    const {tallyId} = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
     const [dataTally, setDataTally] = useState<string | null>(null)
 

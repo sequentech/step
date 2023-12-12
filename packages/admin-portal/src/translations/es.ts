@@ -702,6 +702,7 @@ const spanishTranslation: TranslationType = {
                 finish: "Final",
                 tally: "Recuento",
                 results: "Resultados",
+                ceremony: "Ceremonia",
             },
             common: {
                 title: "Recuento",
@@ -711,6 +712,8 @@ const spanishTranslation: TranslationType = {
                 date: "Fecha de Recuento",
                 global: "Global",
                 noTrustees: "No hay trustees aún",
+                imported: " trustees han importado su fragmento de clave",
+                needed: " trustees necesarios para el recuento",
                 dialog: {
                     ok: "Ok",
                     cancel: "Cerrar",

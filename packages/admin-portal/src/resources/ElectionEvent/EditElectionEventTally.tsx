@@ -16,16 +16,13 @@ import {useTranslation} from "react-i18next"
 export const EditElectionEventTally: React.FC = () => {
     const {t} = useTranslation()
     const recordEvent = useRecordContext<Sequent_Backend_Election_Event>()
-    const record = useRecordContext<Sequent_Backend_Tally_Session>()
+    const recordTally = useRecordContext<Sequent_Backend_Tally_Session>()
     const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)
-    const [tallyId, setTallyId, isTrustee] = useElectionEventTallyStore()
+    const {tallyId, isTrustee, isCreating} = useElectionEventTallyStore()
 
-    console.log("EditElectionEventTally :: tallyId :: ", tallyId)
-
-    const openStartTallyDialog = () => {
-        console.log("opening...")
-        setShowStartTallyDialog(true)
-    }
+    console.log("EditElectionEventTally :: tallyId ::  ", tallyId);
+    console.log("EditElectionEventTally :: isCreating ::  ", isCreating);
+    
 
     return (
         <Box>
@@ -34,17 +31,17 @@ export const EditElectionEventTally: React.FC = () => {
                 handleClose={() => setShowStartTallyDialog(false)}
                 electionEvent={recordEvent}
             />
-            {/* <Button onClick={openStartTallyDialog}>Start tally</Button> */}
-            {tallyId ? (
+
+            {isCreating || tallyId ? (
                 <>
                     {!isTrustee ? (
-                        <TallyCeremony completed={record.is_execution_completed} />
+                        <TallyCeremony   />
                     ) : (
                         <TallyCeremonyTrustees />
                     )}
                 </>
             ) : (
-                <ListTally record={record} />
+                <ListTally recordTally={recordTally} />
             )}
         </Box>
     )

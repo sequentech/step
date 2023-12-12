@@ -6,13 +6,17 @@ import React, {createContext, useContext, useState} from "react"
 interface ElectionEventTallyContextProps {
     tallyId: string | null
     setTallyId: (tallyId: string | null, isTrustee?: boolean | undefined) => void
+    setCreatingFlag: (isCreating: boolean) => void
     isTrustee: boolean | undefined
+    isCreating: boolean | undefined
 }
 
 const defaultElectionEventTallyContext: ElectionEventTallyContextProps = {
     tallyId: null,
     setTallyId: () => undefined,
+    setCreatingFlag: () => undefined,
     isTrustee: false,
+    isCreating: false,
 }
 
 export const ElectionEventTallyContext = createContext<ElectionEventTallyContextProps>(
@@ -30,11 +34,16 @@ export const ElectionEventTallyContextProvider = (
         localStorage.getItem("selected-election-event-tally-id") || null
     )
     const [isTrustee, setIsTrustee] = useState<boolean>(false)
+    const [isCreating, setIsCreating] = useState<boolean>(false)
 
     const setTallyId = (tallyId: string | null, isTrustee?: boolean | undefined): void => {
         localStorage.setItem("selected-election-event-tally-id", tallyId?.toString() || "")
         setTally(tallyId)
         setIsTrustee(isTrustee || false)
+    }
+
+    const setCreatingFlag = (isCreating: boolean): void => {
+        setIsCreating(isCreating)
     }
 
     return (
@@ -43,6 +52,8 @@ export const ElectionEventTallyContextProvider = (
                 tallyId: tally,
                 setTallyId,
                 isTrustee,
+                isCreating,
+                setCreatingFlag,
             }}
         >
             {props.children}
@@ -50,11 +61,14 @@ export const ElectionEventTallyContextProvider = (
     )
 }
 
-export const useElectionEventTallyStore: () => [
-    string | null,
-    (tallyId: string | null, isTrustee?: boolean | undefined) => void,
-    boolean | undefined
-] = () => {
-    const {tallyId, setTallyId, isTrustee} = useContext(ElectionEventTallyContext)
-    return [tallyId, setTallyId, isTrustee]
+export const useElectionEventTallyStore: () => {
+    tallyId: string | null
+    setTallyId: (tallyId: string | null, isTrustee?: boolean | undefined) => void
+    setCreatingFlag: (isCreating: boolean) => void
+    isTrustee: boolean | undefined
+    isCreating: boolean | undefined
+} = () => {
+    const {tallyId, setTallyId, isTrustee, isCreating, setCreatingFlag} =
+        useContext(ElectionEventTallyContext)
+    return {tallyId, setTallyId, isTrustee, isCreating, setCreatingFlag}
 }

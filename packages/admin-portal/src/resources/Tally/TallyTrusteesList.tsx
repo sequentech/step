@@ -17,21 +17,27 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ITallyCeremonyStatus, ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
 import {NoItem} from "@/components/NoItem"
 import {useTranslation} from "react-i18next"
+import {Box, Icon, Typography} from "@mui/material"
+import {TallyStyles} from "@/components/styles/TallyStyles"
+import ElectionHeader from "@/components/ElectionHeader"
+import KeyIcon from "@mui/icons-material/Key"
 
 interface TallyTrusteesListProps {
-    update: (elections: Array<string>) => void
+    tally: Sequent_Backend_Tally_Session | undefined
+    update: (selectedTrustees: boolean) => void
 }
 
 export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
-    const {update} = props
+    const {tally, update} = props
     const {t} = useTranslation()
 
-    const [tallyId] = useElectionEventTallyStore()
+    const {tallyId} = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
 
     const [trusteesData, setTrusteesData] = useState<
         Array<Sequent_Backend_Trustee & {rowId: number; id: string; active: boolean}>
     >([])
+    const [keysImported, setKeysImported] = useState<number>(0)
 
     const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
@@ -73,10 +79,10 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
 
     useEffect(() => {
         if (trusteesData) {
-            const temp = trusteesData
-                .filter((election) => election.active)
-                .map((election) => election.id)
-            update(temp)
+            const importadas = trusteesData.filter((election) => election.active).length
+            setKeysImported(importadas)
+
+            update(importadas === 2 ? true : false)
         }
     }, [trusteesData])
 
@@ -99,6 +105,57 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
 
     return (
         <>
+            <Box
+                sx={{
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                }}
+            >
+                <ElectionHeader
+                    title={"tally.trusteeTallyTitle"}
+                    subtitle={"tally.trusteeTallySubTitle"}
+                />
+
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        alignItems: "center",
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                            alignItems: "end",
+                            marginRight: "16px",
+                        }}
+                    >
+                        <Typography variant="body2" sx={{margin: 0}}>
+                            {keysImported}/{trusteesData.length}
+                            {t("tally.common.imported")}
+                        </Typography>
+                        <Typography variant="body2" sx={{margin: 0}}>
+                            {"2"}
+                            {t("tally.common.needed")}
+                        </Typography>
+                    </div>
+                    <Icon
+                        sx={{
+                            color:
+                                tally?.execution_status === ITallyExecutionStatus.CONNECTED
+                                    ? "#43E3A1"
+                                    : "#d32f2f",
+                        }}
+                    >
+                        <KeyIcon />
+                    </Icon>
+                </Box>
+            </Box>
+
             {trusteesData.length ? (
                 <DataGrid
                     rows={trusteesData}

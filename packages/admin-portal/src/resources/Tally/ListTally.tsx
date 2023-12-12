@@ -19,24 +19,31 @@ import {
     useGetList,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {Box, Button, Drawer, Typography} from "@mui/material"
+import {Alert, Box, Button, Drawer, Typography} from "@mui/material"
 import {CreateTally} from "./CreateTally"
-import {Sequent_Backend_Election_Event, Sequent_Backend_Tally_Session} from "../../gql/graphql"
+import {
+    Sequent_Backend_Election_Event,
+    Sequent_Backend_Tally_Session,
+    Sequent_Backend_Tally_Session_Execution,
+} from "../../gql/graphql"
 import {Action, ActionsColumn} from "../../components/ActionButons"
 import DescriptionIcon from "@mui/icons-material/Description"
-import {useTranslation} from "react-i18next"
+import {Trans, useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
-import {useParams} from "react-router"
+import {useNavigate, useParams} from "react-router"
 import ElectionHeader from "@/components/ElectionHeader"
 import {TrusteeItems} from "@/components/TrusteeItems"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {StatusChip} from "@/components/StatusChip"
 import KeyIcon from "@mui/icons-material/Key"
 import {theme, IconButton} from "@sequentech/ui-essentials"
-import {AuthContext} from "@/providers/AuthContextProvider"
+import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import styled from "@emotion/styled"
+import {Maybe} from "graphql/jsutils/Maybe"
+import {IExecutionStatus, ITallyCeremonyStatus} from "@/types/ceremonies"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -48,23 +55,34 @@ const Filters: Array<ReactElement> = [
     <TextInput source="election_event_id" key={3} />,
 ]
 
+const NotificationLink = styled.span`
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 2px;
+
+    &:hover {
+        text-decoration: none;
+    }
+`
+
 const TrusteeKeyIcon = MUIStiled(KeyIcon)`
     color: ${theme.palette.brandSuccess};
 `
 
 export interface ListAreaProps {
-    record: Sequent_Backend_Tally_Session
+    recordTally: Sequent_Backend_Tally_Session
 }
 
 export const ListTally: React.FC<ListAreaProps> = (props) => {
+    const {recordTally} = props
     const {t} = useTranslation()
-    const {id} = useParams()
+    const authContext = useContext(AuthContext)
     const {canAdminCeremony, canTrusteeCeremony} = useActionPermissions()
-
+    
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const [tenantId] = useTenantStore()
-    const [_, setTallyId] = useElectionEventTallyStore()
+    const {tallyId, setTallyId, setCreatingFlag, isTrustee} = useElectionEventTallyStore()
     const [deleteOne] = useDelete()
 
     const [open, setOpen] = React.useState(false)
@@ -85,9 +103,36 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         }
     )
 
+    // const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+    //     "sequent_backend_tally_session_execution",
+    //     {
+    //         pagination: {page: 1, perPage: 1},
+    //         sort: {field: "created_at", order: "DESC"},
+    //         filter: {
+    //             tally_session_id: keysCeremonies?.id,
+    //             tenant_id: tenantId,
+    //         },
+    //     },
+    //     {
+    //         refetchInterval: 5000,
+    //     }
+    // )
+
+    const isTrusteeParticipating = (
+        ceremony: Sequent_Backend_Tally_Session_Execution,
+        authContext: AuthContextValues
+    ) => {
+        const status: ITallyCeremonyStatus = ceremony.status
+        return (
+            (ceremony.status === IExecutionStatus.NOT_STARTED ||
+                ceremony.status === IExecutionStatus.IN_PROCESS) &&
+            !!status.trustees.find((trustee) => trustee.name === authContext.username)
+        )
+    }
+
     const CreateButton = () => (
         <Button
-            onClick={() => setOpen(true)}
+            onClick={() => setCreatingFlag(true)}
             disabled={!keysCeremonies || keysCeremonies?.length > 0}
         >
             <IconButton icon={faPlus} fontSize="24px" />
@@ -110,23 +155,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             ) : null}
         </ResourceListStyles.EmptyBox>
     )
-
-    // Returns a keys ceremony if there's any in which we have been required to
-    // participate and is active
-    // const getActiveCeremony = (
-    //     keyCeremonies: Sequent_Backend_Tally_Session[] | undefined,
-    //     authContext: AuthContextValues
-    // ) => {
-    //     if (!keyCeremonies) {
-    //         return
-    //     } else {
-    //         return keyCeremonies.find((ceremony) => isTrusteeParticipating(ceremony, authContext))
-    //     }
-    // }
-
-    // let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
-
-    // const {canAdminCeremony, canTrusteeCeremony: canWriteTrustee} = useActionPermissions()
 
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
@@ -155,8 +183,41 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         },
     ]
 
+    // Returns a keys ceremony if there's any in which we have been required to
+    // participate and is active
+    // const getActiveCeremony = (
+    //     tallyCeremonies: Sequent_Backend_Tally_Session[] | undefined,
+    //     authContext: AuthContextValues
+    // ) => {
+    //     if (!tallyCeremonies) {
+    //         return
+    //     } else {
+    //         return tallyCeremonies.find((ceremony) =>
+    //             isTrusteeParticipating(tallySessionExecutions?.[0], authContext)
+    //         )
+    //     }
+    // }
+    // let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
+
     return (
         <>
+            {isTrustee ? (
+                <Alert severity="info">
+                    <Trans i18nKey="electionEventScreen.keys.notify.participateNow">
+                        You have been invited to participate in a Keys ceremony. Please
+                        <NotificationLink
+                            onClick={(e: any) => {
+                                e.preventDefault()
+                                viewTrusteeTally(keysCeremonies?.[0].id)
+                            }}
+                        >
+                            click on the tally Key Action
+                        </NotificationLink>
+                        to participate.
+                    </Trans>
+                </Alert>
+            ) : null}
+
             <List
                 resource="sequent_backend_tally_session"
                 actions={
@@ -164,10 +225,9 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         withColumns={false}
                         withImport={false}
                         withExport={false}
-                        // withFilter={false}
-                        open={openDrawer}
-                        setOpen={setOpenDrawer}
-                        Component={<CreateTally record={record} close={handleCloseCreateDrawer} />}
+                        withAction={true}
+                        doAction={() => setCreatingFlag(true)}
+                        actionLabel="common.label.add"
                     />
                 }
                 empty={<Empty />}

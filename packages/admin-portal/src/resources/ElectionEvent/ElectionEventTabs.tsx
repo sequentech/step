@@ -50,7 +50,7 @@ export const ElectionEventTabs: React.FC = () => {
     )
     const showLogs = authContext.isAuthorized(true, authContext.tenantId, IPermissions.LOGS_READ)
     const {t} = useTranslation()
-    const [_, setTallyId] = useElectionEventTallyStore()
+    const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
 
     useEffect(() => {
         const locArr = location.pathname.split("/").slice(0, 3).join("/")
@@ -89,7 +89,10 @@ export const ElectionEventTabs: React.FC = () => {
                 {showTally ? (
                     <TabbedShowLayout.Tab
                         label={t("electionEventScreen.tabs.tally")}
-                        onClick={() => setTallyId(null)}
+                        onClick={() => {
+                            setTallyId(null)
+                            setCreatingFlag(false)
+                        }}
                     >
                         <EditElectionEventTally />
                     </TabbedShowLayout.Tab>
