@@ -1,4 +1,5 @@
 #![allow(non_upper_case_globals)]
+#![feature(result_flattening)]
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -23,7 +24,7 @@ extern crate chrono;
 enum CeleryOpt {
     Consume {
         #[structopt(short, long, possible_values = &[
-            "short_queue", "reports_queue", "tally_queue", "beat"
+            "short_queue", "reports_queue", "tally_queue", "beat", "communication_queue"
         ], default_value = "beat")]
         queues: Vec<String>,
         #[structopt(short, long, default_value = "100")]

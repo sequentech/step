@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { TranslationType } from "./en"
+import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
@@ -135,25 +135,32 @@ const spanishTranslation: TranslationType = {
         },
         electionTypeScreen: {
             common: {
-                title: 'Tipo de Elección',
-                subtitle: 'Configuración del Tipo de Elección',
-                onlineVoting: 'Votación en Línea',
-                kioskVoting: 'Votación en Quiosco',
-                settingTitle: 'Configuración',
-                settingSubtitle: 'Ajustes generales'
+                title: "Tipo de Elección",
+                subtitle: "Configuración del Tipo de Elección",
+                onlineVoting: "Votación en Línea",
+                kioskVoting: "Votación en Quiosco",
+                settingTitle: "Configuración",
+                settingSubtitle: "Ajustes generales",
+                sms: "SMS",
+                mail: "Mails",
+                spanish: "Spanish",
+                english: "English",
+                createNew: "Crear un Tipo de Elección",
+                emptyHeader: "No hay Tipos de Elección aún.",
+                emptyBody: "¿Quieres crear uno?",
             },
             create: {
-                title: 'Crear Tipo de Elección'
+                title: "Crear Tipo de Elección",
             },
             edit: {
-                title: 'Editar Tipo de Elección'
+                title: "Editar Tipo de Elección",
             },
             tabs: {
-                votingChannels: 'CANALES DE VOTACIÓN',
-                electionTypes: 'TIPOS DE ELECCIÓN',
-                communications: 'COMUNICACIÓN',
-                languages: 'IDIOMAS'
-            }
+                votingChannels: "CANALES DE VOTACIÓN",
+                electionTypes: "TIPOS DE ELECCIÓN",
+                communications: "COMUNICACIÓN",
+                languages: "IDIOMAS",
+            },
         },
         dashboard: {
             voteByDay: "Voto por día",
@@ -180,6 +187,7 @@ const spanishTranslation: TranslationType = {
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
+                noResult: "No Election Event yet",
             },
             voters: {
                 title: "Votantes",
@@ -200,11 +208,22 @@ const spanishTranslation: TranslationType = {
             keys: {
                 createNew: "Crear Ceremonia de Claves",
                 emptyHeader: "Ninguna Ceremonia de Claves aún.",
-                emptyBody: "¿Quieres crear una?",
+                statusLabel: "Estado",
+                waitingKeys: "Esperando a la Generación de Claves..",
+                started: "Iniciada en",
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Ceremonia",
                     created: "Finished",
+                    start: "Comienzo",
+                    status: "Estado",
+                    download: "Descargar",
+                    check: "Comprobar",
+                    success: "Finalizado",
+                },
+                notify: {
+                    participateNow:
+                        "Ha sido invitado a participar a una Ceremonia de Claves. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
                 },
             },
             tabs: {
@@ -216,6 +235,23 @@ const spanishTranslation: TranslationType = {
                 tally: "Recuento",
                 publish: "Publicar",
                 logs: "Logs",
+            },
+            tally: {
+                emptyHeader: "Ningún Recuento aún.",
+                title: "Recuento del Evento Electoral",
+                elections: "Elecciones",
+                electionNumber: "Número de Elecciones",
+                trustees: "Trustees",
+                status: "Estado",
+                create: {
+                    title: "Crear Recuento",
+                    subtitle: "Crear un nuevo Recuento para este Evento Electoral",
+                    createButton: "Crear Recuento",
+                    error: {
+                        create: "Error creando Recuento",
+                    },
+                    success: "Recuento creado",
+                },
             },
         },
         electionScreen: {
@@ -246,9 +282,17 @@ const spanishTranslation: TranslationType = {
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
                 fileError: "Error al cargar el archivo",
+                fileLoaded: "Archivo cargado",
             },
             createElectionEventSuccess: "Creada la elección",
             createElectionEventError: "Error Creando la elección",
+            tabs: {
+                dashboard: "Panel de Control",
+                data: "Datos",
+                voters: "Votantes",
+                publish: "Publicar",
+                logs: "Logs",
+            },
         },
         tenantScreen: {
             common: {
@@ -264,12 +308,18 @@ const spanishTranslation: TranslationType = {
             common: {
                 title: "Usuarios y Roles",
                 subtitle: "Configuración general",
+                mobileNumber: "Móvil",
             },
             users: {
                 title: "Usuarios",
+                subtitle: "Ver y editar datos del usuario",
                 edit: {
                     title: "Información de Usuario",
                     subtitle: "Ver y editar Usuario",
+                },
+                create: {
+                    title: "Usuario",
+                    subtitle: "Crear usuario",
                 },
                 fields: {
                     username: "Nombre de Usuario",
@@ -281,16 +331,47 @@ const spanishTranslation: TranslationType = {
                     groups: "Grupos",
                     attributes: "Atributos",
                     area: "Área",
+                    password: "Contraseña",
+                    repeatPassword: "Repetir Contraseña",
+                    passwordMismatch: "Las contraseñas deben de coincidir",
+                    passwordLengthValidate: "La contraseña debe tener al menos 8 caracteres",
+                    passwordUppercaseValidate:
+                        "La contraseña debe contener al menos una letra mayúscula",
+                    passwordLowercaseValidate:
+                        "La contraseña debe contener al menos una letra minúscula",
+                    passwordDigitValidate: "La contraseña debe contener al menos un dígito",
+                    passwordSpecialCharValidate:
+                        "La contraseña debe contener al menos un carácter especial",
+                },
+                delete: {
+                    body: "¿Estás seguro que quieres borrar este usuario?",
+                },
+                notifications: {
+                    deleteError: "Error borrando usuario",
+                    deleteSuccess: "Usuario borrado",
                 },
             },
             voters: {
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                emptyHeader: "Ningún votante aún.",
+                askCreate: "¿Quieres crear uno?",
+                create: {
+                    title: "Votante",
+                    subtitle: "Crear votante",
+                },
                 errors: {
                     editError: "Error editando votante",
                     editSuccess: "Votante editado",
                     createError: "Error creando votante",
                     createSuccess: "Votante creado",
+                },
+                delete: {
+                    body: "¿Estás seguro que quieres borrar este votante?",
+                },
+                notifications: {
+                    deleteError: "Error borrando votante",
+                    deleteSuccess: "Votante borrado",
                 },
             },
             roles: {
@@ -298,6 +379,26 @@ const spanishTranslation: TranslationType = {
                 edit: {
                     title: "Información de Rol",
                     subtitle: "Ver y editar Rol",
+                },
+                create: {
+                    title: "Rol",
+                    subtitle: "Crear rol",
+                },
+                errors: {
+                    createError: "Error creando rol",
+                    createSuccess: "Rol creado",
+                },
+                fields: {
+                    name: "Nombre",
+                },
+                delete: {
+                    body: "¿Estás seguro que quieres borrar este rol?",
+                },
+                notifications: {
+                    deleteError: "Error borrando rol",
+                    deleteSuccess: "Rol borrado",
+                    permissionEditError: "Error editando permiso",
+                    permissionEditSuccess: "Permiso editado",
                 },
             },
             permissions: {
@@ -353,6 +454,9 @@ const spanishTranslation: TranslationType = {
                 election: "Elección",
                 contest: "Concurso",
                 candidate: "Candidato",
+                noResult: {
+                    askCreate: "¿Quieres crear una?",
+                },
             },
             label: {
                 add: "Añadir",
@@ -369,6 +473,7 @@ const spanishTranslation: TranslationType = {
                 next: "Siguiente",
                 warning: "Aviso",
                 json: "Vista previa",
+                noResult: "Sin resultados",
             },
             language: {
                 es: "Español",
@@ -377,6 +482,9 @@ const spanishTranslation: TranslationType = {
             channel: {
                 online: "En línea",
                 kiosk: "Kiosco",
+            },
+            message: {
+                delete: "¿Estás seguro que quieres borrar este elemento?",
             },
         },
         createResource: {
@@ -496,30 +604,36 @@ const spanishTranslation: TranslationType = {
             configureStep: {
                 create: "Crear Ceremonia de Claves",
                 title: "Crear Ceremonia de Claves del Evento Electoral",
-                subtitle: "En esta ceremonia cada autoridad generará y descargará su parte de las claves privadas para el Evento Electoral. Para continuar, elija los autoridades que participarán en la ceremonia y el umbral, que es el número mínimo de autoridades necesarios para contar.",
+                subtitle:
+                    "En esta ceremonia cada autoridad generará y descargará su parte de las claves privadas para el Evento Electoral. Para continuar, elija los autoridades que participarán en la ceremonia y el umbral, que es el número mínimo de autoridades necesarios para contar.",
                 trusteeList: "Autoridades",
                 threshold: "Umbral",
-                errorMinTrustees: "Seleccionaste sólo {{selected}} autoridades, pero debe seleccionar al menos {{threshold}}.",
-                errorThreshold: "Seleccionaste un umbral de {{selected}} pero debe estar entre {{min}} y {{max}}.",
+                errorMinTrustees:
+                    "Seleccionaste sólo {{selected}} autoridades, pero debe seleccionar al menos {{threshold}}.",
+                errorThreshold:
+                    "Seleccionaste un umbral de {{selected}} pero debe estar entre {{min}} y {{max}}.",
                 errorCreatingCeremony: "Error creando Ceremonia de Claves: {{error}}",
                 createCeremonySuccess: "Ceremonia de Claves creada",
                 confirmdDialog: {
                     ok: "Sí, Crear Ceremonia de Claves",
                     cancel: "Cancelar",
                     title: "¿Estás seguro de que quieres Crear una Ceremonia de Claves?",
-                    description: "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
+                    description:
+                        "Estás a punto de Crear una Ceremonia de Claves. Esta acción notificará a las Autoridades para participar en la creación y distribución de las Claves del Evento Electoral.",
                 },
             },
             ceremonyStep: {
                 cancel: "Cancelar Ceremonia de Claves",
                 progressHeader: "Progreso de Ceremonia de Claves",
-                description: "Esta pantalla muestra el progreso y los registros de la Ceremonia de Claves del Evento Electoral. En la Ceremonia de Claves, cada autoridad generará y descargará su fragmento de la clave privada para el Evento Electoral.",
+                description:
+                    "Esta pantalla muestra el progreso y los registros de la Ceremonia de Claves del Evento Electoral. En la Ceremonia de Claves, cada autoridad generará y descargará su fragmento de la clave privada para el Evento Electoral.",
                 executionStatus: "Estado: {{status}}",
                 confirmdDialog: {
                     ok: "Sí, Cancelar Creación de Ceremonia de Claves",
                     cancel: "Volver a la Ceremonia de Claves",
                     title: "¿Estás seguro de que quieres Cancelar la Ceremonia de Claves?",
-                    description: "Estás a punto de Cancelar la Ceremonia de Claves. Después de realizar esta acción, para tener una Ceremonia de Claves exitosa tendrás que Crear una nueva.",
+                    description:
+                        "Estás a punto de Cancelar la Ceremonia de Claves. Después de realizar esta acción, para tener una Ceremonia de Claves exitosa tendrás que Crear una nueva.",
                 },
                 header: {
                     trusteeName: "Nombre de Autoridad",
@@ -533,6 +647,150 @@ const spanishTranslation: TranslationType = {
                     entry: "Entrada",
                 },
                 emptyLogs: "Sin logs aún.",
+            },
+            startStep: {
+                title: "Ceremonia de Claves de Autoridad",
+                subtitle:
+                    "Estás a punto de participar en la Ceremonia de Claves como la Autoridad (<strong>{{name}}</strong>). Esto implica los siguientes pasos:",
+                one: "<strong>Descargar</strong> tu Clave Privada Encriptada.",
+                two: "Crear múltiples <strong>Copias de seguridad</strong> de tu Clave Privada Encriptada.",
+                three: "<strong>Verificar</strong> que las copias de seguridad funcionan correctamente.",
+            },
+            downloadStep: {
+                title: "Descargar Clave Privada Encriptada",
+                subtitle:
+                    "Para continuar, por favor descarga y guarda tu Clave Privada Encriptada en al menos dos dispositivos diferentes:",
+                downloadButton: "Descargar tu Clave Privada Encriptada",
+                errorDownloading: "Error de descarga: {{error}}",
+                errorEmptyKey: "Error de descarga, fichero vacío",
+                confirmdDialog: {
+                    ok: "Confirmar copias de seguridad y Continuar",
+                    cancel: "Volver",
+                    title: "Copia de seguridad de tu Clave Privada Encriptada",
+                    description:
+                        "Por favor, realiza una copia de seguridad de tu Clave Privada Encriptada en al menos dos ubicaciones seguras diferentes y luego confírmalo a continuación:",
+                    firstCopy: "Primera copia de seguridad realizada",
+                    secondCopy: "Segunda copia de seguridad realizada",
+                },
+            },
+            checkStep: {
+                title: "Verifica tus Copias de Seguridad de tu Clave Privada Encriptada",
+                subtitle:
+                    "Sube la Copia de Seguridad de tu Clave Privada Encriptada para verificar que sea correcta. Puedes intentarlo tantas veces como sea necesario, desde tus diferentes copias de seguridad:",
+                errorUploading: "Error de subida: {{error}}",
+                errorEmptyFile: "Fichero vacío o no encontrado",
+                verified: "Copia de seguridad verificada correctamente.",
+            },
+        },
+        tally: {
+            ceremonyTitle: "Elecciones para el Recuento",
+            ceremonySubTitle: "Seleccione las elecciones para el recuento",
+            tallyTitle: "Progreso del Recuento de Elecciones",
+            logsTitle: "Logs",
+            resultsTitle: "Resultados & Participación",
+            generalInfoTitle: "Información General",
+            trusteeTallyTitle: "Trustee",
+            trusteeTallySubTitle: "Estado de importación del fragmento de clave",
+            createTallySuccess: "Recuento creado",
+            createTallyError: "Error creando recuento",
+            startTallySuccess: "Recuento iniciado",
+            startTallyError: "Error iniciando recuento",
+            trusteeTitle: "Proceso del trustee",
+            trusteeSubTitle: "Por favor, importe su fragmento de clave",
+            breadcrumbSteps: {
+                start: "Inicio",
+                finish: "Final",
+                tally: "Recuento",
+                results: "Resultados",
+            },
+            common: {
+                title: "Recuento",
+                subTitle: "Configuración del Recuento.",
+                cancel: "Atras",
+                next: "Siguiente",
+                date: "Fecha de Recuento",
+                global: "Global",
+                noTrustees: "No hay trustees aún",
+                dialog: {
+                    ok: "Ok",
+                    cancel: "Cerrar",
+                    title: "¿Estás seguro de que quieres iniciar una ceremonia?",
+                    message:
+                        "Estás a punto de iniciar una ceremonia de recuento. Esta acción notificará a los trustees para importar sus fragmentos de clave.",
+                },
+            },
+            table: {
+                elections: "Elecciones",
+                selected: "Seleccionadas",
+                status: "Estado",
+                progress: "Progreso",
+                method: "Método de Recuento",
+                elegible: "Votantes Elegibles",
+                number: "Número de Votos",
+                turnout: "Participación (%)",
+                candidates: "Candidates",
+                global: "Resultados globales",
+                elegible_census: "Censo de votantes elegibles",
+                total_valid_votes: "Total de votos válidos",
+                explicit_invalid_votes: "Votos explícitamente inválidos",
+                implicit_invalid_votes: "Votos implícitamente inválidos",
+                blank_votes: "Votos en blanco",
+            },
+        },
+        publish: {
+            header: {
+                change: "Cambios a publicar",
+                history: "Historico de cambios",
+            },
+            action: {
+                start: "Empezar elección",
+                stop: "Parar eleccion",
+                pause: "pausar",
+                generate: "regenerar",
+                publish: "publicar cambios",
+            },
+            label: {
+                current: "Actual",
+                diff: "Cambios a publicar",
+            },
+            notifications: {
+                generated: "Papeleta generada",
+                published: "Papeleta publicada",
+            },
+        },
+        emailEditor: {
+            subject: "Asunto del Email",
+            tabs: {
+                plaintext: "Cuerpo de Texto Plano",
+                richtext: "Cuerpo de Texto Enriquecido",
+            },
+        },
+        sendCommunication: {
+            title: "Enviar Notificación",
+            subtitle: "Enviar una notificación a usuarios/votantes.",
+            sendButton: "Enviar Notificación",
+            voters: "Audiencia",
+            schedule: "Calendario",
+            nowInput: "Enviar ahora",
+            dateInput: "Fecha y hora de comienzo de envío",
+            chooseDate: "Por favor escoge una fecha",
+            languages: "Idiomas",
+            smsMessage: "Mensaje SMS",
+            errorSending: "Error enviando la notificación: {{error}}",
+            successSending: "Notificación programada/enviada con éxito",
+            votersSelection: {
+                ALL_USERS: "Todos",
+                NOT_VOTED: "Los que no votaron",
+                VOTED: "Los que ya votaron",
+                SELECTED: "A {{total}} Votantes seleccionados",
+            },
+            methodTitle: "Método de Comunicación",
+            communicationMethod: {
+                EMAIL: "Email",
+                SMS: "SMS",
+            },
+            email: {
+                subject: "Subject",
             },
         },
     },

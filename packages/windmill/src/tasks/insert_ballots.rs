@@ -16,15 +16,15 @@ use tracing::{event, instrument, Level};
 
 use crate::hasura;
 use crate::hasura::tally_session_contest::get_tally_session_contest;
-use crate::hasura::trustee::get_trustees_by_id;
+use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager::*;
-use crate::services::public_keys::deserialize_pk;
+use crate::services::public_keys::deserialize_public_key;
 use crate::types::error::{Error, Result};
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct InsertBallotsPayload {
-    pub trustee_pks: Vec<String>,
+    pub trustee_names: Vec<String>,
 }
 
 #[instrument]
@@ -61,15 +61,11 @@ pub async fn insert_ballots(
         .expect("expected data".into())
         .sequent_backend_election_event[0];
 
-    let trustees = get_trustees_by_id(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        body.trustee_pks.clone(),
-    )
-    .await?
-    .data
-    .with_context(|| "can't find trustees")?
-    .sequent_backend_trustee;
+    let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &body.trustee_names)
+        .await?
+        .data
+        .with_context(|| "can't find trustees")?
+        .sequent_backend_trustee;
 
     event!(Level::INFO, "trustees len: {:?}", trustees.len());
 
@@ -77,7 +73,7 @@ pub async fn insert_ballots(
     let deserialized_trustee_pks: Vec<StrandSignaturePk> = trustees
         .clone()
         .into_iter()
-        .map(|trustee| deserialize_pk(trustee.public_key.unwrap()))
+        .map(|trustee| deserialize_public_key(trustee.public_key.unwrap()))
         .collect();
 
     event!(

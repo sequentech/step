@@ -1,7 +1,7 @@
 import React from "react"
 import styled from "@emotion/styled"
 
-import { useTranslation } from 'react-i18next'
+import {useTranslation} from "react-i18next"
 
 const HeaderStyles = {
     Wrapper: styled.div`

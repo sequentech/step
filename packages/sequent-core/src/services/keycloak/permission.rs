@@ -6,7 +6,7 @@ use crate::types::keycloak::*;
 use anyhow::{anyhow, Result};
 use keycloak::types::RoleRepresentation;
 use std::convert::From;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 impl From<RoleRepresentation> for Permission {
     fn from(item: RoleRepresentation) -> Self {

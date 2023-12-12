@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { PageHeaderStyles } from "@/components/styles/PageHeaderStyles"
-import React, { useState } from "react"
+import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
+import React, {useState} from "react"
 import {TextField} from "@mui/material"
-import { SaveButton, SimpleForm, useNotify, useRefresh } from "react-admin"
-import { useTranslation } from "react-i18next"
-import {SubmitHandler} from 'react-hook-form'
-import { IUser } from "sequent-core"
-import { useTenantStore } from "@/providers/TenantContextProvider"
-import { CREATE_USER } from "@/queries/CreateUser"
-import { useMutation } from "@apollo/client"
-import { CreateUserMutationVariables } from "@/gql/graphql"
+import {SaveButton, SimpleForm, useNotify, useRefresh} from "react-admin"
+import {useTranslation} from "react-i18next"
+import {SubmitHandler} from "react-hook-form"
+import {IUser} from "sequent-core"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {CREATE_USER} from "@/queries/CreateUser"
+import {useMutation} from "@apollo/client"
+import {CreateUserMutationVariables} from "@/gql/graphql"
 
 interface CreateUserProps {
     electionEventId?: string
@@ -21,7 +21,7 @@ interface CreateUserProps {
 export const CreateUser: React.FC<CreateUserProps> = ({electionEventId, close}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
-    const [user, setUser] = useState<IUser>({ enabled: true })
+    const [user, setUser] = useState<IUser>({enabled: true})
     const [createUser] = useMutation<CreateUserMutationVariables>(CREATE_USER)
     const notify = useNotify()
     const refresh = useRefresh()
@@ -36,6 +36,7 @@ export const CreateUser: React.FC<CreateUserProps> = ({electionEventId, close}) 
                     user,
                 },
             })
+            close?.()
             if (errors) {
                 notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
                 console.log(`Error creating user: ${errors}`)
@@ -43,11 +44,10 @@ export const CreateUser: React.FC<CreateUserProps> = ({electionEventId, close}) 
                 notify(t("usersAndRolesScreen.voters.errors.createSuccess"), {type: "success"})
                 refresh()
             }
-            close?.()
         } catch (error) {
+            close?.()
             notify(t("usersAndRolesScreen.voters.errors.createError"), {type: "error"})
             console.log(`Error creating user: ${error}`)
-            close?.()
         }
     }
 
@@ -56,14 +56,25 @@ export const CreateUser: React.FC<CreateUserProps> = ({electionEventId, close}) 
         setUser({...user, [name]: value})
     }
 
-    return <PageHeaderStyles.Wrapper>
-        <SimpleForm toolbar={<SaveButton alwaysEnable />} onSubmit={onSubmit} sanitizeEmptyValues>
-            <PageHeaderStyles.Title>{t("usersAndRolesScreen.common.title")}</PageHeaderStyles.Title>
-            <PageHeaderStyles.SubTitle>
-                {t("usersAndRolesScreen.common.subTitle")}
-            </PageHeaderStyles.SubTitle>
+    return (
+        <PageHeaderStyles.Wrapper>
+            <SimpleForm
+                toolbar={<SaveButton alwaysEnable />}
+                onSubmit={onSubmit}
+                sanitizeEmptyValues
+            >
+                <PageHeaderStyles.Title>
+                    {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.create.title`)}
+                </PageHeaderStyles.Title>
+                <PageHeaderStyles.SubTitle>
+                    {t(
+                        `usersAndRolesScreen.${
+                            electionEventId ? "voters" : "users"
+                        }.create.subtitle`
+                    )}
+                </PageHeaderStyles.SubTitle>
 
-            <TextField
+                <TextField
                     variant="outlined"
                     label={t("usersAndRolesScreen.users.fields.first_name")}
                     value={user.first_name || ""}
@@ -91,6 +102,7 @@ export const CreateUser: React.FC<CreateUserProps> = ({electionEventId, close}) 
                     name={"username"}
                     onChange={handleChange}
                 />
-        </SimpleForm>
-    </PageHeaderStyles.Wrapper>
+            </SimpleForm>
+        </PageHeaderStyles.Wrapper>
+    )
 }

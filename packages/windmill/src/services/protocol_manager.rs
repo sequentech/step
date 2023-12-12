@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use braid_messages::artifact::DkgPublicKey;
-use braid_messages::artifact::{Ballots, Configuration};
+use braid_messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey};
 use braid_messages::message::Message;
 use braid_messages::newtypes::BatchNumber;
 use braid_messages::newtypes::PublicKeyHash;
@@ -15,6 +14,7 @@ use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
+use strand::symm::EncryptionData;
 use strand::util::StrandError;
 
 use anyhow::{anyhow, Context, Result};
@@ -107,6 +107,34 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     })?;
     let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).unwrap();
     Ok(dkgpk.pk)
+}
+
+#[instrument]
+pub async fn get_trustee_encrypted_private_key<C: Ctx>(
+    board_name: &str,
+    trustee_pub_key: &StrandSignaturePk,
+) -> Result<EncryptionData> {
+    let mut board = get_board_client().await?;
+
+    let messages = board.get_messages(board_name, -1).await?;
+    let pks_message = messages
+        .into_iter()
+        .map(|message| Message::strand_deserialize(&message.message))
+        .filter_map(|message| message.ok())
+        .find(|message| {
+            message.statement.get_kind() == StatementType::Channel
+                && message.sender.pk == *trustee_pub_key
+        })
+        .with_context(|| format!("Private Key not found on board {}", board_name))?;
+
+    let bytes = pks_message.artifact.with_context(|| {
+        format!(
+            "Artifact missing on Private Key message on board {}",
+            board_name
+        )
+    })?;
+    let channel = Channel::<C>::strand_deserialize(&bytes).unwrap();
+    Ok(channel.encrypted_channel_sk)
 }
 
 pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuration<C>> {

@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { defaultTheme } from "react-admin"
-import { adminTheme } from "@sequentech/ui-essentials"
+import {defaultTheme} from "react-admin"
+import {adminTheme} from "@sequentech/ui-essentials"
 
 export const mixedAdminTheme = {
     ...defaultTheme,
@@ -29,10 +29,10 @@ export const fullAdminTheme = {
             styleOverride: {
                 root: {
                     "&:last-child": {
-                        borderRight: '1px solid #0F054C',
-                    }
-                }
-            }
+                        borderRight: "1px solid #0F054C",
+                    },
+                },
+            },
         },
         MuiTextField: {
             styleOverrides: {
@@ -91,6 +91,19 @@ export const fullAdminTheme = {
                 root: {
                     "& .RaAppBar-menuButton": {
                         display: "none",
+                    },
+                },
+            },
+        },
+        MuiDrawer: {
+            styleOverrides: {
+                root: {
+                    "& .MuiDrawer-paper": {
+                        width: "50%",
+                    },
+                    // doesn't work but it's a good try..
+                    [mixedAdminTheme.breakpoints.down("xs") + "& .MuiDrawer-paper"]: {
+                        width: "50%",
                     },
                 },
             },
@@ -170,5 +183,5 @@ export const fullAdminTheme = {
                 },
             },
         },
-    }
+    },
 }

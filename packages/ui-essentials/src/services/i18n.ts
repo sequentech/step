@@ -32,6 +32,9 @@ export const initializeLanguages = (externalTranslations: Resource) => {
             interpolation: {
                 escapeValue: false,
             },
+            react: {
+                transKeepBasicHtmlNodesFor: ["ol", "li", "p", "br", "strong"],
+            },
         })
 }
 

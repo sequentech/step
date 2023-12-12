@@ -69,14 +69,14 @@ To launch the `admin-portal` in development mode, execute (the first time):
 ```bash
 cd /workspaces/backend-services/packages/
 yarn && yarn build:ui-essentials # only needed the first time
-yarn start:admin
+yarn start:admin-portal
 ```
 
 For subsequent runs, you only need:
 
 ```bash
 cd /workspaces/backend-services/packages/
-yarn start:admin
+yarn start:admin-portal
 ```
 
 Then it should open the admin-portal in the web browser, or else enter 
@@ -318,7 +318,7 @@ Afterwards, you need to regenerate the typescript auto-generated types using
 
 ```bash
 cd /workspaces/backend-services/packages/
-yarn generate:admin
+yarn generate:admin-portal
 ```
 
 Additionally, the same graphql schema file is needed in `windmill` to generate 
@@ -416,7 +416,7 @@ Finally you'll need to rebuild/restart harvest:
 ## Update Sequent Core
 
 ```bash
-cd packages/sequent-core
+cd /workspaces/backend-services/packages/sequent-core
 wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
 wasm-pack -v pack .
 
@@ -434,13 +434,14 @@ wasm-pack -v pack .
   version "0.1.0"
   resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
 
-# luego ejecutar en packages/
+# luego ejecutar:
+cd /workspaces/backend-services/packages/
 rm ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
 
-rm -rf node_modules voting-portal/node_modules ballot-verifier/node_modules
+rm -rf node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules
 
 # y luego:
 
@@ -541,7 +542,7 @@ docker compose build frontend && docker compose up -d --no-deps frontend
 
 Add the query/mutation to the `packages/voting-portal/src/queries/` folder and 
 then run `yarn generate` from the `packages/` folder to update the types.  Similarly,
-run `yarn generate:admin` to update the types of the `admin-portal` if you need it.
+run `yarn generate:admin-portal` to update the types of the `admin-portal` if you need it.
 
 ### The voting portal will not load any elections
 
@@ -582,6 +583,7 @@ Clean the disk with:
 ```bash
 docker system prune --all --force
 nix-collect-garbage
+cargo clean
 ```
 
 [cargo workspace]: https://doc.rust-lang.org/cargo/reference/workspaces.html

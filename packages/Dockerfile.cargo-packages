@@ -2,7 +2,9 @@
 # for the devcontainer prebuilds. However, each package has its own Dockerfile,
 # for example packages/windmill/Dockerfile, packages/harvest/Dockerfile, etc.
 
+
 FROM rustlang/rust:nightly-slim
+
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \

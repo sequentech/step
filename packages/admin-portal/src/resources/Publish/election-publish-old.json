@@ -1,0 +1,25 @@
+[
+    {
+        "name": "Test Election Publish Old Event",
+        "user": {
+            "name": "Test Sub Json Old",
+            "surname": "Test Sub Json Old 2",
+            "age": 1,
+            "birtdate": "13/13/13"
+        },
+        "communications": [
+            {
+                "key": "1",
+                "value": "1"
+            },
+            {
+                "key": "21",
+                "value": "21"
+            },
+            {
+                "key": "31",
+                "value": "31"
+            }
+        ]
+    }
+]

@@ -7,11 +7,11 @@ type Mutation {
 type Mutation {
   createScheduledEvent (
     tenant_id: String!
-    election_event_id: String!
+    election_event_id: uuid
     event_processor: String!
     cron_config: String
     event_payload: jsonb!
-    created_by: String!
+    created_by: String
   ): ScheduledEventOutput3
 }
 
@@ -32,6 +32,13 @@ type Mutation {
     tenant_id: String!
     role: KeycloakRole2!
   ): KeycloakRole!
+}
+
+type Mutation {
+  create_tally_ceremony (
+    election_event_id: uuid!
+    election_ids: [uuid!]!
+  ): CreateTallyOutput
 }
 
 type Mutation {
@@ -94,6 +101,20 @@ type Query {
   ): FetchDocumentOutput
 }
 
+type Mutation {
+  generate_ballot_publication (
+    election_event_id: uuid!
+    election_id: uuid
+  ): PublishBallotOutput
+}
+
+type Mutation {
+  get_ballot_publication_changes (
+    election_event_id: uuid!
+    ballot_publication_id: uuid!
+  ): GetBallotPublicationChangesOutput
+}
+
 type Query {
   get_permissions (
     body: GetPermissionsInput!
@@ -118,6 +139,14 @@ type Mutation {
     media_type: String!
     size: Int!
   ): GetUploadUrlOutput
+}
+
+type Mutation {
+  get_user (
+    tenant_id: uuid!
+    election_event_id: uuid
+    user_id: String!
+  ): KeycloakUser!
 }
 
 type Query {
@@ -146,12 +175,25 @@ type Query {
   ): DataListPgAudit
 }
 
-type Mutation {
+type Query {
   list_user_roles (
     tenant_id: String!
     user_id: String!
     election_event_id: String
   ): [KeycloakRole!]!
+}
+
+type Mutation {
+  publish_ballot (
+    election_event_id: uuid!
+    ballot_publication_id: uuid!
+  ): PublishBallotOutput
+}
+
+type Mutation {
+  restore_private_key (
+    object: RestorePrivateKeyInput!
+  ): RestorePrivateKeyOutput
 }
 
 type Mutation {
@@ -168,6 +210,28 @@ type Mutation {
     user_id: String!
     role_id: String!
   ): SetUserRoleOutput
+}
+
+type Mutation {
+  update_election_voting_status (
+    election_id: uuid!
+    voting_status: String!
+  ): UpdateElectionVotingStatusOutput
+}
+
+type Mutation {
+  update_event_voting_status (
+    election_event_id: uuid!
+    voting_status: String!
+  ): UpdateEventVotingStatusOutput
+}
+
+type Mutation {
+  update_tally_ceremony (
+    election_event_id: uuid!
+    tally_session_id: uuid!
+    status: String!
+  ): StartTallyOutput
 }
 
 enum OrderDirection {
@@ -236,6 +300,7 @@ input CreateKeysCeremonyInput {
 
 input GetPrivateKeyInput {
   election_event_id : String!
+  keys_ceremony_id : String!
 }
 
 input CheckPrivateKeyInput {
@@ -266,8 +331,10 @@ input EditUsersInput {
   attributes : jsonb
   email : String
   first_name : String
+  last_name : String
   groups : [String!]
   username : String
+  password : String
 }
 
 input DeleteUserInput {
@@ -314,6 +381,12 @@ input KeycloakRole2 {
   access : jsonb
   attributes : jsonb
   client_roles : jsonb
+}
+
+input RestorePrivateKeyInput {
+  election_event_id : String!
+  private_key_base64 : String!
+  tally_session_id : String!
 }
 
 type CreateKeysCeremonyOutput {
@@ -401,6 +474,11 @@ type InsertTenantOutput {
   slug : String!
 }
 
+type KeycloakUserArea {
+  id : uuid
+  name : String
+}
+
 type KeycloakUser {
   id : String
   attributes : jsonb
@@ -411,6 +489,7 @@ type KeycloakUser {
   groups : [String!]
   last_name : String
   username : String
+  area : KeycloakUserArea
 }
 
 type GetUsersOutput {
@@ -464,5 +543,39 @@ type SetRolePermissionOutput {
 
 type SetUserRoleOutput {
   id : String
+}
+
+type CreateTallyOutput {
+  tally_session_id : uuid!
+}
+
+type StartTallyOutput {
+  tally_session_id : uuid!
+}
+
+type PublishBallotOutput {
+  ballot_publication_id : uuid!
+}
+
+type UpdateEventVotingStatusOutput {
+  election_event_id : uuid
+}
+
+type UpdateElectionVotingStatusOutput {
+  election_id : uuid
+}
+
+type BallotPublicationStyles {
+  ballot_publication_id : String!
+  ballot_styles : jsonb!
+}
+
+type GetBallotPublicationChangesOutput {
+  current : BallotPublicationStyles!
+  previous : BallotPublicationStyles
+}
+
+type RestorePrivateKeyOutput {
+  is_valid : Boolean!
 }
 

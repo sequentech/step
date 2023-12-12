@@ -52,6 +52,7 @@ export interface ListContestProps {
 
 export const ListContest: React.FC<ListContestProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
+    const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
 
     const rowClickHandler = generateRowClickHandler(["election_event_id", "election_id"])
 
@@ -59,7 +60,9 @@ export const ListContest: React.FC<ListContestProps> = ({aside}) => {
         <>
             <Typography variant="h5">Contests</Typography>
             <List
-                actions={<ListActions withFilter={true} />}
+                actions={
+                    <ListActions open={openDrawer} setOpen={setOpenDrawer} withFilter={true} />
+                }
                 sx={{flexGrow: 2}}
                 filter={{
                     tenant_id: tenantId || undefined,

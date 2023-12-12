@@ -1,5 +1,5 @@
 import React from "react"
-import {CreateBase, EditBase} from "react-admin"
+import {CreateBase} from "react-admin"
 import {ContestDataForm} from "./EditContestDataForm"
 
 export const CreateContestData: React.FC = () => {

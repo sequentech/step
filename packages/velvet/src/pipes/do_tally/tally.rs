@@ -80,7 +80,6 @@ pub fn create_tally(
         .map(|p| PathBuf::from(p.as_path()))
         .collect();
 
-
     let tally = Tally::new(contest, ballots_files)?;
 
     let ca = match tally.id {

@@ -14,8 +14,8 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: trustee-ceremony
   - role: admin-user
-  - role: trustee-read
   comment: check private key
 - name: createScheduledEvent
   definition:
@@ -78,6 +78,20 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: create_tally_ceremony
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/create-tally-ceremony
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  - role: admin-ceremony
 - name: create_user
   definition:
     kind: synchronous
@@ -191,6 +205,34 @@ actions:
   permissions:
   - role: admin-user
   comment: fetch document
+- name: generate_ballot_publication
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/generate-ballot-publication
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: publish-write
+  - role: admin-user
+- name: get_ballot_publication_changes
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/get-ballot-publication-changes
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: publish-read
+  - role: admin-user
 - name: get_permissions
   definition:
     kind: ""
@@ -220,8 +262,8 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: trustee-ceremony
   - role: admin-user
-  - role: trustee-read
   comment: get private key
 - name: get_roles
   definition:
@@ -249,6 +291,21 @@ actions:
       version: 2
   permissions:
   - role: admin-user
+- name: get_user
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/get-user
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: user-read
+  - role: voter-read
+  - role: admin-user
 - name: get_users
   definition:
     kind: ""
@@ -261,6 +318,8 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: voter-read
+  - role: user-read
   - role: admin-user
 - name: insertElectionEvent
   definition:
@@ -322,7 +381,7 @@ actions:
   comment: List PostgreSQL audit logs
 - name: list_user_roles
   definition:
-    kind: synchronous
+    kind: ""
     handler: http://harvest:8400/list-user-roles
     forward_client_headers: true
     request_transform:
@@ -332,6 +391,34 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: admin-user
+- name: publish_ballot
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/publish-ballot
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: publish-write
+  - role: admin-user
+- name: restore_private_key
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/restore-private-key
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input.object}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: trustee-ceremony
   - role: admin-user
 - name: set_role_permission
   definition:
@@ -358,6 +445,48 @@ actions:
       template_engine: Kriti
       version: 2
   permissions:
+  - role: admin-user
+- name: update_election_voting_status
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/update-election-voting-status
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: election-state-write
+  - role: admin-user
+- name: update_event_voting_status
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/update-event-voting-status
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: admin-user
+  - role: election-state-write
+- name: update_tally_ceremony
+  definition:
+    kind: synchronous
+    handler: http://harvest:8400/update-tally-ceremony
+    forward_client_headers: true
+    request_transform:
+      body:
+        action: transform
+        template: '{{$body.input}}'
+      template_engine: Kriti
+      version: 2
+  permissions:
+  - role: trustee-read
   - role: admin-user
 custom_types:
   enums:
@@ -387,6 +516,7 @@ custom_types:
   - name: KeycloakPermission2
   - name: CreatePermissionInput
   - name: KeycloakRole2
+  - name: RestorePrivateKeyInput
   objects:
   - name: CreateKeysCeremonyOutput
   - name: GetPrivateKeyOutput
@@ -403,6 +533,7 @@ custom_types:
   - name: SampleOutput
   - name: CreateElectionEventOutput
   - name: InsertTenantOutput
+  - name: KeycloakUserArea
   - name: KeycloakUser
   - name: GetUsersOutput
   - name: GetPermissionsOutput
@@ -414,4 +545,12 @@ custom_types:
   - name: CreateUserOutput
   - name: SetRolePermissionOutput
   - name: SetUserRoleOutput
+  - name: CreateTallyOutput
+  - name: StartTallyOutput
+  - name: PublishBallotOutput
+  - name: UpdateEventVotingStatusOutput
+  - name: UpdateElectionVotingStatusOutput
+  - name: BallotPublicationStyles
+  - name: GetBallotPublicationChangesOutput
+  - name: RestorePrivateKeyOutput
   scalars: []

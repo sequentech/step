@@ -30,8 +30,7 @@ import {useMutation, useQuery} from "@apollo/client"
 import {CREATE_SCHEDULED_EVENT} from "../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../services/ScheduledEvent"
 import {useTenantStore} from "../providers/TenantContextProvider"
-import { FETCH_DOCUMENT } from "@/queries/FetchDocument"
-
+import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 
 const Horizontal = styled(Box)`
     display: flex;
@@ -58,14 +57,13 @@ function DownloadDocument({documentId, electionEventId, onClose}: DownloadDocume
         if (!document?.fetchDocument?.url) {
             return
         } else {
-            console.log(`FF ${(document?.fetchDocument?.url)}`)
+            console.log(`FF ${document?.fetchDocument?.url}`)
             downloadUrl(document?.fetchDocument?.url ?? "", "tally.tar.gz")
             onClose()
         }
     }, [document?.fetchDocument?.url])
 
     return <>Downloading</>
-
 }
 
 interface SelectElectionsProps {
@@ -155,37 +153,48 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
     const [tallySessionId, setTallySessionId] = useState<string | null>(null)
     const [documentId, setDocumentId] = useState<string | null>(null)
     const refresh = useRefresh()
-    const {data, total, isLoading, error} = useGetList<Sequent_Backend_Trustee>("sequent_backend_trustee", {
-        pagination: {page: 1, perPage: 10},
-        sort: {field: "last_updated_at", order: "DESC"},
-        filter: {
-            tenant_id: electionEvent.tenant_id,
-        },
-    })
-    const {data : tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>("sequent_backend_tally_session_execution", {
-        pagination: {page: 1, perPage: 9999},
-        sort: {field: "created_at", order: "DESC"},
-        filter: {
-            tenant_id: electionEvent.tenant_id,
-            election_event_id: electionEvent.id,
-            tally_session_id: tallySessionId ?? tenantId,
-        },
-    })
-    const {data : tallySession} = useGetOne<Sequent_Backend_Tally_Session>(
+    const {data, total, isLoading, error} = useGetList<Sequent_Backend_Trustee>(
+        "sequent_backend_trustee",
+        {
+            pagination: {page: 1, perPage: 10},
+            sort: {field: "last_updated_at", order: "DESC"},
+            filter: {
+                tenant_id: electionEvent.tenant_id,
+            },
+        }
+    )
+    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+        "sequent_backend_tally_session_execution",
+        {
+            pagination: {page: 1, perPage: 9999},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tenant_id: electionEvent.tenant_id,
+                election_event_id: electionEvent.id,
+                tally_session_id: tallySessionId ?? tenantId,
+            },
+        }
+    )
+    const {data: tallySession} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
         {
             id: tallySessionId ?? tenantId,
             meta: {
                 tenant_id: tenantId,
-            }
-        }, {
+            },
+        },
+        {
             refetchIntervalInBackground: true,
             refetchInterval: 1000,
         }
     )
 
     useEffect(() => {
-        if (!documentId && tallySession?.is_execution_completed && tallySessionExecutions?.[0]?.document_id) {
+        if (
+            !documentId &&
+            tallySession?.is_execution_completed &&
+            tallySessionExecutions?.[0]?.document_id
+        ) {
             setDocumentId(tallySessionExecutions[0].document_id)
         }
     }, [documentId, tallySession?.is_execution_completed, tallySessionExecutions?.[0]?.document_id])
@@ -212,7 +221,6 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
                     trustee_ids: selectedTrustees.map((t) => t.id),
                     election_ids: selectedElections.map((e) => e.id),
                 },
-                createdBy: "admin",
             },
         })
         if (data?.createScheduledEvent?.id && !tallySessionId) {
@@ -262,51 +270,55 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
 
     return (
         <>
-        {
-            documentId
-            ? <DownloadDocument documentId={documentId} electionEventId={electionEvent.id} onClose={closeAll}/>
-            : null
-        }
-        
-        <Dialog
-            handleClose={clickHandler}
-            open={show}
-            title="Tally Dialog"
-            ok="OK"
-            cancel="Cancel"
-            variant="info"
-        >
-            <Typography variant="body1">Start Tally for Event</Typography>
-            <Box>
-                {selectedTrustees.map((trustee) => (
-                    <StyledChip label={trustee.name} key={trustee.id} />
-                ))}
-            </Box>
-            <Horizontal>
-                <Select
-                    labelId="trustee-select-label"
-                    id="trustee-select"
-                    value={trustee}
-                    renderValue={(value) => value?.name}
-                    onChange={handleTrusteeChange}
-                >
-                    {data
-                        ?.filter((trustee) => !selectedTrustees.find((t) => t.id === trustee.id))
-                        .map((trustee) => (
-                            <MenuItem key={trustee.id} value={trustee.id}>
-                                {trustee.name}
-                            </MenuItem>
-                        ))}
-                </Select>
-                <IconButton icon={faPlusCircle} onClick={onAddTrustee} fontSize="24px" />
-            </Horizontal>
-            <SelectElections
-                electionEvent={electionEvent}
-                selectedElections={selectedElections}
-                onAddSelectedElection={onAddSelectedElection}
-            />
-            {showProgress ? <CircularProgress /> : null}
-        </Dialog>
+            {documentId ? (
+                <DownloadDocument
+                    documentId={documentId}
+                    electionEventId={electionEvent.id}
+                    onClose={closeAll}
+                />
+            ) : null}
+
+            <Dialog
+                handleClose={clickHandler}
+                open={show}
+                title="Tally Dialog"
+                ok="OK"
+                cancel="Cancel"
+                variant="info"
+            >
+                <Typography variant="body1">Start Tally for Event</Typography>
+                <Box>
+                    {selectedTrustees.map((trustee) => (
+                        <StyledChip label={trustee.name} key={trustee.id} />
+                    ))}
+                </Box>
+                <Horizontal>
+                    <Select
+                        labelId="trustee-select-label"
+                        id="trustee-select"
+                        value={trustee}
+                        renderValue={(value) => value?.name}
+                        onChange={handleTrusteeChange}
+                    >
+                        {data
+                            ?.filter(
+                                (trustee) => !selectedTrustees.find((t) => t.id === trustee.id)
+                            )
+                            .map((trustee) => (
+                                <MenuItem key={trustee.id} value={trustee.id}>
+                                    {trustee.name}
+                                </MenuItem>
+                            ))}
+                    </Select>
+                    <IconButton icon={faPlusCircle} onClick={onAddTrustee} fontSize="24px" />
+                </Horizontal>
+                <SelectElections
+                    electionEvent={electionEvent}
+                    selectedElections={selectedElections}
+                    onAddSelectedElection={onAddSelectedElection}
+                />
+                {showProgress ? <CircularProgress /> : null}
+            </Dialog>
         </>
     )
 }

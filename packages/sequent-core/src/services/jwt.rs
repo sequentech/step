@@ -9,12 +9,12 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtRolesAccess {
     pub roles: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtHasuraClaims {
     #[serde(rename = "x-hasura-default-role")]
     pub default_role: String,
@@ -26,7 +26,7 @@ pub struct JwtHasuraClaims {
     pub allowed_roles: Vec<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JwtClaims {
     pub exp: i64,
     pub iat: i64,

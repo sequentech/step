@@ -162,8 +162,12 @@ export const HomeScreen: React.FC<IProps> = ({
     // use sample ballot
     const onUseSampleClick = () => {
         setFileName(SampleFileName)
-        handleAuditableBallot(AuditableBallot)
-        let ballotHash = ballotService.hashBallot512(AuditableBallot)
+        let auditableBallot = ballotService.generateSampleAuditableBallot()
+        if (!auditableBallot) {
+            return
+        }
+        handleAuditableBallot(auditableBallot)
+        let ballotHash = ballotService.hashBallot512(auditableBallot)
         setBallotId(ballotHash)
     }
 
@@ -177,7 +181,7 @@ export const HomeScreen: React.FC<IProps> = ({
                     labels={[
                         "breadcrumbSteps.import",
                         "breadcrumbSteps.verify",
-                        "breadcrumbSteps.finish",
+                        //"breadcrumbSteps.finish",
                     ]}
                     selected={0}
                 />

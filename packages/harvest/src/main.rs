@@ -29,6 +29,9 @@ fn rocket() -> _ {
         .mount(
             "/",
             routes![
+                routes::ballot_publication::get_ballot_publication_changes,
+                routes::ballot_publication::generate_ballot_publication,
+                routes::ballot_publication::publish_ballot,
                 routes::fetch_document::fetch_document,
                 routes::scheduled_event::create_scheduled_event,
                 routes::immudb_log_audit::list_pgaudit,
@@ -37,6 +40,7 @@ fn rocket() -> _ {
                 routes::users::create_user,
                 routes::users::delete_user,
                 routes::users::get_users,
+                routes::users::get_user,
                 routes::users::edit_user,
                 routes::roles::list_user_roles,
                 routes::roles::set_user_role,
@@ -53,6 +57,11 @@ fn rocket() -> _ {
                 routes::keys_ceremony::create_keys_ceremony,
                 routes::keys_ceremony::get_private_key,
                 routes::keys_ceremony::check_private_key,
+                routes::tally_ceremony::create_tally_ceremony,
+                routes::tally_ceremony::restore_private_key,
+                routes::voting_status::update_event_status,
+                routes::voting_status::update_election_status,
+                routes::tally_ceremony::update_tally_ceremony,
             ],
         )
 }

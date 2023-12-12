@@ -12,11 +12,12 @@ import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined
 import SmsOutlinedIcon from "@mui/icons-material/SmsOutlined"
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined"
 import {GET_ELECTION_EVENT_STATS} from "@/queries/GetElectionEventStats"
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
+import {GetElectionEventStatsQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
 import StatItem from "./StatItem"
+import globalSettings from "@/global-settings"
 
 const CardList = styled(Box)`
     display: flex;
@@ -32,12 +33,16 @@ export default function Stats({forElection = false}: {forElection?: boolean}) {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const electionEventId = record.id
 
-    const {loading, data: dataStats} = useQuery(GET_ELECTION_EVENT_STATS, {
-        variables: {
-            electionEventId,
-            tenantId: record.tenant_id,
-        },
-    })
+    const {loading, data: dataStats} = useQuery<GetElectionEventStatsQuery>(
+        GET_ELECTION_EVENT_STATS,
+        {
+            variables: {
+                electionEventId,
+                tenantId: record.tenant_id,
+            },
+            pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        }
+    )
 
     const {total: totalUsers} = useGetList("user", {
         filter: {tenant_id: tenantId, election_event_id: electionEventId},
@@ -48,9 +53,9 @@ export default function Stats({forElection = false}: {forElection?: boolean}) {
     }
 
     const res = {
-        castVotes: dataStats.castVotes.aggregate.count,
-        elections: dataStats.elections.aggregate.count,
-        areas: dataStats.areas.aggregate.count,
+        castVotes: dataStats?.castVotes?.aggregate?.count ?? 0,
+        elections: dataStats?.elections?.aggregate?.count ?? 0,
+        areas: dataStats?.areas?.aggregate?.count ?? 0,
     }
 
     const iconSize = 60

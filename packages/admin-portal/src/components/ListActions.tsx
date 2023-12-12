@@ -8,30 +8,29 @@ import {ImportButton, ImportConfig} from "react-admin-import-csv"
 import {Button, TopToolbar, ExportButton, FilterButton, SelectColumnsButton} from "react-admin"
 
 interface ListActionsProps {
+    withColumns?: boolean
     withImport?: boolean
     withExport?: boolean
     withFilter?: boolean
-    closeDrawer?: string
+    open?: boolean
+    setOpen?: (val: boolean) => void
     Component?: React.ReactNode
     custom?: boolean
 }
 
 export const ListActions: React.FC<ListActionsProps> = (props) => {
     const {
+        withColumns = true,
         withImport = true,
         withExport = true,
         withFilter = true,
         Component,
-        closeDrawer = false,
+        open = false,
+        setOpen = () => {},
         custom = true,
     } = props
 
     const {t} = useTranslation()
-    const [open, setOpen] = useState<boolean>(false)
-
-    useEffect(() => {
-        setOpen(false)
-    }, [closeDrawer])
 
     const config: ImportConfig = {
         logging: true,
@@ -47,7 +46,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     display: "flex",
                 }}
             >
-                <SelectColumnsButton />
+                {withColumns ? <SelectColumnsButton /> : null}
 
                 {withFilter ? <FilterButton /> : null}
 

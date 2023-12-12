@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::Result;
+use anyhow::Context;
+use anyhow::{anyhow, Result};
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use serde_json::Value;
@@ -40,7 +41,7 @@ pub struct UpdateElectionEventPublicKey;
 #[graphql(
     schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/get_election_event.graphql",
-    response_derives = "Debug"
+    response_derives = "Debug, Clone, Deserialize"
 )]
 pub struct GetElectionEvent;
 
@@ -238,4 +239,26 @@ pub async fn get_current_bulletin_board_message_id(
         .await?;
     let response_body: Response<get_election_event::ResponseData> = res.json().await?;
     response_body.ok()
+}
+
+#[instrument(skip_all)]
+pub async fn get_election_event_helper(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+) -> Result<get_election_event::GetElectionEventSequentBackendElectionEvent> {
+    get_election_event(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+    )
+    .await
+    .with_context(|| "error fetching election event")?
+    .data
+    .with_context(|| "error fetching election event")?
+    .sequent_backend_election_event
+    .get(0)
+    .clone()
+    .ok_or(anyhow!("can't find election event"))
+    .cloned()
 }

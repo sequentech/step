@@ -1,15 +1,15 @@
 import React from "react"
-import {useQuery} from "@apollo/client"
 import Chart, {Props} from "react-apexcharts"
 import {useRecordContext} from "react-admin"
 import {GetCastVotesQuery, Sequent_Backend_Election_Event} from "@/gql/graphql"
-import {GET_CAST_VOTES} from "@/queries/GetCastVotes"
 import CardChart, {daysBefore, getWeekLegend} from "./Charts"
 import {useTranslation} from "react-i18next"
+import {useVotesHook} from "./use-votes-hook"
 
-const now = new Date()
-
-function aggregateByDay(votes: GetCastVotesQuery["sequent_backend_cast_vote"]): Array<number> {
+function aggregateByDay(
+    now: Date,
+    votes: GetCastVotesQuery["sequent_backend_cast_vote"]
+): Array<number> {
     let values: Array<number> = []
 
     for (let i = 0; i < 7; i++) {
@@ -28,16 +28,17 @@ function aggregateByDay(votes: GetCastVotesQuery["sequent_backend_cast_vote"]): 
 }
 
 export default function VotesByDay({width, height}: {width: number; height: number}) {
+    const date = new Date()
+    date.setHours(0, 0, 0, 0)
+    date.setDate(date.getDate() + 1)
+
     const {t} = useTranslation()
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
-    const {loading, error, data} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
-        variables: {
-            electionEventId: record.id,
-            tenantId: record.tenant_id,
-            startDate: daysBefore(now, 7).toISOString(),
-            endDate: now.toISOString(),
-        },
+    const {loading, error, data} = useVotesHook({
+        electionEventId: record.id,
+        startDate: daysBefore(date, 7),
+        endDate: date,
     })
 
     if (loading || error || !data) {
@@ -47,7 +48,7 @@ export default function VotesByDay({width, height}: {width: number; height: numb
     const state: Props = {
         options: {
             chart: {
-                id: "barchart-votes",
+                id: "barchart-votes" + record.id,
             },
             xaxis: {
                 categories: getWeekLegend(),
@@ -56,7 +57,7 @@ export default function VotesByDay({width, height}: {width: number; height: numb
         series: [
             {
                 name: "series-1",
-                data: aggregateByDay(data?.sequent_backend_cast_vote),
+                data: aggregateByDay(date, data?.sequent_backend_cast_vote),
             },
         ],
     }

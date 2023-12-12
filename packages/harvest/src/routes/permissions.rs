@@ -3,20 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
 
-use crate::types::resources::{
-    Aggregate, DataList, OrderDirection, TotalAggregate,
-};
-use anyhow::{anyhow, Result};
+use crate::types::optional::OptionalId;
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
+use anyhow::Result;
 use rocket::http::Status;
-use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
+use sequent_core::services::keycloak::get_tenant_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::keycloak::Permission;
 use sequent_core::types::permissions::Permissions;
-use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use serde::Deserialize;
+use tracing::instrument;
 
 #[derive(Deserialize, Debug)]
 pub struct GetPermissionsBody {
@@ -99,7 +97,7 @@ pub struct SetOrDeleteRolePermissionsBody {
 pub async fn set_role_permission(
     claims: jwt::JwtClaims,
     body: Json<SetOrDeleteRolePermissionsBody>,
-) -> Result<(), (Status, String)> {
+) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     authorize(
         &claims,
@@ -115,7 +113,7 @@ pub async fn set_role_permission(
         .set_role_permission(&realm, &input.role_id, &input.permission_name)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    Ok(())
+    Ok(Json(Default::default()))
 }
 
 #[instrument(skip(claims))]
@@ -123,7 +121,7 @@ pub async fn set_role_permission(
 pub async fn delete_role_permission(
     claims: jwt::JwtClaims,
     body: Json<SetOrDeleteRolePermissionsBody>,
-) -> Result<(), (Status, String)> {
+) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     authorize(
         &claims,
@@ -139,7 +137,7 @@ pub async fn delete_role_permission(
         .delete_role_permission(&realm, &input.role_id, &input.permission_name)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    Ok(())
+    Ok(Json(Default::default()))
 }
 
 #[derive(Deserialize, Debug)]
@@ -153,7 +151,7 @@ pub struct DeletePermissionBody {
 pub async fn delete_permission(
     claims: jwt::JwtClaims,
     body: Json<DeletePermissionBody>,
-) -> Result<(), (Status, String)> {
+) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     authorize(
         &claims,
@@ -169,5 +167,5 @@ pub async fn delete_permission(
         .delete_permission(&realm, &input.permission_name)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    Ok(())
+    Ok(Json(Default::default()))
 }

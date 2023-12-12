@@ -15,82 +15,94 @@ insert_permissions:
 - comment: ""
   permission:
     check: {}
-    columns: []
-  role: admin-user
-- comment: ""
-  permission:
-    check: {}
     columns:
-    - id
-    - tenant_id
-    - election_event_id
-    - trustee_ids
-    - status
-    - execution_status
+    - annotations
     - created_at
+    - election_event_id
+    - execution_status
+    - id
+    - labels
     - last_updated_at
+    - status
+    - tenant_id
+    - threshold
+    - trustee_ids
   role: service-account
 select_permissions:
 - comment: ""
   permission:
     allow_aggregations: true
     columns:
-    - id
-    - tenant_id
-    - election_event_id
-    - trustee_ids
-    - status
-    - execution_status
+    - annotations
     - created_at
+    - election_event_id
+    - execution_status
+    - id
+    - labels
     - last_updated_at
-    filter: {}
+    - status
+    - tenant_id
+    - threshold
+    - trustee_ids
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
   role: admin-user
 - comment: ""
   permission:
     allow_aggregations: true
     columns:
-    - id
-    - tenant_id
-    - election_event_id
-    - trustee_ids
-    - status
-    - execution_status
+    - annotations
     - created_at
+    - election_event_id
+    - execution_status
+    - id
+    - labels
     - last_updated_at
+    - status
+    - tenant_id
+    - threshold
+    - trustee_ids
     filter: {}
   role: service-account
 - comment: ""
   permission:
-    allow_aggregations: true
     columns:
-    - id
-    - tenant_id
-    - election_event_id
     - trustee_ids
+    - threshold
+    - annotations
+    - labels
     - status
     - execution_status
     - created_at
     - last_updated_at
-    filter: {}
-  role: trustee-read
+    - election_event_id
+    - id
+    - tenant_id
+    filter:
+      tenant_id:
+        _eq: X-Hasura-Tenant-Id
+  role: trustee-ceremony
 update_permissions:
 - comment: ""
   permission:
     check: {}
-    columns: []
+    columns:
+    - annotations
+    - created_at
+    - election_event_id
+    - execution_status
+    - id
+    - labels
+    - last_updated_at
+    - status
+    - tenant_id
+    - threshold
+    - trustee_ids
     filter: {}
-  role: admin-user
+  role: service-account
+delete_permissions:
 - comment: ""
   permission:
-    check: {}
-    columns:
-    - id
-    - tenant_id
-    - election_event_id
-    - trustee_ids
-    - status
-    - execution_status
-    - created_at
-    - last_updated_at
     filter: {}
   role: service-account

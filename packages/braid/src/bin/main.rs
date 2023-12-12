@@ -17,8 +17,8 @@ use braid::protocol2::session::Session;
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
 use braid::util::assert_folder;
-use sequent_core::util::init_log::init_log;
 use sequent_core::serialization::base64::Base64Deserialize;
+use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
@@ -51,6 +51,11 @@ struct Cli {
 // let version = option_env!("PROJECT_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
 // info!("Running braid version = {}", version);
 
+fn get_ignored_boards() -> Vec<String> {
+    let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
+    boards_str.split(',').map(|s| s.to_string()).collect()
+}
+
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
@@ -67,6 +72,9 @@ async fn main() -> Result<()> {
 
     let bytes = braid::util::decode_base64(&tc.encryption_key)?;
     let ek = symm::sk_from_bytes(&bytes)?;
+
+    let ignored_boards = get_ignored_boards();
+    info!("ignored boards {:?}", ignored_boards);
 
     let mut board_index = ImmudbBoardIndex::new(
         &args.server_url,
@@ -91,6 +99,11 @@ async fn main() -> Result<()> {
 
         let mut step_error = false;
         for board_name in boards {
+            if ignored_boards.contains(&board_name) {
+                info!("Ignoring board '{}'..", board_name);
+                continue;
+            }
+
             info!("Connecting to board '{}'..", board_name.clone());
             let trustee: Trustee<RistrettoCtx> =
                 Trustee::new("Self".to_string(), sk.clone(), ek.clone());
