@@ -31,7 +31,7 @@ use crate::hasura::election_event::update_election_event_status;
 use crate::services::election_event_status::get_election_event_status;
 use crate::hasura::election_event::get_election_event_helper;
 use anyhow::{anyhow, Context, Result};
-use braid_messages::newtypes::BatchNumber;
+use board_messages::braid::newtypes::BatchNumber;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;

@@ -40,7 +40,7 @@ async fn main() -> Result<()> {
     init_log(true);
     let args = Cli::parse();
 
-    let store_root = std::env::current_dir().unwrap().join("message_store");
+    let _store_root = std::env::current_dir().unwrap().join("message_store");
 
     info!("Connecting to board '{}'..", args.board);
     let trustee: Trustee<RistrettoCtx> =
@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
         IMMUDB_USER,
         IMMUDB_PW,
         args.board,
-        store_root.clone(),
+        None,
     )
     .await?;
     let mut session = Verifier::new(trustee, board);

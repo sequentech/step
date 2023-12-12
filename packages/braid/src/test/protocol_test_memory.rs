@@ -13,12 +13,12 @@ use strand::elgamal::Ciphertext;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-use braid_messages::artifact::{Ballots, Configuration, Plaintexts};
-use braid_messages::message::Message;
-use braid_messages::newtypes::PublicKeyHash;
-use braid_messages::newtypes::MAX_TRUSTEES;
-use braid_messages::newtypes::NULL_TRUSTEE;
-use braid_messages::protocol_manager::ProtocolManager;
+use board_messages::braid::artifact::{Ballots, Configuration, Plaintexts};
+use board_messages::braid::message::Message;
+use board_messages::braid::newtypes::PublicKeyHash;
+use board_messages::braid::newtypes::MAX_TRUSTEES;
+use board_messages::braid::newtypes::NULL_TRUSTEE;
+use board_messages::braid::protocol_manager::ProtocolManager;
 
 use crate::protocol2::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
@@ -37,10 +37,11 @@ pub fn run<C: Ctx>(ciphertexts: u32, batches: usize, ctx: C) {
         .choose_multiple(&mut rng, n_threshold)
         .cloned()
         .collect();
-    let test = create_protocol_test(n_trustees, &threshold, ctx).unwrap();
-
+    
     let now = instant::Instant::now();
+    let test = create_protocol_test(n_trustees, &threshold, ctx).unwrap();
     run_protocol_test(test, ciphertexts, batches, &threshold).unwrap();
+    
     let time = now.elapsed().as_millis() as f64 / 1000.0;
     info!(
         "batches = {}, time = {}, rate = {}",
@@ -189,14 +190,14 @@ pub fn create_protocol_test<C: Ctx>(
             let sk = StrandSignatureSk::gen().unwrap();
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
-            let pk = StrandSignaturePk::from(&sk).unwrap();
+            let pk = StrandSignaturePk::from_sk(&sk).unwrap();
             (Trustee::new(i.to_string(), sk, encryption_key), pk)
         })
         .unzip();
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from(&pm.signing_key).unwrap(),
+        StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
         trustee_pks,
         threshold.len(),
         PhantomData,
@@ -214,3 +215,5 @@ pub fn create_protocol_test<C: Ctx>(
         remote,
     })
 }
+
+

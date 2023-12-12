@@ -4,7 +4,7 @@ WORKDIR /app
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs
 COPY ./strand ./strand
-COPY ./braid-messages ./braid-messages
+COPY ./board-messages ./board-messages
 COPY ./sequent-core ./sequent-core
 COPY ./windmill ./windmill
 COPY ./wrap-map-err ./wrap-map-err

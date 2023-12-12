@@ -24,7 +24,7 @@ use crate::types::error::{Error, Result};
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use anyhow::{anyhow, Context};
-use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
+use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::{Duration, Utc};
 use sequent_core::ballot::{BallotStyle, Contest};

@@ -1,12 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::message;
-use base64::{engine::general_purpose, Engine as _};
+use crate::braid::message;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use strand::context::Ctx;
-use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::StrandSignatureSk;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -48,22 +46,20 @@ impl<C: Ctx> std::fmt::Debug for ProtocolManager<C> {
 
 #[derive(Serialize, Deserialize)]
 pub struct ProtocolManagerConfig {
-    // base64 encoding of a StrandSignatureSk serialization
+    // base64 encoding of a der encoded pkcs#8 v1
     pub signing_key: String,
 }
 impl ProtocolManagerConfig {
     pub fn from<C: Ctx>(pm: &ProtocolManager<C>) -> ProtocolManagerConfig {
-        let sk_bytes = pm.signing_key.strand_serialize().unwrap();
-
-        let sk_string: String = general_purpose::STANDARD_NO_PAD.encode(sk_bytes);
+        let sk_string = pm.signing_key.to_der_b64_string().unwrap();
 
         ProtocolManagerConfig {
             signing_key: sk_string,
         }
     }
     pub fn get_signing_key(&self) -> anyhow::Result<StrandSignatureSk> {
-        let bytes = general_purpose::STANDARD_NO_PAD.decode(&self.signing_key)?;
+        let sk = StrandSignatureSk::from_der_b64_string(&self.signing_key)?;
 
-        Ok(StrandSignatureSk::strand_deserialize(&bytes)?)
+        Ok(sk)
     }
 }
