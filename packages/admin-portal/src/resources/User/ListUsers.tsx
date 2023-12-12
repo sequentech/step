@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useEffect} from "react"
+
+import React, {ReactElement, useContext} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -17,7 +18,6 @@ import {
     FunctionField,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
-import EmailIcon from "@mui/icons-material/Email"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
 import {Button, Chip, Typography} from "@mui/material"
@@ -28,7 +28,7 @@ import EditIcon from "@mui/icons-material/Edit"
 import MailIcon from "@mui/icons-material/Mail"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {EditUser} from "./EditUser"
-import {SendCommunication} from "./SendCommunication"
+import {AudienceSelection, SendCommunication} from "./SendCommunication"
 import {CreateUser} from "./CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {DeleteUserMutation} from "@/gql/graphql"
@@ -58,11 +58,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
 
     const [open, setOpen] = React.useState(false)
     const [openNew, setOpenNew] = React.useState(false)
+    const [audienceSelection, setAudienceSelection] = React.useState<AudienceSelection>(
+        AudienceSelection.SELECTED
+    )
     const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState(false)
-    const [recordId, setRecordId] = React.useState<string | undefined>(undefined)
+    const [recordIds, setRecordIds] = React.useState<Array<Identifier>>([])
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
     const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
@@ -105,7 +108,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     )
 
     const handleClose = () => {
-        setRecordId(undefined)
+        setRecordIds([])
         setOpenSendCommunication(false)
         setOpenDrawer(false)
         setOpenNew(false)
@@ -117,15 +120,24 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         setOpenNew(false)
         setOpenDeleteModal(false)
         setOpenSendCommunication(false)
-        setRecordId(id as string)
+        setRecordIds([id as string])
     }
 
-    const sendCommunicationAction = (id: Identifier) => {
+    const sendCommunicationForIdAction = (id: Identifier) => {
+        sendCommunicationAction([id])
+    }
+
+    const sendCommunicationAction = (
+        ids: Array<Identifier>,
+        audienceSelection = AudienceSelection.SELECTED
+    ) => {
         setOpen(false)
         setOpenNew(false)
         setOpenDeleteModal(false)
         setOpenSendCommunication(true)
-        setRecordId(id as string)
+
+        setAudienceSelection(audienceSelection)
+        setRecordIds(ids)
     }
 
     const deleteAction = (id: Identifier) => {
@@ -174,18 +186,18 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     const actions: Action[] = [
         {
             icon: <MailIcon />,
-            action: sendCommunicationAction,
-            showAction: (id: Identifier) => canSendCommunications,
+            action: sendCommunicationForIdAction,
+            showAction: () => canSendCommunications,
         },
         {
             icon: <EditIcon />,
             action: editAction,
-            showAction: (id: Identifier) => canEditUsers,
+            showAction: () => canEditUsers,
         },
         {
             icon: <DeleteIcon />,
             action: deleteAction,
-            showAction: (id: Identifier) => canEditUsers,
+            showAction: () => canEditUsers,
         },
     ]
 
@@ -206,10 +218,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                             <Button
                                 key="send-notification"
                                 onClick={() => {
-                                    console.log("ewerw")
+                                    sendCommunicationAction([], AudienceSelection.ALL_USERS)
                                 }}
                             >
-                                <EmailIcon />
+                                <MailIcon />
                                 {t("sendCommunication.send")}
                             </Button>,
                         ]}
@@ -243,32 +255,29 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     </WrapperField>
                 </DatagridConfigurable>
             </List>
-
             <ResourceListStyles.Drawer anchor="right" open={open} onClose={handleClose}>
                 <EditUser
-                    id={recordId}
+                    id={recordIds[0] as string}
                     electionEventId={electionEventId}
                     close={handleClose}
                     rolesList={rolesList || []}
                 />
             </ResourceListStyles.Drawer>
-
             <ResourceListStyles.Drawer
                 anchor="right"
                 open={openSendCommunication}
                 onClose={handleClose}
             >
                 <SendCommunication
-                    id={recordId}
+                    ids={recordIds}
+                    audienceSelection={audienceSelection}
                     electionEventId={electionEventId}
                     close={handleClose}
                 />
             </ResourceListStyles.Drawer>
-
             <ResourceListStyles.Drawer anchor="right" open={openNew} onClose={handleClose}>
                 <CreateUser electionEventId={electionEventId} close={handleClose} />
             </ResourceListStyles.Drawer>
-
             <Dialog
                 variant="warning"
                 open={openDeleteModal}

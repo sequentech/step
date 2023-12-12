@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 import React, {useState} from "react"
 import {
     SaveButton,
@@ -9,6 +10,7 @@ import {
     useNotify,
     Toolbar,
     DateTimeInput,
+    Identifier,
 } from "react-admin"
 import {AccordionDetails, AccordionSummary, MenuItem, FormControlLabel, Switch} from "@mui/material"
 import {useMutation} from "@apollo/client"
@@ -26,28 +28,28 @@ import {CreateScheduledEventMutation} from "@/gql/graphql"
 import globalSettings from "@/global-settings"
 import {ScheduledEventType} from "@/services/ScheduledEvent"
 
-enum IAudienceSelection {
+export enum AudienceSelection {
     ALL_USERS = "ALL_USERS",
     NOT_VOTED = "NOT_VOTED",
     VOTED = "VOTED",
     SELECTED = "SELECTED",
 }
 
-enum ICommunicationType {
+enum CommunicationType {
     CREDENTIALS = "CREDENTIALS",
     RECEIPT = "RECEIPT",
 }
 
-enum ICommunicationMethod {
+enum CommunicationMethod {
     EMAIL = "EMAIL",
     SMS = "SMS",
 }
 
 interface ICommunicationPayload {
-    audience_selection: IAudienceSelection
-    audience_voter_ids?: Array<string>
-    communication_type: ICommunicationType
-    communication_method: ICommunicationMethod
+    audience_selection: AudienceSelection
+    audience_voter_ids?: Array<Identifier>
+    communication_type: CommunicationType
+    communication_method: CommunicationMethod
     schedule_now: boolean
     schedule_date?: Date
     email?: {
@@ -62,11 +64,11 @@ interface ICommunicationPayload {
 
 interface ICommunication {
     audience: {
-        selection: IAudienceSelection
-        voter_ids?: Array<string>
+        selection: AudienceSelection
+        voter_ids?: Array<Identifier> | undefined
     }
-    communication_type: ICommunicationType
-    communication_method: ICommunicationMethod
+    communication_type: CommunicationType
+    communication_method: CommunicationMethod
     schedule: {
         now: boolean
         date?: Date
@@ -90,17 +92,19 @@ interface ICommunication {
 }
 
 interface SendCommunicationProps {
-    id?: string
+    ids?: Array<Identifier>
+    audienceSelection?: AudienceSelection
     electionEventId?: string
     close?: () => void
 }
 
 export const SendCommunication: React.FC<SendCommunicationProps> = ({
-    id,
+    ids,
+    audienceSelection,
     close,
     electionEventId,
 }) => {
-    const {data, isLoading} = useListContext()
+    const {isLoading} = useListContext()
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
     const notify = useNotify()
@@ -109,11 +113,11 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     const [showProgress, setShowProgress] = useState(false)
     const [communication, setCommunication] = useState<ICommunication>({
         audience: {
-            selection: IAudienceSelection.SELECTED,
-            voter_ids: id ? [id] : undefined,
+            selection: audienceSelection ?? AudienceSelection.SELECTED,
+            voter_ids: ids ?? undefined,
         },
-        communication_type: ICommunicationType.CREDENTIALS,
-        communication_method: ICommunicationMethod.EMAIL,
+        communication_type: CommunicationType.CREDENTIALS,
+        communication_method: CommunicationMethod.EMAIL,
         schedule: {
             now: true,
             date: undefined,
@@ -155,7 +159,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
         setErrors(null)
         setShowProgress(true)
         try {
-            const {data, errors} = await createScheduledEvent({
+            const {errors} = await createScheduledEvent({
                 variables: {
                     tenantId: tenantId,
                     electionEventId: electionEventId,
@@ -291,7 +295,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             value={communication.audience.selection}
                             onChange={handleSelectChange}
                         >
-                            {(Object.keys(IAudienceSelection) as Array<IAudienceSelection>).map(
+                            {(Object.keys(AudienceSelection) as Array<AudienceSelection>).map(
                                 (key) => (
                                     <MenuItem key={key} value={key}>
                                         {t(`sendCommunication.votersSelection.${key}`, {
@@ -373,7 +377,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                             value={communication.communication_method}
                             onChange={handleSelectMethodChange}
                         >
-                            {(Object.keys(ICommunicationMethod) as Array<ICommunicationMethod>).map(
+                            {(Object.keys(CommunicationMethod) as Array<CommunicationMethod>).map(
                                 (key) => (
                                     <MenuItem key={key} value={key}>
                                         {t(`sendCommunication.communicationMethod.${key}`)}
@@ -381,14 +385,14 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
                                 )
                             )}
                         </FormStyles.Select>
-                        {communication.communication_method === ICommunicationMethod.EMAIL &&
+                        {communication.communication_method === CommunicationMethod.EMAIL &&
                             communication.i18n["en"].email && (
                                 <EmailEditor
                                     record={communication.i18n["en"].email}
                                     setRecord={setEmail}
                                 />
                             )}
-                        {communication.communication_method === ICommunicationMethod.SMS && (
+                        {communication.communication_method === CommunicationMethod.SMS && (
                             <FormStyles.TextField
                                 name="sms"
                                 label={t("sendCommunication.smsMessage")}
