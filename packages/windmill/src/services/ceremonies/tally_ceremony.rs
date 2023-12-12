@@ -378,27 +378,44 @@ pub async fn update_tally_ceremony(
     let current_status = tally_session
         .execution_status
         .map(|value| {
-            TallyExecutionStatus::from_str(&value).unwrap_or(TallyExecutionStatus::NOT_STARTED)
+            TallyExecutionStatus::from_str(&value).unwrap_or(TallyExecutionStatus::STARTED)
         })
-        .unwrap_or(TallyExecutionStatus::NOT_STARTED);
+        .unwrap_or(TallyExecutionStatus::STARTED);
 
     let expected_status: Vec<TallyExecutionStatus> = match current_status {
-        TallyExecutionStatus::NOT_STARTED => vec![
-            TallyExecutionStatus::STARTED,
-            TallyExecutionStatus::CANCELLED,
-        ],
         TallyExecutionStatus::STARTED => vec![TallyExecutionStatus::CANCELLED],
         TallyExecutionStatus::CONNECTED => vec![
             TallyExecutionStatus::IN_PROGRESS,
             TallyExecutionStatus::CANCELLED,
         ],
         TallyExecutionStatus::IN_PROGRESS => vec![TallyExecutionStatus::CANCELLED],
-        TallyExecutionStatus::SUCCESS => vec![TallyExecutionStatus::CANCELLED],
-        TallyExecutionStatus::CANCELLED => vec![TallyExecutionStatus::CANCELLED],
+        TallyExecutionStatus::SUCCESS => vec![],
+        TallyExecutionStatus::CANCELLED => vec![],
     };
 
     if !expected_status.contains(&new_execution_status) {
         return Err(anyhow!("Unexpected status"));
+    }
+
+    let Some((tally_session_execution, _)) = find_last_tally_session_execution(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session.id.clone(),
+    ).await? else {
+        return Err(anyhow!("Can't find last execution status"));
+    };
+
+    let status = get_tally_ceremony_status(tally_session_execution.status)?;
+    let num_connected_trustees = status
+        .trustees
+        .iter()
+        .filter(|trustee| trustee.status == TallyTrusteeStatus::KEY_RESTORED)
+        .collect::<Vec<_>>()
+        .len();
+    
+    if tally_session.threshold > num_connected_trustees as i64 {
+        return Err(anyhow!("Insufficient number of connected trustees {}. Required threshold {}.", num_connected_trustees, tally_session.threshold));
     }
 
     update_tally_session_status(
@@ -430,16 +447,6 @@ pub async fn update_tally_ceremony(
         )
         .await?;
     } else if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
-        let Some((tally_session_execution, _)) = find_last_tally_session_execution(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-            tally_session.id.clone(),
-        ).await? else {
-            return Err(anyhow!("Can't find last execution status"));
-        };
-
-        let status = get_tally_ceremony_status(tally_session_execution.status)?;
         let trustee_names: Vec<String> = status
             .trustees
             .iter()
