@@ -19,7 +19,7 @@
     "@emotion/react": "11.10.0",
     "@emotion/styled": "11.10.0",
     "react-scripts": "5.0.1",
-    "sequent-core": "file:./rust/pkg/sequent-core-0.1.0.tgz",
+    "sequent-core": "file:./rust/sequent-core-0.1.0.tgz",
     "@sequentech/ui-essentials": "*",
     "web-vitals": "^2.1.0"
   },

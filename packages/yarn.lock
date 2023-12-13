@@ -19542,9 +19542,10 @@ sentence-case@^3.0.4:
   uid "41e17d6336b4e9840e92f96eb8eb4e2d3f5cc0fd"
   resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#41e17d6336b4e9840e92f96eb8eb4e2d3f5cc0fd"
 
-"sequent-core@file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz":
+"sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz#41e17d6336b4e9840e92f96eb8eb4e2d3f5cc0fd"
+  uid "41e17d6336b4e9840e92f96eb8eb4e2d3f5cc0fd"
+  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#41e17d6336b4e9840e92f96eb8eb4e2d3f5cc0fd"
 
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
