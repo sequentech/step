@@ -37,7 +37,7 @@ impl ImmudbBoard {
     pub async fn get_messages(&mut self, last_id: i64) -> Result<Vec<Message>> {
         
         let messages = if self.store_root.is_some() {
-            self.store_and_get_messages().await?
+            self.store_and_get_messages(last_id).await?
         }
         else {
             let messages = self.get_remote_messages(last_id).await?;
@@ -85,15 +85,15 @@ impl ImmudbBoard {
         Ok(connection)
     }
 
-    async fn store_and_get_messages(&mut self) -> Result<Vec<Message>> {
+    async fn store_and_get_messages(&mut self, last_id: i64) -> Result<Vec<Message>> {
         let connection = self.get_store()?;
 
-        let last_id: Result<i64> = connection
+        let external_last_id: Result<i64> = connection
             .query_row("SELECT max(external_id) FROM messages;", [], |row| row.get(0))
             .or(Ok(0i64));
-        let last_id = last_id?;
+        let external_last_id = external_last_id?;
 
-        info!("last_id {}", last_id);
+        info!("external_last_id {}, last_id {}", external_last_id, last_id);
 
         let messages = self.get_remote_messages(last_id).await?;
 
