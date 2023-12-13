@@ -413,9 +413,13 @@ pub async fn update_tally_ceremony(
         .filter(|trustee| trustee.status == TallyTrusteeStatus::KEY_RESTORED)
         .collect::<Vec<_>>()
         .len();
-    
+
     if tally_session.threshold > num_connected_trustees as i64 {
-        return Err(anyhow!("Insufficient number of connected trustees {}. Required threshold {}.", num_connected_trustees, tally_session.threshold));
+        return Err(anyhow!(
+            "Insufficient number of connected trustees {}. Required threshold {}.",
+            num_connected_trustees,
+            tally_session.threshold
+        ));
     }
 
     update_tally_session_status(
@@ -427,26 +431,7 @@ pub async fn update_tally_ceremony(
     )
     .await?;
 
-    if TallyExecutionStatus::SUCCESS == new_execution_status {
-        // get the election event
-        let election_event = get_election_event_helper(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-        )
-        .await?;
-        let current_status = get_election_event_status(election_event.status).unwrap();
-        let mut new_status = current_status.clone();
-        new_status.tally_ceremony_finished = Some(true);
-        let new_status_js = serde_json::to_value(new_status)?;
-        update_election_event_status(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-            new_status_js,
-        )
-        .await?;
-    } else if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
+    if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
         let trustee_names: Vec<String> = status
             .trustees
             .iter()
