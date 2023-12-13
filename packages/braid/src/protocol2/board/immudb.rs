@@ -95,7 +95,7 @@ impl ImmudbBoard {
 
         info!("external_last_id {}, last_id {}", external_last_id, last_id);
 
-        let messages = self.get_remote_messages(last_id).await?;
+        let messages = self.get_remote_messages(external_last_id).await?;
 
         for message in messages {
             connection.execute(
