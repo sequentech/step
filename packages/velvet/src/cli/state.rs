@@ -9,6 +9,7 @@ use crate::pipes::generate_reports::{ElectionReportDataComputed, GenerateReports
 use crate::pipes::pipe_inputs::PipeInputs;
 use crate::pipes::PipeManager;
 use crate::{config::Config, pipes::pipe_name::PipeName};
+use tracing::instrument;
 
 #[derive(Debug)]
 pub struct State {
@@ -24,6 +25,7 @@ pub struct Stage {
 }
 
 impl State {
+    #[instrument]
     pub fn new(cli: &CliRun, config: &Config) -> Result<Self> {
         let stages = config
             .stages
@@ -61,6 +63,7 @@ impl State {
         })
     }
 
+    #[instrument(skip_all)]
     pub fn get_next(&self) -> Option<PipeName> {
         let stage_name = self.cli.stage.clone();
         self.get_stage(&stage_name)
@@ -68,6 +71,7 @@ impl State {
             .flatten()
     }
 
+    #[instrument(skip_all)]
     pub fn exec_next(&mut self) -> Result<()> {
         let stage_name = self.cli.stage.clone();
         let stage = self.get_stage(&stage_name).ok_or(Error::PipeNotFound)?;
@@ -90,10 +94,12 @@ impl State {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     fn get_stage(&self, stage_name: &str) -> Option<&Stage> {
         self.stages.iter().find(|s| s.name == stage_name)
     }
 
+    #[instrument(skip(self))]
     fn set_current_pipe(&mut self, stage_name: &str, next_pipe: Option<PipeName>) -> Result<()> {
         let stage = self
             .stages
@@ -106,6 +112,7 @@ impl State {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     pub fn get_results(&self) -> Result<Vec<ElectionReportDataComputed>> {
         let next_pipename = self.get_next();
 
@@ -128,6 +135,7 @@ impl State {
 }
 
 impl Stage {
+    #[instrument(skip_all)]
     pub fn previous_pipe(&self) -> Option<PipeName> {
         if let Some(current_pipe) = self.current_pipe {
             let curr_index = self.pipeline.iter().position(|p| *p == current_pipe);
@@ -141,6 +149,7 @@ impl Stage {
             Some(self.pipeline[self.pipeline.len() - 1])
         }
     }
+    #[instrument(skip_all)]
     pub fn next_pipe(&self) -> Option<PipeName> {
         if let Some(current_pipe) = self.current_pipe {
             let curr_index = self.pipeline.iter().position(|p| *p == current_pipe);

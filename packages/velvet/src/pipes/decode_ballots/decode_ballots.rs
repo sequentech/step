@@ -15,6 +15,7 @@ use std::io::BufRead;
 use std::path::Path;
 
 use std::str::FromStr;
+use tracing::instrument;
 
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 
@@ -25,12 +26,14 @@ pub struct DecodeBallots {
 }
 
 impl DecodeBallots {
+    #[instrument]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
 }
 
 impl DecodeBallots {
+    #[instrument(skip(contest))]
     fn decode_ballots(path: &Path, contest: &Contest) -> Result<Vec<DecodedVoteContest>> {
         let file = fs::File::open(path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
         let reader = std::io::BufReader::new(file);
@@ -52,6 +55,7 @@ impl DecodeBallots {
 }
 
 impl Pipe for DecodeBallots {
+    #[instrument(skip_all)]
     fn exec(&self) -> Result<()> {
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
