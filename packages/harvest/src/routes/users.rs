@@ -64,12 +64,12 @@ pub async fn delete_user(
 pub struct DeleteUsersBody {
     tenant_id: String,
     election_event_id: Option<String>,
-    user_id: Array<String>,
+    user_ids: Vec<String>,
 }
 
 #[instrument(skip(claims))]
 #[post("/delete-users", format = "json", data = "<body>")]
-pub async fn delete_user(
+pub async fn delete_users(
     claims: jwt::JwtClaims,
     body: Json<DeleteUsersBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
@@ -94,14 +94,14 @@ pub async fn delete_user(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    
-    input.user_ids.for_each(|id|{
+
+    for id in input.user_ids {
         client
             .delete_user(&realm, &id)
             .await
             .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    });
-        
+    }
+
     Ok(Json(Default::default()))
 }
 
@@ -257,7 +257,10 @@ pub async fn edit_user(
 
     // maintain current user attributes and do not allow to override tenant-id
     if new_attributes.contains_key(TENANT_ID_ATTR_NAME) {
-        return Err((Status::BadRequest, "Cannot change tenant-id attribute".to_string()));
+        return Err((
+            Status::BadRequest,
+            "Cannot change tenant-id attribute".to_string(),
+        ));
     }
 
     let user = client
