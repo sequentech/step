@@ -34,7 +34,7 @@ impl<'r> FromRequest<'r> for AuthHeaders {
                 value: headers.get_one("authorization").unwrap().to_string(),
             })
         } else {
-            Outcome::Failure((Status::Unauthorized, ()))
+            Outcome::Error((Status::Unauthorized, ()))
         }
     }
 }
@@ -51,10 +51,10 @@ impl<'r> FromRequest<'r> for JwtClaims {
             Some(authorization) => {
                 match authorization.strip_prefix("Bearer ") {
                     Some(token) => Outcome::Success(decode_jwt(token).unwrap()),
-                    None => Outcome::Failure((Status::Unauthorized, ())),
+                    None => Outcome::Error((Status::Unauthorized, ())),
                 }
             }
-            None => Outcome::Failure((Status::Unauthorized, ())),
+            None => Outcome::Error((Status::Unauthorized, ())),
         }
     }
 }
