@@ -61,6 +61,51 @@ pub async fn delete_user(
 }
 
 #[derive(Deserialize, Debug)]
+pub struct DeleteUsersBody {
+    tenant_id: String,
+    election_event_id: Option<String>,
+    user_id: Array<String>,
+}
+
+#[instrument(skip(claims))]
+#[post("/delete-users", format = "json", data = "<body>")]
+pub async fn delete_user(
+    claims: jwt::JwtClaims,
+    body: Json<DeleteUsersBody>,
+) -> Result<Json<OptionalId>, (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_WRITE
+    } else {
+        Permissions::USER_WRITE
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    
+    input.user_ids.for_each(|id|{
+        client
+            .delete_user(&realm, &id)
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    });
+        
+    Ok(Json(Default::default()))
+}
+
+#[derive(Deserialize, Debug)]
 pub struct GetUsersBody {
     tenant_id: String,
     election_event_id: Option<String>,

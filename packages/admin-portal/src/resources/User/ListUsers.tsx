@@ -16,11 +16,12 @@ import {
     useNotify,
     useGetList,
     FunctionField,
+    BulkDeleteButton,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
-import {Button, Chip, Typography} from "@mui/material"
+import {alpha, Button, Chip, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -37,6 +38,7 @@ import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
+import styled from "@emotion/styled"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -51,6 +53,29 @@ export interface ListUsersProps {
     aside?: ReactElement
     electionEventId?: string
 }
+
+const StyledButton = styled(Button)(({theme}) => ({
+    "color": theme.palette.error.main,
+    "&:hover": {
+        "backgroundColor": alpha(theme.palette.error.main, 0.12),
+        // Reset on mouse devices
+        "@media (hover: none)": {
+            backgroundColor: "transparent",
+        },
+    },
+}))
+
+const StyledIcon1 = styled(MailIcon)(() => ({
+    marginRight: "10px",
+}))
+
+const StyledIcon2 = styled(DeleteIcon)(() => ({
+    marginRight: "6px",
+}))
+
+const StyledIcon3 = styled(MailIcon)(() => ({
+    marginRight: "8px",
+}))
 
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) => {
     const {t} = useTranslation()
@@ -69,6 +94,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
     const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
+    const [deleteUsers] = useMutation<DeleteUserMutation>(DELETE_USER)
     const notify = useNotify()
     const {data: rolesList} = useGetList<IRole & {id: string}>("role", {
         pagination: {page: 1, perPage: 9999},
@@ -201,8 +227,41 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         },
     ]
 
+    async function deleteBulk(selectedIds: Identifier[]) {
+        const {errors} = await deleteUsers({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventId,
+                userId: selectedIds,
+            },
+        })
+
+        if (errors) {
+            notify(
+                t(
+                    `usersAndRolesScreen.${
+                        electionEventId ? "voters" : "users"
+                    }.notifications.deleteError`
+                ),
+                {type: "error"}
+            )
+            return
+        }
+
+        notify(
+            t(
+                `usersAndRolesScreen.${
+                    electionEventId ? "voters" : "users"
+                }.notifications.deleteSuccess`
+            ),
+            {type: "success"}
+        )
+
+        refresh()
+    }
+
     // @ts-ignore
-    const BulkActions = (props) => {
+    function BulkActions(props) {
         return (
             <>
                 <Button
@@ -211,9 +270,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                         sendCommunicationAction(props.selectedIds ?? [], AudienceSelection.SELECTED)
                     }}
                 >
-                    <MailIcon />
+                    <StyledIcon1 />
                     {t(`sendCommunication.send`)}
                 </Button>
+
+                <StyledButton onClick={() => deleteBulk(props.selectedIds)}>
+                    <StyledIcon2 />
+                    {t("common.label.delete")}
+                </StyledButton>
             </>
         )
     }
@@ -238,7 +302,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                                     sendCommunicationAction([], AudienceSelection.ALL_USERS)
                                 }}
                             >
-                                <MailIcon />
+                                <StyledIcon3 />
                                 {t("sendCommunication.send")}
                             </Button>,
                         ]}
