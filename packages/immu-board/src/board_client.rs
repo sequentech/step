@@ -135,6 +135,7 @@ impl BoardClient {
         Ok(BoardClient { client: client })
     }
 
+    /// Get all braid messages whose id is bigger than `last_id`
     pub async fn get_messages(
         &mut self,
         board_db: &str,
@@ -143,6 +144,7 @@ impl BoardClient {
         self.get(board_db, Table::BraidMessages, last_id).await
     }
 
+    /// Get all electoral log messages whose id is bigger than `last_id`
     pub async fn get_electoral_log_messages(
         &mut self,
         board_db: &str,
