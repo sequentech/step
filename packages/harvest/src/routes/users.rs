@@ -11,7 +11,7 @@ use sequent_core::services::jwt;
 use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
-use sequent_core::types::keycloak::User;
+use sequent_core::types::keycloak::{User, TENANT_ID_ATTR_NAME};
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde_json::Value;
@@ -207,12 +207,20 @@ pub async fn edit_user(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let new_attributes = input.attributes.clone().unwrap_or(HashMap::new());
+
+    // maintain current user attributes and do not allow to override tenant-id
+    if new_attributes.contains_key(TENANT_ID_ATTR_NAME) {
+        return Err((Status::BadRequest, "Cannot change tenant-id attribute".to_string()));
+    }
+
     let user = client
         .edit_user(
             &realm,
             &input.user_id,
             input.enabled.clone(),
-            input.attributes.clone(),
+            Some(new_attributes),
             input.email.clone(),
             input.first_name.clone(),
             input.last_name.clone(),
