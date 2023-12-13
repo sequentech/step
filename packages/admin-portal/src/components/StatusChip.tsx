@@ -26,9 +26,7 @@ const StyledChip = styled.div`
     align-items: center;
     border-radius: 4px;
     background: ${(props: TrusteeItemsProps) =>
-        props.status === ITallyExecutionStatus.NOT_STARTED
-            ? "#0F054C"
-            : props.status === ITallyExecutionStatus.STARTED
+        props.status === ITallyExecutionStatus.STARTED
             ? "#d32f2f"
             : props.status === ITallyExecutionStatus.CONNECTED
             ? "#43E3A1"
