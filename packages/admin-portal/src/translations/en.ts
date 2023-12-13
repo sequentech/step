@@ -693,6 +693,8 @@ const englishTranslation = {
             createTallyError: "Could not create Tally",
             startTallySuccess: "Tally started",
             startTallyError: "Could not start Tally",
+            startTallyCeremonySuccess: "Tally Ceremony started",
+            startTallyCeremonyError: "Could not start Tally Ceremony",
             trusteeTitle: "Trustees process",
             trusteeSubTitle: "Please upload you key fragment",
             breadcrumbSteps: {
@@ -713,12 +715,15 @@ const englishTranslation = {
                 imported: " trustees imported the key",
                 needed: " trustees needed",
                 start: "Start Tally",
+                ceremony: "Start Tally Ceremony",
                 dialog: {
                     ok: "Ok",
                     cancel: "Close",
                     title: "Are you sure you want to  start a ceremony?",
+                    tallyTitle: "Are you sure you want to  start the tally?",
                     message:
                         "You are about to start a tally ceremony . This action will notify the trustees to import their key fragments.",
+                    ceremony: "All required trustees have verified their key fragments. Everything is ready to begin receiving results. Do you want to start the Tally?",
                 },
             },
             table: {

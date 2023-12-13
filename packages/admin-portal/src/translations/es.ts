@@ -695,6 +695,8 @@ const spanishTranslation: TranslationType = {
             createTallyError: "Error creando recuento",
             startTallySuccess: "Recuento iniciado",
             startTallyError: "Error iniciando recuento",
+            startTallyCeremonySuccess: "Iniciada la ceremonya del recuento",
+            startTallyCeremonyError: "No se ha podido iniciar la ceremonia del recuento",
             trusteeTitle: "Proceso del trustee",
             trusteeSubTitle: "Por favor, importe su fragmento de clave",
             breadcrumbSteps: {
@@ -715,12 +717,16 @@ const spanishTranslation: TranslationType = {
                 imported: " trustees han importado su fragmento de clave",
                 needed: " trustees necesarios para el recuento",
                 start: "Iniciar Recuento",
+                ceremony: "Iniciar Ceremonia de Recuento",
                 dialog: {
                     ok: "Ok",
                     cancel: "Cerrar",
                     title: "¿Estás seguro de que quieres iniciar una ceremonia?",
+                    tallyTitle: "¿Estás seguro de que quieres iniciar el recuento?",
                     message:
                         "Estás a punto de iniciar una ceremonia de recuento. Esta acción notificará a los trustees para importar sus fragmentos de clave.",
+                    ceremony:
+                        "Todos los trustees requeridos han verificado sus fragmentos de clave. Todo está listo para comenzar a recibir resultados. ¿Desea iniciar el Recuento?",
                 },
             },
             table: {

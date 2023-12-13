@@ -17,8 +17,6 @@ import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
 
 export const TallyElectionsProgress: React.FC = () => {
-    console.log("TallyElectionsProgress :: render")
-
     const {tallyId} = useElectionEventTallyStore()
     const {t} = useTranslation()
     const [rand, setRand] = useState<number>(0)

@@ -150,6 +150,7 @@ export const TallyCeremony: React.FC = () => {
             })
 
             if (errors) {
+                console.log("TallyCeremony :: confirmStartAction :: errors", errors)
                 notify(t("tally.createTallyError"), {type: "error"})
             }
 
@@ -166,18 +167,18 @@ export const TallyCeremony: React.FC = () => {
                 })
 
                 if (errors) {
-                    notify(t("tally.startTallyError"), {type: "error"})
+                    notify(t("tally.startTallyCeremonyError"), {type: "error"})
                 }
 
                 if (nextStatus) {
-                    notify(t("tally.startTallySuccess"), {type: "success"})
+                    notify(t("tally.startTallyCeremonySuccess"), {type: "success"})
                     setCreatingFlag(false)
                     setPage(WizardSteps.Ceremony)
                 }
             }
         } catch (error) {
             console.log("TallyCeremony :: confirmStartAction :: error", error)
-            notify(t("tally.startTallyError"), {type: "error"})
+            notify(t("tally.startTallyCeremonyError"), {type: "error"})
         }
     }
 
@@ -490,7 +491,9 @@ export const TallyCeremony: React.FC = () => {
                             disabled={isButtonDisabled}
                         >
                             <>
-                                {page === WizardSteps.Ceremony
+                                {page === WizardSteps.Start
+                                    ? t("tally.common.ceremony")
+                                    : page === WizardSteps.Ceremony
                                     ? t("tally.common.start")
                                     : t("tally.common.next")}
                                 <ChevronRightIcon />
@@ -521,7 +524,7 @@ export const TallyCeremony: React.FC = () => {
                 open={openCeremonyModal}
                 ok={t("tally.common.dialog.ok")}
                 cancel={t("tally.common.dialog.cancel")}
-                title={t("tally.common.dialog.title")}
+                title={t("tally.common.dialog.tallyTitle")}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmCeremonyAction()
