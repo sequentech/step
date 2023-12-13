@@ -15,6 +15,7 @@
     "start:admin-portal": "yarn --cwd ./admin-portal start",
     "start:ballot-verifier": "yarn --cwd ./ballot-verifier start",
     "storybook:ui-essentials": "yarn --cwd ./ui-essentials storybook",
+    "build:ballot-verifier": "yarn --cwd ./ballot-verifier build",
     "build:voting-portal": "yarn --cwd ./voting-portal build",
     "build:admin-portal": "yarn --cwd ./admin-portal build",
     "build:ui-essentials": "yarn --cwd ./ui-essentials build",
