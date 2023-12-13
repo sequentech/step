@@ -1,3 +1,4 @@
-signing_key_sk = "eZt2j/3NPNaZRScZu8FDXPvgL3Qr/brvV4OC5Z0anXY"
-signing_key_pk = "xxVCvls6zP5ohLwkydT4OClGGbxhS82nBNWZt+hOg0Y"
-encryption_key = "qzjEBSW6u+uZUKBmCniy9nx/QUWq/1V7jUFowhfqSD4"
+signing_key_sk = "MC4CAQAwBQYDK2VwBCIEICxvn7aLhsYzpGzVadzlqA4UZe/4wuul0fI1xznrpqCd"
+signing_key_pk = "MCowBQYDK2VwAyEA50mtZzCBnubUwMhRkKyGomrUCBGgvEsbu79D3Cckjbc="
+encryption_key = "G5dB4N4i5KPgog6HHchw1BUF+2ulppFux2nQ7J2Wfq8"
+
