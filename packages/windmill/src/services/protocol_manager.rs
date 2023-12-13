@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use braid_messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey};
-use braid_messages::message::Message;
-use braid_messages::newtypes::BatchNumber;
-use braid_messages::newtypes::PublicKeyHash;
-use braid_messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
-use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use braid_messages::statement::StatementType;
+use board_messages::braid::artifact::{Ballots, Channel, Configuration, DkgPublicKey};
+use board_messages::braid::message::Message;
+use board_messages::braid::newtypes::BatchNumber;
+use board_messages::braid::newtypes::PublicKeyHash;
+use board_messages::braid::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
+use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use board_messages::braid::statement::StatementType;
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
@@ -68,7 +68,7 @@ pub async fn add_config_to_board<C: Ctx>(
 ) -> Result<()> {
     let configuration = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from(&pm.signing_key)?,
+        StrandSignaturePk::from_sk(&pm.signing_key)?,
         trustee_pks,
         threshold,
         PhantomData,
@@ -244,7 +244,6 @@ pub async fn get_board_client() -> Result<BoardClient> {
         env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
 
     let mut board_client = BoardClient::new(&server_url, &user, &password).await?;
-    board_client.login(&user, &password).await?;
 
     Ok(board_client)
 }

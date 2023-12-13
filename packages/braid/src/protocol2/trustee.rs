@@ -11,18 +11,18 @@ use strand::{context::Ctx, elgamal::PrivateKey};
 
 use crate::protocol2::action::Action;
 use crate::protocol2::board::local::LocalBoard;
-use braid_messages::artifact::Channel;
-use braid_messages::artifact::Configuration;
-use braid_messages::artifact::DkgPublicKey;
-use braid_messages::artifact::Shares;
-use braid_messages::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
-use braid_messages::message::Message;
-use braid_messages::newtypes::*;
-use braid_messages::statement::StatementType;
+use board_messages::braid::artifact::Channel;
+use board_messages::braid::artifact::Configuration;
+use board_messages::braid::artifact::DkgPublicKey;
+use board_messages::braid::artifact::Shares;
+use board_messages::braid::artifact::{Ballots, DecryptionFactors, Mix, Plaintexts};
+use board_messages::braid::message::Message;
+use board_messages::braid::newtypes::*;
+use board_messages::braid::statement::StatementType;
 
 use crate::protocol2::predicate::Predicate;
 
-use braid_messages::newtypes::PROTOCOL_MANAGER_INDEX;
+use board_messages::braid::newtypes::PROTOCOL_MANAGER_INDEX;
 
 use strand::symm::{self, EncryptionData};
 
@@ -46,12 +46,11 @@ use strand::symm::{self, EncryptionData};
 pub struct Trustee<C: Ctx> {
     pub(crate) name: String,
     pub(crate) signing_key: StrandSignatureSk,
-    // A ChaCha20Poly1305 encryption key
     pub(crate) encryption_key: symm::SymmetricKey,
     local_board: LocalBoard<C>,
 }
 
-impl<C: Ctx> braid_messages::message::Signer for Trustee<C> {
+impl<C: Ctx> board_messages::braid::message::Signer for Trustee<C> {
     fn get_signing_key(&self) -> &StrandSignatureSk {
         &self.signing_key
     }
@@ -346,7 +345,7 @@ impl<C: Ctx> Trustee<C> {
         &self,
         hash: &ChannelHash,
         signer_position: TrusteePosition,
-    ) -> Option<Channel<C>> {
+    ) -> Result<Channel<C>> {
         self.local_board.get_channel(hash, signer_position)
     }
 
@@ -354,7 +353,7 @@ impl<C: Ctx> Trustee<C> {
         &self,
         hash: &SharesHash,
         signer_position: TrusteePosition,
-    ) -> Option<Shares<C>> {
+    ) -> Result<Shares<C>> {
         self.local_board.get_shares(hash, signer_position)
     }
 
@@ -362,7 +361,7 @@ impl<C: Ctx> Trustee<C> {
         &self,
         hash: &PublicKeyHash,
         signer_position: TrusteePosition,
-    ) -> Option<DkgPublicKey<C>> {
+    ) -> Result<DkgPublicKey<C>> {
         self.local_board.get_dkg_public_key(hash, signer_position)
     }
 
@@ -371,7 +370,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Ballots<C>> {
+    ) -> Result<Ballots<C>> {
         self.local_board.get_ballots(hash, batch, signer_position)
     }
 
@@ -380,7 +379,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &CiphertextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Mix<C>> {
+    ) -> Result<Mix<C>> {
         self.local_board.get_mix(hash, batch, signer_position)
     }
 
@@ -389,7 +388,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &DecryptionFactorsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<DecryptionFactors<C>> {
+    ) -> Result<DecryptionFactors<C>> {
         self.local_board
             .get_decryption_factors(hash, batch, signer_position)
     }
@@ -399,7 +398,7 @@ impl<C: Ctx> Trustee<C> {
         hash: &PlaintextsHash,
         batch: BatchNumber,
         signer_position: TrusteePosition,
-    ) -> Option<Plaintexts<C>> {
+    ) -> Result<Plaintexts<C>> {
         self.local_board
             .get_plaintexts(hash, batch, signer_position)
     }
@@ -427,15 +426,13 @@ impl<C: Ctx> Trustee<C> {
     }
 
     pub fn get_pk(&self) -> Result<StrandSignaturePk> {
-        Ok(StrandSignaturePk::from(&self.signing_key)?)
+        Ok(StrandSignaturePk::from_sk(&self.signing_key)?)
     }
 
     cfg_if::cfg_if! {
         if #[cfg(any(feature = "fips", feature = "fips_core"))] {
             pub(crate) fn encrypt_share_sk(&self, sk: &PrivateKey<C>, cfg: &Configuration<C>) -> Result<EncryptionData> {
-
-
-                let identifier: String = self.get_pk()?.try_into()?;
+                let identifier: String = self.get_pk()?.to_der_b64_string()?;
                 // 0 is a dummy batch value
                 let aad = cfg.label(0, format!("encrypted by {}", identifier));
                 let bytes: &[u8] = &sk.strand_serialize()?;
@@ -445,7 +442,7 @@ impl<C: Ctx> Trustee<C> {
             }
 
             pub(crate) fn decrypt_share_sk(&self, c: &Channel<C>, cfg: &Configuration<C>) -> Result<PrivateKey<C>> {
-                let identifier: String = self.get_pk()?.try_into()?;
+                let identifier: String = self.get_pk()?.to_der_b64_string()?;
                 // 0 is a dummy batch value
                 let aad = cfg.label(0, format!("encrypted by {}", identifier));
                 let decrypted = symm::decrypt(&self.encryption_key, &c.encrypted_channel_sk, &aad)?;

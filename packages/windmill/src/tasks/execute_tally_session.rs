@@ -15,16 +15,16 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
+use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
+use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::compress::compress_folder;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::types::error::{Error, Result};
-use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
-use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use anyhow::{anyhow, Context};
-use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
+use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::{Duration, Utc};
 use sequent_core::ballot::{BallotStyle, Contest};
@@ -605,7 +605,9 @@ pub async fn execute_tally_session(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
-    ).await?.unwrap();
+    )
+    .await?
+    .unwrap();
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
         tenant_id.clone(),

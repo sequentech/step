@@ -1,7 +1,7 @@
 use anyhow::Result;
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::artifact::Configuration;
+use crate::braid::artifact::Configuration;
 use strand::context::Ctx;
 use strand::hash::Hash;
 use strand::serialization::StrandSerialize;

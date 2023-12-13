@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 use super::*;
+use anyhow::Context;
 use anyhow::anyhow;
 use anyhow::Result;
 use rayon::prelude::*;
@@ -22,23 +23,23 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
 
     let pk = trustee
         .get_dkg_public_key(pk_h, 0)
-        .ok_or(anyhow!("Could not retrieve dkg public key",))?;
+        .with_context(|| "Could not retrieve dkg public key")?;
     let vk = pk.verification_keys[*self_p].clone();
 
     let ciphertexts = trustee
         .get_mix(ciphertexts_h, *batch, *mix_signer)
-        .ok_or(anyhow!("Could not retrieve mix ciphertexts for decryption"))?;
+        .with_context(|| "Could not retrieve mix ciphertexts for decryption")?;
 
     let my_channel = trustee
         .get_channel(&ChannelHash(channels_hs.0[*self_p]), *self_p)
-        .ok_or(anyhow!("Could not retrieve channel",))?;
+        .with_context(|| "Could not retrieve channel")?;
 
     let mut secret = C::X::add_identity();
     for sender in 0..*num_t {
         let share_h = shares_hs.0[sender];
         let share_ = trustee
             .get_shares(&SharesHash(share_h), sender)
-            .ok_or(anyhow!("Could not retrieve shares",))?;
+            .with_context(|| "Could not retrieve shares",)?;
 
         let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
 
@@ -150,7 +151,7 @@ pub(super) fn sign_plaintexts<C: Ctx>(
     )?;
     let actual = trustee
         .get_plaintexts(plaintexts_h, *batch, trustees[0] - 1)
-        .ok_or(anyhow!("Could not retrieve plaintexts".to_string(),))?;
+        .with_context(|| "Could not retrieve plaintexts")?;
 
     if expected.0 .0 == actual.0 .0 {
         info!(
@@ -191,13 +192,11 @@ fn compute_plaintexts_<C: Ctx>(
     let zkp = strand::zkp::Zkp::new(&ctx);
     let pk = trustee
         .get_dkg_public_key(pk_h, 0)
-        .ok_or(anyhow!("Could not retrieve dkg public key".to_string(),))?;
+        .with_context(|| "Could not retrieve dkg public key")?;
 
     let mix = trustee
         .get_mix(ciphertexts_h, *batch, *mix_signer)
-        .ok_or(anyhow!(
-            "Could not retrieve mix ciphertexts for decryption".to_string()
-        ))?;
+        .with_context(|| "Could not retrieve mix ciphertexts for decryption")?;
     let num_ciphertexts = mix.ciphertexts.0.len();
     let mut divider = vec![C::E::mul_identity(); num_ciphertexts];
 
@@ -213,7 +212,7 @@ fn compute_plaintexts_<C: Ctx>(
         if t < *threshold {
             let dfactors = trustee
                 .get_decryption_factors(&DecryptionFactorsHash(*df_h), *batch, ts[t] - 1)
-                .ok_or(anyhow!("Could not retrieve decryption factors".to_string(),))?;
+                .with_context(|| "Could not retrieve decryption factors")?;
 
             assert_eq!(num_ciphertexts, dfactors.factors.0.len());
             let vk = pk.verification_keys[ts[t] - 1].clone();
