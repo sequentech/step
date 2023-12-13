@@ -86,7 +86,7 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
             const importadas = trusteesData.filter((election) => election.active).length
             setKeysImported(importadas)
 
-            update(importadas === 2 ? true : false)
+            update(importadas === tally?.threshold ? true : false)
         }
     }, [trusteesData])
 
@@ -143,7 +143,7 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
                             {t("tally.common.imported")}
                         </Typography>
                         <Typography variant="body2" sx={{margin: 0}}>
-                            {"2"}
+                            {tally?.threshold ?? "-"}
                             {t("tally.common.needed")}
                         </Typography>
                     </div>

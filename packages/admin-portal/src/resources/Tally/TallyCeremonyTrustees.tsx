@@ -236,6 +236,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                         />
 
                         <TallyElectionsList
+                            disabled={true}
                             update={(elections) => setSelectedElections(elections)}
                         />
 
