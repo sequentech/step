@@ -8,7 +8,7 @@ members = [
     "immudb-rs",
     "sequent-core",
     "ballot-verifier",
-    "braid-messages",
+    "board-messages",
     "velvet",
     "windmill",
     "wrap-map-err",

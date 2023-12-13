@@ -4,13 +4,12 @@ use strand::context::Ctx;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignature, StrandSignaturePk, StrandSignatureSk};
 
-use crate::statement::ArtifactType;
-use crate::statement::Statement;
-use crate::statement::StatementType;
-use crate::{artifact::*, newtypes::PROTOCOL_MANAGER_INDEX};
+use crate::braid::statement::Statement;
+use crate::braid::statement::StatementType;
+use crate::braid::{artifact::*, newtypes::PROTOCOL_MANAGER_INDEX};
 
-use crate::artifact::Configuration;
-use crate::newtypes::*;
+use crate::braid::artifact::Configuration;
+use crate::braid::newtypes::*;
 
 ///////////////////////////////////////////////////////////////////////////
 // Message
@@ -294,11 +293,11 @@ impl Message {
 
     // FIXME add check for timestamp not older than some threshold
     pub fn verify<C: Ctx>(&self, configuration: &Configuration<C>) -> Result<VerifiedMessage> {
-        let (kind, st_cfg_h, _, mix_no, artifact_type, _) = self.statement.get_data();
+        let (kind, st_cfg_h, _, mix_no, _) = self.statement.get_data();
 
         if mix_no > configuration.trustees.len() {
             return Err(anyhow!(
-                "Received a message whose statement signature number is out of range"
+                "Received a message whose mix signature number is out of range"
             ));
         }
 
@@ -312,20 +311,18 @@ impl Message {
 
         let bytes = self.statement.strand_serialize()?;
         // Verify signature
-        let trustee_ = self
+        let verified = self
             .sender
             .pk
-            .verify(&self.signature, &bytes)
-            .map(|_| index)
-            .ok();
+            .verify(&self.signature, &bytes);
 
-        if trustee_.is_none() {
+        if verified.is_err() {
             return Err(anyhow!(
                 "Signature verification failed for message {:?}",
                 self
             ));
         }
-        let trustee = trustee_.expect("impossible");
+        let trustee = index;
 
         // The message must belong to the same context as the configuration
         let config_hash = strand::hash::hash(&configuration.strand_serialize()?)?;
@@ -342,10 +339,10 @@ impl Message {
         }
         let artifact = self.artifact.as_ref().expect("impossible");
 
-        // Artifact present, get the type from the statement
+        // Artifact present
 
         let artifact_hash = strand::hash::hash_to_array(&artifact)?;
-        // In the case of a Configuration statement, the cfg_h field should match the artifact
+        // If the cfg_h field matches the artifact, the artifact must be Configuration
         if st_cfg_h == artifact_hash {
             assert!(kind == StatementType::Configuration);
             if trustee != PROTOCOL_MANAGER_INDEX {
@@ -353,14 +350,13 @@ impl Message {
             }
 
             // FIXME remove this potentially expensive clone
-            let artifact_field = Some((ArtifactType::Configuration, artifact.clone()));
             Ok(VerifiedMessage::new(
                 trustee,
                 self.statement.clone(),
-                artifact_field,
+                Some(artifact.clone())
             ))
         } else {
-            // If the statement type were configuration, cfg_hash should have matched the artifact
+            // If the statement type were configuration, cfg_hash should have matched the artifact above
             assert!(kind != StatementType::Configuration);
 
             if kind == StatementType::Ballots {
@@ -369,18 +365,14 @@ impl Message {
                 }
             }
 
-            // Set the type of the artifact field
-            if let Some(artifact_type) = artifact_type {
-                let _ = verify_artifact(&configuration, &artifact_type, &artifact)?;
-                let artifact_field = Some((artifact_type, artifact.clone()));
-                Ok(VerifiedMessage::new(
-                    trustee,
-                    self.statement.clone(),
-                    artifact_field,
-                ))
-            } else {
-                return Err(anyhow!("Could not set artifact type"));
-            }
+            let _ = verify_artifact(&configuration, &kind, &artifact)?;
+            // FIXME remove this potentially expensive clone
+            Ok(VerifiedMessage::new(
+                trustee,
+                self.statement.clone(),
+                Some(artifact.clone()),
+            ))
+            
         }
     }
 
@@ -397,20 +389,22 @@ impl Message {
     }
 }
 
+// Placeholder for possible further verifications
 fn verify_artifact<C: Ctx>(
     _cfg: &Configuration<C>,
-    kind: &ArtifactType,
+    kind: &StatementType,
     _data: &Vec<u8>,
 ) -> Result<()> {
     match kind {
-        ArtifactType::Ballots => {}
-        ArtifactType::Channel => {}
-        ArtifactType::DecryptionFactors => {}
-        ArtifactType::Mix => {}
-        ArtifactType::Plaintexts => {}
-        ArtifactType::PublicKey => {}
-        ArtifactType::Shares => {}
-        ArtifactType::Configuration => {}
+        StatementType::Ballots => {}
+        StatementType::Channel => {}
+        StatementType::DecryptionFactors => {}
+        StatementType::Mix => {}
+        StatementType::Plaintexts => {}
+        StatementType::PublicKey => {}
+        StatementType::Shares => {}
+        StatementType::Configuration => {}
+        _ => {},
     }
 
     Ok(())
@@ -428,7 +422,7 @@ impl TryFrom<Message> for BoardMessage {
             statement_timestamp: (message.statement.get_timestamp() * 1000) as i64,
             statement_kind: message.statement.get_kind().to_string(),
             message: message.strand_serialize()?,
-            signer_key: message.sender.pk.strand_serialize()?,
+            sender_pk: message.sender.pk.to_der_b64_string()?,
         })
     }
 }
@@ -440,14 +434,14 @@ impl TryFrom<Message> for BoardMessage {
 pub struct VerifiedMessage {
     pub signer_position: usize,
     pub statement: Statement,
-    pub artifact: Option<(ArtifactType, Vec<u8>)>,
+    pub artifact: Option<Vec<u8>>,
 }
 
 impl VerifiedMessage {
     pub(crate) fn new(
         signer_position: usize,
         statement: Statement,
-        artifact: Option<(ArtifactType, Vec<u8>)>,
+        artifact: Option<Vec<u8>>,
     ) -> VerifiedMessage {
         VerifiedMessage {
             signer_position,
@@ -467,7 +461,7 @@ pub trait Signer {
         let sk = self.get_signing_key();
         let bytes = statement.strand_serialize()?;
         let signature: StrandSignature = sk.sign(&bytes)?;
-        let pk = StrandSignaturePk::from(sk)?;
+        let pk = StrandSignaturePk::from_sk(sk)?;
         let sender = Sender::new(self.get_name(), pk);
 
         Ok(Message {

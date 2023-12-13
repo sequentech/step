@@ -15,6 +15,7 @@ import {useTranslation} from "react-i18next"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useLocation, useNavigate} from "react-router"
 import {Publish} from "@/resources/Publish/Publish"
+import { EPublishType } from '../Publish/EPublishType'
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -99,7 +100,7 @@ export const ElectionEventTabs: React.FC = () => {
                 ) : null}
                 {showPublish ? (
                     <TabbedShowLayout.Tab label={t("electionEventScreen.tabs.publish")}>
-                        <Publish electionEventId={record?.id} />
+                        <Publish electionEventId={record?.id} type={EPublishType.Event} />
                     </TabbedShowLayout.Tab>
                 ) : null}
                 {showLogs ? (

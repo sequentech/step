@@ -3,13 +3,13 @@ pub use log::{debug, error, info, trace};
 use std::collections::HashSet;
 
 use crate::protocol2::action::Action;
-use braid_messages::newtypes::THashes;
+use board_messages::braid::newtypes::THashes;
 
 pub(crate) const NULL_HASH: [u8; 64] = [0u8; 64];
 
 pub(self) use crate::protocol2::predicate::*;
 
-pub(self) use braid_messages::newtypes::*;
+pub(self) use board_messages::braid::newtypes::*;
 pub(self) use strand::hash::Hash;
 
 pub(crate) fn hashes_init(value: Hash) -> THashes {

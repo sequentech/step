@@ -1,6 +1,6 @@
 // This utility generates a trustee configuration printed to stdout with
 //
-//  * signing_key_sk: base64 encoding of a StrandSignatureSk serialization
+//  * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1 encoding
 //  * signing_key_pk: base64 encoding of corresponding StrandSignaturePk serialization
 //  * encryption_key: base64 encoding of a sign::SymmetricKey
 //
@@ -8,9 +8,8 @@
 use base64::engine::general_purpose;
 use base64::Engine;
 use braid::run::config::TrusteeConfig;
-use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use clap::Parser;
-use sequent_core::serialization::base64::Base64Serialize;
 use std::marker::PhantomData;
 
 use strand::backend::ristretto::RistrettoCtx;
@@ -41,13 +40,13 @@ fn main() {
 
 fn gen_trustee_config<C: Ctx>() {
     let sk = StrandSignatureSk::gen().unwrap();
-    let pk = StrandSignaturePk::from(&sk).unwrap();
+    let pk = StrandSignaturePk::from_sk(&sk).unwrap();
     let encryption_key: symm::SymmetricKey = symm::gen_key();
 
     let ek_bytes = encryption_key.as_slice();
 
-    let sk_string: String = sk.serialize().unwrap();
-    let pk_string: String = pk.serialize().unwrap();
+    let sk_string: String = sk.to_der_b64_string().unwrap();
+    let pk_string: String = pk.to_der_b64_string().unwrap();
     let ek_string: String = general_purpose::STANDARD_NO_PAD.encode(ek_bytes);
 
     let tc = TrusteeConfig {
