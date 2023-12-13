@@ -201,6 +201,23 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         },
     ]
 
+    // @ts-ignore
+    const BulkActions = (props) => {
+        return (
+            <>
+                <Button
+                    key="send-notification"
+                    onClick={() => {
+                        sendCommunicationAction(props.selectedIds ?? [], AudienceSelection.SELECTED)
+                    }}
+                >
+                    <MailIcon />
+                    {t(`sendCommunication.send`)}
+                </Button>
+            </>
+        )
+    }
+
     return (
         <>
             <List
@@ -231,9 +248,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                 aside={aside}
                 filters={Filters}
             >
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
-                    <TextField source="id" />
-                    <TextField source="email" />
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<BulkActions />}>
+                    {" "}
+                    <TextField source="id" /> <TextField source="email" />
                     <BooleanField source="email_verified" />
                     <BooleanField source="enabled" />
                     <TextField source="first_name" />
@@ -249,7 +266,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                             render={(record: IUser) => <Chip label={record?.area?.name || ""} />}
                         />
                     )}
-
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />
                     </WrapperField>
