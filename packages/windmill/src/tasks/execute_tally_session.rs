@@ -24,7 +24,7 @@ use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
-use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
+use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::{Duration, Utc};
 use sequent_core::ballot::{BallotStyle, Contest};

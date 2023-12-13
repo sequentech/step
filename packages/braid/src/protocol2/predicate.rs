@@ -5,13 +5,13 @@ use strum::Display;
 use strand::context::Ctx;
 use strand::signature::StrandSignaturePk;
 
-use braid_messages::artifact::Configuration;
-use braid_messages::newtypes::*;
-use braid_messages::statement::Statement;
+use board_messages::braid::artifact::Configuration;
+use board_messages::braid::newtypes::*;
+use board_messages::braid::statement::Statement;
 
-use braid_messages::newtypes::NULL_TRUSTEE;
-use braid_messages::newtypes::PROTOCOL_MANAGER_INDEX;
-use braid_messages::newtypes::VERIFIER_INDEX;
+use board_messages::braid::newtypes::NULL_TRUSTEE;
+use board_messages::braid::newtypes::PROTOCOL_MANAGER_INDEX;
+use board_messages::braid::newtypes::VERIFIER_INDEX;
 
 ///////////////////////////////////////////////////////////////////////////
 // Predicate

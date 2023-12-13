@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 [package]
-name = "braid-messages"
+name = "board-messages"
 version = "0.1.0"
 authors = [
   "David Ruescas <david@sequentech.io>",
@@ -44,4 +44,8 @@ tracing-wasm = {version="0.2.1", optional = true}
 crate-type = ["cdylib", "rlib"]
 
 [features]
+
+[dev-dependencies]
+serial_test = "2.0.0"
+tokio = { version = "1.31.0", features = ["rt-multi-thread"]}
 

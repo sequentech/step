@@ -31,7 +31,7 @@ use crate::services::election_event_status::get_election_event_status;
 use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::insert_ballots::InsertBallotsPayload;
 use anyhow::{anyhow, Context, Result};
-use braid_messages::newtypes::BatchNumber;
+use board_messages::braid::newtypes::BatchNumber;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;

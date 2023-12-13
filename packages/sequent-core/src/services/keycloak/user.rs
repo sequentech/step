@@ -11,6 +11,18 @@ use std::convert::From;
 use tracing::instrument;
 use uuid::Uuid;
 
+impl User {
+    pub fn get_mobile_phone(&self) -> Option<String> {
+        match self.attributes {
+            Some(ref attributes) => {
+                let mobile_phone = attributes.get(MOBILE_PHONE_ATTR_NAME)?.clone();
+                serde_json::from_value(mobile_phone).ok()?
+            },
+            None => None,
+        }
+    }
+}
+
 impl From<UserRepresentation> for User {
     fn from(item: UserRepresentation) -> Self {
         User {

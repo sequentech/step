@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
-use braid_messages::newtypes::BatchNumber;
+use board_messages::braid::newtypes::BatchNumber;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use sequent_core::services::connection;
