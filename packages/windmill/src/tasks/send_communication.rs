@@ -147,7 +147,7 @@ pub async fn get_aws_config() -> Result<aws_config::SdkConfig> {
             .map_err(|err| anyhow!("AWS_REGION env var missing"))?,
     ))
     .or_default_provider()
-    .or_else(Region::new("us-west-2"));
+    .or_else(Region::new("us-east-1"));
     Ok(aws_config::from_env().region(region_provider).load().await)
 }
 

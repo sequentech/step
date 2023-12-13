@@ -430,8 +430,8 @@ services:
     image: rabbitmq:management
     container_name: rabbitmq
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -491,11 +491,31 @@ services:
     volumes:
       - ./keycloak/import:/import
       - ../packages/:/app
-    env_file:
-      - .env
     environment:
-      RUSTFLAGS: -Awarnings
-  
+      RUSTFLAGS: ${RUSTFLAGS}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+      AMQP_ADDR: ${AMQP_ADDR}
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      MINIO_PRIVATE_URI: ${MINIO_PRIVATE_URI}
+      IMMUDB_USER: ${IMMUDB_USER}
+      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_PUBLIC_BUCKET: ${MINIO_PUBLIC_BUCKET}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_ACCESS_SECRET: ${MINIO_ACCESS_SECRET}
+      MINIO_REGION: ${MINIO_REGION}
+      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
+      KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
+      VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      AWS_REGION: ${AWS_REGION}
+      SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
+      AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
+      EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
+      EMAIL_FROM: ${EMAIL_FROM}
+
   beat:
     profiles: ["full"]
     stdin_open: true
@@ -516,10 +536,10 @@ services:
     volumes:
       - ./keycloak/import:/import
       - ../packages/:/app
-    env_file:
-      - .env
     environment:
-      RUSTFLAGS: -Awarnings
+      RUSTFLAGS: ${RUSTFLAGS}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+      AMQP_ADDR: ${AMQP_ADDR}
 
 volumes:
   db_data:
