@@ -10,13 +10,14 @@ use sequent_core::serialization::base64::Base64Deserialize;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignaturePk;
+
 use tracing::instrument;
 
 use super::protocol_manager;
 use crate::services::vault;
 
 pub fn deserialize_public_key(public_key_string: String) -> StrandSignaturePk {
-    Base64Deserialize::deserialize(public_key_string).unwrap()
+    StrandSignaturePk::from_der_b64_string(&public_key_string).unwrap()
 }
 
 #[instrument(skip(trustee_pks, threshold))]
