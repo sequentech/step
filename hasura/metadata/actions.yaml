@@ -2,7 +2,7 @@ actions:
 - name: check_private_key
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/check-private-key
+    handler: http://{{HARVEST_DOMAIN}}/check-private-key
     forward_client_headers: true
     headers:
     - name: X-Hasura-Admin-Secret
@@ -20,7 +20,7 @@ actions:
 - name: createScheduledEvent
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/scheduled-event
+    handler: http://{{HARVEST_DOMAIN}}/scheduled-event
     forward_client_headers: true
     headers:
     - name: X-Hasura-Admin-Secret
@@ -37,7 +37,7 @@ actions:
 - name: create_keys_ceremony
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/create-keys-ceremony
+    handler: http://{{HARVEST_DOMAIN}}/create-keys-ceremony
     forward_client_headers: true
     headers:
     - name: X-Hasura-Admin-Secret
@@ -55,7 +55,7 @@ actions:
 - name: create_permission
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/create-permission
+    handler: http://{{HARVEST_DOMAIN}}/create-permission
     forward_client_headers: true
     request_transform:
       body:
@@ -68,7 +68,7 @@ actions:
 - name: create_role
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/create-role
+    handler: http://{{HARVEST_DOMAIN}}/create-role
     forward_client_headers: true
     request_transform:
       body:
@@ -81,7 +81,7 @@ actions:
 - name: create_tally_ceremony
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/create-tally-ceremony
+    handler: http://{{HARVEST_DOMAIN}}/create-tally-ceremony
     forward_client_headers: true
     request_transform:
       body:
@@ -95,7 +95,7 @@ actions:
 - name: create_user
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/create-user
+    handler: http://{{HARVEST_DOMAIN}}/create-user
     forward_client_headers: true
     request_transform:
       body:
@@ -108,7 +108,7 @@ actions:
 - name: delete_permission
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/delete-permission
+    handler: http://{{HARVEST_DOMAIN}}/delete-permission
     forward_client_headers: true
     request_transform:
       body:
@@ -121,7 +121,7 @@ actions:
 - name: delete_role
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/delete-role
+    handler: http://{{HARVEST_DOMAIN}}/delete-role
     forward_client_headers: true
     request_transform:
       body:
@@ -134,7 +134,7 @@ actions:
 - name: delete_role_permission
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/delete-role-permission
+    handler: http://{{HARVEST_DOMAIN}}/delete-role-permission
     forward_client_headers: true
     request_transform:
       body:
@@ -147,7 +147,7 @@ actions:
 - name: delete_user
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/delete-user
+    handler: http://{{HARVEST_DOMAIN}}/delete-user
     forward_client_headers: true
     request_transform:
       body:
@@ -160,7 +160,7 @@ actions:
 - name: delete_user_role
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/delete-user-role
+    handler: http://{{HARVEST_DOMAIN}}/delete-user-role
     forward_client_headers: true
     request_transform:
       body:
@@ -173,7 +173,7 @@ actions:
 - name: edit_user
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/edit-user
+    handler: http://{{HARVEST_DOMAIN}}/edit-user
     forward_client_headers: true
     request_transform:
       body:
@@ -186,7 +186,7 @@ actions:
 - name: fetchDocument
   definition:
     kind: ""
-    handler: {{HARVEST_URL}}/fetch-document
+    handler: http://{{HARVEST_DOMAIN}}/fetch-document
     forward_client_headers: true
     headers:
     - name: X-Hasura-Admin-Secret
@@ -208,7 +208,7 @@ actions:
 - name: generate_ballot_publication
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/generate-ballot-publication
+    handler: http://{{HARVEST_DOMAIN}}/generate-ballot-publication
     forward_client_headers: true
     request_transform:
       body:
@@ -222,7 +222,7 @@ actions:
 - name: get_ballot_publication_changes
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/get-ballot-publication-changes
+    handler: http://{{HARVEST_DOMAIN}}/get-ballot-publication-changes
     forward_client_headers: true
     request_transform:
       body:
@@ -236,7 +236,7 @@ actions:
 - name: get_permissions
   definition:
     kind: ""
-    handler: {{HARVEST_URL}}/get-permissions
+    handler: http://{{HARVEST_DOMAIN}}/get-permissions
     forward_client_headers: true
     request_transform:
       body:
@@ -250,7 +250,7 @@ actions:
 - name: get_private_key
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/get-private-key
+    handler: http://{{HARVEST_DOMAIN}}/get-private-key
     forward_client_headers: true
     headers:
     - name: X-Hasura-Admin-Secret
@@ -268,7 +268,7 @@ actions:
 - name: get_roles
   definition:
     kind: ""
-    handler: {{HARVEST_URL}}/get-roles
+    handler: http://{{HARVEST_DOMAIN}}/get-roles
     forward_client_headers: true
     request_transform:
       body:
@@ -281,7 +281,7 @@ actions:
 - name: get_upload_url
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/get-upload-url
+    handler: http://{{HARVEST_DOMAIN}}/get-upload-url
     forward_client_headers: true
     request_transform:
       body:
@@ -294,7 +294,7 @@ actions:
 - name: get_user
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/get-user
+    handler: http://{{HARVEST_DOMAIN}}/get-user
     forward_client_headers: true
     request_transform:
       body:
@@ -309,7 +309,7 @@ actions:
 - name: get_users
   definition:
     kind: ""
-    handler: {{HARVEST_URL}}/get-users
+    handler: http://{{HARVEST_DOMAIN}}/get-users
     forward_client_headers: true
     request_transform:
       body:
@@ -324,7 +324,7 @@ actions:
 - name: insertElectionEvent
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/insert-election-event
+    handler: http://{{HARVEST_DOMAIN}}/insert-election-event
     forward_client_headers: true
     headers:
     - name: X-Hasura-Admin-Secret
@@ -340,7 +340,7 @@ actions:
 - name: insertTenant
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/insert-tenant
+    handler: http://{{HARVEST_DOMAIN}}/insert-tenant
     forward_client_headers: true
     headers:
     - name: X-Hasura-Admin-Secret
@@ -357,7 +357,7 @@ actions:
 - name: listPgaudit
   definition:
     kind: ""
-    handler: {{HARVEST_URL}}/immudb/pgaudit-list
+    handler: http://{{HARVEST_DOMAIN}}/immudb/pgaudit-list
     forward_client_headers: true
     headers:
     - name: X-Hasura-Admin-Secret
@@ -382,7 +382,7 @@ actions:
 - name: list_user_roles
   definition:
     kind: ""
-    handler: {{HARVEST_URL}}/list-user-roles
+    handler: http://{{HARVEST_DOMAIN}}/list-user-roles
     forward_client_headers: true
     request_transform:
       body:
@@ -395,7 +395,7 @@ actions:
 - name: publish_ballot
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/publish-ballot
+    handler: http://{{HARVEST_DOMAIN}}/publish-ballot
     forward_client_headers: true
     request_transform:
       body:
@@ -409,7 +409,7 @@ actions:
 - name: restore_private_key
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/restore-private-key
+    handler: http://{{HARVEST_DOMAIN}}/restore-private-key
     forward_client_headers: true
     request_transform:
       body:
@@ -423,7 +423,7 @@ actions:
 - name: set_role_permission
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/set-role-permission
+    handler: http://{{HARVEST_DOMAIN}}/set-role-permission
     forward_client_headers: true
     request_transform:
       body:
@@ -436,7 +436,7 @@ actions:
 - name: set_user_role
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/set-user-role
+    handler: http://{{HARVEST_DOMAIN}}/set-user-role
     forward_client_headers: true
     request_transform:
       body:
@@ -449,7 +449,7 @@ actions:
 - name: update_election_voting_status
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/update-election-voting-status
+    handler: http://{{HARVEST_DOMAIN}}/update-election-voting-status
     forward_client_headers: true
     request_transform:
       body:
@@ -463,7 +463,7 @@ actions:
 - name: update_event_voting_status
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/update-event-voting-status
+    handler: http://{{HARVEST_DOMAIN}}/update-event-voting-status
     forward_client_headers: true
     request_transform:
       body:
@@ -477,7 +477,7 @@ actions:
 - name: update_tally_ceremony
   definition:
     kind: synchronous
-    handler: {{HARVEST_URL}}/update-tally-ceremony
+    handler: http://{{HARVEST_DOMAIN}}/update-tally-ceremony
     forward_client_headers: true
     request_transform:
       body:
