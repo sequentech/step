@@ -6,12 +6,16 @@ use crate::hasura::ballot_publication::{
     insert_ballot_publication, soft_delete_other_ballot_publications, update_ballot_publication_d,
 };
 use crate::hasura::election::get_all_elections_for_event;
+use crate::hasura::election_event::get_election_event_helper;
+use crate::hasura::election_event::update_election_event_status;
 use crate::services::ballot_publication::get_ballot_publication::GetBallotPublicationSequentBackendBallotPublication;
 use crate::services::ballot_publication::get_previous_publication::GetPreviousPublicationSequentBackendBallotPublication;
 use crate::services::celery_app::get_celery_app;
+use crate::services::election_event_status::get_election_event_status;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
+use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_client_credentials;
 use serde::{Deserialize, Serialize};
@@ -130,19 +134,16 @@ pub async fn update_publish_ballot(
         ballot_publication_id.clone(),
     )
     .await?;
-    event!(Level::INFO, "FF 2");
 
     if !ballot_publication.is_generated {
         return Err(anyhow!(
             "Ballot publication not generated yet, can't publish."
         ));
     }
-    event!(Level::INFO, "FF 3");
 
     if ballot_publication.published_at.is_some() {
         return Ok(());
     }
-    event!(Level::INFO, "FF 4");
 
     soft_delete_other_ballot_publications(
         auth_headers.clone(),
@@ -160,6 +161,26 @@ pub async fn update_publish_ballot(
         ballot_publication_id.clone(),
         true,
         Some(Utc::now().naive_utc()),
+    )
+    .await?;
+
+    let election_event = get_election_event_helper(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+    )
+    .await?;
+
+    let mut new_status: ElectionEventStatus =
+        get_election_event_status(election_event.status).unwrap_or(Default::default());
+    new_status.is_published = Some(true);
+    let new_status_js = serde_json::to_value(new_status)?;
+
+    update_election_event_status(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        new_status_js,
     )
     .await?;
 

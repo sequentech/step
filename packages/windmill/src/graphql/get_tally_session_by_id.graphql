@@ -22,6 +22,7 @@ query GetTallySessionById(
         is_execution_completed
         keys_ceremony_id
         execution_status
+        threshold
     }
     sequent_backend_tally_session_contest(
         where: {

@@ -7,6 +7,7 @@ use crate::types::hasura_types::Uuid;
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::default::Default;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
@@ -345,7 +346,20 @@ pub struct ElectionEventStatus {
     pub config_created: Option<bool>,
     pub keys_ceremony_finished: Option<bool>,
     pub tally_ceremony_finished: Option<bool>,
+    pub is_published: Option<bool>,
     pub voting_status: VotingStatus,
+}
+
+impl Default for ElectionEventStatus {
+    fn default() -> Self {
+        ElectionEventStatus {
+            config_created: Some(false),
+            keys_ceremony_finished: Some(false),
+            tally_ceremony_finished: Some(false),
+            is_published: Some(false),
+            voting_status: VotingStatus::NOT_STARTED,
+        }
+    }
 }
 
 impl ElectionEventStatus {
