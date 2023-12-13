@@ -6,12 +6,13 @@ name = "windmill"
 version = "0.1.0"
 edition = "2021"
 authors = [
-  "Felix Robles <felix@sequentech.io>"
+  "Felix Robles <felix@sequentech.io>",
+  "Eduardo Robles <edu@sequentech.io>"
 ]
 license = "AGPL-3.0-only"
 
 [dependencies]
-rocket = { version = "=0.5.0-rc.3", features = ["json"] }
+rocket = { version = "0.5.0", features = ["json"] }
 serde = { version = "1.0.190", features = ["derive"] }
 serde_json = "1.0.105"
 reqwest = { version="0.11.18", features = ["blocking", "json"] }
