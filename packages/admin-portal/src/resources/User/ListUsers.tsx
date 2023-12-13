@@ -94,6 +94,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
     const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
+    const [deleteUsers] = useMutation<DeleteUserMutation>(DELETE_USER)
     const notify = useNotify()
     const {data: rolesList} = useGetList<IRole & {id: string}>("role", {
         pagination: {page: 1, perPage: 9999},
@@ -226,8 +227,41 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         },
     ]
 
+    async function deleteBulk(selectedIds: Identifier[]) {
+        const {errors} = await deleteUsers({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventId,
+                userId: selectedIds,
+            },
+        })
+
+        if (errors) {
+            notify(
+                t(
+                    `usersAndRolesScreen.${
+                        electionEventId ? "voters" : "users"
+                    }.notifications.deleteError`
+                ),
+                {type: "error"}
+            )
+            return
+        }
+
+        notify(
+            t(
+                `usersAndRolesScreen.${
+                    electionEventId ? "voters" : "users"
+                }.notifications.deleteSuccess`
+            ),
+            {type: "success"}
+        )
+
+        refresh()
+    }
+
     // @ts-ignore
-    const BulkActions = (props) => {
+    function BulkActions(props) {
         return (
             <>
                 <Button
@@ -240,7 +274,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     {t(`sendCommunication.send`)}
                 </Button>
 
-                <StyledButton>
+                <StyledButton onClick={() => deleteBulk(props.selectedIds)}>
                     <StyledIcon2 />
                     {t("common.label.delete")}
                 </StyledButton>
