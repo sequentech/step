@@ -8,6 +8,7 @@ use crate::pipes::error::Error as PipesError;
 use crate::pipes::pipe_name::PipeName;
 use sequent_core::{ballot::Contest, plaintext::DecodedVoteContest};
 use std::{fs, path::PathBuf};
+use tracing::{event, instrument, Level};
 
 pub enum TallyType {
     PluralityAtLarge,
@@ -20,6 +21,7 @@ pub struct Tally {
 }
 
 impl Tally {
+    #[instrument(skip(contest))]
     pub fn new(contest: &Contest, ballots_files: Vec<PathBuf>) -> Result<Self> {
         let contest = contest.clone();
         let ballots = Self::get_ballots(ballots_files)?;
@@ -32,6 +34,7 @@ impl Tally {
         })
     }
 
+    #[instrument(skip_all)]
     fn get_tally_type(contest: &Contest) -> Result<TallyType> {
         if let Some(val) = &contest.counting_algorithm {
             if val == "plurality-at-large" {

@@ -17,8 +17,7 @@ use anyhow::{anyhow, Context};
 use aws_config::{meta::region::RegionProviderChain, Region};
 use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as AwsMessage};
 use aws_sdk_sesv2::{Client as AwsSesClient, Error as AwsSesError};
-use aws_sdk_sns::{Client as AwsSnsClient, Error as AwsSnsError,
-    types::MessageAttributeValue};
+use aws_sdk_sns::{types::MessageAttributeValue, Client as AwsSnsClient, Error as AwsSnsError};
 use lettre::message::{header::ContentType, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
@@ -143,8 +142,7 @@ struct SmsSender {
 
 pub async fn get_aws_config() -> Result<aws_config::SdkConfig> {
     let region_provider = RegionProviderChain::first_try(Region::new(
-        std::env::var("AWS_REGION")
-            .map_err(|err| anyhow!("AWS_REGION env var missing"))?,
+        std::env::var("AWS_REGION").map_err(|err| anyhow!("AWS_REGION env var missing"))?,
     ))
     .or_default_provider()
     .or_else(Region::new("us-west-2"));
@@ -166,28 +164,27 @@ impl SmsSender {
                     let shared_config = get_aws_config().await?;
                     let client = AwsSnsClient::new(&shared_config);
 
-                    let base_message_attributes: HashMap<String, String> =
-                        serde_json::from_str(
-                            &std::env::var("AWS_SNS_ATTRIBUTES")
-                                .map_err(|err|
-                                    anyhow!("AWS_SNS_ATTRIBUTES env var missing")
-                                )?
-                        )
-                        .map_err(|err| anyhow!("AWS_SNS_ATTRIBUTES env var parse error: {err:?}"))?;
+                    let base_message_attributes: HashMap<String, String> = serde_json::from_str(
+                        &std::env::var("AWS_SNS_ATTRIBUTES")
+                            .map_err(|err| anyhow!("AWS_SNS_ATTRIBUTES env var missing"))?,
+                    )
+                    .map_err(|err| anyhow!("AWS_SNS_ATTRIBUTES env var parse error: {err:?}"))?;
                     let messsage_attributes = Some(
                         base_message_attributes
                             .into_iter()
-                            .map(|(key, value)| Ok((
-                                key,
-                                MessageAttributeValue::builder()
-                                    .set_data_type(Some("String".to_string()))
-                                    .set_string_value(Some(value))
-                                    .build()
-                                    .map_err(|err| 
-                                        anyhow!("Error building Message Attribute: {err:?}")
-                                    )?
-                            )))
-                            .collect::<Result<HashMap<String, MessageAttributeValue>>>()?
+                            .map(|(key, value)| {
+                                Ok((
+                                    key,
+                                    MessageAttributeValue::builder()
+                                        .set_data_type(Some("String".to_string()))
+                                        .set_string_value(Some(value))
+                                        .build()
+                                        .map_err(|err| {
+                                            anyhow!("Error building Message Attribute: {err:?}")
+                                        })?,
+                                ))
+                            })
+                            .collect::<Result<HashMap<String, MessageAttributeValue>>>()?,
                     );
                     SmsTransport::AwsSns((client, messsage_attributes))
                 }
@@ -196,12 +193,7 @@ impl SmsSender {
         })
     }
 
-    async fn send(
-        &self,
-        receiver: String,
-        message: String,
-    ) -> Result<()> {
-
+    async fn send(&self, receiver: String, message: String) -> Result<()> {
         match self.transport {
             SmsTransport::AwsSns((ref aws_client, ref messsage_attributes)) => {
                 event!(
@@ -213,10 +205,10 @@ impl SmsSender {
                     .set_message_attributes(messsage_attributes.clone())
                     .set_phone_number(Some(receiver))
                     .set_message(Some(message))
-                    .send().await
+                    .send()
+                    .await
                     .map_err(|err| anyhow!("SmsTransport::AwsSes send error: {err:?}"))?;
-
-            },
+            }
             SmsTransport::Console => {
                 event!(
                     Level::INFO,
@@ -340,10 +332,7 @@ async fn send_communication_sms(
     sender: &SmsSender,
 ) -> Result<()> {
     if let (Some(receiver), Some(config)) = (receiver, template) {
-        let message = reports::render_template_text(
-            config.message.as_str(),
-            variables.clone()
-        )?;
+        let message = reports::render_template_text(config.message.as_str(), variables.clone())?;
 
         sender.send(receiver.into(), message).await?;
     } else {
@@ -374,7 +363,6 @@ async fn send_communication_email(
     }
     Ok(())
 }
-
 
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
