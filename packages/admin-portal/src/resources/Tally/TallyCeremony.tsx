@@ -268,7 +268,7 @@ export const TallyCeremony: React.FC = () => {
                                 expandIcon={<ExpandMoreIcon id="tally-data-progress" />}
                             >
                                 <WizardStyles.AccordionTitle>
-                                    <ElectionHeader title={"tally.tallyTitle"} subtitle="" />
+                                    {t("tally.tallyTitle")}
                                 </WizardStyles.AccordionTitle>
                                 <WizardStyles.CeremonyStatus
                                     sx={{
@@ -299,7 +299,7 @@ export const TallyCeremony: React.FC = () => {
                         >
                             <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-logs" />}>
                                 <WizardStyles.AccordionTitle>
-                                    <ElectionHeader title={"tally.logsTitle"} subtitle="" />
+                                    {t("tally.logsTitle")}
                                 </WizardStyles.AccordionTitle>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
@@ -321,7 +321,7 @@ export const TallyCeremony: React.FC = () => {
                                 expandIcon={<ExpandMoreIcon id="tally-data-general" />}
                             >
                                 <WizardStyles.AccordionTitle>
-                                    <ElectionHeader title={"tally.generalInfoTitle"} subtitle="" />
+                                    {t("tally.generalInfoTitle")}
                                 </WizardStyles.AccordionTitle>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
@@ -348,7 +348,7 @@ export const TallyCeremony: React.FC = () => {
                                 expandIcon={<ExpandMoreIcon id="tally-data-results" />}
                             >
                                 <WizardStyles.AccordionTitle>
-                                    <ElectionHeader title={"tally.resultsTitle"} subtitle="" />
+                                    {t("tally.resultsTitle")}
                                 </WizardStyles.AccordionTitle>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
@@ -374,7 +374,7 @@ export const TallyCeremony: React.FC = () => {
                                 expandIcon={<ExpandMoreIcon id="tally-results-progress" />}
                             >
                                 <WizardStyles.AccordionTitle>
-                                    <ElectionHeader title={"tally.tallyTitle"} subtitle="" />
+                                    {t("tally.tallyTitle")}
                                 </WizardStyles.AccordionTitle>
                                 <WizardStyles.CeremonyStatus
                                     sx={{
@@ -407,7 +407,7 @@ export const TallyCeremony: React.FC = () => {
                                 expandIcon={<ExpandMoreIcon id="tally-results-logs" />}
                             >
                                 <WizardStyles.AccordionTitle>
-                                    <ElectionHeader title={"tally.logsTitle"} subtitle="" />
+                                    {t("tally.logsTitle")}
                                 </WizardStyles.AccordionTitle>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
@@ -429,7 +429,7 @@ export const TallyCeremony: React.FC = () => {
                                 expandIcon={<ExpandMoreIcon id="tally-results-general" />}
                             >
                                 <WizardStyles.AccordionTitle>
-                                    <ElectionHeader title={"tally.generalInfoTitle"} subtitle="" />
+                                    {t("tally.generalInfoTitle")}
                                 </WizardStyles.AccordionTitle>
                                 <TallyStyles.StyledSpacing>
                                     <ListActions
@@ -463,7 +463,7 @@ export const TallyCeremony: React.FC = () => {
                                 expandIcon={<ExpandMoreIcon id="tally-data-results" />}
                             >
                                 <WizardStyles.AccordionTitle>
-                                    <ElectionHeader title={t("tally.resultsTitle")} subtitle="" />
+                                    {t("tally.resultsTitle")}
                                 </WizardStyles.AccordionTitle>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
