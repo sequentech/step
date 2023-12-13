@@ -333,17 +333,32 @@ impl EmailSender {
 }
 
 #[instrument(skip(sender))]
+async fn send_communication_sms(
+    receiver: &Option<String>,
+    template: &Option<SmsConfig>,
+    variables: &Map<String, Value>,
+    sender: &SmsSender,
+) -> Result<()> {
+    if let (Some(receiver), Some(config)) = (receiver, template) {
+        let message = reports::render_template_text(
+            config.message.as_str(),
+            variables.clone()
+        )?;
+
+        sender.send(receiver.into(), message).await?;
+    } else {
+        event!(Level::INFO, "Receiver empty, ignoring..");
+    }
+    Ok(())
+}
+
+#[instrument(skip(sender))]
 async fn send_communication_email(
     receiver: &Option<String>,
     template: &Option<EmailConfig>,
     variables: &Map<String, Value>,
     sender: &EmailSender,
 ) -> Result<()> {
-    event!(
-        Level::INFO,
-        "TODO: Send email receiver={:?}",
-        receiver = receiver,
-    );
     if let (Some(receiver), Some(config)) = (receiver, template) {
         let subject = reports::render_template_text(config.subject.as_str(), variables.clone())?;
         let plaintext_body =
@@ -359,6 +374,7 @@ async fn send_communication_email(
     }
     Ok(())
 }
+
 
 #[instrument]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -410,7 +426,7 @@ pub async fn send_communication(
     .await?;
 
     let email_sender = EmailSender::new().await?;
-    let sms_sender = SmsSender::new()?.await?;
+    let sms_sender = SmsSender::new().await?;
 
     for user in users.iter().filter(|user| {
         (body.audience_selection == AudienceSelection::ALL_USERS
@@ -433,7 +449,7 @@ pub async fn send_communication(
         match body.communication_method {
             CommunicationMethod::EMAIL => {
                 let sending_result = send_communication_email(
-                    /* to */ &user.email,
+                    /* receiver */ &user.email,
                     /* template */ &body.email,
                     /* variables */ &variables,
                     /* sender */ &email_sender,
@@ -444,16 +460,16 @@ pub async fn send_communication(
                 }
             }
             CommunicationMethod::SMS => {
-                //let sending_result = send_communication_sms(
-                //    /* user */ &user,
-                //    /* template */ &body.sms,
-                //    /* variables */ &variables,
-                //    /* sender */ &sms_sender,
-                //)
-                //.await;
-                //if let Err(error) = sending_result {
-                //    event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
-                //}
+                let sending_result = send_communication_sms(
+                    /* receiver */ &user.get_mobile_phone(),
+                    /* template */ &body.sms,
+                    /* variables */ &variables,
+                    /* sender */ &sms_sender,
+                )
+                .await;
+                if let Err(error) = sending_result {
+                    event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
+                }
             }
         };
     }
