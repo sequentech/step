@@ -17,10 +17,10 @@ services:
       - label:disable
     environment:
       # postgres database to store Hasura metadata
-      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
       # this env var can be used to add the above postgres database to Hasura 
       # as a data source. this can be removed/updated based on your needs
-      PG_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
 
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
@@ -137,30 +137,28 @@ services:
       - ../hasura/metadata/:/hasura-metadata:cached
       - ../hasura/migrations/:/hasura-migrations:cached
     environment:
-      ## postgres database to store Hasura metadata
-      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
       # applies migrations on start
       HASURA_GRAPHQL_MIGRATIONS_DIR: /hasura-migrations
       HASURA_GRAPHQL_METADATA_DIR: /hasura-metadata
+      ## postgres database to store Hasura metadata
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
       ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
-      PG_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
       ## enable the console served by server
-      HASURA_GRAPHQL_ENABLE_CONSOLE: "true" # set to "false" to disable console
+      # set to "false" to disable console
+      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE} 
       ## enable debugging mode. It is recommended to disable this in production
-      HASURA_GRAPHQL_DEV_MODE: "true"
-      BACKEND_SERVICE_HOSTNAME: "http://localhost:8000"
+      HASURA_GRAPHQL_DEV_MODE: ${HASURA_GRAPHQL_DEV_MODE}
       # https://hasura.io/docs/latest/deployment/graphql-engine-flags/config-examples/#console-assets-on-server
-      HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: "/srv/console-assets"
-      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
       ## uncomment next line to run console offline (i.e load console assets from server instead of CDN)
-      # HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: /srv/console-assets
-      ## uncomment next line to set an admin secret
-      # HASURA_GRAPHQL_ADMIN_SECRET: myadminsecretkey
-      HASURA_GRAPHQL_METADATA_DEFAULTS: '{"backend_configs":{"dataconnector":{"athena":{"uri":"http://data-connector-agent:8081/api/v1/athena"},"mariadb":{"uri":"http://data-connector-agent:8081/api/v1/mariadb"},"mysql8":{"uri":"http://data-connector-agent:8081/api/v1/mysql"},"oracle":{"uri":"http://data-connector-agent:8081/api/v1/oracle"},"snowflake":{"uri":"http://data-connector-agent:8081/api/v1/snowflake"}}}}'
+      HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: ${HASURA_GRAPHQL_CONSOLE_ASSETS_DIR}
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: ${HASURA_GRAPHQL_ENABLED_LOG_TYPES}
+      HASURA_GRAPHQL_METADATA_DEFAULTS: ${HASURA_GRAPHQL_METADATA_DEFAULTS}
       # keycloak jwks endpoint
-      HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url": "http://minio:9000/public/certs.json"}'
-      HASURA_GRAPHQL_ADMIN_SECRET: 'admin'
-      ACTIONS_ADMIN_SECRET: 'admin'
+      HASURA_GRAPHQL_JWT_SECRET: ${HASURA_GRAPHQL_JWT_SECRET}
+      HASURA_GRAPHQL_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      ACTIONS_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      HARVEST_URL: ${HARVEST_URL}
     depends_on:
       data-connector-agent:
         condition: service_healthy
@@ -196,7 +194,7 @@ services:
     volumes:
       - keycloak_db_data:/var/lib/postgresql/data
     environment:
-      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready  -U postgres"]
       interval: 5s
@@ -215,18 +213,16 @@ services:
       - 8090:8090
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    #ports:
-    #  - 8090:8090
     environment:
-      KC_HOSTNAME: "127.0.0.1"
-      KC_HOSTNAME_STRICT: "false"
-      KC_HTTP_PORT: "8090"
-      KC_DB_USERNAME: postgres
-      KC_DB_PASSWORD: postgrespassword
-      KC_DB_SCHEMA: public
-      KC_DB_URL: jdbc:postgresql://postgres-keycloak:5432/postgres
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: ${KC_HOSTNAME}
+      KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
+      KC_HTTP_PORT: ${KC_HTTP_PORT}
+      KC_DB_USERNAME: ${KC_DB_USERNAME}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      KC_DB_SCHEMA: ${KC_DB_SCHEMA}
+      KC_DB_URL: ${KC_DB_URL}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       - ./keycloak/import:/opt/keycloak/data/import
@@ -332,16 +328,18 @@ services:
       "-x",
       "run"
     ]
-    env_file:
-      - .env
     environment:
-      ROCKET_ADDRESS: "0.0.0.0"
-      ROCKET_PORT: "8400"
-      RUSTFLAGS: -Awarnings
+      SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
+      ROCKET_ADDRESS: ${ROCKET_ADDRESS}
+      ROCKET_PORT: ${HARVEST_PORT}
+      RUSTFLAGS: ${RUSTFLAGS}
+      IMMUDB_USER: ${IMMUDB_USER}
+      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-     - 8400:8000
+     - ${HARVEST_PORT}:${HARVEST_PORT}
 
   trustee1:
     profiles: ["full"]
@@ -355,12 +353,12 @@ services:
       context: ../packages/
       dockerfile: ./braid/Dockerfile
     environment:
-        IMMUDB_USER: immudb
-        IMMUDB_PASSWORD: immudb
-        IMMUDB_URL: http://immudb:3322
-        IMMUDB_INDEX_DB: indexdb
-        TRUSTEE_CONFIG: /opt/braid/trustee1.toml
-        IGNORE_BOARDS: tenanttest,tenant90505c8a23a94cdfa26b4e19f6a097d5eventda4f7c9afd044da2a3afb032e80c1d7c
+        IMMUDB_USER: ${IMMUDB_USER}
+        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+        IMMUDB_URL: ${IMMUDB_SERVER_URL}
+        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+        TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
     depends_on:
       - immudb
   
@@ -378,12 +376,12 @@ services:
       - trustee1
       - immudb
     environment:
-        IMMUDB_USER: immudb
-        IMMUDB_PASSWORD: immudb
-        IMMUDB_URL: http://immudb:3322
-        IMMUDB_INDEX_DB: indexdb
-        TRUSTEE_CONFIG: /opt/braid/trustee2.toml
-        IGNORE_BOARDS: tenanttest,tenant90505c8a23a94cdfa26b4e19f6a097d5eventda4f7c9afd044da2a3afb032e80c1d7c
+        IMMUDB_USER: ${IMMUDB_USER}
+        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+        IMMUDB_URL: ${IMMUDB_SERVER_URL}
+        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+        TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
 
   # Create collection in immudb
   immudb-log-audit-init:
