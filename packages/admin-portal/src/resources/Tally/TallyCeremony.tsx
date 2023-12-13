@@ -84,6 +84,7 @@ export const TallyCeremony: React.FC = () => {
         },
         {
             refetchInterval: 5000,
+            refetchIntervalInBackground: true,
         }
     )
 
@@ -272,8 +273,7 @@ export const TallyCeremony: React.FC = () => {
                                 <WizardStyles.CeremonyStatus
                                     sx={{
                                         backgroundColor: statusColor(
-                                            tally?.execution_status ??
-                                                ITallyExecutionStatus.NOT_STARTED
+                                            tally?.execution_status ?? ITallyExecutionStatus.STARTED
                                         ),
                                         color: theme.palette.background.default,
                                     }}
@@ -379,8 +379,7 @@ export const TallyCeremony: React.FC = () => {
                                 <WizardStyles.CeremonyStatus
                                     sx={{
                                         backgroundColor: statusColor(
-                                            tally?.execution_status ??
-                                                ITallyExecutionStatus.NOT_STARTED
+                                            tally?.execution_status ?? ITallyExecutionStatus.STARTED
                                         ),
                                         color: theme.palette.background.default,
                                     }}

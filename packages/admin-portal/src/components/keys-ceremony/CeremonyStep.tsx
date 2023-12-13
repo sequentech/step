@@ -26,6 +26,7 @@ import TableContainer from "@mui/material/TableContainer"
 import TableHead from "@mui/material/TableHead"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
+import {useGetOne} from "react-admin"
 
 export const statusColor: (status: string) => string = (status) => {
     if (status == EStatus.NOT_STARTED) {
@@ -56,11 +57,22 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     goBack,
     goNext,
 }) => {
-    console.log(`ceremony step with currentCeremony.id=${currentCeremony?.id ?? null}`)
     const {t} = useTranslation()
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [progressExpanded, setProgressExpanded] = useState(true)
     const [logsExpanded, setLogsExpanded] = useState(true)
+
+    console.log(`ceremony step with currentCeremony.id=${currentCeremony?.id ?? null}`)
+
+    const {data: ceremony} = useGetOne<Sequent_Backend_Keys_Ceremony>(
+        "sequent_backend_keys_ceremony",
+        {
+            id: currentCeremony?.id ?? null,
+        },
+        {
+            refetchInterval: 5000,
+        }
+    )
 
     const confirmCancelCeremony = () => {}
     //const cancellable = () => {
@@ -69,7 +81,8 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     //        currentCeremony?.execution_status == EStatus.IN_PROCESS
     //    )
     //}
-    const status: IExecutionStatus = currentCeremony?.status
+    // const status: IExecutionStatus = currentCeremony?.status
+    const status: IExecutionStatus = ceremony?.status
 
     return (
         <>
@@ -87,14 +100,14 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         <WizardStyles.CeremonyStatus
                             sx={{
                                 backgroundColor: statusColor(
-                                    currentCeremony?.execution_status ?? EStatus.NOT_STARTED
+                                    ceremony?.execution_status ?? EStatus.NOT_STARTED
                                 ),
                                 color: theme.palette.background.default,
                             }}
                             label={t("keysGeneration.ceremonyStep.executionStatus", {
                                 status: electionEvent.public_key
                                     ? EStatus.IN_PROCESS
-                                    : currentCeremony?.execution_status,
+                                    : ceremony?.execution_status,
                             })}
                         />
                     </AccordionSummary>

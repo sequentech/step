@@ -79,6 +79,10 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
 
     useEffect(() => {
         if (trusteesData) {
+
+            console.log("trusteesData   ", trusteesData)
+            
+
             const importadas = trusteesData.filter((election) => election.active).length
             setKeysImported(importadas)
 
