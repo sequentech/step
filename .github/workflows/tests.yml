@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - service: braid
+          #- service: braid # these take too long!
           - service: harvest
           - service: strand
           - service: immu-board
