@@ -9,7 +9,7 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 import {useTranslation} from "react-i18next"
-import { useTenantStore } from '@/providers/TenantContextProvider'
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 interface TallyElectionsListProps {
     electionEventId: string
@@ -72,7 +72,11 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             flex: 1,
             editable: true,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
-                <Checkbox checked={disabled ? true : props.value} disabled={disabled} onChange={() => handleConfirmChange(props.row)} />
+                <Checkbox
+                    checked={disabled ? true : props.value}
+                    disabled={disabled}
+                    onChange={() => handleConfirmChange(props.row)}
+                />
             ),
         },
     ]

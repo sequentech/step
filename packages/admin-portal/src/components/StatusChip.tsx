@@ -1,7 +1,7 @@
 import React from "react"
 import {ITallyExecutionStatus} from "@/types/ceremonies"
 import styled from "@emotion/styled"
-import { statusColor } from '@/resources/Tally/constants'
+import {statusColor} from "@/resources/Tally/constants"
 
 interface TrusteeItemsProps {
     status: string

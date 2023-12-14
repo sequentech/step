@@ -1,4 +1,4 @@
 export enum EPublishType {
-    Event = 'event',
-    Election = 'election'
+    Event = "event",
+    Election = "election",
 }

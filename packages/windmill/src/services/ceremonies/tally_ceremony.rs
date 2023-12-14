@@ -402,7 +402,9 @@ pub async fn update_tally_ceremony(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session.id.clone(),
-    ).await? else {
+    )
+    .await?
+    else {
         return Err(anyhow!("Can't find last execution status"));
     };
 
@@ -478,8 +480,12 @@ pub async fn set_private_key(
         tenant_id.to_string(),
         election_event_id.to_string(),
         tally_session_id.to_string(),
-    ).await? else {
-        return Err(anyhow!("Can't find tally session or tally session execution"))
+    )
+    .await?
+    else {
+        return Err(anyhow!(
+            "Can't find tally session or tally session execution"
+        ));
     };
 
     // get the keys ceremonies for this election event

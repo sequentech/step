@@ -1,5 +1,5 @@
-import { ITallyElectionStatus, ITallyExecutionStatus } from '@/types/ceremonies'
-import { theme } from '@sequentech/ui-essentials'
+import {ITallyElectionStatus, ITallyExecutionStatus} from "@/types/ceremonies"
+import {theme} from "@sequentech/ui-essentials"
 
 export const JSON_MOCK = [
     {

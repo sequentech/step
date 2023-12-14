@@ -18,9 +18,8 @@ export const EditElectionEventTally: React.FC = () => {
     const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)
     const {tallyId, isTrustee, isCreating, isCreated} = useElectionEventTallyStore()
 
-    console.log("EditElectionEventTally :: tallyId ::  ", tallyId);
-    console.log("EditElectionEventTally :: isCreating ::  ", isCreating);
-      
+    console.log("EditElectionEventTally :: tallyId ::  ", tallyId)
+    console.log("EditElectionEventTally :: isCreating ::  ", isCreating)
 
     return (
         <Box>
@@ -31,13 +30,7 @@ export const EditElectionEventTally: React.FC = () => {
             />
 
             {isCreating || isCreated || tallyId ? (
-                <>
-                    {!isTrustee ? (
-                        <TallyCeremony   />
-                    ) : (
-                        <TallyCeremonyTrustees />
-                    )}
-                </>
+                <>{!isTrustee ? <TallyCeremony /> : <TallyCeremonyTrustees />}</>
             ) : (
                 <ListTally recordTally={recordTally} />
             )}

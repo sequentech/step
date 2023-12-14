@@ -8,9 +8,9 @@ use keycloak::types::{CredentialRepresentation, UserRepresentation};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
+use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
-use tokio_postgres::row::Row;
 
 impl User {
     pub fn get_mobile_phone(&self) -> Option<String> {
@@ -60,7 +60,6 @@ impl From<UserRepresentation> for User {
         }
     }
 }
-
 
 impl From<User> for UserRepresentation {
     fn from(item: User) -> Self {

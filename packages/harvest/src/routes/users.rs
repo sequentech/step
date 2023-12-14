@@ -15,13 +15,12 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::instrument;
-use windmill::services::users::list_users;
 use windmill::services::database::get_database_pool;
+use windmill::services::users::list_users;
 
 use crate::services::authorization::authorize;
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {
@@ -151,7 +150,10 @@ pub async fn get_users(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let db_client: DbClient = get_database_pool().await.get().await
+    let db_client: DbClient = get_database_pool()
+        .await
+        .get()
+        .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     let (users, count) = list_users(
@@ -165,7 +167,7 @@ pub async fn get_users(
         input.email,
         input.limit,
         input.offset,
-        /*user_ids = */ None,
+        /* user_ids = */ None,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

@@ -14,10 +14,10 @@ use std::convert::From;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime};
-use tokio_postgres::types::{BorrowToSql, ToSql, Type as SqlType};
-use tokio_postgres::row::Row;
 use crate::services::database::{get_database_pool, PgConfig};
+use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime};
+use tokio_postgres::row::Row;
+use tokio_postgres::types::{BorrowToSql, ToSql, Type as SqlType};
 
 #[instrument(skip(auth_headers, admin), err)]
 pub async fn list_users(
@@ -35,11 +35,7 @@ pub async fn list_users(
 ) -> Result<(Vec<User>, i32)> {
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
-    let query_limit: i64 = 
-        std::cmp::min(
-            low_sql_limit,
-            limit.unwrap_or(default_sql_limit)
-        ).into();
+    let query_limit: i64 = std::cmp::min(low_sql_limit, limit.unwrap_or(default_sql_limit)).into();
     let query_offset: i64 = if let Some(offset_val) = offset {
         offset_val.into()
     } else {
@@ -92,17 +88,14 @@ pub async fn list_users(
         "#,
     ).await?;
     let rows: Vec<Row> = db_client
-        .query(
-            &statement,
-            &[
-                &realm,
-                &email,
-                &query_limit,
-                &query_offset,
-            ]
-        ).await
+        .query(&statement, &[&realm, &email, &query_limit, &query_offset])
+        .await
         .map_err(|err| anyhow!("{}", err))?;
-    event!(Level::INFO, "Count rows {} for realm={realm}, query_limit={query_limit}", rows.len());
+    event!(
+        Level::INFO,
+        "Count rows {} for realm={realm}, query_limit={query_limit}",
+        rows.len()
+    );
 
     // all rows contain the count and if there's no rows well, count is clearly
     // zero

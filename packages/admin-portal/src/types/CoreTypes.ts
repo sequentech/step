@@ -4,9 +4,9 @@
 
 export enum EVotingStatus {
     NOT_STARTED = "NOT_STARTED",
-    OPEN ="OPEN",
-    PAUSED ="PAUSED",
-    CLOSED ="CLOSED",
+    OPEN = "OPEN",
+    PAUSED = "PAUSED",
+    CLOSED = "CLOSED",
 }
 
 export interface IElectionEventStatus {

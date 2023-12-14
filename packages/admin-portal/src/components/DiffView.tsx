@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, {useEffect, useState} from "react"
 
 import styled from "@emotion/styled"
 
@@ -125,7 +125,9 @@ const DiffViewMemo = React.memo(
                                         </DiffViewStyled.Removed>
                                     ) : (
                                         <DiffViewStyled.Line key={index}>
-                                            {line.value === 'null' ? 'Cargando datos ...' : line.value}
+                                            {line.value === "null"
+                                                ? "Cargando datos ..."
+                                                : line.value}
                                         </DiffViewStyled.Line>
                                     )
                                 ) : null
@@ -147,7 +149,9 @@ const DiffViewMemo = React.memo(
                                             </DiffViewStyled.Added>
                                         ) : (
                                             <DiffViewStyled.Line key={index}>
-                                                {line.value === 'null' ? 'Cargando datos ...' : line.value}
+                                                {line.value === "null"
+                                                    ? "Cargando datos ..."
+                                                    : line.value}
                                             </DiffViewStyled.Line>
                                         )
                                     ) : null

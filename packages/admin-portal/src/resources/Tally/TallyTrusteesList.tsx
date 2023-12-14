@@ -147,11 +147,9 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
                         sx={{
                             height: "100%",
                             color:
-                                (
-                                    tally?.execution_status === ITallyExecutionStatus.CONNECTED ||
-                                    tally?.execution_status === ITallyExecutionStatus.IN_PROGRESS ||
-                                    tally?.execution_status === ITallyExecutionStatus.SUCCESS
-                                )
+                                tally?.execution_status === ITallyExecutionStatus.CONNECTED ||
+                                tally?.execution_status === ITallyExecutionStatus.IN_PROGRESS ||
+                                tally?.execution_status === ITallyExecutionStatus.SUCCESS
                                     ? "#43E3A1"
                                     : "#d32f2f",
                         }}
