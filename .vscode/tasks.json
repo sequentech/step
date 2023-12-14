@@ -110,7 +110,7 @@
             },
             "isBackground": true,
             "runOptions": {
-                "runOn": "folderOpen"
+                "runOn": "default"
             },
             "problemMatcher": []
         },
