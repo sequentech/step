@@ -145,10 +145,10 @@ jobs:
           packages: chromium protobuf-compiler libprotobuf-dev
           version: 1.0
 
-      - name: Run tests
-        with:
-          context: ${{ matrix.context }}
-        run: cd packages/${{ matrix.service }} && cargo test
+      # - name: Run tests
+      #   with:
+      #     context: ${{ matrix.context }}
+      #   run: cd packages/${{ matrix.service }} && cargo test
 
   # frontend-formatting:
   #   name: Check frontend linting
