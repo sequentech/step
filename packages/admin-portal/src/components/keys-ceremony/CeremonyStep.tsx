@@ -134,7 +134,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {status?.trustees?.map((trustee) => (
+git push                                    {status?.trustees?.map((trustee) => (
                                         <TableRow
                                             key={trustee.name as any}
                                             sx={{"&:last-child td, &:last-child th": {border: 0}}}
