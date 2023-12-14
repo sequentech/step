@@ -36,10 +36,10 @@ const Dialog: React.FC<DialogProps> = ({
     okEnabled,
     variant,
 }) => {
-    const okVariant = "primary"
+    const okVariant = "info" === variant ? "primary" : "solidWarning"
     const faIcon = "info" === variant ? faInfoCircle : faExclamationTriangle
     const infoVariant = "action" === variant ? "error" : variant
-    const cancelVariant = "info" === variant ? "cancel" : "solidWarning"
+    const cancelVariant = "cancel"
     const closeDialog = () => handleClose(false)
     const clickOk = () => handleClose(true)
 

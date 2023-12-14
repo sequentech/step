@@ -140,7 +140,6 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                 variant="info"
                 open={openConfirmationModal}
                 ok={t("keysGeneration.downloadStep.confirmdDialog.ok")}
-                okEnabled={() => firstCheckbox && secondCheckbox}
                 cancel={t("keysGeneration.downloadStep.confirmdDialog.cancel")}
                 title={t("keysGeneration.downloadStep.confirmdDialog.title")}
                 handleClose={(result: boolean) => {
