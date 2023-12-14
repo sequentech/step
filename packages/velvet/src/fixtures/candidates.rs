@@ -10,7 +10,7 @@ pub fn get_candidate_0(
     contest_id: &Uuid,
 ) -> Candidate {
     Candidate {
-        id: Uuid::new_v4().to_string(),
+        id: "0".to_string(),
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
@@ -36,7 +36,7 @@ pub fn get_candidate_1(
     contest_id: &Uuid,
 ) -> Candidate {
     Candidate {
-        id: Uuid::new_v4().to_string(),
+        id: "1".to_string(),
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
@@ -62,7 +62,7 @@ pub fn get_candidate_2(
     contest_id: &Uuid,
 ) -> Candidate {
     Candidate {
-        id: Uuid::new_v4().to_string(),
+        id: "2".to_string(),
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
@@ -88,7 +88,7 @@ pub fn get_candidate_3(
     contest_id: &Uuid,
 ) -> Candidate {
     Candidate {
-        id: Uuid::new_v4().to_string(),
+        id: "3".to_string(),
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
@@ -114,7 +114,7 @@ pub fn get_candidate_4(
     contest_id: &Uuid,
 ) -> Candidate {
     Candidate {
-        id: Uuid::new_v4().to_string(),
+        id: "4".to_string(),
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
@@ -140,7 +140,7 @@ pub fn get_candidate_5(
     contest_id: &Uuid,
 ) -> Candidate {
     Candidate {
-        id: Uuid::new_v4().to_string(),
+        id: "5".to_string(),
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
