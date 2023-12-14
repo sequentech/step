@@ -107,7 +107,7 @@ jobs:
       - name: Check Rust code formatting
         with:
           context: ${{ matrix.context }}
-          run: cd packages/${{ matrix.service }} && cargo fmt -- --check
+        run: cd packages/${{ matrix.service }} && cargo fmt -- --check
 
   rust-ci:
     name: Run Rust tests
@@ -148,7 +148,7 @@ jobs:
       - name: Run tests
         with:
           context: ${{ matrix.context }}
-          run: cd packages && cargo test
+        run: cd packages/${{ matrix.service }} && cargo test
 
   frontend-formatting:
     name: Check frontend linting
