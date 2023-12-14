@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 mod areas;
-mod ballot_styles;
+pub mod ballot_styles;
 mod candidates;
 mod contests;
 pub mod elections;

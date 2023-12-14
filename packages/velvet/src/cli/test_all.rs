@@ -7,6 +7,7 @@ mod tests {
     use crate::cli::state::State;
     use crate::cli::CliRun;
     use crate::fixtures;
+    use crate::fixtures::ballot_styles::generate_ballot_style;
     use crate::fixtures::TestFixture;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
     use crate::pipes::do_tally::OUTPUT_CONTEST_RESULT_FILE;
@@ -37,7 +38,9 @@ mod tests {
         let election_event_id = Uuid::new_v4();
 
         (0..election_num).try_for_each(|_| {
-            let election = fixture.create_election_config(&election_event_id)?;
+            let mut election = fixture.create_election_config(&election_event_id)?;
+            election.ballot_styles.clear();
+
             (0..contest_num).try_for_each(|_| {
                 let contest = fixture.create_contest_config(
                     &election.tenant_id,
@@ -47,6 +50,14 @@ mod tests {
                 (0..area_num).try_for_each(|index| {
                     let uuid_area = fixture
                         .create_area_dir(&election.id, &Uuid::from_str(&contest.id).unwrap())?;
+
+                    election.ballot_styles.push(generate_ballot_style(
+                        &election.tenant_id,
+                        &election.election_event_id,
+                        &election.id,
+                        &uuid_area,
+                        vec![contest.clone()],
+                    ));
 
                     let file = fixture
                         .input_dir_ballots
