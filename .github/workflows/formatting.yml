@@ -3,7 +3,7 @@ name: Linting and Formatting
 on:
   pull_request:
 
-  rust-formatting:
+  frontend-formatting:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code

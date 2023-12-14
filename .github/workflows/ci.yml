@@ -73,7 +73,7 @@ jobs:
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
         build-args: SPA_NAME=${{ matrix.spa_name }}
 
-  rust-formatting:
+  frontend-formatting:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
