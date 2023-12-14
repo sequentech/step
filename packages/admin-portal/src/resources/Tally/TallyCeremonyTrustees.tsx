@@ -17,7 +17,7 @@ import styled from "@emotion/styled"
 import {TallyElectionsList} from "./TallyElectionsList"
 import {TallyTrusteesList} from "./TallyTrusteesList"
 import {TallyStyles} from "@/components/styles/TallyStyles"
-import {useGetList, useGetOne} from "react-admin"
+import {useGetList, useGetOne, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {RESTORE_PRIVATE_KEY} from "@/queries/RestorePrivateKey"
 import {useMutation} from "@apollo/client"
@@ -26,6 +26,7 @@ import {faKey} from "@fortawesome/free-solid-svg-icons"
 import {Box} from "@mui/material"
 import {
     RestorePrivateKeyMutation,
+    Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
 } from "@/gql/graphql"
@@ -38,6 +39,8 @@ const WizardSteps = {
 }
 
 export const TallyCeremonyTrustees: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+
     const {t} = useTranslation()
     const {tallyId, setTallyId} = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
@@ -195,6 +198,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                         />
 
                         <TallyElectionsList
+                            electionEventId={record?.id}
                             disabled={true}
                             update={(elections) => setSelectedElections(elections)}
                         />
@@ -232,6 +236,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
                         />
 
                         <TallyElectionsList
+                            electionEventId={record?.id}
                             disabled={true}
                             update={(elections) => setSelectedElections(elections)}
                         />

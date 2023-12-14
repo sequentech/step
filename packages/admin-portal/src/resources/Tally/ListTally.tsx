@@ -75,6 +75,7 @@ export interface ListAreaProps {
 
 export const ListTally: React.FC<ListAreaProps> = (props) => {
     const {recordTally} = props
+
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const {canAdminCeremony, canTrusteeCeremony} = useActionPermissions()
@@ -117,10 +118,12 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         }
     )
 
+    console.log("ListTally :: record ::  ", record)
+
     const CreateButton = () => (
         <Button
             onClick={() => setCreatingFlag(true)}
-            disabled={!keysCeremonies || keysCeremonies?.length > 0}
+            disabled={!record?.status && !record?.status?.keys_ceremony_finished}
         >
             <IconButton icon={faPlus} fontSize="24px" />
             {t("electionEventScreen.tally.create.createButton")}
@@ -235,7 +238,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         }
     }
     let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
-
 
     return (
         <>

@@ -224,6 +224,7 @@ export const TallyCeremony: React.FC = () => {
 
                         <TallyElectionsList
                             update={(elections) => setSelectedElections(elections)}
+                            electionEventId={record?.id}
                         />
                     </>
                 )}
@@ -231,6 +232,7 @@ export const TallyCeremony: React.FC = () => {
                 {page === WizardSteps.Ceremony && (
                     <>
                         <TallyElectionsList
+                            electionEventId={record?.id}
                             disabled={true}
                             update={(elections) => setSelectedElections(elections)}
                         />

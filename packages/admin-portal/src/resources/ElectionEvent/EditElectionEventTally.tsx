@@ -22,7 +22,7 @@ export const EditElectionEventTally: React.FC = () => {
 
     console.log("EditElectionEventTally :: tallyId ::  ", tallyId);
     console.log("EditElectionEventTally :: isCreating ::  ", isCreating);
-    
+      
 
     return (
         <Box>

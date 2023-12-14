@@ -9,16 +9,19 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 import {useTranslation} from "react-i18next"
+import { useTenantStore } from '@/providers/TenantContextProvider'
 
 interface TallyElectionsListProps {
+    electionEventId: string
     disabled?: boolean
     update: (elections: Array<string>) => void
 }
 
 export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => {
-    const {disabled, update} = props
+    const {disabled, update, electionEventId} = props
 
     const {tallyId} = useElectionEventTallyStore()
+    const [tenantId] = useTenantStore()
     const {t} = useTranslation()
 
     const [electionsData, setElectionsData] = useState<
@@ -31,7 +34,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
 
     const {data: elections} = useGetList("sequent_backend_election", {
         pagination: {page: 1, perPage: 9999},
-        filter: {election_event_id: data?.election_event_id, tenant_id: data?.tenant_id},
+        filter: {election_event_id: electionEventId, tenant_id: tenantId},
     })
 
     useEffect(() => {
