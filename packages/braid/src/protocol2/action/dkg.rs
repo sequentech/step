@@ -1,8 +1,8 @@
 #![allow(clippy::too_many_arguments)]
 use super::*;
 use anyhow::anyhow;
-use anyhow::Result;
 use anyhow::Context;
+use anyhow::Result;
 use board_messages::braid::artifact::Channel;
 use strand::elgamal::PublicKey;
 use strand::zkp::Zkp;

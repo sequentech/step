@@ -1,5 +1,5 @@
 use anyhow::Result;
-use immu_board::{BoardMessage, BoardClient};
+use immu_board::{BoardClient, BoardMessage};
 use log::info;
 use rand::seq::SliceRandom;
 use rand::Rng;
@@ -13,7 +13,7 @@ use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
-use board_messages::braid::artifact::{Ballots, Configuration, Plaintexts, DkgPublicKey};
+use board_messages::braid::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
 use board_messages::braid::message::Message;
 use board_messages::braid::newtypes::PublicKeyHash;
 use board_messages::braid::newtypes::MAX_TRUSTEES;
@@ -44,12 +44,16 @@ pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
         .choose_multiple(&mut rng, n_threshold)
         .cloned()
         .collect();
-    
+
     let now = instant::Instant::now();
-    
-    let test = create_protocol_test_immudb(n_trustees, &threshold, ctx).await.unwrap();
-    run_protocol_test_immudb(test, ciphertexts, batches, &threshold).await.unwrap();
-    
+
+    let test = create_protocol_test_immudb(n_trustees, &threshold, ctx)
+        .await
+        .unwrap();
+    run_protocol_test_immudb(test, ciphertexts, batches, &threshold)
+        .await
+        .unwrap();
+
     let time = now.elapsed().as_millis() as f64 / 1000.0;
     info!(
         "batches = {}, time = {}, rate = {}",
@@ -77,11 +81,12 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
     let ctx = test.ctx.clone();
     let mut sessions = vec![];
 
-    let pk_strings: Vec<String> = test.trustees.iter().map(|t| {
-        t.get_pk().unwrap().to_der_b64_string().unwrap()
-    })
-    .collect();
-    
+    let pk_strings: Vec<String> = test
+        .trustees
+        .iter()
+        .map(|t| t.get_pk().unwrap().to_der_b64_string().unwrap())
+        .collect();
+
     for t in test.trustees.into_iter() {
         let board = ImmudbBoard::new(
             SERVER_URL,
@@ -89,11 +94,15 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
             IMMUDB_PW,
             BOARD_DB.to_string(),
             None,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
         sessions.push(Session::new(t, board));
     }
 
-    let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb").await.unwrap();
+    let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb")
+        .await
+        .unwrap();
 
     let mut dkg_pk_message: Vec<BoardMessage> = vec![];
     let count = ciphertexts;
@@ -105,18 +114,22 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
         info!("Cycle {}", i);
 
         // See https://stackoverflow.com/questions/63434977/how-can-i-spawn-asynchronous-methods-in-a-loop
-        let handles: Vec<_> = sessions.into_iter().map(|s| tokio::spawn(async {
-            s.step().await
-        }))
-        .collect();
+        let handles: Vec<_> = sessions
+            .into_iter()
+            .map(|s| tokio::spawn(async { s.step().await }))
+            .collect();
         sessions = vec![];
         for h in handles {
             let session = h.await.unwrap().unwrap();
             sessions.push(session);
         }
-        
-        
-        dkg_pk_message = b.get_messages_from_kind(BOARD_DB, &StatementType::PublicKey.to_string(), &pk_strings[0])
+
+        dkg_pk_message = b
+            .get_messages_from_kind(
+                BOARD_DB,
+                &StatementType::PublicKey.to_string(),
+                &pk_strings[0],
+            )
             .await
             .unwrap();
 
@@ -132,11 +145,9 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
     let dkg_pk = DkgPublicKey::<C>::strand_deserialize(&pk_bytes).unwrap();
     let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &test.ctx);
 
-
     let mut plaintexts_in = vec![];
     let mut rng = ctx.get_rng();
-    
-    
+
     for i in 0..batches {
         info!("Generating {} plaintexts..", count);
         let next_p: Vec<C::P> = (0..count).map(|_| ctx.rnd_plaintext(&mut rng)).collect();
@@ -169,18 +180,23 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
     for i in 0..60 {
         info!("Cycle {}", i);
 
-        let handles: Vec<_> = sessions.into_iter().map(|s| tokio::spawn(async {
-            s.step().await
-        }))
-        .collect();
-    
+        let handles: Vec<_> = sessions
+            .into_iter()
+            .map(|s| tokio::spawn(async { s.step().await }))
+            .collect();
+
         sessions = vec![];
         for h in handles {
             let session = h.await.unwrap().unwrap();
             sessions.push(session);
         }
 
-        plaintexts_out = b.get_messages_from_kind(BOARD_DB, &StatementType::Plaintexts.to_string(), &pk_strings[selected_trustees[0] - 1])
+        plaintexts_out = b
+            .get_messages_from_kind(
+                BOARD_DB,
+                &StatementType::Plaintexts.to_string(),
+                &pk_strings[selected_trustees[0] - 1],
+            )
             .await
             .unwrap();
 
@@ -195,9 +211,9 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
         let batch = message.statement.get_batch_number();
         let plaintexts = Plaintexts::<C>::strand_deserialize(&message.artifact.unwrap()).unwrap();
         let expected: HashSet<C::P> = HashSet::from_iter(plaintexts_in[batch - 1].clone());
-        let actual :HashSet<C::P> = HashSet::from_iter(plaintexts.0.clone().0);
+        let actual: HashSet<C::P> = HashSet::from_iter(plaintexts.0.clone().0);
         info!("expected {} actual {}", expected.len(), actual.len());
-        
+
         assert!(expected == actual);
         info!("Match ok on plaintexts for batch {}", batch);
     }
@@ -217,7 +233,6 @@ pub async fn create_protocol_test_immudb<C: Ctx>(
     threshold: &[usize],
     ctx: C,
 ) -> Result<ProtocolTestImmudb<C>> {
-
     let pmkey: StrandSignatureSk = StrandSignatureSk::gen()?;
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
@@ -241,15 +256,17 @@ pub async fn create_protocol_test_immudb<C: Ctx>(
         PhantomData,
     );
 
-    let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb").await.unwrap();
+    let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb")
+        .await
+        .unwrap();
 
     // In case the previous test did not clean up properly
     b.delete_database(INDEX_DB).await.unwrap();
     b.delete_database(BOARD_DB).await.unwrap();
-        
+
     b.upsert_index_db(INDEX_DB).await.unwrap();
     b.create_board(INDEX_DB, BOARD_DB).await.unwrap();
-    
+
     let message = Message::bootstrap_msg(&cfg, &pm)?;
     let bm: Result<BoardMessage> = message.try_into();
     let messages = vec![bm.unwrap()];

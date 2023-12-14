@@ -1,10 +1,10 @@
 use anyhow::{anyhow, Result};
-use borsh::{BorshSerialize, BorshDeserialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 
 use immu_board::BoardMessage;
+use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
-use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignatureSk;
 
 use crate::electoral_log::statement::Statement;
@@ -24,21 +24,39 @@ pub struct Message {
     pub artifact: Option<Vec<u8>>,
 }
 impl Message {
-    pub fn cast_vote_message(context: ContextHash, contest_h: ContestHash, pseudonym_h: PseudonymHash, vote_h: CastVoteHash, sd: &SigningData) -> Result<Self> {
+    pub fn cast_vote_message(
+        context: ContextHash,
+        contest_h: ContestHash,
+        pseudonym_h: PseudonymHash,
+        vote_h: CastVoteHash,
+        sd: &SigningData,
+    ) -> Result<Self> {
         let body = StatementBody::CastVote(contest_h, pseudonym_h, vote_h);
         let head = StatementHead::from_body(context, &body);
         let statement = Statement::new(head, body);
 
-        Message::sign(statement, None, &sd.sender_sk, &sd.sender_name, &sd.system_sk)
+        Message::sign(
+            statement,
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+        )
     }
-    
-    pub fn sign(statement: Statement, artifact: Option<Vec<u8>>, sender_sk: &StrandSignatureSk, sender_name: &str, system_sk: &StrandSignatureSk) -> Result<Message> {
+
+    pub fn sign(
+        statement: Statement,
+        artifact: Option<Vec<u8>>,
+        sender_sk: &StrandSignatureSk,
+        sender_name: &str,
+        system_sk: &StrandSignatureSk,
+    ) -> Result<Message> {
         let bytes = statement.strand_serialize()?;
         let sender_signature: StrandSignature = sender_sk.sign(&bytes)?;
         let system_signature: StrandSignature = system_sk.sign(&bytes)?;
         let sender_pk = StrandSignaturePk::from_sk(&sender_sk)?;
         let sender = Sender::new(sender_name.to_string(), sender_pk);
-        
+
         Ok(Message {
             sender,
             sender_signature,
@@ -54,7 +72,6 @@ impl Message {
         system_pk.verify(&self.system_signature, &bytes)?;
 
         Ok(())
-
     }
 }
 
@@ -88,12 +105,17 @@ pub struct SigningData {
     sender_sk: StrandSignatureSk,
     sender_name: String,
     system_sk: StrandSignatureSk,
-    
 }
 impl SigningData {
-    pub fn new(sender_sk: StrandSignatureSk, sender_name: &str, system_sk: StrandSignatureSk) -> SigningData {
-        SigningData { 
-            sender_sk, sender_name: sender_name.to_string(), system_sk 
+    pub fn new(
+        sender_sk: StrandSignatureSk,
+        sender_name: &str,
+        system_sk: StrandSignatureSk,
+    ) -> SigningData {
+        SigningData {
+            sender_sk,
+            sender_name: sender_name.to_string(),
+            system_sk,
         }
     }
 }

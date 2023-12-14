@@ -1,4 +1,4 @@
-use borsh::{BorshSerialize, BorshDeserialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 use strum::Display;
 
 use crate::electoral_log::newtypes::*;
@@ -10,10 +10,7 @@ pub struct Statement {
 }
 impl Statement {
     pub fn new(head: StatementHead, body: StatementBody) -> Statement {
-        Statement {
-            head,
-            body,
-        }
+        Statement { head, body }
     }
 }
 
@@ -21,7 +18,7 @@ impl Statement {
 pub struct StatementHead {
     pub context: ContextHash,
     pub kind: StatementType,
-    pub timestamp: Timestamp
+    pub timestamp: Timestamp,
 }
 impl StatementHead {
     pub fn from_body(context: ContextHash, body: &StatementBody) -> Self {
