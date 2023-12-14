@@ -3,6 +3,7 @@ name: Linting and Formatting
 on:
   pull_request:
 
+jobs:
   rust-ci:
     name: Run Rust tests
     runs-on: ubuntu-latest

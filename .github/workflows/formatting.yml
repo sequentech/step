@@ -3,6 +3,7 @@ name: Linting and Formatting
 on:
   pull_request:
 
+jobs:
   frontend-formatting:
     name: Check frontend linting
     runs-on: ubuntu-latest
