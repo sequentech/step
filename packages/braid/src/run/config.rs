@@ -17,11 +17,14 @@ impl TrusteeConfig {
     pub fn from<C: Ctx>(trustee: &Trustee<C>) -> TrusteeConfig {
         let sk_string = trustee.signing_key.to_der_b64_string().unwrap();
 
-       /*let pk_bytes = StrandSignaturePk::from(&trustee.signing_key)
+        /*let pk_bytes = StrandSignaturePk::from(&trustee.signing_key)
+        .unwrap()
+        .strand_serialize()
+        .unwrap();*/
+        let pk_string = StrandSignaturePk::from_sk(&trustee.signing_key)
             .unwrap()
-            .strand_serialize()
-            .unwrap();*/
-        let pk_string = StrandSignaturePk::from_sk(&trustee.signing_key).unwrap().to_der_b64_string().unwrap();
+            .to_der_b64_string()
+            .unwrap();
 
         // Compatible with both aes and chacha20poly backends
         let ek_bytes = trustee.encryption_key.as_slice();

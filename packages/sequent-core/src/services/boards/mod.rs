@@ -1,2 +1,2 @@
-mod electoral_log;
 mod braid;
+mod electoral_log;

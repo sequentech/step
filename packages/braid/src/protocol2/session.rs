@@ -37,7 +37,7 @@ impl<C: Ctx> Session<C> {
 
         if 0 == messages.len() {
             info!("No messages in board, no action taken");
-            return Ok(self)
+            return Ok(self);
         }
 
         let (send_messages, _actions) = self.trustee.step(messages)?;
@@ -47,7 +47,7 @@ impl<C: Ctx> Session<C> {
                 Ok(_) => (),
                 Err(err) => {
                     warn!("Insert messages returns error {:?}", err)
-                },
+                }
             }
         }
 

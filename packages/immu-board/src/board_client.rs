@@ -14,7 +14,7 @@ impl Table {
     fn as_str(&self) -> &'static str {
         match self {
             Table::BraidMessages => "braid_messages",
-            Table::ElectoralLogMessages => "electoral_log_messages"
+            Table::ElectoralLogMessages => "electoral_log_messages",
         }
     }
 }
@@ -72,7 +72,9 @@ impl TryFrom<&Row> for BoardMessage {
         let mut message = vec![];
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             // FIXME for some reason columns names appear with parentheses
-            let dot =  column.find('.').ok_or(anyhow!("invalid column found '{}'", column.as_str()))?;
+            let dot = column
+                .find('.')
+                .ok_or(anyhow!("invalid column found '{}'", column.as_str()))?;
             let bare_column = &column[dot + 1..column.len() - 1];
 
             match bare_column {
@@ -124,11 +126,7 @@ impl TryFrom<&Row> for Board {
 
 impl BoardClient {
     #[instrument(skip(password))]
-    pub async fn new(
-        server_url: &str,
-        username: &str,
-        password: &str,
-    ) -> Result<BoardClient> {
+    pub async fn new(server_url: &str, username: &str, password: &str) -> Result<BoardClient> {
         let mut client = Client::new(&server_url, username, password).await?;
         client.login().await?;
 
@@ -151,7 +149,7 @@ impl BoardClient {
     ) -> Result<Vec<BoardMessage>> {
         self.get(board_db, Table::ElectoralLogMessages, 0).await
     }
-    
+
     /// Get all messages whose id is bigger than `last_id`
     async fn get(
         &mut self,
@@ -175,14 +173,12 @@ impl BoardClient {
             table.as_str()
         );
 
-        let params = vec![
-            NamedParam {
-                name: String::from("last_id"),
-                value: Some(SqlValue {
-                    value: Some(Value::N(last_id))
-                }),
-            },
-        ];
+        let params = vec![NamedParam {
+            name: String::from("last_id"),
+            value: Some(SqlValue {
+                value: Some(Value::N(last_id)),
+            }),
+        }];
 
         let sql_query_response = self.client.sql_query(&sql, params).await?;
         let messages = sql_query_response
@@ -191,7 +187,7 @@ impl BoardClient {
             .iter()
             .map(BoardMessage::try_from)
             .collect::<Result<Vec<BoardMessage>>>()?;
-        
+
         Ok(messages)
     }
 
@@ -199,18 +195,20 @@ impl BoardClient {
         &mut self,
         board_db: &str,
         kind: &str,
-        sender_pk: &str
+        sender_pk: &str,
     ) -> Result<Vec<BoardMessage>> {
-        self.get_from_kind(board_db, Table::BraidMessages, kind, sender_pk).await
+        self.get_from_kind(board_db, Table::BraidMessages, kind, sender_pk)
+            .await
     }
 
     pub async fn get_electoral_log_messages_from_kind(
         &mut self,
         board_db: &str,
         kind: &str,
-        sender_pk: &str
+        sender_pk: &str,
     ) -> Result<Vec<BoardMessage>> {
-        self.get_from_kind(board_db, Table::ElectoralLogMessages, kind, sender_pk).await
+        self.get_from_kind(board_db, Table::ElectoralLogMessages, kind, sender_pk)
+            .await
     }
 
     /// Get all messages whose id is bigger than `last_id`
@@ -219,7 +217,7 @@ impl BoardClient {
         board_db: &str,
         table: Table,
         kind: &str,
-        sender_pk: &str
+        sender_pk: &str,
     ) -> Result<Vec<BoardMessage>> {
         self.client.use_database(board_db).await?;
         let sql = format!(
@@ -234,7 +232,7 @@ impl BoardClient {
         FROM {}
         WHERE sender_pk = @sender_pk AND statement_kind = @statement_kind;
         "#,
-        table.as_str()
+            table.as_str()
         );
         let params = vec![
             NamedParam {
@@ -258,7 +256,7 @@ impl BoardClient {
             .iter()
             .map(BoardMessage::try_from)
             .collect::<Result<Vec<BoardMessage>>>()?;
-    
+
         Ok(messages)
     }
 
@@ -275,9 +273,10 @@ impl BoardClient {
         board_db: &str,
         messages: &Vec<BoardMessage>,
     ) -> Result<()> {
-        self.insert(board_db, Table::ElectoralLogMessages, messages).await
+        self.insert(board_db, Table::ElectoralLogMessages, messages)
+            .await
     }
-    
+
     async fn insert(
         &mut self,
         board_db: &str,
@@ -295,7 +294,8 @@ impl BoardClient {
 
         let mut sql_results = vec![];
         for message in messages {
-            let message_sql = format!(r#"
+            let message_sql = format!(
+                r#"
                 INSERT INTO {} (
                     created,
                     sender_pk,
@@ -310,7 +310,8 @@ impl BoardClient {
                     @message
                 );
             "#,
-            table.as_str());
+                table.as_str()
+            );
             let params = vec![
                 NamedParam {
                     name: String::from("created"),
@@ -343,21 +344,22 @@ impl BoardClient {
                     }),
                 },
             ];
-            let result = self.client
+            let result = self
+                .client
                 .tx_sql_exec(&message_sql, &transaction_id, params)
                 .await;
             sql_results.push(result);
         }
-        
+
         let commit = self.client.commit(&transaction_id).await;
         self.client.close_session().await?;
-        
+
         // We defer checking on these results until after closing the session
         for result in sql_results {
             result?;
         }
         commit?;
-        
+
         Ok(())
     }
 
@@ -410,18 +412,14 @@ impl BoardClient {
             .iter()
             .map(Board::try_from)
             .collect::<Result<Vec<Board>>>()?;
-        
+
         if boards.len() > 0 {
             Ok(boards[0].clone())
-        }
-        else {
+        } else {
             Err(anyhow!("board name '{}' not found", board_db))
         }
-        
-        
     }
 
-    
     #[instrument(skip(self))]
     pub async fn has_database(&mut self, database_name: &str) -> Result<bool> {
         self.client.has_database(database_name).await
@@ -507,7 +505,8 @@ impl BoardClient {
     }
 
     pub async fn upsert_board_db(&mut self, board_dbname: &str) -> Result<()> {
-        let sql = format!(r#"
+        let sql = format!(
+            r#"
         CREATE TABLE IF NOT EXISTS {} (
             id INTEGER AUTO_INCREMENT,
             created TIMESTAMP,
@@ -527,15 +526,10 @@ impl BoardClient {
             PRIMARY KEY id
         );
         "#,
-        Table::BraidMessages.as_str(),
-        Table::ElectoralLogMessages.as_str()
+            Table::BraidMessages.as_str(),
+            Table::ElectoralLogMessages.as_str()
         );
-       self.upsert_database(
-            board_dbname,
-            &sql,
-            
-        )
-        .await
+        self.upsert_database(board_dbname, &sql).await
     }
 
     pub async fn delete_database(&mut self, database_name: &str) -> Result<()> {
@@ -562,12 +556,9 @@ impl BoardClient {
         }
         Ok(())
     }
-
 }
 
-
-
-// Run ignored tests with 
+// Run ignored tests with
 // cargo test <test_name> -- --include-ignored
 #[cfg(test)]
 pub(crate) mod tests {
@@ -578,12 +569,14 @@ pub(crate) mod tests {
     const BOARD_DB: &'static str = "testdb";
 
     async fn set_up() -> BoardClient {
-        let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb").await.unwrap();
-        
+        let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb")
+            .await
+            .unwrap();
+
         // In case the previous test did not clean up properly
         b.delete_database(INDEX_DB).await.unwrap();
         b.delete_database(BOARD_DB).await.unwrap();
-        
+
         b.upsert_index_db(INDEX_DB).await.unwrap();
         b.upsert_board_db(BOARD_DB).await.unwrap();
         b.create_board(INDEX_DB, BOARD_DB).await.unwrap();
@@ -595,13 +588,13 @@ pub(crate) mod tests {
         b.delete_board(INDEX_DB, BOARD_DB).await.unwrap();
         b.delete_database(INDEX_DB).await.unwrap();
     }
-    
+
     #[tokio::test]
     #[ignore]
     #[serial]
     pub async fn test_create_delete() {
         let mut b = set_up().await;
-        
+
         assert!(b.has_database(INDEX_DB).await.unwrap());
         assert!(b.has_database(BOARD_DB).await.unwrap());
         let board = b.get_board(INDEX_DB, BOARD_DB).await.unwrap();
