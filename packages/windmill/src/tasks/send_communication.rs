@@ -405,32 +405,30 @@ pub async fn send_communication(
     let db_client: DbClient = get_database_pool().await.get().await
         .map_err(|err| anyhow!("{}", err))?;
 
+    let user_ids = match body.audience_selection {
+        AudienceSelection::SELECTED => body.audience_voter_ids.clone(),
+        // TODO: managed "not voted" and "voted"
+        _ => None,
+    };
     let (users, count) = list_users(
         auth_headers.clone(),
+        &db_client,
         &client,
         tenant_id.clone(),
         election_event_id.clone(),
         &realm,
-        None,
-        None,
-        None,
-        None,
+        /* search */ None,
+        /* email */ None,
+        /* limit */ None,
+        /* offset */ None,
+        /* user_ids */ user_ids,
     )
     .await?;
 
     let email_sender = EmailSender::new().await?;
     let sms_sender = SmsSender::new().await?;
 
-    for user in users.iter().filter(|user| {
-        (body.audience_selection == AudienceSelection::ALL_USERS
-            || (body.audience_selection == AudienceSelection::SELECTED
-                && user.id.is_some()
-                && body
-                    .audience_voter_ids
-                    .as_ref()
-                    .unwrap_or(&vec![])
-                    .contains(&user.id.as_ref().unwrap())))
-    }) {
+    for user in users.iter() {
         event!(
             Level::INFO,
             "Sending communication to user with id={:?} and email={:?}",

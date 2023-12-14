@@ -22,6 +22,7 @@ use crate::services::database::{get_database_pool, PgConfig};
 #[instrument(skip(auth_headers, admin), err)]
 pub async fn list_users(
     auth_headers: connection::AuthHeaders,
+    db_client: &DbClient,
     admin: &KeycloakAdminClient,
     tenant_id: String,
     election_event_id: Option<String>,
@@ -30,10 +31,8 @@ pub async fn list_users(
     email: Option<String>,
     limit: Option<i32>,
     offset: Option<i32>,
+    user_ids: Option<Vec<String>>,
 ) -> Result<(Vec<User>, i32)> {
-    let db_client: DbClient = get_database_pool().await.get().await
-        .map_err(|err| anyhow!("{}", err))?;
-
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
     let query_limit: i64 = 
         std::cmp::min(

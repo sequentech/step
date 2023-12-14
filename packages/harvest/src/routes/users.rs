@@ -1,10 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
-use crate::types::optional::OptionalId;
-use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
@@ -18,6 +16,12 @@ use serde_json::Value;
 use std::collections::HashMap;
 use tracing::instrument;
 use windmill::services::users::list_users;
+use windmill::services::database::get_database_pool;
+
+use crate::services::authorization::authorize;
+use crate::types::optional::OptionalId;
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
+
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {
@@ -147,8 +151,12 @@ pub async fn get_users(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let db_client: DbClient = get_database_pool().await.get().await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     let (users, count) = list_users(
         auth_headers.clone(),
+        &db_client,
         &client,
         input.tenant_id.clone(),
         input.election_event_id.clone(),
@@ -157,6 +165,7 @@ pub async fn get_users(
         input.email,
         input.limit,
         input.offset,
+        /*user_ids = */ None,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
