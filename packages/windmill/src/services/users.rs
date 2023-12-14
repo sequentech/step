@@ -34,14 +34,23 @@ pub async fn list_users(
     user_ids: Option<Vec<String>>,
 ) -> Result<(Vec<User>, i32)> {
     let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
+    let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
     let query_limit: i64 = 
         std::cmp::min(
             low_sql_limit,
-            limit.unwrap_or(low_sql_limit)
+            limit.unwrap_or(default_sql_limit)
         ).into();
+    let query_offset: i64 = if let Some(offset_val) = offset {
+        offset_val.into()
+    } else {
+        0
+    };
 
     let statement = db_client.prepare_cached(
             r#"
+            WITH realm_cte AS (
+                SELECT id FROM realm WHERE name = $1
+            )
             SELECT
                 sub.id,
                 sub.email,
@@ -65,21 +74,20 @@ pub async fn list_users(
                     u.realm_id,
                     u.username,
                     u.created_timestamp,
-                    json_object_agg(attr.name, attr.value) AS attributes,
+                    COALESCE(json_object_agg(attr.name, attr.value) FILTER (WHERE attr.name IS NOT NULL), '{}'::json) AS attributes,
                     COUNT(u.id) OVER() AS total_count
                 FROM
                     user_entity AS u
-                JOIN
+                INNER JOIN
+                    realm_cte ON realm_cte.id = u.realm_id
+                LEFT JOIN
                     user_attribute AS attr ON u.id = attr.user_id
-                JOIN
-                    realm AS r ON u.realm_id = r.id
                 WHERE
-                    r.name = $1 AND
                     (u.email = $2 OR $2 IS NULL)
                 GROUP BY
                     u.id
             ) sub
-            LIMIT $3;
+            LIMIT $3 OFFSET $4;
             ;
         "#,
     ).await?;
@@ -90,10 +98,11 @@ pub async fn list_users(
                 &realm,
                 &email,
                 &query_limit,
+                &query_offset,
             ]
         ).await
         .map_err(|err| anyhow!("{}", err))?;
-    event!(Level::INFO, "Count rows {} for realm={}", rows.len(), realm);
+    event!(Level::INFO, "Count rows {} for realm={realm}, query_limit={query_limit}", rows.len());
 
     // all rows contain the count and if there's no rows well, count is clearly
     // zero

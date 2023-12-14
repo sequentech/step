@@ -16,6 +16,7 @@ use postgres_openssl::MakeTlsConnector;
 pub struct PgConfig {
     pub keycloak_db: deadpool_postgres::Config,
     pub low_sql_limit: i32,
+    pub default_sql_limit: i32,
 }
 
 impl PgConfig {
