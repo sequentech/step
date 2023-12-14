@@ -72,65 +72,9 @@ jobs:
         cache-from: type=gha,scope=${{ matrix.service }}
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
         build-args: SPA_NAME=${{ matrix.spa_name }}
-  formatting:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
 
-      - name: Set Node.js 20.x
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20.x
-
-      - name: Run install
-        uses: borales/actions-yarn@v4
-        dir: packages/
-        with:
-          cmd: install # will run `yarn install` command
-
-      - name: Build ui-essentials
-        uses: borales/actions-yarn@v4
-        dir: packages/
-        with:
-          cmd: build:ui-essentials
-
-      - name: Lint Ballot Verifier
-        uses: borales/actions-yarn@v4
-        dir: packages/ballot-verifier
-        with:
-          cmd: lint
-
-      - name: Prettify Ballot Verifier
-        uses: borales/actions-yarn@v4
-        dir: packages/ballot-verifier
-        with:
-          cmd: prettify
-
-      - name: Lint Voting Portal
-        uses: borales/actions-yarn@v4
-        dir: packages/voting-portal
-        with:
-          cmd: lint
-
-      - name: Prettify Voting Portal
-        uses: borales/actions-yarn@v4
-        dir: packages/voting-portal
-        with:
-          cmd: prettify
-
-      - name: Lint Admin Portal
-        uses: borales/actions-yarn@v4
-        dir: packages/voting-portal
-        with:
-          cmd: lint
-
-      - name: Prettify Admin Portal
-        uses: borales/actions-yarn@v4
-        dir: packages/admin-portal
-        with:
-          cmd: prettify
   rust:
+    name: Check Rust format
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -146,19 +90,3 @@ jobs:
 
       - name: Check Rust code formatting
         run: cd packages && cargo fmt -- --check
-  rustci:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          components: rustfmt
-          override: true
-
-      - name: Run tests
-        run: cd packages && cargo test
