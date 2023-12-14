@@ -15,3 +15,4 @@ pkg/
 build/
 src/gql/
 .github
+public/tinymce/

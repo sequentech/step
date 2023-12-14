@@ -7,7 +7,6 @@ members = [
     "immu-board",
     "immudb-rs",
     "sequent-core",
-    "ballot-verifier",
     "board-messages",
     "velvet",
     "windmill",
