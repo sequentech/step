@@ -1,6 +1,6 @@
 use async_once::AsyncOnce;
 use celery::export::Arc;
-use config::{Config, Environment, ConfigError};
+use config::{Config, ConfigError, Environment};
 use deadpool_postgres::{Client, Pool, PoolError, Runtime, SslMode};
 use serde::{Deserialize, Serialize};
 use std::env;
