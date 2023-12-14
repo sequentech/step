@@ -73,7 +73,7 @@ jobs:
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
         build-args: SPA_NAME=${{ matrix.spa_name }}
 
-  rust:
+  rust-fmt:
     name: Check Rust format
     runs-on: ubuntu-latest
     steps:
