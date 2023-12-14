@@ -320,7 +320,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     <TextField source="first_name" />
                     <TextField
                         label={t("usersAndRolesScreen.common.mobileNumber")}
-                        source="attributes['sequent.read-only.mobile-number'][0]"
+                        source="attributes['sequent.read-only.mobile-number']"
                     />
                     <TextField source="last_name" />
                     <TextField source="username" />
