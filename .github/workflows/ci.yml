@@ -149,7 +149,7 @@ jobs:
       - name: Check Rust code formatting
         run: cd packages && cargo fmt -- --check
 
-  rust-test:
+  rust-ci:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
