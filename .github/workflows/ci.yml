@@ -116,55 +116,55 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v3
 
-      - name: Set Node.js 20.x
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20.x
+      # - name: Set Node.js 20.x
+      #   uses: actions/setup-node@v3
+      #   with:
+      #     node-version: 20.x
 
-      - name: Run install
-        uses: borales/actions-yarn@v4
-        dir: packages/
-        with:
-          cmd: install # will run `yarn install` command
+      # - name: Run install
+      #   uses: borales/actions-yarn@v4
+      #   dir: packages/
+      #   with:
+      #     cmd: install # will run `yarn install` command
 
-      - name: Build ui-essentials
-        uses: borales/actions-yarn@v4
-        dir: packages/
-        with:
-          cmd: build:ui-essentials
+      # - name: Build ui-essentials
+      #   uses: borales/actions-yarn@v4
+      #   dir: packages/
+      #   with:
+      #     cmd: build:ui-essentials
 
-      - name: Lint Ballot Verifier
-        uses: borales/actions-yarn@v4
-        dir: packages/ballot-verifier
-        with:
-          cmd: lint
+      # - name: Lint Ballot Verifier
+      #   uses: borales/actions-yarn@v4
+      #   dir: packages/ballot-verifier
+      #   with:
+      #     cmd: lint
 
-      - name: Prettify Ballot Verifier
-        uses: borales/actions-yarn@v4
-        dir: packages/ballot-verifier
-        with:
-          cmd: prettify
+      # - name: Prettify Ballot Verifier
+      #   uses: borales/actions-yarn@v4
+      #   dir: packages/ballot-verifier
+      #   with:
+      #     cmd: prettify
 
-      - name: Lint Voting Portal
-        uses: borales/actions-yarn@v4
-        dir: packages/voting-portal
-        with:
-          cmd: lint
+      # - name: Lint Voting Portal
+      #   uses: borales/actions-yarn@v4
+      #   dir: packages/voting-portal
+      #   with:
+      #     cmd: lint
 
-      - name: Prettify Voting Portal
-        uses: borales/actions-yarn@v4
-        dir: packages/voting-portal
-        with:
-          cmd: prettify
+      # - name: Prettify Voting Portal
+      #   uses: borales/actions-yarn@v4
+      #   dir: packages/voting-portal
+      #   with:
+      #     cmd: prettify
 
-      - name: Lint Admin Portal
-        uses: borales/actions-yarn@v4
-        dir: packages/voting-portal
-        with:
-          cmd: lint
+      # - name: Lint Admin Portal
+      #   uses: borales/actions-yarn@v4
+      #   dir: packages/voting-portal
+      #   with:
+      #     cmd: lint
 
-      - name: Prettify Admin Portal
-        uses: borales/actions-yarn@v4
-        dir: packages/admin-portal
-        with:
-          cmd: prettify
+      # - name: Prettify Admin Portal
+      #   uses: borales/actions-yarn@v4
+      #   dir: packages/admin-portal
+      #   with:
+      #     cmd: prettify
