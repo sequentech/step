@@ -10,11 +10,13 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::config::{self, Config};
 use crate::pipes::pipe_name::PipeName;
 
+#[derive(Debug)]
 pub struct TestFixture {
     pub config_path: PathBuf,
     pub root_dir: PathBuf,
@@ -23,6 +25,7 @@ pub struct TestFixture {
 }
 
 impl TestFixture {
+    #[instrument]
     pub fn new() -> Result<Self> {
         let config_path = PathBuf::from(format!("test-velvet-config-{}.json", Uuid::new_v4()));
         let mut file = fs::OpenOptions::new()
@@ -48,6 +51,7 @@ impl TestFixture {
         })
     }
 
+    #[instrument]
     pub fn create_election_config(
         &self,
         election_event_id: &Uuid,
@@ -66,6 +70,7 @@ impl TestFixture {
         Ok(election)
     }
 
+    #[instrument]
     pub fn create_contest_config(
         &self,
         tenant_id: &Uuid,
@@ -86,6 +91,7 @@ impl TestFixture {
         Ok(contest)
     }
 
+    #[instrument]
     pub fn create_area_dir(&self, election_uuid: &Uuid, contest_uuid: &Uuid) -> Result<Uuid> {
         let uuid = Uuid::new_v4();
 
@@ -113,6 +119,7 @@ impl Drop for TestFixture {
     }
 }
 
+#[instrument]
 pub fn get_config() -> Config {
     let stages_def = {
         let mut map = HashMap::new();
