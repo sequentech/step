@@ -320,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_generate_reports_without_ballots() -> Result<()> {
-        sequent_core::util::init_log::init_log(true);
+        // sequent_core::util::init_log::init_log(true);
 
         let fixture = TestFixture::new()?;
 
@@ -340,14 +340,14 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // // DoTally
-        // state.exec_next()?;
-        //
-        // // MarkWinners
-        // state.exec_next()?;
-        //
-        // // Generate reports
-        // state.exec_next()?;
+        // DoTally
+        state.exec_next()?;
+
+        // MarkWinners
+        state.exec_next()?;
+
+        // Generate reports
+        state.exec_next()?;
 
         Ok(())
     }

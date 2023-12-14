@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::error::{Error, Result};
-use crate::cli::{state::Stage, CliRun};
+use crate::{
+    cli::{state::Stage, CliRun},
+    fixtures::elections::Election,
+};
 use sequent_core::ballot::{BallotStyle, Contest};
 use std::{
     fs,
@@ -88,7 +91,10 @@ impl PipeInputs {
         }
         let config_file =
             fs::File::open(&config_path).map_err(|e| Error::FileAccess(config_path.clone(), e))?;
-        let ballot_style: BallotStyle = serde_json::from_reader(config_file)?;
+        // FIXME: Fix this by converting BallotStyle to Election
+        // let ballot_style: BallotStyle = serde_json::from_reader(config_file)?;
+
+        let election: Election = serde_json::from_reader(config_file)?;
 
         let mut configs = vec![];
         for entry in entries {
@@ -101,7 +107,7 @@ impl PipeInputs {
 
         Ok(ElectionConfig {
             id: election_id,
-            ballot_style,
+            ballot_styles: election.ballot_styles,
             contest_list: configs,
             path: path.to_path_buf(),
         })
@@ -161,7 +167,7 @@ impl PipeInputs {
 #[derive(Debug)]
 pub struct ElectionConfig {
     pub id: Uuid,
-    pub ballot_style: BallotStyle,
+    pub ballot_styles: Vec<BallotStyle>,
     pub contest_list: Vec<ContestForElectionConfig>,
     pub path: PathBuf,
 }

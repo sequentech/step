@@ -257,7 +257,8 @@ impl Pipe for GenerateReports {
                 })
             }
 
-            let bytes = self.generate_report(&election_input.ballot_style, reports)?;
+            // FIXME: now we have multitple ballot styles
+            let bytes = self.generate_report(&election_input.ballot_styles[0], reports)?;
 
             let path = &self
                 .output_dir
