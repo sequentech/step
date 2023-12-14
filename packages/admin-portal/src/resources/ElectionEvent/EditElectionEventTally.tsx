@@ -18,7 +18,7 @@ export const EditElectionEventTally: React.FC = () => {
     const recordEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const recordTally = useRecordContext<Sequent_Backend_Tally_Session>()
     const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)
-    const {tallyId, isTrustee, isCreating} = useElectionEventTallyStore()
+    const {tallyId, isTrustee, isCreating, isCreated} = useElectionEventTallyStore()
 
     console.log("EditElectionEventTally :: tallyId ::  ", tallyId);
     console.log("EditElectionEventTally :: isCreating ::  ", isCreating);
@@ -32,7 +32,7 @@ export const EditElectionEventTally: React.FC = () => {
                 electionEvent={recordEvent}
             />
 
-            {isCreating || tallyId ? (
+            {isCreating || isCreated || tallyId ? (
                 <>
                     {!isTrustee ? (
                         <TallyCeremony   />

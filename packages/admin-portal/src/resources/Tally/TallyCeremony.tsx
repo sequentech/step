@@ -48,7 +48,8 @@ export const TallyCeremony: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const {t} = useTranslation()
-    const {tallyId, setTallyId, setCreatingFlag} = useElectionEventTallyStore()
+    const {tallyId, setTallyId, setCreatingFlag} =
+        useElectionEventTallyStore()
     const notify = useNotify()
 
     const [openModal, setOpenModal] = useState(false)
@@ -56,6 +57,7 @@ export const TallyCeremony: React.FC = () => {
     const [page, setPage] = useState<number>(WizardSteps.Start)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
+    const [localTallyId, setLocalTallyId] = useState<string | null>(null)
 
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
@@ -77,10 +79,10 @@ export const TallyCeremony: React.FC = () => {
         "tally-results-results": true,
     })
 
-    const {data, refetch} = useGetOne<Sequent_Backend_Tally_Session>(
+    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
         {
-            id: tallyId,
+            id: localTallyId || tallyId,
         },
         {
             refetchInterval: 5000,
@@ -102,17 +104,19 @@ export const TallyCeremony: React.FC = () => {
     useEffect(() => {
         if (data) {
             // if (tally?.last_updated_at !== data.last_updated_at) {
-                setPage(
-                    (data.execution_status === ITallyExecutionStatus.STARTED ||
-                        data.execution_status === ITallyExecutionStatus.CONNECTED)
-                        ? WizardSteps.Ceremony
-                        : data.execution_status === ITallyExecutionStatus.IN_PROGRESS
-                        ? WizardSteps.Tally
-                        : data.execution_status === ITallyExecutionStatus.SUCCESS
-                        ? WizardSteps.Results
-                        : WizardSteps.Start
-                )
-                setTally(data)
+            setPage(
+                !tallyId
+                    ? WizardSteps.Start
+                    : data.execution_status === ITallyExecutionStatus.STARTED ||
+                      data.execution_status === ITallyExecutionStatus.CONNECTED
+                    ? WizardSteps.Ceremony
+                    : data.execution_status === ITallyExecutionStatus.IN_PROGRESS
+                    ? WizardSteps.Tally
+                    : data.execution_status === ITallyExecutionStatus.SUCCESS
+                    ? WizardSteps.Results
+                    : WizardSteps.Start
+            )
+            setTally(data)
             // }
         }
     }, [data])
@@ -158,16 +162,15 @@ export const TallyCeremony: React.FC = () => {
             })
 
             if (errors) {
-                console.log("TallyCeremony :: confirmStartAction :: errors", errors)
                 notify(t("tally.createTallyError"), {type: "error"})
             }
 
             if (data) {
                 notify(t("tally.createTallySuccess"), {type: "success"})
-                console.log("TallyCeremony :: confirmStartAction :: data", data)
+                setLocalTallyId(data.create_tally_ceremony.tally_session_id)
+                setTallyId(data.create_tally_ceremony.tally_session_id)
             }
         } catch (error) {
-            console.log("TallyCeremony :: confirmStartAction :: error", error)
             notify(t("tally.startTallyCeremonyError"), {type: "error"})
         }
     }
@@ -191,17 +194,12 @@ export const TallyCeremony: React.FC = () => {
                 setCreatingFlag(false)
             }
         } catch (error) {
-            console.log("TallyCeremony :: confirmCeremonyAction :: error", error)
             notify(t("tally.startTallyError"), {type: "error"})
         }
     }
 
     return (
         <>
-            <Typography variant="h1" sx={{mb: 2}}>
-                {tally?.execution_status}
-            </Typography>
-
             <WizardStyles.WizardWrapper>
                 <TallyStyles.StyledHeader>
                     <BreadCrumbSteps
