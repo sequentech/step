@@ -72,7 +72,6 @@ jobs:
         cache-from: type=gha,scope=${{ matrix.service }}
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
         build-args: SPA_NAME=${{ matrix.spa_name }}
-
   frontend-formatting:
     runs-on: ubuntu-latest
     steps:
@@ -131,7 +130,6 @@ jobs:
         dir: packages/admin-portal
         with:
           cmd: prettify
-
   rust-formatting:
     runs-on: ubuntu-latest
     steps:
@@ -148,7 +146,6 @@ jobs:
 
       - name: Check Rust code formatting
         run: cd packages && cargo fmt -- --check
-
   rust-ci:
     runs-on: ubuntu-latest
     steps:
