@@ -20,7 +20,7 @@ struct PgConfig {
 impl PgConfig {
     pub fn from_env() -> Result<Self> {
         Config::builder()
-            .add_source(Environment::default().separator("_"))
+            .add_source(Environment::default().separator("__"))
             .build()
             .map_err(|err| anyhow!("error building Config from Env: {}", err))?
             .try_deserialize()

@@ -1,5 +1,7 @@
 #!/bin/bash -i
 
+set -ex -o pipefail
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # Create .devcontainer/.env if it does not already exists
@@ -9,3 +11,5 @@ cp .devcontainer/.env.development .devcontainer/.env
 source .devcontainer/.env
 # Set LOCAL_WORKSPACE_FOLDER environment variable if not already set
 [ ! -z "${localWorkspaceFolder}" ] || printf "\nLOCAL_WORKSPACE_FOLDER=${SCRIPT_DIR}/..\n" >> .devcontainer/.env
+
+echo "$(pwd)/.devcontainer/.env file initialized successfully"
