@@ -45,14 +45,8 @@ async fn main() -> Result<()> {
     info!("Connecting to board '{}'..", args.board);
     let trustee: Trustee<RistrettoCtx> =
         Trustee::new("Verifier".to_string(), dummy_sk, dummy_encryption_key);
-    let board = ImmudbBoard::new(
-        &args.server_url,
-        IMMUDB_USER,
-        IMMUDB_PW,
-        args.board,
-        None,
-    )
-    .await?;
+    let board =
+        ImmudbBoard::new(&args.server_url, IMMUDB_USER, IMMUDB_PW, args.board, None).await?;
     let mut session = Verifier::new(trustee, board);
     session.run().await?;
 

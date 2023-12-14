@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 use super::*;
-use anyhow::Context;
 use anyhow::anyhow;
+use anyhow::Context;
 use anyhow::Result;
 use rayon::prelude::*;
 use strand::{serialization::StrandVectorCP, serialization::StrandVectorP, zkp::ChaumPedersen};
@@ -39,7 +39,7 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
         let share_h = shares_hs.0[sender];
         let share_ = trustee
             .get_shares(&SharesHash(share_h), sender)
-            .with_context(|| "Could not retrieve shares",)?;
+            .with_context(|| "Could not retrieve shares")?;
 
         let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
 

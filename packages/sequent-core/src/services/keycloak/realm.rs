@@ -66,7 +66,10 @@ impl KeycloakAdminClient {
                         mod_user.attributes.clone().unwrap_or(HashMap::new());
                     let tenant_attribute_js: Value =
                         json!(vec![tenant_id.to_string()]);
-                    attributes.insert(TENANT_ID_ATTR_NAME.into(), tenant_attribute_js);
+                    attributes.insert(
+                        TENANT_ID_ATTR_NAME.into(),
+                        tenant_attribute_js,
+                    );
                     mod_user.attributes = Some(attributes);
                     mod_user
                 })

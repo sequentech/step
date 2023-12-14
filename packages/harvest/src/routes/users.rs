@@ -212,7 +212,10 @@ pub async fn edit_user(
 
     // maintain current user attributes and do not allow to override tenant-id
     if new_attributes.contains_key(TENANT_ID_ATTR_NAME) {
-        return Err((Status::BadRequest, "Cannot change tenant-id attribute".to_string()));
+        return Err((
+            Status::BadRequest,
+            "Cannot change tenant-id attribute".to_string(),
+        ));
     }
 
     let user = client
