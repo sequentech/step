@@ -320,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_generate_reports_without_ballots() -> Result<()> {
-        tracing_subscriber::fmt().pretty().init();
+        sequent_core::util::init_log::init_log(true);
 
         let fixture = TestFixture::new()?;
 
