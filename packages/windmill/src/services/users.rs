@@ -71,13 +71,16 @@ pub async fn list_users(
                     user_entity AS u
                 JOIN
                     user_attribute AS attr ON u.id = attr.user_id
-                WHERE 
-                    u.realm_id = $1 AND
+                JOIN
+                    realm AS r ON u.realm_id = r.id
+                WHERE
+                    r.name = $1 AND
                     (u.email = $2 OR $2 IS NULL)
                 GROUP BY
                     u.id
             ) sub
             LIMIT $3;
+            ;
         "#,
     ).await?;
     let rows: Vec<Row> = db_client
@@ -90,13 +93,14 @@ pub async fn list_users(
             ]
         ).await
         .map_err(|err| anyhow!("{}", err))?;
+    event!(Level::INFO, "Count rows {} for realm={}", rows.len(), realm);
 
     // all rows contain the count and if there's no rows well, count is clearly
     // zero
     let count: i32 = if rows.len() == 0 {
         0
     } else {
-        rows[0].try_get::<&str, i32>("total_count")?
+        rows[0].try_get::<&str, i64>("total_count")?.try_into()?
     };
     let users = rows
         .into_iter()

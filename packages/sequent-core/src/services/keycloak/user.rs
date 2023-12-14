@@ -28,12 +28,12 @@ impl User {
 impl TryFrom<Row> for User {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
-        let attributes_string: String = item.try_get("attributes")?;
-        let attributes_map: HashMap<String, Value> =
-            serde_json::from_str(&attributes_string)?;
+        //let attributes_string: String = item.try_get("attributes")?;
+        //let attributes_map: HashMap<String, Value> =
+        //    serde_json::from_str(&attributes_string)?;
         Ok(User {
             id: item.try_get("id")?,
-            attributes: Some(attributes_map),
+            attributes: None, // Some(attributes_map),
             email: item.try_get("email")?,
             email_verified: item.try_get("email_verified")?,
             enabled: item.try_get("enabled")?,
