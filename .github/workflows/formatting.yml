@@ -10,17 +10,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - service: braid
-          - service: harvest
-          - service: strand
-          - service: immu-board
-          - service: immudb-rs
-          - service: sequent-core
+          - service: admin-portal
+          - service: voting-portal
           - service: ballot-verifier
-          - service: board-messages
-          - service: velvet
-          - service: windmill
-          - service: wrap-map-err
             
       fail-fast: false
     steps:
