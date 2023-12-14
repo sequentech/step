@@ -19,6 +19,7 @@ interface ListActionsProps {
     actionLabel?: string
     Component?: React.ReactNode
     custom?: boolean
+    extraActions?: Array<any>
 }
 
 export const ListActions: React.FC<ListActionsProps> = (props) => {
@@ -34,6 +35,7 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
         open = false,
         setOpen = () => {},
         custom = true,
+        extraActions = [],
     } = props
 
     const {t} = useTranslation()
@@ -101,6 +103,8 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                 ) : null}
 
                 {withExport ? <ExportButton /> : null}
+
+                {extraActions.length > 0 && extraActions.map((item) => item)}
             </TopToolbar>
         </div>
     )

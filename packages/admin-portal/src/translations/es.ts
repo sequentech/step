@@ -788,6 +788,7 @@ const spanishTranslation: TranslationType = {
             },
         },
         sendCommunication: {
+            send: "Enviar",
             title: "Enviar Notificación",
             subtitle: "Enviar una notificación a usuarios/votantes.",
             sendButton: "Enviar Notificación",

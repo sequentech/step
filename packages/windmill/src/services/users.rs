@@ -14,9 +14,15 @@ use std::convert::From;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-#[instrument(skip(auth_headers, admin))]
+use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime};
+use tokio_postgres::types::{BorrowToSql, ToSql, Type as SqlType};
+use tokio_postgres::row::Row;
+use crate::services::database::{get_database_pool, PgConfig};
+
+#[instrument(skip(auth_headers, admin), err)]
 pub async fn list_users(
     auth_headers: connection::AuthHeaders,
+    db_client: &DbClient,
     admin: &KeycloakAdminClient,
     tenant_id: String,
     election_event_id: Option<String>,
@@ -25,40 +31,93 @@ pub async fn list_users(
     email: Option<String>,
     limit: Option<i32>,
     offset: Option<i32>,
+    user_ids: Option<Vec<String>>,
 ) -> Result<(Vec<User>, i32)> {
-    let user_representations: Vec<UserRepresentation> = admin
-        .client
-        .realm_users_get(
-            realm.clone(),
-            Some(false),
-            email.clone(),
-            None,
-            None,
-            None,
-            offset.clone(),
-            None,
-            None,
-            None,
-            None,
-            limit.clone(),
-            None,
-            search.clone(),
-            None,
-        )
-        .await
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let count: i32 = admin
-        .client
-        .realm_users_count_get(realm, email, None, None, None, None, search, None)
-        .await
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let users: Vec<User> = user_representations
-        .clone()
+    let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
+    let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
+    let query_limit: i64 = 
+        std::cmp::min(
+            low_sql_limit,
+            limit.unwrap_or(default_sql_limit)
+        ).into();
+    let query_offset: i64 = if let Some(offset_val) = offset {
+        offset_val.into()
+    } else {
+        0
+    };
+
+    let statement = db_client.prepare_cached(
+            r#"
+            WITH realm_cte AS (
+                SELECT id FROM realm WHERE name = $1
+            )
+            SELECT
+                sub.id,
+                sub.email,
+                sub.email_verified,
+                sub.enabled,
+                sub.first_name,
+                sub.last_name,
+                sub.realm_id,
+                sub.username,
+                sub.created_timestamp,
+                sub.attributes,
+                sub.total_count
+            FROM (
+                SELECT
+                    u.id,
+                    u.email,
+                    u.email_verified,
+                    u.enabled,
+                    u.first_name,
+                    u.last_name,
+                    u.realm_id,
+                    u.username,
+                    u.created_timestamp,
+                    COALESCE(json_object_agg(attr.name, attr.value) FILTER (WHERE attr.name IS NOT NULL), '{}'::json) AS attributes,
+                    COUNT(u.id) OVER() AS total_count
+                FROM
+                    user_entity AS u
+                INNER JOIN
+                    realm_cte ON realm_cte.id = u.realm_id
+                LEFT JOIN
+                    user_attribute AS attr ON u.id = attr.user_id
+                WHERE
+                    (u.email = $2 OR $2 IS NULL)
+                GROUP BY
+                    u.id
+            ) sub
+            LIMIT $3 OFFSET $4;
+            ;
+        "#,
+    ).await?;
+    let rows: Vec<Row> = db_client
+        .query(
+            &statement,
+            &[
+                &realm,
+                &email,
+                &query_limit,
+                &query_offset,
+            ]
+        ).await
+        .map_err(|err| anyhow!("{}", err))?;
+    event!(Level::INFO, "Count rows {} for realm={realm}, query_limit={query_limit}", rows.len());
+
+    // all rows contain the count and if there's no rows well, count is clearly
+    // zero
+    let count: i32 = if rows.len() == 0 {
+        0
+    } else {
+        rows[0].try_get::<&str, i64>("total_count")?.try_into()?
+    };
+    let users = rows
         .into_iter()
-        .map(|user| user.into())
-        .collect();
+        .map(|row| -> Result<User> { row.try_into() })
+        .collect::<Result<Vec<User>>>()?;
+
     if let Some(ref some_election_event_id) = election_event_id {
-        let area_ids: Vec<String> = user_representations
+        let area_ids: Vec<String> = users
             .iter()
             .filter_map(|user| {
                 Some(
