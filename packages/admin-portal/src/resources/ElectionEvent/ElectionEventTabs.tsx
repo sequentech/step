@@ -15,7 +15,7 @@ import {useTranslation} from "react-i18next"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useLocation, useNavigate} from "react-router"
 import {Publish} from "@/resources/Publish/Publish"
-import { EPublishType } from '../Publish/EPublishType'
+import {EPublishType} from "../Publish/EPublishType"
 
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -51,7 +51,7 @@ export const ElectionEventTabs: React.FC = () => {
     )
     const showLogs = authContext.isAuthorized(true, authContext.tenantId, IPermissions.LOGS_READ)
     const {t} = useTranslation()
-    const [_, setTallyId] = useElectionEventTallyStore()
+    const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
 
     useEffect(() => {
         const locArr = location.pathname.split("/").slice(0, 3).join("/")
@@ -90,7 +90,10 @@ export const ElectionEventTabs: React.FC = () => {
                 {showTally ? (
                     <TabbedShowLayout.Tab
                         label={t("electionEventScreen.tabs.tally")}
-                        onClick={() => setTallyId(null)}
+                        onClick={() => {
+                            setTallyId(null)
+                            setCreatingFlag(false)
+                        }}
                     >
                         <EditElectionEventTally />
                     </TabbedShowLayout.Tab>

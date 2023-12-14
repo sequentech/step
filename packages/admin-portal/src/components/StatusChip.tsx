@@ -1,12 +1,7 @@
-import {GET_AREA_WITH_AREA_CONTESTS} from "@/queries/GetAreaWithAreaContest"
-import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
+import React from "react"
 import {ITallyExecutionStatus} from "@/types/ceremonies"
-import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
-import {Chip, IconButton} from "@mui/material"
-import {adminTheme} from "@sequentech/ui-essentials"
-import React, {useEffect} from "react"
-import {Identifier, RaRecord, useGetList, useRecordContext} from "react-admin"
+import {statusColor} from "@/resources/Tally/constants"
 
 interface TrusteeItemsProps {
     status: string
@@ -26,17 +21,7 @@ const StyledChip = styled.div`
     align-items: center;
     border-radius: 4px;
     background: ${(props: TrusteeItemsProps) =>
-        props.status === ITallyExecutionStatus.STARTED
-            ? "#d32f2f"
-            : props.status === ITallyExecutionStatus.CONNECTED
-            ? "#43E3A1"
-            : props.status === ITallyExecutionStatus.IN_PROGRESS
-            ? "#43E3A1"
-            : props.status === ITallyExecutionStatus.SUCCESS
-            ? "#43E3A1"
-            : props.status === ITallyExecutionStatus.CANCELLED
-            ? "#43E3A1"
-            : "#d32f2f"};
+        statusColor(props.status ?? ITallyExecutionStatus.STARTED)};
     padding: 1px 7px;
 `
 

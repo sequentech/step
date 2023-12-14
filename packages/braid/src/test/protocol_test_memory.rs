@@ -37,11 +37,11 @@ pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
         .choose_multiple(&mut rng, n_threshold)
         .cloned()
         .collect();
-    
+
     let now = instant::Instant::now();
     let test = create_protocol_test(n_trustees, &threshold, ctx).unwrap();
     run_protocol_test(test, ciphertexts, batches, &threshold).unwrap();
-    
+
     let time = now.elapsed().as_millis() as f64 / 1000.0;
     info!(
         "batches = {}, time = {}, rate = {}",
@@ -215,5 +215,3 @@ pub fn create_protocol_test<C: Ctx>(
         remote,
     })
 }
-
-

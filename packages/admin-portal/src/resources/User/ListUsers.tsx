@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useEffect} from "react"
+
+import React, {ReactElement, useContext} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -15,11 +16,12 @@ import {
     useNotify,
     useGetList,
     FunctionField,
+    BulkDeleteButton,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
-import {Button, Chip, Typography} from "@mui/material"
+import {alpha, Button, Chip, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -27,7 +29,7 @@ import EditIcon from "@mui/icons-material/Edit"
 import MailIcon from "@mui/icons-material/Mail"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {EditUser} from "./EditUser"
-import {SendCommunication} from "./SendCommunication"
+import {AudienceSelection, SendCommunication} from "./SendCommunication"
 import {CreateUser} from "./CreateUser"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {DeleteUserMutation} from "@/gql/graphql"
@@ -36,6 +38,7 @@ import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
+import styled from "@emotion/styled"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -51,20 +54,47 @@ export interface ListUsersProps {
     electionEventId?: string
 }
 
+const StyledButton = styled(Button)(({theme}) => ({
+    "color": theme.palette.error.main,
+    "&:hover": {
+        "backgroundColor": alpha(theme.palette.error.main, 0.12),
+        // Reset on mouse devices
+        "@media (hover: none)": {
+            backgroundColor: "transparent",
+        },
+    },
+}))
+
+const StyledIcon1 = styled(MailIcon)(() => ({
+    marginRight: "10px",
+}))
+
+const StyledIcon2 = styled(DeleteIcon)(() => ({
+    marginRight: "6px",
+}))
+
+const StyledIcon3 = styled(MailIcon)(() => ({
+    marginRight: "8px",
+}))
+
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
 
     const [open, setOpen] = React.useState(false)
     const [openNew, setOpenNew] = React.useState(false)
+    const [audienceSelection, setAudienceSelection] = React.useState<AudienceSelection>(
+        AudienceSelection.SELECTED
+    )
     const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState(false)
-    const [recordId, setRecordId] = React.useState<string | undefined>(undefined)
+    const [recordIds, setRecordIds] = React.useState<Array<Identifier>>([])
     const authContext = useContext(AuthContext)
     const refresh = useRefresh()
     const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
+    const [deleteUsers] = useMutation<DeleteUserMutation>(DELETE_USER)
     const notify = useNotify()
     const {data: rolesList} = useGetList<IRole & {id: string}>("role", {
         pagination: {page: 1, perPage: 9999},
@@ -104,7 +134,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     )
 
     const handleClose = () => {
-        setRecordId(undefined)
+        setRecordIds([])
         setOpenSendCommunication(false)
         setOpenDrawer(false)
         setOpenNew(false)
@@ -116,15 +146,24 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         setOpenNew(false)
         setOpenDeleteModal(false)
         setOpenSendCommunication(false)
-        setRecordId(id as string)
+        setRecordIds([id as string])
     }
 
-    const sendCommunicationAction = (id: Identifier) => {
+    const sendCommunicationForIdAction = (id: Identifier) => {
+        sendCommunicationAction([id])
+    }
+
+    const sendCommunicationAction = (
+        ids: Array<Identifier>,
+        audienceSelection = AudienceSelection.SELECTED
+    ) => {
         setOpen(false)
         setOpenNew(false)
         setOpenDeleteModal(false)
         setOpenSendCommunication(true)
-        setRecordId(id as string)
+
+        setAudienceSelection(audienceSelection)
+        setRecordIds(ids)
     }
 
     const deleteAction = (id: Identifier) => {
@@ -173,20 +212,75 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     const actions: Action[] = [
         {
             icon: <MailIcon />,
-            action: sendCommunicationAction,
-            showAction: (id: Identifier) => canSendCommunications,
+            action: sendCommunicationForIdAction,
+            showAction: () => canSendCommunications,
         },
         {
             icon: <EditIcon />,
             action: editAction,
-            showAction: (id: Identifier) => canEditUsers,
+            showAction: () => canEditUsers,
         },
         {
             icon: <DeleteIcon />,
             action: deleteAction,
-            showAction: (id: Identifier) => canEditUsers,
+            showAction: () => canEditUsers,
         },
     ]
+
+    async function deleteBulk(selectedIds: Identifier[]) {
+        const {errors} = await deleteUsers({
+            variables: {
+                tenantId: tenantId,
+                electionEventId: electionEventId,
+                userId: selectedIds,
+            },
+        })
+
+        if (errors) {
+            notify(
+                t(
+                    `usersAndRolesScreen.${
+                        electionEventId ? "voters" : "users"
+                    }.notifications.deleteError`
+                ),
+                {type: "error"}
+            )
+            return
+        }
+
+        notify(
+            t(
+                `usersAndRolesScreen.${
+                    electionEventId ? "voters" : "users"
+                }.notifications.deleteSuccess`
+            ),
+            {type: "success"}
+        )
+
+        refresh()
+    }
+
+    // @ts-ignore
+    function BulkActions(props) {
+        return (
+            <>
+                <Button
+                    key="send-notification"
+                    onClick={() => {
+                        sendCommunicationAction(props.selectedIds ?? [], AudienceSelection.SELECTED)
+                    }}
+                >
+                    <StyledIcon1 />
+                    {t(`sendCommunication.send`)}
+                </Button>
+
+                <StyledButton onClick={() => deleteBulk(props.selectedIds)}>
+                    <StyledIcon2 />
+                    {t("common.label.delete")}
+                </StyledButton>
+            </>
+        )
+    }
 
     return (
         <>
@@ -201,21 +295,32 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                         Component={
                             <CreateUser electionEventId={electionEventId} close={handleClose} />
                         }
+                        extraActions={[
+                            <Button
+                                key="send-notification"
+                                onClick={() => {
+                                    sendCommunicationAction([], AudienceSelection.ALL_USERS)
+                                }}
+                            >
+                                <StyledIcon3 />
+                                {t("sendCommunication.send")}
+                            </Button>,
+                        ]}
                     />
                 }
                 filter={{tenant_id: tenantId, election_event_id: electionEventId}}
                 aside={aside}
                 filters={Filters}
             >
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<BulkActions />}>
                     <TextField source="id" />
                     <TextField source="email" />
                     <BooleanField source="email_verified" />
                     <BooleanField source="enabled" />
                     <TextField source="first_name" />
-                    <TextField 
+                    <TextField
                         label={t("usersAndRolesScreen.common.mobileNumber")}
-                        source="attributes['sequent.read-only.mobile-number'][0]"
+                        source="attributes['sequent.read-only.mobile-number']"
                     />
                     <TextField source="last_name" />
                     <TextField source="username" />
@@ -225,38 +330,34 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                             render={(record: IUser) => <Chip label={record?.area?.name || ""} />}
                         />
                     )}
-
                     <WrapperField source="actions" label="Actions">
                         <ActionsColumn actions={actions} />
                     </WrapperField>
                 </DatagridConfigurable>
             </List>
-
             <ResourceListStyles.Drawer anchor="right" open={open} onClose={handleClose}>
                 <EditUser
-                    id={recordId}
+                    id={recordIds[0] as string}
                     electionEventId={electionEventId}
                     close={handleClose}
                     rolesList={rolesList || []}
                 />
             </ResourceListStyles.Drawer>
-
             <ResourceListStyles.Drawer
                 anchor="right"
                 open={openSendCommunication}
                 onClose={handleClose}
             >
                 <SendCommunication
-                    id={recordId}
+                    ids={recordIds}
+                    audienceSelection={audienceSelection}
                     electionEventId={electionEventId}
                     close={handleClose}
                 />
             </ResourceListStyles.Drawer>
-
             <ResourceListStyles.Drawer anchor="right" open={openNew} onClose={handleClose}>
                 <CreateUser electionEventId={electionEventId} close={handleClose} />
             </ResourceListStyles.Drawer>
-
             <Dialog
                 variant="warning"
                 open={openDeleteModal}

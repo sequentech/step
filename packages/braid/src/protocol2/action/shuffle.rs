@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 use anyhow::anyhow;
-use anyhow::Result;
 use anyhow::Context;
+use anyhow::Result;
 
 use super::*;
 
@@ -21,9 +21,10 @@ pub(crate) fn mix<C: Ctx>(
     let ciphertexts = if *mix_no == 1 {
         assert_eq!(signer_t, PROTOCOL_MANAGER_INDEX);
         // Ballot ciphertexts
-        let ballots = trustee.get_ballots(source_h, *batch, PROTOCOL_MANAGER_INDEX)
-        .with_context(|| "Could not retrieve ciphertexts for mixing")?;
-        
+        let ballots = trustee
+            .get_ballots(source_h, *batch, PROTOCOL_MANAGER_INDEX)
+            .with_context(|| "Could not retrieve ciphertexts for mixing")?;
+
         info!(
             "Mix computing shuffle [{} (ballots)] ({})..",
             dbg_hash(&source_h.0),
@@ -38,9 +39,10 @@ pub(crate) fn mix<C: Ctx>(
         // Trustees[] elements are 1-based, so trustees[mix_no - 2] - 1.
         assert_eq!(signer_t, trustees[mix_no - 2] - 1);
         let signer_t = trustees[mix_no - 2] - 1;
-        let mix = trustee.get_mix(source_h, *batch, signer_t)
-        .with_context(|| "Could not retrieve ciphertexts for mixing")?;
-        
+        let mix = trustee
+            .get_mix(source_h, *batch, signer_t)
+            .with_context(|| "Could not retrieve ciphertexts for mixing")?;
+
         info!(
             "Mix computing shuffle [{} (mix)] ({})..",
             dbg_hash(&source_h.0),
@@ -93,9 +95,10 @@ pub(crate) fn sign_mix<C: Ctx>(
 
     let cfg = trustee.get_configuration(cfg_h)?;
     let source_cs = if signers_t == PROTOCOL_MANAGER_INDEX {
-        let ballots = trustee.get_ballots(source_h, *batch, PROTOCOL_MANAGER_INDEX)
-        .with_context(|| "Could not retrieve ciphertexts for mixing")?;
-        
+        let ballots = trustee
+            .get_ballots(source_h, *batch, PROTOCOL_MANAGER_INDEX)
+            .with_context(|| "Could not retrieve ciphertexts for mixing")?;
+
         info!(
             "SignMix verifying shuffle [{} (ballots)] => [{}] ({})..",
             dbg_hash(&source_h.0),
@@ -103,11 +106,11 @@ pub(crate) fn sign_mix<C: Ctx>(
             ballots.ciphertexts.0.len()
         );
         ballots.ciphertexts
-        
     } else {
-        let mix = trustee.get_mix(source_h, *batch, signers_t)
-        .with_context(|| "Could not retrieve ciphertexts for mixing")?;
-        
+        let mix = trustee
+            .get_mix(source_h, *batch, signers_t)
+            .with_context(|| "Could not retrieve ciphertexts for mixing")?;
+
         info!(
             "SignMix verifying shuffle [{} (mix)] => [{}] ({})..",
             dbg_hash(&source_h.0),

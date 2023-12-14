@@ -153,7 +153,11 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
         return None;
     };
     let Some(execution_status) = TallyExecutionStatus::from_str(&execution_status_str).ok() else {
-        event!(Level::INFO, "Tally session can't continue the tally with unexpected execution status {}", execution_status_str);
+        event!(
+            Level::INFO,
+            "Tally session can't continue the tally with unexpected execution status {}",
+            execution_status_str
+        );
 
         return None;
     };
@@ -234,7 +238,8 @@ async fn map_plaintext_data(
 
     let tally_session = &tally_session_data.sequent_backend_tally_session[0];
 
-    let Some(execution_status) = get_execution_status(tally_session.execution_status.clone()) else {
+    let Some(execution_status) = get_execution_status(tally_session.execution_status.clone())
+    else {
         return Ok(None);
     };
 

@@ -1,3 +1,6 @@
+import {ITallyElectionStatus, ITallyExecutionStatus} from "@/types/ceremonies"
+import {theme} from "@sequentech/ui-essentials"
+
 export const JSON_MOCK = [
     {
         description: "Senaduria Ballots",
@@ -25,3 +28,37 @@ export const JSON_MOCK = [
         },
     },
 ]
+
+export const statusColor: (status: string) => string = (status) => {
+    if (status === ITallyExecutionStatus.STARTED) {
+        return theme.palette.warning.light
+    } else if (status === ITallyExecutionStatus.CONNECTED) {
+        return theme.palette.info.main
+    } else if (status === ITallyExecutionStatus.IN_PROGRESS) {
+        return theme.palette.info.main
+    } else if (status === ITallyExecutionStatus.SUCCESS) {
+        return theme.palette.brandSuccess
+    } else if (status === ITallyExecutionStatus.CANCELLED) {
+        return theme.palette.errorColor
+    } else {
+        return theme.palette.errorColor
+    }
+}
+
+export const electionStatusColor: (status: string) => string = (status) => {
+    if (status === ITallyElectionStatus.WAITING) {
+        return theme.palette.warning.light
+    } else if (status === ITallyElectionStatus.MIXING) {
+        return theme.palette.info.main
+    } else if (status === ITallyElectionStatus.DECRYPTING) {
+        return theme.palette.info.main
+    } else if (status === ITallyElectionStatus.SUCCESS) {
+        return theme.palette.brandSuccess
+    } else if (status === ITallyElectionStatus.COUNTING) {
+        return theme.palette.brandSuccess
+    } else if (status === ITallyElectionStatus.ERROR) {
+        return theme.palette.errorColor
+    } else {
+        return theme.palette.errorColor
+    }
+}

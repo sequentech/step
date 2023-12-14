@@ -144,20 +144,26 @@ impl BBHelper {
     }
 
     async fn upsert_index_db(&mut self) -> Result<()> {
-        self.client.upsert_index_db(self.index_dbname.clone().as_str()).await
+        self.client
+            .upsert_index_db(self.index_dbname.clone().as_str())
+            .await
     }
 
     async fn delete_index_db(&mut self) -> Result<()> {
-        self.client.delete_database(self.index_dbname.clone().as_str())
+        self.client
+            .delete_database(self.index_dbname.clone().as_str())
             .await
     }
 
     async fn upsert_board_db(&mut self) -> Result<()> {
-        self.client.upsert_board_db(self.board_dbname.clone().as_str()).await
+        self.client
+            .upsert_board_db(self.board_dbname.clone().as_str())
+            .await
     }
 
     async fn delete_board_db(&mut self) -> Result<()> {
-        self.client.delete_database(self.board_dbname.clone().as_str())
+        self.client
+            .delete_database(self.board_dbname.clone().as_str())
             .await
     }
 

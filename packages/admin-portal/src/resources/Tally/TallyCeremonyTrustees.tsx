@@ -3,12 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
 import Button from "@mui/material/Button"
-import {
-    BreadCrumbSteps,
-    BreadCrumbStepsVariant,
-    DropFile,
-    IconButton,
-} from "@sequentech/ui-essentials"
+import {BreadCrumbSteps, BreadCrumbStepsVariant, DropFile} from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
@@ -17,14 +12,18 @@ import styled from "@emotion/styled"
 import {TallyElectionsList} from "./TallyElectionsList"
 import {TallyTrusteesList} from "./TallyTrusteesList"
 import {TallyStyles} from "@/components/styles/TallyStyles"
-import {useGetList, useGetOne} from "react-admin"
+import {useGetList, useGetOne, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {RESTORE_PRIVATE_KEY} from "@/queries/RestorePrivateKey"
 import {useMutation} from "@apollo/client"
-import {ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
-import {faKey} from "@fortawesome/free-solid-svg-icons"
+import {ITallyTrusteeStatus} from "@/types/ceremonies"
 import {Box} from "@mui/material"
-import {RestorePrivateKeyMutation, Sequent_Backend_Tally_Session, Sequent_Backend_Tally_Session_Execution} from "@/gql/graphql"
+import {
+    RestorePrivateKeyMutation,
+    Sequent_Backend_Election_Event,
+    Sequent_Backend_Tally_Session,
+    Sequent_Backend_Tally_Session_Execution,
+} from "@/gql/graphql"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 
@@ -34,14 +33,16 @@ const WizardSteps = {
 }
 
 export const TallyCeremonyTrustees: React.FC = () => {
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
+
     const {t} = useTranslation()
-    const [tallyId, setTallyId] = useElectionEventTallyStore()
+    const {tallyId, setTallyId} = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
     const [page, setPage] = useState<number>(WizardSteps.Start)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
-    const [selectedTrustees, setSelectedTrustees] = useState<string[]>([])
+    const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [verified, setVerified] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
@@ -52,7 +53,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
         id: tallyId,
     })
 
-    const {data: tallySessionExecutions, refetch} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
         {
             pagination: {page: 1, perPage: 1},
@@ -69,9 +70,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
 
     useEffect(() => {
         if (data) {
-            if (tally?.last_updated_at !== data.last_updated_at) {
-                setTally(data)
-            }
+            setTally(data)
         }
     }, [data])
 
@@ -120,8 +119,6 @@ export const TallyCeremonyTrustees: React.FC = () => {
 
     const [restorePrivateKeyMutation] = useMutation<RestorePrivateKeyMutation>(RESTORE_PRIVATE_KEY)
     const uploadPrivateKey = async (files: FileList | null) => {
-        //TODO:i todo upload key
-        console.log("TallyCeremonyTrustees :: uploadPrivateKey :: files", files)
         setVerified(true)
 
         setErrors(null)
@@ -194,6 +191,8 @@ export const TallyCeremonyTrustees: React.FC = () => {
                         />
 
                         <TallyElectionsList
+                            electionEventId={record?.id}
+                            disabled={true}
                             update={(elections) => setSelectedElections(elections)}
                         />
 
@@ -230,35 +229,15 @@ export const TallyCeremonyTrustees: React.FC = () => {
                         />
 
                         <TallyElectionsList
+                            electionEventId={record?.id}
+                            disabled={true}
                             update={(elections) => setSelectedElections(elections)}
                         />
 
-                        <TallyStyles.StyledFooter>
-                            <ElectionHeader
-                                title={"tally.trusteeTallyTitle"}
-                                subtitle={"tally.trusteeTallySubTitle"}
-                            />
-                        </TallyStyles.StyledFooter>
-
-                        <Box
-                            sx={{
-                                width: "100%",
-                                display: "flex",
-                                justifyContent: "flex-end",
-                            }}
-                        >
-                            <IconButton
-                                icon={faKey}
-                                sx={{
-                                    color:
-                                        tally?.execution_status === ITallyExecutionStatus.CONNECTED
-                                            ? "#43E3A1"
-                                            : "#d32f2f",
-                                }}
-                            />
-                        </Box>
-
-                        <TallyTrusteesList update={(trustees) => setSelectedTrustees(trustees)} />
+                        <TallyTrusteesList
+                            tally={tally}
+                            update={(trustees) => setSelectedTrustees(trustees)}
+                        />
                     </>
                 )}
 
