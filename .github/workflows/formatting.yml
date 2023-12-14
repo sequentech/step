@@ -46,14 +46,12 @@ on:
       - name: Lint
         uses: borales/actions-yarn@v4
         with:
-          context: ${{ matrix.context }}
           cmd: lint
           dir: packages/${{ matrix.service }}
 
       - name: Prettify
         uses: borales/actions-yarn@v4
         with:
-          context: ${{ matrix.context }}
           cmd: prettify
           dir: packages/${{ matrix.service }}
 
@@ -89,6 +87,4 @@ on:
           override: true
 
       - name: Check Rust code formatting
-        with:
-          context: ${{ matrix.context }}
         run: cd packages/${{ matrix.service }} && cargo fmt -- --check

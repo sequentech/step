@@ -40,6 +40,4 @@ on:
           version: 1.0
 
       - name: Run tests
-        with:
-          context: ${{ matrix.context }}
         run: cd packages/${{ matrix.service }} && cargo test
