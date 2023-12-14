@@ -138,6 +138,7 @@ services:
       - ../hasura/migrations/:/hasura-migrations:cached
     environment:
       # applies migrations on start
+      HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: 60
       HASURA_GRAPHQL_MIGRATIONS_DIR: /hasura-migrations
       HASURA_GRAPHQL_METADATA_DIR: /hasura-metadata
       ## postgres database to store Hasura metadata
