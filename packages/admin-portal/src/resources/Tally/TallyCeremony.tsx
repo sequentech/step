@@ -7,7 +7,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {Accordion, AccordionDetails, AccordionSummary} from "@mui/material"
+import {Accordion, AccordionDetails, AccordionSummary, Typography} from "@mui/material"
 import {ElectionStyles} from "@/components/styles/ElectionStyles"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ListActions} from "@/components/ListActions"
@@ -77,7 +77,7 @@ export const TallyCeremony: React.FC = () => {
         "tally-results-results": true,
     })
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
+    const {data, refetch} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
         {
             id: tallyId,
@@ -93,6 +93,9 @@ export const TallyCeremony: React.FC = () => {
         {
             pagination: {page: 1, perPage: 9999},
             filter: {election_event_id: record?.id, tenant_id: record?.tenant_id},
+        },
+        {
+            refetchInterval: 5000,
         }
     )
 
@@ -100,8 +103,8 @@ export const TallyCeremony: React.FC = () => {
         if (data) {
             // if (tally?.last_updated_at !== data.last_updated_at) {
                 setPage(
-                    data.execution_status === ITallyExecutionStatus.STARTED ||
-                        data.execution_status === ITallyExecutionStatus.CONNECTED
+                    (data.execution_status === ITallyExecutionStatus.STARTED ||
+                        data.execution_status === ITallyExecutionStatus.CONNECTED)
                         ? WizardSteps.Ceremony
                         : data.execution_status === ITallyExecutionStatus.IN_PROGRESS
                         ? WizardSteps.Tally
@@ -124,13 +127,9 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
-            console.log("TallyCeremony :: tally", tally)
-            console.log("TallyCeremony :: page", page)
             setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.CONNECTED)
         }
         if (page === WizardSteps.Tally) {
-            console.log("TallyCeremony :: tally", tally)
-            console.log("TallyCeremony :: page", page)
             setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.SUCCESS)
         }
     }, [tally])
@@ -190,7 +189,6 @@ export const TallyCeremony: React.FC = () => {
             if (nextStatus) {
                 notify(t("tally.startTallySuccess"), {type: "success"})
                 setCreatingFlag(false)
-                setPage(WizardSteps.Ceremony)
             }
         } catch (error) {
             console.log("TallyCeremony :: confirmCeremonyAction :: error", error)
@@ -200,6 +198,10 @@ export const TallyCeremony: React.FC = () => {
 
     return (
         <>
+            <Typography variant="h1" sx={{mb: 2}}>
+                {tally?.execution_status}
+            </Typography>
+
             <WizardStyles.WizardWrapper>
                 <TallyStyles.StyledHeader>
                     <BreadCrumbSteps
