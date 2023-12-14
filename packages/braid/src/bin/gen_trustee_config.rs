@@ -7,8 +7,8 @@
 
 use base64::engine::general_purpose;
 use base64::Engine;
-use braid::run::config::TrusteeConfig;
 use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use braid::run::config::TrusteeConfig;
 use clap::Parser;
 use std::marker::PhantomData;
 

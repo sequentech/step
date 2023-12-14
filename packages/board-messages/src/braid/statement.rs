@@ -266,15 +266,7 @@ impl Statement {
         self.get_data().4
     }
 
-    pub fn get_data(
-        &self,
-    ) -> (
-        StatementType,
-        Hash,
-        BatchNumber,
-        MixNumber,
-        Timestamp,
-    ) {
+    pub fn get_data(&self) -> (StatementType, Hash, BatchNumber, MixNumber, Timestamp) {
         let kind: StatementType;
         let ts: u64;
         let cfg: [u8; 64];

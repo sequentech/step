@@ -24,5 +24,4 @@ pub mod util;
 // #[cfg(feature = "wasm")]
 // FIXME uncomment
 // pub mod wasm;
-
 pub mod fixtures;

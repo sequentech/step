@@ -165,8 +165,8 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: C)
                 .map_err(|e| anyhow!("Could not read configuration {}", e))?;
 
             let threshold = [1, 2];
-            let mut selected_trustees =
-                [board_messages::braid::newtypes::NULL_TRUSTEE; board_messages::braid::newtypes::MAX_TRUSTEES];
+            let mut selected_trustees = [board_messages::braid::newtypes::NULL_TRUSTEE;
+                board_messages::braid::newtypes::MAX_TRUSTEES];
             selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
             let ballot_batch = board_messages::braid::artifact::Ballots::new(ballots);

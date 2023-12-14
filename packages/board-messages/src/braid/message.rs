@@ -311,10 +311,7 @@ impl Message {
 
         let bytes = self.statement.strand_serialize()?;
         // Verify signature
-        let verified = self
-            .sender
-            .pk
-            .verify(&self.signature, &bytes);
+        let verified = self.sender.pk.verify(&self.signature, &bytes);
 
         if verified.is_err() {
             return Err(anyhow!(
@@ -353,7 +350,7 @@ impl Message {
             Ok(VerifiedMessage::new(
                 trustee,
                 self.statement.clone(),
-                Some(artifact.clone())
+                Some(artifact.clone()),
             ))
         } else {
             // If the statement type were configuration, cfg_hash should have matched the artifact above
@@ -372,7 +369,6 @@ impl Message {
                 self.statement.clone(),
                 Some(artifact.clone()),
             ))
-            
         }
     }
 
@@ -404,7 +400,7 @@ fn verify_artifact<C: Ctx>(
         StatementType::PublicKey => {}
         StatementType::Shares => {}
         StatementType::Configuration => {}
-        _ => {},
+        _ => {}
     }
 
     Ok(())
