@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use async_once::AsyncOnce;
 use celery::export::Arc;
 use config::{Config, ConfigError, Environment};
@@ -17,12 +18,13 @@ struct PgConfig {
 }
 
 impl PgConfig {
-    pub fn from_env() -> Result<Self, ConfigError> {
+    pub fn from_env() -> Result<Self> {
         Config::builder()
             .add_source(Environment::default().separator("_"))
             .build()
-            .unwrap()
+            .map_err(|err| anyhow!("error building Config from Env: {}", err))?
             .try_deserialize()
+            .map_err(|err| anyhow!("error deserializing PgConfig: {}", err))
     }
 }
 
@@ -32,45 +34,62 @@ enum Error {
     PoolError(#[from] PoolError),
 }
 
-pub async fn generate_database_pool() -> Arc<Pool> {
-    let config = PgConfig::from_env().unwrap();
+pub async fn generate_database_pool() -> Result<Arc<Pool>> {
+    let config = PgConfig::from_env()?;
 
     cfg_if::cfg_if! {
         if #[cfg(any(feature = "fips_core", feature = "fips_full"))] {
             if  config.keycloak_db.ssl_mode == Some(SslMode::Prefer) ||
                 config.keycloak_db.ssl_mode == Some(SslMode::Require)
             {
-                let mut builder = SslConnector::builder(SslMethod::tls()).unwrap();
+                let mut builder = SslConnector::builder(SslMethod::tls())
+                    .map_err(|err|
+                        anyhow!("error building SsslConnector: {}", err)
+                    )?;
                 builder.set_ca_file(
-                    env::var("KEYCLOAK_DB_CA_PATH").unwrap()
-                ).unwrap();
+                    env::var("KEYCLOAK_DB_CA_PATH")
+                    .map_err(|err|
+                        anyhow!("error loading KEYCLOAK_DB_CA_PATH var: {}", err)
+                    )?
+                )
+                .map_err(|err|
+                    anyhow!("error in builder.set_ca_file(): {}", err)
+                )?;
                 let connector_tls = MakeTlsConnector::new(builder.build());
 
                 let pool = config
                     .keycloak_db
                     .create_pool(Some(Runtime::Tokio1), connector_tls)
-                    .unwrap();
-                Arc::new(pool)
+                    .map_err(|err|
+                        anyhow!("error creating pool: {}", err)
+                    )?;
+                Ok(Arc::new(pool))
             } else {
                 let pool = config
                     .keycloak_db
                     .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
-                    .unwrap();
-                Arc::new(pool)
+                    .map_err(|err|
+                        anyhow!("error creating pool: {}", err)
+                    )?;
+                Ok(Arc::new(pool))
             }
         } else {
             let pool = config
                 .keycloak_db
                 .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
-                .unwrap();
-            Arc::new(pool)
+                .map_err(|err|
+                    anyhow!("error creating pool: {}", err)
+                )?;
+            Ok(Arc::new(pool))
         }
     }
 }
 
 lazy_static! {
     static ref DATABASE_POOL: AsyncOnce<Arc<Pool>> =
-        AsyncOnce::new(async { generate_database_pool().await });
+        AsyncOnce::new(async {
+            generate_database_pool().await.unwrap()
+        });
 }
 
 pub async fn get_database_pool() -> Arc<Pool> {
