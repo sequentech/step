@@ -701,8 +701,7 @@ const spanishTranslation: TranslationType = {
             cancelTallyCeremonyError: "No se ha podido cancelar la ceremonia del recuento",
             trusteeTitle: "Proceso del trustee",
             trusteeSubTitle: "Por favor, importe su fragmento de clave",
-            invited:
-                "Has sido invitado a participar en una ceremonia de recuento. Por favor, ",
+            invited: "Has sido invitado a participar en una ceremonia de recuento. Por favor, ",
             click: "haz clic en la acción de recuento",
             participate: "para participar.",
             breadcrumbSteps: {

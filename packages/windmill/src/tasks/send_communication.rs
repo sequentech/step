@@ -12,8 +12,8 @@ use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
 
-use deadpool_postgres::Client as DbClient;
 use crate::services::database::get_database_pool;
+use deadpool_postgres::Client as DbClient;
 
 use anyhow::{anyhow, Context};
 use aws_config::{meta::region::RegionProviderChain, Region};
@@ -402,7 +402,10 @@ pub async fn send_communication(
         }
     };
 
-    let db_client: DbClient = get_database_pool().await.get().await
+    let db_client: DbClient = get_database_pool()
+        .await
+        .get()
+        .await
         .map_err(|err| anyhow!("{}", err))?;
 
     let user_ids = match body.audience_selection {

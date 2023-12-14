@@ -47,8 +47,7 @@ export const TallyCeremony: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const {t} = useTranslation()
-    const {tallyId, setTallyId, setCreatingFlag} =
-        useElectionEventTallyStore()
+    const {tallyId, setTallyId, setCreatingFlag} = useElectionEventTallyStore()
     const notify = useNotify()
 
     const [openModal, setOpenModal] = useState(false)

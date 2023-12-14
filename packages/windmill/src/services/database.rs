@@ -83,9 +83,7 @@ pub async fn generate_database_pool() -> Result<Arc<Pool>> {
 
 lazy_static! {
     static ref DATABASE_POOL: AsyncOnce<Arc<Pool>> =
-        AsyncOnce::new(async {
-            generate_database_pool().await.unwrap()
-        });
+        AsyncOnce::new(async { generate_database_pool().await.unwrap() });
 }
 
 pub async fn get_database_pool() -> Arc<Pool> {

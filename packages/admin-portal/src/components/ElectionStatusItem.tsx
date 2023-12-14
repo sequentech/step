@@ -1,6 +1,6 @@
 import React from "react"
-import { electionStatusColor } from '@/resources/Tally/constants'
-import { ITallyElectionStatus } from '@/types/ceremonies'
+import {electionStatusColor} from "@/resources/Tally/constants"
+import {ITallyElectionStatus} from "@/types/ceremonies"
 import styled from "@emotion/styled"
 
 /*  
@@ -50,7 +50,7 @@ export const ElectionStatusItem: React.FC<ElectionStatusItemProps> = (props) => 
     return (
         <StyledChips>
             <StyledChip name={name}>
-                <StyledChipLabel >{name ?? "-"}</StyledChipLabel>
+                <StyledChipLabel>{name ?? "-"}</StyledChipLabel>
             </StyledChip>
         </StyledChips>
     )

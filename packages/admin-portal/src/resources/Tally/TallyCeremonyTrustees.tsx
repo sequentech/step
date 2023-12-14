@@ -3,11 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState} from "react"
 import Button from "@mui/material/Button"
-import {
-    BreadCrumbSteps,
-    BreadCrumbStepsVariant,
-    DropFile,
-} from "@sequentech/ui-essentials"
+import {BreadCrumbSteps, BreadCrumbStepsVariant, DropFile} from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
@@ -20,7 +16,7 @@ import {useGetList, useGetOne, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {RESTORE_PRIVATE_KEY} from "@/queries/RestorePrivateKey"
 import {useMutation} from "@apollo/client"
-import { ITallyTrusteeStatus} from "@/types/ceremonies"
+import {ITallyTrusteeStatus} from "@/types/ceremonies"
 import {Box} from "@mui/material"
 import {
     RestorePrivateKeyMutation,
@@ -57,21 +53,20 @@ export const TallyCeremonyTrustees: React.FC = () => {
         id: tallyId,
     })
 
-    const {data: tallySessionExecutions} =
-        useGetList<Sequent_Backend_Tally_Session_Execution>(
-            "sequent_backend_tally_session_execution",
-            {
-                pagination: {page: 1, perPage: 1},
-                sort: {field: "created_at", order: "DESC"},
-                filter: {
-                    tally_session_id: tallyId,
-                    tenant_id: tenantId,
-                },
+    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+        "sequent_backend_tally_session_execution",
+        {
+            pagination: {page: 1, perPage: 1},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tally_session_id: tallyId,
+                tenant_id: tenantId,
             },
-            {
-                refetchInterval: 5000,
-            }
-        )
+        },
+        {
+            refetchInterval: 5000,
+        }
+    )
 
     useEffect(() => {
         if (data) {
