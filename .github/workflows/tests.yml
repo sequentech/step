@@ -6,6 +6,22 @@ on:
   rust-ci:
     name: Run Rust tests
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - service: braid
+          - service: harvest
+          - service: strand
+          - service: immu-board
+          - service: immudb-rs
+          - service: sequent-core
+          - service: ballot-verifier
+          - service: board-messages
+          - service: velvet
+          - service: windmill
+          - service: wrap-map-err
+            
+      fail-fast: false
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -24,4 +40,6 @@ on:
           version: 1.0
 
       - name: Run tests
-        run: cd packages && cargo test
+        with:
+          context: ${{ matrix.context }}
+        run: cd packages/${{ matrix.service }} && cargo test

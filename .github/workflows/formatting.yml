@@ -6,6 +6,22 @@ on:
   frontend-formatting:
     name: Check frontend linting
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - service: braid
+          - service: harvest
+          - service: strand
+          - service: immu-board
+          - service: immudb-rs
+          - service: sequent-core
+          - service: ballot-verifier
+          - service: board-messages
+          - service: velvet
+          - service: windmill
+          - service: wrap-map-err
+            
+      fail-fast: false
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -27,45 +43,39 @@ on:
           cmd: build:ui-essentials
           dir: packages/
 
-      - name: Lint Ballot Verifier
+      - name: Lint
         uses: borales/actions-yarn@v4
         with:
+          context: ${{ matrix.context }}
           cmd: lint
-          dir: packages/
+          dir: packages/${{ matrix.service }}
 
-      - name: Prettify Ballot Verifier
+      - name: Prettify
         uses: borales/actions-yarn@v4
         with:
+          context: ${{ matrix.context }}
           cmd: prettify
-          dir: packages/
-
-      - name: Lint Voting Portal
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: lint
-          dir: packages/
-
-      - name: Prettify Voting Portal
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: prettify
-          dir: packages/
-
-      - name: Lint Admin Portal
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: lint
-          dir: packages/
-
-      - name: Prettify Admin Portal
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: prettify
-          dir: packages/
+          dir: packages/${{ matrix.service }}
 
   rust-fmt:
-    name: Check Rust format
+    name: Check Rust format 
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - service: braid
+          - service: harvest
+          - service: strand
+          - service: immu-board
+          - service: immudb-rs
+          - service: sequent-core
+          - service: ballot-verifier
+          - service: board-messages
+          - service: velvet
+          - service: windmill
+          - service: wrap-map-err
+            
+      fail-fast: false
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -79,4 +89,6 @@ on:
           override: true
 
       - name: Check Rust code formatting
-        run: cd packages && cargo fmt -- --check
+        with:
+          context: ${{ matrix.context }}
+        run: cd packages/${{ matrix.service }} && cargo fmt -- --check

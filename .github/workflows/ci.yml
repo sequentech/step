@@ -73,41 +73,41 @@ jobs:
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
         build-args: SPA_NAME=${{ matrix.spa_name }}
 
-  rust-fmt:
-    name: Check Rust format 
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - service: braid
-          - service: harvest
-          - service: strand
-          - service: immu-board
-          - service: immudb-rs
-          - service: sequent-core
-          - service: ballot-verifier
-          - service: board-messages
-          - service: velvet
-          - service: windmill
-          - service: wrap-map-err
+  # rust-fmt:
+  #   name: Check Rust format 
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - service: braid
+  #         - service: harvest
+  #         - service: strand
+  #         - service: immu-board
+  #         - service: immudb-rs
+  #         - service: sequent-core
+  #         - service: ballot-verifier
+  #         - service: board-messages
+  #         - service: velvet
+  #         - service: windmill
+  #         - service: wrap-map-err
             
-      fail-fast: false
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
+  #     fail-fast: false
+  #   steps:
+  #     - name: Check out code
+  #       uses: actions/checkout@v3
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          components: rustfmt
-          override: true
+  #     - name: Install Rust
+  #       uses: actions-rs/toolchain@v1
+  #       with:
+  #         profile: minimal
+  #         toolchain: nightly
+  #         components: rustfmt
+  #         override: true
 
-      - name: Check Rust code formatting
-        with:
-          context: ${{ matrix.context }}
-        run: cd packages/${{ matrix.service }} && cargo fmt -- --check
+  #     - name: Check Rust code formatting
+  #       with:
+  #         context: ${{ matrix.context }}
+  #       run: cd packages/${{ matrix.service }} && cargo fmt -- --check
 
   rust-ci:
     name: Run Rust tests
