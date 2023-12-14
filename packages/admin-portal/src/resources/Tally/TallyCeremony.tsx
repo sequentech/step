@@ -98,7 +98,7 @@ export const TallyCeremony: React.FC = () => {
 
     useEffect(() => {
         if (data) {
-            if (tally?.last_updated_at !== data.last_updated_at) {
+            // if (tally?.last_updated_at !== data.last_updated_at) {
                 setPage(
                     data.execution_status === ITallyExecutionStatus.STARTED ||
                         data.execution_status === ITallyExecutionStatus.CONNECTED
@@ -110,19 +110,28 @@ export const TallyCeremony: React.FC = () => {
                         : WizardSteps.Start
                 )
                 setTally(data)
-            }
+            // }
         }
     }, [data])
 
     useEffect(() => {
-        setIsButtonDisabled(
-            page === WizardSteps.Start && selectedElections.length === 0 ? true : false
-        )
+        if (page === WizardSteps.Start) {
+            setIsButtonDisabled(
+                page === WizardSteps.Start && selectedElections.length === 0 ? true : false
+            )
+        }
     }, [selectedElections])
 
     useEffect(() => {
         if (page === WizardSteps.Ceremony) {
+            console.log("TallyCeremony :: tally", tally)
+            console.log("TallyCeremony :: page", page)
             setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.CONNECTED)
+        }
+        if (page === WizardSteps.Tally) {
+            console.log("TallyCeremony :: tally", tally)
+            console.log("TallyCeremony :: page", page)
+            setIsButtonDisabled(tally?.execution_status !== ITallyExecutionStatus.SUCCESS)
         }
     }, [tally])
 
@@ -495,6 +504,8 @@ export const TallyCeremony: React.FC = () => {
                                     ? t("tally.common.ceremony")
                                     : page === WizardSteps.Ceremony
                                     ? t("tally.common.start")
+                                    : page === WizardSteps.Tally
+                                    ? t("tally.common.results")
                                     : t("tally.common.next")}
                                 <ChevronRightIcon />
                             </>
@@ -522,7 +533,7 @@ export const TallyCeremony: React.FC = () => {
             <Dialog
                 variant="info"
                 open={openCeremonyModal}
-                ok={t("tally.common.dialog.ok")}
+                ok={t("tally.common.dialog.okTally")}
                 cancel={t("tally.common.dialog.cancel")}
                 title={t("tally.common.dialog.tallyTitle")}
                 handleClose={(result: boolean) => {

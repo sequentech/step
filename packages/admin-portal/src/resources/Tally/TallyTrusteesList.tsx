@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {useGetOne, useGetList} from "react-admin"
+import {useGetList} from "react-admin"
 
 import {
     Sequent_Backend_Trustee,
@@ -18,7 +18,6 @@ import {ITallyCeremonyStatus, ITallyExecutionStatus, ITallyTrusteeStatus} from "
 import {NoItem} from "@/components/NoItem"
 import {useTranslation} from "react-i18next"
 import {Box, Icon, Typography} from "@mui/material"
-import {TallyStyles} from "@/components/styles/TallyStyles"
 import ElectionHeader from "@/components/ElectionHeader"
 import KeyIcon from "@mui/icons-material/Key"
 
@@ -79,10 +78,6 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
 
     useEffect(() => {
         if (trusteesData) {
-
-            console.log("trusteesData   ", trusteesData)
-            
-
             const importadas = trusteesData.filter((election) => election.active).length
             setKeysImported(importadas)
 
@@ -150,7 +145,11 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
                     <Icon
                         sx={{
                             color:
-                                tally?.execution_status === ITallyExecutionStatus.CONNECTED
+                                (
+                                    tally?.execution_status === ITallyExecutionStatus.CONNECTED ||
+                                    tally?.execution_status === ITallyExecutionStatus.IN_PROGRESS ||
+                                    tally?.execution_status === ITallyExecutionStatus.SUCCESS
+                                )
                                     ? "#43E3A1"
                                     : "#d32f2f",
                         }}

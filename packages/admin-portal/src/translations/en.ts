@@ -695,8 +695,13 @@ const englishTranslation = {
             startTallyError: "Could not start Tally",
             startTallyCeremonySuccess: "Tally Ceremony started",
             startTallyCeremonyError: "Could not start Tally Ceremony",
+            cancelTallyCeremonySuccess: "Tally Ceremony canceled",
+            cancelTallyCeremonyError: "Could not cancel Tally Ceremony",
             trusteeTitle: "Trustees process",
             trusteeSubTitle: "Please upload you key fragment",
+            invited: "You have been invited to participate in a Tally ceremony. Please ",
+            click: "click on the tally Action",
+            participate: "to participate.",
             breadcrumbSteps: {
                 start: "Start",
                 finish: "Finish",
@@ -716,14 +721,21 @@ const englishTranslation = {
                 needed: " trustees needed",
                 start: "Start Tally",
                 ceremony: "Start Tally Ceremony",
+                results: "Results",
                 dialog: {
                     ok: "Ok",
+                    okTally: "Start Tally",
+                    okCancel: "Cancel Tally",
                     cancel: "Close",
                     title: "Are you sure you want to  start a ceremony?",
                     tallyTitle: "Are you sure you want to  start the tally?",
+                    cancelTitle: "Are you sure you want to  cancel the tally?",
                     message:
                         "You are about to start a tally ceremony . This action will notify the trustees to import their key fragments.",
-                    ceremony: "All required trustees have verified their key fragments. Everything is ready to begin receiving results. Do you want to start the Tally?",
+                    cancelMessage:
+                        "You are about to cancel the tally ceremony. This action is not undoable.",
+                    ceremony:
+                        "All required trustees have verified their key fragments. Everything is ready to begin receiving results. Do you want to start the Tally?",
                 },
             },
             table: {
