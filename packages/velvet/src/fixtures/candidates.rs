@@ -4,10 +4,10 @@ use sequent_core::ballot::{
 use uuid::Uuid;
 
 pub fn get_candidate_0(
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    contest_id: &str,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    contest_id: &Uuid,
 ) -> Candidate {
     Candidate {
         id: Uuid::new_v4().to_string(),
@@ -30,10 +30,10 @@ pub fn get_candidate_0(
 }
 
 pub fn get_candidate_1(
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    contest_id: &str,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    contest_id: &Uuid,
 ) -> Candidate {
     Candidate {
         id: Uuid::new_v4().to_string(),
@@ -56,10 +56,10 @@ pub fn get_candidate_1(
 }
 
 pub fn get_candidate_2(
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    contest_id: &str,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    contest_id: &Uuid,
 ) -> Candidate {
     Candidate {
         id: Uuid::new_v4().to_string(),
@@ -82,10 +82,10 @@ pub fn get_candidate_2(
 }
 
 pub fn get_candidate_3(
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    contest_id: &str,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    contest_id: &Uuid,
 ) -> Candidate {
     Candidate {
         id: Uuid::new_v4().to_string(),
@@ -108,10 +108,10 @@ pub fn get_candidate_3(
 }
 
 pub fn get_candidate_4(
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    contest_id: &str,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    contest_id: &Uuid,
 ) -> Candidate {
     Candidate {
         id: Uuid::new_v4().to_string(),
@@ -134,10 +134,10 @@ pub fn get_candidate_4(
 }
 
 pub fn get_candidate_5(
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    contest_id: &str,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    contest_id: &Uuid,
 ) -> Candidate {
     Candidate {
         id: Uuid::new_v4().to_string(),

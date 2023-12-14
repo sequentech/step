@@ -5,10 +5,10 @@ use uuid::Uuid;
 
 use super::candidates;
 
-pub fn get_contest_1(tenant_id: &str, election_event_id: &str, election_id: &str) -> Contest {
-    let contest_id = Uuid::new_v4().to_string();
+pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &Uuid) -> Contest {
+    let contest_id = Uuid::new_v4();
     Contest {
-        id: contest_id,
+        id: contest_id.to_string(),
         tenant_id: tenant_id.to_string(),
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
@@ -23,7 +23,7 @@ pub fn get_contest_1(tenant_id: &str, election_event_id: &str, election_id: &str
         counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
         is_encrypted: true,
         candidates: vec![
-            candidates::get_candidate_0(&tenant_id, &election_event_id, &election_id, &contest_id),
+            candidates::get_candidate_0(tenant_id, election_event_id, election_id, &contest_id),
             candidates::get_candidate_1(&tenant_id, &election_event_id, &election_id, &contest_id),
             candidates::get_candidate_2(&tenant_id, &election_event_id, &election_id, &contest_id),
             candidates::get_candidate_3(&tenant_id, &election_event_id, &election_id, &contest_id),

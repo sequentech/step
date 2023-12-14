@@ -17,6 +17,8 @@ mod tests {
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use std::fs;
     use std::io::Write;
+    use std::str::FromStr;
+    use uuid::{uuid, Uuid};
     use walkdir::WalkDir;
 
     fn generate_ballots(
@@ -30,19 +32,24 @@ mod tests {
             panic!("ballots_num should be at least 20");
         }
 
-        let _rng = rand::thread_rng();
+        let election_event_id = Uuid::new_v4();
 
         (0..election_num).try_for_each(|_| {
-            let uuid_election = fixture.create_election_config()?;
+            let election = fixture.create_election_config(&election_event_id)?;
             (0..contest_num).try_for_each(|_| {
-                let uuid_contest = fixture.create_contest_config(&uuid_election)?;
+                let contest = fixture.create_contest_config(
+                    &election.tenant_id,
+                    &election_event_id,
+                    &election.id,
+                )?;
                 (0..area_num).try_for_each(|index| {
-                    let uuid_area = fixture.create_area_dir(&uuid_election, &uuid_contest)?;
+                    let uuid_area = fixture
+                        .create_area_dir(&election.id, &Uuid::from_str(&contest.id).unwrap())?;
 
                     let file = fixture
                         .input_dir_ballots
-                        .join(format!("election__{uuid_election}"))
-                        .join(format!("contest__{uuid_contest}"))
+                        .join(format!("election__{}", &election.id))
+                        .join(format!("contest__{}", &contest.id))
                         .join(format!("area__{uuid_area}"));
 
                     if index == 1 {
@@ -57,8 +64,6 @@ mod tests {
                         .open(file.join("ballots.csv"))?;
 
                     (0..ballots_num).try_for_each(|i| {
-                        let contest = fixtures::get_contest_config();
-
                         let mut choices = vec![
                             DecodedVoteChoice {
                                 id: "0".to_owned(),
@@ -144,8 +149,10 @@ mod tests {
     fn test_create_configs() -> Result<()> {
         let fixture = TestFixture::new()?;
 
-        let uuid_election = fixture.create_election_config()?;
-        let uuid_contest = fixture.create_contest_config(&uuid_election)?;
+        let election_event_id = Uuid::new_v4();
+        let election = fixture.create_election_config(&election_event_id)?;
+        let contest =
+            fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
 
         let entries = fs::read_dir(&fixture.input_dir_configs)?;
         let count = entries.count();
@@ -154,7 +161,7 @@ mod tests {
         let entries = fs::read_dir(
             fixture
                 .input_dir_configs
-                .join(format!("election__{uuid_election}")),
+                .join(format!("election__{}", election.id)),
         )?;
         let count = entries.count();
         assert_eq!(count, 2);
@@ -162,8 +169,8 @@ mod tests {
         let entries = fs::read_dir(
             fixture
                 .input_dir_configs
-                .join(format!("election__{uuid_election}"))
-                .join(format!("contest__{uuid_contest}")),
+                .join(format!("election__{}", election.id))
+                .join(format!("contest__{}", contest.id)),
         )?;
         let count = entries.count();
         assert_eq!(count, 1);

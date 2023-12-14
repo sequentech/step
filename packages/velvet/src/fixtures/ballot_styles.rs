@@ -6,10 +6,10 @@ use uuid::Uuid;
 use super::contests;
 
 pub fn get_ballot_style_1(
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    area_id: &str,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    area_id: &Uuid,
 ) -> BallotStyle {
     BallotStyle {
         id: Uuid::new_v4().to_string(),

@@ -48,38 +48,42 @@ impl TestFixture {
         })
     }
 
-    pub fn create_election_config(&self) -> Result<Uuid> {
-        let uuid = Uuid::new_v4();
+    pub fn create_election_config(
+        &self,
+        election_event_id: &Uuid,
+    ) -> Result<super::elections::Election> {
+        let election = super::elections::get_election1(election_event_id);
 
-        let mut ballot_style = get_election_config();
-        ballot_style.id = uuid.to_string();
-
-        let mut path = self.input_dir_configs.join(format!("election__{uuid}"));
+        let mut path = self
+            .input_dir_configs
+            .join(format!("election__{}", election.id));
         fs::create_dir_all(path.as_path())?;
 
         path.push("election-config.json");
         let mut file = fs::File::create(path)?;
-        writeln!(file, "{}", serde_json::to_string(&ballot_style)?)?;
+        writeln!(file, "{}", serde_json::to_string(&election)?)?;
 
-        Ok(uuid)
+        Ok(election)
     }
 
-    pub fn create_contest_config(&self, election_uuid: &Uuid) -> Result<Uuid> {
-        let uuid = Uuid::new_v4();
-
-        let mut contest = get_contest_config();
-        contest.id = uuid.to_string();
+    pub fn create_contest_config(
+        &self,
+        tenant_id: &Uuid,
+        election_event_id: &Uuid,
+        election_id: &Uuid,
+    ) -> Result<Contest> {
+        let mut contest = super::contests::get_contest_1(tenant_id, election_event_id, election_id);
 
         let dir = self
             .input_dir_configs
-            .join(format!("election__{election_uuid}"))
-            .join(format!("contest__{uuid}"));
+            .join(format!("election__{}", &election_id))
+            .join(format!("contest__{}", &contest.id));
         fs::create_dir_all(&dir)?;
 
         let mut file = fs::File::create(dir.join("contest-config.json"))?;
         writeln!(file, "{}", serde_json::to_string(&contest)?)?;
 
-        Ok(uuid)
+        Ok(contest)
     }
 
     pub fn create_area_dir(&self, election_uuid: &Uuid, contest_uuid: &Uuid) -> Result<Uuid> {
