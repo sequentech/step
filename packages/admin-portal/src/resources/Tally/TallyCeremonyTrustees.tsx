@@ -74,9 +74,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
 
     useEffect(() => {
         if (data) {
-            if (tally?.last_updated_at !== data.last_updated_at) {
-                setTally(data)
-            }
+            setTally(data)
         }
     }, [data])
 
@@ -125,8 +123,6 @@ export const TallyCeremonyTrustees: React.FC = () => {
 
     const [restorePrivateKeyMutation] = useMutation<RestorePrivateKeyMutation>(RESTORE_PRIVATE_KEY)
     const uploadPrivateKey = async (files: FileList | null) => {
-        //TODO:i todo upload key
-        console.log("TallyCeremonyTrustees :: uploadPrivateKey :: files", files)
         setVerified(true)
 
         setErrors(null)

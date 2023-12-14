@@ -117,11 +117,11 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
                     subtitle={"tally.trusteeTallySubTitle"}
                 />
 
-                <Box
-                    sx={{
+                <div
+                    style={{
                         display: "flex",
                         justifyContent: "flex-end",
-                        alignItems: "center",
+                        alignItems: "start",
                     }}
                 >
                     <div
@@ -142,8 +142,10 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
                             {t("tally.common.needed")}
                         </Typography>
                     </div>
+
                     <Icon
                         sx={{
+                            height: "100%",
                             color:
                                 (
                                     tally?.execution_status === ITallyExecutionStatus.CONNECTED ||
@@ -156,7 +158,7 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
                     >
                         <KeyIcon />
                     </Icon>
-                </Box>
+                </div>
             </Box>
 
             {trusteesData.length ? (

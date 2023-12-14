@@ -12,8 +12,6 @@ import {
     Identifier,
     RaRecord,
     useRecordContext,
-    useDelete,
-    WrapperField,
     FunctionField,
     DateField,
     useGetList,
@@ -27,7 +25,7 @@ import {
     Sequent_Backend_Tally_Session,
     Sequent_Backend_Tally_Session_Execution,
 } from "../../gql/graphql"
-import {Action, ActionsColumn} from "../../components/ActionButons"
+import {ActionsColumn} from "../../components/ActionButons"
 import DescriptionIcon from "@mui/icons-material/Description"
 import {Trans, useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
@@ -102,7 +100,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
-                election_event_id: electionEvent.id,
+                election_event_id: electionEvent?.id,
             },
         }
     )
@@ -113,7 +111,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             pagination: {page: 1, perPage: 1},
             sort: {field: "created_at", order: "DESC"},
             filter: {
-                tally_session_id: keysCeremonies?.[0].id,
+                tally_session_id: keysCeremonies?.[0]?.id,
                 tenant_id: tenantId,
             },
         }
@@ -238,16 +236,17 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
     }
     let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
 
+
     return (
         <>
-            {canTrusteeCeremony && keysCeremonies?.[0].execution_status === "STARTED" ? (
+            {canTrusteeCeremony && keysCeremonies?.[0]?.execution_status === "STARTED" ? (
                 <Alert severity="info">
                     <Trans i18nKey="electionEventScreen.keys.notify.participateNow">
                         {t("tally.invited")}
                         <NotificationLink
                             onClick={(e: any) => {
                                 e.preventDefault()
-                                viewTrusteeTally(keysCeremonies?.[0].id)
+                                viewTrusteeTally(keysCeremonies?.[0]?.id)
                             }}
                         >
                             click on the tally Key Action

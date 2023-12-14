@@ -166,24 +166,6 @@ export const TallyCeremony: React.FC = () => {
             if (data) {
                 notify(t("tally.createTallySuccess"), {type: "success"})
                 console.log("TallyCeremony :: confirmStartAction :: data", data)
-
-                const {data: nextStatus, errors} = await UpdateTallyCeremonyMutation({
-                    variables: {
-                        election_event_id: record?.id,
-                        tally_session_id: data.create_tally_ceremony.tally_session_id,
-                        status: ITallyExecutionStatus.STARTED,
-                    },
-                })
-
-                if (errors) {
-                    notify(t("tally.startTallyCeremonyError"), {type: "error"})
-                }
-
-                if (nextStatus) {
-                    notify(t("tally.startTallyCeremonySuccess"), {type: "success"})
-                    setCreatingFlag(false)
-                    setPage(WizardSteps.Ceremony)
-                }
             }
         } catch (error) {
             console.log("TallyCeremony :: confirmStartAction :: error", error)
