@@ -11,10 +11,8 @@ import {ListTally} from "../Tally/ListTally"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {TallyCeremony} from "../Tally/TallyCeremony"
 import {TallyCeremonyTrustees} from "../Tally/TallyCeremonyTrustees"
-import {useTranslation} from "react-i18next"
 
 export const EditElectionEventTally: React.FC = () => {
-    const {t} = useTranslation()
     const recordEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const recordTally = useRecordContext<Sequent_Backend_Tally_Session>()
     const [showStartTallyDialog, setShowStartTallyDialog] = useState(false)

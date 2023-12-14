@@ -7,8 +7,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {Accordion, AccordionDetails, AccordionSummary, Typography} from "@mui/material"
-import {ElectionStyles} from "@/components/styles/ElectionStyles"
+import {Accordion, AccordionSummary} from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
@@ -31,7 +30,7 @@ import {
     Sequent_Backend_Tally_Session,
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
-import {statusColor} from "@/components/keys-ceremony/CeremonyStep"
+import {statusColor} from "./constants"
 
 const WizardSteps = {
     Start: 0,

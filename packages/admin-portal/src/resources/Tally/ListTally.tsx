@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useEffect} from "react"
+import React, {ReactElement, useContext} from "react"
 import {styled as MUIStiled} from "@mui/material/styles"
 import {
     DatagridConfigurable,
@@ -117,8 +117,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             },
         }
     )
-
-    console.log("ListTally :: record ::  ", record)
 
     const CreateButton = () => (
         <Button

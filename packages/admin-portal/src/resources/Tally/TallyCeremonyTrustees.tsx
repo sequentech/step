@@ -7,7 +7,6 @@ import {
     BreadCrumbSteps,
     BreadCrumbStepsVariant,
     DropFile,
-    IconButton,
 } from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
@@ -21,8 +20,7 @@ import {useGetList, useGetOne, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {RESTORE_PRIVATE_KEY} from "@/queries/RestorePrivateKey"
 import {useMutation} from "@apollo/client"
-import {ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
-import {faKey} from "@fortawesome/free-solid-svg-icons"
+import { ITallyTrusteeStatus} from "@/types/ceremonies"
 import {Box} from "@mui/material"
 import {
     RestorePrivateKeyMutation,
@@ -59,7 +57,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
         id: tallyId,
     })
 
-    const {data: tallySessionExecutions, refetch} =
+    const {data: tallySessionExecutions} =
         useGetList<Sequent_Backend_Tally_Session_Execution>(
             "sequent_backend_tally_session_execution",
             {
