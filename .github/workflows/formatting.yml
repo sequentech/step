@@ -4,6 +4,7 @@ on:
   pull_request:
 
   frontend-formatting:
+    name: Check frontend linting
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -16,53 +17,53 @@ on:
 
       - name: Run install
         uses: borales/actions-yarn@v4
-        dir: packages/
         with:
           cmd: install # will run `yarn install` command
+          dir: packages/
 
       - name: Build ui-essentials
         uses: borales/actions-yarn@v4
-        dir: packages/
         with:
           cmd: build:ui-essentials
+          dir: packages/
 
       - name: Lint Ballot Verifier
         uses: borales/actions-yarn@v4
-        dir: packages/ballot-verifier
         with:
           cmd: lint
+          dir: packages/
 
       - name: Prettify Ballot Verifier
         uses: borales/actions-yarn@v4
-        dir: packages/ballot-verifier
         with:
           cmd: prettify
+          dir: packages/
 
       - name: Lint Voting Portal
         uses: borales/actions-yarn@v4
-        dir: packages/voting-portal
         with:
           cmd: lint
+          dir: packages/
 
       - name: Prettify Voting Portal
         uses: borales/actions-yarn@v4
-        dir: packages/voting-portal
         with:
           cmd: prettify
+          dir: packages/
 
       - name: Lint Admin Portal
         uses: borales/actions-yarn@v4
-        dir: packages/voting-portal
         with:
           cmd: lint
+          dir: packages/
 
       - name: Prettify Admin Portal
         uses: borales/actions-yarn@v4
-        dir: packages/admin-portal
         with:
           cmd: prettify
+          dir: packages/
 
-  rust-formatting:
+  rust-fmt:
     name: Check Rust format
     runs-on: ubuntu-latest
     steps:
