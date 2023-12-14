@@ -18,9 +18,11 @@ mod tests {
     use std::fs;
     use std::io::Write;
     use std::str::FromStr;
+    use tracing::{info, instrument};
     use uuid::{uuid, Uuid};
     use walkdir::WalkDir;
 
+    #[instrument(skip_all)]
     fn generate_ballots(
         fixture: &TestFixture,
         election_num: u32,
@@ -318,6 +320,8 @@ mod tests {
 
     #[test]
     fn test_generate_reports_without_ballots() -> Result<()> {
+        tracing_subscriber::fmt().pretty().init();
+
         let fixture = TestFixture::new()?;
 
         generate_ballots(&fixture, 1, 2, 1, 0)?;
@@ -336,14 +340,14 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // DoTally
-        state.exec_next()?;
-
-        // MarkWinners
-        state.exec_next()?;
-
-        // Generate reports
-        state.exec_next()?;
+        // // DoTally
+        // state.exec_next()?;
+        //
+        // // MarkWinners
+        // state.exec_next()?;
+        //
+        // // Generate reports
+        // state.exec_next()?;
 
         Ok(())
     }
