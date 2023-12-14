@@ -7,6 +7,7 @@ pub mod ballot_style;
 pub mod celery_app;
 pub mod ceremonies;
 pub mod compress;
+pub mod database;
 pub mod date;
 pub mod documents;
 pub mod election_event_board;
