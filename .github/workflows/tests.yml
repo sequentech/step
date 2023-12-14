@@ -1,0 +1,21 @@
+name: Linting and Formatting
+
+on:
+  pull_request:
+
+  rust-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          components: rustfmt
+          override: true
+
+      - name: Run tests
+        run: cd packages && cargo test
