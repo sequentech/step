@@ -15,6 +15,7 @@ use sequent_core::{
 };
 use serde::Serialize;
 use serde_json::Map;
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::pipes::{
@@ -38,6 +39,7 @@ pub struct GenerateReports {
 }
 
 impl GenerateReports {
+    #[instrument]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         let input_dir = pipe_inputs
             .cli
@@ -57,6 +59,7 @@ impl GenerateReports {
         }
     }
 
+    #[instrument(skip_all)]
     pub fn compute_reports(&self, reports: Vec<ReportData>) -> Result<Vec<ReportDataComputed>> {
         let reports = reports
             .iter()
@@ -97,6 +100,7 @@ impl GenerateReports {
         Ok(reports)
     }
 
+    #[instrument(skip_all)]
     pub fn generate_report(
         &self,
         ballot_style: &BallotStyle,
@@ -129,6 +133,7 @@ impl GenerateReports {
         Ok(bytes)
     }
 
+    #[instrument(skip(self))]
     fn read_contest_result(
         &self,
         election_id: &Uuid,
@@ -155,6 +160,7 @@ impl GenerateReports {
         Ok(res)
     }
 
+    #[instrument(skip(self))]
     fn read_winners(
         &self,
         election_id: &Uuid,
@@ -181,6 +187,7 @@ impl GenerateReports {
         Ok(res)
     }
 
+    #[instrument(skip(self))]
     pub fn read_reports(&self) -> Result<Vec<ElectionReportDataComputed>> {
         let mut election_reports: Vec<ElectionReportDataComputed> = vec![];
         for election_input in &self.pipe_inputs.election_list {
@@ -227,6 +234,7 @@ impl GenerateReports {
 }
 
 impl Pipe for GenerateReports {
+    #[instrument(skip_all)]
     fn exec(&self) -> Result<()> {
         for election_input in &self.pipe_inputs.election_list {
             let mut reports = vec![];
