@@ -131,11 +131,11 @@ jobs:
         with:
           cmd: install # will run `yarn install` command
 
-      # - name: Build ui-essentials
-      #   uses: borales/actions-yarn@v4
-      #   dir: packages/
-      #   with:
-      #     cmd: build:ui-essentials
+      - name: Build ui-essentials
+        uses: borales/actions-yarn@v4
+        dir: packages/
+        with:
+          cmd: build:ui-essentials
 
       # - name: Lint Ballot Verifier
       #   uses: borales/actions-yarn@v4
