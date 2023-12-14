@@ -74,7 +74,7 @@ jobs:
         build-args: SPA_NAME=${{ matrix.spa_name }}
 
   rust-fmt:
-    name: Check Rust format
+    name: Check Rust format 
     runs-on: ubuntu-latest
     strategy:
       matrix:
