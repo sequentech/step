@@ -313,8 +313,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                 filters={Filters}
             >
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<BulkActions />}>
-                    {" "}
-                    <TextField source="id" /> <TextField source="email" />
+                    <TextField source="id" />
+                    <TextField source="email" />
                     <BooleanField source="email_verified" />
                     <BooleanField source="enabled" />
                     <TextField source="first_name" />
