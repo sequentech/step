@@ -143,6 +143,7 @@ pub async fn get_users(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

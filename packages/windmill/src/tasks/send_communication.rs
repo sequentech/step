@@ -12,8 +12,10 @@ use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
 
-use anyhow::{anyhow, Context};
+use deadpool_postgres::Client as DbClient;
+use crate::services::database::get_database_pool;
 
+use anyhow::{anyhow, Context};
 use aws_config::{meta::region::RegionProviderChain, Region};
 use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as AwsMessage};
 use aws_sdk_sesv2::{Client as AwsSesClient, Error as AwsSesError};
@@ -399,6 +401,9 @@ pub async fn send_communication(
             }
         }
     };
+
+    let db_client: DbClient = get_database_pool().await.get().await
+        .map_err(|err| anyhow!("{}", err))?;
 
     let (users, count) = list_users(
         auth_headers.clone(),

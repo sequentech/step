@@ -13,8 +13,9 @@ use openssl::ssl::{SslConnector, SslMethod};
 use postgres_openssl::MakeTlsConnector;
 
 #[derive(Debug, Deserialize)]
-struct PgConfig {
-    keycloak_db: deadpool_postgres::Config,
+pub struct PgConfig {
+    pub keycloak_db: deadpool_postgres::Config,
+    pub low_sql_limit: i32,
 }
 
 impl PgConfig {
@@ -26,12 +27,6 @@ impl PgConfig {
             .try_deserialize()
             .map_err(|err| anyhow!("error deserializing PgConfig: {}", err))
     }
-}
-
-#[derive(Debug, thiserror::Error)]
-enum Error {
-    #[error("An internal error occurred. Please try again later.")]
-    PoolError(#[from] PoolError),
 }
 
 pub async fn generate_database_pool() -> Result<Arc<Pool>> {

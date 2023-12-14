@@ -14,7 +14,12 @@ use std::convert::From;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-#[instrument(skip(auth_headers, admin))]
+use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime};
+use tokio_postgres::types::{BorrowToSql, ToSql, Type as SqlType};
+use tokio_postgres::row::Row;
+use crate::services::database::{get_database_pool, PgConfig};
+
+#[instrument(skip(auth_headers, admin), err)]
 pub async fn list_users(
     auth_headers: connection::AuthHeaders,
     admin: &KeycloakAdminClient,
@@ -26,39 +31,81 @@ pub async fn list_users(
     limit: Option<i32>,
     offset: Option<i32>,
 ) -> Result<(Vec<User>, i32)> {
-    let user_representations: Vec<UserRepresentation> = admin
-        .client
-        .realm_users_get(
-            realm.clone(),
-            Some(false),
-            email.clone(),
-            None,
-            None,
-            None,
-            offset.clone(),
-            None,
-            None,
-            None,
-            None,
-            limit.clone(),
-            None,
-            search.clone(),
-            None,
-        )
-        .await
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let count: i32 = admin
-        .client
-        .realm_users_count_get(realm, email, None, None, None, None, search, None)
-        .await
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let users: Vec<User> = user_representations
-        .clone()
+    let db_client: DbClient = get_database_pool().await.get().await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
+    let query_limit: i64 = 
+        std::cmp::min(
+            low_sql_limit,
+            limit.unwrap_or(low_sql_limit)
+        ).into();
+
+    let statement = db_client.prepare_cached(
+            r#"
+            SELECT
+                sub.id,
+                sub.email,
+                sub.email_verified,
+                sub.enabled,
+                sub.first_name,
+                sub.last_name,
+                sub.realm_id,
+                sub.username,
+                sub.created_timestamp,
+                sub.attributes,
+                sub.total_count
+            FROM (
+                SELECT
+                    u.id,
+                    u.email,
+                    u.email_verified,
+                    u.enabled,
+                    u.first_name,
+                    u.last_name,
+                    u.realm_id,
+                    u.username,
+                    u.created_timestamp,
+                    json_object_agg(attr.name, attr.value) AS attributes,
+                    COUNT(u.id) OVER() AS total_count
+                FROM
+                    user_entity AS u
+                JOIN
+                    user_attribute AS attr ON u.id = attr.user_id
+                WHERE 
+                    u.realm_id = $1 AND
+                    (u.email = $2 OR $2 IS NULL)
+                GROUP BY
+                    u.id
+            ) sub
+            LIMIT $3;
+        "#,
+    ).await?;
+    let rows: Vec<Row> = db_client
+        .query(
+            &statement,
+            &[
+                &realm,
+                &email,
+                &query_limit,
+            ]
+        ).await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    // all rows contain the count and if there's no rows well, count is clearly
+    // zero
+    let count: i32 = if rows.len() == 0 {
+        0
+    } else {
+        rows[0].try_get::<&str, i32>("total_count")?
+    };
+    let users = rows
         .into_iter()
-        .map(|user| user.into())
-        .collect();
+        .map(|row| -> Result<User> { row.try_into() })
+        .collect::<Result<Vec<User>>>()?;
+
     if let Some(ref some_election_event_id) = election_event_id {
-        let area_ids: Vec<String> = user_representations
+        let area_ids: Vec<String> = users
             .iter()
             .filter_map(|user| {
                 Some(
