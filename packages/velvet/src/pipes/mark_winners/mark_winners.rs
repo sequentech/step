@@ -6,6 +6,7 @@ use std::{cmp::Ordering, fs};
 
 use sequent_core::ballot::Candidate;
 use serde::Serialize;
+use tracing::instrument;
 
 use crate::pipes::error::{Error, Result};
 use crate::pipes::{
@@ -22,10 +23,12 @@ pub struct MarkWinners {
 }
 
 impl MarkWinners {
+    #[instrument]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
 
+    #[instrument(skip_all)]
     fn get_winners(&self, contest_result: &ContestResult) -> Vec<WinnerResult> {
         let mut max_votes = 0;
         let mut winners = Vec::new();
@@ -61,6 +64,7 @@ impl MarkWinners {
 }
 
 impl Pipe for MarkWinners {
+    #[instrument(skip_all)]
     fn exec(&self) -> Result<()> {
         let input_dir = self
             .pipe_inputs

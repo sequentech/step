@@ -16,6 +16,7 @@ use sequent_core::ballot::Candidate;
 use sequent_core::ballot::Contest;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs};
+use tracing::instrument;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
 
@@ -24,12 +25,14 @@ pub struct DoTally {
 }
 
 impl DoTally {
+    #[instrument]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
 }
 
 impl Pipe for DoTally {
+    #[instrument(skip_all)]
     fn exec(&self) -> Result<()> {
         let input_dir = self
             .pipe_inputs

@@ -188,6 +188,7 @@ pub async fn set_tally_session_completed(
         tenant_id,
         election_event_id,
         tally_session_id,
+        execution_status: Some(TallyExecutionStatus::SUCCESS.to_string()),
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

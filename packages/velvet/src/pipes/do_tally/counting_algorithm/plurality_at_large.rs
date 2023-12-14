@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use std::collections::HashMap;
+use tracing::instrument;
 
 use super::CountingAlgorithm;
 use crate::pipes::do_tally::{
@@ -16,12 +17,14 @@ pub struct PluralityAtLarge {
 }
 
 impl PluralityAtLarge {
+    #[instrument(skip_all)]
     pub fn new(tally: Tally) -> Self {
         Self { tally }
     }
 }
 
 impl CountingAlgorithm for PluralityAtLarge {
+    #[instrument(skip_all)]
     fn tally(&self) -> Result<ContestResult> {
         let contest = &self.tally.contest;
         let votes = &self.tally.ballots;
