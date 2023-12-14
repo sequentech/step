@@ -63,6 +63,7 @@ on:
           cmd: prettify
 
   rust-formatting:
+    name: Check Rust format
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
