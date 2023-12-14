@@ -12,8 +12,11 @@ interface ListActionsProps {
     withImport?: boolean
     withExport?: boolean
     withFilter?: boolean
+    withAction?: boolean
     open?: boolean
     setOpen?: (val: boolean) => void
+    doAction?: () => void
+    actionLabel?: string
     Component?: React.ReactNode
     custom?: boolean
     extraActions?: Array<any>
@@ -25,6 +28,9 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
         withImport = true,
         withExport = true,
         withFilter = true,
+        withAction = false,
+        doAction = () => {},
+        actionLabel = "",
         Component,
         open = false,
         setOpen = () => {},
@@ -51,6 +57,8 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                 {withColumns ? <SelectColumnsButton /> : null}
 
                 {withFilter ? <FilterButton /> : null}
+
+                {withAction ? <Button onClick={doAction} label={t(actionLabel)} /> : null}
 
                 {Component && (
                     <>

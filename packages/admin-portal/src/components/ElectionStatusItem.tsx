@@ -1,11 +1,7 @@
-import {GET_AREA_WITH_AREA_CONTESTS} from "@/queries/GetAreaWithAreaContest"
-import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
-import {useQuery} from "@apollo/client"
+import React from "react"
+import { electionStatusColor } from '@/resources/Tally/constants'
+import { ITallyElectionStatus } from '@/types/ceremonies'
 import styled from "@emotion/styled"
-import {Chip, IconButton} from "@mui/material"
-import {adminTheme} from "@sequentech/ui-essentials"
-import React, {useEffect} from "react"
-import {Identifier, RaRecord, useGetList, useRecordContext} from "react-admin"
 
 /*  
         In the component where you want to use the actions column:
@@ -34,7 +30,8 @@ const StyledChip = styled.div`
     justify-content: center;
     align-items: center;
     border-radius: 4px;
-    background: #d32f2f;
+    background: ${(props: {name: string | undefined}) =>
+        electionStatusColor(props.name ?? ITallyElectionStatus.WAITING)};
     padding: 1px 7px;
 `
 
@@ -52,8 +49,8 @@ export const ElectionStatusItem: React.FC<ElectionStatusItemProps> = (props) => 
 
     return (
         <StyledChips>
-            <StyledChip>
-                <StyledChipLabel>{name ?? "-"}</StyledChipLabel>
+            <StyledChip name={name}>
+                <StyledChipLabel >{name ?? "-"}</StyledChipLabel>
             </StyledChip>
         </StyledChips>
     )
