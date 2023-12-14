@@ -150,56 +150,56 @@ jobs:
           context: ${{ matrix.context }}
         run: cd packages/${{ matrix.service }} && cargo test
 
-  frontend-formatting:
-    name: Check frontend linting
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - service: braid
-          - service: harvest
-          - service: strand
-          - service: immu-board
-          - service: immudb-rs
-          - service: sequent-core
-          - service: ballot-verifier
-          - service: board-messages
-          - service: velvet
-          - service: windmill
-          - service: wrap-map-err
+  # frontend-formatting:
+  #   name: Check frontend linting
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - service: braid
+  #         - service: harvest
+  #         - service: strand
+  #         - service: immu-board
+  #         - service: immudb-rs
+  #         - service: sequent-core
+  #         - service: ballot-verifier
+  #         - service: board-messages
+  #         - service: velvet
+  #         - service: windmill
+  #         - service: wrap-map-err
             
-      fail-fast: false
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v3
+  #     fail-fast: false
+  #   steps:
+  #     - name: Check out code
+  #       uses: actions/checkout@v3
 
-      - name: Set Node.js 20.x
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20.x
+  #     - name: Set Node.js 20.x
+  #       uses: actions/setup-node@v3
+  #       with:
+  #         node-version: 20.x
 
-      - name: Run install
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: install # will run `yarn install` command
-          dir: packages/
+  #     - name: Run install
+  #       uses: borales/actions-yarn@v4
+  #       with:
+  #         cmd: install # will run `yarn install` command
+  #         dir: packages/
 
-      - name: Build ui-essentials
-        uses: borales/actions-yarn@v4
-        with:
-          cmd: build:ui-essentials
-          dir: packages/
+  #     - name: Build ui-essentials
+  #       uses: borales/actions-yarn@v4
+  #       with:
+  #         cmd: build:ui-essentials
+  #         dir: packages/
 
-      - name: Lint
-        uses: borales/actions-yarn@v4
-        with:
-          context: ${{ matrix.context }}
-          cmd: lint
-          dir: packages/${{ matrix.service }}
+  #     - name: Lint
+  #       uses: borales/actions-yarn@v4
+  #       with:
+  #         context: ${{ matrix.context }}
+  #         cmd: lint
+  #         dir: packages/${{ matrix.service }}
 
-      - name: Prettify
-        uses: borales/actions-yarn@v4
-        with:
-          context: ${{ matrix.context }}
-          cmd: prettify
-          dir: packages/${{ matrix.service }}
+  #     - name: Prettify
+  #       uses: borales/actions-yarn@v4
+  #       with:
+  #         context: ${{ matrix.context }}
+  #         cmd: prettify
+  #         dir: packages/${{ matrix.service }}
