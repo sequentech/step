@@ -134,7 +134,7 @@ jobs:
       - name: Run install2
         uses: borales/actions-yarn@v4
         with:
-          cmd: install2 # will run `yarn install` command
+          cmd: install:a2 # will run `yarn install` command
 
       # - name: Build ui-essentials
       #   uses: borales/actions-yarn@v4
