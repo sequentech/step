@@ -35,6 +35,7 @@ insert_permissions:
     - presentation
     - spoil_ballot_option
     - status
+    - statistics
     - tenant_id
     - voting_channels
   role: admin-user
@@ -60,6 +61,7 @@ insert_permissions:
     - presentation
     - spoil_ballot_option
     - status
+    - statistics
     - tenant_id
     - voting_channels
   role: service-account
@@ -86,6 +88,7 @@ select_permissions:
     - presentation
     - spoil_ballot_option
     - status
+    - statistics
     - tenant_id
     - voting_channels
     filter: {}
@@ -112,6 +115,7 @@ select_permissions:
     - presentation
     - spoil_ballot_option
     - status
+    - statistics
     - tenant_id
     - voting_channels
     filter: {}
@@ -137,6 +141,7 @@ select_permissions:
     - presentation
     - spoil_ballot_option
     - status
+    - statistics
     - tenant_id
     - voting_channels
     filter:
@@ -166,6 +171,7 @@ update_permissions:
     - presentation
     - spoil_ballot_option
     - status
+    - statistics
     - tenant_id
     - voting_channels
     filter: {}
@@ -192,6 +198,7 @@ update_permissions:
     - presentation
     - spoil_ballot_option
     - status
+    - statistics
     - tenant_id
     - voting_channels
     filter: {}
