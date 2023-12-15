@@ -3,16 +3,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::hasura::election_event::{update_election_event_status, get_election_event_helper};
+use crate::hasura::election_event::{get_election_event_helper, update_election_event_status};
 use crate::hasura::keys_ceremony::{
     get_keys_ceremonies, get_keys_ceremony_by_id, insert_keys_ceremony, update_keys_ceremony_status,
 };
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::election_event_status::get_election_event_status;
 use crate::services::private_keys::get_trustee_encrypted_private_key;
 use crate::tasks::create_keys::{create_keys, CreateKeysBody};
-use crate::services::election_event_status::get_election_event_status;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
@@ -315,7 +315,8 @@ pub async fn check_private_key(
             tenant_id.clone(),
             election_event_id.clone(),
             new_status_js,
-        ).await?;
+        )
+        .await?;
     }
 
     event!(

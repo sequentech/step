@@ -246,7 +246,7 @@ const spanishTranslation: TranslationType = {
                 create: {
                     title: "Crear Recuento",
                     subtitle: "Crear un nuevo Recuento para este Evento Electoral",
-                    createButton: "Crear Recuento",
+                    createButton: "Iniciar la Ceremonia de Recuento",
                     error: {
                         create: "Error creando Recuento",
                     },
@@ -695,13 +695,21 @@ const spanishTranslation: TranslationType = {
             createTallyError: "Error creando recuento",
             startTallySuccess: "Recuento iniciado",
             startTallyError: "Error iniciando recuento",
+            startTallyCeremonySuccess: "Iniciada la ceremonya del recuento",
+            startTallyCeremonyError: "No se ha podido iniciar la ceremonia del recuento",
+            cancelTallyCeremonySuccess: "Cancelada la ceremonya del recuento",
+            cancelTallyCeremonyError: "No se ha podido cancelar la ceremonia del recuento",
             trusteeTitle: "Proceso del trustee",
             trusteeSubTitle: "Por favor, importe su fragmento de clave",
+            invited: "Has sido invitado a participar en una ceremonia de recuento. Por favor, ",
+            click: "haz clic en la acción de recuento",
+            participate: "para participar.",
             breadcrumbSteps: {
                 start: "Inicio",
                 finish: "Final",
                 tally: "Recuento",
                 results: "Resultados",
+                ceremony: "Ceremonia",
             },
             common: {
                 title: "Recuento",
@@ -711,12 +719,25 @@ const spanishTranslation: TranslationType = {
                 date: "Fecha de Recuento",
                 global: "Global",
                 noTrustees: "No hay trustees aún",
+                imported: " trustees han importado su fragmento de clave",
+                needed: " trustees necesarios para el recuento",
+                start: "Iniciar Recuento",
+                ceremony: "Iniciar Ceremonia de Recuento",
+                results: "Resultados",
                 dialog: {
                     ok: "Ok",
+                    okTally: "Iniciar recuento",
+                    okCancel: "Cancelar recuento",
                     cancel: "Cerrar",
                     title: "¿Estás seguro de que quieres iniciar una ceremonia?",
+                    tallyTitle: "¿Estás seguro de que quieres iniciar el recuento?",
+                    cancelTitle: "¿Estás seguro de que quieres cancelar el recuento?",
                     message:
                         "Estás a punto de iniciar una ceremonia de recuento. Esta acción notificará a los trustees para importar sus fragmentos de clave.",
+                    cancelMessage:
+                        "Estás a punto de cancelar la ceremonia de recuento. Esta acción no se puede deshacer.",
+                    ceremony:
+                        "Todos los trustees requeridos han verificado sus fragmentos de clave. Todo está listo para comenzar a recibir resultados. ¿Desea iniciar el Recuento?",
                 },
             },
             table: {
@@ -777,6 +798,7 @@ const spanishTranslation: TranslationType = {
             },
         },
         sendCommunication: {
+            send: "Enviar",
             title: "Enviar Notificación",
             subtitle: "Enviar una notificación a usuarios/votantes.",
             sendButton: "Enviar Notificación",

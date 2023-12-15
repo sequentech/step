@@ -21,7 +21,7 @@ pub mod services;
 pub mod util;
 
 /// Webassembly API.
-#[cfg(feature = "wasm")]
-pub mod wasm;
-
+// #[cfg(feature = "wasm")]
+// FIXME uncomment
+// pub mod wasm;
 pub mod fixtures;

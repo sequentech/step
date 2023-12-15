@@ -12,9 +12,11 @@ mod fixtures;
 
 use clap::Parser;
 use cli::{state::State, Cli, Commands};
+use sequent_core::util::init_log::init_log;
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error + 'static>> {
     let cli = Cli::parse();
+    init_log(true);
 
     match cli.command {
         Commands::Run(run) => {

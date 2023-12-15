@@ -5,8 +5,8 @@ use std::marker::PhantomData;
 use borsh::{BorshDeserialize, BorshSerialize};
 use strand::zkp::Schnorr;
 
-use crate::newtypes::PROTOCOL_MANAGER_INDEX;
-use crate::newtypes::{BatchNumber, MixNumber};
+use crate::braid::newtypes::PROTOCOL_MANAGER_INDEX;
+use crate::braid::newtypes::{BatchNumber, MixNumber};
 
 use strand::serialization::StrandSerialize;
 use strand::shuffler::ShuffleProof;
@@ -47,7 +47,8 @@ impl<C: Ctx> Configuration<C> {
         let unique: HashSet<StrandSignaturePk> = HashSet::from_iter(self.trustees.clone());
 
         (unique.len() == self.trustees.len())
-            && (self.trustees.len() > 1 && self.trustees.len() <= crate::newtypes::MAX_TRUSTEES)
+            && (self.trustees.len() > 1
+                && self.trustees.len() <= crate::braid::newtypes::MAX_TRUSTEES)
             && (self.threshold > 1 && self.threshold <= self.trustees.len())
     }
 

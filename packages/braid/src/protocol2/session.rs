@@ -2,9 +2,9 @@ use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::protocol2::trustee::Trustee;
 use anyhow::Result;
 use strand::context::Ctx;
-use tracing::info;
+use tracing::{info, warn};
 
-pub struct Session<C: Ctx> {
+pub struct Session<C: Ctx + 'static> {
     trustee: Trustee<C>,
     board: ImmudbBoard,
     dry_run: bool,
@@ -29,20 +29,28 @@ impl<C: Ctx> Session<C> {
         }
     }
 
-    pub async fn step(&mut self) -> Result<()> {
+    // Takes ownership of self to allow spawning threads in parallel
+    // See https://stackoverflow.com/questions/63434977/how-can-i-spawn-asynchronous-methods-in-a-loop
+    // See also protocol_test_immudb::run_protocol_test_immudb
+    pub async fn step(mut self) -> Result<Self> {
         let messages = self.board.get_messages(self.last_message_id).await?;
 
         if 0 == messages.len() {
             info!("No messages in board, no action taken");
-
-            return Ok(());
+            return Ok(self);
         }
 
         let (send_messages, _actions) = self.trustee.step(messages)?;
         if !self.dry_run {
-            self.board.insert_messages(send_messages).await?;
+            let result = self.board.insert_messages(send_messages).await;
+            match result {
+                Ok(_) => (),
+                Err(err) => {
+                    warn!("Insert messages returns error {:?}", err)
+                }
+            }
         }
 
-        Ok(())
+        Ok(self)
     }
 }

@@ -46,9 +46,8 @@ export default {
 const getBallotServiceProvider = (): IBallotService => {
     const service = provideBallotService()
 
-    const decodeAuditableBallot = (
-        auditableBallot: string
-    ): Array<IDecodedVoteContest> | null => null
+    const decodeAuditableBallot = (auditableBallot: string): Array<IDecodedVoteContest> | null =>
+        null
 
     return {
         ...service,

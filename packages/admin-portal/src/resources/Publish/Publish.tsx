@@ -1,4 +1,4 @@
-import React, { ComponentType, useEffect, useRef, useState } from "react"
+import React, {ComponentType, useEffect, useRef, useState} from "react"
 
 import styled from "@emotion/styled"
 
@@ -27,9 +27,9 @@ import { UPDATE_EVENT_VOTING_STATUS } from '@/queries/UpdateEventVotingStatus'
 import { UPDATE_ELECTION_VOTING_STATUS } from '@/queries/UpdateElectionVotingStatus'
 
 export type TPublish = {
-    electionId?: string;
-    electionEventId: string;
-    type: EPublishType.Election | EPublishType.Event;
+    electionId?: string
+    electionEventId: string
+    type: EPublishType.Election | EPublishType.Event
 }
 
 const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.memo(({ 
@@ -190,7 +190,3 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         </Box>
     )
 });
-
-PublishMemo.displayName = 'Publish';
-
-export const Publish = PublishMemo;

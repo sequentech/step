@@ -17,7 +17,6 @@ use braid::protocol2::session::Session;
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
 use braid::util::assert_folder;
-use sequent_core::serialization::base64::Base64Deserialize;
 use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
@@ -68,7 +67,7 @@ async fn main() -> Result<()> {
     info!("{}", strand::info_string());
 
     let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
-    let sk: StrandSignatureSk = Base64Deserialize::deserialize(tc.signing_key_sk).unwrap();
+    let sk: StrandSignatureSk = StrandSignatureSk::from_der_b64_string(&tc.signing_key_sk).unwrap();
 
     let bytes = braid::util::decode_base64(&tc.encryption_key)?;
     let ek = symm::sk_from_bytes(&bytes)?;
@@ -112,7 +111,7 @@ async fn main() -> Result<()> {
                 IMMUDB_USER,
                 IMMUDB_PW,
                 board_name.clone(),
-                store_root.clone(),
+                Some(store_root.clone()),
             )
             .await;
             let board = match board_result {
@@ -131,7 +130,7 @@ async fn main() -> Result<()> {
             info!("Running trustee for board '{}'..", board_name);
             let session_result = session.step().await;
             match session_result {
-                Ok(value) => value,
+                Ok(_) => (),
                 Err(error) => {
                     // FIXME should handle a bulletin board refusing messages maliciously
                     error!(

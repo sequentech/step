@@ -13,7 +13,7 @@ import {Link} from "react-router-dom"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {useRecordContext} from "react-admin"
-import {IElectionEventStatus, IVotingStatus} from "@/services/ElectionEventStatus"
+import {EVotingStatus, IElectionEventStatus} from "@/types/CoreTypes"
 
 const Container = styled(Box)`
     display: flex;
@@ -33,18 +33,21 @@ export default function DashboardElectionEvent() {
             return
         }
         const status = record.status as IElectionEventStatus
-        let data: Array<number> = []
+        let data: Array<number> = [0]
         if (status.keys_ceremony_finished) {
             data.push(1)
         }
-        if (status.tally_ceremony_finished) {
-            data.push(5)
+        if (status.is_published) {
+            data.push(2)
         }
-        if ([IVotingStatus.OPEN, IVotingStatus.PAUSED].includes(status.voting_status)) {
+        if ([EVotingStatus.OPEN, EVotingStatus.PAUSED].includes(status.voting_status)) {
             data.push(3)
         }
-        if (IVotingStatus.CLOSED === status.voting_status) {
+        if (EVotingStatus.CLOSED === status.voting_status) {
             data.push(4)
+        }
+        if (status.tally_ceremony_finished) {
+            data.push(5)
         }
         setSelected(Math.max(...data))
     }, [record?.status])
@@ -61,7 +64,7 @@ export default function DashboardElectionEvent() {
                         "electionEventBreadcrumbSteps.ended", // 4
                         "electionEventBreadcrumbSteps.results", // 5
                     ]}
-                    selected={selected + 1}
+                    selected={selected}
                     variant={BreadCrumbStepsVariant.Circle}
                     colorPreviousSteps={true}
                 />

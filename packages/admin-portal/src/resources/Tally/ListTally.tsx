@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useEffect} from "react"
+import React, {ReactElement, useContext} from "react"
 import {styled as MUIStiled} from "@mui/material/styles"
 import {
     DatagridConfigurable,
@@ -12,31 +12,38 @@ import {
     Identifier,
     RaRecord,
     useRecordContext,
-    useDelete,
-    WrapperField,
     FunctionField,
     DateField,
     useGetList,
+    useNotify,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
-import {Box, Button, Drawer, Typography} from "@mui/material"
+import {Alert, Button, Drawer, Typography} from "@mui/material"
 import {CreateTally} from "./CreateTally"
-import {Sequent_Backend_Election_Event, Sequent_Backend_Tally_Session} from "../../gql/graphql"
-import {Action, ActionsColumn} from "../../components/ActionButons"
+import {
+    Sequent_Backend_Election_Event,
+    Sequent_Backend_Tally_Session,
+    Sequent_Backend_Tally_Session_Execution,
+} from "../../gql/graphql"
+import {ActionsColumn} from "../../components/ActionButons"
 import DescriptionIcon from "@mui/icons-material/Description"
-import {useTranslation} from "react-i18next"
+import {Trans, useTranslation} from "react-i18next"
 import {useTenantStore} from "../../providers/TenantContextProvider"
-import {useParams} from "react-router"
 import ElectionHeader from "@/components/ElectionHeader"
 import {TrusteeItems} from "@/components/TrusteeItems"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {StatusChip} from "@/components/StatusChip"
 import KeyIcon from "@mui/icons-material/Key"
-import {theme, IconButton} from "@sequentech/ui-essentials"
-import {AuthContext} from "@/providers/AuthContextProvider"
+import DoNotDisturbOnIcon from "@mui/icons-material/DoNotDisturbOn"
+import {theme, IconButton, Dialog} from "@sequentech/ui-essentials"
+import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import styled from "@emotion/styled"
+import {IExecutionStatus, ITallyCeremonyStatus, ITallyExecutionStatus} from "@/types/ceremonies"
+import {useMutation} from "@apollo/client"
+import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 
 const OMIT_FIELDS = ["id", "ballot_eml"]
 
@@ -48,31 +55,45 @@ const Filters: Array<ReactElement> = [
     <TextInput source="election_event_id" key={3} />,
 ]
 
+const NotificationLink = styled.span`
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 2px;
+
+    &:hover {
+        text-decoration: none;
+    }
+`
+
 const TrusteeKeyIcon = MUIStiled(KeyIcon)`
     color: ${theme.palette.brandSuccess};
 `
 
 export interface ListAreaProps {
-    record: Sequent_Backend_Tally_Session
+    recordTally: Sequent_Backend_Tally_Session
 }
 
 export const ListTally: React.FC<ListAreaProps> = (props) => {
+    const {recordTally} = props
+
     const {t} = useTranslation()
-    const {id} = useParams()
+    const authContext = useContext(AuthContext)
     const {canAdminCeremony, canTrusteeCeremony} = useActionPermissions()
+    const notify = useNotify()
 
     const record = useRecordContext<Sequent_Backend_Election_Event>()
 
     const [tenantId] = useTenantStore()
-    const [_, setTallyId] = useElectionEventTallyStore()
-    const [deleteOne] = useDelete()
+    const {setTallyId, setCreatingFlag} = useElectionEventTallyStore()
 
     const [open, setOpen] = React.useState(false)
-    const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
+    const [openCancelTally, openCancelTallySet] = React.useState(false)
     const [deleteId, setDeleteId] = React.useState<Identifier | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
+
+    const [UpdateTallyCeremonyMutation] = useMutation(UPDATE_TALLY_CEREMONY)
 
     const {data: keysCeremonies} = useGetList<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
@@ -80,15 +101,27 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tenant_id: tenantId,
-                election_event_id: electionEvent.id,
+                election_event_id: electionEvent?.id,
+            },
+        }
+    )
+
+    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+        "sequent_backend_tally_session_execution",
+        {
+            pagination: {page: 1, perPage: 1},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tally_session_id: keysCeremonies?.[0]?.id,
+                tenant_id: tenantId,
             },
         }
     )
 
     const CreateButton = () => (
         <Button
-            onClick={() => setOpen(true)}
-            disabled={!keysCeremonies || keysCeremonies?.length > 0}
+            onClick={() => setCreatingFlag(true)}
+            disabled={!record?.status && !record?.status?.keys_ceremony_finished}
         >
             <IconButton icon={faPlus} fontSize="24px" />
             {t("electionEventScreen.tally.create.createButton")}
@@ -111,23 +144,6 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         </ResourceListStyles.EmptyBox>
     )
 
-    // Returns a keys ceremony if there's any in which we have been required to
-    // participate and is active
-    // const getActiveCeremony = (
-    //     keyCeremonies: Sequent_Backend_Tally_Session[] | undefined,
-    //     authContext: AuthContextValues
-    // ) => {
-    //     if (!keyCeremonies) {
-    //         return
-    //     } else {
-    //         return keyCeremonies.find((ceremony) => isTrusteeParticipating(ceremony, authContext))
-    //     }
-    // }
-
-    // let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
-
-    // const {canAdminCeremony, canTrusteeCeremony: canWriteTrustee} = useActionPermissions()
-
     const handleCloseCreateDrawer = () => {
         setRecordId(undefined)
         setOpen(false)
@@ -142,11 +158,22 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         setTallyId(id as string, true)
     }
 
-    const actions: Action[] = [
+    const cancelAdminTally = (id: Identifier) => {
+        setDeleteId(id)
+        openCancelTallySet(true)
+    }
+
+    const actions = (record: RaRecord) => [
         {
             icon: <DescriptionIcon />,
             action: viewAdminTally,
             showAction: (id: Identifier) => canAdminCeremony,
+        },
+        {
+            icon: <DoNotDisturbOnIcon />,
+            action: cancelAdminTally,
+            showAction: (id: Identifier) =>
+                canAdminCeremony && record.execution_status === ITallyExecutionStatus.STARTED,
         },
         {
             icon: <TrusteeKeyIcon />,
@@ -155,19 +182,91 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         },
     ]
 
+    const confirmCancelAction = async () => {
+        try {
+            const {data: nextStatus, errors} = await UpdateTallyCeremonyMutation({
+                variables: {
+                    election_event_id: record?.id,
+                    tally_session_id: deleteId,
+                    status: ITallyExecutionStatus.CANCELLED,
+                },
+            })
+
+            if (errors) {
+                notify(t("tally.cancelTallyError"), {type: "error"})
+            }
+
+            if (nextStatus) {
+                notify(t("tally.cancelTallySuccess"), {type: "success"})
+                setCreatingFlag(false)
+            }
+        } catch (error) {
+            console.log("TallyCeremony :: confirmCeremonyAction :: error", error)
+            notify(t("tally.cancelTallyError"), {type: "error"})
+        }
+    }
+
+    const isTrusteeParticipating = (
+        ceremony: Sequent_Backend_Tally_Session_Execution | undefined,
+        authContext: AuthContextValues
+    ) => {
+        if (ceremony) {
+            const status: ITallyCeremonyStatus = ceremony.status
+            return (
+                (ceremony.status === IExecutionStatus.NOT_STARTED ||
+                    ceremony.status === IExecutionStatus.IN_PROCESS) &&
+                !!status.trustees.find((trustee) => trustee.name === authContext.username)
+            )
+        }
+        return false
+    }
+
+    // Returns a keys ceremony if there's any in which we have been required to
+    // participate and is active
+    const getActiveCeremony = (
+        keysCeremonies: Sequent_Backend_Tally_Session[] | undefined,
+        authContext: AuthContextValues
+    ) => {
+        if (!keysCeremonies) {
+            return
+        } else {
+            return keysCeremonies.find((ceremony) =>
+                isTrusteeParticipating(tallySessionExecutions?.[0], authContext)
+            )
+        }
+    }
+    let activeCeremony = getActiveCeremony(keysCeremonies, authContext)
+
     return (
         <>
+            {canTrusteeCeremony && keysCeremonies?.[0]?.execution_status === "STARTED" ? (
+                <Alert severity="info">
+                    <Trans i18nKey="electionEventScreen.keys.notify.participateNow">
+                        {t("tally.invited")}
+                        <NotificationLink
+                            onClick={(e: any) => {
+                                e.preventDefault()
+                                viewTrusteeTally(keysCeremonies?.[0]?.id)
+                            }}
+                        >
+                            click on the tally Key Action
+                        </NotificationLink>
+                        to participate.
+                    </Trans>
+                </Alert>
+            ) : null}
+
             <List
                 resource="sequent_backend_tally_session"
                 actions={
                     <ListActions
-                        withColumns={false}
+                        withColumns={canAdminCeremony}
                         withImport={false}
                         withExport={false}
-                        // withFilter={false}
-                        open={openDrawer}
-                        setOpen={setOpenDrawer}
-                        Component={<CreateTally record={record} close={handleCloseCreateDrawer} />}
+                        withFilter={false}
+                        withAction={canAdminCeremony}
+                        doAction={() => setCreatingFlag(true)}
+                        actionLabel="electionEventScreen.tally.create.createButton"
                     />
                 }
                 empty={<Empty />}
@@ -201,9 +300,15 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                         )}
                     />
 
-                    <WrapperField source="actions" label="Actions">
-                        <ActionsColumn actions={actions} />
-                    </WrapperField>
+                    <FunctionField
+                        source="actions"
+                        label="Actions"
+                        render={(record: RaRecord<Identifier>) => (
+                            <ActionsColumn actions={actions(record)} />
+                        )}
+                    >
+                        {/* <ActionsColumn actions={actions} /> */}
+                    </FunctionField>
                 </DatagridConfigurable>
             </List>
 
@@ -217,6 +322,22 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
             >
                 <CreateTally record={record} close={handleCloseCreateDrawer} />
             </Drawer>
+
+            <Dialog
+                variant="warning"
+                open={openCancelTally}
+                ok={t("tally.common.dialog.okCancel")}
+                cancel={t("tally.common.dialog.cancel")}
+                title={t("tally.common.dialog.cancelTitle")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmCancelAction()
+                    }
+                    openCancelTallySet(false)
+                }}
+            >
+                {t("tally.common.dialog.cancelMessage")}
+            </Dialog>
         </>
     )
 }

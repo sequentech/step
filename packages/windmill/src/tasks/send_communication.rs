@@ -12,16 +12,19 @@ use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
 
-use anyhow::{anyhow, Context};
+use crate::services::database::get_database_pool;
+use deadpool_postgres::Client as DbClient;
 
-use aws_config::meta::region::RegionProviderChain;
+use anyhow::{anyhow, Context};
+use aws_config::{meta::region::RegionProviderChain, Region};
 use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as AwsMessage};
-use aws_sdk_sesv2::{config::Region, meta::PKG_VERSION, Client as AwsClient, Error};
+use aws_sdk_sesv2::{Client as AwsSesClient, Error as AwsSesError};
+use aws_sdk_sns::{types::MessageAttributeValue, Client as AwsSnsClient, Error as AwsSnsError};
 use lettre::message::{header::ContentType, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 
-use braid_messages::newtypes::BatchNumber;
+use board_messages::braid::newtypes::BatchNumber;
 use celery::error::TaskError;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::services::{keycloak, pdf, reports};
@@ -128,8 +131,99 @@ fn get_variables(
     Ok(variables)
 }
 
+type MessageAttributes = Option<HashMap<String, MessageAttributeValue>>;
+
+enum SmsTransport {
+    AwsSns((AwsSnsClient, MessageAttributes)),
+    Console,
+}
+
+struct SmsSender {
+    transport: SmsTransport,
+}
+
+pub async fn get_aws_config() -> Result<aws_config::SdkConfig> {
+    let region_provider = RegionProviderChain::first_try(Region::new(
+        std::env::var("AWS_REGION").map_err(|err| anyhow!("AWS_REGION env var missing"))?,
+    ))
+    .or_default_provider()
+    .or_else(Region::new("us-east-1"));
+    Ok(aws_config::from_env().region(region_provider).load().await)
+}
+
+impl SmsSender {
+    async fn new() -> Result<Self> {
+        let sms_transport_name = std::env::var("SMS_TRANSPORT_NAME")
+            .map_err(|err| anyhow!("SMS_TRANSPORT_NAME env var missing"))?;
+
+        event!(
+            Level::INFO,
+            "SmsTransport: sms_transport_name={sms_transport_name}"
+        );
+        Ok(SmsSender {
+            transport: match sms_transport_name.as_str() {
+                "AwsSns" => {
+                    let shared_config = get_aws_config().await?;
+                    let client = AwsSnsClient::new(&shared_config);
+
+                    let base_message_attributes: HashMap<String, String> = serde_json::from_str(
+                        &std::env::var("AWS_SNS_ATTRIBUTES")
+                            .map_err(|err| anyhow!("AWS_SNS_ATTRIBUTES env var missing"))?,
+                    )
+                    .map_err(|err| anyhow!("AWS_SNS_ATTRIBUTES env var parse error: {err:?}"))?;
+                    let messsage_attributes = Some(
+                        base_message_attributes
+                            .into_iter()
+                            .map(|(key, value)| {
+                                Ok((
+                                    key,
+                                    MessageAttributeValue::builder()
+                                        .set_data_type(Some("String".to_string()))
+                                        .set_string_value(Some(value))
+                                        .build()
+                                        .map_err(|err| {
+                                            anyhow!("Error building Message Attribute: {err:?}")
+                                        })?,
+                                ))
+                            })
+                            .collect::<Result<HashMap<String, MessageAttributeValue>>>()?,
+                    );
+                    SmsTransport::AwsSns((client, messsage_attributes))
+                }
+                _ => SmsTransport::Console,
+            },
+        })
+    }
+
+    async fn send(&self, receiver: String, message: String) -> Result<()> {
+        match self.transport {
+            SmsTransport::AwsSns((ref aws_client, ref messsage_attributes)) => {
+                event!(
+                    Level::INFO,
+                    "SmsTransport::AwsSes: Sending SMS:\n\t - receiver={receiver}\n\t - message={message}",
+                );
+                aws_client
+                    .publish()
+                    .set_message_attributes(messsage_attributes.clone())
+                    .set_phone_number(Some(receiver))
+                    .set_message(Some(message))
+                    .send()
+                    .await
+                    .map_err(|err| anyhow!("SmsTransport::AwsSes send error: {err:?}"))?;
+            }
+            SmsTransport::Console => {
+                event!(
+                    Level::INFO,
+                    "SmsTransport::Console: Sending SMS:\n\t - receiver={receiver}\n\t - message={message}",
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
 enum EmailTransport {
-    AwsSes(AwsClient),
+    AwsSes(AwsSesClient),
     Console,
 }
 
@@ -153,14 +247,8 @@ impl EmailSender {
         Ok(EmailSender {
             transport: match email_transport_name.as_str() {
                 "AwsSes" => {
-                    let region_provider = RegionProviderChain::first_try(Region::new(
-                        std::env::var("AWS_REGION")
-                            .map_err(|err| anyhow!("AWS_REGION env var missing"))?,
-                    ))
-                    .or_default_provider()
-                    .or_else(Region::new("us-west-2"));
-                    let shared_config = aws_config::from_env().region(region_provider).load().await;
-                    EmailTransport::AwsSes(AwsClient::new(&shared_config))
+                    let shared_config = get_aws_config().await?;
+                    EmailTransport::AwsSes(AwsSesClient::new(&shared_config))
                 }
                 _ => EmailTransport::Console,
             },
@@ -179,7 +267,7 @@ impl EmailSender {
             EmailTransport::AwsSes(ref aws_client) => {
                 event!(
                     Level::INFO,
-                    "EmailTransport::AwsSes: Sending email:\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
+                    "EmailTransport::AwsSes: Sending email:\n\t - receiver={receiver}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
                 );
                 let mut dest: Destination = Destination::builder().build();
                 dest.to_addresses = Some(vec![receiver]);
@@ -230,12 +318,29 @@ impl EmailSender {
 
                 event!(
                     Level::INFO,
-                    "EmailTransport::Console: Sending email:\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
+                    "EmailTransport::Console: Sending email:\n\t - receiver={receiver}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
                 );
             }
         }
         Ok(())
     }
+}
+
+#[instrument(skip(sender))]
+async fn send_communication_sms(
+    receiver: &Option<String>,
+    template: &Option<SmsConfig>,
+    variables: &Map<String, Value>,
+    sender: &SmsSender,
+) -> Result<()> {
+    if let (Some(receiver), Some(config)) = (receiver, template) {
+        let message = reports::render_template_text(config.message.as_str(), variables.clone())?;
+
+        sender.send(receiver.into(), message).await?;
+    } else {
+        event!(Level::INFO, "Receiver empty, ignoring..");
+    }
+    Ok(())
 }
 
 #[instrument(skip(sender))]
@@ -245,11 +350,6 @@ async fn send_communication_email(
     variables: &Map<String, Value>,
     sender: &EmailSender,
 ) -> Result<()> {
-    event!(
-        Level::INFO,
-        "TODO: Send email receiver={:?}",
-        receiver = receiver,
-    );
     if let (Some(receiver), Some(config)) = (receiver, template) {
         let subject = reports::render_template_text(config.subject.as_str(), variables.clone())?;
         let plaintext_body =
@@ -302,31 +402,36 @@ pub async fn send_communication(
         }
     };
 
+    let db_client: DbClient = get_database_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("{}", err))?;
+
+    let user_ids = match body.audience_selection {
+        AudienceSelection::SELECTED => body.audience_voter_ids.clone(),
+        // TODO: managed "not voted" and "voted"
+        _ => None,
+    };
     let (users, count) = list_users(
         auth_headers.clone(),
+        &db_client,
         &client,
         tenant_id.clone(),
         election_event_id.clone(),
         &realm,
-        None,
-        None,
-        None,
-        None,
+        /* search */ None,
+        /* email */ None,
+        /* limit */ None,
+        /* offset */ None,
+        /* user_ids */ user_ids,
     )
     .await?;
 
     let email_sender = EmailSender::new().await?;
+    let sms_sender = SmsSender::new().await?;
 
-    for user in users.iter().filter(|user| {
-        (body.audience_selection == AudienceSelection::ALL_USERS
-            || (body.audience_selection == AudienceSelection::SELECTED
-                && user.id.is_some()
-                && body
-                    .audience_voter_ids
-                    .as_ref()
-                    .unwrap_or(&vec![])
-                    .contains(&user.id.as_ref().unwrap())))
-    }) {
+    for user in users.iter() {
         event!(
             Level::INFO,
             "Sending communication to user with id={:?} and email={:?}",
@@ -338,7 +443,7 @@ pub async fn send_communication(
         match body.communication_method {
             CommunicationMethod::EMAIL => {
                 let sending_result = send_communication_email(
-                    /* to */ &user.email,
+                    /* receiver */ &user.email,
                     /* template */ &body.email,
                     /* variables */ &variables,
                     /* sender */ &email_sender,
@@ -349,7 +454,16 @@ pub async fn send_communication(
                 }
             }
             CommunicationMethod::SMS => {
-                event!(Level::INFO, "TODO: Send SMS");
+                let sending_result = send_communication_sms(
+                    /* receiver */ &user.get_mobile_phone(),
+                    /* template */ &body.sms,
+                    /* variables */ &variables,
+                    /* sender */ &sms_sender,
+                )
+                .await;
+                if let Err(error) = sending_result {
+                    event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
+                }
             }
         };
     }

@@ -9,11 +9,13 @@ export const RESTORE_PRIVATE_KEY = gql`
         $tallySessionId: String!
         $privateKeyBase64: String!
     ) {
-        restore_private_key(object: {
-            election_event_id: $electionEventId
-            tally_session_id: $tallySessionId
-            private_key_base64: $privateKeyBase64
-        }) {
+        restore_private_key(
+            object: {
+                election_event_id: $electionEventId
+                tally_session_id: $tallySessionId
+                private_key_base64: $privateKeyBase64
+            }
+        ) {
             is_valid
         }
     }

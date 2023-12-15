@@ -27,9 +27,7 @@ export interface IBallotService {
     decodeAuditableBallot: (auditableBallot: string) => Array<IDecodedVoteContest> | null
     getLayoutProperties: (question: IContest) => IContestLayoutProperties | null
     getPoints: (question: IContest, answer: IDecodedVoteChoice) => number | null
-    getBallotStyleFromAuditableBallot: (
-        auditableBallot: string
-    ) => IBallotStyle | null
+    getBallotStyleFromAuditableBallot: (auditableBallot: string) => IBallotStyle | null
     generateSampleAuditableBallot: () => string | null
 }
 
@@ -54,9 +52,7 @@ export const decodeAuditableBallot = (
     }
 }
 
-export const getBallotStyleFromAuditableBallot = (
-    auditableBallot: string
-): IBallotStyle | null => {
+export const getBallotStyleFromAuditableBallot = (auditableBallot: string): IBallotStyle | null => {
     try {
         let ballotStyle = get_ballot_style_from_auditable_ballot_js(auditableBallot) as IBallotStyle
         return ballotStyle
@@ -86,7 +82,7 @@ export const getPoints = (question: IContest, answer: IDecodedVoteChoice): numbe
     }
 }
 
-export const generateSampleAuditableBallot =  (): string | null => {
+export const generateSampleAuditableBallot = (): string | null => {
     try {
         let auditableBallot: string = generate_sample_auditable_ballot_js()
         return auditableBallot

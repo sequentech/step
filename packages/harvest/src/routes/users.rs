@@ -1,23 +1,26 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
-use crate::types::optional::OptionalId;
-use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
-use sequent_core::types::keycloak::User;
+use sequent_core::types::keycloak::{User, TENANT_ID_ATTR_NAME};
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::instrument;
+use windmill::services::database::get_database_pool;
 use windmill::services::users::list_users;
+
+use crate::services::authorization::authorize;
+use crate::types::optional::OptionalId;
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {
@@ -61,6 +64,51 @@ pub async fn delete_user(
 }
 
 #[derive(Deserialize, Debug)]
+pub struct DeleteUsersBody {
+    tenant_id: String,
+    election_event_id: Option<String>,
+    user_ids: Vec<String>,
+}
+
+#[instrument(skip(claims))]
+#[post("/delete-users", format = "json", data = "<body>")]
+pub async fn delete_users(
+    claims: jwt::JwtClaims,
+    body: Json<DeleteUsersBody>,
+) -> Result<Json<OptionalId>, (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_WRITE
+    } else {
+        Permissions::USER_WRITE
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    for id in input.user_ids {
+        client
+            .delete_user(&realm, &id)
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    }
+
+    Ok(Json(Default::default()))
+}
+
+#[derive(Deserialize, Debug)]
 pub struct GetUsersBody {
     tenant_id: String,
     election_event_id: Option<String>,
@@ -98,11 +146,19 @@ pub async fn get_users(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let db_client: DbClient = get_database_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     let (users, count) = list_users(
         auth_headers.clone(),
+        &db_client,
         &client,
         input.tenant_id.clone(),
         input.election_event_id.clone(),
@@ -111,6 +167,7 @@ pub async fn get_users(
         input.email,
         input.limit,
         input.offset,
+        /* user_ids = */ None,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -207,12 +264,23 @@ pub async fn edit_user(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let new_attributes = input.attributes.clone().unwrap_or(HashMap::new());
+
+    // maintain current user attributes and do not allow to override tenant-id
+    if new_attributes.contains_key(TENANT_ID_ATTR_NAME) {
+        return Err((
+            Status::BadRequest,
+            "Cannot change tenant-id attribute".to_string(),
+        ));
+    }
+
     let user = client
         .edit_user(
             &realm,
             &input.user_id,
             input.enabled.clone(),
-            input.attributes.clone(),
+            Some(new_attributes),
             input.email.clone(),
             input.first_name.clone(),
             input.last_name.clone(),

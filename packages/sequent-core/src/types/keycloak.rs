@@ -6,6 +6,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
+pub const AREA_ID_ATTR_NAME: &str = "area-id";
+pub const TENANT_ID_ATTR_NAME: &str = "tenant-id";
+pub const MOBILE_PHONE_ATTR_NAME: &str = "sequent.read-only.mobile-number";
+
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct UserArea {
     pub id: Option<String>,

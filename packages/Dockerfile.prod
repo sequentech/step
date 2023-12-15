@@ -1,0 +1,36 @@
+FROM node:20-alpine as builder
+WORKDIR /usr/src/app/
+
+
+#copy only necessary files, exclude source code from the runtime image
+COPY ./ui-essentials ./ui-essentials
+COPY ./voting-portal ./voting-portal
+COPY ./admin-portal ./admin-portal
+COPY ./ballot-verifier ./ballot-verifier
+COPY ./package-lock.json ./package-lock.json
+COPY ./package.json ./package.json
+COPY ./yarn.lock ./yarn.lock
+
+# Install dependencies
+RUN yarn install --frozen-lockfile --non-interactive
+
+ARG SPA_NAME
+
+# Build the specified SPA with release optimizations
+RUN yarn build:ui-essentials
+RUN yarn build:${SPA_NAME}
+
+
+
+FROM nginx:alpine
+# Remove default nginx static assets
+RUN rm -rf /usr/share/nginx/html/*
+ARG SPA_NAME
+# Copy the built SPA from the 'dist' directory of the build stage to the Nginx server
+COPY --from=builder /usr/src/app/${SPA_NAME}/dist /usr/share/nginx/html
+
+# Expose port 80 for the Nginx server
+EXPOSE 80
+
+# Start Nginx in the foreground
+CMD ["nginx", "-g", "daemon off;"]

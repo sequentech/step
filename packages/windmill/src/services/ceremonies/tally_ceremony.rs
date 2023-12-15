@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::area::get_election_event_areas;
+use crate::hasura::election_event::get_election_event_helper;
+use crate::hasura::election_event::update_election_event_status;
 use crate::hasura::keys_ceremony::get_keys_ceremonies;
 use crate::hasura::keys_ceremony::get_keys_ceremony_by_id;
 use crate::hasura::tally_session::get_tally_session_highest_batch;
@@ -25,13 +27,11 @@ use crate::services::ceremonies::tally_ceremony::get_tally_session_by_id::{
     GetTallySessionByIdSequentBackendTallySessionContest,
 };
 use crate::services::ceremonies::tally_ceremony::get_tally_sessions::GetTallySessionsSequentBackendTallySession;
+use crate::services::election_event_status::get_election_event_status;
 use crate::tasks::insert_ballots::insert_ballots;
 use crate::tasks::insert_ballots::InsertBallotsPayload;
-use crate::hasura::election_event::update_election_event_status;
-use crate::services::election_event_status::get_election_event_status;
-use crate::hasura::election_event::get_election_event_helper;
 use anyhow::{anyhow, Context, Result};
-use braid_messages::newtypes::BatchNumber;
+use board_messages::braid::newtypes::BatchNumber;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak;
@@ -322,7 +322,8 @@ pub async fn create_tally_ceremony(
         area_ids.clone(),
         tally_session_id.clone(),
         keys_ceremony_id.clone(),
-        TallyExecutionStatus::NOT_STARTED,
+        TallyExecutionStatus::STARTED,
+        keys_ceremony.threshold,
     )
     .await?
     .data
@@ -377,27 +378,50 @@ pub async fn update_tally_ceremony(
     let current_status = tally_session
         .execution_status
         .map(|value| {
-            TallyExecutionStatus::from_str(&value).unwrap_or(TallyExecutionStatus::NOT_STARTED)
+            TallyExecutionStatus::from_str(&value).unwrap_or(TallyExecutionStatus::STARTED)
         })
-        .unwrap_or(TallyExecutionStatus::NOT_STARTED);
+        .unwrap_or(TallyExecutionStatus::STARTED);
 
     let expected_status: Vec<TallyExecutionStatus> = match current_status {
-        TallyExecutionStatus::NOT_STARTED => vec![
-            TallyExecutionStatus::STARTED,
-            TallyExecutionStatus::CANCELLED,
-        ],
         TallyExecutionStatus::STARTED => vec![TallyExecutionStatus::CANCELLED],
         TallyExecutionStatus::CONNECTED => vec![
             TallyExecutionStatus::IN_PROGRESS,
             TallyExecutionStatus::CANCELLED,
         ],
         TallyExecutionStatus::IN_PROGRESS => vec![TallyExecutionStatus::CANCELLED],
-        TallyExecutionStatus::SUCCESS => vec![TallyExecutionStatus::CANCELLED],
-        TallyExecutionStatus::CANCELLED => vec![TallyExecutionStatus::CANCELLED],
+        TallyExecutionStatus::SUCCESS => vec![],
+        TallyExecutionStatus::CANCELLED => vec![],
     };
 
     if !expected_status.contains(&new_execution_status) {
         return Err(anyhow!("Unexpected status"));
+    }
+
+    let Some((tally_session_execution, _)) = find_last_tally_session_execution(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        tally_session.id.clone(),
+    )
+    .await?
+    else {
+        return Err(anyhow!("Can't find last execution status"));
+    };
+
+    let status = get_tally_ceremony_status(tally_session_execution.status)?;
+    let num_connected_trustees = status
+        .trustees
+        .iter()
+        .filter(|trustee| trustee.status == TallyTrusteeStatus::KEY_RESTORED)
+        .collect::<Vec<_>>()
+        .len();
+
+    if tally_session.threshold > num_connected_trustees as i64 {
+        return Err(anyhow!(
+            "Insufficient number of connected trustees {}. Required threshold {}.",
+            num_connected_trustees,
+            tally_session.threshold
+        ));
     }
 
     update_tally_session_status(
@@ -409,35 +433,7 @@ pub async fn update_tally_ceremony(
     )
     .await?;
 
-    if TallyExecutionStatus::SUCCESS == new_execution_status {
-        // get the election event
-        let election_event = get_election_event_helper(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-        )
-        .await?;
-        let current_status = get_election_event_status(election_event.status).unwrap();
-        let mut new_status = current_status.clone();
-        new_status.tally_ceremony_finished = Some(true);
-        let new_status_js = serde_json::to_value(new_status)?;
-        update_election_event_status(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-            new_status_js,
-        ).await?;
-    } else if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
-        let Some((tally_session_execution, _)) = find_last_tally_session_execution(
-            auth_headers.clone(),
-            tenant_id.clone(),
-            election_event_id.clone(),
-            tally_session.id.clone(),
-        ).await? else {
-            return Err(anyhow!("Can't find last execution status"));
-        };
-
-        let status = get_tally_ceremony_status(tally_session_execution.status)?;
+    if TallyExecutionStatus::IN_PROGRESS == new_execution_status {
         let trustee_names: Vec<String> = status
             .trustees
             .iter()
@@ -484,8 +480,12 @@ pub async fn set_private_key(
         tenant_id.to_string(),
         election_event_id.to_string(),
         tally_session_id.to_string(),
-    ).await? else {
-        return Err(anyhow!("Can't find tally session or tally session execution"))
+    )
+    .await?
+    else {
+        return Err(anyhow!(
+            "Can't find tally session or tally session execution"
+        ));
     };
 
     // get the keys ceremonies for this election event

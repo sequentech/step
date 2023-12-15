@@ -38,17 +38,17 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const [showDialog, setShowDialog] = useState(false)
     const [currentCallback, setCurrentCallback] = useState<any>(null);
 
-    const IconOrProgress = ({ st, Icon }: any) => {
-        return status === (st+0.1) && status !== EPublishStatus.Void ? (
+    const IconOrProgress = ({st, Icon}: any) => {
+        return status === st + 0.1 && status !== EPublishStatus.Void ? (
             <CircularProgress size={16} />
         ) : (
             <Icon width={24} />
         )
     }
 
-    const ButtonDisabledOrNot = ({ st, label, onClick, Icon }: any) => (
-        <Button 
-            onClick={onClick} 
+    const ButtonDisabledOrNot = ({st, label, onClick, Icon}: any) => (
+        <Button
+            onClick={onClick}
             label={t(label)}
             style={st === status ? { 
                 backgroundColor: '#eee', 

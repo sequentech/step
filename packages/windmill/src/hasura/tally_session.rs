@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Result};
-use braid_messages::newtypes::BatchNumber;
+use board_messages::braid::newtypes::BatchNumber;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use sequent_core::services::connection;
@@ -74,6 +74,7 @@ pub async fn insert_tally_session(
     tally_session_id: String,
     keys_ceremony_id: String,
     execution_status: TallyExecutionStatus,
+    threshold: i64,
 ) -> Result<Response<insert_tally_session::ResponseData>> {
     let variables = insert_tally_session::Variables {
         tenant_id: tenant_id,
@@ -83,6 +84,7 @@ pub async fn insert_tally_session(
         tally_session_id: tally_session_id,
         keys_ceremony_id: keys_ceremony_id,
         execution_status: Some(execution_status.to_string()),
+        threshold,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
@@ -186,6 +188,7 @@ pub async fn set_tally_session_completed(
         tenant_id,
         election_event_id,
         tally_session_id,
+        execution_status: Some(TallyExecutionStatus::SUCCESS.to_string()),
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

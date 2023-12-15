@@ -11,7 +11,7 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth"
 import {useTranslation} from "react-i18next"
 
 export const TallyStartDate: React.FC = () => {
-    const [tallyId] = useElectionEventTallyStore()
+    const {tallyId} = useElectionEventTallyStore()
 
     const {t} = useTranslation()
 

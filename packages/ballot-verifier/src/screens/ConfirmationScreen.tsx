@@ -33,7 +33,7 @@ import {
 import {keyBy} from "lodash"
 import {ICandidate} from "sequent-core"
 import Image from "mui-image"
-import { checkIsInvalidVote, checkIsWriteIn, getImageUrl } from "../services/ElectionConfigService"
+import {checkIsInvalidVote, checkIsWriteIn, getImageUrl} from "../services/ElectionConfigService"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -124,7 +124,12 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({answer, isWriteIn, wri
     const imageUrl = answer && getImageUrl(answer)
 
     return (
-        <Candidate title={answer?.name || ""} description={answer?.description} isWriteIn={isWriteIn} writeInValue={writeInValue}>
+        <Candidate
+            title={answer?.name || ""}
+            description={answer?.description}
+            isWriteIn={isWriteIn}
+            writeInValue={writeInValue}
+        >
             {imageUrl ? <Image src={imageUrl} duration={100} /> : null}
         </Candidate>
     )
@@ -146,8 +151,7 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
     const explicitInvalidAnswer =
         (questionPlaintext.is_explicit_invalid &&
             question.presentation?.invalid_vote_policy !== "not-allowed" &&
-            question.candidates.find((answer) => checkIsInvalidVote(answer)
-            )) ||
+            question.candidates.find((answer) => checkIsInvalidVote(answer))) ||
         null
     const answersById = keyBy(question.candidates, (a) => a.id)
     const properties = ballotService.getLayoutProperties(question)
@@ -447,7 +451,6 @@ export const ConfirmationScreen: React.FC<IProps> = ({
             navigate("/")
         }
     }, [confirmationBallot])
-
 
     return (
         <PageLimit maxWidth="md">

@@ -1,4 +1,4 @@
-use braid_messages::{message::Message, statement::StatementType};
+use board_messages::braid::{message::Message, statement::StatementType};
 
 ///////////////////////////////////////////////////////////////////////////
 // VectorBoard

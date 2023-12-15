@@ -6,12 +6,19 @@ name = "windmill"
 version = "0.1.0"
 edition = "2021"
 authors = [
-  "Felix Robles <felix@sequentech.io>"
+  "Felix Robles <felix@sequentech.io>",
+  "Eduardo Robles <edu@sequentech.io>"
 ]
 license = "AGPL-3.0-only"
 
+[features]
+default = ["fips_full"]
+fips_core = ["dep:postgres-openssl", "dep:openssl"]
+fips_full = ["dep:postgres-openssl", "dep:openssl"]
+
+
 [dependencies]
-rocket = { version = "=0.5.0-rc.3", features = ["json"] }
+rocket = { version = "0.5.0", features = ["json"] }
 serde = { version = "1.0.190", features = ["derive"] }
 serde_json = "1.0.105"
 reqwest = { version="0.11.18", features = ["blocking", "json"] }
@@ -41,15 +48,30 @@ keycloak = "21.0.102"
 
 # logging
 tracing = "0.1.37"
+thiserror = "1.0.50"
 
-# for sending emails
+# for sending emails and sms
 lettre = "0.11.2"
 aws-config = { version = "1.0.3", features = ["behavior-version-latest"] }
 aws-sdk-sesv2 = "1.4.0"
+aws-sdk-sns = "1.4.0"
 
 wrap-map-err = { path = "../wrap-map-err" }
 immu-board = { path="../immu-board" }
-braid-messages = { path="../braid-messages" }
+board-messages = { path="../board-messages" }
 strand = { path="../strand" }
 sequent-core = { path="../sequent-core", features = ["reports", "keycloak", "log"] }
 velvet = { path="../velvet" }
+
+# To connect to the Database
+deadpool = { version = "0.10.0", features = ["rt_tokio_1", "serde"] }
+deadpool-postgres = { version = "0.11.0", features = ["rt_tokio_1", "serde"] }
+tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"] }
+config = "0.13.1"
+cfg-if = "1.0"
+postgres-openssl = { version = "0.5.0", optional = true }
+# OpenSSL needs to be configured to operate in FIPS mode
+# https://github.com/sfackler/rust-openssl/issues/1924
+# https://www.openssl.org/docs/man3.0/man7/fips_module.html
+openssl = { version = "0.10.57", optional = true }
+

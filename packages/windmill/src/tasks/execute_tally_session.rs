@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura;
+use crate::hasura::election_event::get_election_event_helper;
+use crate::hasura::election_event::update_election_event_status;
 use crate::hasura::results_area_contest::insert_results_area_contest;
 use crate::hasura::results_area_contest_candidate::insert_results_area_contest_candidate;
 use crate::hasura::results_contest::insert_results_contest;
@@ -15,16 +17,17 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
+use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
+use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::compress::compress_folder;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::types::error::{Error, Result};
-use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
-use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use anyhow::{anyhow, Context};
-use braid_messages::{artifact::Plaintexts, message::Message, statement::StatementType};
+use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
 use chrono::{Duration, Utc};
 use sequent_core::ballot::{BallotStyle, Contest};
@@ -150,7 +153,11 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
         return None;
     };
     let Some(execution_status) = TallyExecutionStatus::from_str(&execution_status_str).ok() else {
-        event!(Level::INFO, "Tally session can't continue the tally with unexpected execution status {}", execution_status_str);
+        event!(
+            Level::INFO,
+            "Tally session can't continue the tally with unexpected execution status {}",
+            execution_status_str
+        );
 
         return None;
     };
@@ -231,7 +238,8 @@ async fn map_plaintext_data(
 
     let tally_session = &tally_session_data.sequent_backend_tally_session[0];
 
-    let Some(execution_status) = get_execution_status(tally_session.execution_status.clone()) else {
+    let Some(execution_status) = get_execution_status(tally_session.execution_status.clone())
+    else {
         return Ok(None);
     };
 
@@ -605,7 +613,9 @@ pub async fn execute_tally_session(
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
-    ).await?.unwrap();
+    )
+    .await?
+    .unwrap();
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
         tenant_id.clone(),
@@ -683,6 +693,24 @@ pub async fn execute_tally_session(
             tenant_id.clone(),
             election_event_id.clone(),
             tally_session_id.clone(),
+        )
+        .await?;
+        // get the election event
+        let election_event = get_election_event_helper(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+        )
+        .await?;
+        let current_status = get_election_event_status(election_event.status).unwrap();
+        let mut new_status = current_status.clone();
+        new_status.tally_ceremony_finished = Some(true);
+        let new_status_js = serde_json::to_value(new_status)?;
+        update_election_event_status(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            new_status_js,
         )
         .await?;
     }

@@ -1,0 +1,37 @@
+FROM rustlang/rust:nightly-slim as builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    protobuf-compiler \
+    libprotobuf-dev \
+    m4 \
+    make \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
+COPY ./strand ./strand
+COPY ./board-messages ./board-messages
+COPY ./sequent-core ./sequent-core
+COPY ./windmill ./windmill
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./velvet ./velvet
+
+WORKDIR /app/windmill
+RUN cargo build --release
+
+
+
+FROM debian:bookworm
+# Install any necessary runtime dependencies for production
+RUN apt-get update && apt-get install -y --no-install-recommends libssl3 && rm -rf /var/lib/apt/lists/*
+
+# Copy the compiled binary from the builder stage
+COPY --from=builder /app/windmill/target/release/main /usr/local/bin/main
+
+WORKDIR /usr/local/bin
+CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "beat"]

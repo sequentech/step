@@ -2,11 +2,11 @@
 // necessary to create a demo election, as files in the working directory:
 //
 // * Generate .toml config for each trustee, containing:
-//      * signing_key_sk: base64 encoding of a StrandSignatureSk serialization
-//      * signing_key_pk: base64 encoding of corresponding StrandSignaturePk serialization
+//      * signing_key_sk: base64 encoding of a der encoded pkcs#8 v1
+//      * signing_key_pk: base64 encoding of a der encoded spki
 //      * encryption_key: base64 encoding of a sign::SymmetricKey
 // * Generate .toml config for the protocol manager:
-//      signing_key: base64 encoding of a StrandSignatureSk serialization
+//      signing_key: base64 encoding of a der encoded pkcs#8 v1
 // * Generate a .bin config for a session, a serialized Configuration artifact
 //
 
@@ -20,10 +20,10 @@ use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 
+use board_messages::braid::artifact::Configuration;
+use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
-use braid_messages::artifact::Configuration;
-use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 
 const CONFIG: &str = "config.bin";
 const PROTOCOL_MANAGER: &str = "pm.toml";
@@ -42,7 +42,7 @@ fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
     let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|i| {
             let sk = StrandSignatureSk::gen().unwrap();
-            let pk = StrandSignaturePk::from(&sk).unwrap();
+            let pk = StrandSignaturePk::from_sk(&sk).unwrap();
             let encryption_key: symm::SymmetricKey = symm::gen_key();
             (Trustee::new(i.to_string(), sk, encryption_key), pk)
         })
@@ -50,7 +50,7 @@ fn gen_election_config<C: Ctx>(n_trustees: usize, threshold: &[usize]) {
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from(&pm.signing_key).unwrap(),
+        StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
         trustee_pks,
         threshold.len(),
         PhantomData,

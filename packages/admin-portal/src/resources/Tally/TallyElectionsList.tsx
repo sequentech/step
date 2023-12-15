@@ -2,22 +2,26 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {useGetOne, useGetMany} from "react-admin"
+import {useGetOne, useGetList} from "react-admin"
 
 import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import Checkbox from "@mui/material/Checkbox"
 import {useTranslation} from "react-i18next"
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 interface TallyElectionsListProps {
+    electionEventId: string
+    disabled?: boolean
     update: (elections: Array<string>) => void
 }
 
 export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => {
-    const {update} = props
+    const {disabled, update, electionEventId} = props
 
-    const [tallyId] = useElectionEventTallyStore()
+    const {tallyId} = useElectionEventTallyStore()
+    const [tenantId] = useTenantStore()
     const {t} = useTranslation()
 
     const [electionsData, setElectionsData] = useState<
@@ -28,8 +32,9 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
         id: tallyId,
     })
 
-    const {data: elections} = useGetMany("sequent_backend_election", {
-        ids: data?.election_ids || [],
+    const {data: elections} = useGetList("sequent_backend_election", {
+        pagination: {page: 1, perPage: 9999},
+        filter: {election_event_id: electionEventId, tenant_id: tenantId},
     })
 
     useEffect(() => {
@@ -39,7 +44,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
                 rowId: index,
                 id: election.id || "",
                 name: election.name,
-                active: false,
+                active: election.active,
             }))
             setElectionsData(temp)
         }
@@ -67,7 +72,11 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             flex: 1,
             editable: true,
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
-                <Checkbox checked={true} disabled />
+                <Checkbox
+                    checked={disabled ? true : props.value}
+                    disabled={disabled}
+                    onChange={() => handleConfirmChange(props.row)}
+                />
             ),
         },
     ]

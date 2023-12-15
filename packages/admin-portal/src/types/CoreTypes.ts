@@ -4,7 +4,15 @@
 
 export enum EVotingStatus {
     NOT_STARTED = "NOT_STARTED",
-    OPEN ="OPEN",
-    PAUSED ="PAUSED",
-    CLOSED ="CLOSED",
+    OPEN = "OPEN",
+    PAUSED = "PAUSED",
+    CLOSED = "CLOSED",
+}
+
+export interface IElectionEventStatus {
+    config_created?: boolean
+    keys_ceremony_finished?: boolean
+    tally_ceremony_finished?: boolean
+    is_published?: boolean
+    voting_status: EVotingStatus
 }
