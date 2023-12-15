@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::hasura;
 use crate::hasura::election::{get_election, update_election_status};
 use crate::hasura::election_event::{get_election_event, update_election_event_status};
 use anyhow::{anyhow, Result};

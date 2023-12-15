@@ -349,6 +349,7 @@ services:
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
       LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
       DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
+      DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
 
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -542,6 +543,7 @@ services:
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
       LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
       DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
+      DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
   beat:
     profiles: ["full"]
     stdin_open: true

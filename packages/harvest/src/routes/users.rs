@@ -150,15 +150,19 @@ pub async fn get_users(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let db_client: DbClient = get_database_pool()
+    let mut db_client: DbClient = get_database_pool()
         .await
         .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let transaction = db_client
+        .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     let (users, count) = list_users(
         auth_headers.clone(),
-        &db_client,
+        &transaction,
         &client,
         input.tenant_id.clone(),
         input.election_event_id.clone(),

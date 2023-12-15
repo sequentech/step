@@ -6937,6 +6937,7 @@ export type Sequent_Backend_Election = {
   num_allowed_revotes?: Maybe<Scalars['Int']['output']>;
   presentation?: Maybe<Scalars['jsonb']['output']>;
   spoil_ballot_option?: Maybe<Scalars['Boolean']['output']>;
+  statistics?: Maybe<Scalars['jsonb']['output']>;
   status?: Maybe<Scalars['jsonb']['output']>;
   tenant_id: Scalars['uuid']['output'];
   voting_channels?: Maybe<Scalars['jsonb']['output']>;
@@ -6983,6 +6984,12 @@ export type Sequent_Backend_ElectionLabelsArgs = {
 
 /** columns and relationships of "sequent_backend.election" */
 export type Sequent_Backend_ElectionPresentationArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.election" */
+export type Sequent_Backend_ElectionStatisticsArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -7076,6 +7083,7 @@ export type Sequent_Backend_Election_Append_Input = {
   dates?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
+  statistics?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   voting_channels?: InputMaybe<Scalars['jsonb']['input']>;
 };
@@ -7122,6 +7130,7 @@ export type Sequent_Backend_Election_Bool_Exp = {
   num_allowed_revotes?: InputMaybe<Int_Comparison_Exp>;
   presentation?: InputMaybe<Jsonb_Comparison_Exp>;
   spoil_ballot_option?: InputMaybe<Boolean_Comparison_Exp>;
+  statistics?: InputMaybe<Jsonb_Comparison_Exp>;
   status?: InputMaybe<Jsonb_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
   voting_channels?: InputMaybe<Jsonb_Comparison_Exp>;
@@ -7139,6 +7148,7 @@ export type Sequent_Backend_Election_Delete_At_Path_Input = {
   dates?: InputMaybe<Array<Scalars['String']['input']>>;
   labels?: InputMaybe<Array<Scalars['String']['input']>>;
   presentation?: InputMaybe<Array<Scalars['String']['input']>>;
+  statistics?: InputMaybe<Array<Scalars['String']['input']>>;
   status?: InputMaybe<Array<Scalars['String']['input']>>;
   voting_channels?: InputMaybe<Array<Scalars['String']['input']>>;
 };
@@ -7149,6 +7159,7 @@ export type Sequent_Backend_Election_Delete_Elem_Input = {
   dates?: InputMaybe<Scalars['Int']['input']>;
   labels?: InputMaybe<Scalars['Int']['input']>;
   presentation?: InputMaybe<Scalars['Int']['input']>;
+  statistics?: InputMaybe<Scalars['Int']['input']>;
   status?: InputMaybe<Scalars['Int']['input']>;
   voting_channels?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -7159,6 +7170,7 @@ export type Sequent_Backend_Election_Delete_Key_Input = {
   dates?: InputMaybe<Scalars['String']['input']>;
   labels?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['String']['input']>;
+  statistics?: InputMaybe<Scalars['String']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
   voting_channels?: InputMaybe<Scalars['String']['input']>;
 };
@@ -7185,6 +7197,7 @@ export type Sequent_Backend_Election_Event = {
   name: Scalars['String']['output'];
   presentation?: Maybe<Scalars['jsonb']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
+  statistics?: Maybe<Scalars['jsonb']['output']>;
   status?: Maybe<Scalars['jsonb']['output']>;
   tenant_id: Scalars['uuid']['output'];
   updated_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -7244,6 +7257,12 @@ export type Sequent_Backend_Election_EventPresentationArgs = {
 
 
 /** columns and relationships of "sequent_backend.election_event" */
+export type Sequent_Backend_Election_EventStatisticsArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.election_event" */
 export type Sequent_Backend_Election_EventStatusArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
 };
@@ -7283,6 +7302,7 @@ export type Sequent_Backend_Election_Event_Append_Input = {
   dates?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
+  statistics?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   voting_channels?: InputMaybe<Scalars['jsonb']['input']>;
 };
@@ -7309,6 +7329,7 @@ export type Sequent_Backend_Election_Event_Bool_Exp = {
   name?: InputMaybe<String_Comparison_Exp>;
   presentation?: InputMaybe<Jsonb_Comparison_Exp>;
   public_key?: InputMaybe<String_Comparison_Exp>;
+  statistics?: InputMaybe<Jsonb_Comparison_Exp>;
   status?: InputMaybe<Jsonb_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
   updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
@@ -7329,6 +7350,7 @@ export type Sequent_Backend_Election_Event_Delete_At_Path_Input = {
   dates?: InputMaybe<Array<Scalars['String']['input']>>;
   labels?: InputMaybe<Array<Scalars['String']['input']>>;
   presentation?: InputMaybe<Array<Scalars['String']['input']>>;
+  statistics?: InputMaybe<Array<Scalars['String']['input']>>;
   status?: InputMaybe<Array<Scalars['String']['input']>>;
   voting_channels?: InputMaybe<Array<Scalars['String']['input']>>;
 };
@@ -7340,6 +7362,7 @@ export type Sequent_Backend_Election_Event_Delete_Elem_Input = {
   dates?: InputMaybe<Scalars['Int']['input']>;
   labels?: InputMaybe<Scalars['Int']['input']>;
   presentation?: InputMaybe<Scalars['Int']['input']>;
+  statistics?: InputMaybe<Scalars['Int']['input']>;
   status?: InputMaybe<Scalars['Int']['input']>;
   voting_channels?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -7351,6 +7374,7 @@ export type Sequent_Backend_Election_Event_Delete_Key_Input = {
   dates?: InputMaybe<Scalars['String']['input']>;
   labels?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['String']['input']>;
+  statistics?: InputMaybe<Scalars['String']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
   voting_channels?: InputMaybe<Scalars['String']['input']>;
 };
@@ -7373,6 +7397,7 @@ export type Sequent_Backend_Election_Event_Insert_Input = {
   name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
+  statistics?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -7446,6 +7471,7 @@ export type Sequent_Backend_Election_Event_Order_By = {
   name?: InputMaybe<Order_By>;
   presentation?: InputMaybe<Order_By>;
   public_key?: InputMaybe<Order_By>;
+  statistics?: InputMaybe<Order_By>;
   status?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   updated_at?: InputMaybe<Order_By>;
@@ -7465,6 +7491,7 @@ export type Sequent_Backend_Election_Event_Prepend_Input = {
   dates?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
+  statistics?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   voting_channels?: InputMaybe<Scalars['jsonb']['input']>;
 };
@@ -7502,6 +7529,8 @@ export enum Sequent_Backend_Election_Event_Select_Column {
   /** column name */
   PublicKey = 'public_key',
   /** column name */
+  Statistics = 'statistics',
+  /** column name */
   Status = 'status',
   /** column name */
   TenantId = 'tenant_id',
@@ -7530,6 +7559,7 @@ export type Sequent_Backend_Election_Event_Set_Input = {
   name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
+  statistics?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -7562,6 +7592,7 @@ export type Sequent_Backend_Election_Event_Stream_Cursor_Value_Input = {
   name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
+  statistics?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -7601,6 +7632,8 @@ export enum Sequent_Backend_Election_Event_Update_Column {
   Presentation = 'presentation',
   /** column name */
   PublicKey = 'public_key',
+  /** column name */
+  Statistics = 'statistics',
   /** column name */
   Status = 'status',
   /** column name */
@@ -7655,6 +7688,7 @@ export type Sequent_Backend_Election_Insert_Input = {
   num_allowed_revotes?: InputMaybe<Scalars['Int']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   spoil_ballot_option?: InputMaybe<Scalars['Boolean']['input']>;
+  statistics?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   voting_channels?: InputMaybe<Scalars['jsonb']['input']>;
@@ -7758,6 +7792,7 @@ export type Sequent_Backend_Election_Order_By = {
   num_allowed_revotes?: InputMaybe<Order_By>;
   presentation?: InputMaybe<Order_By>;
   spoil_ballot_option?: InputMaybe<Order_By>;
+  statistics?: InputMaybe<Order_By>;
   status?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   voting_channels?: InputMaybe<Order_By>;
@@ -7776,6 +7811,7 @@ export type Sequent_Backend_Election_Prepend_Input = {
   dates?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
+  statistics?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   voting_channels?: InputMaybe<Scalars['jsonb']['input']>;
 };
@@ -8126,6 +8162,8 @@ export enum Sequent_Backend_Election_Select_Column {
   /** column name */
   SpoilBallotOption = 'spoil_ballot_option',
   /** column name */
+  Statistics = 'statistics',
+  /** column name */
   Status = 'status',
   /** column name */
   TenantId = 'tenant_id',
@@ -8172,6 +8210,7 @@ export type Sequent_Backend_Election_Set_Input = {
   num_allowed_revotes?: InputMaybe<Scalars['Int']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   spoil_ballot_option?: InputMaybe<Scalars['Boolean']['input']>;
+  statistics?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   voting_channels?: InputMaybe<Scalars['jsonb']['input']>;
@@ -8237,6 +8276,7 @@ export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
   num_allowed_revotes?: InputMaybe<Scalars['Int']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   spoil_ballot_option?: InputMaybe<Scalars['Boolean']['input']>;
+  statistics?: InputMaybe<Scalars['jsonb']['input']>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   voting_channels?: InputMaybe<Scalars['jsonb']['input']>;
@@ -8532,6 +8572,8 @@ export enum Sequent_Backend_Election_Update_Column {
   Presentation = 'presentation',
   /** column name */
   SpoilBallotOption = 'spoil_ballot_option',
+  /** column name */
+  Statistics = 'statistics',
   /** column name */
   Status = 'status',
   /** column name */

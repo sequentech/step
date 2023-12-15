@@ -15,14 +15,14 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 use crate::services::database::{get_database_pool, PgConfig};
-use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime};
+use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime, Transaction};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::{BorrowToSql, ToSql, Type as SqlType};
 
 #[instrument(skip(auth_headers, admin), err)]
 pub async fn list_users(
     auth_headers: connection::AuthHeaders,
-    db_client: &DbClient,
+    transaction: &Transaction<'_>,
     admin: &KeycloakAdminClient,
     tenant_id: String,
     election_event_id: Option<String>,
@@ -42,7 +42,10 @@ pub async fn list_users(
         0
     };
 
-    let statement = db_client.prepare_cached(
+    // TODO: Use prepare_cached from db_client, but this incurs in some
+    // `immutable borrow occurs here` vs `mutable borrow occurs here` with
+    // transaction vs db_client
+    let statement = transaction.prepare(
             r#"
             WITH realm_cte AS (
                 SELECT id FROM realm WHERE name = $1
@@ -87,7 +90,7 @@ pub async fn list_users(
             ;
         "#,
     ).await?;
-    let rows: Vec<Row> = db_client
+    let rows: Vec<Row> = transaction
         .query(&statement, &[&realm, &email, &query_limit, &query_offset])
         .await
         .map_err(|err| anyhow!("{}", err))?;

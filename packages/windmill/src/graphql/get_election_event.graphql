@@ -22,6 +22,7 @@ query GetElectionEvent(
     voting_channels
     dates
     status
+    statistics
     user_boards
     encryption_protocol
     is_audit

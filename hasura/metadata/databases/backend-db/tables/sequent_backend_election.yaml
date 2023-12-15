@@ -141,7 +141,6 @@ select_permissions:
     - presentation
     - spoil_ballot_option
     - status
-    - statistics
     - tenant_id
     - voting_channels
     filter:
