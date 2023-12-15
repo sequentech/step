@@ -509,16 +509,18 @@ pub async fn send_communication(
             )
             .await
             .with_context(|| "can't find election event")?;
+            event!(Level::INFO, "election_event_response={election_event_response:?}");
 
             let election_event = &election_event_response
                 .data
                 .with_context(|| "can't find election event")?
                 .sequent_backend_election_event[0];
+            event!(Level::INFO, "election_event={election_event:?}");
 
             let mut statistics = get_election_event_statistics(election_event.status.clone())
                 .unwrap_or(Default::default());
+            event!(Level::INFO, "statistics= {statistics:?}");
 
-            // TODO: be more accurate, get this info from
             statistics.num_emails_sent += num_emails_sent;
             statistics.num_sms_sent += num_sms_sent;
 
