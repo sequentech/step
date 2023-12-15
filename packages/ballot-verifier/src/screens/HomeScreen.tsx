@@ -9,7 +9,15 @@ import {styled} from "@mui/material/styles"
 import Alert from "@mui/material/Alert"
 import AlertTitle from "@mui/material/AlertTitle"
 import {useTranslation} from "react-i18next"
-import {PageLimit, DropFile, BreadCrumbSteps, Icon, IconButton, theme, Dialog} from "@sequentech/ui-essentials"
+import {
+    PageLimit,
+    DropFile,
+    BreadCrumbSteps,
+    Icon,
+    IconButton,
+    theme,
+    Dialog,
+} from "@sequentech/ui-essentials"
 import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
@@ -138,7 +146,10 @@ export const HomeScreen: React.FC<IProps> = ({
     const handleAuditableBallot = (auditableBallot: string | null) => {
         const decodedBallot =
             (auditableBallot && ballotService.decodeAuditableBallot(auditableBallot)) || null
-        const ballotStyle = (null !== auditableBallot) && ballotService.getBallotStyleFromAuditableBallot(auditableBallot) || null
+        const ballotStyle =
+            (null !== auditableBallot &&
+                ballotService.getBallotStyleFromAuditableBallot(auditableBallot)) ||
+            null
         if (null === auditableBallot || null === decodedBallot || null === ballotStyle) {
             setShowError(true)
             setConfirmationBallot(null)

@@ -8,6 +8,7 @@ use keycloak::types::{CredentialRepresentation, UserRepresentation};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
+use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -21,6 +22,26 @@ impl User {
             }
             None => None,
         }
+    }
+}
+
+impl TryFrom<Row> for User {
+    type Error = anyhow::Error;
+    fn try_from(item: Row) -> Result<Self> {
+        let attributes_value: Value = item.try_get("attributes")?;
+        let attributes_map: HashMap<String, Value> =
+            serde_json::from_value(attributes_value)?;
+        Ok(User {
+            id: item.try_get("id")?,
+            attributes: Some(attributes_map),
+            email: item.try_get("email")?,
+            email_verified: item.try_get("email_verified")?,
+            enabled: item.try_get("enabled")?,
+            first_name: item.try_get("first_name")?,
+            last_name: item.try_get("last_name")?,
+            username: item.try_get("username")?,
+            area: None,
+        })
     }
 }
 
@@ -219,7 +240,7 @@ impl KeycloakAdminClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn delete_user(self, realm: &str, user_id: &str) -> Result<()> {
+    pub async fn delete_user(&self, realm: &str, user_id: &str) -> Result<()> {
         self.client
             .realm_users_with_id_delete(realm, user_id)
             .await

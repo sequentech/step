@@ -94,6 +94,26 @@
             },
             "problemMatcher": []
         },
+        {
+            "label": "update .env",
+            "command": "bash",
+            "args": [
+                "./.devcontainer/initializeCommand.sh",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
     ]
   }
   

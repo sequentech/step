@@ -1,10 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
-use crate::types::optional::OptionalId;
-use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::Result;
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
@@ -17,7 +15,12 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::instrument;
+use windmill::services::database::get_database_pool;
 use windmill::services::users::list_users;
+
+use crate::services::authorization::authorize;
+use crate::types::optional::OptionalId;
+use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 
 #[derive(Deserialize, Debug)]
 pub struct DeleteUserBody {
@@ -61,6 +64,51 @@ pub async fn delete_user(
 }
 
 #[derive(Deserialize, Debug)]
+pub struct DeleteUsersBody {
+    tenant_id: String,
+    election_event_id: Option<String>,
+    user_ids: Vec<String>,
+}
+
+#[instrument(skip(claims))]
+#[post("/delete-users", format = "json", data = "<body>")]
+pub async fn delete_users(
+    claims: jwt::JwtClaims,
+    body: Json<DeleteUsersBody>,
+) -> Result<Json<OptionalId>, (Status, String)> {
+    let input = body.into_inner();
+    let required_perm: Permissions = if input.election_event_id.is_some() {
+        Permissions::VOTER_WRITE
+    } else {
+        Permissions::USER_WRITE
+    };
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    for id in input.user_ids {
+        client
+            .delete_user(&realm, &id)
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    }
+
+    Ok(Json(Default::default()))
+}
+
+#[derive(Deserialize, Debug)]
 pub struct GetUsersBody {
     tenant_id: String,
     election_event_id: Option<String>,
@@ -98,11 +146,19 @@ pub async fn get_users(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let db_client: DbClient = get_database_pool()
+        .await
+        .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     let (users, count) = list_users(
         auth_headers.clone(),
+        &db_client,
         &client,
         input.tenant_id.clone(),
         input.election_event_id.clone(),
@@ -111,6 +167,7 @@ pub async fn get_users(
         input.email,
         input.limit,
         input.offset,
+        /* user_ids = */ None,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

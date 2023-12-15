@@ -17,10 +17,7 @@ module.exports = function (env, argv) {
             rules: [
                 {
                     test: /\.css$/,
-                    use: [
-                    'style-loader',
-                    'css-loader'
-                    ]
+                    use: ["style-loader", "css-loader"],
                 },
                 {
                     test: /\.(js|ts)x?$/,

@@ -7,7 +7,8 @@ export const TallyStyles = {
         padding: 2rem 0;
     `,
     StyledSpacing: styled.div`
-        padding: 2rem 0;
+        margin-left: auto;
+        margin-right: 10px;
     `,
     StyledFooter: styled.div`
         width: 100%;
