@@ -142,7 +142,7 @@ pub async fn soft_delete_other_ballot_publications_election(
     tenant_id: String,
     election_event_id: String,
     ballot_publication_id: String,
-    election_id: Option<String>,
+    election_id: String,
 ) -> Result<Response<soft_delete_other_ballot_publications_election::ResponseData>> {
     let variables = soft_delete_other_ballot_publications_election::Variables {
         ballot_publication_id: ballot_publication_id,

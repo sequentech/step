@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::ballot_publication::{
     get_ballot_publication, get_previous_publication, get_publication_ballot_styles,
-    insert_ballot_publication, soft_delete_other_ballot_publications, update_ballot_publication_d,
+    insert_ballot_publication, soft_delete_other_ballot_publications,
+    soft_delete_other_ballot_publications_election, update_ballot_publication_d,
 };
 use crate::hasura::election::get_all_elections_for_event;
 use crate::hasura::election_event::get_election_event_helper;
@@ -145,13 +146,13 @@ pub async fn update_publish_ballot(
         return Ok(());
     }
 
-    let Some(election_id) = ballot_publication.election_id.clone() {
+    if let Some(election_id) = ballot_publication.election_id.clone() {
         soft_delete_other_ballot_publications_election(
             auth_headers.clone(),
             tenant_id.clone(),
             election_event_id.clone(),
             ballot_publication_id.clone(),
-            ballot_publication.election_id.clone(),
+            election_id,
         )
         .await?;
     } else {
