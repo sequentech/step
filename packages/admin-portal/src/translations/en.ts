@@ -786,6 +786,7 @@ const englishTranslation = {
             notifications: {
                 generated: "Ballot generated",
                 published: "Ballot published",
+                chang_status: "Ballot status changed"
             },
         },
         emailEditor: {

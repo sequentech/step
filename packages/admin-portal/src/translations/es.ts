@@ -788,6 +788,7 @@ const spanishTranslation: TranslationType = {
             notifications: {
                 generated: "Papeleta generada",
                 published: "Papeleta publicada",
+                chang_status: "Papeleta cambiada de estado"
             },
         },
         emailEditor: {

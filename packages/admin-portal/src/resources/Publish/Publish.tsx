@@ -123,7 +123,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         setStatus(PUBLICH_STATUS_CONVERT[status])
 
-        notify(t('publish.notifications.change-status'), {
+        notify(t('publish.notifications.chang_status'), {
             type: 'success'
         })
     }
@@ -138,7 +138,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         setStatus(PUBLICH_STATUS_CONVERT[status])
 
-        notify(t('publish.notifications.change-status'), {
+        notify(t('publish.notifications.chang_status'), {
             type: 'success'
         })
     }
