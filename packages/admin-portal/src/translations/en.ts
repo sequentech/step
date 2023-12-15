@@ -781,7 +781,8 @@ const englishTranslation = {
                 title: 'Confirm action',
                 info: 'You have clicked on a sensitive action, so we need you to confirm in order to continue',
                 ok: 'Confirm',
-                ko: 'Cancel'
+                ko: 'Cancel',
+                error: 'Error loading ballot publication'
             },
             notifications: {
                 generated: "Ballot generated",

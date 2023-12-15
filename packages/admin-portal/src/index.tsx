@@ -25,7 +25,7 @@ const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 SequentCoreLibInit().then(set_hooks)
 
 root.render(
-    <React.StrictMode>
+    <>
         <AuthContextProvider>
             <TenantContextProvider>
                 <NewResourceContextProvider>
@@ -47,7 +47,7 @@ root.render(
                 </NewResourceContextProvider>
             </TenantContextProvider>
         </AuthContextProvider>
-    </React.StrictMode>
+    </>
 )
 
 // If you want to start measuring performance in your app, pass a function

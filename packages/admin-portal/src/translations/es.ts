@@ -779,7 +779,8 @@ const spanishTranslation: TranslationType = {
                 title: 'Confirm action',
                 info: 'You have clicked on a sensitive action, so we need you to confirm in order to continue',
                 ok: 'Confirm',
-                ko: 'Cancel'
+                ko: 'Cancel',
+                error: 'Error al cargar las papeletas publicadas'
             },
             label: {
                 current: "Actual",

@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, {useState} from "react"
 
 import styled from "@emotion/styled"
 
@@ -8,7 +8,7 @@ import {CircularProgress, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
 
-import { EPublishActionsType } from './EPublishType'
+import {EPublishActionsType} from "./EPublishType"
 import {EPublishStatus, EPublishStatushChanges} from "./EPublishStatus"
 
 const PublishActionsStyled = {
@@ -27,7 +27,7 @@ export type PublishActionsProps = {
     type: EPublishActionsType.List | EPublishActionsType.Generate
 }
 
-export const PublishActions: React.FC<PublishActionsProps> = ({ 
+export const PublishActions: React.FC<PublishActionsProps> = ({
     type,
     status,
     onGenerate,
@@ -36,7 +36,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 }) => {
     const {t} = useTranslation()
     const [showDialog, setShowDialog] = useState(false)
-    const [currentCallback, setCurrentCallback] = useState<any>(null);
+    const [currentCallback, setCurrentCallback] = useState<any>(null)
 
     const IconOrProgress = ({st, Icon}: any) => {
         return status === st + 0.1 && status !== EPublishStatus.Void ? (
@@ -50,11 +50,15 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         <Button
             onClick={onClick}
             label={t(label)}
-            style={st === status ? { 
-                backgroundColor: '#eee', 
-                color: '#ccc',
-                cursor: 'not-allowed'
-            } : {}}
+            style={
+                st === status
+                    ? {
+                          backgroundColor: "#eee",
+                          color: "#ccc",
+                          cursor: "not-allowed",
+                      }
+                    : {}
+            }
             disabled={st === status}
         >
             <IconOrProgress st={st} Icon={Icon} />
@@ -63,7 +67,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
     const handleEvent = (callback: (status?: number) => void) => {
         setShowDialog(true)
-        setCurrentCallback(() => callback);
+        setCurrentCallback(() => callback)
     }
 
     const handleOnChange = (status: string) => () => onChangeStatus(status)
@@ -72,44 +76,70 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         <>
             <PublishActionsStyled.Container>
                 <div className="list-actions">
-                    {
-                        type === EPublishActionsType.List ? (
-                            <>
-                                <ButtonDisabledOrNot onClick={() => handleEvent(handleOnChange(EPublishStatushChanges.Open))} label={t("publish.action.start")} st={EPublishStatus.Started} Icon={PlayCircle} />
-                
-                                <ButtonDisabledOrNot onClick={() => handleEvent(handleOnChange(EPublishStatushChanges.Paused))} label={t("publish.action.pause")} st={EPublishStatus.Paused} Icon={PauseCircle} />
-                
-                                <ButtonDisabledOrNot onClick={() => handleEvent(handleOnChange(EPublishStatushChanges.Closed))} label={t("publish.action.stop")} st={EPublishStatus.Stopped} Icon={StopCircle} />
+                    {type === EPublishActionsType.List ? (
+                        <>
+                            <ButtonDisabledOrNot
+                                onClick={() =>
+                                    handleEvent(handleOnChange(EPublishStatushChanges.Open))
+                                }
+                                label={t("publish.action.start")}
+                                st={EPublishStatus.Started}
+                                Icon={PlayCircle}
+                            />
 
-                                <ButtonDisabledOrNot onClick={onGenerate} label={t("publish.action.publish")} Icon={Publish} />
-                            </>
-                        ) : (
-                            <>
-                                <ButtonDisabledOrNot onClick={() => handleEvent(onGenerate)} label={t("publish.action.generate")}  st={EPublishStatus.Generated} Icon={RotateLeft} />
-                            </>
-                        )
-                    }
+                            <ButtonDisabledOrNot
+                                onClick={() =>
+                                    handleEvent(handleOnChange(EPublishStatushChanges.Paused))
+                                }
+                                label={t("publish.action.pause")}
+                                st={EPublishStatus.Paused}
+                                Icon={PauseCircle}
+                            />
+
+                            <ButtonDisabledOrNot
+                                onClick={() =>
+                                    handleEvent(handleOnChange(EPublishStatushChanges.Closed))
+                                }
+                                label={t("publish.action.stop")}
+                                st={EPublishStatus.Stopped}
+                                Icon={StopCircle}
+                            />
+
+                            <ButtonDisabledOrNot
+                                onClick={onGenerate}
+                                label={t("publish.action.publish")}
+                                Icon={Publish}
+                            />
+                        </>
+                    ) : (
+                        <>
+                            <ButtonDisabledOrNot
+                                onClick={() => handleEvent(onGenerate)}
+                                label={t("publish.action.generate")}
+                                st={EPublishStatus.Generated}
+                                Icon={RotateLeft}
+                            />
+                        </>
+                    )}
                 </div>
             </PublishActionsStyled.Container>
-            
+
             <Dialog
                 handleClose={(flag) => {
                     if (flag) {
-                        currentCallback();
+                        currentCallback()
                     }
 
                     setShowDialog(false)
-                    setCurrentCallback(null); 
+                    setCurrentCallback(null)
                 }}
                 open={showDialog}
-                title={t('publish.dialog.title')}
-                ok={t('publish.dialog.ok')}
-                cancel={t('publish.dialog.ko')}
+                title={t("publish.dialog.title")}
+                ok={t("publish.dialog.ok")}
+                cancel={t("publish.dialog.ko")}
                 variant="info"
             >
-                <Typography variant="body1">
-                    {t('publish.dialog.info')}
-                </Typography>
+                <Typography variant="body1">{t("publish.dialog.info")}</Typography>
             </Dialog>
         </>
     )
