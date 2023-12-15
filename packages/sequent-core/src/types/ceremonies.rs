@@ -110,7 +110,6 @@ pub enum TallyElectionStatus {
     WAITING,
     MIXING,
     DECRYPTING,
-    COUNTING,
     SUCCESS,
     ERROR,
 }

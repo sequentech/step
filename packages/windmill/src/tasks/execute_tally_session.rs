@@ -181,6 +181,24 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
 }
 
 #[instrument(skip_all)]
+fn get_session_ids_by_type(messages: &Vec<Message>, kinds: Vec<StatementType>) -> Vec<i64> {
+    let mut plaintext_batch_ids: Vec<i64> = messages
+        .iter()
+        .map(|message| {
+            if kinds.contains(&message.statement.get_kind()) {
+                message.statement.get_batch_number() as i64
+            } else {
+                -1i64
+            }
+        })
+        .filter(|value| *value > -1)
+        .collect();
+    plaintext_batch_ids.sort_by_key(|id| id.clone());
+    plaintext_batch_ids.dedup();
+    plaintext_batch_ids
+}
+
+#[instrument(skip_all)]
 async fn generate_tally_progress(
     tally_session_data: &get_last_tally_session_execution::ResponseData,
     messages: &Vec<Message>,
@@ -194,22 +212,13 @@ async fn generate_tally_progress(
         batch_ids.push(contest.session_id);
         complete_map.insert(contest.election_id.clone(), batch_ids.clone());
     }
-    let current_batch_ids: Vec<i64> = messages
-        .iter()
-        .map(|message| {
-            if message.statement.get_kind() == StatementType::Plaintexts {
-                message.statement.get_batch_number() as i64
-            } else {
-                -1i64
-            }
-        })
-        .filter(|value| *value > -1)
-        .collect();
+    let plaintext_batch_ids: Vec<i64> =
+        get_session_ids_by_type(messages, vec![StatementType::Plaintexts]);
 
-    let tally_elections_status: Vec<TallyElection> = complete_map
+    let mut tally_elections_status: Vec<TallyElection> = complete_map
         .iter()
         .map(|(key, val)| {
-            let num_finished_contests = current_batch_ids
+            let num_finished_contests = plaintext_batch_ids
                 .iter()
                 .filter(|value| val.contains(value))
                 .collect::<Vec<_>>()
@@ -228,6 +237,7 @@ async fn generate_tally_progress(
             }
         })
         .collect();
+    tally_elections_status.sort_by_key(|status| status.election_id.clone());
     Ok(tally_elections_status)
 }
 
