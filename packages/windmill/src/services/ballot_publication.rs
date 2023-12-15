@@ -145,13 +145,24 @@ pub async fn update_publish_ballot(
         return Ok(());
     }
 
-    soft_delete_other_ballot_publications(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        ballot_publication_id.clone(),
-    )
-    .await?;
+    let Some(election_id) = ballot_publication.election_id.clone() {
+        soft_delete_other_ballot_publications_election(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            ballot_publication_id.clone(),
+            ballot_publication.election_id.clone(),
+        )
+        .await?;
+    } else {
+        soft_delete_other_ballot_publications(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            ballot_publication_id.clone(),
+        )
+        .await?;
+    }
 
     update_ballot_publication_d(
         auth_headers.clone(),

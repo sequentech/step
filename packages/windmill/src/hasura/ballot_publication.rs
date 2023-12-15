@@ -130,6 +130,48 @@ pub async fn update_ballot_publication_d(
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/soft_delete_other_ballot_publications_election.graphql",
+    response_derives = "Debug,Clone,Deserialize,Serialize",
+    variables_derives = "Debug,Clone"
+)]
+pub struct SoftDeleteOtherBallotPublicationsElection;
+
+#[instrument(skip(auth_headers))]
+pub async fn soft_delete_other_ballot_publications_election(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    ballot_publication_id: String,
+    election_id: Option<String>,
+) -> Result<Response<soft_delete_other_ballot_publications_election::ResponseData>> {
+    let variables = soft_delete_other_ballot_publications_election::Variables {
+        ballot_publication_id: ballot_publication_id,
+        election_event_id: election_event_id,
+        tenant_id: tenant_id,
+        election_id,
+    };
+    event!(Level::INFO, "request_body {:?}", variables.clone());
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = SoftDeleteOtherBallotPublicationsElection::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<soft_delete_other_ballot_publications_election::ResponseData> =
+        res.json().await?;
+    response_body.ok()
+}
+
+///////////////////
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/soft_delete_other_ballot_publications.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize",
     variables_derives = "Debug,Clone"
