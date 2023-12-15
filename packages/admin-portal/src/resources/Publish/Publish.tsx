@@ -197,6 +197,18 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             }
         }, [generateData])
 
+        useEffect(() => {
+            console.log("PUBLISH :: RECORD STATUS", record?.status)
+
+            if (type === EPublishType.Event) {
+                setStatus(
+                    PUBLICH_STATUS_CONVERT?.[record?.status?.voting_status] || EPublishStatus.Void
+                )
+            } else if (type === EPublishType.Election) {
+                setStatus(EPublishStatus.Void)
+            }
+        }, [record])
+
         return (
             <Box sx={{flexGrow: 2, flexShrink: 0}}>
                 {!showDiff ? (

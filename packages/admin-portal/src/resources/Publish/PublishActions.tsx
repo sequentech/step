@@ -46,12 +46,12 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         )
     }
 
-    const ButtonDisabledOrNot = ({st, label, onClick, Icon}: any) => (
+    const ButtonDisabledOrNot = ({st, label, onClick, Icon, disabledStatus}: any) => (
         <Button
             onClick={onClick}
             label={t(label)}
             style={
-                st === status
+                st === status || disabledStatus?.includes(status)
                     ? {
                           backgroundColor: "#eee",
                           color: "#ccc",
@@ -59,7 +59,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                       }
                     : {}
             }
-            disabled={st === status}
+            disabled={st === status || disabledStatus?.includes(status)}
         >
             <IconOrProgress st={st} Icon={Icon} />
         </Button>
@@ -85,6 +85,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 label={t("publish.action.start")}
                                 st={EPublishStatus.Started}
                                 Icon={PlayCircle}
+                                disabledStatus={[EPublishStatus.Stopped]}
                             />
 
                             <ButtonDisabledOrNot
@@ -94,6 +95,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 label={t("publish.action.pause")}
                                 st={EPublishStatus.Paused}
                                 Icon={PauseCircle}
+                                disabledStatus={[EPublishStatus.Void, EPublishStatus.Stopped]}
                             />
 
                             <ButtonDisabledOrNot
@@ -103,12 +105,14 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 label={t("publish.action.stop")}
                                 st={EPublishStatus.Stopped}
                                 Icon={StopCircle}
+                                disabledStatus={[EPublishStatus.Void]}
                             />
 
                             <ButtonDisabledOrNot
                                 onClick={onGenerate}
                                 label={t("publish.action.publish")}
                                 Icon={Publish}
+                                disabledStatus={[EPublishStatus.Stopped]}
                             />
                         </>
                     ) : (

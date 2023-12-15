@@ -9,7 +9,7 @@ export const UPDATE_ELECTION_VOTING_STATUS = gql`
             election_id: $electionId
             voting_status: $status
         ) {
-            election_event_id
+            election_id
         }
     }
 `

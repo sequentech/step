@@ -16,3 +16,7 @@ export interface IElectionEventStatus {
     is_published?: boolean
     voting_status: EVotingStatus
 }
+
+export interface IElectionStatus {
+    voting_status: EVotingStatus
+}
