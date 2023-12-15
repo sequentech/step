@@ -1,30 +1,12 @@
-import React, { ComponentType, useEffect, useRef, useState } from "react"
+import React, { useEffect, useState } from "react"
 
 import styled from "@emotion/styled"
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
-import { useMutation } from "@apollo/client"
+import { Box } from "@mui/material"
 import { useTranslation } from "react-i18next"
-import { useGetList, useNotify } from 'react-admin'
-import { Box, Accordion, AccordionDetails, AccordionSummary } from "@mui/material"
-
-import Summary from "./election-publish.json"
-import OldSummary from "./election-publish-old.json"
-
-import { EPublishType } from './EPublishType'
-import { DiffView } from "@/components/DiffView"
 import { PublishActions } from "./PublishActions"
-import { EPublishStatus } from "./EPublishStatus"
-import { PUBLISH_BALLOT } from "@/queries/PublishBallot"
-import { GENERATE_BALLOT_PUBLICATION } from "@/queries/GenerateBallotPublication"
-import { GET_BALLOT_PUBLICATION_CHANGE } from '@/queries/GetBallotPublicationChanges'
 
-import { 
-    PublishBallotMutation, 
-    GenerateBallotPublicationMutation, 
-    GetBallotPublicationChangesOutput, 
-    Sequent_Backend_Ballot_Publication,
-} from "@/gql/graphql"
+import { DiffView } from '@/components/DiffView'
 import { EPublishActionsType } from './EPublishActionsType'
 
 const PublishStyled = {

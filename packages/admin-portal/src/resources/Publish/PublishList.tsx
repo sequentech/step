@@ -1,6 +1,6 @@
-import React, { ComponentType, useEffect, useRef, useState } from "react"
+import React from "react"
 
-import { Button, CreateButton, DatagridConfigurable, BooleanField, List, TextField } from 'react-admin'
+import { Button, DatagridConfigurable, BooleanField, List, TextField } from 'react-admin'
 
 import { PublishActions } from './PublishActions'
 import { HeaderTitle } from '@/components/HeaderTitle'
