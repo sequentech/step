@@ -243,6 +243,50 @@ impl Pipe for GenerateReports {
             let mut reports = vec![];
 
             for contest_input in &election_input.contest_list {
+                for area_input in &contest_input.area_list {
+                    let mut contest_result = self.read_contest_result(
+                        &election_input.id,
+                        &contest_input.id,
+                        Some(&area_input.id),
+                    )?;
+
+                    let defaults = default_invalid_votes();
+                    for (key, value) in defaults {
+                        contest_result.invalid_votes.entry(key).or_insert(value);
+                    }
+
+                    let winners = self.read_winners(&election_input.id, &contest_input.id, None)?;
+                    dbg!(&winners);
+
+                    let report = ReportData {
+                        contest: contest_input.contest.clone(),
+                        contest_result,
+                        area_id: None,
+                        winners,
+                    };
+
+                    let bytes = self
+                        .generate_report(&election_input.ballot_styles[0], vec![report.clone()])?;
+
+                    let mut path = PipeInputs::build_path(
+                        &self.output_dir,
+                        &contest_input.election_id,
+                        &contest_input.id,
+                        Some(&area_input.id),
+                    );
+                    fs::create_dir_all(&path)?;
+
+                    let file = path.join(OUTPUT_PDF);
+                    let mut file = OpenOptions::new()
+                        .write(true)
+                        .truncate(true)
+                        .create(true)
+                        .open(&file)?;
+
+                    file.write_all(&bytes)?;
+                    serde_json::to_writer(file, &bytes)?;
+                }
+
                 let mut contest_result =
                     self.read_contest_result(&election_input.id, &contest_input.id, None)?;
 
