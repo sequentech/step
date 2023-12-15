@@ -21,7 +21,7 @@ const PublishActionsStyled = {
 
 export type PublishActionsProps = {
     status: null | number
-    onPublish: () => void
+    onPublish?: () => void
     onGenerate: () => void
     onChangeStatus?: (status: string) => void
     type: EPublishActionsType.List | EPublishActionsType.Generate
@@ -30,8 +30,8 @@ export type PublishActionsProps = {
 export const PublishActions: React.FC<PublishActionsProps> = ({ 
     type,
     status,
-    onPublish,
     onGenerate,
+    onPublish = () => null,
     onChangeStatus = () => null,
 }) => {
     const {t} = useTranslation()
@@ -54,7 +54,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 backgroundColor: '#eee', 
                 color: '#ccc',
                 cursor: 'not-allowed'
-            } : {}} 
+            } : {}}
             disabled={st === status}
         >
             <IconOrProgress st={st} Icon={Icon} />

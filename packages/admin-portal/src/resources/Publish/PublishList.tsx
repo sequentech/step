@@ -17,6 +17,7 @@ type TPublishList = {
     onGenerate: () => void
     electionId?: number|string
     electionEventId: number|string|undefined
+    onChangeStatus: (status: string) => void
 }
 
 export const PublishList: React.FC<TPublishList> = ({ 
@@ -24,6 +25,7 @@ export const PublishList: React.FC<TPublishList> = ({
     electionId,
     electionEventId,
     onGenerate = () => null,
+    onChangeStatus = () => null,
 }) => {
     const {t} = useTranslation()
     const {canAdminCeremony} = useActionPermissions()
@@ -54,14 +56,18 @@ export const PublishList: React.FC<TPublishList> = ({
             actions={
                 <PublishActions 
                     status={status}
-                    onPublish={() => null} 
-                    onGenerate={() => null}
+                    onGenerate={onGenerate}
+                    onChangeStatus={onChangeStatus}
                     type={EPublishActionsType.List}
                 />
             }
             empty={<Empty />}
             sx={{flexGrow: 2}}
-            filter={{
+            filter={electionId ? {
+                'election_id[]': electionId,
+                election_event_id: electionEventId,
+            } :
+            {
                 election_event_id: electionEventId,
             }}
         >

@@ -38,7 +38,6 @@ export type TPublishGenerate = {
     electionEventId: string
     onPublish: () => void
     onGenerate: () => void
-    onChangeStatus: (status: string) => void
 }
 
 export const PublishGenerate: React.FC<TPublishGenerate> = ({ 
@@ -46,7 +45,6 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
     status,
     onPublish = () => null,
     onGenerate = () => null,
-    onChangeStatus = () => null
 }): React.JSX.Element => {
     const {t} = useTranslation()
     const [currentState, setCurrentState] = useState<null|any>(null)
@@ -66,7 +64,6 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                     status={status}
                     onPublish={onPublish} 
                     onGenerate={onGenerate}
-                    onChangeStatus={onChangeStatus}
                     type={EPublishActionsType.Generate}
                 />
 
