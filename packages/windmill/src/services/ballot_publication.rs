@@ -94,6 +94,7 @@ pub async fn add_ballot_publication(
         election_event_id.clone(),
         election_ids.clone(),
         user_id.clone(),
+        election_id.is_none(),
     )
     .await?
     .data

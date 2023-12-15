@@ -28,5 +28,6 @@ query GetPreviousPublication(
     is_generated
     election_ids
     published_at
+    is_election_event
   }
 }

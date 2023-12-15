@@ -4186,13 +4186,9 @@
                 "name": "created_by",
                 "description": null,
                 "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
                 },
                 "defaultValue": null
               },
@@ -4210,13 +4206,9 @@
                 "name": "election_event_id",
                 "description": null,
                 "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  }
+                  "kind": "SCALAR",
+                  "name": "uuid",
+                  "ofType": null
                 },
                 "defaultValue": null
               },
@@ -25880,6 +25872,18 @@
             "deprecationReason": null
           },
           {
+            "name": "is_election_event",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "is_generated",
             "description": null,
             "args": [],
@@ -26233,6 +26237,16 @@
             "defaultValue": null
           },
           {
+            "name": "is_election_event",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "Boolean_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "is_generated",
             "description": null,
             "type": {
@@ -26483,6 +26497,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "is_election_event",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
               "ofType": null
             },
             "defaultValue": null
@@ -26947,6 +26971,16 @@
             "defaultValue": null
           },
           {
+            "name": "is_election_event",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "is_generated",
             "description": null,
             "type": {
@@ -27126,6 +27160,12 @@
             "deprecationReason": null
           },
           {
+            "name": "is_election_event",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "is_generated",
             "description": "column name",
             "isDeprecated": false,
@@ -27232,6 +27272,16 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "is_election_event",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
               "ofType": null
             },
             "defaultValue": null
@@ -27401,6 +27451,16 @@
             "defaultValue": null
           },
           {
+            "name": "is_election_event",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "is_generated",
             "description": null,
             "type": {
@@ -27491,6 +27551,12 @@
           },
           {
             "name": "id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "is_election_event",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -78038,6 +78104,22 @@
             "deprecationReason": null
           },
           {
+            "name": "election_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -78522,6 +78604,16 @@
             "defaultValue": null
           },
           {
+            "name": "election_id",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "uuid_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -78790,6 +78882,16 @@
             "defaultValue": null
           },
           {
+            "name": "election_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -78897,6 +78999,18 @@
           },
           {
             "name": "election_event_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "election_id",
             "description": null,
             "args": [],
             "type": {
@@ -79016,6 +79130,18 @@
           },
           {
             "name": "election_event_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "election_id",
             "description": null,
             "args": [],
             "type": {
@@ -79257,6 +79383,16 @@
             "defaultValue": null
           },
           {
+            "name": "election_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -79444,6 +79580,12 @@
             "deprecationReason": null
           },
           {
+            "name": "election_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": "column name",
             "isDeprecated": false,
@@ -79530,6 +79672,16 @@
           },
           {
             "name": "election_event_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "election_id",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -79764,6 +79916,16 @@
             "defaultValue": null
           },
           {
+            "name": "election_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -79885,6 +80047,12 @@
           },
           {
             "name": "election_event_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "election_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

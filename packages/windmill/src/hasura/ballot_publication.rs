@@ -28,12 +28,14 @@ pub async fn insert_ballot_publication(
     election_event_id: String,
     election_ids: Vec<String>,
     user_id: String,
+    is_election_event: bool
 ) -> Result<Response<insert_ballot_publication::ResponseData>> {
     let variables = insert_ballot_publication::Variables {
         tenant_id,
         election_event_id,
         election_ids,
         user_id,
+        is_election_event: Some(is_election_event),
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
