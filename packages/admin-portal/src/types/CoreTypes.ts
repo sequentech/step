@@ -17,7 +17,6 @@ export interface IElectionEventStatus {
     voting_status: EVotingStatus
 }
 
-
 export interface IElectionEventStatistics {
     num_emails_sent: number
     num_sms_sent: number

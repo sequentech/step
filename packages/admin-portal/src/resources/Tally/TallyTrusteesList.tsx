@@ -20,6 +20,7 @@ import {useTranslation} from "react-i18next"
 import {Box, Icon, Typography} from "@mui/material"
 import ElectionHeader from "@/components/ElectionHeader"
 import KeyIcon from "@mui/icons-material/Key"
+import globalSettings from "@/global-settings"
 
 interface TallyTrusteesListProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -49,7 +50,7 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
             },
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 

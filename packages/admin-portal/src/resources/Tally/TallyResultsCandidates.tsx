@@ -22,6 +22,7 @@ import {
     TableBody,
     Typography,
 } from "@mui/material"
+import globalSettings from "@/global-settings"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -67,7 +68,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             },
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 
@@ -84,7 +85,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             },
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 
