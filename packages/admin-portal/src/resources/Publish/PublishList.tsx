@@ -49,7 +49,7 @@ export const PublishList: React.FC<TPublishList> = ({
                   election_event_id: electionEventId,
               }
             : {
-                  // TODO: election_id: null,
+                  election_id: null,
                   election_event_id: electionEventId,
               },
     })
