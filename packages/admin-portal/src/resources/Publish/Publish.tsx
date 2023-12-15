@@ -190,3 +190,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         </Box>
     )
 });
+
+PublishMemo.displayName = 'Publish'
+
+export const Publish = PublishMemo

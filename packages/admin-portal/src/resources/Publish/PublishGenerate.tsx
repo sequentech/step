@@ -29,6 +29,12 @@ const PublishStyled = {
         justify-content: center;
         align-items: center;
     `,
+    Bottom: styled.div`
+        dispaly: flex;
+        padding: 16px 8px;
+        background: 
+        justify-content: space-between;
+    `,
 }
 
 export type TPublishGenerate = {
@@ -78,6 +84,10 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                     current={currentState}
                     modify={previousState}
                 />
+
+                <PublishStyled.Bottom>
+
+                </PublishStyled.Bottom>
             
             </PublishStyled.Container>
         </Box>
