@@ -118,7 +118,7 @@ pub struct GetUsersBody {
     offset: Option<i32>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims), ret)]
 #[post("/get-users", format = "json", data = "<body>")]
 pub async fn get_users(
     claims: jwt::JwtClaims,
@@ -237,7 +237,7 @@ pub struct EditUserBody {
     password: Option<String>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims), ret)]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
     claims: jwt::JwtClaims,

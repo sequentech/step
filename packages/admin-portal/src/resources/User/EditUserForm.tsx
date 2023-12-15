@@ -183,10 +183,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             user?.password && user?.password.length > 0 ? user.password : undefined,
                         email: user?.email,
                         attributes: {
-                            "area-id": [user?.attributes?.["area-id"]?.[0]],
-                            "sequent.read-only.mobile-number": [
-                                user?.attributes?.["sequent.read-only.mobile-number"]?.[0],
-                            ],
+                            "area-id": user?.attributes?.["area-id"],
+                            "sequent.read-only.mobile-number":
+                                user?.attributes?.["sequent.read-only.mobile-number"],
                         },
                     },
                 },
@@ -227,8 +226,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         return null
     }
 
-    let areaIdAttribute = user?.attributes?.["area-id"] as Array<string> | undefined
-    let defaultAreaId = areaIdAttribute?.[0] ?? undefined
+    let areaIdAttribute = user?.attributes?.["area-id"] as string | undefined
+    let defaultAreaId = areaIdAttribute ?? undefined
 
     const handleSelectArea = async (e: SelectChangeEvent) => {
         if (!electionEventId) {
@@ -323,7 +322,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     />
                     <FormStyles.TextField
                         label={t("usersAndRolesScreen.common.mobileNumber")}
-                        value={user?.attributes?.["sequent.read-only.mobile-number"]?.[0]}
+                        value={user?.attributes?.["sequent.read-only.mobile-number"]}
                         onChange={handleAttrChange("sequent.read-only.mobile-number")}
                     />
                     <FormStyles.PasswordInput

@@ -110,16 +110,7 @@ pub async fn list_users(
         .collect::<Result<Vec<User>>>()?;
 
     if let Some(ref some_election_event_id) = election_event_id {
-        let area_ids: Vec<String> = users
-            .iter()
-            .filter_map(|user| {
-                Some(
-                    user.attributes.as_ref()?.get("area-id")?.as_array()?[0]
-                        .as_str()?
-                        .to_string(),
-                )
-            })
-            .collect();
+        let area_ids: Vec<String> = users.iter().filter_map(|user| user.get_area_id()).collect();
         let areas_by_ids = get_areas_by_ids(
             auth_headers.clone(),
             tenant_id,
@@ -132,9 +123,7 @@ pub async fn list_users(
         .with_context(|| "can't find areas by ids")?
         .sequent_backend_area;
         let get_area = |user: &User| {
-            let area_id = user.attributes.as_ref()?.get("area-id")?.as_array()?[0]
-                .as_str()?
-                .to_string();
+            let area_id = user.get_area_id()?;
             return areas_by_ids.iter().find_map(|area| {
                 if (area.id == area_id) {
                     Some(UserArea {
