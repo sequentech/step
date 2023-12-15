@@ -756,6 +756,12 @@ const englishTranslation = {
                 header: 'Not have a changes generated/publicated',
                 action: 'Generate ur first change'
             },
+            dialog: {
+                title: 'Confirm action',
+                info: 'You have clicked on a sensitive action, so we need you to confirm in order to continue',
+                ok: 'Confirm',
+                ko: 'Cancel'
+            },
             notifications: {
                 generated: "Ballot generated",
                 published: "Ballot published",

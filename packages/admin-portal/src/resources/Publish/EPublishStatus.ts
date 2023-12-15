@@ -11,3 +11,9 @@ export enum EPublishStatus {
     Generated = 5,
     GeneratedLoading = 5.1,
 }
+
+export enum EPublishStatushChanges {
+    Open = 'OPEN',
+    Paused = 'PAUSED',
+    Closed = 'CLOSED'
+}

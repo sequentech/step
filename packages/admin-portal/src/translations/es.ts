@@ -754,6 +754,12 @@ const spanishTranslation: TranslationType = {
                 header: 'No tienes cambios generados/publicados',
                 action: 'Genera tu primer cambio'
             },
+            dialog: {
+                title: 'Confirm action',
+                info: 'You have clicked on a sensitive action, so we need you to confirm in order to continue',
+                ok: 'Confirm',
+                ko: 'Cancel'
+            },
             label: {
                 current: "Actual",
                 diff: "Cambios a publicar",

@@ -13,12 +13,11 @@ import { useTranslation } from 'react-i18next'
 const OMIT_FIELDS: any = []
 
 type TPublishList = {
-    status: number;
-    electionId?: number|string;
-    electionEventId: number|string|undefined;
-    onPublish: () => void;
-    onGenerate: () => void;
-    onChangeStatus: (status: string) => void;
+    status: number
+    electionId?: number|string
+    electionEventId: number|string|undefined
+    onPublish: () => void
+    onGenerate: () => void
 }
 
 export const PublishList: React.FC<TPublishList> = ({ 
@@ -27,7 +26,6 @@ export const PublishList: React.FC<TPublishList> = ({
     electionEventId, 
     onPublish = () => null,
     onGenerate = () => null,
-    onChangeStatus = () => null,
 }) => {
     const {t} = useTranslation()
     const {canAdminCeremony} = useActionPermissions()

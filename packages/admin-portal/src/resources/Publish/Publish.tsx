@@ -169,7 +169,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     status={status} 
                     electionId={electionId}
                     onGenerate={onGenerate}
-                    onChangeStatus={onChangeStatus}
                     electionEventId={electionEventId} 
                     onPublish={() => setShowDiff(true)}
                 />
@@ -180,6 +179,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     onPublish={onPublish}
                     electionId={electionId}
                     onGenerate={onGenerate}
+                    onChangeStatus={onChangeStatus}
                     electionEventId={electionEventId}
                 />
             )}
