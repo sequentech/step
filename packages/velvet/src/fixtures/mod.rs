@@ -7,6 +7,6 @@ pub mod ballot_styles;
 mod candidates;
 mod contests;
 pub mod elections;
-mod fixtures;
+pub mod fixtures;
 
 pub use fixtures::*;
