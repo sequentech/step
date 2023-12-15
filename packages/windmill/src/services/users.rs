@@ -41,11 +41,12 @@ pub async fn list_users(
     } else {
         0
     };
+    let user_ids_list = user_ids.unwrap_or(vec![]);
 
     // TODO: Use prepare_cached from db_client, but this incurs in some
     // `immutable borrow occurs here` vs `mutable borrow occurs here` with
     // transaction vs db_client
-    let statement = transaction.prepare(
+    let statement = transaction.prepare_typed(
             r#"
             WITH realm_cte AS (
                 SELECT id FROM realm WHERE name = $1
@@ -82,16 +83,29 @@ pub async fn list_users(
                 LEFT JOIN
                     user_attribute AS attr ON u.id = attr.user_id
                 WHERE
-                    (u.email = $2 OR $2 IS NULL)
+                    ARRAY_LENGTH($4::VARCHAR[], 1) = 0 AND
+                    (u.email LIKE $5 OR $5 IS NULL)
                 GROUP BY
                     u.id
             ) sub
-            LIMIT $3 OFFSET $4;
-            ;
+            LIMIT $2 OFFSET $3;
         "#,
+        &[
+            SqlType::TEXT,
+            SqlType::INT8,
+            SqlType::INT8,
+            SqlType::UNKNOWN,
+            SqlType::TEXT,
+        ]
     ).await?;
     let rows: Vec<Row> = transaction
-        .query(&statement, &[&realm, &email, &query_limit, &query_offset])
+        .query(&statement, &[
+            &realm,
+            &query_limit,
+            &query_offset,
+            &user_ids_list,
+            &email
+        ])
         .await
         .map_err(|err| anyhow!("{}", err))?;
     event!(
