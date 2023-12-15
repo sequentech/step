@@ -181,11 +181,11 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
 }
 
 #[instrument(skip_all)]
-fn get_session_ids_by_type(messages: &Vec<Message>, kinds: Vec<StatementType>) -> Vec<i64> {
+fn get_session_ids_by_type(messages: &Vec<Message>, kind: StatementType) -> Vec<i64> {
     let mut plaintext_batch_ids: Vec<i64> = messages
         .iter()
         .map(|message| {
-            if kinds.contains(&message.statement.get_kind()) {
+            if kind == message.statement.get_kind() {
                 message.statement.get_batch_number() as i64
             } else {
                 -1i64
@@ -212,23 +212,58 @@ async fn generate_tally_progress(
         batch_ids.push(contest.session_id);
         complete_map.insert(contest.election_id.clone(), batch_ids.clone());
     }
-    let plaintext_batch_ids: Vec<i64> =
-        get_session_ids_by_type(messages, vec![StatementType::Plaintexts]);
+    let finished_batch_ids: Vec<i64> = get_session_ids_by_type(messages, StatementType::Plaintexts);
+
+    let mut decrypting_batch_ids: Vec<i64> =
+        get_session_ids_by_type(messages, StatementType::DecryptionFactors);
+
+    decrypting_batch_ids = decrypting_batch_ids
+        .into_iter()
+        .filter(|value| !finished_batch_ids.contains(&value))
+        .collect();
+
+    let mut mixing_batch_ids: Vec<i64> = get_session_ids_by_type(messages, StatementType::Mix);
+
+    mixing_batch_ids = mixing_batch_ids
+        .into_iter()
+        .filter(|value| {
+            !finished_batch_ids.contains(&value) && !decrypting_batch_ids.contains(&value)
+        })
+        .collect();
 
     let mut tally_elections_status: Vec<TallyElection> = complete_map
         .iter()
-        .map(|(key, val)| {
-            let num_finished_contests = plaintext_batch_ids
+        .map(|(key, election_batch_ids)| {
+            let num_finished_contests = finished_batch_ids
                 .iter()
-                .filter(|value| val.contains(value))
+                .filter(|value| election_batch_ids.contains(value))
                 .collect::<Vec<_>>()
-                .len();
-            let new_status = if num_finished_contests > 0 {
+                .len() as f64;
+            let num_decrypting_contests = decrypting_batch_ids
+                .iter()
+                .filter(|value| election_batch_ids.contains(value))
+                .collect::<Vec<_>>()
+                .len() as f64;
+            let num_mixing_contests = mixing_batch_ids
+                .iter()
+                .filter(|value| election_batch_ids.contains(value))
+                .collect::<Vec<_>>()
+                .len() as f64;
+            let total = election_batch_ids.len() as f64;
+            let progress: f64 = 100.0
+                * (0.2 * num_mixing_contests
+                    + 0.4 * num_decrypting_contests
+                    + num_finished_contests)
+                / total;
+            let new_status = if progress > 99.99 {
+                TallyElectionStatus::SUCCESS
+            } else if num_decrypting_contests == 0.0 && num_mixing_contests > 0.0 {
+                TallyElectionStatus::MIXING
+            } else if num_decrypting_contests > 0.0 {
                 TallyElectionStatus::DECRYPTING
             } else {
-                TallyElectionStatus::MIXING
+                TallyElectionStatus::WAITING
             };
-            let progress: f64 = 100.0 * (num_finished_contests as f64) / (val.len() as f64);
 
             TallyElection {
                 election_id: key.clone(),
@@ -246,7 +281,7 @@ async fn map_plaintext_data(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-) -> Result<Option<(Vec<AreaContestDataType>, i64, bool)>> {
+) -> Result<Option<(Vec<AreaContestDataType>, i64, bool, Vec<TallyElection>)>> {
     // get credentials
     let auth_headers = keycloak::get_client_credentials().await?;
 
@@ -406,6 +441,7 @@ async fn map_plaintext_data(
         plaintexts_data,
         newest_message_id,
         is_execution_completed,
+        new_tally_progress,
     )))
 }
 
@@ -695,7 +731,8 @@ pub async fn execute_tally_session(
         return Ok(());
     }
 
-    let (plaintexts_data, newest_message_id, is_execution_completed) = plaintexts_data_opt.unwrap();
+    let (plaintexts_data, newest_message_id, is_execution_completed, elections_status) =
+        plaintexts_data_opt.unwrap();
 
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
 
@@ -737,7 +774,8 @@ pub async fn execute_tally_session(
         "tally.tar.gz".into(),
     )
     .await?;
-    let new_status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
+    let mut new_status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
+    new_status.elections_status = elections_status;
 
     // insert tally_session_execution
     insert_tally_session_execution(
