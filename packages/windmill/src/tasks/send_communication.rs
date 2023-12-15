@@ -423,14 +423,17 @@ pub async fn send_communication(
     // perform stats updates in a new stats transaction each time - because for
     // each mail/sms sent, there's no rollback for that.
     let mut processed: i32 = 0;
+    event!(Level::INFO, "before transaction");
     let transaction = db_client
         .transaction()
         .await
         .map_err(|err| anyhow!("{err}"))?;
+    event!(Level::INFO, "before isolation");
     transaction
         .simple_query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;")
         .await
         .with_context(|| "can't set transaction isolation level")?;
+    event!(Level::INFO, "after isolation");
     while true {
         let (users, total_count) = list_users(
             auth_headers.clone(),
@@ -446,6 +449,8 @@ pub async fn send_communication(
             /* user_ids */ user_ids.clone(),
         )
         .await?;
+        event!(Level::INFO, "after list_users");
+
 
         let email_sender = EmailSender::new().await?;
         let sms_sender = SmsSender::new().await?;
@@ -530,5 +535,8 @@ pub async fn send_communication(
             break;
         }
     }
+    transaction.commit()
+        .await
+        .with_context(|| "error comitting transaction")?;
     Ok(())
 }

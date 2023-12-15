@@ -18,6 +18,7 @@ import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
 import StatItem from "./StatItem"
 import globalSettings from "@/global-settings"
+import { IElectionEventStatistics } from "@/types/CoreTypes"
 
 const CardList = styled(Box)`
     display: flex;
@@ -51,11 +52,15 @@ export default function Stats({forElection = false}: {forElection?: boolean}) {
     if (loading) {
         return <CircularProgress />
     }
+    const stats = record.statistics as (IElectionEventStatistics | null)
 
     const res = {
         castVotes: dataStats?.castVotes?.aggregate?.count ?? 0,
         elections: dataStats?.elections?.aggregate?.count ?? 0,
         areas: dataStats?.areas?.aggregate?.count ?? 0,
+        emailsSent: stats?.num_emails_sent ?? 0,
+        smsSent: stats?.num_sms_sent ?? 0,
+
     }
 
     const iconSize = 60
@@ -82,12 +87,12 @@ export default function Stats({forElection = false}: {forElection?: boolean}) {
             ></StatItem>
             <StatItem
                 icon={<MarkEmailReadOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={0}
+                count={res.emailsSent}
                 label={t("electionEventScreen.stats.sentEmails")}
             ></StatItem>
             <StatItem
                 icon={<SmsOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={0}
+                count={res.smsSent}
                 label={t("electionEventScreen.stats.sentSMS")}
             ></StatItem>
             <StatItem
