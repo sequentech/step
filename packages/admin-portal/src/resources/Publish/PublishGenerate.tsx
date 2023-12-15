@@ -70,8 +70,8 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
 
     useEffect(() => {
         if (data) {
-            setCurrentState(data?.previous)
-            setPreviouseState(data?.current)
+            setCurrentState(data?.previous || {})
+            setPreviouseState(data?.current || {})
         }
     }, [data])
     
