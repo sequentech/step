@@ -28,7 +28,7 @@ pub async fn insert_ballot_publication(
     election_event_id: String,
     election_ids: Vec<String>,
     user_id: String,
-    is_election_event: bool
+    is_election_event: bool,
 ) -> Result<Response<insert_ballot_publication::ResponseData>> {
     let variables = insert_ballot_publication::Variables {
         tenant_id,
