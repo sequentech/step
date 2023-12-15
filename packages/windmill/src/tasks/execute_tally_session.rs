@@ -17,6 +17,7 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
+use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::compress::compress_folder;
@@ -37,6 +38,7 @@ use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::TallyElection;
 use sequent_core::types::ceremonies::TallyElectionStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
+use sequent_core::types::ceremonies::{Log, TallyCeremonyStatus};
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
@@ -281,7 +283,7 @@ async fn map_plaintext_data(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-) -> Result<Option<(Vec<AreaContestDataType>, i64, bool, Vec<TallyElection>)>> {
+) -> Result<Option<(Vec<AreaContestDataType>, i64, bool, TallyCeremonyStatus)>> {
     // get credentials
     let auth_headers = keycloak::get_client_credentials().await?;
 
@@ -413,7 +415,27 @@ async fn map_plaintext_data(
         return Ok(None);
     }
 
+    let initial_status = if tally_session_data
+        .sequent_backend_tally_session_execution
+        .is_empty()
+    {
+        None
+    } else {
+        tally_session_data.sequent_backend_tally_session_execution[0]
+            .status
+            .clone()
+    };
+
+    let mut new_status = get_tally_ceremony_status(initial_status)?;
+
     let new_tally_progress = generate_tally_progress(&tally_session_data, &messages).await?;
+    let mut new_logs = generate_logs(&messages, next_timestamp.clone(), &batch_ids).await?;
+
+    new_status.elections_status = new_tally_progress;
+
+    let mut logs = new_status.logs.clone();
+    logs.append(&mut new_logs);
+    new_status.logs = logs;
 
     // get ballot styles, from where we'll get the Contest(s)
     let ballot_styles: Vec<BallotStyle> = get_ballot_styles(&tally_session_data)?;
@@ -441,7 +463,7 @@ async fn map_plaintext_data(
         plaintexts_data,
         newest_message_id,
         is_execution_completed,
-        new_tally_progress,
+        new_status,
     )))
 }
 
@@ -731,7 +753,7 @@ pub async fn execute_tally_session(
         return Ok(());
     }
 
-    let (plaintexts_data, newest_message_id, is_execution_completed, elections_status) =
+    let (plaintexts_data, newest_message_id, is_execution_completed, new_status) =
         plaintexts_data_opt.unwrap();
 
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
@@ -774,8 +796,6 @@ pub async fn execute_tally_session(
         "tally.tar.gz".into(),
     )
     .await?;
-    let mut new_status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
-    new_status.elections_status = elections_status;
 
     // insert tally_session_execution
     insert_tally_session_execution(
@@ -807,9 +827,9 @@ pub async fn execute_tally_session(
         )
         .await?;
         let current_status = get_election_event_status(election_event.status).unwrap();
-        let mut new_status = current_status.clone();
-        new_status.tally_ceremony_finished = Some(true);
-        let new_status_js = serde_json::to_value(new_status)?;
+        let mut new_event_status = current_status.clone();
+        new_event_status.tally_ceremony_finished = Some(true);
+        let new_status_js = serde_json::to_value(new_event_status)?;
         update_election_event_status(
             auth_headers.clone(),
             tenant_id.clone(),
