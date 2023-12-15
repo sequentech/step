@@ -767,7 +767,7 @@ const englishTranslation = {
                 pause: "PAUSE",
                 generate: "REGENERATE",
                 publish: "PUBLISH CHANGES",
-                go_to_publish: "SHOW CHANGES"
+                back: 'BACK',
             },
             label: {
                 current: "Current",

@@ -184,6 +184,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     onPublish={onPublish}
                     electionId={electionId}
                     onGenerate={onGenerate}
+                    onBack={() => setShowDiff(false)}
                     electionEventId={electionEventId}
                 />
             )}

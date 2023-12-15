@@ -3,17 +3,20 @@ import React, { useEffect, useState } from "react"
 import styled from "@emotion/styled"
 
 import { Box } from "@mui/material"
+import { Button } from "react-admin"
 import { useTranslation } from "react-i18next"
-import { PublishActions } from "./PublishActions"
+import { ArrowBackIosNew } from '@mui/icons-material';
 
 import { DiffView } from '@/components/DiffView'
+import { PublishActions } from "./PublishActions"
 import { EPublishActionsType } from './EPublishType'
 
-const PublishStyled = {
+const PublishGenerateStyled = {
     Container: styled.div`
         display: flex;
         flex-direction: column;
         gap: 32px;
+        margin-top: -12px;
     `,
     AccordionHeaderTitle: styled.span`
         font-family: Roboto;
@@ -30,9 +33,10 @@ const PublishStyled = {
         align-items: center;
     `,
     Bottom: styled.div`
-        dispaly: flex;
-        padding: 16px 8px;
-        background: 
+        display: flex;
+        padding: 8px 16px;
+        width: 100%;
+        background-color: #f5f5f5;
         justify-content: space-between;
     `,
 }
@@ -41,14 +45,16 @@ export type TPublishGenerate = {
     data: any
     status: number
     electionId?: string
-    electionEventId: string
+    onBack: () => void
     onPublish: () => void
     onGenerate: () => void
+    electionEventId: string
 }
 
 export const PublishGenerate: React.FC<TPublishGenerate> = ({ 
     data,
     status,
+    onBack = () => null,
     onPublish = () => null,
     onGenerate = () => null,
 }): React.JSX.Element => {
@@ -65,18 +71,19 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
     
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
-            <PublishStyled.Container>
 
-                <PublishActions 
-                    status={status}
-                    onPublish={onPublish} 
-                    onGenerate={onGenerate}
-                    type={EPublishActionsType.Generate}
-                />
+            <PublishActions 
+                status={status}
+                onPublish={onPublish} 
+                onGenerate={onGenerate}
+                type={EPublishActionsType.Generate}
+            />
 
-                <PublishStyled.AccordionHeaderTitle>
+            <PublishGenerateStyled.Container>
+
+                <PublishGenerateStyled.AccordionHeaderTitle>
                     {t("publish.header.change")}
-                </PublishStyled.AccordionHeaderTitle>
+                </PublishGenerateStyled.AccordionHeaderTitle>
 
                 <DiffView
                     currentTitle={t("publish.label.current")}
@@ -85,11 +92,28 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                     modify={previousState}
                 />
 
-                <PublishStyled.Bottom>
-
-                </PublishStyled.Bottom>
+                <PublishGenerateStyled.Bottom>
+                    <Button
+                        onClick={onBack}
+                        label={t('publish.action.back')}
+                        style={{ 
+                            backgroundColor: '#eee', 
+                            color: '#0f054c',
+                        }}
+                    >
+                        <ArrowBackIosNew />
+                    </Button>
+                    
+                    <Button
+                        onClick={onPublish}
+                        label={t('publish.action.publish')}
+                        style={{ 
+                            color: '#fff',
+                        }}
+                    />
+                </PublishGenerateStyled.Bottom>
             
-            </PublishStyled.Container>
+            </PublishGenerateStyled.Container>
         </Box>
     )
 };

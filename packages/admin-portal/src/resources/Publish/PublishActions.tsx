@@ -14,7 +14,7 @@ import {EPublishStatus, EPublishStatushChanges} from "./EPublishStatus"
 const PublishActionsStyled = {
     Container: styled.div`
         display: flex;
-        margin-bottom: 16px;
+        margin-bottom: 8px;
         justify-content: flex-end;
     `,
 }
@@ -86,8 +86,6 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                         ) : (
                             <>
                                 <ButtonDisabledOrNot onClick={() => handleEvent(onGenerate)} label={t("publish.action.generate")}  st={EPublishStatus.Generated} Icon={RotateLeft} />
-                                
-                                <ButtonDisabledOrNot onClick={() => handleEvent(onPublish)} label={t("publish.action.publish")} st={EPublishStatus.Published} Icon={Publish} />
                             </>
                         )
                     }

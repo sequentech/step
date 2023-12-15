@@ -768,8 +768,8 @@ const spanishTranslation: TranslationType = {
                 stop: "Parar eleccion",
                 pause: "pausar",
                 generate: "regenerar",
-                publish: "publicar cambios",
-                go_to_publish: "VER CAMBIOS"
+                publish: "Publicar Cambios",
+                back: 'Atrás'
             },
             empty: {
                 header: 'No tienes cambios generados/publicados',
