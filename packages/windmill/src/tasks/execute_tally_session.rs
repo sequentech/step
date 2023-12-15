@@ -27,6 +27,7 @@ use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::types::error::{Error, Result};
+use crate::tasks::execute_tally_session::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionExecution;
 use anyhow::{anyhow, Context};
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
@@ -571,7 +572,8 @@ async fn save_results(
 async fn tally_area_contest(
     area_contest_plaintext: AreaContestDataType,
     base_tempdir: PathBuf,
-    results_event_id: &str,
+    results_event_id_opt: &Option<String>,
+    is_new: bool
 ) -> Result<()> {
     let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext;
 
@@ -682,14 +684,18 @@ async fn tally_area_contest(
             Error::String(format!("Error during {}: {}", stage_name, e.to_string()))
         })?;
     }
-    if let Ok(results) = state.get_results() {
-        save_results(
-            results,
-            &contest.tenant_id,
-            &contest.election_event_id,
-            results_event_id,
-        )
-        .await?;
+    if is_new {
+        if let Ok(results) = state.get_results() {
+            if let Some(results_event_id) = results_event_id_opt {
+                save_results(
+                    results,
+                    &contest.tenant_id,
+                    &contest.election_event_id,
+                    &results_event_id,
+                )
+                .await?;
+            }
+        }
     }
 
     Ok(())
@@ -710,6 +716,37 @@ async fn create_results_event(
         .returning[0];
 
     Ok(results_event.id.clone())
+}
+
+
+#[instrument(skip_all)]
+pub async fn generate_results_if_necessary(
+    auth_headers: &connection::AuthHeaders,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_status: &TallyCeremonyStatus,
+    previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
+) -> Result<(Option<String>, bool)> {
+    let previous_status = get_tally_ceremony_status(previous_execution.status)?;
+    let previous_election_ids: Vec<String> = previous_status.elections_status
+        .iter()
+        .filter(|status| TallyElectionStatus::SUCCESS == status.status)
+        .map(|status| status.election_id.clone())
+        .collect();
+    let current_election_ids: Vec<String> = tally_status.elections_status
+        .iter()
+        .filter(|status| TallyElectionStatus::SUCCESS == status.status)
+        .map(|status| status.election_id.clone())
+        .collect();
+    let is_new =  current_election_ids.len() > previous_election_ids.len();
+    if is_new {
+        let results_event_id =
+            create_results_event(&auth_headers, &tenant_id, &election_event_id).await?;
+        Ok((Some(results_event_id), is_new))
+    } else {
+        Ok((previous_execution.results_event_id, is_new))
+    }
+
 }
 
 #[instrument]
@@ -761,8 +798,8 @@ pub async fn execute_tally_session(
     // base temp folder
     let base_tempdir = tempdir()?;
 
-    let results_event_id =
-        create_results_event(&auth_headers, &tenant_id, &election_event_id).await?;
+    let (results_event_id, is_new) =
+        generate_results_if_necessary(&auth_headers, &tenant_id, &election_event_id, &new_status, tally_session_execution).await?;
 
     // perform tallies with velvet
     for area_contest_plaintext in plaintexts_data.iter() {
@@ -770,6 +807,7 @@ pub async fn execute_tally_session(
             area_contest_plaintext.clone(),
             base_tempdir.path().to_path_buf(),
             &results_event_id,
+            is_new
         )
         .await
         .map_err(|err| {
@@ -806,7 +844,7 @@ pub async fn execute_tally_session(
         tally_session_id.clone(),
         Some(document.id.clone()),
         Some(new_status),
-        Some(results_event_id),
+        results_event_id,
     )
     .await?;
 
