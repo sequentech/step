@@ -56,19 +56,17 @@
   scripts.hello.exec = "echo hello from $GREET";
 
   enterShell = ''
-    hello
-    git --version
-    export COMPOSE_PROJECT_NAME=backend-services_devcontainer
-    export COMPOSE_PROFILES=base
-    export RUSTFLAGS="-Awarnings"
+    set -a
+    source .devcontainer/.env
+    set +a
   '';
 
   # https://devenv.sh/languages/
   languages.rust = {
     enable = true;
-    # https://devenv.sh/reference/options/#languagesrustversion
-    version = "nightly";
-    packages.rust-src = pkgs.rustPlatform.rustLibSrc;
+    # https://devenv.sh/reference/options/#languagesrustchannel
+    channel = "nightly";
+    toolchain.rust-src = pkgs.rustPlatform.rustLibSrc;
   };
 
   languages.java = {
