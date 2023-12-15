@@ -61,23 +61,22 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
             <PublishStyled.Container>
 
+                <PublishActions 
+                    status={status}
+                    onPublish={onPublish} 
+                    onGenerate={onGenerate}
+                    type={EPublishActionsType.Generate}
+                />
+
                 <PublishStyled.AccordionHeaderTitle>
                     {t("publish.header.change")}
                 </PublishStyled.AccordionHeaderTitle>
-
 
                 <DiffView
                     currentTitle={t("publish.label.current")}
                     diffTitle={t("publish.label.diff")}
                     current={currentState}
                     modify={previousState}
-                />
-
-                <PublishActions 
-                    status={status}
-                    onPublish={onPublish} 
-                    onGenerate={onGenerate}
-                    type={EPublishActionsType.Generate}
                 />
             
             </PublishStyled.Container>
