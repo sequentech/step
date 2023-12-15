@@ -18,7 +18,7 @@ type TPublishList = {
     electionEventId: number|string|undefined;
     onPublish: () => void;
     onGenerate: () => void;
-    onChangeStatus: () => void;
+    onChangeStatus: (status: string) => void;
 }
 
 export const PublishList: React.FC<TPublishList> = ({ 

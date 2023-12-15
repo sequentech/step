@@ -67,7 +67,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
     const [currentState, setCurrentState] = useState<null|any>(null)
     const [previousState, setPreviouseState] = useState<null|any>(null)
     const [expan, setExpan] = useState<string>('election-publish-diff')
-    const [status, setStatus] = useState<null|number>(EPublishStatus.Void)
+    const [status, setStatus] = useState<number>(EPublishStatus.Void)
     const [ballotPublicationId, setBallotPublicationId] = useState<null|string>(null)
 
     const [publishBallot] = useMutation<PublishBallotMutation>(PUBLISH_BALLOT)
@@ -82,7 +82,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         if (!ballotPublicationId) {
             return
         }
-
 
         setStatus(EPublishStatus.PublishedLoading)
 
@@ -119,11 +118,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         if (data?.generate_ballot_publication?.ballot_publication_id) {
             setBallotPublicationId(data?.generate_ballot_publication?.ballot_publication_id)
         }
-
-        refetch()
     };
 
-    const onChangeStatus = async (status: string) => {
+    const onChangeStatus = (status: string) => {
         if (type === EPublishType.Election) {
             onChangeElectionStatus(status)
         } else if  (type === EPublishType.Event) {
@@ -153,7 +150,14 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
-            <PublishList electionEventId={electionEventId} electionId={electionId} />
+            <PublishList 
+                status={status} 
+                electionEventId={electionEventId} 
+                electionId={electionId}
+                onPublish={onPublish}
+                onChangeStatus={onChangeStatus}
+                onGenerate={onGenerate}
+            />
         </Box>
     )
 });
