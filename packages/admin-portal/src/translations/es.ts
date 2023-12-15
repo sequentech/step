@@ -253,6 +253,13 @@ const spanishTranslation: TranslationType = {
                     success: "Recuento creado",
                 },
             },
+            import: {
+                title: "Import Voters",
+                subtitle: "Import voters data",
+                voters: "Voters",
+                elections: "Elections",
+                areas: "Areas",
+            },
         },
         electionScreen: {
             common: {
@@ -449,6 +456,7 @@ const spanishTranslation: TranslationType = {
             },
         },
         common: {
+            export: "La exportación puede ser un proceso largo. ¿Estás seguro que quieres exportar?",
             resources: {
                 electionEvent: "Evento Electoral",
                 election: "Elección",
@@ -474,6 +482,8 @@ const spanishTranslation: TranslationType = {
                 warning: "Aviso",
                 json: "Vista previa",
                 noResult: "Sin resultados",
+                import: "Importar",
+                export: "Exportar",
             },
             language: {
                 es: "Español",

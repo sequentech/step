@@ -251,6 +251,13 @@ const englishTranslation = {
                     success: "Tally created",
                 },
             },
+            import: {
+                title: "Import Voters",
+                subtitle: "Import voters data",
+                voters: "Voters",
+                elections: "Elections",
+                areas: "Areas",
+            }
         },
         electionScreen: {
             common: {
@@ -447,6 +454,7 @@ const englishTranslation = {
             },
         },
         common: {
+            export: "Export can be a long operation. Are you sure you want to export records?",
             resources: {
                 electionEvent: "Election Event",
                 election: "Election",
@@ -472,6 +480,8 @@ const englishTranslation = {
                 warning: "Warning",
                 json: "Preview",
                 noResult: "No result",
+                import: "Import",
+                export: "Export",
             },
             language: {
                 es: "Spanish",
