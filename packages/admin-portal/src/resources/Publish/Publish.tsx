@@ -20,12 +20,14 @@ import {
     GenerateBallotPublicationMutation,
     GetBallotPublicationChangesOutput,
     Sequent_Backend_Election_Event,
+    Sequent_Backend_Election,
 } from "@/gql/graphql"
 
 import {PublishList} from "./PublishList"
 import {PublishGenerate} from "./PublishGenerate"
 import {UPDATE_EVENT_VOTING_STATUS} from "@/queries/UpdateEventVotingStatus"
 import {UPDATE_ELECTION_VOTING_STATUS} from "@/queries/UpdateElectionVotingStatus"
+import {IElectionEventStatus, IElectionStatus} from "@/types/CoreTypes"
 
 export type TPublish = {
     electionId?: string
@@ -40,7 +42,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const [showDiff, setShowDiff] = useState<boolean>(false)
         const [generateData, setGenerateData] = useState<null | any>()
         const [status, setStatus] = useState<number>(EPublishStatus.Void)
-        const record = useRecordContext<Sequent_Backend_Election_Event>()
+        const recordElection = useRecordContext<Sequent_Backend_Election>()
+        const recordEvent = useRecordContext<Sequent_Backend_Election_Event>()
         const [ballotPublicationId, setBallotPublicationId] = useState<null | string>(null)
 
         const [publishBallot] = useMutation<PublishBallotMutation>(PUBLISH_BALLOT)
@@ -136,6 +139,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     variables: {
                         status,
                         electionId,
+                        electionEventId,
                     },
                 })
 
@@ -198,16 +202,27 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }, [generateData])
 
         useEffect(() => {
-            console.log("PUBLISH :: RECORD STATUS", record?.status)
+            console.log("PUBLISH :: RECORD EVENT STATUS", recordEvent?.status)
+            console.log("PUBLISH :: RECORD ELECTION STATUS", recordElection?.status)
 
             if (type === EPublishType.Event) {
+                const status = recordEvent?.status as IElectionEventStatus | undefined
+
                 setStatus(
-                    PUBLICH_STATUS_CONVERT?.[record?.status?.voting_status] || EPublishStatus.Void
+                    status?.voting_status
+                        ? PUBLICH_STATUS_CONVERT?.[status?.voting_status]
+                        : EPublishStatus.Void
                 )
             } else if (type === EPublishType.Election) {
-                setStatus(EPublishStatus.Void)
+                const status = recordElection?.status as IElectionStatus | undefined
+
+                setStatus(
+                    status?.voting_status
+                        ? PUBLICH_STATUS_CONVERT?.[status?.voting_status]
+                        : EPublishStatus.Void
+                )
             }
-        }, [record])
+        }, [recordEvent, recordElection])
 
         return (
             <Box sx={{flexGrow: 2, flexShrink: 0}}>
