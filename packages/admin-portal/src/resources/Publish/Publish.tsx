@@ -3,7 +3,7 @@ import React, {ComponentType, useEffect, useRef, useState} from "react"
 import styled from "@emotion/styled"
 
 import { Box } from "@mui/material"
-import { useNotify } from 'react-admin'
+import { useNotify, useRecordContext } from 'react-admin'
 import { useMutation } from "@apollo/client"
 import { useTranslation } from "react-i18next"
 
@@ -19,6 +19,7 @@ import {
     UpdateElectionVotingStatusOutput,
     GenerateBallotPublicationMutation, 
     GetBallotPublicationChangesOutput,
+    Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 
 import { PublishList } from './PublishList'
@@ -40,6 +41,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
     const [showDiff, setShowDiff] = useState<boolean>(false)
     const [generateData, setGenerateData] = useState<null|any>()
     const [status, setStatus] = useState<number>(EPublishStatus.Void)
+    const record = useRecordContext<Sequent_Backend_Election_Event>()
     const [ballotPublicationId, setBallotPublicationId] = useState<null|string>(null)
 
     const [publishBallot] = useMutation<PublishBallotMutation>(PUBLISH_BALLOT)
@@ -153,6 +155,11 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         
         setGenerateData(data);
     }
+
+    useEffect(() => {
+        console.log('PUBLISH :: RECORD', record)
+        setStatus(PUBLICH_STATUS_CONVERT?.[record?.status?.voting_status] || EPublishStatus.Void)
+    }, [record])
 
     useEffect(() => {
         if (electionEventId && ballotPublicationId) {
