@@ -1,6 +1,6 @@
 import React, { ComponentType, useEffect, useRef, useState } from "react"
 
-import { Button, CreateButton, DatagridConfigurable, Empty, List, TextField } from 'react-admin'
+import { Button, CreateButton, DatagridConfigurable, BooleanField, List, TextField } from 'react-admin'
 
 import { PublishActions } from './PublishActions'
 import { HeaderTitle } from '@/components/HeaderTitle'
@@ -66,11 +66,11 @@ export const PublishList: React.FC<TPublishList> = ({
                 election_event_id: electionEventId,
             }}
         >
-            <HeaderTitle title={"electionEventScreen.tally.title"} subtitle="" />
+            <HeaderTitle title={"publish.header.history"} subtitle="" />
 
             <DatagridConfigurable omit={OMIT_FIELDS}>
                 <TextField source="tenant_id" />
-                <TextField source="is_generated" />
+                <BooleanField source="is_generated" />
                 <TextField source="published_at" />
             </DatagridConfigurable>
         </List>
