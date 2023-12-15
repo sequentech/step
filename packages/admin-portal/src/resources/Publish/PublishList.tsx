@@ -14,17 +14,15 @@ const OMIT_FIELDS: any = []
 
 type TPublishList = {
     status: number
+    onGenerate: () => void
     electionId?: number|string
     electionEventId: number|string|undefined
-    onPublish: () => void
-    onGenerate: () => void
 }
 
 export const PublishList: React.FC<TPublishList> = ({ 
     status,
     electionId,
-    electionEventId, 
-    onPublish = () => null,
+    electionEventId,
     onGenerate = () => null,
 }) => {
     const {t} = useTranslation()

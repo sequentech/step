@@ -107,6 +107,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
     };
 
     const onGenerate = async () => {
+        console.log('PUBLISH :: ON GENERATE')
         setStatus(EPublishStatus.GeneratedLoading)
 
         const { data } = await generateBallotPublication({
@@ -170,7 +171,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     electionId={electionId}
                     onGenerate={onGenerate}
                     electionEventId={electionEventId} 
-                    onPublish={() => setShowDiff(true)}
                 />
             ) : (
                 <PublishGenerate 

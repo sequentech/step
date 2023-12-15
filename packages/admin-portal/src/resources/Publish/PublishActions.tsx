@@ -36,6 +36,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 }) => {
     const {t} = useTranslation()
     const [showDialog, setShowDialog] = useState(false)
+    const [currentCallback, setCurrentCallback] = useState<any>(null);
 
     const IconOrProgress = ({ st, Icon }: any) => {
         return status === (st+0.1) && status !== EPublishStatus.Void ? (
@@ -62,6 +63,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
     const handleEvent = (callback: (status?: number) => void) => {
         setShowDialog(true)
+        setCurrentCallback(() => callback);
     }
 
     const handleOnChange = (status: string) => () => onChangeStatus(status)
@@ -95,10 +97,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             <Dialog
                 handleClose={(flag) => {
                     if (flag) {
-                        
+                        currentCallback();
                     }
 
                     setShowDialog(false)
+                    setCurrentCallback(null); 
                 }}
                 open={showDialog}
                 title={t('publish.dialog.title')}
