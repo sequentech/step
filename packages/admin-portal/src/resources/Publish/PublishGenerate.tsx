@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next"
 import { PublishActions } from "./PublishActions"
 
 import { DiffView } from '@/components/DiffView'
-import { EPublishActionsType } from './EPublishActionsType'
+import { EPublishActionsType } from './EPublishType'
 
 const PublishStyled = {
     Container: styled.div`

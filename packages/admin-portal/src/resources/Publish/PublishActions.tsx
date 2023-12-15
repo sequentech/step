@@ -8,8 +8,8 @@ import {CircularProgress, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
 
+import { EPublishActionsType } from './EPublishType'
 import {EPublishStatus, EPublishStatushChanges} from "./EPublishStatus"
-import { EPublishActionsType } from './EPublishActionsType'
 
 const PublishActionsStyled = {
     Container: styled.div`
