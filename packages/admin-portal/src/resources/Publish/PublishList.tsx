@@ -18,6 +18,7 @@ type TPublishList = {
     electionId?: number|string
     electionEventId: number|string|undefined
     onChangeStatus: (status: string) => void
+    setBallotPublicationId: (id: string) => void
 }
 
 export const PublishList: React.FC<TPublishList> = ({ 
@@ -26,6 +27,7 @@ export const PublishList: React.FC<TPublishList> = ({
     electionEventId,
     onGenerate = () => null,
     onChangeStatus = () => null,
+    setBallotPublicationId = () => null,
 }) => {
     const {t} = useTranslation()
     const {canAdminCeremony} = useActionPermissions()
@@ -73,7 +75,10 @@ export const PublishList: React.FC<TPublishList> = ({
         >
             <HeaderTitle title={"publish.header.history"} subtitle="" />
 
-            <DatagridConfigurable omit={OMIT_FIELDS}>
+            <DatagridConfigurable omit={OMIT_FIELDS} rowClick={(id: any) => {
+                setBallotPublicationId(id)
+                return false
+            }}>
                 <TextField source="tenant_id" />
                 <BooleanField source="is_generated" />
                 <TextField source="published_at" />

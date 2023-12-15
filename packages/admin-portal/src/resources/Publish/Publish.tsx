@@ -142,7 +142,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     electionId={electionId}
                     onGenerate={onGenerate}
                     onChangeStatus={onChangeStatus}
-                    electionEventId={electionEventId} 
+                    electionEventId={electionEventId}
+                    setBallotPublicationId={setBallotPublicationId}
                 />
             ) : (
                 <PublishGenerate 
