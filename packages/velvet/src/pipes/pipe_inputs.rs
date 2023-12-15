@@ -91,8 +91,6 @@ impl PipeInputs {
         }
         let config_file =
             fs::File::open(&config_path).map_err(|e| Error::FileAccess(config_path.clone(), e))?;
-        // FIXME: Fix this by converting BallotStyle to Election
-        // let ballot_style: BallotStyle = serde_json::from_reader(config_file)?;
 
         let election: Election = serde_json::from_reader(config_file)?;
 

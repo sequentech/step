@@ -204,6 +204,7 @@ impl GenerateReports {
                     area_id: None,
                     winners,
                 });
+
                 for area in &contest_input.area_list {
                     let contest_result = self.read_contest_result(
                         &election_input.id,
