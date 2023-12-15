@@ -8,19 +8,23 @@ import { useMutation } from "@apollo/client"
 import { useTranslation } from "react-i18next"
 
 import { EPublishType } from './EPublishType'
-import { EPublishStatus } from "./EPublishStatus"
+import { EPublishStatus, PUBLICH_STATUS_CONVERT } from "./EPublishStatus"
 import { PUBLISH_BALLOT } from "@/queries/PublishBallot"
 import { GENERATE_BALLOT_PUBLICATION } from "@/queries/GenerateBallotPublication"
 import { GET_BALLOT_PUBLICATION_CHANGE } from '@/queries/GetBallotPublicationChanges'
 
 import { 
-    PublishBallotMutation, 
+    PublishBallotMutation,
+    UpdateEventVotingStatusOutput,
+    UpdateElectionVotingStatusOutput,
     GenerateBallotPublicationMutation, 
     GetBallotPublicationChangesOutput,
 } from "@/gql/graphql"
 
 import { PublishList } from './PublishList'
 import { PublishGenerate } from './PublishGenerate'
+import { UPDATE_EVENT_VOTING_STATUS } from '@/queries/UpdateEventVotingStatus'
+import { UPDATE_ELECTION_VOTING_STATUS } from '@/queries/UpdateElectionVotingStatus'
 
 export type TPublish = {
     electionId?: string;
@@ -39,12 +43,17 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
     const [ballotPublicationId, setBallotPublicationId] = useState<null|string>(null)
 
     const [publishBallot] = useMutation<PublishBallotMutation>(PUBLISH_BALLOT)
+
     const [getBallotPublicationChanges] = useMutation<GetBallotPublicationChangesOutput>(
         GET_BALLOT_PUBLICATION_CHANGE
     )
     const [generateBallotPublication] = useMutation<GenerateBallotPublicationMutation>(
         GENERATE_BALLOT_PUBLICATION
     )
+
+    const [updateStatusEvent] = useMutation<UpdateEventVotingStatusOutput>(UPDATE_EVENT_VOTING_STATUS)
+
+    const [updateStatusElection] = useMutation<UpdateElectionVotingStatusOutput>(UPDATE_ELECTION_VOTING_STATUS)
 
     const onPublish = async () => {
         if (!ballotPublicationId) {
@@ -74,7 +83,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
     };
 
     const onGenerate = async () => {
-        console.log('PUBLISH :: ON GENERATE')
         setStatus(EPublishStatus.GeneratedLoading)
 
         const { data } = await generateBallotPublication({
@@ -96,6 +104,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
     };
 
     const onChangeStatus = (status: string) => {
+        setStatus(PUBLICH_STATUS_CONVERT[status]+0.1)
+
         if (type === EPublishType.Election) {
             onChangeElectionStatus(status)
         } else if  (type === EPublishType.Event) {
@@ -103,12 +113,34 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
     }
 
-    const onChangeElectionStatus = (status: string) => {
+    const onChangeElectionStatus = async (status: string) => {
+        await updateStatusElection({
+            variables: {
+                status,
+                electionId,
+            }
+        })
 
+        setStatus(PUBLICH_STATUS_CONVERT[status])
+
+        notify(t('publish.notifications.change-status'), {
+            type: 'success'
+        })
     }
 
-    const onChangeEventStatus = (status: string) => {
+    const onChangeEventStatus = async (status: string) => {
+        await updateStatusEvent({
+            variables: {
+                status,
+                electionEventId,
+            }
+        })
 
+        setStatus(PUBLICH_STATUS_CONVERT[status])
+
+        notify(t('publish.notifications.change-status'), {
+            type: 'success'
+        })
     }
 
     const getPublishChanges = async () => {
