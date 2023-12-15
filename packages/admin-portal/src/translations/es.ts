@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {TranslationType} from "./en"
+import { TranslationType } from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
@@ -748,6 +748,10 @@ const spanishTranslation: TranslationType = {
                 pause: "pausar",
                 generate: "regenerar",
                 publish: "publicar cambios",
+                go_to_publish: "VER CAMBIOS"
+            },
+            empty: {
+                header: 'No tienes cambios generados/publicados',
             },
             label: {
                 current: "Actual",

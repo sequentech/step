@@ -746,10 +746,14 @@ const englishTranslation = {
                 pause: "PAUSE",
                 generate: "REGENERATE",
                 publish: "PUBLISH CHANGES",
+                go_to_publish: "SHOW CHANGES"
             },
             label: {
                 current: "Current",
                 diff: "CHANGES TO PUBLISH",
+            },
+            empty: {
+                header: 'Not have a changes generated/publicated',
             },
             notifications: {
                 generated: "Ballot generated",

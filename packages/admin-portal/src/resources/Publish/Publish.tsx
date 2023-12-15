@@ -26,6 +26,7 @@ import {
     Sequent_Backend_Ballot_Publication,
 } from "@/gql/graphql"
 import { EPublishActionsType } from './EPublishActionsType'
+import { PublishList } from './PublishList'
 
 const PublishStyled = {
     Container: styled.div`
@@ -77,9 +78,82 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         GENERATE_BALLOT_PUBLICATION
     )
 
+    const onPublish = async () => {
+        if (!ballotPublicationId) {
+            return
+        }
+
+
+        setStatus(EPublishStatus.PublishedLoading)
+
+        const {data} = await publishBallot({
+            variables: {
+                electionEventId,
+                ballotPublicationId,
+            },
+        })
+
+        if (data?.publish_ballot?.ballot_publication_id) {
+            setBallotPublicationId(data?.publish_ballot?.ballot_publication_id)
+        }
+
+        notify(t('publish.notifications.published'), {
+            type: 'success'
+        })
+
+        setStatus(EPublishStatus.Published)
+    };
+
+    const onGenerate = async () => {
+        setStatus(EPublishStatus.GeneratedLoading)
+
+        const { data } = await generateBallotPublication({
+            variables: {
+                electionId,
+                electionEventId,
+            },
+        })
+
+        setStatus(EPublishStatus.Void)
+
+        if (data?.generate_ballot_publication?.ballot_publication_id) {
+            setBallotPublicationId(data?.generate_ballot_publication?.ballot_publication_id)
+        }
+
+        refetch()
+    };
+
+    const onChangeStatus = async (status: string) => {
+        if (type === EPublishType.Election) {
+            onChangeElectionStatus(status)
+        } else if  (type === EPublishType.Event) {
+            onChangeEventStatus(status)
+        }
+    }
+
+    const onChangeElectionStatus = (status: string) => {
+
+    }
+
+    const onChangeEventStatus = (status: string) => {
+
+    }
+
+    const getPublishChanges = async () => {
+        const { data: { get_ballot_publication_changes: data } } = await getBallotPublicationChanges({
+            variables: {
+                electionEventId,
+                ballotPublicationId,
+            }
+        }) as any
+        
+        setCurrentState(data?.previous || {});
+        setPreviouseState(data?.current || {});
+    }
+
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
-            <h1>Test Publish</h1>
+            <PublishList electionEventId={electionEventId} electionId={electionId} />
         </Box>
     )
 });
