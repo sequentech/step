@@ -252,6 +252,7 @@ pub async fn insert_tally_session_contests(
 
     let contest_ids = areas_data
         .sequent_backend_contest
+        .clone()
         .into_iter()
         .map(|contest| contest.id)
         .collect::<Vec<_>>();
@@ -275,14 +276,22 @@ pub async fn insert_tally_session_contests(
     .await?;
 
     for area_contest in contest_areas.into_iter() {
+        let contest_id = area_contest.contest_id.clone().unwrap();
+        let contest = areas_data
+            .sequent_backend_contest
+            .clone()
+            .into_iter()
+            .find(|contest| contest.id == contest_id)
+            .unwrap();
         let tally_session_contest = insert_tally_session_contest(
             auth_headers.clone(),
             tenant_id.to_string(),
             election_event_id.to_string(),
             area_contest.area_id.clone().unwrap(),
-            area_contest.contest_id.clone().unwrap(),
+            contest_id.clone(),
             batch.clone(),
             tally_session_id.to_string(),
+            contest.election_id.clone(),
         )
         .await?;
         batch = batch + 1;

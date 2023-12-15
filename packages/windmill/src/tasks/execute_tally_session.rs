@@ -34,7 +34,10 @@ use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
+use sequent_core::types::ceremonies::TallyElection;
+use sequent_core::types::ceremonies::TallyElectionStatus;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
@@ -178,6 +181,57 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
 }
 
 #[instrument(skip_all)]
+async fn generate_tally_progress(
+    tally_session_data: &get_last_tally_session_execution::ResponseData,
+    messages: &Vec<Message>,
+) -> Result<Vec<TallyElection>> {
+    let mut complete_map: HashMap<String, Vec<i64>> = HashMap::new();
+    for contest in &tally_session_data.sequent_backend_tally_session_contest {
+        let mut batch_ids = complete_map
+            .get(&contest.election_id)
+            .map(|v| v.clone())
+            .unwrap_or(vec![]);
+        batch_ids.push(contest.session_id);
+        complete_map.insert(contest.election_id.clone(), batch_ids.clone());
+    }
+    let current_batch_ids: Vec<i64> = messages
+        .iter()
+        .map(|message| {
+            if message.statement.get_kind() == StatementType::Plaintexts {
+                message.statement.get_batch_number() as i64
+            } else {
+                -1i64
+            }
+        })
+        .filter(|value| *value > -1)
+        .collect();
+
+    let tally_elections_status: Vec<TallyElection> = complete_map
+        .iter()
+        .map(|(key, val)| {
+            let num_finished_contests = current_batch_ids
+                .iter()
+                .filter(|value| val.contains(value))
+                .collect::<Vec<_>>()
+                .len();
+            let new_status = if num_finished_contests > 0 {
+                TallyElectionStatus::DECRYPTING
+            } else {
+                TallyElectionStatus::MIXING
+            };
+            let progress: f64 = 100.0 * (num_finished_contests as f64) / (val.len() as f64);
+
+            TallyElection {
+                election_id: key.clone(),
+                status: new_status,
+                progress,
+            }
+        })
+        .collect();
+    Ok(tally_elections_status)
+}
+
+#[instrument(skip_all)]
 async fn map_plaintext_data(
     tenant_id: String,
     election_event_id: String,
@@ -313,6 +367,8 @@ async fn map_plaintext_data(
         event!(Level::INFO, "Board has no new relevant plaintexs");
         return Ok(None);
     }
+
+    let new_tally_progress = generate_tally_progress(&tally_session_data, &messages).await?;
 
     // get ballot styles, from where we'll get the Contest(s)
     let ballot_styles: Vec<BallotStyle> = get_ballot_styles(&tally_session_data)?;
