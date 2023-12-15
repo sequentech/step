@@ -25,6 +25,7 @@ import {
     GetBallotPublicationChangesOutput, 
     Sequent_Backend_Ballot_Publication,
 } from "@/gql/graphql"
+import { EPublishActionsType } from './EPublishActionsType'
 
 const PublishStyled = {
     Container: styled.div`
@@ -55,7 +56,7 @@ export type TPublish = {
 }
 
 const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.memo(({ 
-    electionEventId, electionId 
+    electionEventId, electionId, type
 }: TPublish): React.JSX.Element => {
     let current: any
 
@@ -68,23 +69,6 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
     const [status, setStatus] = useState<null|number>(EPublishStatus.Void)
     const [ballotPublicationId, setBallotPublicationId] = useState<null|string>(null)
 
-    const { data, isLoading, error, refetch } = useGetList<Sequent_Backend_Ballot_Publication>(
-        'sequent_backend_ballot_publication',
-        {
-            pagination: {
-                page: 1,
-                perPage: 10,
-            },
-            sort: {
-                field: 'created_at',
-                order: 'DESC',
-            },
-            filter: {
-                election_event_id: electionEventId
-            }
-        },
-    );
-
     const [publishBallot] = useMutation<PublishBallotMutation>(PUBLISH_BALLOT)
     const [getBallotPublicationChanges] = useMutation<GetBallotPublicationChangesOutput>(
         GET_BALLOT_PUBLICATION_CHANGE
@@ -93,143 +77,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         GENERATE_BALLOT_PUBLICATION
     )
 
-    const onPublish = async () => {
-        if (!ballotPublicationId) {
-            return
-        }
-
-
-        setStatus(EPublishStatus.PublishedLoading)
-
-        const {data} = await publishBallot({
-            variables: {
-                electionEventId,
-                ballotPublicationId,
-            },
-        })
-
-        if (data?.publish_ballot?.ballot_publication_id) {
-            setBallotPublicationId(data?.publish_ballot?.ballot_publication_id)
-        }
-
-        notify(t('publish.notifications.published'), {
-            type: 'success'
-        })
-
-        setStatus(EPublishStatus.Published)
-    };
-
-    const onGenerate = async () => {
-        setStatus(EPublishStatus.GeneratedLoading)
-
-        const { data } = await generateBallotPublication({
-            variables: {
-                electionId,
-                electionEventId,
-            },
-        })
-
-        setStatus(EPublishStatus.Void)
-
-        if (data?.generate_ballot_publication?.ballot_publication_id) {
-            setBallotPublicationId(data?.generate_ballot_publication?.ballot_publication_id)
-        }
-
-        refetch()
-    };
-
-    const getPublishChanges = async () => {
-        const { data: { get_ballot_publication_changes: data } } = await getBallotPublicationChanges({
-            variables: {
-                electionEventId,
-                ballotPublicationId,
-            }
-        }) as any
-        
-        setCurrentState(data?.current || {});
-        setPreviouseState(data?.previous || {});
-    }
-
-    useEffect(() => {
-        if (!data || !ballotPublicationId) {
-            return
-        }
-
-        const currentBallotPublication = data.find((element) => element.id === ballotPublicationId)
-
-        if (!currentBallotPublication) {
-            return
-        }
-
-        console.log('PUBLISH :: CurrentBallotPublication', currentBallotPublication)
-        if (currentBallotPublication.is_generated) {
-            getPublishChanges()
-        }
-    }, [data, ballotPublicationId])
-
-    useEffect(() => {
-        if (!current) {
-            current = ref.current;
-            
-            onGenerate();
-        }
-    }, [ref]);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            console.log('PUBLISH :: Interval')
-            refetch()
-        }, 1000)
-
-        return () => {
-            clearInterval(interval)
-        }
-    }, [])
-    
     return (
-        <Box ref={ref} sx={{flexGrow: 2, flexShrink: 0}}>
-            <PublishActions 
-                status={status}
-                onPublish={onPublish} 
-                onGenerate={onGenerate} 
-            />
-
-            <PublishStyled.Container>
-                <Accordion
-                    sx={{width: "100%"}}
-                    expanded={expan == "election-publish-diff"}
-                    onChange={() => setExpan("election-publish-diff")}
-                >
-                    <AccordionSummary expandIcon={<ExpandMoreIcon id="election-publish-diff" />}>
-                        <PublishStyled.AccordionHeaderTitle>
-                            {t("publish.header.change")}
-                        </PublishStyled.AccordionHeaderTitle>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                        <DiffView
-                            currentTitle={t("publish.label.current")}
-                            diffTitle={t("publish.label.diff")}
-                            current={currentState}
-                            modify={previousState}
-                        />
-                    </AccordionDetails>
-                </Accordion>
-
-                <Accordion
-                    sx={{width: "100%"}}
-                    expanded={expan === "election-publish-history"}
-                    onChange={() => setExpan("election-publish-history")}
-                >
-                    <AccordionSummary expandIcon={<ExpandMoreIcon id="election-publish-history" />}>
-                        <PublishStyled.AccordionHeaderTitle>
-                            {t("publish.header.history")}
-                        </PublishStyled.AccordionHeaderTitle>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                        <span>Add correct resource</span>
-                    </AccordionDetails>
-                </Accordion>
-            </PublishStyled.Container>
+        <Box sx={{flexGrow: 2, flexShrink: 0}}>
+            <h1>Test Publish</h1>
         </Box>
     )
 });
