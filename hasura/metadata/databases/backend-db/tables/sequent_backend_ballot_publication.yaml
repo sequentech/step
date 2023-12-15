@@ -6,17 +6,17 @@ insert_permissions:
   permission:
     check: {}
     columns:
-    - election_ids
-    - is_election_event
-    - is_generated
     - annotations
-    - labels
-    - created_by_user_id
     - created_at
+    - created_by_user_id
     - deleted_at
-    - published_at
     - election_event_id
+    - election_id
+    - election_ids
     - id
+    - is_generated
+    - labels
+    - published_at
     - tenant_id
   role: admin-user
 - comment: ""
@@ -24,7 +24,6 @@ insert_permissions:
     check: {}
     columns:
     - election_ids
-    - is_election_event
     - is_generated
     - annotations
     - labels
@@ -33,6 +32,7 @@ insert_permissions:
     - deleted_at
     - published_at
     - election_event_id
+    - election_id
     - id
     - tenant_id
   role: service-account
@@ -42,7 +42,6 @@ select_permissions:
     allow_aggregations: true
     columns:
     - election_ids
-    - is_election_event
     - is_generated
     - annotations
     - labels
@@ -51,6 +50,7 @@ select_permissions:
     - deleted_at
     - published_at
     - election_event_id
+    - election_id
     - id
     - tenant_id
     filter: {}
@@ -60,7 +60,6 @@ select_permissions:
     allow_aggregations: true
     columns:
     - election_ids
-    - is_election_event
     - is_generated
     - annotations
     - labels
@@ -69,6 +68,7 @@ select_permissions:
     - deleted_at
     - published_at
     - election_event_id
+    - election_id
     - id
     - tenant_id
     filter: {}
@@ -79,7 +79,6 @@ update_permissions:
     check: {}
     columns:
     - election_ids
-    - is_election_event
     - is_generated
     - annotations
     - labels
@@ -88,6 +87,7 @@ update_permissions:
     - deleted_at
     - published_at
     - election_event_id
+    - election_id
     - id
     - tenant_id
     filter: {}
@@ -97,7 +97,6 @@ update_permissions:
     check: {}
     columns:
     - election_ids
-    - is_election_event
     - is_generated
     - annotations
     - labels
@@ -106,6 +105,7 @@ update_permissions:
     - deleted_at
     - published_at
     - election_event_id
+    - election_id
     - id
     - tenant_id
     filter: {}

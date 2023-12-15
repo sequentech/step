@@ -94,7 +94,7 @@ pub async fn add_ballot_publication(
         election_event_id.clone(),
         election_ids.clone(),
         user_id.clone(),
-        election_id.is_none(),
+        election_id.clone(),
     )
     .await?
     .data
@@ -126,7 +126,6 @@ pub async fn update_publish_ballot(
     ballot_publication_id: String,
 ) -> Result<()> {
     let auth_headers = get_client_credentials().await?;
-    event!(Level::INFO, "FF 1");
 
     let ballot_publication = get_ballot_publication_by_id(
         auth_headers.clone(),
@@ -153,7 +152,6 @@ pub async fn update_publish_ballot(
         ballot_publication_id.clone(),
     )
     .await?;
-    event!(Level::INFO, "FF 5");
 
     update_ballot_publication_d(
         auth_headers.clone(),
@@ -261,7 +259,7 @@ pub async fn get_ballot_publication_diff(
         tenant_id.clone(),
         election_event_id.clone(),
         ballot_publication.created_at.clone(),
-        ballot_publication.election_ids.clone(),
+        ballot_publication.election_id.clone(),
     )
     .await?
     .data

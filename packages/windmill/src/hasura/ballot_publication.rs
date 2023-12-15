@@ -28,14 +28,14 @@ pub async fn insert_ballot_publication(
     election_event_id: String,
     election_ids: Vec<String>,
     user_id: String,
-    is_election_event: bool,
+    election_id: Option<String>,
 ) -> Result<Response<insert_ballot_publication::ResponseData>> {
     let variables = insert_ballot_publication::Variables {
         tenant_id,
         election_event_id,
         election_ids,
         user_id,
-        is_election_event: Some(is_election_event),
+        election_id,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
@@ -179,13 +179,13 @@ pub async fn get_previous_publication(
     tenant_id: String,
     election_event_id: String,
     published_at: String,
-    election_ids: Option<Vec<String>>,
+    election_id: Option<String>,
 ) -> Result<Response<get_previous_publication::ResponseData>> {
     let variables = get_previous_publication::Variables {
         tenant_id,
         election_event_id,
         published_at,
-        election_ids,
+        election_id,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

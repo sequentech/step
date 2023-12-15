@@ -3,7 +3,7 @@ mutation InsertBallotPublication(
   $electionEventId: uuid!,
   $electionIds: [uuid!]!,
   $userId: String!,
-  $isElectionEvent: Boolean, 
+  $electionId: uuid, 
 ) {
   insert_sequent_backend_ballot_publication(
     objects:
@@ -12,7 +12,7 @@ mutation InsertBallotPublication(
       election_event_id: $electionEventId,
       tenant_id: $tenantId,
       created_by_user_id: $userId,
-      is_election_event: $isElectionEvent,
+      election_id: $electionId,
     }
   ) {
     returning {
@@ -27,7 +27,7 @@ mutation InsertBallotPublication(
       is_generated
       election_ids
       published_at
-      is_election_event
+      election_id
     }
   }
 }
