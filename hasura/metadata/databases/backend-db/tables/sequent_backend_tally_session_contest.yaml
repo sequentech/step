@@ -6,15 +6,16 @@ insert_permissions:
   permission:
     check: {}
     columns:
+    - session_id
     - annotations
+    - labels
+    - created_at
+    - last_updated_at
     - area_id
     - contest_id
-    - created_at
     - election_event_id
+    - election_id
     - id
-    - labels
-    - last_updated_at
-    - session_id
     - tally_session_id
     - tenant_id
   role: admin-user
@@ -22,15 +23,16 @@ insert_permissions:
   permission:
     check: {}
     columns:
+    - session_id
     - annotations
+    - labels
+    - created_at
+    - last_updated_at
     - area_id
     - contest_id
-    - created_at
     - election_event_id
+    - election_id
     - id
-    - labels
-    - last_updated_at
-    - session_id
     - tally_session_id
     - tenant_id
   role: service-account
@@ -39,15 +41,16 @@ select_permissions:
   permission:
     allow_aggregations: true
     columns:
+    - session_id
     - annotations
+    - labels
+    - created_at
+    - last_updated_at
     - area_id
     - contest_id
-    - created_at
     - election_event_id
+    - election_id
     - id
-    - labels
-    - last_updated_at
-    - session_id
     - tally_session_id
     - tenant_id
     filter: {}
@@ -56,15 +59,16 @@ select_permissions:
   permission:
     allow_aggregations: true
     columns:
+    - session_id
     - annotations
+    - labels
+    - created_at
+    - last_updated_at
     - area_id
     - contest_id
-    - created_at
     - election_event_id
+    - election_id
     - id
-    - labels
-    - last_updated_at
-    - session_id
     - tally_session_id
     - tenant_id
     filter: {}
@@ -74,15 +78,16 @@ update_permissions:
   permission:
     check: {}
     columns:
+    - session_id
     - annotations
+    - labels
+    - created_at
+    - last_updated_at
     - area_id
     - contest_id
-    - created_at
     - election_event_id
+    - election_id
     - id
-    - labels
-    - last_updated_at
-    - session_id
     - tally_session_id
     - tenant_id
     filter: {}
@@ -91,15 +96,16 @@ update_permissions:
   permission:
     check: {}
     columns:
+    - session_id
     - annotations
+    - labels
+    - created_at
+    - last_updated_at
     - area_id
     - contest_id
-    - created_at
     - election_event_id
+    - election_id
     - id
-    - labels
-    - last_updated_at
-    - session_id
     - tally_session_id
     - tenant_id
     filter: {}
