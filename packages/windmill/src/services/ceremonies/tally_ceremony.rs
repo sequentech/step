@@ -496,6 +496,16 @@ pub async fn set_private_key(
             "Can't find tally session or tally session execution"
         ));
     };
+    let current_status = tally_session
+        .execution_status
+        .map(|value| {
+            TallyExecutionStatus::from_str(&value).unwrap_or(TallyExecutionStatus::STARTED)
+        })
+        .unwrap_or(TallyExecutionStatus::STARTED);
+
+    if TallyExecutionStatus::STARTED != current_status {
+        return Err(anyhow!("Unexpected status {}", current_status.to_string()));
+    }
 
     // get the keys ceremonies for this election event
     let keys_ceremony = get_keys_ceremony_by_id(
