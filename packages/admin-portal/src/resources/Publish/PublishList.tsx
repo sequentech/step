@@ -38,7 +38,6 @@ export const PublishList: React.FC<TPublishList> = ({
                     <Typography variant="body1" paragraph>
                         {t("common.resources.noResult.askCreate")}
                     </Typography>
-                    
 
                     <Button 
                         onClick={onGenerate} 
