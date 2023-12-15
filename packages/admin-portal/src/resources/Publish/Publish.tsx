@@ -3,7 +3,7 @@ import React, {ComponentType, useEffect, useRef, useState} from "react"
 import styled from "@emotion/styled"
 
 import {Box} from "@mui/material"
-import {useNotify, useRecordContext} from "react-admin"
+import {useGetOne, useNotify, useRecordContext} from "react-admin"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 
@@ -21,6 +21,7 @@ import {
     GetBallotPublicationChangesOutput,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Election,
+    Sequent_Backend_Ballot_Publication,
 } from "@/gql/graphql"
 
 import {PublishList} from "./PublishList"
@@ -62,10 +63,17 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const [updateStatusElection] = useMutation<UpdateElectionVotingStatusOutput>(
             UPDATE_ELECTION_VOTING_STATUS
         )
+        const {data: ballotPublication, refetch} = useGetOne<Sequent_Backend_Ballot_Publication>(
+            "sequent_backend_ballot_publication",
+            {
+                id: ballotPublicationId
+            }
+        )
 
         const onPublish = async () => {
             try {
                 if (!ballotPublicationId) {
+                    await onGenerate()
                     return
                 }
 
@@ -116,6 +124,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 if (data?.generate_ballot_publication?.ballot_publication_id) {
                     setBallotPublicationId(data?.generate_ballot_publication?.ballot_publication_id)
                 }
+                setTimeout(() => refetch(), 2000)
             } catch (e) {
                 notify(t("publish.dialog.error"), {
                     type: "error",
@@ -190,10 +199,10 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         useEffect(() => {
-            if (electionEventId && ballotPublicationId) {
+            if (electionEventId && ballotPublicationId && ballotPublication?.is_generated) {
                 getPublishChanges()
             }
-        }, [ballotPublicationId])
+        }, [ballotPublicationId, ballotPublication?.is_generated])
 
         useEffect(() => {
             if (generateData) {

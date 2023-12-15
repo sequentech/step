@@ -20,6 +20,7 @@ import {HeaderTitle} from "@/components/HeaderTitle"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
 import {EPublishStatus} from "./EPublishStatus"
+import { Sequent_Backend_Ballot_Publication } from "@/gql/graphql"
 
 const OMIT_FIELDS: any = []
 
@@ -43,13 +44,13 @@ export const PublishList: React.FC<TPublishList> = ({
     const notify = useNotify()
     const {t} = useTranslation()
 
-    const {data, error, isLoading, total} = useGetList("sequent_backend_ballot_publication", {
+    const {data, error, isLoading, total} = useGetList<Sequent_Backend_Ballot_Publication>("sequent_backend_ballot_publication", {
         filter: electionId
             ? {
                   election_event_id: electionEventId,
+                  election_id: electionId,
               }
             : {
-                  election_id: null,
                   election_event_id: electionEventId,
               },
     })
@@ -57,7 +58,8 @@ export const PublishList: React.FC<TPublishList> = ({
     const ballotContext = useList({
         data,
         filterCallback: (record) =>
-            electionId ? record.election_ids.some((id: string) => id === electionId) : true,
+            (!!electionId || !record.election_id) &&
+            (electionId ? record.election_ids?.some((id: string) => id === electionId) ?? false : true),
     })
 
     useEffect(() => {
