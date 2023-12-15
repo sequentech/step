@@ -27,6 +27,7 @@ import {
 } from "@/gql/graphql"
 import { EPublishActionsType } from './EPublishActionsType'
 import { PublishList } from './PublishList'
+import { PublishGenerate } from './PublishGenerate'
 
 const PublishStyled = {
     Container: styled.div`
@@ -64,10 +65,10 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
     const ref = useRef(null)
     const notify = useNotify()
     const {t} = useTranslation()
-    const [currentState, setCurrentState] = useState<null|any>(null)
-    const [previousState, setPreviouseState] = useState<null|any>(null)
-    const [expan, setExpan] = useState<string>('election-publish-diff')
+    const [showDiff, setShowDiff] = useState<boolean>(false)
+    const [generateData, setGenerateData] = useState<null|any>()
     const [status, setStatus] = useState<number>(EPublishStatus.Void)
+    const [expan, setExpan] = useState<string>('election-publish-diff')
     const [ballotPublicationId, setBallotPublicationId] = useState<null|string>(null)
 
     const [publishBallot] = useMutation<PublishBallotMutation>(PUBLISH_BALLOT)
@@ -95,6 +96,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         if (data?.publish_ballot?.ballot_publication_id) {
             setBallotPublicationId(data?.publish_ballot?.ballot_publication_id)
         }
+
+        setShowDiff(false)
 
         notify(t('publish.notifications.published'), {
             type: 'success'
@@ -144,20 +147,42 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             }
         }) as any
         
-        setCurrentState(data?.previous || {});
-        setPreviouseState(data?.current || {});
+        setGenerateData(data);
     }
+
+    useEffect(() => {
+        if (electionEventId && ballotPublicationId) {
+            getPublishChanges()
+        }
+    }, [ballotPublicationId])
+
+    useEffect(() => {
+        if (generateData) {
+            setShowDiff(true)
+        }
+    }, [generateData]);
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
-            <PublishList 
-                status={status} 
-                electionEventId={electionEventId} 
-                electionId={electionId}
-                onPublish={onPublish}
-                onChangeStatus={onChangeStatus}
-                onGenerate={onGenerate}
-            />
+            {!showDiff ? (
+                <PublishList 
+                    status={status} 
+                    electionId={electionId}
+                    onGenerate={onGenerate}
+                    onChangeStatus={onChangeStatus}
+                    electionEventId={electionEventId} 
+                    onPublish={() => setShowDiff(true)}
+                />
+            ) : (
+                <PublishGenerate 
+                    status={status} 
+                    data={generateData}
+                    onPublish={onPublish}
+                    electionId={electionId}
+                    onGenerate={onGenerate}
+                    electionEventId={electionEventId}
+                />
+            )}
         </Box>
     )
 });

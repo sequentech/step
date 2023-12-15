@@ -752,6 +752,7 @@ const spanishTranslation: TranslationType = {
             },
             empty: {
                 header: 'No tienes cambios generados/publicados',
+                action: 'Genera tu primer cambio'
             },
             label: {
                 current: "Actual",

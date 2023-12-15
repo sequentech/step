@@ -754,6 +754,7 @@ const englishTranslation = {
             },
             empty: {
                 header: 'Not have a changes generated/publicated',
+                action: 'Generate ur first change'
             },
             notifications: {
                 generated: "Ballot generated",

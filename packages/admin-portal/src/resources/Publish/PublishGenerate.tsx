@@ -49,7 +49,8 @@ const PublishStyled = {
     `,
 }
 
-export type TPublish = {
+export type TPublishGenerate = {
+    data: any;
     status: number;
     electionId?: string;
     electionEventId: string;
@@ -57,7 +58,8 @@ export type TPublish = {
     onGenerate: () => void;
 }
 
-export const PublishGenerate: React.FC<TPublish> = ({ 
+export const PublishGenerate: React.FC<TPublishGenerate> = ({ 
+    data,
     status,
     onPublish = () => null,
     onGenerate = () => null,
@@ -65,6 +67,13 @@ export const PublishGenerate: React.FC<TPublish> = ({
     const {t} = useTranslation()
     const [currentState, setCurrentState] = useState<null|any>(null)
     const [previousState, setPreviouseState] = useState<null|any>(null)
+
+    useEffect(() => {
+        if (data) {
+            setCurrentState(data?.previous)
+            setPreviouseState(data?.current)
+        }
+    }, [data])
     
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
@@ -72,7 +81,7 @@ export const PublishGenerate: React.FC<TPublish> = ({
                 <PublishActions 
                     status={status}
                     onPublish={onPublish} 
-                    onGenerate={onGenerate} 
+                    onGenerate={onGenerate}
                     type={EPublishActionsType.Generate}
                 />
 

@@ -46,7 +46,7 @@ export const PublishList: React.FC<TPublishList> = ({
 
                     <Button 
                         onClick={onGenerate} 
-                        label={t('')}
+                        label={t('publish.empty.action')}
                     />
                 </>
             ) : null}
