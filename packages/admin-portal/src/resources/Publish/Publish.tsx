@@ -61,50 +61,62 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         )
 
         const onPublish = async () => {
-            if (!ballotPublicationId) {
-                return
+            try {
+                if (!ballotPublicationId) {
+                    return
+                }
+
+                setStatus(EPublishStatus.PublishedLoading)
+
+                const {data} = await publishBallot({
+                    variables: {
+                        electionEventId,
+                        ballotPublicationId,
+                    },
+                })
+
+                if (data?.publish_ballot?.ballot_publication_id) {
+                    setBallotPublicationId(data?.publish_ballot?.ballot_publication_id)
+                }
+
+                setShowDiff(false)
+
+                notify(t("publish.notifications.published"), {
+                    type: "success",
+                })
+
+                setStatus(EPublishStatus.Published)
+            } catch (e) {
+                notify(t("publish.dialog.error"), {
+                    type: "error",
+                })
             }
-
-            setStatus(EPublishStatus.PublishedLoading)
-
-            const {data} = await publishBallot({
-                variables: {
-                    electionEventId,
-                    ballotPublicationId,
-                },
-            })
-
-            if (data?.publish_ballot?.ballot_publication_id) {
-                setBallotPublicationId(data?.publish_ballot?.ballot_publication_id)
-            }
-
-            setShowDiff(false)
-
-            notify(t("publish.notifications.published"), {
-                type: "success",
-            })
-
-            setStatus(EPublishStatus.Published)
         }
 
         const onGenerate = async () => {
-            setStatus(EPublishStatus.GeneratedLoading)
+            try {
+                setStatus(EPublishStatus.GeneratedLoading)
 
-            const {data} = await generateBallotPublication({
-                variables: {
-                    electionId,
-                    electionEventId,
-                },
-            })
+                const {data} = await generateBallotPublication({
+                    variables: {
+                        electionId,
+                        electionEventId,
+                    },
+                })
 
-            setStatus(EPublishStatus.Generated)
+                setStatus(EPublishStatus.Generated)
 
-            notify(t("publish.notifications.generated"), {
-                type: "success",
-            })
+                notify(t("publish.notifications.generated"), {
+                    type: "success",
+                })
 
-            if (data?.generate_ballot_publication?.ballot_publication_id) {
-                setBallotPublicationId(data?.generate_ballot_publication?.ballot_publication_id)
+                if (data?.generate_ballot_publication?.ballot_publication_id) {
+                    setBallotPublicationId(data?.generate_ballot_publication?.ballot_publication_id)
+                }
+            } catch (e) {
+                notify(t("publish.dialog.error"), {
+                    type: "error",
+                })
             }
         }
 
@@ -119,33 +131,45 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }
 
         const onChangeElectionStatus = async (status: string) => {
-            await updateStatusElection({
-                variables: {
-                    status,
-                    electionId,
-                },
-            })
+            try {
+                await updateStatusElection({
+                    variables: {
+                        status,
+                        electionId,
+                    },
+                })
 
-            setStatus(PUBLICH_STATUS_CONVERT[status])
+                setStatus(PUBLICH_STATUS_CONVERT[status])
 
-            notify(t("publish.notifications.chang_status"), {
-                type: "success",
-            })
+                notify(t("publish.notifications.chang_status"), {
+                    type: "success",
+                })
+            } catch (e) {
+                notify(t("publish.dialog.error"), {
+                    type: "error",
+                })
+            }
         }
 
         const onChangeEventStatus = async (status: string) => {
-            await updateStatusEvent({
-                variables: {
-                    status,
-                    electionEventId,
-                },
-            })
+            try {
+                await updateStatusEvent({
+                    variables: {
+                        status,
+                        electionEventId,
+                    },
+                })
 
-            setStatus(PUBLICH_STATUS_CONVERT[status])
+                setStatus(PUBLICH_STATUS_CONVERT[status])
 
-            notify(t("publish.notifications.chang_status"), {
-                type: "success",
-            })
+                notify(t("publish.notifications.chang_status"), {
+                    type: "success",
+                })
+            } catch (e) {
+                notify(t("publish.dialog.error"), {
+                    type: "error",
+                })
+            }
         }
 
         const getPublishChanges = async () => {
