@@ -81,13 +81,13 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 
                                 <ButtonDisabledOrNot onClick={() => handleEvent(handleOnChange(EPublishStatushChanges.Closed))} label={t("publish.action.stop")} st={EPublishStatus.Stopped} Icon={StopCircle} />
 
-                                <ButtonDisabledOrNot onClick={onGenerate} label={t("publish.action.go_to_publish")} Icon={Publish} />
+                                <ButtonDisabledOrNot onClick={onGenerate} label={t("publish.action.publish")} Icon={Publish} />
                             </>
                         ) : (
                             <>
-                                <ButtonDisabledOrNot onClick={() => handleEvent(onPublish)} label={t("publish.action.publish")} st={EPublishStatus.Published} Icon={Publish} />
-                
                                 <ButtonDisabledOrNot onClick={() => handleEvent(onGenerate)} label={t("publish.action.generate")}  st={EPublishStatus.Generated} Icon={RotateLeft} />
+                                
+                                <ButtonDisabledOrNot onClick={() => handleEvent(onPublish)} label={t("publish.action.publish")} st={EPublishStatus.Published} Icon={Publish} />
                             </>
                         )
                     }

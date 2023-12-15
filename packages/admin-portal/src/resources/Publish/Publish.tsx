@@ -86,6 +86,10 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         setStatus(EPublishStatus.Void)
 
+        notify(t('publish.notifications.generated'), {
+            type: 'success'
+        })
+
         if (data?.generate_ballot_publication?.ballot_publication_id) {
             setBallotPublicationId(data?.generate_ballot_publication?.ballot_publication_id)
         }
