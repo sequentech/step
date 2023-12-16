@@ -259,6 +259,9 @@ const spanishTranslation: TranslationType = {
                 voters: "Voters",
                 elections: "Elections",
                 areas: "Areas",
+                sha: "Integridad (SHA 256)",
+                cancel: "Cancelar",
+                import: "Importar",
             },
         },
         electionScreen: {

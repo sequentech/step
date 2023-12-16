@@ -1,5 +1,5 @@
 import React, {useContext, useEffect} from "react"
-import {Button, TabbedShowLayout, useRecordContext} from "react-admin"
+import {useRecordContext} from "react-admin"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import ElectionHeader from "@/components/ElectionHeader"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -8,7 +8,10 @@ import {ReactI18NextChild, useTranslation} from "react-i18next"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useLocation, useNavigate} from "react-router"
 import {Box, Tab, Tabs, TextField} from "@mui/material"
-import { DropFile } from '@sequentech/ui-essentials'
+import {DropFile} from "@sequentech/ui-essentials"
+import styled from "@emotion/styled"
+import Button from "@mui/material/Button"
+import {ImportScreen} from "./ImportScreen"
 
 export const ImportVotersTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -58,7 +61,21 @@ export const ImportVotersTabs: React.FC = () => {
         setValue(index)
     }
 
-    const [shaField, setShaField] = React.useState<string>("")
+    const handleCancel = () => {
+        console.log("handleCancel()")
+    }
+
+    const handleImportVoters = (file: FileList | null, sha: string) => {
+        console.log("handleImportVoters()", file, sha)
+    }
+
+    const handleImportElections = (file: FileList | null, sha: string) => {
+        console.log("handleImportElections()", file, sha)
+    }
+
+    const handleImportAreas = (file: FileList | null, sha: string) => {
+        console.log("handleImportAreas()", file, sha)
+    }
 
     return (
         <>
@@ -77,42 +94,16 @@ export const ImportVotersTabs: React.FC = () => {
             </Tabs>
 
             <CustomTabPanel index={0} value={value}>
-                <Box sx={{padding: "16px"}}>
-                    <div>VOTERS</div>
-                    <TextField
-                        label={t("sideMenu.search")}
-                        size="small"
-                        value={shaField}
-                        onChange={(e) => setShaField(e.target.value)}
-                    />
-                    <DropFile handleFiles={(files) => console.log(files)} />
-                    <div>
-                        <Button label="Cancel" />
-                        <Button label="Import" />
-                    </div>  
-                </Box>
+                <ImportScreen doCancel={handleCancel} doImport={handleImportVoters} />
             </CustomTabPanel>
 
             <CustomTabPanel index={1} value={value}>
-                <Box sx={{padding: "16px"}}>
-                    <div>ELECTIONS</div>
-                </Box>
+                <ImportScreen doCancel={handleCancel} doImport={handleImportElections} />
             </CustomTabPanel>
 
             <CustomTabPanel index={2} value={value}>
-                <Box sx={{padding: "16px"}}>
-                    <div>AREAS</div>
-                </Box>
+                <ImportScreen doCancel={handleCancel} doImport={handleImportAreas} />
             </CustomTabPanel>
-
-            {/* <TabbedShowLayout>
-                <TabbedShowLayout.Tab label={t("electionEventScreen.import.voters")}>
-                </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label={t("electionEventScreen.import.elections")}>
-                </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label={t("electionEventScreen.import.areas")}>
-                </TabbedShowLayout.Tab>
-            </TabbedShowLayout> */}
         </>
     )
 }
