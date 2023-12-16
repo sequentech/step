@@ -38,8 +38,10 @@ export const customBuildQuery =
                     name: "user",
                 },
             }
+            console.log("user list EDU:")
+            console.log(params)
             return {
-                query: getUsers(params.filter),
+                query: getUsers(params),
                 variables: buildVariables(introspectionResults)(
                     resource,
                     raFetchType,

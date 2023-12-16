@@ -287,7 +287,10 @@ input GetUsersInput {
   tenant_id : String!
   election_event_id : String
   search : String
+  first_name : String
+  last_name : String
   email : String
+  username : String
   limit : Int
   offset : Int
 }

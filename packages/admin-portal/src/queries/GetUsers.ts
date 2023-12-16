@@ -4,16 +4,41 @@
 import {gql} from "@apollo/client"
 
 export const getUsers = (fields: any) => {
+    console.log("getUsers")
+    console.log(fields)
+    let electionEventId = fields.filter?.election_event_id
+        ? `"${fields.filter?.election_event_id}"`
+        : "null"
+    let email = fields.filter?.email ? `"${fields.filter?.email}"` : "null"
+    let username = fields.filter?.username ? `"${fields.filter?.username}"` : "null"
+    let first_name = fields.filter?.first_name ? `"${fields.filter?.first_name}"` : "null"
+    let last_name = fields.filter?.last_name ? `"${fields.filter?.last_name}"` : "null"
+    let offset: number | null =
+        fields.pagination?.page && fields.pagination?.perPage
+            ? (fields.pagination.page - 1) * fields.pagination.perPage
+            : null
+    let limit: number | null = fields.pagination?.perPage ? fields.pagination?.perPage : null
+    console.log(`limit = ${limit}`)
     return gql`
         query getUsers(
-            $tenant_id: String! = "${fields.tenant_id}"
-            $election_event_id: String = ${
-                fields?.election_event_id ? `"${fields?.election_event_id}"` : "null"
-            }
+            $tenant_id: String! = "${fields.filter.tenant_id}"
+            $election_event_id: String = ${electionEventId}
+            $email: String = ${email}
+            $username: String = ${username}
+            $first_name: String = ${first_name}
+            $last_name: String = ${last_name}
+            $limit: Int = ${limit}
+            $offset: Int = ${offset}
         ) {
             get_users(body: {
                 tenant_id: $tenant_id,
-                election_event_id: $election_event_id
+                election_event_id: $election_event_id,
+                email: $email,
+                username: $username,
+                first_name: $first_name,
+                last_name: $last_name,
+                limit: $limit,
+                offset: $offset
             }) {
                 items {
                     id

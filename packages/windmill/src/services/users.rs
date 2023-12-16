@@ -29,6 +29,9 @@ pub async fn list_users(
     election_event_id: Option<String>,
     realm: &str,
     search: Option<String>,
+    first_name: Option<String>,
+    last_name: Option<String>,
+    username: Option<String>,
     email: Option<String>,
     limit: Option<i32>,
     offset: Option<i32>,
@@ -41,6 +44,26 @@ pub async fn list_users(
         offset_val.into()
     } else {
         0
+    };
+    let email_pattern: Option<String> = if let Some(email_val) = email {
+        Some(format!("%{email_val}%"))
+    } else {
+        None
+    };
+    let first_name_pattern: Option<String> = if let Some(first_name_val) = first_name {
+        Some(format!("%{first_name_val}%"))
+    } else {
+        None
+    };
+    let last_name_pattern: Option<String> = if let Some(last_name_val) = last_name {
+        Some(format!("%{last_name_val}%"))
+    } else {
+        None
+    };
+    let username_pattern: Option<String> = if let Some(username_val) = username {
+        Some(format!("%{username_val}%"))
+    } else {
+        None
     };
     let statement = transaction.prepare(r#"
         WITH realm_cte AS (
@@ -78,8 +101,11 @@ pub async fn list_users(
             LEFT JOIN
                 user_attribute AS attr ON u.id = attr.user_id
             WHERE
-                (email = $4::VARCHAR OR $4 IS NULL) AND
-                (u.id = ANY($5) OR $5 IS NULL)
+                ($4::VARCHAR IS NULL OR email ILIKE $4) AND
+                ($5::VARCHAR IS NULL OR first_name ILIKE $5) AND
+                ($6::VARCHAR IS NULL OR last_name ILIKE $6) AND
+                ($7::VARCHAR IS NULL OR username ILIKE $7) AND
+                (u.id = ANY($8) OR $8 IS NULL)
             GROUP BY
                 u.id
         ) sub
@@ -92,9 +118,12 @@ pub async fn list_users(
                 &realm,
                 &query_limit,
                 &query_offset,
-                &email,
-                &user_ids
-            ]
+                &email_pattern,
+                &first_name_pattern,
+                &last_name_pattern,
+                &username_pattern,
+                &user_ids,
+            ],
         )
         .await
         .map_err(|err| anyhow!("{}", err))?;

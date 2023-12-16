@@ -1304,6 +1304,26 @@
             "defaultValue": null
           },
           {
+            "name": "first_name",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "last_name",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "limit",
             "description": null,
             "type": {
@@ -1344,6 +1364,16 @@
                 "name": "String",
                 "ofType": null
               }
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "username",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
             },
             "defaultValue": null
           }
@@ -25836,6 +25866,18 @@
             "deprecationReason": null
           },
           {
+            "name": "election_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "election_ids",
             "description": null,
             "args": [],
@@ -26205,6 +26247,16 @@
             "defaultValue": null
           },
           {
+            "name": "election_id",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "uuid_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_ids",
             "description": null,
             "type": {
@@ -26452,6 +26504,16 @@
             "defaultValue": null
           },
           {
+            "name": "election_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_ids",
             "description": null,
             "type": {
@@ -26578,6 +26640,18 @@
             "deprecationReason": null
           },
           {
+            "name": "election_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "election_ids",
             "description": null,
             "args": [],
@@ -26682,6 +26756,18 @@
           },
           {
             "name": "election_event_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "election_id",
             "description": null,
             "args": [],
             "type": {
@@ -26919,6 +27005,16 @@
             "defaultValue": null
           },
           {
+            "name": "election_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_ids",
             "description": null,
             "type": {
@@ -27106,6 +27202,12 @@
             "deprecationReason": null
           },
           {
+            "name": "election_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "election_ids",
             "description": "column name",
             "isDeprecated": false,
@@ -27192,6 +27294,16 @@
           },
           {
             "name": "election_event_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "election_id",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -27365,6 +27477,16 @@
             "defaultValue": null
           },
           {
+            "name": "election_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_ids",
             "description": null,
             "type": {
@@ -27471,6 +27593,12 @@
           },
           {
             "name": "election_event_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "election_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
