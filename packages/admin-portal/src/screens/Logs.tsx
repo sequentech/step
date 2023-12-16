@@ -1,0 +1,54 @@
+// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import Tabs from "@mui/material/Tabs"
+import Tab from "@mui/material/Tab"
+
+import {Typography} from "@mui/material"
+import React, {useContext, useState} from "react"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {CustomTabPanel} from "@/components/CustomTabPanel"
+import ElectionHeader from "@/components/ElectionHeader"
+import {useTranslation} from "react-i18next"
+import {IPermissions} from "@/types/keycloak"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {PgAuditList} from "@/resources/PgAudit/PgAuditList"
+
+export const Logs: React.FC = () => {
+    const authContext = useContext(AuthContext)
+    const [tenantId] = useTenantStore()
+    const [tab, setTab] = useState(0)
+    const {t} = useTranslation()
+
+    const logsRead = authContext.isAuthorized(true, tenantId, IPermissions.LOGS_READ)
+    const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+        setTab(newValue)
+    }
+
+    if (!logsRead) {
+        return (
+            <ResourceListStyles.EmptyBox>
+                <Typography variant="h4" paragraph>
+                    {t("logsScreen.noPermissions")}
+                </Typography>
+            </ResourceListStyles.EmptyBox>
+        )
+    }
+
+    return (
+        <>
+            <ElectionHeader title={t("logsScreen.title")} subtitle="logsScreen.subtitle" />
+            <Tabs value={tab} onChange={handleChange} aria-label="Log tabs">
+                <Tab label={t("logsScreen.main.title")} />
+                <Tab label={t("logsScreen.iam.title")} />
+            </Tabs>
+            <CustomTabPanel value={tab} index={0}>
+                <PgAuditList />
+            </CustomTabPanel>
+            <CustomTabPanel value={tab} index={1}>
+                <PgAuditList />
+            </CustomTabPanel>
+        </>
+    )
+}

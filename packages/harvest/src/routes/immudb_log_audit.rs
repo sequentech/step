@@ -77,13 +77,13 @@ impl GetPgauditBody {
         }
 
         // Handle limit
-        let limit = self.limit.unwrap_or(
-            PgConfig::from_env()?.default_sql_limit.into()
-        );
-        clauses.push(format!("LIMIT {}", std::cmp::min(
-            limit,
-            PgConfig::from_env()?.low_sql_limit.into()
-        )));
+        let limit = self
+            .limit
+            .unwrap_or(PgConfig::from_env()?.default_sql_limit.into());
+        clauses.push(format!(
+            "LIMIT {}",
+            std::cmp::min(limit, PgConfig::from_env()?.low_sql_limit.into())
+        ));
 
         // Handle offset
         if let Some(offset) = self.offset {
@@ -192,8 +192,8 @@ pub async fn list_pgaudit(
 ) -> Result<Json<DataList<PgAuditRow>>, Debug<anyhow::Error>> {
     let server_url = env::var("IMMUDB_SERVER_URL")
         .context("IMMUDB_SERVER_URL env var not set")?;
-    let username = env::var("IMMUDB_USERNAME")
-        .context("IMMUDB_USERNAME env var not set")?;
+    let username =
+        env::var("IMMUDB_USER").context("IMMUDB_USER env var not set")?;
     let password = env::var("IMMUDB_PASSWORD")
         .context("IMMUDB_PASSWORD env var not set")?;
     let input = body.into_inner();

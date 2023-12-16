@@ -1,5 +1,5 @@
 import {buildQuery, buildVariables} from "ra-data-hasura"
-import {getList} from "./ListPgAudit"
+import {getPgAudit} from "./ListPgAudit"
 import {getUsers} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
@@ -14,7 +14,7 @@ export const customBuildQuery =
                 },
             }
             return {
-                query: getList({}),
+                query: getPgAudit(params),
                 variables: buildVariables(introspectionResults)(
                     resource,
                     raFetchType,

@@ -10,12 +10,10 @@ import {
     FunctionField,
     TextInput,
     NumberField,
-    ExportButton,
-    SelectColumnsButton,
-    TopToolbar,
 } from "react-admin"
-import {Typography} from "@mui/material"
-import {useTenantStore} from "../../providers/TenantContextProvider"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {ListActions} from "@/components/ListActions"
+import {useTranslation} from "react-i18next"
 
 const OMIT_FIELDS = ["audit_type", "class", "dbname", "session", "user"]
 
@@ -25,18 +23,18 @@ export interface PgAuditListProps {
 
 export const PgAuditList: React.FC<PgAuditListProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
+    const {t} = useTranslation()
+    const filters: Array<ReactElement> = [
+        <TextInput label={t("logsScreen.column.id")} source="id" key={0} />,
+        <TextInput label={t("logsScreen.column.statement")} source="statement" key={0} />,
+    ]
 
     return (
         <>
-            <Typography variant="h5">PG Audit</Typography>
             <List
-                actions={
-                    <TopToolbar>
-                        <SelectColumnsButton />
-                        <ExportButton />
-                    </TopToolbar>
-                }
-                filter={{tenant_id: tenantId || undefined}}
+                resource="pgaudit"
+                actions={<ListActions withImport={false} />}
+                filters={filters}
                 aside={aside}
             >
                 <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
