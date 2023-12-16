@@ -39,6 +39,8 @@ import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
 import styled from "@emotion/styled"
 import { ImportVotersBaseTabs } from '@/components/election-event/ImportVotersBaseTabs'
+import importDrawerState from '@/atoms/import-drawer-state'
+import { useAtom } from 'jotai'
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -82,7 +84,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     const [tenantId] = useTenantStore()
 
     const [open, setOpen] = React.useState(false)
-    const [openImport, setOpenImport] = React.useState(false)
+    const [openImport, setOpenImport] = useAtom(importDrawerState)
     const [openExport, setOpenExport] = React.useState(false)
     const [openNew, setOpenNew] = React.useState(false)
     const [audienceSelection, setAudienceSelection] = React.useState<AudienceSelection>(

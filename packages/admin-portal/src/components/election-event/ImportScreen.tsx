@@ -1,11 +1,12 @@
-import {Box, styled, Button, TextField} from "@mui/material"
+import {Box, styled, Button, TextField, CircularProgress} from "@mui/material"
 import {DropFile} from "@sequentech/ui-essentials"
-import React from "react"
+import React, {useEffect, useRef} from "react"
 import {useTranslation} from "react-i18next"
 
 interface ImportScreenProps {
     doImport: (file: FileList | null, sha: string) => void
     doCancel: () => void
+    isLoading: boolean
 }
 
 export const ImportStyles = {
@@ -21,17 +22,29 @@ export const ImportStyles = {
 }
 
 export const ImportScreen: React.FC<ImportScreenProps> = (props) => {
-    const {doCancel, doImport} = props
+    const {doCancel, doImport, isLoading} = props
 
     const {t} = useTranslation()
 
     const [shaField, setShaField] = React.useState<string>("")
-    const [file, setFile] = React.useState<FileList | null>(null)
+    // const [fileImport, setFileImport] = React.useState<FileList | null>(null)
+    const fileImport = useRef<FileList | null>(null)
 
     const handleFiles = (files: FileList | null) => {
-        console.log("handleFiles(): files:", files);
-        setFile(files)
+        // setFileImport(files)
+        fileImport.current = files
     }
+
+    console.log("handleFiles(): files:", fileImport.current)
+    console.log("handleFiles(): files:", fileImport?.current?.[0])
+
+    useEffect(() => {
+        console.log("handleFiles(): SHA:", shaField)
+    }, [shaField])
+
+    useEffect(() => {
+        console.log("handleFiles(): ENTER EFFECT")
+    }, [])
 
     return (
         <Box sx={{padding: "16px"}}>
@@ -41,7 +54,22 @@ export const ImportScreen: React.FC<ImportScreenProps> = (props) => {
                 value={shaField}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShaField(e.target.value)}
             />
-            <DropFile handleFiles={(files: FileList | null) => handleFiles(files)} />
+            <DropFile handleFiles={handleFiles} />
+
+            {isLoading ? (
+                <Box
+                    sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        margin: "16px auto",
+                    }}
+                >
+                    <CircularProgress />
+                </Box>
+            ) : null}
+
             <Box
                 sx={{
                     display: "flex",
@@ -55,8 +83,8 @@ export const ImportScreen: React.FC<ImportScreenProps> = (props) => {
                     {t("electionEventScreen.import.cancel")}
                 </ImportStyles.CancelButton>
                 <ImportStyles.ImportButton
-                    disabled={!file && shaField === ""}
-                    onClick={() => doImport(file, shaField)}
+                    disabled={!fileImport || shaField === ""}
+                    onClick={() => doImport(fileImport?.current, shaField)}
                 >
                     {t("electionEventScreen.import.import")}
                 </ImportStyles.ImportButton>
