@@ -15,7 +15,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
 
-const OMIT_FIELDS = ["audit_type", "class", "dbname", "session", "user"]
+const OMIT_FIELDS = ["audit_type", "class", "dbname", "session"]
 
 export interface PgAuditListProps {
     aside?: ReactElement
