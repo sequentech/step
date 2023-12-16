@@ -26,8 +26,8 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
-use crate::types::error::{Error, Result};
 use crate::tasks::execute_tally_session::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionExecution;
+use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use board_messages::braid::{artifact::Plaintexts, message::Message, statement::StatementType};
 use celery::prelude::TaskError;
@@ -284,7 +284,15 @@ async fn map_plaintext_data(
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
-) -> Result<Option<(Vec<AreaContestDataType>, i64, bool, TallyCeremonyStatus)>> {
+) -> Result<
+    Option<(
+        Vec<AreaContestDataType>,
+        i64,
+        bool,
+        TallyCeremonyStatus,
+        Option<Vec<i64>>,
+    )>,
+> {
     // get credentials
     let auth_headers = keycloak::get_client_credentials().await?;
 
@@ -455,6 +463,10 @@ async fn map_plaintext_data(
         "Num relevant_plaintexts {}",
         relevant_plaintexts.len()
     );
+    let session_ids: Vec<i64> = relevant_plaintexts
+        .iter()
+        .map(|message| message.statement.get_batch_number() as i64)
+        .collect();
     // we have all plaintexts
     let is_execution_completed = relevant_plaintexts.len() == batch_ids.len();
 
@@ -465,6 +477,7 @@ async fn map_plaintext_data(
         newest_message_id,
         is_execution_completed,
         new_status,
+        Some(session_ids),
     )))
 }
 
@@ -573,7 +586,7 @@ async fn tally_area_contest(
     area_contest_plaintext: AreaContestDataType,
     base_tempdir: PathBuf,
     results_event_id_opt: &Option<String>,
-    is_new: bool
+    is_new: bool,
 ) -> Result<()> {
     let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext;
 
@@ -718,7 +731,6 @@ async fn create_results_event(
     Ok(results_event.id.clone())
 }
 
-
 #[instrument(skip_all)]
 pub async fn generate_results_if_necessary(
     auth_headers: &connection::AuthHeaders,
@@ -728,17 +740,19 @@ pub async fn generate_results_if_necessary(
     previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
 ) -> Result<(Option<String>, bool)> {
     let previous_status = get_tally_ceremony_status(previous_execution.status)?;
-    let previous_election_ids: Vec<String> = previous_status.elections_status
+    let previous_election_ids: Vec<String> = previous_status
+        .elections_status
         .iter()
         .filter(|status| TallyElectionStatus::SUCCESS == status.status)
         .map(|status| status.election_id.clone())
         .collect();
-    let current_election_ids: Vec<String> = tally_status.elections_status
+    let current_election_ids: Vec<String> = tally_status
+        .elections_status
         .iter()
         .filter(|status| TallyElectionStatus::SUCCESS == status.status)
         .map(|status| status.election_id.clone())
         .collect();
-    let is_new =  current_election_ids.len() > previous_election_ids.len();
+    let is_new = current_election_ids.len() > previous_election_ids.len();
     if is_new {
         let results_event_id =
             create_results_event(&auth_headers, &tenant_id, &election_event_id).await?;
@@ -746,7 +760,6 @@ pub async fn generate_results_if_necessary(
     } else {
         Ok((previous_execution.results_event_id, is_new))
     }
-
 }
 
 #[instrument]
@@ -790,7 +803,7 @@ pub async fn execute_tally_session(
         return Ok(());
     }
 
-    let (plaintexts_data, newest_message_id, is_execution_completed, new_status) =
+    let (plaintexts_data, newest_message_id, is_execution_completed, new_status, session_ids) =
         plaintexts_data_opt.unwrap();
 
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
@@ -798,8 +811,14 @@ pub async fn execute_tally_session(
     // base temp folder
     let base_tempdir = tempdir()?;
 
-    let (results_event_id, is_new) =
-        generate_results_if_necessary(&auth_headers, &tenant_id, &election_event_id, &new_status, tally_session_execution).await?;
+    let (results_event_id, is_new) = generate_results_if_necessary(
+        &auth_headers,
+        &tenant_id,
+        &election_event_id,
+        &new_status,
+        tally_session_execution,
+    )
+    .await?;
 
     // perform tallies with velvet
     for area_contest_plaintext in plaintexts_data.iter() {
@@ -807,7 +826,7 @@ pub async fn execute_tally_session(
             area_contest_plaintext.clone(),
             base_tempdir.path().to_path_buf(),
             &results_event_id,
-            is_new
+            is_new,
         )
         .await
         .map_err(|err| {
@@ -845,6 +864,7 @@ pub async fn execute_tally_session(
         Some(document.id.clone()),
         Some(new_status),
         results_event_id,
+        session_ids,
     )
     .await?;
 

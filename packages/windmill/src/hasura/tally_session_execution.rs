@@ -71,6 +71,7 @@ pub async fn insert_tally_session_execution(
     document_id: Option<String>,
     status: Option<TallyCeremonyStatus>,
     results_event_id: Option<String>,
+    session_ids: Option<Vec<i64>>,
 ) -> Result<Response<insert_tally_session_execution::ResponseData>> {
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
@@ -87,6 +88,7 @@ pub async fn insert_tally_session_execution(
         document_id,
         status: json_status,
         results_event_id,
+        session_ids,
     };
 
     let request_body = InsertTallySessionExecution::build_query(variables);
