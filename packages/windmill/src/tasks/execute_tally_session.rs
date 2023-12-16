@@ -344,7 +344,7 @@ async fn map_plaintext_data(
     let mut new_status = get_tally_ceremony_status(initial_status)?;
 
     let new_tally_progress = generate_tally_progress(&tally_session_data, &messages).await?;
-    let mut new_logs = generate_logs(&messages, next_timestamp.clone(), &batch_ids).await?;
+    let mut new_logs = generate_logs(&messages, next_timestamp.clone(), &batch_ids)?;
 
     new_status.elections_status = new_tally_progress;
 
