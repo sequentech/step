@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
 use tracing::instrument;
+use windmill::services::database::PgConfig;
 
 macro_rules! assign_value {
     ($enum_variant:path, $value:expr, $target:ident) => {
@@ -59,7 +60,7 @@ pub struct GetPgauditBody {
 
 impl GetPgauditBody {
     // Returns the SQL clauses related to the request
-    fn as_sql_clauses(&self) -> String {
+    fn as_sql_clauses(&self) -> Result<String> {
         let mut clauses = Vec::new();
 
         // Handle order_by
@@ -76,15 +77,20 @@ impl GetPgauditBody {
         }
 
         // Handle limit
-        let limit = self.limit.unwrap_or(10);
-        clauses.push(format!("LIMIT {}", std::cmp::min(limit, 500)));
+        let limit = self.limit.unwrap_or(
+            PgConfig::from_env()?.default_sql_limit.into()
+        );
+        clauses.push(format!("LIMIT {}", std::cmp::min(
+            limit,
+            PgConfig::from_env()?.low_sql_limit.into()
+        )));
 
         // Handle offset
         if let Some(offset) = self.offset {
             clauses.push(format!("OFFSET {}", std::cmp::max(offset, 0)));
         }
 
-        clauses.join(" ")
+        Ok(clauses.join(" "))
     }
 }
 
@@ -196,8 +202,6 @@ pub async fn list_pgaudit(
     client.login().await?;
 
     client.open_session(&input.election_event_id).await?;
-    let _limit: i64 = input.limit.unwrap_or(10);
-    let _offset: i64 = input.offset.unwrap_or(0);
     let sql = format!(
         r#"
         SELECT
@@ -213,7 +217,7 @@ pub async fn list_pgaudit(
         FROM pgaudit
         {}
         "#,
-        input.as_sql_clauses()
+        input.as_sql_clauses()?
     );
     let sql_query_response = client.sql_query(&sql, vec![]).await?;
     let items = sql_query_response
@@ -264,7 +268,7 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(
-            get_pgaudit_body.as_sql_clauses(),
+            get_pgaudit_body.as_sql_clauses().unwrap(),
             "ORDER BY Id Asc LIMIT 10"
         );
 
@@ -277,7 +281,7 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(
-            get_pgaudit_body.as_sql_clauses(),
+            get_pgaudit_body.as_sql_clauses().unwrap(),
             "ORDER BY Id Asc LIMIT 15 OFFSET 5"
         );
 
@@ -287,6 +291,6 @@ mod tests {
             "limit": 550
         }))
         .unwrap();
-        assert_eq!(get_pgaudit_body.as_sql_clauses(), "LIMIT 500");
+        assert_eq!(get_pgaudit_body.as_sql_clauses().unwrap(), "LIMIT 500");
     }
 }
