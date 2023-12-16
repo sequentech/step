@@ -1,17 +1,16 @@
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useRef} from "react"
 
-import {Typography} from "@mui/material"
+import {Box} from "@mui/material"
 import {useTranslation} from "react-i18next"
+
 import {
-    Button,
-    DatagridConfigurable,
-    BooleanField,
-    List,
-    TextField,
-    useGetList,
-    ListContextProvider,
     useList,
+    TextField,
     useNotify,
+    useGetList,
+    BooleanField,
+    ListContextProvider,
+    DatagridConfigurable,
 } from "react-admin"
 
 import {PublishActions} from "./PublishActions"
@@ -20,7 +19,7 @@ import {HeaderTitle} from "@/components/HeaderTitle"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
 import {EPublishStatus} from "./EPublishStatus"
-import { Sequent_Backend_Ballot_Publication } from "@/gql/graphql"
+import {Sequent_Backend_Ballot_Publication} from "@/gql/graphql"
 
 const OMIT_FIELDS: any = []
 
@@ -41,25 +40,33 @@ export const PublishList: React.FC<TPublishList> = ({
     onChangeStatus = () => null,
     setBallotPublicationId = () => null,
 }) => {
+    let current: any | null = null
+
+    const ref = useRef()
     const notify = useNotify()
     const {t} = useTranslation()
 
-    const {data, error, isLoading, total} = useGetList<Sequent_Backend_Ballot_Publication>("sequent_backend_ballot_publication", {
-        filter: electionId
-            ? {
-                  election_event_id: electionEventId,
-                  election_id: electionId,
-              }
-            : {
-                  election_event_id: electionEventId,
-              },
-    })
+    const {data, error, isLoading} = useGetList<Sequent_Backend_Ballot_Publication>(
+        "sequent_backend_ballot_publication",
+        {
+            filter: electionId
+                ? {
+                      election_event_id: electionEventId,
+                      election_id: electionId,
+                  }
+                : {
+                      election_event_id: electionEventId,
+                  },
+        }
+    )
 
     const ballotContext = useList({
         data,
         filterCallback: (record) =>
             (!!electionId || !record.election_id) &&
-            (electionId ? record.election_ids?.some((id: string) => id === electionId) ?? false : true),
+            (electionId
+                ? record.election_ids?.some((id: string) => id === electionId) ?? false
+                : true),
     })
 
     useEffect(() => {
@@ -71,15 +78,18 @@ export const PublishList: React.FC<TPublishList> = ({
     }, [error])
 
     useEffect(() => {
-        console.log("PUBLISH :: DATA", ballotContext)
-        if (ballotContext.total === 0 && status === EPublishStatus.Void) {
-            // onGenerate()
-            console.log("PUBLISH :: GENERATE CALLBACK")
+        console.log("PUBLISH :: REF", ref)
+        console.log("PUBLISH :: REF DATA", current, status, ballotContext.total)
+        if (!current) {
+            current = ref.current
+        } else if (current && !ballotContext.total && status === EPublishStatus.Void) {
+            console.log("PUBLISH :: REF GENERATE CALLBACK")
+            onGenerate()
         }
-    }, [isLoading])
+    }, [ref, ballotContext.total])
 
     return (
-        <>
+        <Box ref={ref}>
             <PublishActions
                 status={status}
                 onGenerate={onGenerate}
@@ -102,6 +112,6 @@ export const PublishList: React.FC<TPublishList> = ({
                     <TextField source="published_at" />
                 </DatagridConfigurable>
             </ListContextProvider>
-        </>
+        </Box>
     )
 }
