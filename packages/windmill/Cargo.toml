@@ -47,7 +47,7 @@ quick-error = "2.0.1"
 keycloak = "21.0.102"
 
 # logging
-tracing = "0.1.37"
+tracing = "0.1"
 thiserror = "1.0.50"
 
 # for sending emails and sms

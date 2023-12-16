@@ -27,6 +27,7 @@ import TableHead from "@mui/material/TableHead"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
 import {useGetOne} from "react-admin"
+import globalSettings from "@/global-settings"
 
 export const statusColor: (status: string) => string = (status) => {
     if (status == EStatus.NOT_STARTED) {
@@ -70,7 +71,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
             id: currentCeremony?.id ?? null,
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 

@@ -398,6 +398,38 @@ pub enum VotingStatus {
     Eq,
     Debug,
     Clone,
+    Default,
+)]
+pub struct ElectionEventStatistics {
+    pub num_emails_sent: i64,
+    pub num_sms_sent: i64,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct ElectionStatistics {
+    pub num_emails_sent: i64,
+    pub num_sms_sent: i64,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
 )]
 pub struct ElectionStatus {
     pub voting_status: VotingStatus,

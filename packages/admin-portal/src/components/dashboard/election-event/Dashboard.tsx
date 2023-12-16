@@ -13,7 +13,7 @@ import {Link} from "react-router-dom"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {useRecordContext} from "react-admin"
-import {EVotingStatus, IElectionEventStatus} from "@/types/CoreTypes"
+import {EVotingStatus, IElectionEventStatistics, IElectionEventStatus} from "@/types/CoreTypes"
 
 const Container = styled(Box)`
     display: flex;

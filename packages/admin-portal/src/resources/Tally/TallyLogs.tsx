@@ -8,6 +8,7 @@ import {Sequent_Backend_Tally_Session_Execution} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {JsonView} from "@/components/JsonView"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import globalSettings from "@/global-settings"
 
 export const TallyLogs: React.FC = () => {
     const {tallyId} = useElectionEventTallyStore()
@@ -25,7 +26,7 @@ export const TallyLogs: React.FC = () => {
             },
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 

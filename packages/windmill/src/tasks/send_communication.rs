@@ -7,13 +7,17 @@ use crate::hasura::tally_session::{get_tally_session_highest_batch, insert_tally
 use crate::hasura::tally_session_contest::insert_tally_session_contest;
 use crate::hasura::trustee::get_trustees_by_id;
 use crate::services::celery_app::get_celery_app;
+use crate::services::election_event_statistics::{
+    get_election_event_statistics, update_election_event_statistics,
+};
 use crate::services::users::list_users;
 use crate::tasks::insert_ballots::{insert_ballots, InsertBallotsPayload};
 use crate::tasks::send_communication::get_election_event::GetElectionEventSequentBackendElectionEvent;
 use crate::types::error::Result;
 
-use crate::services::database::get_database_pool;
+use crate::services::database::{get_database_pool, PgConfig};
 use deadpool_postgres::Client as DbClient;
+use sequent_core::ballot::ElectionEventStatistics;
 
 use anyhow::{anyhow, Context};
 use aws_config::{meta::region::RegionProviderChain, Region};
@@ -402,70 +406,141 @@ pub async fn send_communication(
         }
     };
 
-    let db_client: DbClient = get_database_pool()
+    let mut db_client: DbClient = get_database_pool()
         .await
         .get()
         .await
         .map_err(|err| anyhow!("{}", err))?;
+    let batch_size = PgConfig::from_env()?.default_sql_batch_size;
 
     let user_ids = match body.audience_selection {
         AudienceSelection::SELECTED => body.audience_voter_ids.clone(),
         // TODO: managed "not voted" and "voted"
         _ => None,
     };
-    let (users, count) = list_users(
-        auth_headers.clone(),
-        &db_client,
-        &client,
-        tenant_id.clone(),
-        election_event_id.clone(),
-        &realm,
-        /* search */ None,
-        /* email */ None,
-        /* limit */ None,
-        /* offset */ None,
-        /* user_ids */ user_ids,
-    )
-    .await?;
 
-    let email_sender = EmailSender::new().await?;
-    let sms_sender = SmsSender::new().await?;
+    // perform listing in batches in a read-only repeatable transaction, and
+    // perform stats updates in a new stats transaction each time - because for
+    // each mail/sms sent, there's no rollback for that.
+    let mut processed: i32 = 0;
+    event!(Level::INFO, "before transaction");
+    let transaction = db_client
+        .transaction()
+        .await
+        .map_err(|err| anyhow!("{err}"))?;
+    event!(Level::INFO, "before isolation");
+    transaction
+        .simple_query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;")
+        .await
+        .with_context(|| "can't set transaction isolation level")?;
+    event!(Level::INFO, "after isolation");
+    while true {
+        let (users, total_count) = list_users(
+            auth_headers.clone(),
+            &transaction,
+            &client,
+            tenant_id.clone(),
+            election_event_id.clone(),
+            &realm,
+            /* search */ None,
+            /* first_name */ None,
+            /* last_name */ None,
+            /* username */ None,
+            /* email */ None,
+            /* limit */ Some(batch_size),
+            /* offset */ Some(processed),
+            /* user_ids */ user_ids.clone(),
+        )
+        .await?;
+        event!(Level::INFO, "after list_users");
 
-    for user in users.iter() {
-        event!(
-            Level::INFO,
-            "Sending communication to user with id={:?} and email={:?}",
-            id = user.id,
-            email = user.email,
-        );
-        let variables: Map<String, Value> =
-            get_variables(user, election_event.clone(), tenant_id.clone())?;
-        match body.communication_method {
-            CommunicationMethod::EMAIL => {
-                let sending_result = send_communication_email(
-                    /* receiver */ &user.email,
-                    /* template */ &body.email,
-                    /* variables */ &variables,
-                    /* sender */ &email_sender,
-                )
-                .await;
-                if let Err(error) = sending_result {
-                    event!(Level::ERROR, "error sending email: {error:?}, continuing..");
+        let email_sender = EmailSender::new().await?;
+        let sms_sender = SmsSender::new().await?;
+        let mut num_emails_sent = 0;
+        let mut num_sms_sent = 0;
+
+        for user in users.iter() {
+            event!(
+                Level::INFO,
+                "Sending communication to user with id={:?} and email={:?}",
+                id = user.id,
+                email = user.email,
+            );
+            let variables: Map<String, Value> =
+                get_variables(user, election_event.clone(), tenant_id.clone())?;
+            match body.communication_method {
+                CommunicationMethod::EMAIL => {
+                    let sending_result = send_communication_email(
+                        /* receiver */ &user.email,
+                        /* template */ &body.email,
+                        /* variables */ &variables,
+                        /* sender */ &email_sender,
+                    )
+                    .await;
+                    if let Err(error) = sending_result {
+                        event!(Level::ERROR, "error sending email: {error:?}, continuing..");
+                    } else {
+                        num_emails_sent += 1;
+                    }
                 }
-            }
-            CommunicationMethod::SMS => {
-                let sending_result = send_communication_sms(
-                    /* receiver */ &user.get_mobile_phone(),
-                    /* template */ &body.sms,
-                    /* variables */ &variables,
-                    /* sender */ &sms_sender,
-                )
-                .await;
-                if let Err(error) = sending_result {
-                    event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
+                CommunicationMethod::SMS => {
+                    let sending_result = send_communication_sms(
+                        /* receiver */ &user.get_mobile_phone(),
+                        /* template */ &body.sms,
+                        /* variables */ &variables,
+                        /* sender */ &sms_sender,
+                    )
+                    .await;
+                    if let Err(error) = sending_result {
+                        event!(Level::ERROR, "error sending sms: {error:?}, continuing..");
+                    } else {
+                        num_sms_sent += 1;
+                    }
                 }
-            }
-        };
+            };
+        }
+
+        processed += TryInto::<i32>::try_into(users.len()).map_err(|err| anyhow!("{err}"))?;
+
+        // update stats
+        if let Some(ref election_event_id) = election_event_id {
+            let election_event_response = get_election_event(
+                auth_headers.clone(),
+                tenant_id.clone(),
+                election_event_id.clone(),
+            )
+            .await
+            .with_context(|| "can't find election event")?;
+
+            let election_event = &election_event_response
+                .data
+                .with_context(|| "can't find election event")?
+                .sequent_backend_election_event[0];
+
+            let mut statistics = get_election_event_statistics(election_event.statistics.clone())
+                .unwrap_or(Default::default());
+            event!(Level::INFO, "statistics= {statistics:?}");
+
+            statistics.num_emails_sent += num_emails_sent;
+            statistics.num_sms_sent += num_sms_sent;
+            event!(Level::INFO, "updated_statistics = {statistics:?}");
+
+            update_election_event_statistics(
+                tenant_id.clone(),
+                election_event_id.clone(),
+                statistics,
+            )
+            .await
+            .with_context(|| "can't updated election event statistics")?;
+        }
+
+        if (processed >= total_count) {
+            break;
+        }
     }
+    transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")?;
     Ok(())
 }

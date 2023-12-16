@@ -36,6 +36,7 @@ import FileOpenIcon from "@mui/icons-material/FileOpen"
 import KeyIcon from "@mui/icons-material/Key"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {ListActions} from "../../components/ListActions"
+import globalSettings from "@/global-settings"
 
 const NotificationLink = styled.span`
     text-decoration: underline;
@@ -118,7 +119,7 @@ export const EditElectionEventKeys: React.FC = () => {
             },
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
     let activeCeremony = getActiveCeremony(keysCeremonies, authContext)

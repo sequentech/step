@@ -31,6 +31,7 @@ import {
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
+import globalSettings from "@/global-settings"
 
 const WizardSteps = {
     Start: 0,
@@ -83,7 +84,7 @@ export const TallyCeremony: React.FC = () => {
             id: localTallyId || tallyId,
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchIntervalInBackground: true,
         }
     )
@@ -95,7 +96,7 @@ export const TallyCeremony: React.FC = () => {
             filter: {election_event_id: record?.id, tenant_id: record?.tenant_id},
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 

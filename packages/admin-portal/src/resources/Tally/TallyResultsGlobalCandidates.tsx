@@ -21,6 +21,7 @@ import {
     TableRow,
     TableCell,
 } from "@mui/material"
+import globalSettings from "@/global-settings"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -75,7 +76,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             },
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 
@@ -91,7 +92,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             },
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 
