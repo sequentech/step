@@ -73,7 +73,7 @@ export const PublishList: React.FC<TPublishList> = ({
     useEffect(() => {
         console.log("PUBLISH :: DATA", ballotContext)
         if (ballotContext.total === 0 && status === EPublishStatus.Void) {
-            onGenerate()
+            // onGenerate()
             console.log("PUBLISH :: GENERATE CALLBACK")
         }
     }, [isLoading])
