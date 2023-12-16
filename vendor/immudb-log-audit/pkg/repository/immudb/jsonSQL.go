@@ -41,6 +41,13 @@ type JsonSQLRepository struct {
 	columns    []sqlcolumn
 }
 
+func truncateString(str string, maxLength int) string {
+    if len(str) > maxLength {
+        return str[:maxLength]
+    }
+    return str
+}
+
 func NewJsonSQLRepository(cli immudb.ImmuClient, collection string) (*JsonSQLRepository, error) {
 	// retrieve collection table and columns
 	tx, err := cli.NewTx(context.TODO())
@@ -118,7 +125,7 @@ func (jr *JsonSQLRepository) WriteBytes(jBytesArr [][]byte) (uint64, error) {
 			if c.CType == "INTEGER" {
 				params[c.Name] = gjr.Int()
 			} else if strings.HasPrefix(c.CType, "VARCHAR") {
-				params[c.Name] = gjr.String()
+				params[c.Name] = truncateString(gjr.String(), 256)
 			} else if c.CType == "TIMESTAMP" {
 				params[c.Name] = gjr.Time()
 			} else if c.CType == "BOOLEAN" {
@@ -137,7 +144,7 @@ func (jr *JsonSQLRepository) WriteBytes(jBytesArr [][]byte) (uint64, error) {
 		sb.WriteString(" (\"")
 		sb.WriteString(strings.Join(cSlice, "\",\""))
 		sb.WriteString("\", \"__value__\") VALUES (@")
-		sb.WriteString(strings.Join(cSlice, ",@"))
+		sb.WriteString(truncateString(strings.Join(cSlice, ",@"), 256))
 		sb.WriteString(",@__value__);")
 		log.WithField("sql", sb.String()).WithField("collection", jr.collection).WithField("params", params).Debug("Inserting row")
 		res, err := jr.client.SQLExec(context.TODO(), sb.String(), params)
