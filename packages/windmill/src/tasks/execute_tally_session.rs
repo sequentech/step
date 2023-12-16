@@ -17,9 +17,11 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
+use crate::services::ceremonies::results::{generate_results_if_necessary, save_results};
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
+use crate::services::ceremonies::tally_progress::generate_tally_progress;
 use crate::services::compress::compress_folder;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
@@ -181,102 +183,6 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
         return None;
     };
     Some(execution_status)
-}
-
-#[instrument(skip_all)]
-fn get_session_ids_by_type(messages: &Vec<Message>, kind: StatementType) -> Vec<i64> {
-    let mut plaintext_batch_ids: Vec<i64> = messages
-        .iter()
-        .map(|message| {
-            if kind == message.statement.get_kind() {
-                message.statement.get_batch_number() as i64
-            } else {
-                -1i64
-            }
-        })
-        .filter(|value| *value > -1)
-        .collect();
-    plaintext_batch_ids.sort_by_key(|id| id.clone());
-    plaintext_batch_ids.dedup();
-    plaintext_batch_ids
-}
-
-#[instrument(skip_all)]
-async fn generate_tally_progress(
-    tally_session_data: &get_last_tally_session_execution::ResponseData,
-    messages: &Vec<Message>,
-) -> Result<Vec<TallyElection>> {
-    let mut complete_map: HashMap<String, Vec<i64>> = HashMap::new();
-    for contest in &tally_session_data.sequent_backend_tally_session_contest {
-        let mut batch_ids = complete_map
-            .get(&contest.election_id)
-            .map(|v| v.clone())
-            .unwrap_or(vec![]);
-        batch_ids.push(contest.session_id);
-        complete_map.insert(contest.election_id.clone(), batch_ids.clone());
-    }
-    let finished_batch_ids: Vec<i64> = get_session_ids_by_type(messages, StatementType::Plaintexts);
-
-    let mut decrypting_batch_ids: Vec<i64> =
-        get_session_ids_by_type(messages, StatementType::DecryptionFactors);
-
-    decrypting_batch_ids = decrypting_batch_ids
-        .into_iter()
-        .filter(|value| !finished_batch_ids.contains(&value))
-        .collect();
-
-    let mut mixing_batch_ids: Vec<i64> = get_session_ids_by_type(messages, StatementType::Mix);
-
-    mixing_batch_ids = mixing_batch_ids
-        .into_iter()
-        .filter(|value| {
-            !finished_batch_ids.contains(&value) && !decrypting_batch_ids.contains(&value)
-        })
-        .collect();
-
-    let mut tally_elections_status: Vec<TallyElection> = complete_map
-        .iter()
-        .map(|(key, election_batch_ids)| {
-            let num_finished_contests = finished_batch_ids
-                .iter()
-                .filter(|value| election_batch_ids.contains(value))
-                .collect::<Vec<_>>()
-                .len() as f64;
-            let num_decrypting_contests = decrypting_batch_ids
-                .iter()
-                .filter(|value| election_batch_ids.contains(value))
-                .collect::<Vec<_>>()
-                .len() as f64;
-            let num_mixing_contests = mixing_batch_ids
-                .iter()
-                .filter(|value| election_batch_ids.contains(value))
-                .collect::<Vec<_>>()
-                .len() as f64;
-            let total = election_batch_ids.len() as f64;
-            let progress: f64 = 100.0
-                * (0.2 * num_mixing_contests
-                    + 0.4 * num_decrypting_contests
-                    + num_finished_contests)
-                / total;
-            let new_status = if progress > 99.99 {
-                TallyElectionStatus::SUCCESS
-            } else if num_decrypting_contests == 0.0 && num_mixing_contests > 0.0 {
-                TallyElectionStatus::MIXING
-            } else if num_decrypting_contests > 0.0 {
-                TallyElectionStatus::DECRYPTING
-            } else {
-                TallyElectionStatus::WAITING
-            };
-
-            TallyElection {
-                election_id: key.clone(),
-                status: new_status,
-                progress,
-            }
-        })
-        .collect();
-    tally_elections_status.sort_by_key(|status| status.election_id.clone());
-    Ok(tally_elections_status)
 }
 
 #[instrument(skip_all)]
@@ -482,106 +388,6 @@ async fn map_plaintext_data(
 }
 
 #[instrument(skip_all)]
-async fn save_results(
-    results: Vec<ElectionReportDataComputed>,
-    tenant_id: &str,
-    election_event_id: &str,
-    results_event_id: &str,
-) -> Result<()> {
-    let auth_headers = keycloak::get_client_credentials().await?;
-    for election in &results {
-        insert_results_election(
-            &auth_headers,
-            tenant_id,
-            election_event_id,
-            results_event_id,
-            &election.election_id,
-            &None, // name
-            &None, // elegible_census,
-            &None, // total_valid_votes,
-            &None, // explicit_invalid_votes,
-            &None, // implicit_invalid_votes,
-            &None, // blank_votes,
-        )
-        .await?;
-
-        for contest in &election.reports {
-            if let Some(area_id) = &contest.area_id {
-                insert_results_area_contest(
-                    &auth_headers,
-                    tenant_id,
-                    election_event_id,
-                    &election.election_id,
-                    &contest.contest.id,
-                    area_id,
-                    results_event_id,
-                    None, // elegible_census
-                    Some(contest.contest_result.total_votes as i64),
-                    // missing total valid votes
-                    Some(contest.contest_result.total_invalid_votes as i64),
-                    None, // implicit_invalid_votes
-                    None, // blank_votes
-                )
-                .await?;
-
-                for candidate in &contest.candidate_result {
-                    insert_results_area_contest_candidate(
-                        &auth_headers,
-                        tenant_id,
-                        election_event_id,
-                        &election.election_id,
-                        &contest.contest.id,
-                        area_id,
-                        &candidate.candidate.id,
-                        results_event_id,
-                        Some(candidate.total_count as i64),
-                        candidate.winning_position.map(|val| val as i64),
-                        None, // points
-                    )
-                    .await?;
-                }
-            } else {
-                insert_results_contest(
-                    &auth_headers,
-                    tenant_id,
-                    election_event_id,
-                    &election.election_id,
-                    &contest.contest.id,
-                    results_event_id,
-                    None, // elegible_census
-                    Some(contest.contest_result.total_votes as i64),
-                    // missing total valid votes
-                    Some(contest.contest_result.total_invalid_votes as i64),
-                    None, // implicit_invalid_votes
-                    None, // blank_votes
-                    contest.contest.voting_type.clone(),
-                    contest.contest.counting_algorithm.clone(),
-                    contest.contest.name.clone(),
-                )
-                .await?;
-
-                for candidate in &contest.candidate_result {
-                    insert_results_contest_candidate(
-                        &auth_headers,
-                        tenant_id,
-                        election_event_id,
-                        &election.election_id,
-                        &contest.contest.id,
-                        &candidate.candidate.id,
-                        results_event_id,
-                        Some(candidate.total_count as i64),
-                        candidate.winning_position.map(|val| val as i64),
-                        None, // points
-                    )
-                    .await?;
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-#[instrument(skip_all)]
 async fn tally_area_contest(
     area_contest_plaintext: AreaContestDataType,
     base_tempdir: PathBuf,
@@ -712,54 +518,6 @@ async fn tally_area_contest(
     }
 
     Ok(())
-}
-
-#[instrument(skip(auth_headers))]
-async fn create_results_event(
-    auth_headers: &connection::AuthHeaders,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<String> {
-    let results_event = &insert_results_event(auth_headers, &tenant_id, &election_event_id)
-        .await?
-        .data
-        .with_context(|| "can't find results_event")?
-        .insert_sequent_backend_results_event
-        .with_context(|| "can't find results_event")?
-        .returning[0];
-
-    Ok(results_event.id.clone())
-}
-
-#[instrument(skip_all)]
-pub async fn generate_results_if_necessary(
-    auth_headers: &connection::AuthHeaders,
-    tenant_id: &str,
-    election_event_id: &str,
-    tally_status: &TallyCeremonyStatus,
-    previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
-) -> Result<(Option<String>, bool)> {
-    let previous_status = get_tally_ceremony_status(previous_execution.status)?;
-    let previous_election_ids: Vec<String> = previous_status
-        .elections_status
-        .iter()
-        .filter(|status| TallyElectionStatus::SUCCESS == status.status)
-        .map(|status| status.election_id.clone())
-        .collect();
-    let current_election_ids: Vec<String> = tally_status
-        .elections_status
-        .iter()
-        .filter(|status| TallyElectionStatus::SUCCESS == status.status)
-        .map(|status| status.election_id.clone())
-        .collect();
-    let is_new = current_election_ids.len() > previous_election_ids.len();
-    if is_new {
-        let results_event_id =
-            create_results_event(&auth_headers, &tenant_id, &election_event_id).await?;
-        Ok((Some(results_event_id), is_new))
-    } else {
-        Ok((previous_execution.results_event_id, is_new))
-    }
 }
 
 #[instrument]
