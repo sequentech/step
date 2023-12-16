@@ -26,6 +26,7 @@ import {
 } from "@/gql/graphql"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import globalSettings from "@/global-settings"
 
 const WizardSteps = {
     Start: 0,
@@ -64,7 +65,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
             },
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 

@@ -7,6 +7,7 @@ import {useGetMany, useGetList} from "react-admin"
 import {Sequent_Backend_Election, Sequent_Backend_Results_Election} from "../../gql/graphql"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
+import globalSettings from "@/global-settings"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -42,7 +43,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             filter: {tenant_id: tenantId, election_event_id: electionEventId},
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 

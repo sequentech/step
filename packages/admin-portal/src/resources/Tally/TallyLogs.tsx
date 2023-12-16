@@ -9,6 +9,7 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {JsonView} from "@/components/JsonView"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import { ILog, ITallyCeremonyStatus } from "@/types/ceremonies"
+import globalSettings from "@/global-settings"
 
 export const TallyLogs: React.FC = () => {
     const {tallyId} = useElectionEventTallyStore()
@@ -26,7 +27,7 @@ export const TallyLogs: React.FC = () => {
             },
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 

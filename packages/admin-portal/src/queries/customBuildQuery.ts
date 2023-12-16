@@ -39,7 +39,7 @@ export const customBuildQuery =
                 },
             }
             return {
-                query: getUsers(params.filter),
+                query: getUsers(params),
                 variables: buildVariables(introspectionResults)(
                     resource,
                     raFetchType,

@@ -23,6 +23,16 @@ impl User {
             None => None,
         }
     }
+
+    pub fn get_area_id(&self) -> Option<String> {
+        Some(
+            self.attributes
+                .as_ref()?
+                .get("area-id")?
+                .as_str()?
+                .to_string(),
+        )
+    }
 }
 
 impl TryFrom<Row> for User {

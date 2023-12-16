@@ -113,12 +113,15 @@ pub struct GetUsersBody {
     tenant_id: String,
     election_event_id: Option<String>,
     search: Option<String>,
+    first_name: Option<String>,
+    last_name: Option<String>,
+    username: Option<String>,
     email: Option<String>,
     limit: Option<i32>,
     offset: Option<i32>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims), ret)]
 #[post("/get-users", format = "json", data = "<body>")]
 pub async fn get_users(
     claims: jwt::JwtClaims,
@@ -150,20 +153,27 @@ pub async fn get_users(
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let db_client: DbClient = get_database_pool()
+    let mut db_client: DbClient = get_database_pool()
         .await
         .get()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let transaction = db_client
+        .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     let (users, count) = list_users(
         auth_headers.clone(),
-        &db_client,
+        &transaction,
         &client,
         input.tenant_id.clone(),
         input.election_event_id.clone(),
         &realm,
         input.search,
+        input.first_name,
+        input.last_name,
+        input.username,
         input.email,
         input.limit,
         input.offset,
@@ -237,7 +247,7 @@ pub struct EditUserBody {
     password: Option<String>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims), ret)]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
     claims: jwt::JwtClaims,
