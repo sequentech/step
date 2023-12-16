@@ -27,24 +27,13 @@ export const ImportScreen: React.FC<ImportScreenProps> = (props) => {
     const {t} = useTranslation()
 
     const [shaField, setShaField] = React.useState<string>("")
-    // const [fileImport, setFileImport] = React.useState<FileList | null>(null)
-    const fileImport = useRef<FileList | null>(null)
+    const [fileImport, setFileImport] = React.useState<FileList | null>(null)
+    // const fileImport = useRef<FileList | null>(null)
 
     const handleFiles = (files: FileList | null) => {
-        // setFileImport(files)
-        fileImport.current = files
+        setFileImport(files)
+        // fileImport.current = files
     }
-
-    console.log("handleFiles(): files:", fileImport.current)
-    console.log("handleFiles(): files:", fileImport?.current?.[0])
-
-    useEffect(() => {
-        console.log("handleFiles(): SHA:", shaField)
-    }, [shaField])
-
-    useEffect(() => {
-        console.log("handleFiles(): ENTER EFFECT")
-    }, [])
 
     return (
         <Box sx={{padding: "16px"}}>
@@ -84,7 +73,7 @@ export const ImportScreen: React.FC<ImportScreenProps> = (props) => {
                 </ImportStyles.CancelButton>
                 <ImportStyles.ImportButton
                     disabled={!fileImport || shaField === ""}
-                    onClick={() => doImport(fileImport?.current, shaField)}
+                    onClick={() => doImport(fileImport, shaField)}
                 >
                     {t("electionEventScreen.import.import")}
                 </ImportStyles.ImportButton>
