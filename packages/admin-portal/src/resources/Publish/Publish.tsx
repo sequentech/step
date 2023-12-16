@@ -66,7 +66,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const {data: ballotPublication, refetch} = useGetOne<Sequent_Backend_Ballot_Publication>(
             "sequent_backend_ballot_publication",
             {
-                id: ballotPublicationId
+                id: ballotPublicationId,
             }
         )
 
