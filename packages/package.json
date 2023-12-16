@@ -24,11 +24,13 @@
     "lint:fix:ballot-verifier": "yarn --cwd ./ballot-verifier lint:fix",
     "lint:fix:ui-essentials": "yarn --cwd ./ui-essentials lint:fix",
     "lint:fix": "yarn --cwd ./voting-portal lint:fix && yarn --cwd ./admin-portal lint:fix && yarn --cwd ./ballot-verifier lint:fix && yarn --cwd ./ui-essentials lint:fix",
+    "lint": "yarn --cwd ./voting-portal lint && yarn --cwd ./admin-portal lint && yarn --cwd ./ballot-verifier lint && yarn --cwd ./ui-essentials lint",
     "prettify:fix:voting-portal": "yarn --cwd ./voting-portal prettify:fix",
     "prettify:fix:admin-portal": "yarn --cwd ./admin-portal prettify:fix",
     "prettify:fix:ballot-verifier": "yarn --cwd ./ballot-verifier prettify:fix",
     "prettify:fix:ui-essentials": "yarn --cwd ./ui-essentials prettify:fix",
     "prettify:fix": "yarn --cwd ./voting-portal prettify:fix && yarn --cwd ./admin-portal prettify:fix && yarn --cwd ./ballot-verifier prettify:fix && yarn --cwd ./ui-essentials prettify:fix",
+    "prettify": "yarn --cwd ./voting-portal prettify && yarn --cwd ./admin-portal prettify && yarn --cwd ./ballot-verifier prettify && yarn --cwd ./ui-essentials prettify",
     "generate:voting-portal": "yarn --cwd ./voting-portal generate",
     "generate:admin-portal": "yarn --cwd ./admin-portal generate"
   }
