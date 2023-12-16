@@ -44,7 +44,7 @@ export const PublishList: React.FC<TPublishList> = ({
     const notify = useNotify()
     const {t} = useTranslation()
 
-    const {data, error} = useGetList<Sequent_Backend_Ballot_Publication>(
+    const {data, error, isLoading} = useGetList<Sequent_Backend_Ballot_Publication>(
         "sequent_backend_ballot_publication",
         {
             filter: electionId
@@ -78,10 +78,15 @@ export const PublishList: React.FC<TPublishList> = ({
     useEffect(() => {
         if (!current) {
             current = ref.current
-        } else if (current && !ballotContext.total && status === EPublishStatus.Void) {
+        } else if (
+            current &&
+            !ballotContext.total &&
+            status === EPublishStatus.Void &&
+            !isLoading
+        ) {
             onGenerate()
         }
-    }, [ref, ballotContext.total])
+    }, [ref, ballotContext.total, isLoading])
 
     return (
         <Box ref={ref}>

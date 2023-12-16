@@ -197,6 +197,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         useEffect(() => {
             if (electionEventId && ballotPublicationId && ballotPublication?.is_generated) {
+                setStatus(EPublishStatus.Generated)
                 getPublishChanges()
             }
         }, [ballotPublicationId, ballotPublication?.is_generated])
@@ -235,7 +236,10 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         onPublish={onPublish}
                         electionId={electionId}
                         onGenerate={onGenerate}
-                        onBack={() => setShowDiff(false)}
+                        onBack={() => {
+                            setStatus(EPublishStatus.Generated)
+                            setShowDiff(false)
+                        }}
                         electionEventId={electionEventId}
                     />
                 )}
