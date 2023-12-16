@@ -8,12 +8,13 @@ import {Sequent_Backend_Tally_Session_Execution} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {JsonView} from "@/components/JsonView"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {ILog, ITallyCeremonyStatus} from "@/types/ceremonies"
 import globalSettings from "@/global-settings"
 
 export const TallyLogs: React.FC = () => {
     const {tallyId} = useElectionEventTallyStore()
     const [tenantId] = useTenantStore()
-    const [dataTally, setDataTally] = useState<object | null>(null)
+    const [dataTally, setDataTally] = useState<Array<ILog>>([])
 
     const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
@@ -35,11 +36,11 @@ export const TallyLogs: React.FC = () => {
             return
         }
 
-        let jsonData = null
-        if (tallySessionExecutions?.[0].status.logs[0]) {
-            jsonData = JSON.parse(tallySessionExecutions?.[0].status.logs[0])
+        let status = tallySessionExecutions?.[0].status as ITallyCeremonyStatus | undefined
+
+        if (status?.logs) {
+            setDataTally(status.logs)
         }
-        setDataTally(jsonData)
     }, [tallySessionExecutions])
 
     return <>{dataTally ? <JsonView origin={dataTally} /> : <p>No logs available</p>}</>

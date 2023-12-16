@@ -57,7 +57,6 @@ export enum ITallyElectionStatus {
     WAITING = "WAITING",
     MIXING = "MIXING",
     DECRYPTING = "DECRYPTING",
-    COUNTING = "COUNTING",
     SUCCESS = "SUCCESS",
     ERROR = "ERROR",
 }

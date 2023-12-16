@@ -20,7 +20,7 @@ pub trait Pipe {
 pub struct PipeManager;
 
 impl PipeManager {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn get_pipe(cli: CliRun, stage: Stage) -> Result<Option<Box<dyn Pipe>>> {
         let pipe_inputs = PipeInputs::new(cli, stage)?;
 

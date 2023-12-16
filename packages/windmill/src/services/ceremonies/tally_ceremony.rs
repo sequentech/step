@@ -113,7 +113,7 @@ pub async fn get_tally_session(
     Ok((tally_session.clone(), tally_session_contests))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonyStatus> {
     input
         .map(|value| {
@@ -252,6 +252,7 @@ pub async fn insert_tally_session_contests(
 
     let contest_ids = areas_data
         .sequent_backend_contest
+        .clone()
         .into_iter()
         .map(|contest| contest.id)
         .collect::<Vec<_>>();
@@ -275,14 +276,22 @@ pub async fn insert_tally_session_contests(
     .await?;
 
     for area_contest in contest_areas.into_iter() {
+        let contest_id = area_contest.contest_id.clone().unwrap();
+        let contest = areas_data
+            .sequent_backend_contest
+            .clone()
+            .into_iter()
+            .find(|contest| contest.id == contest_id)
+            .unwrap();
         let tally_session_contest = insert_tally_session_contest(
             auth_headers.clone(),
             tenant_id.to_string(),
             election_event_id.to_string(),
             area_contest.area_id.clone().unwrap(),
-            area_contest.contest_id.clone().unwrap(),
+            contest_id.clone(),
             batch.clone(),
             tally_session_id.to_string(),
+            contest.election_id.clone(),
         )
         .await?;
         batch = batch + 1;
@@ -341,6 +350,7 @@ pub async fn create_tally_ceremony(
         tally_session_id.clone(),
         None,
         Some(initial_status),
+        None,
         None,
     )
     .await?;
@@ -487,6 +497,16 @@ pub async fn set_private_key(
             "Can't find tally session or tally session execution"
         ));
     };
+    let current_status = tally_session
+        .execution_status
+        .map(|value| {
+            TallyExecutionStatus::from_str(&value).unwrap_or(TallyExecutionStatus::STARTED)
+        })
+        .unwrap_or(TallyExecutionStatus::STARTED);
+
+    if TallyExecutionStatus::STARTED != current_status {
+        return Err(anyhow!("Unexpected status {}", current_status.to_string()));
+    }
 
     // get the keys ceremonies for this election event
     let keys_ceremony = get_keys_ceremony_by_id(
@@ -542,6 +562,7 @@ pub async fn set_private_key(
         tally_session_id.to_string(),
         None,
         Some(new_status.clone()),
+        None,
         None,
     )
     .await?;
