@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::ballot_publication::{
     get_ballot_publication, get_previous_publication, get_publication_ballot_styles,
-    insert_ballot_publication, soft_delete_other_ballot_publications, update_ballot_publication_d,
+    insert_ballot_publication, soft_delete_other_ballot_publications,
+    soft_delete_other_ballot_publications_election, update_ballot_publication_d,
 };
 use crate::hasura::election::get_all_elections_for_event;
 use crate::hasura::election_event::get_election_event_helper;
@@ -94,6 +95,7 @@ pub async fn add_ballot_publication(
         election_event_id.clone(),
         election_ids.clone(),
         user_id.clone(),
+        election_id.clone(),
     )
     .await?
     .data
@@ -125,7 +127,6 @@ pub async fn update_publish_ballot(
     ballot_publication_id: String,
 ) -> Result<()> {
     let auth_headers = get_client_credentials().await?;
-    event!(Level::INFO, "FF 1");
 
     let ballot_publication = get_ballot_publication_by_id(
         auth_headers.clone(),
@@ -145,14 +146,24 @@ pub async fn update_publish_ballot(
         return Ok(());
     }
 
-    soft_delete_other_ballot_publications(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        ballot_publication_id.clone(),
-    )
-    .await?;
-    event!(Level::INFO, "FF 5");
+    if let Some(election_id) = ballot_publication.election_id.clone() {
+        soft_delete_other_ballot_publications_election(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            ballot_publication_id.clone(),
+            election_id,
+        )
+        .await?;
+    } else {
+        soft_delete_other_ballot_publications(
+            auth_headers.clone(),
+            tenant_id.clone(),
+            election_event_id.clone(),
+            ballot_publication_id.clone(),
+        )
+        .await?;
+    }
 
     update_ballot_publication_d(
         auth_headers.clone(),
@@ -260,7 +271,7 @@ pub async fn get_ballot_publication_diff(
         tenant_id.clone(),
         election_event_id.clone(),
         ballot_publication.created_at.clone(),
-        ballot_publication.election_ids.clone(),
+        ballot_publication.election_id.clone(),
     )
     .await?
     .data
