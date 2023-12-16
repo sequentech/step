@@ -1,7 +1,5 @@
 import React, {ComponentType, useEffect, useRef, useState} from "react"
 
-import styled from "@emotion/styled"
-
 import {Box} from "@mui/material"
 import {useGetOne, useNotify, useRecordContext} from "react-admin"
 import {useMutation} from "@apollo/client"
@@ -15,20 +13,20 @@ import {GET_BALLOT_PUBLICATION_CHANGE} from "@/queries/GetBallotPublicationChang
 
 import {
     PublishBallotMutation,
+    Sequent_Backend_Election,
     UpdateEventVotingStatusOutput,
+    Sequent_Backend_Election_Event,
     UpdateElectionVotingStatusOutput,
     GenerateBallotPublicationMutation,
     GetBallotPublicationChangesOutput,
-    Sequent_Backend_Election_Event,
-    Sequent_Backend_Election,
     Sequent_Backend_Ballot_Publication,
 } from "@/gql/graphql"
 
 import {PublishList} from "./PublishList"
 import {PublishGenerate} from "./PublishGenerate"
+import {IElectionEventStatus} from "@/types/CoreTypes"
 import {UPDATE_EVENT_VOTING_STATUS} from "@/queries/UpdateEventVotingStatus"
 import {UPDATE_ELECTION_VOTING_STATUS} from "@/queries/UpdateElectionVotingStatus"
-import {IElectionEventStatus, IElectionStatus} from "@/types/CoreTypes"
 
 export type TPublish = {
     electionId?: string
@@ -43,9 +41,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const [showDiff, setShowDiff] = useState<boolean>(false)
         const [generateData, setGenerateData] = useState<null | any>()
         const [status, setStatus] = useState<number>(EPublishStatus.Void)
-        const recordElection = useRecordContext<Sequent_Backend_Election>()
-        const recordEvent = useRecordContext<Sequent_Backend_Election_Event>()
         const [ballotPublicationId, setBallotPublicationId] = useState<null | string>(null)
+        const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
 
         const [publishBallot] = useMutation<PublishBallotMutation>(PUBLISH_BALLOT)
 
@@ -115,7 +112,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     },
                 })
 
-                setStatus(EPublishStatus.Generated)
+                setStatus(EPublishStatus.GeneratedLoading)
 
                 notify(t("publish.notifications.generated"), {
                     type: "success",
@@ -211,27 +208,14 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }, [generateData])
 
         useEffect(() => {
-            console.log("PUBLISH :: RECORD EVENT STATUS", recordEvent?.status)
-            console.log("PUBLISH :: RECORD ELECTION STATUS", recordElection?.status)
+            const status = record?.status as IElectionEventStatus | undefined
 
-            if (type === EPublishType.Event) {
-                const status = recordEvent?.status as IElectionEventStatus | undefined
-
-                setStatus(
-                    status?.voting_status
-                        ? PUBLICH_STATUS_CONVERT?.[status?.voting_status]
-                        : EPublishStatus.Void
-                )
-            } else if (type === EPublishType.Election) {
-                const status = recordElection?.status as IElectionStatus | undefined
-
-                setStatus(
-                    status?.voting_status
-                        ? PUBLICH_STATUS_CONVERT?.[status?.voting_status]
-                        : EPublishStatus.Void
-                )
-            }
-        }, [recordEvent, recordElection])
+            setStatus(
+                status?.voting_status
+                    ? PUBLICH_STATUS_CONVERT?.[status?.voting_status]
+                    : EPublishStatus.Void
+            )
+        }, [record])
 
         return (
             <Box sx={{flexGrow: 2, flexShrink: 0}}>

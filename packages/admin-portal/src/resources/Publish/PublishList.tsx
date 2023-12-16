@@ -14,11 +14,9 @@ import {
 } from "react-admin"
 
 import {PublishActions} from "./PublishActions"
+import {EPublishStatus} from "./EPublishStatus"
 import {EPublishActionsType} from "./EPublishType"
 import {HeaderTitle} from "@/components/HeaderTitle"
-import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
-import {useActionPermissions} from "../ElectionEvent/EditElectionEventKeys"
-import {EPublishStatus} from "./EPublishStatus"
 import {Sequent_Backend_Ballot_Publication} from "@/gql/graphql"
 
 const OMIT_FIELDS: any = []
@@ -46,7 +44,7 @@ export const PublishList: React.FC<TPublishList> = ({
     const notify = useNotify()
     const {t} = useTranslation()
 
-    const {data, error, isLoading} = useGetList<Sequent_Backend_Ballot_Publication>(
+    const {data, error} = useGetList<Sequent_Backend_Ballot_Publication>(
         "sequent_backend_ballot_publication",
         {
             filter: electionId
@@ -78,12 +76,9 @@ export const PublishList: React.FC<TPublishList> = ({
     }, [error])
 
     useEffect(() => {
-        console.log("PUBLISH :: REF", ref)
-        console.log("PUBLISH :: REF DATA", current, status, ballotContext.total)
         if (!current) {
             current = ref.current
         } else if (current && !ballotContext.total && status === EPublishStatus.Void) {
-            console.log("PUBLISH :: REF GENERATE CALLBACK")
             onGenerate()
         }
     }, [ref, ballotContext.total])

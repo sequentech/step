@@ -4,8 +4,8 @@ import styled from "@emotion/styled"
 
 import {Button} from "react-admin"
 import {useTranslation} from "react-i18next"
-import {CircularProgress, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
+import {CircularProgress, Typography} from "@mui/material"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
 
 import {EPublishActionsType} from "./EPublishType"
@@ -95,7 +95,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 label={t("publish.action.pause")}
                                 st={EPublishStatus.Paused}
                                 Icon={PauseCircle}
-                                disabledStatus={[EPublishStatus.Void, EPublishStatus.Stopped, EPublishStatus.Generated]}
+                                disabledStatus={[
+                                    EPublishStatus.Void,
+                                    EPublishStatus.Stopped,
+                                    EPublishStatus.Generated,
+                                ]}
                             />
 
                             <ButtonDisabledOrNot
