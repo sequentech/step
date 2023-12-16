@@ -4,8 +4,6 @@
 import {gql} from "@apollo/client"
 
 export const getUsers = (fields: any) => {
-    console.log("getUsers")
-    console.log(fields)
     let electionEventId = fields.filter?.election_event_id
         ? `"${fields.filter?.election_event_id}"`
         : "null"
@@ -18,7 +16,6 @@ export const getUsers = (fields: any) => {
             ? (fields.pagination.page - 1) * fields.pagination.perPage
             : null
     let limit: number | null = fields.pagination?.perPage ? fields.pagination?.perPage : null
-    console.log(`limit = ${limit}`)
     return gql`
         query getUsers(
             $tenant_id: String! = "${fields.filter.tenant_id}"
