@@ -334,6 +334,7 @@ services:
     ]
     environment:
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
+      LOG_LEVEL: ${LOG_LEVEL}
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
       ROCKET_PORT: ${HARVEST_PORT}
       RUSTFLAGS: ${RUSTFLAGS}
@@ -506,6 +507,7 @@ services:
       - ../packages/:/app
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
+      LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       AMQP_ADDR: ${AMQP_ADDR}
@@ -566,6 +568,7 @@ services:
       - ../packages/:/app
     environment:
       RUSTFLAGS: ${RUSTFLAGS}
+      LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       AMQP_ADDR: ${AMQP_ADDR}

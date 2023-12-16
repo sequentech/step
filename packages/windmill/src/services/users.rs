@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::hasura::area::get_areas_by_ids;
 use anyhow::{anyhow, Context, Result};
 use keycloak::types::{CredentialRepresentation, UserRepresentation};
@@ -41,71 +42,60 @@ pub async fn list_users(
     } else {
         0
     };
-    let user_ids_list = user_ids.unwrap_or(vec![]);
-
-    // TODO: Use prepare_cached from db_client, but this incurs in some
-    // `immutable borrow occurs here` vs `mutable borrow occurs here` with
-    // transaction vs db_client
-    let statement = transaction.prepare_typed(
-            r#"
-            WITH realm_cte AS (
-                SELECT id FROM realm WHERE name = $1
-            )
+    let statement = transaction.prepare(r#"
+        WITH realm_cte AS (
+            SELECT id FROM realm WHERE name = $1
+        )
+        SELECT
+            sub.id,
+            sub.email,
+            sub.email_verified,
+            sub.enabled,
+            sub.first_name,
+            sub.last_name,
+            sub.realm_id,
+            sub.username,
+            sub.created_timestamp,
+            sub.attributes,
+            sub.total_count
+        FROM (
             SELECT
-                sub.id,
-                sub.email,
-                sub.email_verified,
-                sub.enabled,
-                sub.first_name,
-                sub.last_name,
-                sub.realm_id,
-                sub.username,
-                sub.created_timestamp,
-                sub.attributes,
-                sub.total_count
-            FROM (
-                SELECT
-                    u.id,
-                    u.email,
-                    u.email_verified,
-                    u.enabled,
-                    u.first_name,
-                    u.last_name,
-                    u.realm_id,
-                    u.username,
-                    u.created_timestamp,
-                    COALESCE(json_object_agg(attr.name, attr.value) FILTER (WHERE attr.name IS NOT NULL), '{}'::json) AS attributes,
-                    COUNT(u.id) OVER() AS total_count
-                FROM
-                    user_entity AS u
-                INNER JOIN
-                    realm_cte ON realm_cte.id = u.realm_id
-                LEFT JOIN
-                    user_attribute AS attr ON u.id = attr.user_id
-                WHERE
-                    ARRAY_LENGTH($4::VARCHAR[], 1) = 0 AND
-                    (u.email LIKE $5 OR $5 IS NULL)
-                GROUP BY
-                    u.id
-            ) sub
-            LIMIT $2 OFFSET $3;
-        "#,
-        &[
-            SqlType::TEXT,
-            SqlType::INT8,
-            SqlType::INT8,
-            SqlType::UNKNOWN,
-            SqlType::TEXT,
-        ]
-    ).await?;
+                u.id,
+                u.email,
+                u.email_verified,
+                u.enabled,
+                u.first_name,
+                u.last_name,
+                u.realm_id,
+                u.username,
+                u.created_timestamp,
+                COALESCE(json_object_agg(attr.name, attr.value) FILTER (WHERE attr.name IS NOT NULL), '{}'::json) AS attributes,
+                COUNT(u.id) OVER() AS total_count
+            FROM
+                user_entity AS u
+            INNER JOIN
+                realm_cte ON realm_cte.id = u.realm_id
+            LEFT JOIN
+                user_attribute AS attr ON u.id = attr.user_id
+            WHERE
+                (email = $4::VARCHAR OR $4 IS NULL) AND
+                (u.id = ANY($5) OR $5 IS NULL)
+            GROUP BY
+                u.id
+        ) sub
+        LIMIT $2 OFFSET $3;
+    "#).await?;
     let rows: Vec<Row> = transaction
-        .query(&statement, &[
-            &realm,
-            &query_limit,
-            &query_offset,
-            &user_ids_list,
-            &email
-        ])
+        .query(
+            &statement,
+            &[
+                &realm,
+                &query_limit,
+                &query_offset,
+                &email,
+                &user_ids
+            ]
+        )
         .await
         .map_err(|err| anyhow!("{}", err))?;
     event!(

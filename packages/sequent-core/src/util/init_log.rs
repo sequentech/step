@@ -6,6 +6,8 @@ use tracing_subscriber::reload::Handle;
 use tracing_subscriber::{filter, reload};
 use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use tracing_tree::HierarchicalLayer;
+use tracing::Level;
+use std::str::FromStr;
 
 pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     let layer = HierarchicalLayer::default()
@@ -18,7 +20,9 @@ pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
         .with_verbose_entry(false)
         .with_targets(false);
 
-    let filter = filter::LevelFilter::INFO;
+    let level_str = std::env::var("LOG_LEVEL").unwrap_or("info".to_string());
+    let level = Level::from_str(&level_str).unwrap();
+    let filter = filter::LevelFilter::from_level(level);
     let (filter, reload_handle) = reload::Layer::new(filter);
     let subscriber = Registry::default().with(filter).with(layer);
 
