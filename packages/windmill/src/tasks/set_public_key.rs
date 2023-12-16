@@ -127,7 +127,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
     let new_status: Value = serde_json::to_value(CeremonyStatus {
         stop_date: Some(get_now_utc_unix().to_string()),
         public_key: Some(public_key.clone()),
-        logs: new_logs,
+        logs: logs,
         trustees: current_status
             .trustees
             .clone()

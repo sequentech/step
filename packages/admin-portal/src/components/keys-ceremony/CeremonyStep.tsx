@@ -106,9 +106,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                 color: theme.palette.background.default,
                             }}
                             label={t("keysGeneration.ceremonyStep.executionStatus", {
-                                status: electionEvent.public_key
-                                    ? EStatus.IN_PROCESS
-                                    : ceremony?.execution_status,
+                                status: ceremony?.execution_status ?? EStatus.IN_PROCESS,
                             })}
                         />
                     </AccordionSummary>

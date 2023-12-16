@@ -125,7 +125,8 @@ pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Messa
 
     let board_messages = board.get_messages(board_name, -1).await?;
     let messages = convert_board_messages(&board_messages)?;
-    let filtered_messages = messages
+
+    let filtered_messages: Vec<Message> = messages
         .into_iter()
         .filter(|message| valid_statements.contains(&message.statement.get_kind()))
         .collect();
