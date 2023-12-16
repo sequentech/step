@@ -1,0 +1,82 @@
+// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React, {useState} from "react"
+import {Accordion, AccordionSummary, Box, Typography} from "@mui/material"
+import Table from "@mui/material/Table"
+import TableBody from "@mui/material/TableBody"
+import TableCell from "@mui/material/TableCell"
+import TableContainer from "@mui/material/TableContainer"
+import TableHead from "@mui/material/TableHead"
+import TableRow from "@mui/material/TableRow"
+import Paper from "@mui/material/Paper"
+import {useTranslation} from "react-i18next"
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import {WizardStyles} from "@/components/styles/WizardStyles"
+import {IKeysCeremonyLog} from "@/services/KeyCeremony"
+
+interface LogsProps {
+    logs?: Array<IKeysCeremonyLog>
+}
+
+export const Logs: React.FC<LogsProps> = ({logs}) => {
+    const [logsExpanded, setLogsExpanded] = useState(true)
+    const {t} = useTranslation()
+
+    return (
+        <Accordion
+            sx={{width: "100%"}}
+            expanded={logsExpanded}
+            onChange={() => setLogsExpanded(!logsExpanded)}
+        >
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <WizardStyles.AccordionTitle>
+                    {t("keysGeneration.ceremonyStep.logsHeader.title")}
+                </WizardStyles.AccordionTitle>
+            </AccordionSummary>
+            <WizardStyles.AccordionDetails>
+                {!!logs && logs.length > 0 ? (
+                    <Paper sx={{width: "100%", overflow: "hidden"}}>
+                        <TableContainer>
+                            <Table sx={{maxHeight: 450}} aria-label="simple table">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>
+                                            {t("keysGeneration.ceremonyStep.logsHeader.date")}
+                                        </TableCell>
+                                        <TableCell align="left">
+                                            {t("keysGeneration.ceremonyStep.logsHeader.entry")}
+                                        </TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {logs.map((log) => (
+                                        <TableRow
+                                            key={log?.created_date as any}
+                                            sx={{
+                                                "&:last-child td, &:last-child th": {
+                                                    border: 0,
+                                                },
+                                            }}
+                                        >
+                                            <TableCell component="th" scope="row">
+                                                {log?.created_date}
+                                            </TableCell>
+                                            <TableCell align="left">{log?.log_text}</TableCell>
+                                        </TableRow>
+                                    )) ?? null}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    </Paper>
+                ) : (
+                    <Box>
+                        <Typography variant="body2">
+                            {t("keysGeneration.ceremonyStep.emptyLogs")}
+                        </Typography>
+                    </Box>
+                )}
+            </WizardStyles.AccordionDetails>
+        </Accordion>
+    )
+}

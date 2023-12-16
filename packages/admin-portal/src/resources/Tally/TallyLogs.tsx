@@ -10,6 +10,7 @@ import {JsonView} from "@/components/JsonView"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ILog, ITallyCeremonyStatus} from "@/types/ceremonies"
 import globalSettings from "@/global-settings"
+import {Logs} from "@/components/Logs"
 
 export const TallyLogs: React.FC = () => {
     const {tallyId} = useElectionEventTallyStore()
@@ -43,5 +44,5 @@ export const TallyLogs: React.FC = () => {
         }
     }, [tallySessionExecutions])
 
-    return <>{dataTally ? <JsonView origin={dataTally} /> : <p>No logs available</p>}</>
+    return <Logs logs={dataTally} />
 }

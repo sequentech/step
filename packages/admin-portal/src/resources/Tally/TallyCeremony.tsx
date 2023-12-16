@@ -280,25 +280,7 @@ export const TallyCeremony: React.FC = () => {
                             </WizardStyles.AccordionDetails>
                         </Accordion>
 
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedData["tally-data-logs"]}
-                            onChange={() =>
-                                setExpandedData((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-data-logs": !prev["tally-data-logs"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-logs" />}>
-                                <WizardStyles.AccordionTitle>
-                                    {t("tally.logsTitle")}
-                                </WizardStyles.AccordionTitle>
-                            </AccordionSummary>
-                            <WizardStyles.AccordionDetails>
-                                <TallyLogs />
-                            </WizardStyles.AccordionDetails>
-                        </Accordion>
+                        <TallyLogs />
 
                         <Accordion
                             sx={{width: "100%"}}
@@ -386,27 +368,7 @@ export const TallyCeremony: React.FC = () => {
                             </WizardStyles.AccordionDetails>
                         </Accordion>
 
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedData["tally-results-logs"]}
-                            onChange={() =>
-                                setExpandedData((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-results-logs": !prev["tally-results-logs"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="tally-results-logs" />}
-                            >
-                                <WizardStyles.AccordionTitle>
-                                    {t("tally.logsTitle")}
-                                </WizardStyles.AccordionTitle>
-                            </AccordionSummary>
-                            <WizardStyles.AccordionDetails>
-                                <TallyLogs />
-                            </WizardStyles.AccordionDetails>
-                        </Accordion>
+                        <TallyLogs />
 
                         <Accordion
                             sx={{width: "100%"}}

@@ -28,6 +28,7 @@ import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
 import {useGetOne} from "react-admin"
 import globalSettings from "@/global-settings"
+import {Logs} from "../Logs"
 
 export const statusColor: (status: string) => string = (status) => {
     if (status == EStatus.NOT_STARTED) {
@@ -173,67 +174,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                     </WizardStyles.AccordionDetails>
                 </Accordion>
 
-                <Accordion
-                    sx={{width: "100%"}}
-                    expanded={logsExpanded}
-                    onChange={() => setLogsExpanded(!logsExpanded)}
-                >
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                        <WizardStyles.AccordionTitle>
-                            {t("keysGeneration.ceremonyStep.logsHeader.title")}
-                        </WizardStyles.AccordionTitle>
-                    </AccordionSummary>
-                    <WizardStyles.AccordionDetails>
-                        {status?.logs.length > 0 ? (
-                            <Paper sx={{width: "100%", overflow: "hidden"}}>
-                                <TableContainer>
-                                    ?{" "}
-                                    <Table sx={{maxHeight: 450}} aria-label="simple table">
-                                        <TableHead>
-                                            <TableRow>
-                                                <TableCell>
-                                                    {t(
-                                                        "keysGeneration.ceremonyStep.logsHeader.date"
-                                                    )}
-                                                </TableCell>
-                                                <TableCell align="left">
-                                                    {t(
-                                                        "keysGeneration.ceremonyStep.logsHeader.entry"
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                            {status.logs.map((log) => (
-                                                <TableRow
-                                                    key={log?.created_date as any}
-                                                    sx={{
-                                                        "&:last-child td, &:last-child th": {
-                                                            border: 0,
-                                                        },
-                                                    }}
-                                                >
-                                                    <TableCell component="th" scope="row">
-                                                        {log?.created_date}
-                                                    </TableCell>
-                                                    <TableCell align="left">
-                                                        {log?.log_text}
-                                                    </TableCell>
-                                                </TableRow>
-                                            )) ?? null}
-                                        </TableBody>
-                                    </Table>
-                                </TableContainer>
-                            </Paper>
-                        ) : (
-                            <Box>
-                                <Typography variant="body2">
-                                    {t("keysGeneration.ceremonyStep.emptyLogs")}
-                                </Typography>
-                            </Box>
-                        )}
-                    </WizardStyles.AccordionDetails>
-                </Accordion>
+                <Logs logs={status?.logs} />
             </WizardStyles.ContentBox>
             <WizardStyles.Toolbar>
                 <WizardStyles.BackButton color="info" onClick={goBack}>
