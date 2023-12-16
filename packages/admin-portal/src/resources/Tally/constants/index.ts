@@ -54,8 +54,6 @@ export const electionStatusColor: (status: string) => string = (status) => {
         return theme.palette.info.main
     } else if (status === ITallyElectionStatus.SUCCESS) {
         return theme.palette.brandSuccess
-    } else if (status === ITallyElectionStatus.COUNTING) {
-        return theme.palette.brandSuccess
     } else if (status === ITallyElectionStatus.ERROR) {
         return theme.palette.errorColor
     } else {

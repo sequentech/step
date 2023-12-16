@@ -113,7 +113,7 @@ pub async fn get_tally_session(
     Ok((tally_session.clone(), tally_session_contests))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonyStatus> {
     input
         .map(|value| {
