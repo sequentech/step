@@ -115,7 +115,6 @@ pub async fn update_election_voting_status(
         .ok_or(anyhow!("Election event not found: {}", election_event_id))?;
 
     let mut status = get_election_status(election_event.status.clone()).unwrap_or(ElectionStatus {
-        keys_ceremony: vec![],
         voting_status: VotingStatus::NOT_STARTED,
     });
 

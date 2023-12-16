@@ -398,21 +398,6 @@ pub enum VotingStatus {
     Eq,
     Debug,
     Clone,
-)]
-pub struct KeyCeremonyLog {
-    pub created_date: String,
-    pub log_text: String,
-}
-
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
     Default,
 )]
 pub struct ElectionEventStatistics {
@@ -429,86 +414,11 @@ pub struct ElectionEventStatistics {
     Eq,
     Debug,
     Clone,
+    Default,
 )]
 pub struct ElectionStatistics {
     pub num_emails_sent: i64,
     pub num_sms_sent: i64,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Display,
-    Serialize,
-    Deserialize,
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    EnumString,
-)]
-pub enum KeyCeremonyStatus {
-    NOT_STARTED,
-    IN_PROCESS,
-    SUCCESS,
-    CANCELLED,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Display,
-    Serialize,
-    Deserialize,
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    EnumString,
-)]
-pub enum KeyCeremonyTrusteeStatus {
-    WAITING,
-    KEY_GENERATED,
-    KEY_RETRIEVED,
-    KEY_CHECKED,
-}
-
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
-)]
-pub struct KeyCeremonyTrustee {
-    pub name: String,
-    pub status: KeyCeremonyTrusteeStatus,
-}
-
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
-)]
-pub struct KeyCeremony {
-    pub start_date: String,
-    pub stop_date: String,
-    pub status: KeyCeremonyStatus,
-    pub is_latest: bool,
-    pub threshold: u8,
-    pub public_key: String,
-    pub logs: Vec<KeyCeremonyLog>,
-    pub trustees: Vec<KeyCeremonyTrustee>,
 }
 
 #[derive(
@@ -522,7 +432,6 @@ pub struct KeyCeremony {
     Clone,
 )]
 pub struct ElectionStatus {
-    pub keys_ceremony: Vec<KeyCeremony>,
     pub voting_status: VotingStatus,
 }
 
