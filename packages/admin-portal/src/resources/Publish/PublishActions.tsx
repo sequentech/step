@@ -95,7 +95,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 label={t("publish.action.pause")}
                                 st={EPublishStatus.Paused}
                                 Icon={PauseCircle}
-                                disabledStatus={[EPublishStatus.Void, EPublishStatus.Stopped]}
+                                disabledStatus={[EPublishStatus.Void, EPublishStatus.Stopped, EPublishStatus.Generated]}
                             />
 
                             <ButtonDisabledOrNot
@@ -105,7 +105,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                 label={t("publish.action.stop")}
                                 st={EPublishStatus.Stopped}
                                 Icon={StopCircle}
-                                disabledStatus={[EPublishStatus.Void]}
+                                disabledStatus={[EPublishStatus.Void, , EPublishStatus.Generated]}
                             />
 
                             <ButtonDisabledOrNot
