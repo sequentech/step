@@ -1,20 +1,14 @@
-name: Linting and Formatting
+name: Lint & Prettify
 
 on:
   pull_request:
+  push:
+    branches: [ 'main' ]
 
 jobs:
   frontend-formatting:
     name: Check frontend linting
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - service: admin-portal
-          - service: voting-portal
-          - service: ballot-verifier
-            
-      fail-fast: false
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -40,32 +34,17 @@ jobs:
         uses: borales/actions-yarn@v4
         with:
           cmd: lint
-          dir: packages/${{ matrix.service }}
+          dir: packages/
 
       - name: Prettify
         uses: borales/actions-yarn@v4
         with:
           cmd: prettify
-          dir: packages/${{ matrix.service }}
+          dir: packages/
 
   rust-fmt:
     name: Check Rust format 
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - service: braid
-          - service: harvest
-          - service: strand
-          - service: immu-board
-          - service: immudb-rs
-          - service: sequent-core
-          - service: board-messages
-          - service: velvet
-          - service: windmill
-          - service: wrap-map-err
-            
-      fail-fast: false
     steps:
       - name: Check out code
         uses: actions/checkout@v3
@@ -79,4 +58,4 @@ jobs:
           override: true
 
       - name: Check Rust code formatting
-        run: cd packages/${{ matrix.service }} && cargo fmt -- --check
+        run: cd packages/ && cargo fmt -- --check

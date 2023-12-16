@@ -1,7 +1,6 @@
-name: Build and Push to ECR
+name: Build & Push to ECR
 
 on:
-  pull_request:
   push:
     branches: [ 'main' ]
 
