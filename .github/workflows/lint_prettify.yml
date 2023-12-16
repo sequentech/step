@@ -6,7 +6,7 @@ on:
     branches: [ 'main' ]
 
 jobs:
-  frontend-formatting:
+  lint-prettify:
     name: Check frontend linting
     runs-on: ubuntu-latest
     steps:
