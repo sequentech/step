@@ -16,27 +16,27 @@ impl Statement {
 
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct StatementHead {
-    pub context: ContextHash,
+    pub event: EventIdString,
     pub kind: StatementType,
     pub timestamp: Timestamp,
 }
 impl StatementHead {
-    pub fn from_body(context: ContextHash, body: &StatementBody) -> Self {
+    pub fn from_body(event: EventIdString, body: &StatementBody) -> Self {
         let kind = match body {
             StatementBody::CastVote(_, _, _) => StatementType::CastVote,
             StatementBody::CastVoteError(_, _) => StatementType::CastVoteError,
-            StatementBody::ElectionPublish => StatementType::ElectionPublish,
-            StatementBody::ElectionPeriodOpen => StatementType::ElectionPeriodOpen,
-            StatementBody::ElectionPeriodClose => StatementType::ElectionPeriodClose,
+            StatementBody::ElectionPublish(_) => StatementType::ElectionPublish,
+            StatementBody::ElectionPeriodOpen(_) => StatementType::ElectionPeriodOpen,
+            StatementBody::ElectionPeriodClose(_) => StatementType::ElectionPeriodClose,
             StatementBody::KeyGeneration => StatementType::KeyGeneration,
             StatementBody::KeyInsertionCeremony => StatementType::KeyInsertionCeremony,
-            StatementBody::BallotBoxOpen => StatementType::BallotBoxOpen,
-            StatementBody::BallotBoxClose => StatementType::BallotBoxClose,
+            StatementBody::TallyOpen(_) => StatementType::TallyOpen,
+            StatementBody::TallyClose(_) => StatementType::TallyClose,
         };
         let timestamp = instant::now() as u64;
 
         StatementHead {
-            context,
+            event,
             kind,
             timestamp,
         }
@@ -47,27 +47,27 @@ impl StatementHead {
 pub enum StatementBody {
     // NOT IMPLEMENTED YET, but please feel free
     // "Emisión de voto (sólo como registro que el sistema almacenó correctamente el voto)
-    CastVote(ContestHash, PseudonymHash, CastVoteHash),
+    CastVote(ElectionIdString, PseudonymHash, CastVoteHash),
     // NOT IMPLEMENTED YET, but please feel free
     // "Errores en la emisión del voto."
-    CastVoteError(PseudonymHash, ContestHash),
+    CastVoteError(PseudonymHash, ElectionIdString),
     // /workspaces/backend-services/packages/harvest/src/main.rs
     //    routes::ballot_publication::publish_ballot
     //
     // "Publicación, apertura y cierre de las elecciones"
-    ElectionPublish,
+    ElectionPublish(ElectionIdString),
     // /workspaces/backend-services/packages/harvest/src/main.rs
     //    routes::voting_status::update_event_status,
     //    routes::voting_status::update_election_status,
     //
     // "Publicación, apertura y cierre de las elecciones"
-    ElectionPeriodOpen,
+    ElectionPeriodOpen(ElectionIdString),
     // /workspaces/backend-services/packages/harvest/src/main.rs
     //    routes::voting_status::update_event_status,
     //    routes::voting_status::update_election_status,
     //
     // "Publicación, apertura y cierre de las elecciones"
-    ElectionPeriodClose,
+    ElectionPeriodClose(ElectionIdString),
     // /workspaces/backend-services/packages/windmill/src/celery_app.rs
     // create_keys
     //
@@ -82,12 +82,12 @@ pub enum StatementBody {
     // tally_election_event
     //
     // "Apertura y cierre de la bóveda de votos"
-    BallotBoxOpen,
+    TallyOpen(ElectionIdString),
     // /workspaces/backend-services/packages/windmill/src/celery_app.rs
     // execute_tally_session: falta que Felix ponga SUCCESS cuando se termine, creo, hablar con felix
     //
     // "Apertura y cierre de la bóveda de votos"
-    BallotBoxClose,
+    TallyClose(ElectionIdString),
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display)]
@@ -99,6 +99,6 @@ pub enum StatementType {
     ElectionPeriodClose,
     KeyGeneration,
     KeyInsertionCeremony,
-    BallotBoxOpen,
-    BallotBoxClose,
+    TallyOpen,
+    TallyClose,
 }

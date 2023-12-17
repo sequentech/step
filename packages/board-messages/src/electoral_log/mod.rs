@@ -19,6 +19,7 @@ pub(crate) mod tests {
     const INDEX_DB: &'static str = "testindexdb";
     const BOARD_DB: &'static str = "testdb";
     const DUMMY_H: [u8; 64] = [1u8; 64];
+    const DUMMY_STR: &'static str = "dummy";
 
     async fn set_up() -> BoardClient {
         let mut b = BoardClient::new("http://immudb:3322", "immudb", "immudb")
@@ -68,11 +69,11 @@ pub(crate) mod tests {
         let system_sk = StrandSignatureSk::gen().unwrap();
         let system_pk = StrandSignaturePk::from_sk(&system_sk).unwrap();
         let sd = SigningData::new(sender_sk, sender_name, system_sk);
-        let ctx = ContextHash(DUMMY_H);
-        let contest = ContestHash(DUMMY_H);
+        let event = EventIdString(DUMMY_STR.to_string());
+        let election = ElectionIdString(DUMMY_STR.to_string());
         let pseudonym = PseudonymHash(DUMMY_H);
         let vote = CastVoteHash(DUMMY_H);
-        let message = Message::cast_vote_message(ctx, contest, pseudonym, vote, &sd).unwrap();
+        let message = Message::cast_vote_message(event, election, pseudonym, vote, &sd).unwrap();
         let mut board_message: BoardMessage = message.try_into().unwrap();
         // We do this so that the id matches the auto generated id in the db, otherwise the assert_eq fails
         board_message.id = 1;

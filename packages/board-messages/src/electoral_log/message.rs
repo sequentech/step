@@ -11,7 +11,7 @@ use crate::electoral_log::statement::Statement;
 use crate::electoral_log::statement::StatementBody;
 use crate::electoral_log::statement::StatementHead;
 
-use crate::electoral_log::newtypes::ContextHash;
+use crate::electoral_log::newtypes::EventIdString;
 
 use super::newtypes::*;
 
@@ -25,14 +25,14 @@ pub struct Message {
 }
 impl Message {
     pub fn cast_vote_message(
-        context: ContextHash,
-        contest_h: ContestHash,
+        event: EventIdString,
+        election: ElectionIdString,
         pseudonym_h: PseudonymHash,
         vote_h: CastVoteHash,
         sd: &SigningData,
     ) -> Result<Self> {
-        let body = StatementBody::CastVote(contest_h, pseudonym_h, vote_h);
-        let head = StatementHead::from_body(context, &body);
+        let body = StatementBody::CastVote(election, pseudonym_h, vote_h);
+        let head = StatementHead::from_body(event, &body);
         let statement = Statement::new(head, body);
 
         Message::sign(
