@@ -55,6 +55,7 @@ pub struct GetPgauditBody {
     election_event_id: String,
     limit: Option<i64>,
     offset: Option<i64>,
+    filters: Option<HashMap<OrderField, String>>,
     order_by: Option<HashMap<OrderField, OrderDirection>>,
 }
 
@@ -62,6 +63,27 @@ impl GetPgauditBody {
     // Returns the SQL clauses related to the request
     fn as_sql_clauses(&self) -> Result<String> {
         let mut clauses = Vec::new();
+
+        // Handle filters
+        if let Some(filters_map) = &self.filters {
+            let where_clauses: Vec<String> = filters_map
+                .iter()
+                .filter_map(|(field, value)| {
+                    match field {
+                        OrderField::Id => {
+                            let int_value: i32 = value.parse().ok()?;
+                            Some(format!("id = {int_value}"))
+                        },
+                        // Don't support filtering by timestamp yet
+                        OrderField::ServerTimestamp => None,
+                        _ => Some(format!("{field:?} = '(?i){value}'")),
+                    }
+                })
+                .collect();
+            if !where_clauses.is_empty() {
+                clauses.push(format!("WHERE {}", where_clauses.join(" AND ")));
+            }
+        }
 
         // Handle order_by
         if let Some(order_by_map) = &self.order_by {
