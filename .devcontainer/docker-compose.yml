@@ -167,8 +167,6 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-      postgres-keycloak:
-        condition: service_healthy
 
   data-connector-agent:
     profiles: ["full", "base"]
