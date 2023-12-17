@@ -14,6 +14,7 @@ import {useTranslation} from "react-i18next"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {PgAuditList} from "@/resources/PgAudit/PgAuditList"
+import { PgAuditTable } from "@/gql/graphql"
 
 export const Logs: React.FC = () => {
     const authContext = useContext(AuthContext)
@@ -44,10 +45,10 @@ export const Logs: React.FC = () => {
                 <Tab label={t("logsScreen.iam.title")} />
             </Tabs>
             <CustomTabPanel value={tab} index={0}>
-                <PgAuditList />
+                <PgAuditList auditTable={PgAuditTable.Pgaudit} />
             </CustomTabPanel>
             <CustomTabPanel value={tab} index={1}>
-                <PgAuditList />
+                <PgAuditList auditTable={PgAuditTable.PgauditKeycloak} />
             </CustomTabPanel>
         </>
     )

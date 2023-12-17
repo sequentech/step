@@ -14,14 +14,17 @@ import {
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
+import { PgAuditTable } from "@/gql/graphql"
 
 const OMIT_FIELDS = ["audit_type", "class", "dbname", "session"]
 
+  
 export interface PgAuditListProps {
     aside?: ReactElement
+    auditTable: PgAuditTable
 }
 
-export const PgAuditList: React.FC<PgAuditListProps> = ({aside}) => {
+export const PgAuditList: React.FC<PgAuditListProps> = ({aside, auditTable}) => {
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
     const filters: Array<ReactElement> = [
@@ -38,7 +41,7 @@ export const PgAuditList: React.FC<PgAuditListProps> = ({aside}) => {
     return (
         <>
             <List
-                resource="pgaudit"
+                resource={auditTable}
                 actions={<ListActions withImport={false} />}
                 filters={filters}
                 aside={aside}

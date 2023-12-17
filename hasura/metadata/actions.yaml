@@ -499,10 +499,17 @@ custom_types:
     - description: null
       is_deprecated: null
       value: desc
+  - name: PgAuditTable
+    values:
+    - description: null
+      is_deprecated: null
+      value: pgaudit
+    - description: null
+      is_deprecated: null
+      value: pgaudit_keycloak
   input_objects:
   - name: TemplateInput
   - name: PgAuditFilter
-  - name: PgAuditTable
   - name: PgAuditOrderBy
   - name: SampleInput
   - name: CreateElectionEventInput

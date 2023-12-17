@@ -3006,6 +3006,29 @@
         "possibleTypes": null
       },
       {
+        "kind": "ENUM",
+        "name": "PgAuditTable",
+        "description": null,
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "pgaudit",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "pgaudit_keycloak",
+            "description": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
         "kind": "OBJECT",
         "name": "PublishBallotOutput",
         "description": null,
@@ -18173,6 +18196,18 @@
             "name": "listPgaudit",
             "description": "List PostgreSQL audit logs",
             "args": [
+              {
+                "name": "audit_table",
+                "description": null,
+                "type": {
+                  "kind": "ENUM",
+                  "name": "PgAuditTable",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
               {
                 "name": "filter",
                 "description": null,

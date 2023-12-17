@@ -6,17 +6,18 @@ import {getRoles} from "./GetRoles"
 
 export const customBuildQuery =
     (introspectionResults: any) => (raFetchType: any, resourceName: any, params: any) => {
-        if (resourceName === "pgaudit" && raFetchType === "GET_LIST") {
+        if (resourceName.startsWith("pgaudit") && raFetchType === "GET_LIST") {
             const resource: any = {
                 type: {
                     fields: [],
-                    name: "pgaudit",
+                    name: resourceName,
                 },
             }
             return {
                 query: getPgAudit(params),
                 variables: getPgauditVariables(
-                    buildVariables(introspectionResults)(resource, raFetchType, params, null)
+                    buildVariables(introspectionResults)(resource, raFetchType, params, null),
+                    resourceName
                 ),
                 parseResponse: (res: any) => {
                     const response = res.data.listPgaudit
