@@ -322,7 +322,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             get_pgaudit_body.as_sql_clauses(false).unwrap(),
-            "ORDER BY Id asc LIMIT 20"
+            "ORDER BY id asc LIMIT 20"
         );
 
         let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
@@ -335,7 +335,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             get_pgaudit_body.as_sql_clauses(false).unwrap(),
-            "ORDER BY Id asc LIMIT 15 OFFSET 5"
+            "ORDER BY id asc LIMIT 15 OFFSET 5"
         );
         assert_eq!(get_pgaudit_body.as_sql_clauses(true).unwrap(), "");
 
