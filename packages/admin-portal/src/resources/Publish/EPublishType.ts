@@ -1,9 +1,9 @@
 export enum EPublishType {
-    Event = 'event',
-    Election = 'election'
+    Event = "event",
+    Election = "election",
 }
 
 export enum EPublishActionsType {
-    List = 'list',
-    Generate = 'generate'
+    List = "list",
+    Generate = "generate",
 }

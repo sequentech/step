@@ -770,29 +770,29 @@ const englishTranslation = {
                 pause: "PAUSE",
                 generate: "REGENERATE",
                 publish: "PUBLISH CHANGES",
-                back: 'BACK',
+                back: "BACK",
             },
             label: {
                 current: "Current",
                 diff: "CHANGES TO PUBLISH",
             },
             empty: {
-                header: 'Not have a changes generated/publicated',
-                action: 'Generate ur first change'
+                header: "Not have a changes generated/publicated",
+                action: "Generate ur first change",
             },
             dialog: {
-                title: 'Confirm action',
-                info: 'You have clicked on a sensitive action, so we need you to confirm in order to continue',
-                ok: 'Confirm',
-                ko: 'Cancel',
-                error: 'Error loading ballot publication',
-                error_publish: 'Error publishing ballot publication',
-                error_status: 'Error change ballot publication status',
+                title: "Confirm action",
+                info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
+                ok: "Confirm",
+                ko: "Cancel",
+                error: "Error loading ballot publication",
+                error_publish: "Error publishing ballot publication",
+                error_status: "Error change ballot publication status",
             },
             notifications: {
                 generated: "Ballot generated",
                 published: "Ballot published",
-                chang_status: "Ballot status changed"
+                chang_status: "Ballot status changed",
             },
         },
         emailEditor: {

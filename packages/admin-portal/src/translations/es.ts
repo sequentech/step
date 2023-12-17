@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { TranslationType } from "./en"
+import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
@@ -772,20 +772,20 @@ const spanishTranslation: TranslationType = {
                 pause: "pausar",
                 generate: "regenerar",
                 publish: "Publicar Cambios",
-                back: 'Atrás'
+                back: "Atrás",
             },
             empty: {
-                header: 'No tienes cambios generados/publicados',
-                action: 'Genera tu primer cambio'
+                header: "No tienes cambios generados/publicados",
+                action: "Genera tu primer cambio",
             },
             dialog: {
-                title: 'Confirm action',
-                info: 'You have clicked on a sensitive action, so we need you to confirm in order to continue',
-                ok: 'Confirm',
-                ko: 'Cancel',
-                error: 'Error al cargar las papeletas publicadas',
-                error_publish: 'Error al publicar la papeleta',
-                error_status: 'Error al cambiar el estado de la publicación',
+                title: "Confirm action",
+                info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
+                ok: "Confirm",
+                ko: "Cancel",
+                error: "Error al cargar las papeletas publicadas",
+                error_publish: "Error al publicar la papeleta",
+                error_status: "Error al cambiar el estado de la publicación",
             },
             label: {
                 current: "Actual",
@@ -794,7 +794,7 @@ const spanishTranslation: TranslationType = {
             notifications: {
                 generated: "Papeleta generada",
                 published: "Papeleta publicada",
-                chang_status: "Papeleta cambiada de estado"
+                chang_status: "Papeleta cambiada de estado",
             },
         },
         emailEditor: {

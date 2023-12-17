@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from "react"
+import React, {useEffect, useState} from "react"
 
 import styled from "@emotion/styled"
 
-import { Box } from "@mui/material"
-import { Button } from "react-admin"
-import { useTranslation } from "react-i18next"
-import { ArrowBackIosNew } from '@mui/icons-material';
+import {Box} from "@mui/material"
+import {Button} from "react-admin"
+import {useTranslation} from "react-i18next"
+import {ArrowBackIosNew} from "@mui/icons-material"
 
-import { DiffView } from '@/components/DiffView'
-import { PublishActions } from "./PublishActions"
-import { EPublishActionsType } from './EPublishType'
+import {DiffView} from "@/components/DiffView"
+import {PublishActions} from "./PublishActions"
+import {EPublishActionsType} from "./EPublishType"
 
 const PublishGenerateStyled = {
     Container: styled.div`
@@ -51,7 +51,7 @@ export type TPublishGenerate = {
     electionEventId: string
 }
 
-export const PublishGenerate: React.FC<TPublishGenerate> = ({ 
+export const PublishGenerate: React.FC<TPublishGenerate> = ({
     data,
     status,
     onBack = () => null,
@@ -59,8 +59,8 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
     onGenerate = () => null,
 }): React.JSX.Element => {
     const {t} = useTranslation()
-    const [currentState, setCurrentState] = useState<null|any>(null)
-    const [previousState, setPreviouseState] = useState<null|any>(null)
+    const [currentState, setCurrentState] = useState<null | any>(null)
+    const [previousState, setPreviouseState] = useState<null | any>(null)
 
     useEffect(() => {
         if (data) {
@@ -68,19 +68,17 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
             setPreviouseState(data?.current || {})
         }
     }, [data])
-    
+
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
-
-            <PublishActions 
+            <PublishActions
                 status={status}
-                onPublish={onPublish} 
+                onPublish={onPublish}
                 onGenerate={onGenerate}
                 type={EPublishActionsType.Generate}
             />
 
             <PublishGenerateStyled.Container>
-
                 <PublishGenerateStyled.AccordionHeaderTitle>
                     {t("publish.header.change")}
                 </PublishGenerateStyled.AccordionHeaderTitle>
@@ -95,25 +93,24 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                 <PublishGenerateStyled.Bottom>
                     <Button
                         onClick={onBack}
-                        label={t('publish.action.back')}
-                        style={{ 
-                            backgroundColor: '#eee', 
-                            color: '#0f054c',
+                        label={t("publish.action.back")}
+                        style={{
+                            backgroundColor: "#eee",
+                            color: "#0f054c",
                         }}
                     >
                         <ArrowBackIosNew />
                     </Button>
-                    
+
                     <Button
                         onClick={onPublish}
-                        label={t('publish.action.publish')}
-                        style={{ 
-                            color: '#fff',
+                        label={t("publish.action.publish")}
+                        style={{
+                            color: "#fff",
                         }}
                     />
                 </PublishGenerateStyled.Bottom>
-            
             </PublishGenerateStyled.Container>
         </Box>
     )
-};
+}

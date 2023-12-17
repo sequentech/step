@@ -13,13 +13,13 @@ export enum EPublishStatus {
 }
 
 export enum EPublishStatushChanges {
-    Open = 'OPEN',
-    Paused = 'PAUSED',
-    Closed = 'CLOSED'
+    Open = "OPEN",
+    Paused = "PAUSED",
+    Closed = "CLOSED",
 }
 
 export const PUBLICH_STATUS_CONVERT: {[key: string]: number} = {
     [EPublishStatushChanges.Open]: EPublishStatus.Started,
     [EPublishStatushChanges.Paused]: EPublishStatus.Paused,
-    [EPublishStatushChanges.Closed]: EPublishStatus.Stopped
+    [EPublishStatushChanges.Closed]: EPublishStatus.Stopped,
 }
