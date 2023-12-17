@@ -252,6 +252,9 @@ const spanishTranslation: TranslationType = {
                     },
                     success: "Recuento creado",
                 },
+                logs: {
+                    noLogs: "No hay registros disponibles",
+                },
             },
         },
         electionScreen: {

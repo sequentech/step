@@ -34,6 +34,7 @@ query GetTallySessionById(
         id
         tenant_id
         election_event_id
+        election_id
         area_id
         contest_id
         session_id

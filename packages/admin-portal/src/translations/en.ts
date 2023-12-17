@@ -250,6 +250,9 @@ const englishTranslation = {
                     },
                     success: "Tally created",
                 },
+                logs: {
+                    noLogs: "No logs available",
+                },
             },
         },
         electionScreen: {
