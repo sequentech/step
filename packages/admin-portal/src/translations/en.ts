@@ -785,7 +785,9 @@ const englishTranslation = {
                 info: 'You have clicked on a sensitive action, so we need you to confirm in order to continue',
                 ok: 'Confirm',
                 ko: 'Cancel',
-                error: 'Error loading ballot publication'
+                error: 'Error loading ballot publication',
+                error_publish: 'Error publishing ballot publication',
+                error_status: 'Error change ballot publication status',
             },
             notifications: {
                 generated: "Ballot generated",

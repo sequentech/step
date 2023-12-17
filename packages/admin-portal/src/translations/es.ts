@@ -783,7 +783,9 @@ const spanishTranslation: TranslationType = {
                 info: 'You have clicked on a sensitive action, so we need you to confirm in order to continue',
                 ok: 'Confirm',
                 ko: 'Cancel',
-                error: 'Error al cargar las papeletas publicadas'
+                error: 'Error al cargar las papeletas publicadas',
+                error_publish: 'Error al publicar la papeleta',
+                error_status: 'Error al cambiar el estado de la publicación',
             },
             label: {
                 current: "Actual",

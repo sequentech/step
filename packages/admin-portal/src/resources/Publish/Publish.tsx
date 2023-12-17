@@ -39,10 +39,13 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const notify = useNotify()
         const {t} = useTranslation()
         const [showDiff, setShowDiff] = useState<boolean>(false)
-        const [generateData, setGenerateData] = useState<null | any>()
         const [status, setStatus] = useState<number>(EPublishStatus.Void)
-        const [ballotPublicationId, setBallotPublicationId] = useState<null | string>(null)
+        const [ballotPublicationId, setBallotPublicationId] = useState<string | null>(null)
+
         const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
+        const [generateData, setGenerateData] = useState<GetBallotPublicationChangesOutput | null>(
+            null
+        )
 
         const [publishBallot] = useMutation<PublishBallotMutation>(PUBLISH_BALLOT)
 
@@ -95,7 +98,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
                 setStatus(EPublishStatus.Published)
             } catch (e) {
-                notify(t("publish.dialog.error"), {
+                notify(t("publish.dialog.error_publish"), {
                     type: "error",
                 })
             }
@@ -155,7 +158,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     type: "success",
                 })
             } catch (e) {
-                notify(t("publish.dialog.error"), {
+                notify(t("publish.dialog.error_status"), {
                     type: "error",
                 })
             }
@@ -176,7 +179,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     type: "success",
                 })
             } catch (e) {
-                notify(t("publish.dialog.error"), {
+                notify(t("publish.dialog.error_status"), {
                     type: "error",
                 })
             }

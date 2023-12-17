@@ -19,7 +19,7 @@ import {EPublishActionsType} from "./EPublishType"
 import {HeaderTitle} from "@/components/HeaderTitle"
 import {Sequent_Backend_Ballot_Publication} from "@/gql/graphql"
 
-const OMIT_FIELDS: any = []
+const OMIT_FIELDS: string[] = []
 
 type TPublishList = {
     status: number
@@ -38,11 +38,11 @@ export const PublishList: React.FC<TPublishList> = ({
     onChangeStatus = () => null,
     setBallotPublicationId = () => null,
 }) => {
-    let current: any | null = null
+    let current: HTMLElement | null = null
 
-    const ref = useRef()
     const notify = useNotify()
     const {t} = useTranslation()
+    const ref = useRef<HTMLElement>(null)
 
     const {data, error, isLoading} = useGetList<Sequent_Backend_Ballot_Publication>(
         "sequent_backend_ballot_publication",
@@ -102,8 +102,9 @@ export const PublishList: React.FC<TPublishList> = ({
 
                 <DatagridConfigurable
                     omit={OMIT_FIELDS}
-                    rowClick={(id: any) => {
-                        setBallotPublicationId(id)
+                    rowClick={(id: string | number) => {
+                        setBallotPublicationId(String(id)) // Asegúrate de convertir a string si es necesario
+
                         return false
                     }}
                 >
