@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-use chrono::naive::NaiveDateTime;
+use chrono::{DateTime, Local};
 use serde_json::value::Value;
 
 pub type Uuid = String;
@@ -12,8 +11,8 @@ pub struct Area {
     pub id: Uuid,
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
-    pub created_at: Option<NaiveDateTime>,
-    pub last_updated_at: Option<NaiveDateTime>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub name: Option<String>,
@@ -24,8 +23,8 @@ pub struct Area {
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ElectionEvent {
     pub id: Uuid,
-    pub created_at: Option<NaiveDateTime>,
-    pub updated_at: Option<NaiveDateTime>,
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub tenant_id: Uuid,
@@ -49,8 +48,8 @@ pub struct Election {
     pub id: Uuid,
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
-    pub created_at: Option<NaiveDateTime>,
-    pub last_updated_at: Option<NaiveDateTime>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub name: String,
@@ -71,8 +70,8 @@ pub struct Contest {
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
     pub election_id: Uuid,
-    pub created_at: Option<NaiveDateTime>,
-    pub last_updated_at: Option<NaiveDateTime>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub is_acclaimed: Option<bool>,
@@ -96,8 +95,8 @@ pub struct Candidate {
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
     pub contest_id: Option<Uuid>,
-    pub created_at: Option<NaiveDateTime>,
-    pub last_updated_at: Option<NaiveDateTime>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub name: Option<String>,
@@ -117,8 +116,8 @@ pub struct Document {
     pub size: Option<i64>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
-    pub created_at: Option<NaiveDateTime>,
-    pub last_updated_at: Option<NaiveDateTime>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
     pub is_public: Option<bool>,
 }
 
@@ -135,8 +134,8 @@ pub struct ElectionType {
     pub id: Uuid,
     pub tenant_id: Option<Uuid>,
     pub name: Option<String>,
-    pub created_at: Option<NaiveDateTime>,
-    pub updated_at: Option<NaiveDateTime>,
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
 }

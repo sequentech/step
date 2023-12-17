@@ -13,6 +13,7 @@ pub mod types;
 //pub use ballot::*;
 pub mod ballot_codec;
 pub mod encrypt;
+pub mod fixtures;
 pub mod interpret_plaintext;
 pub mod mixed_radix;
 pub mod plaintext;
@@ -21,7 +22,5 @@ pub mod services;
 pub mod util;
 
 /// Webassembly API.
-// #[cfg(feature = "wasm")]
-// FIXME uncomment
-// pub mod wasm;
-pub mod fixtures;
+#[cfg(feature = "wasm")]
+pub mod wasm;
