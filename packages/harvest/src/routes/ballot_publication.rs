@@ -16,6 +16,13 @@ use windmill::services::ballot_publication::{
 };
 use windmill::services::ceremonies::tally_ceremony;
 
+use board_messages::electoral_log::message::Message;
+use board_messages::electoral_log::message::SigningData;
+use board_messages::electoral_log::newtypes::EventIdString;
+use board_messages::electoral_log::newtypes::ElectionIdString;
+use board_messages::electoral_log::newtypes::BallotPublicationIdString;
+use strand::signature::StrandSignatureSk;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationInput {
     election_event_id: String,
@@ -25,6 +32,14 @@ pub struct GenerateBallotPublicationInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationOutput {
     ballot_publication_id: String,
+}
+
+pub fn dummy_signing_data() -> SigningData {
+    let sender_sk = StrandSignatureSk::gen().unwrap();
+    let system_sk = StrandSignatureSk::gen().unwrap();
+    let name = "dummy";
+
+    SigningData::new(sender_sk, name, system_sk)
 }
 
 #[instrument(skip(claims))]
@@ -46,6 +61,14 @@ pub async fn generate_ballot_publication(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let event = EventIdString(input.election_event_id.clone());
+    let election = ElectionIdString(input.election_id.ok_or((Status::InternalServerError, "No election id found".to_string()))?);
+    let ballot_pub_id = BallotPublicationIdString(ballot_publication_id.clone());
+    let sd = dummy_signing_data();
+    let message = Message::election_published_message(event, election, ballot_pub_id, &sd)
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    // TODO post electoral log message
 
     Ok(Json(GenerateBallotPublicationOutput {
         ballot_publication_id,

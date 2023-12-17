@@ -1,6 +1,6 @@
-mod artifact;
-mod message;
-mod newtypes;
+pub mod artifact;
+pub mod message;
+pub mod newtypes;
 mod statement;
 
 // Run ignored tests with

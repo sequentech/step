@@ -44,6 +44,25 @@ impl Message {
         )
     }
 
+    pub fn election_published_message(
+        event: EventIdString,
+        election: ElectionIdString,
+        ballot_pub_id: BallotPublicationIdString,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::ElectionPublish(election, ballot_pub_id);
+        let head = StatementHead::from_body(event, &body);
+        let statement = Statement::new(head, body);
+
+        Message::sign(
+            statement,
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+        )
+    }
+
     pub fn sign(
         statement: Statement,
         artifact: Option<Vec<u8>>,

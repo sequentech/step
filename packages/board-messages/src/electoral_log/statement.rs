@@ -25,7 +25,7 @@ impl StatementHead {
         let kind = match body {
             StatementBody::CastVote(_, _, _) => StatementType::CastVote,
             StatementBody::CastVoteError(_, _) => StatementType::CastVoteError,
-            StatementBody::ElectionPublish(_) => StatementType::ElectionPublish,
+            StatementBody::ElectionPublish(_, _) => StatementType::ElectionPublish,
             StatementBody::ElectionPeriodOpen(_) => StatementType::ElectionPeriodOpen,
             StatementBody::ElectionPeriodClose(_) => StatementType::ElectionPeriodClose,
             StatementBody::KeyGeneration => StatementType::KeyGeneration,
@@ -55,7 +55,7 @@ pub enum StatementBody {
     //    routes::ballot_publication::publish_ballot
     //
     // "Publicación, apertura y cierre de las elecciones"
-    ElectionPublish(ElectionIdString),
+    ElectionPublish(ElectionIdString, BallotPublicationIdString),
     // /workspaces/backend-services/packages/harvest/src/main.rs
     //    routes::voting_status::update_event_status,
     //    routes::voting_status::update_election_status,
