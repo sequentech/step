@@ -65,7 +65,7 @@ pub struct GetPgauditBody {
 impl GetPgauditBody {
     // Returns the SQL clauses related to the request
     #[instrument(ret)]
-    fn as_sql_clauses(&self) -> Result<String> {
+    fn as_sql_clauses(&self, to_count: bool) -> Result<String> {
         let mut clauses = Vec::new();
         let invalid_chars_re = Regex::new(r"['-/]")?;
 
@@ -97,28 +97,30 @@ impl GetPgauditBody {
         }
 
         // Handle order_by
-        if let Some(order_by_map) = &self.order_by {
-            let order_clauses: Vec<String> = order_by_map
-                .iter()
-                .map(|(field, direction)| format!("{field} {direction}"))
-                .collect();
-            if !order_clauses.is_empty() {
-                clauses.push(format!("ORDER BY {}", order_clauses.join(", ")));
+        if !to_count {
+            if let Some(order_by_map) = &self.order_by {
+                let order_clauses: Vec<String> = order_by_map
+                    .iter()
+                    .map(|(field, direction)| format!("{field} {direction}"))
+                    .collect();
+                if !order_clauses.is_empty() {
+                    clauses.push(format!("ORDER BY {}", order_clauses.join(", ")));
+                }
             }
-        }
 
-        // Handle limit
-        let limit = self
-            .limit
-            .unwrap_or(PgConfig::from_env()?.default_sql_limit.into());
-        clauses.push(format!(
-            "LIMIT {}",
-            std::cmp::min(limit, PgConfig::from_env()?.low_sql_limit.into())
-        ));
+            // Handle limit
+            let limit = self
+                .limit
+                .unwrap_or(PgConfig::from_env()?.default_sql_limit.into());
+            clauses.push(format!(
+                "LIMIT {}",
+                std::cmp::min(limit, PgConfig::from_env()?.low_sql_limit.into())
+            ));
 
-        // Handle offset
-        if let Some(offset) = self.offset {
-            clauses.push(format!("OFFSET {}", std::cmp::max(offset, 0)));
+            // Handle offset
+            if let Some(offset) = self.offset {
+                clauses.push(format!("OFFSET {}", std::cmp::max(offset, 0)));
+            }
         }
 
         Ok(clauses.join(" "))
@@ -233,7 +235,8 @@ pub async fn list_pgaudit(
     client.login().await?;
 
     client.open_session(&input.election_event_id).await?;
-    let clauses = input.as_sql_clauses()?;
+    let clauses = input.as_sql_clauses(false)?;
+    let clauses_to_count = input.as_sql_clauses(true)?;
     let sql = format!(
         r#"
         SELECT
@@ -263,7 +266,7 @@ pub async fn list_pgaudit(
         SELECT
             COUNT(*)
         FROM pgaudit
-        {clauses}
+        {clauses_to_count}
         "#,
     );
     let sql_query_response = client.sql_query(&sql, vec![]).await?;
