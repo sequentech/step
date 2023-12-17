@@ -173,6 +173,7 @@ type Query {
     offset: Int
     filter: PgAuditFilter 
     order_by: PgAuditOrderBy
+    audit_table: PgAuditTable
   ): DataListPgAudit
 }
 
@@ -238,6 +239,11 @@ type Mutation {
 enum OrderDirection {
   asc
   desc
+}
+
+enum PgAuditTable {
+  pgaudit 
+  pgaudit_keycloak
 }
 
 input TemplateInput {
