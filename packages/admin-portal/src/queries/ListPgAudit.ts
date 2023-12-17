@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {gql} from "@apollo/client"
-import { PgAuditTable } from "@/gql/graphql"
-
+import {PgAuditTable} from "@/gql/graphql"
 
 export const getPgauditVariables = (input: any, resourceName: string) => {
     return {
@@ -26,9 +25,14 @@ export const getPgAudit = (fields: any) => {
             $filter: PgAuditFilter
             $order_by: PgAuditOrderBy
             $audit_table: PgAuditTable
-            
         ) {
-            listPgaudit(limit: $limit, offset: $offset, filter: $filter, order_by: $order_by, audit_table: $audit_table) {
+            listPgaudit(
+                limit: $limit
+                offset: $offset
+                filter: $filter
+                order_by: $order_by
+                audit_table: $audit_table
+            ) {
                 items {
                     id
                     audit_type

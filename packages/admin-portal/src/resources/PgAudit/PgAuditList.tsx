@@ -14,11 +14,10 @@ import {
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
-import { PgAuditTable } from "@/gql/graphql"
+import {PgAuditTable} from "@/gql/graphql"
 
 const OMIT_FIELDS = ["audit_type", "class", "dbname", "session"]
 
-  
 export interface PgAuditListProps {
     aside?: ReactElement
     auditTable: PgAuditTable

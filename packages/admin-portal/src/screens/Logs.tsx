@@ -14,7 +14,7 @@ import {useTranslation} from "react-i18next"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {PgAuditList} from "@/resources/PgAudit/PgAuditList"
-import { PgAuditTable } from "@/gql/graphql"
+import {PgAuditTable} from "@/gql/graphql"
 
 export const Logs: React.FC = () => {
     const authContext = useContext(AuthContext)
