@@ -208,6 +208,7 @@ services:
     # it:
     depends_on:
       - postgres
+
   keycloak:
     profiles: ["full", "base"]
     container_name: keycloak
