@@ -40,8 +40,8 @@ const useActionPermissions = () => {
     }
 }
 
-const OMIT_FIELDS = ["id", "ballot_eml"]
-const Filters: Array<ReactElement> = [<TextInput label="Name" source="name" key={0} />]
+const OMIT_FIELDS = ["id"]
+const Filters: Array<ReactElement> = []
 
 export const CommunicationTemplateList: React.FC = () => {
     const {t} = useTranslation()
