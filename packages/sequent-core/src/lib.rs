@@ -19,9 +19,8 @@ pub mod plaintext;
 pub mod serialization;
 pub mod services;
 pub mod util;
+pub mod fixtures;
 
 /// Webassembly API.
-// #[cfg(feature = "wasm")]
-// FIXME uncomment
-// pub mod wasm;
-pub mod fixtures;
+#[cfg(feature = "wasm")]
+pub mod wasm;
