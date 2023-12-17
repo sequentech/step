@@ -6,7 +6,6 @@ import {useGetList} from "react-admin"
 
 import {Sequent_Backend_Tally_Session_Execution} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {JsonView} from "@/components/JsonView"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ILog, ITallyCeremonyStatus} from "@/types/ceremonies"
 import globalSettings from "@/global-settings"

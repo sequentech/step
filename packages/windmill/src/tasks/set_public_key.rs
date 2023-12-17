@@ -14,7 +14,7 @@ use crate::hasura::keys_ceremony::get_keys_ceremonies;
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
 use crate::services::ceremonies::serialize_logs::generate_logs;
-use crate::services::date::get_now_utc_unix;
+use crate::services::date::get_now_utc_unix_ms;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::services::public_keys;
@@ -125,7 +125,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
 
     let new_execution_status: String = ExecutionStatus::IN_PROCESS.to_string();
     let new_status: Value = serde_json::to_value(CeremonyStatus {
-        stop_date: Some(get_now_utc_unix().to_string()),
+        stop_date: Some(get_now_utc_unix_ms().to_string()),
         public_key: Some(public_key.clone()),
         logs: logs,
         trustees: current_status

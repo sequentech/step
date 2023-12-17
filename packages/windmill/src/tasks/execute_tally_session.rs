@@ -23,6 +23,7 @@ use crate::services::ceremonies::tally_ceremony::find_last_tally_session_executi
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
 use crate::services::compress::compress_folder;
+use crate::services::date::ISO8601;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
@@ -536,7 +537,7 @@ pub async fn execute_tally_session(
             tenant_id, election_event_id, tally_session_id
         ),
         Uuid::new_v4().to_string(),
-        Some(Utc::now().naive_utc() + Duration::seconds(120)),
+        Some(ISO8601::now() + Duration::seconds(120)),
     )
     .await?;
 
