@@ -59,7 +59,7 @@ enum OrderField {
 #[strum(serialize_all = "snake_case")]
 enum AuditTable {
     #[default]
-    Pgaudit,
+    PgauditHasura,
     PgauditKeycloak,
 }
 

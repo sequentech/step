@@ -345,7 +345,7 @@ export type PgAuditRow = {
 };
 
 export enum PgAuditTable {
-  Pgaudit = 'pgaudit',
+  PgauditHasura = 'pgaudit_hasura',
   PgauditKeycloak = 'pgaudit_keycloak'
 }
 

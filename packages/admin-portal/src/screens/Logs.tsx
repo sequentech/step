@@ -45,7 +45,7 @@ export const Logs: React.FC = () => {
                 <Tab label={t("logsScreen.iam.title")} />
             </Tabs>
             <CustomTabPanel value={tab} index={0}>
-                <PgAuditList auditTable={PgAuditTable.Pgaudit} />
+                <PgAuditList auditTable={PgAuditTable.PgauditHasura} />
             </CustomTabPanel>
             <CustomTabPanel value={tab} index={1}>
                 <PgAuditList auditTable={PgAuditTable.PgauditKeycloak} />

@@ -242,7 +242,7 @@ enum OrderDirection {
 }
 
 enum PgAuditTable {
-  pgaudit 
+  pgaudit_hasura 
   pgaudit_keycloak
 }
 

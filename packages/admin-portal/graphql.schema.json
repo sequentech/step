@@ -3014,7 +3014,7 @@
         "interfaces": null,
         "enumValues": [
           {
-            "name": "pgaudit",
+            "name": "pgaudit_hasura",
             "description": null,
             "isDeprecated": false,
             "deprecationReason": null

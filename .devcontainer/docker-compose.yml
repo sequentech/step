@@ -415,7 +415,7 @@ services:
       context: ../vendor/immudb-log-audit
       dockerfile: Dockerfile.immudb
     command: >
-      create sql pgaudit
+      create sql pgaudit_hasura
       --parser pgauditjsonlog
       --log-level debug
       --immudb-user ${IMMUDB_USER}
@@ -433,7 +433,7 @@ services:
     image: sequentech.local/immudb-log-audit
     container_name: immudb-log-audit
     command: >
-      tail file pgaudit "/logs/*.json"
+      tail file pgaudit_hasura "/logs/*.json"
       --follow
       --parser pgauditjsonlog
       --file-registry-dir=/data
