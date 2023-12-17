@@ -36,6 +36,7 @@ services:
 
   postgres:
     profiles: ["full", "base"]
+    image: sequentech.local/postgresql
     container_name: postgres
     build:
       context: ./postgresql
@@ -189,7 +190,7 @@ services:
 
   postgres-keycloak:
     profiles: ["full", "base"]
-    image: postgres:15
+    image: sequentech.local/postgresql
     container_name: postgres-keycloak
     restart: unless-stopped
     volumes:
