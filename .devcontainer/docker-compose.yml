@@ -488,7 +488,7 @@ services:
       --immudb-port ${IMMUDB_PORT}
       --immudb-database ${IMMUDB_LOGS_DB}
     volumes: 
-      - 'immudb_log_audit_data:/data'
+      - 'keycloak_immudb_log_audit_data:/data'
       - 'keycloak_db_logs:/logs'
     # make sure to depend on the `immudb-log-audit-init` container to ensure
     # that the `sequentech.local/immudb-log-audit` image is locally build, so
@@ -518,6 +518,11 @@ services:
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
+    depends_on:
+      - harvest
+    volumes:
+      - ./keycloak/import:/import
+      - ../packages/:/app
     restart: always
     working_dir: /app/immu-board
     entrypoint: [
@@ -540,9 +545,6 @@ services:
       "/tmp/immu-board",
       "upsert-init-db"
     ]
-    volumes:
-      - ./keycloak/import:/import
-      - ../packages/:/app
     env_file:
       - .env
 
@@ -638,6 +640,7 @@ volumes:
   db_logs:
   keycloak_db_logs:
   immudb_log_audit_data:
+  keycloak_immudb_log_audit_data:
   keycloak_db_data:
   immudb_data:
   immudb_logs:
