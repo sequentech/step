@@ -85,7 +85,7 @@ export const CustomMenu = () => {
                     leftIcon={<SettingsIcon sx={{color: adminTheme.palette.brandColor}} />}
                 />
                 <StyledItem
-                    to="/"
+                    to="/sequent_backend_communication_template"
                     primaryText={open && t("sideMenu.communicationTemplates")}
                     leftIcon={<MailIcon sx={{color: adminTheme.palette.brandColor}} />}
                 />
