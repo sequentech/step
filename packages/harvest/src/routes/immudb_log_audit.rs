@@ -7,6 +7,7 @@ use crate::types::resources::{
 };
 use anyhow::{anyhow, Context, Result};
 use immudb_rs::{sql_value::Value as SqlValue, Client, Row};
+use regex::Regex;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
@@ -63,6 +64,7 @@ impl GetPgauditBody {
     // Returns the SQL clauses related to the request
     fn as_sql_clauses(&self) -> Result<String> {
         let mut clauses = Vec::new();
+        let invalid_chars_re = Regex::new(r"['-/]")?;
 
         // Handle filters
         if let Some(filters_map) = &self.filters {
@@ -71,12 +73,16 @@ impl GetPgauditBody {
                 .filter_map(|(field, value)| {
                     match field {
                         OrderField::Id => {
-                            let int_value: i32 = value.parse().ok()?;
+                            let int_value: i64 = value.parse().ok()?;
                             Some(format!("id = {int_value}"))
-                        },
+                        }
                         // Don't support filtering by timestamp yet
                         OrderField::ServerTimestamp => None,
-                        _ => Some(format!("{field:?} = '(?i){value}'")),
+                        _ => {
+                            let sanitized_value = 
+                                invalid_chars_re.replace_all(value, "");
+                            Some(format!("{field:?} = '(?i){sanitized_value}'"))
+                        },
                     }
                 })
                 .collect();
@@ -291,7 +297,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             get_pgaudit_body.as_sql_clauses().unwrap(),
-            "ORDER BY Id Asc LIMIT 10"
+            "ORDER BY Id Asc LIMIT 20"
         );
 
         let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
@@ -310,9 +316,9 @@ mod tests {
         let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
             "tenant_id": "some_tenant",
             "election_event_id": "some_event",
-            "limit": 550
+            "limit": 1550
         }))
         .unwrap();
-        assert_eq!(get_pgaudit_body.as_sql_clauses().unwrap(), "LIMIT 500");
+        assert_eq!(get_pgaudit_body.as_sql_clauses().unwrap(), "LIMIT 1000");
     }
 }
