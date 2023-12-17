@@ -303,7 +303,7 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(
-            get_pgaudit_body.as_sql_clauses().unwrap(),
+            get_pgaudit_body.as_sql_clauses(false).unwrap(),
             "ORDER BY Id Asc LIMIT 20"
         );
 
@@ -316,8 +316,12 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(
-            get_pgaudit_body.as_sql_clauses().unwrap(),
+            get_pgaudit_body.as_sql_clauses(false).unwrap(),
             "ORDER BY Id Asc LIMIT 15 OFFSET 5"
+        );
+        assert_eq!(
+            get_pgaudit_body.as_sql_clauses(true).unwrap(),
+            ""
         );
 
         let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
@@ -326,6 +330,7 @@ mod tests {
             "limit": 1550
         }))
         .unwrap();
-        assert_eq!(get_pgaudit_body.as_sql_clauses().unwrap(), "LIMIT 1000");
+        assert_eq!(get_pgaudit_body.as_sql_clauses(false).unwrap(), "LIMIT 1000");
+        assert_eq!(get_pgaudit_body.as_sql_clauses(true).unwrap(), "");
     }
 }
