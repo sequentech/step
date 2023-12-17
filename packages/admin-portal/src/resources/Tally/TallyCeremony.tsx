@@ -2,7 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {BreadCrumbSteps, BreadCrumbStepsVariant, Dialog, theme} from "@sequentech/ui-essentials"
+import {
+    BreadCrumbSteps,
+    BreadCrumbStepsVariant,
+    Dialog,
+    sleep,
+    theme,
+} from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
@@ -23,7 +29,7 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation} from "@apollo/client"
-import {ITallyExecutionStatus} from "@/types/ceremonies"
+import {ILog, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,

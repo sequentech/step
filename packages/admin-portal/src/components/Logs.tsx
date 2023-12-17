@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState} from "react"
+import React, {useState, useRef, useEffect} from "react"
 import {Accordion, AccordionSummary, Box, Typography} from "@mui/material"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
@@ -14,6 +14,12 @@ import {useTranslation} from "react-i18next"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {IKeysCeremonyLog} from "@/services/KeyCeremony"
+import styled from "@emotion/styled"
+
+export const AccordionDetails = styled(WizardStyles.AccordionDetails)`
+    max-height: 400px;
+    overflow-y: scroll;
+`
 
 interface LogsProps {
     logs?: Array<IKeysCeremonyLog>
@@ -22,6 +28,35 @@ interface LogsProps {
 export const Logs: React.FC<LogsProps> = ({logs}) => {
     const [logsExpanded, setLogsExpanded] = useState(true)
     const {t} = useTranslation()
+    const myDivRef = useRef<HTMLDivElement>(null)
+    useEffect(() => {
+        if (!logsExpanded) {
+            return
+        }
+        if (!myDivRef.current) {
+            return
+        }
+        myDivRef.current.scroll({
+            top: myDivRef.current.scrollHeight,
+            behavior: "smooth",
+        })
+    }, [logsExpanded, myDivRef.current])
+    useEffect(() => {
+        if (!logsExpanded) {
+            return
+        }
+        if (!myDivRef.current) {
+            return
+        }
+        const {scrollTop, scrollHeight, clientHeight} = myDivRef.current
+        const isNearBottom = scrollTop + clientHeight >= scrollHeight
+        if (isNearBottom) {
+            myDivRef.current.scroll({
+                top: myDivRef.current.scrollHeight,
+                behavior: "smooth",
+            })
+        }
+    }, [logsExpanded, myDivRef.current, logs])
 
     return (
         <Accordion
@@ -34,9 +69,9 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
                     {t("keysGeneration.ceremonyStep.logsHeader.title")}
                 </WizardStyles.AccordionTitle>
             </AccordionSummary>
-            <WizardStyles.AccordionDetails>
+            <AccordionDetails ref={myDivRef}>
                 {!!logs && logs.length > 0 ? (
-                    <Paper sx={{width: "100%", overflow: "hidden"}}>
+                    <Paper sx={{width: "100%", margin: "4px 0"}}>
                         <TableContainer>
                             <Table sx={{maxHeight: 450}} aria-label="simple table">
                                 <TableHead>
@@ -76,7 +111,7 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
                         </Typography>
                     </Box>
                 )}
-            </WizardStyles.AccordionDetails>
+            </AccordionDetails>
         </Accordion>
     )
 }
