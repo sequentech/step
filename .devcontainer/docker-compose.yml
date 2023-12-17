@@ -29,10 +29,11 @@ services:
     container_name: postgres-volume-init
     volumes: 
       - db_logs:/logs
+      - keycloak_db_logs:/keycloak_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs
+    command: chown -R 999:999 /logs /keycloak_logs
 
   postgres:
     profiles: ["full", "base"]
@@ -204,7 +205,11 @@ services:
       timeout: 10s
       retries: 15
       start_period: 5s
-
+    # depending on the `postgres` container to ensure that the
+    # `sequentech.local/postgresql` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - postgres
   keycloak:
     profiles: ["full", "base"]
     container_name: keycloak
