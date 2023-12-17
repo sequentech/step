@@ -371,6 +371,7 @@ actions:
             "election_event_id": {{ head(removeNulls([$session_variables?['x-hasura-election-event-id'],"defaultdb"])) }},
             "limit": {{$body.input?.limit}},
             "offset": {{$body.input?.offset}},
+            "filter": {{$body.input?.filter}},
             "order_by": {{$body.input?.order_by}}
           }
       template_engine: Kriti
@@ -500,6 +501,7 @@ custom_types:
       value: desc
   input_objects:
   - name: TemplateInput
+  - name: PgAuditFilter
   - name: PgAuditOrderBy
   - name: SampleInput
   - name: CreateElectionEventInput

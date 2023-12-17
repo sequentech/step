@@ -14,6 +14,7 @@ use sequent_core::services::connection;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
+use strum_macros::{Display, EnumString, ToString};
 use tracing::instrument;
 use windmill::services::database::PgConfig;
 
@@ -36,8 +37,9 @@ macro_rules! assign_value {
 }
 
 // Enumeration for the valid fields in the immudb table
-#[derive(Debug, Deserialize, Hash, PartialEq, Eq)]
+#[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 enum OrderField {
     Id,
     AuditType,
@@ -56,18 +58,19 @@ pub struct GetPgauditBody {
     election_event_id: String,
     limit: Option<i64>,
     offset: Option<i64>,
-    filters: Option<HashMap<OrderField, String>>,
+    filter: Option<HashMap<OrderField, String>>,
     order_by: Option<HashMap<OrderField, OrderDirection>>,
 }
 
 impl GetPgauditBody {
     // Returns the SQL clauses related to the request
+    #[instrument(ret)]
     fn as_sql_clauses(&self) -> Result<String> {
         let mut clauses = Vec::new();
         let invalid_chars_re = Regex::new(r"['-/]")?;
 
         // Handle filters
-        if let Some(filters_map) = &self.filters {
+        if let Some(filters_map) = &self.filter {
             let where_clauses: Vec<String> = filters_map
                 .iter()
                 .filter_map(|(field, value)| {
@@ -79,10 +82,12 @@ impl GetPgauditBody {
                         // Don't support filtering by timestamp yet
                         OrderField::ServerTimestamp => None,
                         _ => {
-                            let sanitized_value = 
+                            let sanitized_value =
                                 invalid_chars_re.replace_all(value, "");
-                            Some(format!("{field:?} = '(?i){sanitized_value}'"))
-                        },
+                            Some(format!(
+                                "{field} LIKE '(?i){sanitized_value}'"
+                            ))
+                        }
                     }
                 })
                 .collect();
@@ -95,9 +100,7 @@ impl GetPgauditBody {
         if let Some(order_by_map) = &self.order_by {
             let order_clauses: Vec<String> = order_by_map
                 .iter()
-                .map(|(field, direction)| {
-                    format!("{:?} {:?}", field, direction)
-                })
+                .map(|(field, direction)| format!("{field} {direction}"))
                 .collect();
             if !order_clauses.is_empty() {
                 clauses.push(format!("ORDER BY {}", order_clauses.join(", ")));
@@ -230,6 +233,7 @@ pub async fn list_pgaudit(
     client.login().await?;
 
     client.open_session(&input.election_event_id).await?;
+    let clauses = input.as_sql_clauses()?;
     let sql = format!(
         r#"
         SELECT
@@ -243,9 +247,8 @@ pub async fn list_pgaudit(
             statement,
             user
         FROM pgaudit
-        {}
+        {clauses}
         "#,
-        input.as_sql_clauses()?
     );
     let sql_query_response = client.sql_query(&sql, vec![]).await?;
     let items = sql_query_response
@@ -260,6 +263,7 @@ pub async fn list_pgaudit(
         SELECT
             COUNT(*)
         FROM pgaudit
+        {clauses}
         "#,
     );
     let sql_query_response = client.sql_query(&sql, vec![]).await?;

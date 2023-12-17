@@ -1,5 +1,5 @@
 import {buildQuery, buildVariables} from "ra-data-hasura"
-import {getPgAudit} from "./ListPgAudit"
+import {getPgauditVariables, getPgAudit} from "./ListPgAudit"
 import {getUsers} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
@@ -15,11 +15,8 @@ export const customBuildQuery =
             }
             return {
                 query: getPgAudit(params),
-                variables: buildVariables(introspectionResults)(
-                    resource,
-                    raFetchType,
-                    params,
-                    null
+                variables: getPgauditVariables(
+                    buildVariables(introspectionResults)(resource, raFetchType, params, null)
                 ),
                 parseResponse: (res: any) => {
                     const response = res.data.listPgaudit

@@ -25,8 +25,14 @@ export const PgAuditList: React.FC<PgAuditListProps> = ({aside}) => {
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
     const filters: Array<ReactElement> = [
-        <TextInput label={t("logsScreen.column.id")} source="id" key={0} />,
-        <TextInput label={t("logsScreen.column.statement")} source="statement" key={0} />,
+        <TextInput source="id" key={0} />,
+        <TextInput source="audit_type" key={1} />,
+        <TextInput source="class" key={2} />,
+        <TextInput source="command" key={3} />,
+        <TextInput source="dbname" key={4} />,
+        <TextInput source="session_id" key={5} />,
+        <TextInput source="statement" key={6} />,
+        <TextInput source="user" key={7} />,
     ]
 
     return (

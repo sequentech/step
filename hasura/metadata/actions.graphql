@@ -171,6 +171,7 @@ type Query {
   listPgaudit (
     limit: Int
     offset: Int
+    filter: PgAuditFilter 
     order_by: PgAuditOrderBy
   ): DataListPgAudit
 }
@@ -242,6 +243,17 @@ enum OrderDirection {
 input TemplateInput {
   template : String!
   format : String!
+}
+
+input PgAuditFilter {
+  id : String
+  audit_type : String
+  class : String
+  command : String
+  dbname : String
+  session_id : String
+  statement : String
+  user : String
 }
 
 input PgAuditOrderBy {
