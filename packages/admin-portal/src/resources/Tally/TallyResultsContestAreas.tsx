@@ -16,10 +16,11 @@ interface TallyResultsContestAreasProps {
     electionId: string | null
     electionEventId: string | null
     tenantId: string | null
+    resultsEventId: string | null
 }
 
 export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> = (props) => {
-    const {areas, contestId, electionEventId, tenantId} = props
+    const {areas, contestId, electionEventId, tenantId, resultsEventId} = props
     const {t} = reactI18next.useTranslation()
 
     const [value, setValue] = React.useState<number | null>(null)
@@ -96,6 +97,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                     tenantId={contest?.tenant_id}
                     electionId={contest?.election_id}
                     contestId={contest?.id}
+                    resultsEventId={resultsEventId}
                 />
             </CustomTabPanel>
             {areasData?.map((area, index) => (
@@ -106,6 +108,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                         electionId={contest?.election_id}
                         contestId={contest?.id}
                         areaId={selectedArea}
+                        resultsEventId={resultsEventId}
                     />
                 </CustomTabPanel>
             ))}

@@ -28,10 +28,12 @@ import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
     Sequent_Backend_Tally_Session,
+    Sequent_Backend_Tally_Session_Execution,
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
 import globalSettings from "@/global-settings"
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 const WizardSteps = {
     Start: 0,
@@ -57,6 +59,7 @@ export const TallyCeremony: React.FC = () => {
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
     const [localTallyId, setLocalTallyId] = useState<string | null>(null)
+    const [tenantId] = useTenantStore()
 
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
@@ -94,6 +97,21 @@ export const TallyCeremony: React.FC = () => {
         {
             pagination: {page: 1, perPage: 9999},
             filter: {election_event_id: record?.id, tenant_id: record?.tenant_id},
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        }
+    )
+
+    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+        "sequent_backend_tally_session_execution",
+        {
+            pagination: {page: 1, perPage: 1},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tally_session_id: tallyId,
+                tenant_id: tenantId,
+            },
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
@@ -280,7 +298,7 @@ export const TallyCeremony: React.FC = () => {
                             </WizardStyles.AccordionDetails>
                         </Accordion>
 
-                        <TallyLogs />
+                        <TallyLogs tallySessionExecution={tallySessionExecutions?.[0]} />
 
                         <Accordion
                             sx={{width: "100%"}}
@@ -305,6 +323,9 @@ export const TallyCeremony: React.FC = () => {
                                     tenantId={tally?.tenant_id}
                                     electionEventId={tally?.election_event_id}
                                     electionIds={tally?.election_ids}
+                                    resultsEventId={
+                                        tallySessionExecutions?.[0]?.results_event_id ?? null
+                                    }
                                 />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
@@ -327,7 +348,12 @@ export const TallyCeremony: React.FC = () => {
                                 </WizardStyles.AccordionTitle>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
-                                <TallyResults tally={tally} />
+                                <TallyResults
+                                    tally={tally}
+                                    resultsEventId={
+                                        tallySessionExecutions?.[0]?.results_event_id ?? null
+                                    }
+                                />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
                     </>
@@ -368,7 +394,7 @@ export const TallyCeremony: React.FC = () => {
                             </WizardStyles.AccordionDetails>
                         </Accordion>
 
-                        <TallyLogs />
+                        <TallyLogs tallySessionExecution={tallySessionExecutions?.[0]} />
 
                         <Accordion
                             sx={{width: "100%"}}
@@ -400,6 +426,9 @@ export const TallyCeremony: React.FC = () => {
                                     tenantId={tally?.tenant_id}
                                     electionEventId={tally?.election_event_id}
                                     electionIds={tally?.election_ids}
+                                    resultsEventId={
+                                        tallySessionExecutions?.[0]?.results_event_id ?? null
+                                    }
                                 />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
@@ -422,7 +451,12 @@ export const TallyCeremony: React.FC = () => {
                                 </WizardStyles.AccordionTitle>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
-                                <TallyResults tally={tally} />
+                                <TallyResults
+                                    tally={tally}
+                                    resultsEventId={
+                                        tallySessionExecutions?.[0]?.results_event_id ?? null
+                                    }
+                                />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
                     </>

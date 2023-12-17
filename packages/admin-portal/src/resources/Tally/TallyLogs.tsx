@@ -11,37 +11,12 @@ import {ILog, ITallyCeremonyStatus} from "@/types/ceremonies"
 import globalSettings from "@/global-settings"
 import {Logs} from "@/components/Logs"
 
-export const TallyLogs: React.FC = () => {
-    const {tallyId} = useElectionEventTallyStore()
-    const [tenantId] = useTenantStore()
-    const [dataTally, setDataTally] = useState<Array<ILog>>([])
+interface TallyLogsProps {
+    tallySessionExecution?: Sequent_Backend_Tally_Session_Execution
+}
 
-    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
-        "sequent_backend_tally_session_execution",
-        {
-            pagination: {page: 1, perPage: 1},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                tally_session_id: tallyId,
-                tenant_id: tenantId,
-            },
-        },
-        {
-            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
-        }
-    )
+export const TallyLogs: React.FC<TallyLogsProps> = ({tallySessionExecution}) => {
+    let status = tallySessionExecution?.status as ITallyCeremonyStatus | undefined
 
-    useEffect(() => {
-        if (!tallySessionExecutions?.[0].status) {
-            return
-        }
-
-        let status = tallySessionExecutions?.[0].status as ITallyCeremonyStatus | undefined
-
-        if (status?.logs) {
-            setDataTally(status.logs)
-        }
-    }, [tallySessionExecutions])
-
-    return <Logs logs={dataTally} />
+    return <Logs logs={status?.logs} />
 }
