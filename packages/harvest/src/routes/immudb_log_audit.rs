@@ -52,6 +52,15 @@ enum OrderField {
     User,
 }
 
+#[derive(Debug, Default, Deserialize, Hash, PartialEq, Eq, EnumString, Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+enum AuditTable {
+    #[default]
+    Pgaudit,
+    PgauditKeycloak,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct GetPgauditBody {
     tenant_id: String,
@@ -60,6 +69,8 @@ pub struct GetPgauditBody {
     offset: Option<i64>,
     filter: Option<HashMap<OrderField, String>>,
     order_by: Option<HashMap<OrderField, OrderDirection>>,
+    #[serde(default)]
+    audit_table: AuditTable,
 }
 
 impl GetPgauditBody {
@@ -237,6 +248,7 @@ pub async fn list_pgaudit(
     client.open_session(&input.election_event_id).await?;
     let clauses = input.as_sql_clauses(false)?;
     let clauses_to_count = input.as_sql_clauses(true)?;
+    let audit_table = input.audit_table;
     let sql = format!(
         r#"
         SELECT
@@ -249,7 +261,7 @@ pub async fn list_pgaudit(
             session_id,
             statement,
             user
-        FROM pgaudit
+        FROM {audit_table}
         {clauses}
         "#,
     );
@@ -265,7 +277,7 @@ pub async fn list_pgaudit(
         r#"
         SELECT
             COUNT(*)
-        FROM pgaudit
+        FROM {audit_table}
         {clauses_to_count}
         "#,
     );

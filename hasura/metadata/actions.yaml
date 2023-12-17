@@ -502,6 +502,7 @@ custom_types:
   input_objects:
   - name: TemplateInput
   - name: PgAuditFilter
+  - name: PgAuditTable
   - name: PgAuditOrderBy
   - name: SampleInput
   - name: CreateElectionEventInput
