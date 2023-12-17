@@ -66,28 +66,30 @@ pub async fn generate_tally_progress(
                 .iter()
                 .filter(|value| election_batch_ids.contains(value))
                 .collect::<Vec<_>>()
-                .len() as f64;
+                .len();
             let num_decrypting_contests = decrypting_batch_ids
                 .iter()
                 .filter(|value| election_batch_ids.contains(value))
                 .collect::<Vec<_>>()
-                .len() as f64;
+                .len();
             let num_mixing_contests = mixing_batch_ids
                 .iter()
                 .filter(|value| election_batch_ids.contains(value))
                 .collect::<Vec<_>>()
-                .len() as f64;
-            let total = election_batch_ids.len() as f64;
-            let progress: f64 = 100.0
-                * (0.2 * num_mixing_contests
-                    + 0.4 * num_decrypting_contests
-                    + num_finished_contests)
-                / total;
-            let new_status = if progress > 99.99 {
+                .len();
+            let total = election_batch_ids.len();
+            let mut progress: f64 = 100.0
+                * (0.2 * (num_mixing_contests as f64)
+                    + 0.4 * (num_decrypting_contests as f64)
+                    + (num_finished_contests as f64))
+                / (total as f64);
+            // clamp values to 0-100
+            progress = progress.min(100.0).max(0.0);
+            let new_status = if num_finished_contests >= total {
                 TallyElectionStatus::SUCCESS
-            } else if num_decrypting_contests == 0.0 && num_mixing_contests > 0.0 {
+            } else if num_decrypting_contests == 0 && num_mixing_contests > 0 {
                 TallyElectionStatus::MIXING
-            } else if num_decrypting_contests > 0.0 {
+            } else if num_decrypting_contests > 0 {
                 TallyElectionStatus::DECRYPTING
             } else {
                 TallyElectionStatus::WAITING
