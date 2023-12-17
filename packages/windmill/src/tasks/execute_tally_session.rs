@@ -62,7 +62,7 @@ type AreaContestDataType = (
     BallotStyle,
 );
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyle>> {
     // get ballot styles, from where we'll get the Contest(s)
     tally_session_data
@@ -201,7 +201,7 @@ fn get_session_ids_by_type(messages: &Vec<Message>, kind: StatementType) -> Vec<
     plaintext_batch_ids
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 async fn generate_tally_progress(
     tally_session_data: &get_last_tally_session_execution::ResponseData,
     messages: &Vec<Message>,
@@ -279,7 +279,7 @@ async fn generate_tally_progress(
     Ok(tally_elections_status)
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 async fn map_plaintext_data(
     tenant_id: String,
     election_event_id: String,
@@ -581,7 +581,7 @@ async fn save_results(
     Ok(())
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 async fn tally_area_contest(
     area_contest_plaintext: AreaContestDataType,
     base_tempdir: PathBuf,
@@ -714,7 +714,7 @@ async fn tally_area_contest(
     Ok(())
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 async fn create_results_event(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,
@@ -731,7 +731,7 @@ async fn create_results_event(
     Ok(results_event.id.clone())
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn generate_results_if_necessary(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,
@@ -762,7 +762,7 @@ pub async fn generate_results_if_necessary(
     }
 }
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 120000)]
 pub async fn execute_tally_session(

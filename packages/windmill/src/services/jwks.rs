@@ -29,7 +29,7 @@ fn get_jwks_secret_path() -> String {
     "certs.json".to_string()
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn get_jwks() -> Result<Vec<JWKKey>> {
     let minio_private_uri =
         env::var("MINIO_PRIVATE_URI").expect(&format!("MINIO_PRIVATE_URI must be set"));
@@ -55,7 +55,7 @@ pub async fn get_jwks() -> Result<Vec<JWKKey>> {
     Ok(response_body.keys)
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn download_realm_jwks_from_keycloak(realm: &str) -> Result<Vec<JWKKey>> {
     let keycloak_url = env::var("KEYCLOAK_URL").expect(&format!("KEYCLOAK_URL must be set"));
     let hasura_endpoint = format!(
@@ -69,7 +69,7 @@ pub async fn download_realm_jwks_from_keycloak(realm: &str) -> Result<Vec<JWKKey
     Ok(response_body.keys)
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
     let realm_jwks = download_realm_jwks_from_keycloak(realm).await?;
     let mut existing_jwks = get_jwks().await?;

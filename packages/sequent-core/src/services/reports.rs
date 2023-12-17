@@ -5,7 +5,7 @@ use handlebars::{Handlebars, RenderError};
 use serde_json::{json, Map, Value};
 use tracing::instrument;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub fn render_template_text(
     template: &str,
     variables_map: Map<String, Value>,

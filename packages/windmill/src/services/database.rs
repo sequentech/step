@@ -5,6 +5,7 @@ use config::{Config, ConfigError, Environment};
 use deadpool_postgres::{Client, Pool, PoolError, Runtime, SslMode};
 use serde::{Deserialize, Serialize};
 use std::env;
+use tracing::instrument;
 
 #[cfg(any(feature = "fips_core", feature = "fips_full"))]
 use openssl::ssl::{SslConnector, SslMethod};
@@ -31,6 +32,7 @@ impl PgConfig {
     }
 }
 
+#[instrument(err)]
 pub async fn generate_database_pool() -> Result<Arc<Pool>> {
     let config = PgConfig::from_env()?;
 

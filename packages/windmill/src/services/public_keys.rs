@@ -20,7 +20,7 @@ pub fn deserialize_public_key(public_key_string: String) -> StrandSignaturePk {
     StrandSignaturePk::from_der_b64_string(&public_key_string).unwrap()
 }
 
-#[instrument(skip(trustee_pks, threshold))]
+#[instrument(skip(trustee_pks, threshold), err)]
 pub async fn create_keys(
     board_name: &str,
     trustee_pks: Vec<String>,
@@ -47,7 +47,7 @@ pub async fn create_keys(
     Ok(())
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn get_public_key(board_name: String) -> Result<String> {
     let pk = protocol_manager::get_board_public_key::<RistrettoCtx>(board_name.as_str()).await?;
     let pk_bytes = pk.strand_serialize()?;

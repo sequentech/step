@@ -20,7 +20,7 @@ use tracing::{event, instrument, Level};
 )]
 pub struct InsertKeysCeremony;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn insert_keys_ceremony(
     auth_headers: connection::AuthHeaders,
     id: String,
@@ -63,7 +63,7 @@ pub async fn insert_keys_ceremony(
 )]
 pub struct GetKeysCeremonies;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_keys_ceremonies(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -97,7 +97,7 @@ pub async fn get_keys_ceremonies(
 )]
 pub struct UpdateKeysCeremonyStatus;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn update_keys_ceremony_status(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -130,7 +130,7 @@ pub async fn update_keys_ceremony_status(
     response_body.ok()
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_keys_ceremony_by_id(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,

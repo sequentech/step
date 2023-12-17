@@ -16,7 +16,7 @@ pub struct PgLock {
 }
 
 impl PgLock {
-    #[instrument(skip(auth_headers))]
+    #[instrument(skip(auth_headers), err)]
     pub async fn acquire(
         auth_headers: connection::AuthHeaders,
         key: String,
@@ -42,7 +42,7 @@ impl PgLock {
         }
     }
 
-    #[instrument(skip(auth_headers))]
+    #[instrument(skip(auth_headers), err)]
     pub async fn release(self, auth_headers: connection::AuthHeaders) -> Result<()> {
         let affected_rows = delete_lock(auth_headers, self.key.clone(), self.value.clone())
             .await?

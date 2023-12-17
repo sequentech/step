@@ -19,7 +19,7 @@ use sequent_core::services::connection;
 )]
 pub struct GetAreaContests;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn get_area_contests(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

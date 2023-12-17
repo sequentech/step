@@ -18,7 +18,7 @@ use tracing::instrument;
 )]
 pub struct UpsertLock;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn upsert_lock(
     auth_headers: connection::AuthHeaders,
     key: String,
@@ -58,7 +58,7 @@ pub async fn upsert_lock(
 )]
 pub struct DeleteLock;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn delete_lock(
     auth_headers: connection::AuthHeaders,
     key: String,
