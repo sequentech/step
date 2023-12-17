@@ -117,17 +117,19 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                           turnout: number
                       }
                   >
-                | undefined = candidates?.map((item, index) => {
+                | undefined = candidates?.map((candidate, index) => {
+                let candidateResult = results.find((r) => r.candidate_id === candidate.id)
+
                 return {
-                    ...item,
+                    ...candidate,
                     rowId: index,
-                    id: item.id || "",
-                    name: item.name,
-                    status: item.status || "",
-                    method: item.method,
-                    voters: item.voters,
-                    number: item.number,
-                    turnout: item.turnout,
+                    id: candidate.id || "",
+                    name: candidate.name,
+                    status: candidate.status || "",
+                    method: candidate.method,
+                    voters: candidate.voters,
+                    number: candidateResult?.cast_votes || 0,
+                    turnout: candidate.turnout,
                 }
             })
 
