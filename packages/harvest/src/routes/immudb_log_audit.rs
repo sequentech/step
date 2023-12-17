@@ -52,7 +52,9 @@ enum OrderField {
     User,
 }
 
-#[derive(Debug, Default, Deserialize, Hash, PartialEq, Eq, EnumString, Display)]
+#[derive(
+    Debug, Default, Deserialize, Hash, PartialEq, Eq, EnumString, Display,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 enum AuditTable {
@@ -115,7 +117,8 @@ impl GetPgauditBody {
                     .map(|(field, direction)| format!("{field} {direction}"))
                     .collect();
                 if !order_clauses.is_empty() {
-                    clauses.push(format!("ORDER BY {}", order_clauses.join(", ")));
+                    clauses
+                        .push(format!("ORDER BY {}", order_clauses.join(", ")));
                 }
             }
 
@@ -125,7 +128,10 @@ impl GetPgauditBody {
                 .unwrap_or(PgConfig::from_env()?.default_sql_limit.into());
             clauses.push(format!(
                 "LIMIT {}",
-                std::cmp::min(limit, PgConfig::from_env()?.low_sql_limit.into())
+                std::cmp::min(
+                    limit,
+                    PgConfig::from_env()?.low_sql_limit.into()
+                )
             ));
 
             // Handle offset
@@ -331,10 +337,7 @@ mod tests {
             get_pgaudit_body.as_sql_clauses(false).unwrap(),
             "ORDER BY Id Asc LIMIT 15 OFFSET 5"
         );
-        assert_eq!(
-            get_pgaudit_body.as_sql_clauses(true).unwrap(),
-            ""
-        );
+        assert_eq!(get_pgaudit_body.as_sql_clauses(true).unwrap(), "");
 
         let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
             "tenant_id": "some_tenant",
@@ -342,7 +345,10 @@ mod tests {
             "limit": 1550
         }))
         .unwrap();
-        assert_eq!(get_pgaudit_body.as_sql_clauses(false).unwrap(), "LIMIT 1000");
+        assert_eq!(
+            get_pgaudit_body.as_sql_clauses(false).unwrap(),
+            "LIMIT 1000"
+        );
         assert_eq!(get_pgaudit_body.as_sql_clauses(true).unwrap(), "");
     }
 }
