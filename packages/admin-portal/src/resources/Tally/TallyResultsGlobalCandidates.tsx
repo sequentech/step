@@ -89,7 +89,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
     const {data: results} = useGetList<Sequent_Backend_Results_Contest_Candidate>(
         "sequent_backend_results_contest_candidate",
         {
-            pagination: {page: 1, perPage: 1},
+            pagination: {page: 1, perPage: 9999},
             filter: {
                 contest_id: contestId,
                 tenant_id: tenantId,
