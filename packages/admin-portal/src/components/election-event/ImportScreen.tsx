@@ -59,7 +59,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                         flexDirection: "row",
                         justifyContent: "center",
                         alignItems: "center",
-                        margin: "16px auto",
+                        marginTop: "32px",
                         height: "48px",
                     }}
                 >

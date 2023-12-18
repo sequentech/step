@@ -243,7 +243,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                             toolbar={
                                 <Toolbar>
                                     {canEdit ? <SaveButton type="button" /> : null}
-                                    {canEdit ? <DeleteButton /> : null}
                                 </Toolbar>
                             }
                         >

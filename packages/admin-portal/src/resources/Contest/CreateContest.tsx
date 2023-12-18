@@ -56,8 +56,8 @@ export const CreateContest: React.FC = () => {
                 <Hidden>
                     <BooleanInput source="is_acclaimed" />
                     <BooleanInput source="is_active" />
-                    <NumberInput source="min_votes" />
-                    <NumberInput source="max_votes" />
+                    <NumberInput source="max_votes" defaultValue="1" />
+                    <NumberInput source="winning_candidates_num" defaultValue={1} />
                     <SelectInput
                         source="voting_type"
                         choices={[{id: "first-past-the-post", name: "First Past The Post"}]}
