@@ -246,27 +246,34 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     function BulkActions(props) {
         return (
             <>
-                <Button
-                    variant="actionbar"
-                    key="send-notification"
-                    onClick={() => {
-                        sendCommunicationAction(props.selectedIds ?? [], AudienceSelection.SELECTED)
-                    }}
-                >
-                    <ResourceListStyles.MailIcon />
-                    {t(`sendCommunication.send`)}
-                </Button>
+                {canSendCommunications && (
+                    <Button
+                        variant="actionbar"
+                        key="send-notification"
+                        onClick={() => {
+                            sendCommunicationAction(
+                                props.selectedIds ?? [],
+                                AudienceSelection.SELECTED
+                            )
+                        }}
+                    >
+                        <ResourceListStyles.MailIcon />
+                        {t(`sendCommunication.send`)}
+                    </Button>
+                )}
 
-                <Button
-                    variant="actionbar"
-                    onClick={() => {
-                        setSelectedIds(props.selectedIds)
-                        setOpenDeleteBulkModal(true)
-                    }}
-                >
-                    <ResourceListStyles.DeleteIcon />
-                    {t("common.label.delete")}
-                </Button>
+                {canEditUsers && (
+                    <Button
+                        variant="actionbar"
+                        onClick={() => {
+                            setSelectedIds(props.selectedIds)
+                            setOpenDeleteBulkModal(true)
+                        }}
+                    >
+                        <ResourceListStyles.DeleteIcon />
+                        {t("common.label.delete")}
+                    </Button>
+                )}
             </>
         )
     }
