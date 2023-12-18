@@ -62,6 +62,21 @@ const englishTranslation = {
                 cancel: "Cancel",
             },
         },
+        logsScreen: {
+            noPermissions: "You don't have permission to access logs.",
+            title: "Logs",
+            subtitle: "General logs of the main and IAM databases",
+            column: {
+                id: "Id",
+                statement: "Statement",
+            },
+            main: {
+                title: "Main Database Logs",
+            },
+            iam: {
+                title: "IAM Database Logs",
+            },
+        },
         confirmationScreen: {
             title: "Your vote has been cast",
             description:
@@ -498,6 +513,7 @@ const englishTranslation = {
             electionEvents: "Election Events",
             search: "Search",
             usersAndRoles: "Users and Roles",
+            logs: "Logs",
             settings: "Settings",
             communicationTemplates: "Communication Templates",
             active: "Active",

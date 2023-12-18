@@ -29,13 +29,15 @@ services:
     container_name: postgres-volume-init
     volumes: 
       - db_logs:/logs
+      - keycloak_db_logs:/keycloak_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs
+    command: chown -R 999:999 /logs /keycloak_logs
 
   postgres:
     profiles: ["full", "base"]
+    image: sequentech.local/postgresql
     container_name: postgres
     build:
       context: ./postgresql
@@ -45,7 +47,7 @@ services:
       - db_data:/var/lib/postgresql/data
       - db_logs:/logs
     environment:
-      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -165,8 +167,6 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-      postgres-keycloak:
-        condition: service_healthy
 
   data-connector-agent:
     profiles: ["full", "base"]
@@ -189,11 +189,13 @@ services:
 
   postgres-keycloak:
     profiles: ["full", "base"]
-    image: postgres:15
+    image: sequentech.local/postgresql
     container_name: postgres-keycloak
     restart: unless-stopped
     volumes:
       - keycloak_db_data:/var/lib/postgresql/data
+      - keycloak_db_logs:/logs
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     environment:
       POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
     healthcheck:
@@ -202,6 +204,11 @@ services:
       timeout: 10s
       retries: 15
       start_period: 5s
+    # depending on the `postgres` container to ensure that the
+    # `sequentech.local/postgresql` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - postgres
 
   keycloak:
     profiles: ["full", "base"]
@@ -408,10 +415,14 @@ services:
       context: ../vendor/immudb-log-audit
       dockerfile: Dockerfile.immudb
     command: >
-      create sql pgaudit
+      create sql pgaudit_hasura
       --parser pgauditjsonlog
       --log-level debug
-      --immudb-host immudb
+      --immudb-user ${IMMUDB_USER}
+      --immudb-password ${IMMUDB_PASSWORD}
+      --immudb-host ${IMMUDB_HOST}
+      --immudb-port ${IMMUDB_PORT}
+      --immudb-database ${IMMUDB_LOGS_DB}
     depends_on:
       - postgres
       - immudb
@@ -422,12 +433,16 @@ services:
     image: sequentech.local/immudb-log-audit
     container_name: immudb-log-audit
     command: >
-      tail file pgaudit "/logs/*.json"
+      tail file pgaudit_hasura "/logs/*.json"
       --follow
       --parser pgauditjsonlog
       --file-registry-dir=/data
       --log-level debug
-      --immudb-host immudb
+      --immudb-user ${IMMUDB_USER}
+      --immudb-password ${IMMUDB_PASSWORD}
+      --immudb-host ${IMMUDB_HOST}
+      --immudb-port ${IMMUDB_PORT}
+      --immudb-database ${IMMUDB_LOGS_DB}
     volumes: 
       - 'immudb_log_audit_data:/data'
       - 'db_logs:/logs'
@@ -438,6 +453,53 @@ services:
       - postgres
       - immudb
       - immudb-log-audit-init
+
+  # Create collection in immudb
+  immudb-log-audit-init-keycloak:
+    profiles: ["full", "base"]
+    image: sequentech.local/immudb-log-audit
+    container_name: immudb-log-audit-init-keycloak
+    command: >
+      create sql pgaudit_keycloak
+      --parser pgauditjsonlog
+      --log-level debug
+      --immudb-user ${IMMUDB_USER}
+      --immudb-password ${IMMUDB_PASSWORD}
+      --immudb-host ${IMMUDB_HOST}
+      --immudb-port ${IMMUDB_PORT}
+      --immudb-database ${IMMUDB_LOGS_DB}
+    depends_on:
+      - postgres
+      - immudb
+      - immudb-log-audit-init
+
+  # Send audit logs to immudb
+  immudb-log-audit-keycloak:
+    profiles: ["full", "base"]
+    image: sequentech.local/immudb-log-audit
+    container_name: immudb-log-audit-keycloak
+    command: >
+      tail file pgaudit_keycloak "/logs/*.json"
+      --follow
+      --parser pgauditjsonlog
+      --file-registry-dir=/data
+      --log-level debug
+      --immudb-user ${IMMUDB_USER}
+      --immudb-password ${IMMUDB_PASSWORD}
+      --immudb-host ${IMMUDB_HOST}
+      --immudb-port ${IMMUDB_PORT}
+      --immudb-database ${IMMUDB_LOGS_DB}
+    volumes: 
+      - 'keycloak_immudb_log_audit_data:/data'
+      - 'keycloak_db_logs:/logs'
+    # make sure to depend on the `immudb-log-audit-init` container to ensure
+    # that the `sequentech.local/immudb-log-audit` image is locally build, so
+    # that we can reuse it:
+    depends_on:
+      - postgres
+      - immudb
+      - immudb-log-audit-init-keycloak
+
 
   rabbitmq:
     profiles: ["full", "base"]
@@ -458,6 +520,11 @@ services:
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
+    depends_on:
+      - harvest
+    volumes:
+      - ./keycloak/import:/import
+      - ../packages/:/app
     restart: always
     working_dir: /app/immu-board
     entrypoint: [
@@ -480,9 +547,6 @@ services:
       "/tmp/immu-board",
       "upsert-init-db"
     ]
-    volumes:
-      - ./keycloak/import:/import
-      - ../packages/:/app
     env_file:
       - .env
 
@@ -576,7 +640,9 @@ services:
 volumes:
   db_data:
   db_logs:
+  keycloak_db_logs:
   immudb_log_audit_data:
+  keycloak_immudb_log_audit_data:
   keycloak_db_data:
   immudb_data:
   immudb_logs:

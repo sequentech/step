@@ -20,6 +20,17 @@ pub struct PgConfig {
     pub default_sql_batch_size: i32,
 }
 
+impl Default for PgConfig {
+    fn default() -> Self {
+        PgConfig {
+            keycloak_db: deadpool_postgres::Config::default(),
+            low_sql_limit: 1000,
+            default_sql_limit: 20,
+            default_sql_batch_size: 1000,
+        }
+    }
+}
+
 impl PgConfig {
     pub fn from_env() -> Result<Self> {
         Config::builder()
