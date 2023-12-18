@@ -4,3 +4,4 @@
 
 pub mod authorization;
 pub mod worker;
+pub mod electoral_log;
