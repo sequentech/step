@@ -27,8 +27,6 @@ const OMIT_FIELDS: string[] = []
 const filters: Array<ReactElement> = [
     <TextInput source="id" key={0} />,
     <BooleanInput source="is_generated" key={1} />,
-    <TextInput source="published_at" key={2} />,
-    <TextInput source="created_at" key={3} />,
 ]
 
 type TPublishList = {
