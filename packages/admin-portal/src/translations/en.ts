@@ -252,6 +252,8 @@ const englishTranslation = {
                 },
             },
             import: {
+                eetitle: "Import Election Event",
+                eesubtitle: "Import election event data",
                 title: "Import Voters",
                 subtitle: "Import voters data",
                 voters: "Voters",

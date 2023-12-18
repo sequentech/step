@@ -254,8 +254,10 @@ const spanishTranslation: TranslationType = {
                 },
             },
             import: {
-                title: "Import Voters",
-                subtitle: "Import voters data",
+                eetitle: "Importar Evento Electoral",
+                eesubtitle: "Importar datos del Evento Electoral",
+                title: "Importar votantes",
+                subtitle: "Importar votantes al Evento Electoral",
                 voters: "Voters",
                 elections: "Elections",
                 areas: "Areas",

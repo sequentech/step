@@ -8,15 +8,14 @@ import {ReactI18NextChild, useTranslation} from "react-i18next"
 import {useLocation, useNavigate} from "react-router"
 import {Box, Tab, Tabs} from "@mui/material"
 import {ImportScreen} from "./ImportScreen"
-import importDrawerState from '@/atoms/import-drawer-state'
-import { useAtom } from 'jotai'
+import importDrawerState from "@/atoms/import-drawer-state"
+import {useAtom} from "jotai"
 
 interface ImportVotersTabsProps {
     doRefresh: () => void
 }
 
-export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
-
+export const ImportElectionEvent: React.FC<ImportVotersTabsProps> = (props) => {
     const {doRefresh} = props
 
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -73,7 +72,7 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
         setOpenImport(false)
     }
 
-    const handleImportVoters = (file: FileList | null, sha: string) => {
+    const handleImport = (file: FileList | null, sha: string) => {
         // TODO: call importVoters mutation
         console.log("handleImportVoters()", file, sha)
         setLoading(true)
@@ -81,7 +80,7 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
             setLoading(false)
             setOpenImport(false)
             doRefresh()
-        }, 5000);
+        }, 5000)
     }
 
     const handleImportElections = (file: FileList | null, sha: string) => {
@@ -95,42 +94,15 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
     return (
         <>
             <ElectionHeader
-                title={t("electionEventScreen.import.title")}
-                subtitle="electionEventScreen.import.subtitle"
+                title={t("electionEventScreen.import.eetitle")}
+                subtitle="electionEventScreen.import.eesubtitle"
             />
 
-            <Tabs value={value}>
-                <Tab label={t("electionEventScreen.import.voters")} onClick={() => tabClicked(0)} />
-                <Tab
-                    label={t("electionEventScreen.import.elections")}
-                    onClick={() => tabClicked(1)}
-                />
-                <Tab label={t("electionEventScreen.import.areas")} onClick={() => tabClicked(2)} />
-            </Tabs>
-
-            <CustomTabPanel index={0} value={value}>
-                <ImportScreen
-                    doCancel={handleCancel}
-                    doImport={handleImportVoters}
-                    isLoading={loading}
-                />
-            </CustomTabPanel>
-
-            <CustomTabPanel index={1} value={value}>
-                <ImportScreen
-                    doCancel={handleCancel}
-                    doImport={handleImportElections}
-                    isLoading={true}
-                />
-            </CustomTabPanel>
-
-            <CustomTabPanel index={2} value={value}>
-                <ImportScreen
-                    doCancel={handleCancel}
-                    doImport={handleImportAreas}
-                    isLoading={true}
-                />
-            </CustomTabPanel>
+            <ImportScreen
+                doCancel={handleCancel}
+                doImport={handleImport}
+                isLoading={loading}
+            />
         </>
     )
 }
