@@ -16,7 +16,6 @@ import {
     useNotify,
     useGetList,
     FunctionField,
-    BulkDeleteButton,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -38,7 +37,6 @@ import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
-import styled from "@emotion/styled"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -54,29 +52,6 @@ export interface ListUsersProps {
     electionEventId?: string
 }
 
-const StyledButton = styled(Button)(({theme}) => ({
-    "color": theme.palette.error.main,
-    "&:hover": {
-        "backgroundColor": alpha(theme.palette.error.main, 0.12),
-        // Reset on mouse devices
-        "@media (hover: none)": {
-            backgroundColor: "transparent",
-        },
-    },
-}))
-
-const StyledIcon1 = styled(MailIcon)(() => ({
-    marginRight: "10px",
-}))
-
-const StyledIcon2 = styled(DeleteIcon)(() => ({
-    marginRight: "6px",
-}))
-
-const StyledIcon3 = styled(MailIcon)(() => ({
-    marginRight: "8px",
-}))
-
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
@@ -88,6 +63,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     )
     const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
+    const [openDeleteBulkModal, setOpenDeleteBulkModal] = React.useState(false)
+    const [selectedIds, setSelectedIds] = React.useState<Identifier[]>([])
     const [deleteId, setDeleteId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState(false)
     const [recordIds, setRecordIds] = React.useState<Array<Identifier>>([])
@@ -136,6 +113,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     const handleClose = () => {
         setRecordIds([])
         setOpenSendCommunication(false)
+        setOpenDeleteModal(false)
+        setOpenDeleteBulkModal(false)
         setOpenDrawer(false)
         setOpenNew(false)
         setOpen(false)
@@ -145,6 +124,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         setOpen(true)
         setOpenNew(false)
         setOpenDeleteModal(false)
+        setOpenDeleteBulkModal(false)
         setOpenSendCommunication(false)
         setRecordIds([id as string])
     }
@@ -160,6 +140,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         setOpen(false)
         setOpenNew(false)
         setOpenDeleteModal(false)
+        setOpenDeleteBulkModal(false)
         setOpenSendCommunication(true)
 
         setAudienceSelection(audienceSelection)
@@ -173,6 +154,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         setOpen(false)
         setOpenNew(false)
         setOpenSendCommunication(false)
+        setOpenDeleteBulkModal(false)
         setOpenDeleteModal(true)
         setDeleteId(id as string)
     }
@@ -227,7 +209,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         },
     ]
 
-    async function deleteBulk(selectedIds: Identifier[]) {
+    async function confirmDeleteBulkAction() {
         const {errors} = await deleteUsers({
             variables: {
                 tenantId: tenantId,
@@ -265,19 +247,26 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         return (
             <>
                 <Button
+                    variant="actionbar"
                     key="send-notification"
                     onClick={() => {
                         sendCommunicationAction(props.selectedIds ?? [], AudienceSelection.SELECTED)
                     }}
                 >
-                    <StyledIcon1 />
+                    <ResourceListStyles.MailIcon />
                     {t(`sendCommunication.send`)}
                 </Button>
 
-                <StyledButton onClick={() => deleteBulk(props.selectedIds)}>
-                    <StyledIcon2 />
+                <Button
+                    variant="actionbar"
+                    onClick={() => {
+                        setSelectedIds(props.selectedIds)
+                        setOpenDeleteBulkModal(true)
+                    }}
+                >
+                    <ResourceListStyles.DeleteIcon />
                     {t("common.label.delete")}
-                </StyledButton>
+                </Button>
             </>
         )
     }
@@ -302,7 +291,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                                     sendCommunicationAction([], AudienceSelection.ALL_USERS)
                                 }}
                             >
-                                <StyledIcon3 />
+                                <ResourceListStyles.MailIcon />
                                 {t("sendCommunication.send")}
                             </Button>,
                         ]}
@@ -372,6 +361,21 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                 }}
             >
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.body`)}
+            </Dialog>
+            <Dialog
+                variant="warning"
+                open={openDeleteBulkModal}
+                ok={t("common.label.delete")}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.warning")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmDeleteBulkAction()
+                    }
+                    setOpenDeleteBulkModal(false)
+                }}
+            >
+                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.bulkBody`)}
             </Dialog>
         </>
     )

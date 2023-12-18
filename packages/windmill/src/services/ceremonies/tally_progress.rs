@@ -26,7 +26,7 @@ fn get_session_ids_by_type(messages: &Vec<Message>, kind: StatementType) -> Vec<
     plaintext_batch_ids
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, ret)]
 pub async fn generate_tally_progress(
     tally_session_data: &get_last_tally_session_execution::ResponseData,
     messages: &Vec<Message>,

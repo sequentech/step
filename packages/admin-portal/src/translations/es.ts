@@ -363,6 +363,7 @@ const spanishTranslation: TranslationType = {
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
+                    bulkBody: "¿Estás seguro que quieres borrar los usuarios seleccionados?",
                 },
                 notifications: {
                     deleteError: "Error borrando usuario",
@@ -386,6 +387,7 @@ const spanishTranslation: TranslationType = {
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este votante?",
+                    bulkBody: "¿Estás seguro que quieres borrar los votantes seleccionados?",
                 },
                 notifications: {
                     deleteError: "Error borrando votante",
