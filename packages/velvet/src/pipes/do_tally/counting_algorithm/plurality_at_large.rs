@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use tracing::instrument;
 
-use super::CountingAlgorithm;
+use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
     invalid_vote::InvalidVote, tally::Tally, CandidateResult, ContestResult,
 };
@@ -52,42 +52,55 @@ impl CountingAlgorithm for PluralityAtLarge {
             }
         }
 
-        let result: Vec<CandidateResult> = vote_count
+        let result: Result<Vec<CandidateResult>> = vote_count
             .into_iter()
-            .map(|(id, total_count)| CandidateResult {
-                candidate: self
+            .map(|(id, total_count)| {
+                let candidate = self
                     .tally
                     .contest
                     .candidates
                     .iter()
                     .find(|c| c.id == id)
                     .cloned()
-                    .unwrap(),
-                total_count,
+                    .ok_or(Error::CandidateNotFound(id))?;
+
+                Ok(CandidateResult {
+                    candidate,
+                    total_count,
+                })
             })
             .collect();
+        let result = result?;
 
-        let result = contest
+        let result: Result<Vec<CandidateResult>> = contest
             .candidates
             .iter()
             .map(|c| {
-                result
-                    .iter()
-                    .find(|rc| rc.candidate.id == c.id)
-                    .cloned()
-                    .unwrap_or(CandidateResult {
-                        candidate: self
-                            .tally
-                            .contest
-                            .candidates
-                            .iter()
-                            .find(|rc| rc.id == c.id)
-                            .unwrap()
-                            .clone(),
-                        total_count: 0,
-                    })
+                let candidate_result = result.iter().find(|rc| rc.candidate.id == c.id).cloned();
+
+                if let Some(candidate_result) = candidate_result {
+                    Ok(candidate_result)
+                } else {
+                    let candidate = self
+                        .tally
+                        .contest
+                        .candidates
+                        .iter()
+                        .find(|rc| rc.id == c.id)
+                        .cloned();
+
+                    if let Some(candidate) = candidate {
+                        return Ok(CandidateResult {
+                            candidate,
+                            total_count: 0,
+                        });
+                    }
+
+                    Err(Error::CandidateNotFound(c.id.to_string()))
+                }
             })
-            .collect::<Vec<CandidateResult>>();
+            .collect();
+        let result = result?;
 
         let contest_result = ContestResult {
             contest: self.tally.contest.clone(),
