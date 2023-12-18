@@ -55,19 +55,22 @@ export const CreateContest: React.FC = () => {
 
                 <Hidden>
                     <BooleanInput source="is_acclaimed" />
-                    <BooleanInput source="is_active" />
+                    <BooleanInput source="is_active" defaultValue={true} />
                     <NumberInput source="min_votes" defaultValue="0" />
                     <NumberInput source="max_votes" defaultValue="1" />
                     <NumberInput source="winning_candidates_num" defaultValue={1} />
                     <SelectInput
                         source="voting_type"
+                        defaultValue="first-past-the-post"
                         choices={[{id: "first-past-the-post", name: "First Past The Post"}]}
                     />
                     <SelectInput
                         source="counting_algorithm"
+                        defaultValue="plurality-at-large"
                         choices={[{id: "plurality-at-large", name: "Plurality At Large"}]}
                     />
-                    <BooleanInput source="is_encrypted" />
+                    <BooleanInput source="is_encrypted" defaultValue={true} />
+                    <TextInput source="order_answers" defaultValue="alphabetical" />
                     <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
                         <SelectInput optionText="slug" defaultValue={tenantId} />
                     </ReferenceInput>
