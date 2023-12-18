@@ -17,6 +17,7 @@ import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {RouteParameterProvider} from "."
 import {DISABLE_AUTH, DEFAULT_TENANT_ID, DEFAULT_EVENT_ID} from "./Config"
+import { ApolloWrapper } from "./providers/ApolloContextProvider"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -63,57 +64,57 @@ const App = () => {
                     <Route
                         path="/tenant/:tenantId/event/:eventId/login"
                         element={
-                            <RouteParameterProvider>
+                            <ApolloWrapper>
                                 <LoginScreen />
-                            </RouteParameterProvider>
+                            </ApolloWrapper>
                         }
                     />
                     <Route
                         path="/tenant/:tenantId/event/:eventId/election-chooser"
                         element={
-                            <RouteParameterProvider>
+                            <ApolloWrapper>
                                 <ElectionSelectionScreen />
-                            </RouteParameterProvider>
+                            </ApolloWrapper>
                         }
                     />
                     <Route
                         path="/tenant/:tenantId/event/:eventId/election/:electionId/start"
                         element={
-                            <RouteParameterProvider>
+                            <ApolloWrapper>
                                 <StartScreen />
-                            </RouteParameterProvider>
+                            </ApolloWrapper>
                         }
                     />
                     <Route
                         path="/tenant/:tenantId/event/:eventId/election/:electionId/vote"
                         element={
-                            <RouteParameterProvider>
+                            <ApolloWrapper>
                                 <VotingScreen />
-                            </RouteParameterProvider>
+                            </ApolloWrapper>
                         }
                     />
                     <Route
                         path="/tenant/:tenantId/event/:eventId/election/:electionId/review"
                         element={
-                            <RouteParameterProvider>
+                            <ApolloWrapper>
                                 <ReviewScreen />
-                            </RouteParameterProvider>
+                            </ApolloWrapper>
                         }
                     />
                     <Route
                         path="/tenant/:tenantId/event/:eventId/election/:electionId/confirmation"
                         element={
-                            <RouteParameterProvider>
+                            <ApolloWrapper>
                                 <ConfirmationScreen />
-                            </RouteParameterProvider>
+                            </ApolloWrapper>
                         }
                     />
                     <Route
                         path="/tenant/:tenantId/event/:eventId/election/:electionId/audit"
                         element={
-                            <RouteParameterProvider>
+                            <ApolloWrapper>
                                 <AuditScreen />
-                            </RouteParameterProvider>
+                            </ApolloWrapper>
                         }
                     />
                 </Routes>
