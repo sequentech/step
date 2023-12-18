@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Local};
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use std::env;
@@ -102,9 +102,9 @@ pub async fn update_ballot_publication_d(
     election_event_id: String,
     ballot_publication_id: String,
     is_generated: bool,
-    published_at: Option<NaiveDateTime>,
+    published_at: Option<DateTime<Local>>,
 ) -> Result<Response<update_ballot_publication::ResponseData>> {
-    let published_at_str = published_at.clone().map(|naive| ISO8601::from_date(&naive));
+    let published_at_str = published_at.clone().map(|naive| ISO8601::to_string(&naive));
     let variables = update_ballot_publication::Variables {
         ballot_publication_id: ballot_publication_id,
         election_event_id: election_event_id,

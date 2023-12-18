@@ -12,6 +12,7 @@ use crate::hasura::election_event::update_election_event_status;
 use crate::services::ballot_publication::get_ballot_publication::GetBallotPublicationSequentBackendBallotPublication;
 use crate::services::ballot_publication::get_previous_publication::GetPreviousPublicationSequentBackendBallotPublication;
 use crate::services::celery_app::get_celery_app;
+use crate::services::date::ISO8601;
 use crate::services::election_event_status::get_election_event_status;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use anyhow::{anyhow, Context, Result};
@@ -171,7 +172,7 @@ pub async fn update_publish_ballot(
         election_event_id.clone(),
         ballot_publication_id.clone(),
         true,
-        Some(Utc::now().naive_utc()),
+        Some(ISO8601::now()),
     )
     .await?;
 

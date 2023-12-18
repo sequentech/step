@@ -17,6 +17,9 @@ use crate::hasura::tally_session_execution::{
 use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
+use crate::services::ceremonies::serialize_logs::{
+    append_tally_trustee_log, generate_tally_initial_log,
+};
 use crate::services::ceremonies::tally_ceremony::get_keys_ceremonies::GetKeysCeremoniesSequentBackendKeysCeremony;
 use crate::services::ceremonies::tally_ceremony::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySession,
@@ -168,7 +171,7 @@ fn generate_initial_tally_status(
 ) -> TallyCeremonyStatus {
     TallyCeremonyStatus {
         stop_date: None,
-        logs: vec![],
+        logs: generate_tally_initial_log(election_ids),
         trustees: keys_ceremony_status
             .trustees
             .iter()
@@ -532,6 +535,13 @@ pub async fn set_private_key(
         ));
     };
 
+    if TallyTrusteeStatus::WAITING != found_trustee.status {
+        return Err(anyhow!(
+            "Unexpected trustee status {}",
+            found_trustee.status.to_string()
+        ));
+    }
+
     // get the encrypted private key
     let encrypted_private_key =
         find_trustee_private_key(&auth_headers, &tenant_id, &election_event_id, &trustee_name)
@@ -540,8 +550,8 @@ pub async fn set_private_key(
     if encrypted_private_key != private_key_base64 {
         return Ok(false);
     }
-    let status = get_tally_ceremony_status(tally_session_execution.status)?;
-    let mut new_status = status.clone();
+    let mut new_status = tally_ceremony_status.clone();
+    new_status.logs = append_tally_trustee_log(&new_status.logs, &trustee_name);
     new_status.trustees = new_status
         .trustees
         .iter()

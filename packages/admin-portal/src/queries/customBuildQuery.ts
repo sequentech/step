@@ -1,25 +1,22 @@
 import {buildQuery, buildVariables} from "ra-data-hasura"
-import {getList} from "./ListPgAudit"
+import {getPgauditVariables, getPgAudit} from "./ListPgAudit"
 import {getUsers} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
 
 export const customBuildQuery =
     (introspectionResults: any) => (raFetchType: any, resourceName: any, params: any) => {
-        if (resourceName === "pgaudit" && raFetchType === "GET_LIST") {
+        if (resourceName.startsWith("pgaudit") && raFetchType === "GET_LIST") {
             const resource: any = {
                 type: {
                     fields: [],
-                    name: "pgaudit",
+                    name: resourceName,
                 },
             }
             return {
-                query: getList({}),
-                variables: buildVariables(introspectionResults)(
-                    resource,
-                    raFetchType,
-                    params,
-                    null
+                query: getPgAudit(params, resourceName),
+                variables: getPgauditVariables(
+                    buildVariables(introspectionResults)(resource, raFetchType, params, null),
                 ),
                 parseResponse: (res: any) => {
                     const response = res.data.listPgaudit
