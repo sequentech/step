@@ -9,6 +9,8 @@ pub struct ElectionIdString(pub String);
 pub struct ContestIdString(pub String);
 #[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Hash)]
 pub struct BallotPublicationIdString(pub String);
+#[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Hash)]
+pub struct CastVoteErrorString(pub String);
 
 
 #[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash)]

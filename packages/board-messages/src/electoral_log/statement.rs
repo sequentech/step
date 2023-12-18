@@ -24,7 +24,7 @@ impl StatementHead {
     pub fn from_body(event: EventIdString, body: &StatementBody) -> Self {
         let kind = match body {
             StatementBody::CastVote(_, _, _) => StatementType::CastVote,
-            StatementBody::CastVoteError(_, _) => StatementType::CastVoteError,
+            StatementBody::CastVoteError(_, _, _) => StatementType::CastVoteError,
             StatementBody::ElectionPublish(_, _) => StatementType::ElectionPublish,
             StatementBody::ElectionPeriodOpen(_) => StatementType::ElectionPeriodOpen,
             StatementBody::ElectionPeriodClose(_) => StatementType::ElectionPeriodClose,
@@ -50,7 +50,7 @@ pub enum StatementBody {
     CastVote(ElectionIdString, PseudonymHash, CastVoteHash),
     // NOT IMPLEMENTED YET, but please feel free
     // "Errores en la emisión del voto."
-    CastVoteError(PseudonymHash, ElectionIdString),
+    CastVoteError(ElectionIdString, PseudonymHash, CastVoteErrorString),
     // /workspaces/backend-services/packages/harvest/src/main.rs
     //    routes::ballot_publication::publish_ballot
     //
