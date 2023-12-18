@@ -133,6 +133,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                                     EPublishStatus.Stopped,
                                     EPublishStatus.GeneratedLoading,
                                 ]}
+                                noDisabled
                             />
                         </>
                     ) : (
