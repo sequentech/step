@@ -1,12 +1,13 @@
 import {Box, styled, Button, TextField, CircularProgress} from "@mui/material"
 import {DropFile} from "@sequentech/ui-essentials"
-import React, {useEffect, useCallback, useRef} from "react"
+import React, {useEffect, memo, useRef} from "react"
 import {useTranslation} from "react-i18next"
 
 interface ImportScreenProps {
     doImport: (file: FileList | null, sha: string) => void
     doCancel: () => void
     isLoading: boolean
+    refresh?: string
 }
 
 export const ImportStyles = {
@@ -21,77 +22,74 @@ export const ImportStyles = {
     `,
 }
 
-export const ImportScreen: React.FC<ImportScreenProps> = (props) => {
-    const {doCancel, doImport, isLoading} = props
+export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenProps>> = memo(
+    (props: ImportScreenProps): React.JSX.Element => {
+        const {doCancel, doImport, isLoading, refresh} = props
 
-    const {t} = useTranslation()
+        const {t} = useTranslation()
 
-    const [shaField, setShaField] = React.useState<string>("")
-    // const [fileImport, setFileImport] = React.useState<FileList | null>(null)
-    const fileImport = useRef<FileList | null>(null)
+        const [shaField, setShaField] = React.useState<string>("")
+        const [fileImport, setFileImport] = React.useState<FileList | null>(null)
 
-    const handleFiles = useCallback((files: FileList | null) => {
-        console.log("handleFiles()", files)
+        const handleFiles = (files: FileList | null) => {
+            setFileImport(files)
+        }
 
-        // setFileImport(files)
-        // fileImport.current = files
-    }, [])
+        useEffect(() => {
+            setShaField("")
+            setFileImport(null)
+        }, [refresh])
 
-    useEffect(() => {
-        console.log("ImportScreen", doCancel, doImport, isLoading)
-    }, [])
+        return (
+            <Box sx={{padding: "16px"}}>
+                <TextField
+                    label={t("electionEventScreen.import.sha")}
+                    size="small"
+                    value={shaField}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setShaField(e.target.value)
+                    }
+                />
 
-    useEffect(() => {
-        console.log("fileImport", fileImport.current)
-    }, [fileImport])
+                <DropFile handleFiles={handleFiles} />
 
-    useEffect(() => {
-        console.log("shaField", shaField)
-    }, [shaField])
-
-    return (
-        <Box sx={{padding: "16px"}}>
-            <TextField
-                label={t("electionEventScreen.import.sha")}
-                size="small"
-                value={shaField}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShaField(e.target.value)}
-            />
-            <DropFile handleFiles={handleFiles} />
-
-            <Box
-                sx={{
-                    display: "flex",
-                    flexDirection: "row",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    margin: "16px auto",
-                    height: "48px",
-                }}
-            >
-                {isLoading ? <CircularProgress /> : null}
-            </Box>
-
-            <Box
-                sx={{
-                    display: "flex",
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginTop: "16px",
-                }}
-            >
-                <ImportStyles.CancelButton onClick={() => doCancel()}>
-                    {t("electionEventScreen.import.cancel")}
-                </ImportStyles.CancelButton>
-                <ImportStyles.ImportButton
-                    // disabled={!fileImport.current || shaField === ""}
-                    disabled={shaField === ""}
-                    onClick={() => doImport(fileImport.current, shaField)}
+                <Box
+                    sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        margin: "16px auto",
+                        height: "48px",
+                    }}
                 >
-                    {t("electionEventScreen.import.import")}
-                </ImportStyles.ImportButton>
+                    {isLoading ? <CircularProgress /> : null}
+                </Box>
+
+                <Box
+                    sx={{
+                        display: "flex",
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginTop: "16px",
+                    }}
+                >
+                    <ImportStyles.CancelButton onClick={() => doCancel()}>
+                        {t("electionEventScreen.import.cancel")}
+                    </ImportStyles.CancelButton>
+                    <ImportStyles.ImportButton
+                        disabled={!fileImport || shaField === ""}
+                        onClick={() => doImport(fileImport, shaField)}
+                    >
+                        {t("electionEventScreen.import.import")}
+                    </ImportStyles.ImportButton>
+                </Box>
             </Box>
-        </Box>
-    )
-}
+        )
+    }
+)
+
+ImportScreenMemo.displayName = "ImportScreen"
+
+export const ImportScreen = ImportScreenMemo

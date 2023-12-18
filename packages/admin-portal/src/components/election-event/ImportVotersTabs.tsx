@@ -6,17 +6,17 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {ReactI18NextChild, useTranslation} from "react-i18next"
 import {useLocation, useNavigate} from "react-router"
-import {Box, Tab, Tabs} from "@mui/material"
+import {Box, Tab} from "@mui/material"
 import {ImportScreen} from "./ImportScreen"
-import importDrawerState from '@/atoms/import-drawer-state'
-import { useAtom } from 'jotai'
+import importDrawerState from "@/atoms/import-drawer-state"
+import {useAtom} from "jotai"
+import {Tabs} from "@/components/Tabs"
 
 interface ImportVotersTabsProps {
     doRefresh: () => void
 }
 
 export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
-
     const {doRefresh} = props
 
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -24,11 +24,9 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
     const authContext = useContext(AuthContext)
     const [, setOpenImport] = useAtom(importDrawerState)
 
-    const location = useLocation()
-    const navigate = useNavigate()
-
-    const [value, setValue] = React.useState<number | null>(0)
-    const [loading, setLoading] = React.useState<boolean>(false)
+    const [loadingVoters, setLoadingVoters] = React.useState<boolean>(false)
+    const [loadingElections, setLoadingElections] = React.useState<boolean>(false)
+    const [loadingAreas, setLoadingAreas] = React.useState<boolean>(false)
 
     // const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     // const showDashboard = authContext.isAuthorized(
@@ -47,27 +45,6 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
     //     navigate(locArr)
     // }, [])
 
-    interface TabPanelProps {
-        children?: ReactI18NextChild | Iterable<ReactI18NextChild>
-        index: number
-        value: number | null
-    }
-
-    function CustomTabPanel(props: TabPanelProps) {
-        const {children, value, index, ...other} = props
-
-        return (
-            <div role="tabpanel" hidden={value !== index} {...other}>
-                {value === index && <Box>{children}</Box>}
-            </div>
-        )
-    }
-
-    const tabClicked = (index: number) => {
-        // setElectionId(id)
-        setValue(index)
-    }
-
     const handleCancel = () => {
         console.log("handleCancel()")
         setOpenImport(false)
@@ -76,20 +53,32 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
     const handleImportVoters = (file: FileList | null, sha: string) => {
         // TODO: call importVoters mutation
         console.log("handleImportVoters()", file, sha)
-        setLoading(true)
+        setLoadingVoters(true)
         setTimeout(() => {
-            setLoading(false)
+            setLoadingVoters(false)
             setOpenImport(false)
             doRefresh()
-        }, 5000);
+        }, 5000)
     }
 
     const handleImportElections = (file: FileList | null, sha: string) => {
         console.log("handleImportElections()", file, sha)
+        setLoadingElections(true)
+        setTimeout(() => {
+            setLoadingElections(false)
+            setOpenImport(false)
+            doRefresh()
+        }, 5000)
     }
 
     const handleImportAreas = (file: FileList | null, sha: string) => {
         console.log("handleImportAreas()", file, sha)
+        setLoadingAreas(true)
+        setTimeout(() => {
+            setLoadingAreas(false)
+            setOpenImport(false)
+            doRefresh()
+        }, 5000)
     }
 
     return (
@@ -98,8 +87,42 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
                 title={t("electionEventScreen.import.title")}
                 subtitle="electionEventScreen.import.subtitle"
             />
+            <Tabs
+                elements={[
+                    {
+                        label: t("electionEventScreen.import.voters"),
+                        component: () => (
+                            <ImportScreen
+                                doCancel={handleCancel}
+                                doImport={handleImportVoters}
+                                isLoading={loadingVoters}
+                            />
+                        ),
+                    },
+                    {
+                        label: t("electionEventScreen.import.elections"),
+                        component: () => (
+                            <ImportScreen
+                                doCancel={handleCancel}
+                                doImport={handleImportElections}
+                                isLoading={loadingElections}
+                            />
+                        ),
+                    },
+                    {
+                        label: t("electionEventScreen.import.areas"),
+                        component: () => (
+                            <ImportScreen
+                                doCancel={handleCancel}
+                                doImport={handleImportAreas}
+                                isLoading={loadingAreas}
+                            />
+                        ),
+                    },
+                ]}
+            />
 
-            <Tabs value={value}>
+            {/* <Tabs value={value}>
                 <Tab label={t("electionEventScreen.import.voters")} onClick={() => tabClicked(0)} />
                 <Tab
                     label={t("electionEventScreen.import.elections")}
@@ -130,7 +153,7 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
                     doImport={handleImportAreas}
                     isLoading={true}
                 />
-            </CustomTabPanel>
+            </CustomTabPanel> */}
         </>
     )
 }

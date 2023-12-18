@@ -287,12 +287,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     }
 
     const handleImport = () => {
-        console.log("IMPORT")
         setOpenImport(true)
     }
 
     const handleExport = () => {
-        console.log("EXPORT")
         setOpenExport(true)
     }
 
