@@ -45,19 +45,18 @@ export const ImportScreen: React.FC<ImportScreenProps> = (props) => {
             />
             <DropFile handleFiles={handleFiles} />
 
-            {isLoading ? (
-                <Box
-                    sx={{
-                        display: "flex",
-                        flexDirection: "row",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        margin: "16px auto",
-                    }}
-                >
-                    <CircularProgress />
-                </Box>
-            ) : null}
+            <Box
+                sx={{
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    margin: "16px auto",
+                    height: "48px",
+                }}
+            >
+                {isLoading ? <CircularProgress /> : null}
+            </Box>
 
             <Box
                 sx={{

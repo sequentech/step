@@ -94,7 +94,7 @@ export const ImportVotersTabs: React.FC = () => {
             </Tabs>
 
             <CustomTabPanel index={0} value={value}>
-                <ImportScreen doCancel={handleCancel} doImport={handleImportVoters} isLoading={true}/>
+                <ImportScreen doCancel={handleCancel} doImport={handleImportVoters} isLoading={false}/>
             </CustomTabPanel>
 
             <CustomTabPanel index={1} value={value}>
