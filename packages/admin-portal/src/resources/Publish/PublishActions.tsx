@@ -2,11 +2,11 @@ import React, {useState} from "react"
 
 import styled from "@emotion/styled"
 
-import {Button} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
 import {CircularProgress, Typography} from "@mui/material"
 import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
+import {Button, FilterButton, SelectColumnsButton} from "react-admin"
 
 import {EPublishActionsType} from "./EPublishType"
 import {EPublishStatus, EPublishStatushChanges} from "./EPublishStatus"
@@ -80,6 +80,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                 <div className="list-actions">
                     {type === EPublishActionsType.List ? (
                         <>
+                            <SelectColumnsButton />
+                            <FilterButton />
                             <ButtonDisabledOrNot
                                 onClick={() =>
                                     handleEvent(handleOnChange(EPublishStatushChanges.Open))

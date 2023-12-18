@@ -1,4 +1,4 @@
-import React from "react"
+import React, {ReactElement} from "react"
 
 import {useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
@@ -10,7 +10,8 @@ import {
     List,
     TextField,
     Identifier,
-    WrapperField,
+    TextInput,
+    BooleanInput,
     BooleanField,
     DatagridConfigurable,
 } from "react-admin"
@@ -22,6 +23,13 @@ import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 
 const OMIT_FIELDS: string[] = []
+
+const filters: Array<ReactElement> = [
+    <TextInput source="id" key={0} />,
+    <BooleanInput source="is_generated" key={1} />,
+    <TextInput source="published_at" key={2} />,
+    <TextInput source="created_at" key={3} />,
+]
 
 type TPublishList = {
     status: number
@@ -87,9 +95,10 @@ export const PublishList: React.FC<TPublishList> = ({
                               election_id: electionId,
                           }
                         : {
-                              election_event_id: electionEventId
+                              election_event_id: electionEventId,
                           }
                 }
+                filters={filters}
                 sx={{flexGrow: 2}}
                 empty={<Empty />}
             >
