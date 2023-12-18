@@ -137,7 +137,7 @@ impl GenerateReports {
     fn read_contest_result(
         &self,
         election_id: &Uuid,
-        contest_id: &Uuid,
+        contest_id: Option<&Uuid>,
         area_id: Option<&Uuid>,
     ) -> Result<ContestResult> {
         let path = PipeInputs::build_path(
@@ -164,7 +164,7 @@ impl GenerateReports {
     fn read_winners(
         &self,
         election_id: &Uuid,
-        contest_id: &Uuid,
+        contest_id: Option<&Uuid>,
         area_id: Option<&Uuid>,
     ) -> Result<Vec<WinnerResult>> {
         let path = PipeInputs::build_path(
@@ -194,9 +194,10 @@ impl GenerateReports {
             let mut reports = vec![];
             for contest_input in &election_input.contest_list {
                 let contest_result =
-                    self.read_contest_result(&election_input.id, &contest_input.id, None)?;
+                    self.read_contest_result(&election_input.id, Some(&contest_input.id), None)?;
 
-                let winners = self.read_winners(&election_input.id, &contest_input.id, None)?;
+                let winners =
+                    self.read_winners(&election_input.id, Some(&contest_input.id), None)?;
 
                 reports.push(ReportData {
                     contest: contest_input.contest.clone(),
@@ -208,12 +209,15 @@ impl GenerateReports {
                 for area in &contest_input.area_list {
                     let contest_result = self.read_contest_result(
                         &election_input.id,
-                        &contest_input.id,
+                        Some(&contest_input.id),
                         Some(&area.id),
                     )?;
 
-                    let winners =
-                        self.read_winners(&election_input.id, &contest_input.id, Some(&area.id))?;
+                    let winners = self.read_winners(
+                        &election_input.id,
+                        Some(&contest_input.id),
+                        Some(&area.id),
+                    )?;
 
                     reports.push(ReportData {
                         contest: contest_input.contest.clone(),
@@ -234,6 +238,49 @@ impl GenerateReports {
         }
         Ok(election_reports)
     }
+
+    fn toto(
+        &self,
+        election_id: &Uuid,
+        contest_id: Option<&Uuid>,
+        area_id: Option<&Uuid>,
+        contest: Contest,
+        mut contest_result: ContestResult,
+        ballot_styles: Vec<BallotStyle>,
+    ) -> Result<()> {
+        let defaults = default_invalid_votes();
+        for (key, value) in defaults {
+            contest_result.invalid_votes.entry(key).or_insert(value);
+        }
+
+        let winners = self.read_winners(election_id, contest_id, area_id)?;
+
+        let report = ReportData {
+            contest,
+            contest_result,
+            area_id: None,
+            winners,
+        };
+
+        // TODO: find the right ballot style here
+        let bytes = self.generate_report(&ballot_styles[0], vec![report.clone()])?;
+
+        let mut path = PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
+
+        fs::create_dir_all(&path)?;
+
+        let file = path.join(OUTPUT_PDF);
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(&file)?;
+
+        file.write_all(&bytes)?;
+        serde_json::to_writer(file, &bytes)?;
+
+        Ok(())
+    }
 }
 
 impl Pipe for GenerateReports {
@@ -246,56 +293,21 @@ impl Pipe for GenerateReports {
                 for area_input in &contest_input.area_list {
                     let mut contest_result = self.read_contest_result(
                         &election_input.id,
-                        &contest_input.id,
+                        Some(&contest_input.id),
                         Some(&area_input.id),
                     )?;
-
-                    let defaults = default_invalid_votes();
-                    for (key, value) in defaults {
-                        contest_result.invalid_votes.entry(key).or_insert(value);
-                    }
-
-                    let winners = self.read_winners(&election_input.id, &contest_input.id, None)?;
-                    dbg!(&winners);
-
-                    let report = ReportData {
-                        contest: contest_input.contest.clone(),
-                        contest_result,
-                        area_id: None,
-                        winners,
-                    };
-
-                    let bytes = self
-                        .generate_report(&election_input.ballot_styles[0], vec![report.clone()])?;
-
-                    let mut path = PipeInputs::build_path(
-                        &self.output_dir,
-                        &contest_input.election_id,
-                        &contest_input.id,
-                        Some(&area_input.id),
-                    );
-                    fs::create_dir_all(&path)?;
-
-                    let file = path.join(OUTPUT_PDF);
-                    let mut file = OpenOptions::new()
-                        .write(true)
-                        .truncate(true)
-                        .create(true)
-                        .open(&file)?;
-
-                    file.write_all(&bytes)?;
-                    serde_json::to_writer(file, &bytes)?;
                 }
 
                 let mut contest_result =
-                    self.read_contest_result(&election_input.id, &contest_input.id, None)?;
+                    self.read_contest_result(&election_input.id, Some(&contest_input.id), None)?;
 
                 let defaults = default_invalid_votes();
                 for (key, value) in defaults {
                     contest_result.invalid_votes.entry(key).or_insert(value);
                 }
 
-                let winners = self.read_winners(&election_input.id, &contest_input.id, None)?;
+                let winners =
+                    self.read_winners(&election_input.id, Some(&contest_input.id), None)?;
 
                 let report = ReportData {
                     contest: contest_input.contest.clone(),
@@ -310,7 +322,7 @@ impl Pipe for GenerateReports {
                 let mut path = PipeInputs::build_path(
                     &self.output_dir,
                     &contest_input.election_id,
-                    &contest_input.id,
+                    Some(&contest_input.id),
                     None,
                 );
                 fs::create_dir_all(&path)?;

@@ -52,17 +52,20 @@ impl PipeInputs {
     pub fn build_path(
         root: &Path,
         election_id: &Uuid,
-        contest_id: &Uuid,
+        contest_id: Option<&Uuid>,
         area_id: Option<&Uuid>,
     ) -> PathBuf {
         let mut path = PathBuf::new();
 
         path.push(root);
         path.push(format!("{}{}", PREFIX_ELECTION, election_id));
-        path.push(format!("{}{}", PREFIX_CONTEST, contest_id));
 
-        if let Some(area_id) = area_id {
-            path.push(format!("{}{}", PREFIX_AREA, area_id));
+        if let Some(contest_id) = contest_id {
+            path.push(format!("{}{}", PREFIX_CONTEST, contest_id));
+
+            if let Some(area_id) = area_id {
+                path.push(format!("{}{}", PREFIX_AREA, area_id));
+            }
         }
 
         path

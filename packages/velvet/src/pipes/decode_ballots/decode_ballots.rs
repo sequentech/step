@@ -63,7 +63,7 @@ impl Pipe for DecodeBallots {
                     let path_ballots = PipeInputs::build_path(
                         self.pipe_inputs.root_path_ballots.as_path(),
                         &election_input.id,
-                        &contest_input.id,
+                        Some(&contest_input.id),
                         Some(&area_input.id),
                     )
                     .join(BALLOTS_FILE);
@@ -89,7 +89,7 @@ impl Pipe for DecodeBallots {
                                     .join(PipeNameOutputDir::DecodeBallots.as_ref())
                                     .as_path(),
                                 &election_input.id,
-                                &contest_input.id,
+                                Some(&contest_input.id),
                                 Some(&area_input.id),
                             );
 

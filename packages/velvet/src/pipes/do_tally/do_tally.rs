@@ -55,7 +55,7 @@ impl Pipe for DoTally {
                     let decoded_ballots_file = PipeInputs::build_path(
                         &input_dir,
                         &contest_input.election_id,
-                        &contest_input.id,
+                        Some(&contest_input.id),
                         Some(&area_input.id),
                     )
                     .join(OUTPUT_DECODED_BALLOTS_FILE);
@@ -72,7 +72,7 @@ impl Pipe for DoTally {
                     let mut file = PipeInputs::build_path(
                         &output_dir,
                         &contest_input.election_id,
-                        &contest_input.id,
+                        Some(&contest_input.id),
                         Some(&area_input.id),
                     );
 
@@ -95,7 +95,7 @@ impl Pipe for DoTally {
                 let mut file = PipeInputs::build_path(
                     &output_dir,
                     &contest_input.election_id,
-                    &contest_input.id,
+                    Some(&contest_input.id),
                     None,
                 );
                 file.push(OUTPUT_CONTEST_RESULT_FILE);
