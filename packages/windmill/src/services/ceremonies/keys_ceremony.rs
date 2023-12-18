@@ -25,7 +25,7 @@ use tracing::instrument;
 use tracing::{event, Level};
 use uuid::Uuid;
 
-#[instrument]
+#[instrument(err)]
 pub fn get_keys_ceremony_status(input: Option<Value>) -> Result<CeremonyStatus> {
     input
         .map(|value| {
@@ -36,7 +36,7 @@ pub fn get_keys_ceremony_status(input: Option<Value>) -> Result<CeremonyStatus> 
         .flatten()
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn get_private_key(
     claims: JwtClaims,
     tenant_id: String,
@@ -163,7 +163,7 @@ pub async fn get_private_key(
     Ok(encrypted_private_key)
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn find_trustee_private_key(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,
@@ -197,7 +197,7 @@ pub async fn find_trustee_private_key(
     get_trustee_encrypted_private_key(board_name.as_str(), trustee_public_key.as_str()).await
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn check_private_key(
     claims: JwtClaims,
     tenant_id: String,
@@ -330,7 +330,7 @@ pub async fn check_private_key(
     Ok(true)
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn create_keys_ceremony(
     tenant_id: String,
     election_event_id: String,

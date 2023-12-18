@@ -10,6 +10,7 @@ use sequent_core::ballot::*;
 use sequent_core::services::keycloak::get_client_credentials;
 use serde_json::value::Value;
 use std::default::Default;
+use tracing::instrument;
 
 pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
     status_json_opt.and_then(|status_json| serde_json::from_value(status_json).ok())
@@ -26,6 +27,7 @@ pub fn has_config_created(status_json_opt: Option<Value>) -> bool {
         .unwrap_or(false)
 }
 
+#[instrument(err)]
 pub async fn update_event_voting_status(
     tenant_id: String,
     election_event_id: String,
@@ -91,6 +93,7 @@ pub async fn update_event_voting_status(
     Ok(())
 }
 
+#[instrument(err)]
 pub async fn update_election_voting_status(
     tenant_id: String,
     election_event_id: String,

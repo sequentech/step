@@ -15,7 +15,7 @@ use sequent_core::services::keycloak::KeycloakAdminClient;
 use std::{env, fs};
 use tracing::{event, instrument, Level};
 
-#[instrument]
+#[instrument(err)]
 pub async fn upsert_keycloak_realm(tenant_id: &str) -> Result<()> {
     let realm_config_path = env::var("KEYCLOAK_TENANT_REALM_CONFIG_PATH")
         .expect(&format!("KEYCLOAK_TENANT_REALM_CONFIG_PATH must be set"));
@@ -30,7 +30,7 @@ pub async fn upsert_keycloak_realm(tenant_id: &str) -> Result<()> {
     Ok(())
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn insert_tenant_db(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,
@@ -53,7 +53,7 @@ pub async fn insert_tenant_db(
     Ok(())
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn check_tenant_exists(
     auth_headers: &connection::AuthHeaders,
     slug: &str,
@@ -67,7 +67,7 @@ pub async fn check_tenant_exists(
     Ok(found_tenant.len() > 0)
 }
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn insert_tenant(tenant_id: String, slug: String) -> Result<()> {

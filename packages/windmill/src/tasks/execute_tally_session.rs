@@ -65,7 +65,7 @@ type AreaContestDataType = (
     BallotStyle,
 );
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 fn get_ballot_styles(tally_session_data: &ResponseData) -> Result<Vec<BallotStyle>> {
     // get ballot styles, from where we'll get the Contest(s)
     tally_session_data
@@ -187,6 +187,24 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
 }
 
 #[instrument(skip_all)]
+fn get_session_ids_by_type(messages: &Vec<Message>, kind: StatementType) -> Vec<i64> {
+    let mut plaintext_batch_ids: Vec<i64> = messages
+        .iter()
+        .map(|message| {
+            if kind == message.statement.get_kind() {
+                message.statement.get_batch_number() as i64
+            } else {
+                -1i64
+            }
+        })
+        .filter(|value| *value > -1)
+        .collect();
+    plaintext_batch_ids.sort_by_key(|id| id.clone());
+    plaintext_batch_ids.dedup();
+    plaintext_batch_ids
+}
+
+#[instrument(skip_all, err)]
 async fn map_plaintext_data(
     tenant_id: String,
     election_event_id: String,
@@ -388,7 +406,7 @@ async fn map_plaintext_data(
     )))
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 async fn tally_area_contest(
     area_contest_plaintext: AreaContestDataType,
     base_tempdir: PathBuf,
@@ -521,7 +539,24 @@ async fn tally_area_contest(
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip(auth_headers), err)]
+async fn create_results_event(
+    auth_headers: &connection::AuthHeaders,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<String> {
+    let results_event = &insert_results_event(auth_headers, &tenant_id, &election_event_id)
+        .await?
+        .data
+        .with_context(|| "can't find results_event")?
+        .insert_sequent_backend_results_event
+        .with_context(|| "can't find results_event")?
+        .returning[0];
+
+    Ok(results_event.id.clone())
+}
+
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 120000)]
 pub async fn execute_tally_session(

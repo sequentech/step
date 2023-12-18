@@ -21,7 +21,7 @@ use crate::services::public_keys;
 use crate::types::error::Result;
 use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 10)]
 pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Result<()> {

@@ -19,7 +19,7 @@ use windmill::tasks::update_election_event_ballot_styles::update_election_event_
 use windmill::tasks::update_voting_status;
 use windmill::types::scheduled_event::*;
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims), err)]
 pub async fn process_scheduled_event(
     event: CreateEventBody,
     claims: JwtClaims,

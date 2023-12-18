@@ -16,7 +16,7 @@ export const customBuildQuery =
             return {
                 query: getPgAudit(params, resourceName),
                 variables: getPgauditVariables(
-                    buildVariables(introspectionResults)(resource, raFetchType, params, null),
+                    buildVariables(introspectionResults)(resource, raFetchType, params, null)
                 ),
                 parseResponse: (res: any) => {
                     const response = res.data.listPgaudit

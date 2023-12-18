@@ -21,7 +21,7 @@ use sequent_core::services::connection;
 )]
 pub struct InsertBallotPublication;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn insert_ballot_publication(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -60,7 +60,7 @@ pub async fn insert_ballot_publication(
 )]
 pub struct GetBallotPublication;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn get_ballot_publication(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -95,7 +95,7 @@ pub async fn get_ballot_publication(
 )]
 pub struct UpdateBallotPublication;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn update_ballot_publication_d(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -136,7 +136,7 @@ pub async fn update_ballot_publication_d(
 )]
 pub struct SoftDeleteOtherBallotPublicationsElection;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn soft_delete_other_ballot_publications_election(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -178,7 +178,7 @@ pub async fn soft_delete_other_ballot_publications_election(
 )]
 pub struct SoftDeleteOtherBallotPublications;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn soft_delete_other_ballot_publications(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -215,7 +215,7 @@ pub async fn soft_delete_other_ballot_publications(
 )]
 pub struct GetPreviousPublication;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn get_previous_publication(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -252,7 +252,7 @@ pub async fn get_previous_publication(
 )]
 pub struct GetPublicationBallotStyles;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn get_publication_ballot_styles(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

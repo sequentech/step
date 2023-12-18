@@ -20,7 +20,7 @@ pub use crate::types::hasura_types::*;
 )]
 pub struct InsertTallySessionContest;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn insert_tally_session_contest(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -63,7 +63,7 @@ pub async fn insert_tally_session_contest(
 )]
 pub struct GetTallySessionContest;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_tally_session_contest(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

@@ -174,15 +174,21 @@ impl TryFrom<&Row> for PgAuditRow {
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             match column.as_str() {
-                c if c.ends_with(".id)") => assign_value!(SqlValue::N, value, id),
+                c if c.ends_with(".id)") => {
+                    assign_value!(SqlValue::N, value, id)
+                }
                 c if c.ends_with(".audit_type)") => {
                     assign_value!(SqlValue::S, value, audit_type)
                 }
-                c if c.ends_with(".class)") => assign_value!(SqlValue::S, value, class),
+                c if c.ends_with(".class)") => {
+                    assign_value!(SqlValue::S, value, class)
+                }
                 c if c.ends_with(".command)") => {
                     assign_value!(SqlValue::S, value, command)
                 }
-                c if c.ends_with(".dbname)") => assign_value!(SqlValue::S, value, dbname),
+                c if c.ends_with(".dbname)") => {
+                    assign_value!(SqlValue::S, value, dbname)
+                }
                 c if c.ends_with(".server_timestamp)") => {
                     assign_value!(SqlValue::Ts, value, server_timestamp)
                 }
@@ -192,7 +198,9 @@ impl TryFrom<&Row> for PgAuditRow {
                 c if c.ends_with(".statement)") => {
                     assign_value!(SqlValue::S, value, statement)
                 }
-                c if c.ends_with(".user)") => assign_value!(SqlValue::S, value, user),
+                c if c.ends_with(".user)") => {
+                    assign_value!(SqlValue::S, value, user)
+                }
                 c if c.ends_with(".audit_type)") => {
                     assign_value!(SqlValue::S, value, audit_type)
                 }

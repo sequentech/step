@@ -39,7 +39,7 @@ fn replace_uuids(input: &str) -> String {
 }
 
 impl KeycloakAdminClient {
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn upsert_realm(
         self,
         board_name: &str,

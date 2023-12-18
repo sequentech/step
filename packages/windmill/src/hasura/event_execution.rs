@@ -48,7 +48,7 @@ pub struct EventExecution {
 )]
 pub struct InsertEventExecution;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn insert_event_execution(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -81,7 +81,7 @@ pub async fn insert_event_execution(
     response_body.ok()
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn insert_event_execution_with_result(
     auth_headers: connection::AuthHeaders,
     event: ScheduledEvent,

@@ -181,7 +181,7 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendArea>
     }
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn create_ballot_style(
     auth_headers: connection::AuthHeaders,
     area_id: String,

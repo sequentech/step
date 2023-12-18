@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{event, instrument, Level};
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 async fn get_ballot_publication_by_id(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -49,7 +49,7 @@ async fn get_ballot_publication_by_id(
     Ok(ballot_publication)
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 async fn get_election_ids_for_publication(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -72,7 +72,7 @@ async fn get_election_ids_for_publication(
         .collect())
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn add_ballot_publication(
     tenant_id: String,
     election_event_id: String,
@@ -121,7 +121,7 @@ pub async fn add_ballot_publication(
     Ok(ballot_publication.id.clone())
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn update_publish_ballot(
     tenant_id: String,
     election_event_id: String,
@@ -199,7 +199,7 @@ pub async fn update_publish_ballot(
     Ok(())
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 async fn get_publication_json(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -246,7 +246,7 @@ pub struct PublicationDiff {
     previous: Option<PublicationStyles>,
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn get_ballot_publication_diff(
     tenant_id: String,
     election_event_id: String,
