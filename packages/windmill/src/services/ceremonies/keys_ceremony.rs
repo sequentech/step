@@ -9,6 +9,7 @@ use crate::hasura::keys_ceremony::{
 };
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::celery_app::get_celery_app;
+use crate::services::ceremonies::serialize_logs::*;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::private_keys::get_trustee_encrypted_private_key;
@@ -119,7 +120,7 @@ pub async fn get_private_key(
     let status: Value = serde_json::to_value(CeremonyStatus {
         stop_date: None,
         public_key: current_status.public_key.clone(),
-        logs: current_status.logs.clone(),
+        logs: append_keys_trustee_download_log(&current_status.logs, &trustee_name),
         trustees: current_status
             .trustees
             .clone()
@@ -259,7 +260,7 @@ pub async fn check_private_key(
     let new_status = CeremonyStatus {
         stop_date: None,
         public_key: current_status.public_key.clone(),
-        logs: current_status.logs.clone(),
+        logs: append_keys_trustee_check_log(&current_status.logs, &trustee_name),
         trustees: current_status
             .trustees
             .iter()
@@ -389,7 +390,7 @@ pub async fn create_keys_ceremony(
     let status: Value = serde_json::to_value(CeremonyStatus {
         stop_date: None,
         public_key: None,
-        logs: vec![],
+        logs: generate_keys_initial_log(&trustee_names),
         trustees: trustees
             .clone()
             .into_iter()

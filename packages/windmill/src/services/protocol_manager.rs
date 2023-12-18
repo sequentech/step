@@ -110,6 +110,31 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
 }
 
 #[instrument]
+pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Message>> {
+    let mut board = get_board_client().await?;
+
+    let valid_statements = vec![
+        StatementType::Configuration,
+        StatementType::ConfigurationSigned,
+        StatementType::Channel,
+        StatementType::ChannelsAllSigned,
+        StatementType::Shares,
+        StatementType::PublicKey,
+        StatementType::PublicKeySigned,
+    ];
+
+    let board_messages = board.get_messages(board_name, -1).await?;
+    let messages = convert_board_messages(&board_messages)?;
+
+    let filtered_messages: Vec<Message> = messages
+        .into_iter()
+        .filter(|message| valid_statements.contains(&message.statement.get_kind()))
+        .collect();
+
+    Ok(filtered_messages)
+}
+
+#[instrument]
 pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     board_name: &str,
     trustee_pub_key: &StrandSignaturePk,

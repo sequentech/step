@@ -30,6 +30,6 @@ export interface IKeysCeremonyTrustee {
 export interface IExecutionStatus {
     stop_date?: String
     public_key?: String
-    logs: IKeysCeremonyLog[]
-    trustees: IKeysCeremonyTrustee[]
+    logs: Array<IKeysCeremonyLog>
+    trustees: Array<IKeysCeremonyTrustee>
 }

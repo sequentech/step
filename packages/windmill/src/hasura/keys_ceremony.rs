@@ -97,7 +97,7 @@ pub async fn get_keys_ceremonies(
 )]
 pub struct UpdateKeysCeremonyStatus;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers, status))]
 pub async fn update_keys_ceremony_status(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
