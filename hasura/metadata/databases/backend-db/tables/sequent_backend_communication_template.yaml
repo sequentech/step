@@ -51,6 +51,7 @@ insert_permissions:
 select_permissions:
 - comment: ""
   permission:
+    allow_aggregations: true
     columns:
     - annotations
     - labels

@@ -818,6 +818,15 @@ const spanishTranslation: TranslationType = {
                 subject: "Subject",
             },
         },
+        communicationTemplate: {
+            empty: {
+                title: 'No hay plantills de comunicación',
+                subtitle: '¿Quieres crear una nueva?'
+            },
+            action: {
+                createOne: 'Crear Plantilla de Comunicación'
+            }
+        }
     },
 }
 

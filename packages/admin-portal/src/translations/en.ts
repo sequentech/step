@@ -816,6 +816,15 @@ const englishTranslation = {
                 subject: "Subject",
             },
         },
+        communicationTemplate: {
+            empty: {
+                title: 'No Communication Template Yet',
+                subtitle: 'Do you want to create one?'
+            },
+            action: {
+                createOne: 'Create Communication Template'
+            }
+        }
     },
 }
 

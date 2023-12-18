@@ -20,7 +20,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {CommunicationTemplateCreate} from "./CommunicationTemplateCreate"
 import {CommunicationTemplateEdit} from "./CommunicationTemplateEdit"
 
-const EmptyBox = styled(Box)`
+const CommunicationTemplateEmpty = styled(Box)`
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -95,24 +95,24 @@ export const CommunicationTemplateList: React.FC = () => {
     const CreateButton = () => (
         <Button onClick={handleOpenCreateDrawer}>
             <IconButton icon={faPlus} fontSize="24px" />
-            {t("electionTypeScreen.common.createNew")}
+            {t("communicationTemplate.action.createOne")}
         </Button>
     )
 
     const Empty = () => (
-        <EmptyBox m={1}>
+        <CommunicationTemplateEmpty m={1}>
             <Typography variant="h4" paragraph>
-                {t("electionTypeScreen.common.emptyHeader")}
+                {t("communicationTemplate.empty.title")}
             </Typography>
             {canWriteTenant ? (
                 <>
                     <Typography variant="body1" paragraph>
-                        {t("electionTypeScreen.common.emptyBody")}
+                        {t("communicationTemplate.empty.subtitle")}
                     </Typography>
                     <CreateButton />
                 </>
             ) : null}
-        </EmptyBox>
+        </CommunicationTemplateEmpty>
     )
 
     useEffect(() => {
