@@ -96,6 +96,10 @@ export const PublishList: React.FC<TPublishList> = ({
                               election_event_id: electionEventId,
                           }
                 }
+                sort={{
+                    field: 'created_at',
+                    order: 'DESC',
+                }}
                 filters={filters}
                 sx={{flexGrow: 2}}
                 empty={<Empty />}
