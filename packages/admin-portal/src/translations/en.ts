@@ -361,6 +361,7 @@ const englishTranslation = {
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",
+                    bulkBody: "Are you sure you want to delete the selected users?",
                 },
                 notifications: {
                     deleteError: "Error deleting user",
@@ -384,6 +385,7 @@ const englishTranslation = {
                 },
                 delete: {
                     body: "Are you sure you want to delete this voter?",
+                    bulkBody: "Are you sure you want to delete the selected voters?",
                 },
                 notifications: {
                     deleteError: "Error deleting voter",

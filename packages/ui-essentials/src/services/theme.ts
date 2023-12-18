@@ -51,6 +51,7 @@ declare module "@mui/material/Button" {
         cancel: true
         solidWarning: true
         actionbar: true
+        listAction: true
     }
 }
 declare module "@mui/material/TextField" {
@@ -200,6 +201,20 @@ let MuiButton: Components["MuiButton"] = {
             },
         },
         {
+            props: {variant: "listAction"},
+            style: {
+                "backgroundColor": palette.white,
+                "border": `1px solid ${palette.brandColor}`,
+                "color": palette.brandColor,
+                "&:hover": {
+                    color: palette.white,
+                    border: `1px solid ${palette.brandColor}`,
+                    backgroundColor: palette.brandColor,
+                    boxShadow: "none",
+                },
+            },
+        },
+        {
             props: {variant: "action"},
             style: {
                 "backgroundColor": palette.brandSuccess,
@@ -327,19 +342,23 @@ let MuiButton: Components["MuiButton"] = {
         {
             props: {variant: "actionbar"},
             style: {
-                "padding": "4px",
-                "fontWeight": "normal",
-                "minWidth": "unset",
-                "minHeight": "unset",
-                "backgroundColor": "transparent",
-                "border": `1px solid transparent`,
+                "background-color": "transparent",
                 "color": palette.brandColor,
+                "border": `1px solid ${palette.brandColor}`,
+                "border-radius": "0",
+                "fontWeight": "500",
+                "font-size": "14px",
+                "font-style": "normal",
+                "text-transform": "uppercase",
+                "padding": "6px 12px",
+                "height": "35px",
                 "&:hover": {
-                    "backgroundColor": "transparent",
-                    "border": `1px solid transparent`,
-                    "color": palette.brandColor,
+                    "border": `1px solid ${palette.brandColor}`,
+                    "color": palette.white,
+                    "background-color": palette.brandColor,
+                    "box-shadow": "none",
                     "*": {
-                        filter: "drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25))",
+                        filter: "none",
                     },
                     "boxShadow": "unset",
                 },
