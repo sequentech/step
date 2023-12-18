@@ -2,7 +2,7 @@ name: Build & Push to ECR
 
 on:
   push:
-    branches: [ 'feat/meta-432/main' ]
+    branches: [ 'main' ]
 
 jobs:
   build-and-push:
@@ -69,7 +69,7 @@ jobs:
       with:
         context: ${{ matrix.context }}
         file: ${{ matrix.file }}
-        push: true #${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         tags: |
           ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
           ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:${{ github.run_number }}
