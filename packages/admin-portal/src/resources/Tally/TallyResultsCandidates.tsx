@@ -152,13 +152,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             renderCell: (props: GridRenderCellParams<any, string>) => props["value"] || "-",
         },
         {
-            field: "elegible",
-            headerName: t("tally.table.elegible"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || 0,
-        },
-        {
             field: "number",
             headerName: t("tally.table.number"),
             flex: 1,
