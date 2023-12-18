@@ -7,8 +7,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
-use strum_macros::Display;
-use strum_macros::EnumString;
+use strum_macros::{Display, EnumString};
 
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
@@ -110,7 +109,6 @@ pub enum TallyElectionStatus {
     WAITING,
     MIXING,
     DECRYPTING,
-    COUNTING,
     SUCCESS,
     ERROR,
 }

@@ -67,7 +67,7 @@ fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
 
 // Client Credentials OpenID Authentication flow.
 // This enables servers to authenticate, without using a browser.
-#[instrument]
+#[instrument(err)]
 pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     let login_config = get_keycloak_login_config();
     let body_string = serde_urlencoded::to_string::<[(String, String); 4]>([

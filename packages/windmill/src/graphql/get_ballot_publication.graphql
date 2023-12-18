@@ -21,5 +21,6 @@ query GetBallotPublication(
     is_generated
     election_ids
     published_at
+    election_id
   }
 }

@@ -5,7 +5,9 @@ use crate::types::error::Result;
 use std::env;
 use std::path::PathBuf;
 use tempfile::Builder;
+use tracing::instrument;
 
+#[instrument(err)]
 pub fn generate_random_path(prefix: &str, suffix: &str) -> Result<PathBuf> {
     // Get the system's temporary directory.
     let temp_dir = env::temp_dir();

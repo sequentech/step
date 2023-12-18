@@ -55,12 +55,12 @@ func tailDocker(cmd *cobra.Command, args []string) error {
 
 	lp, err := cmdutils.NewLineParser(parser)
 	if err != nil {
-		return fmt.Errorf("collection configuration is corrupted, %w", err)
+		return fmt.Errorf("NewLineParser2: collection configuration is corrupted, %w", err)
 	}
 
 	jsonRepository, err := newJsonRepository(typ, args[0])
 	if err != nil {
-		return fmt.Errorf("collection configuration is corrupted, %w", err)
+		return fmt.Errorf("cnewJsonRepository2: ollection configuration is corrupted, %w", err)
 	}
 
 	flagSince, _ := cmd.Flags().GetString("since")

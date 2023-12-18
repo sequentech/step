@@ -23,6 +23,16 @@ impl User {
             None => None,
         }
     }
+
+    pub fn get_area_id(&self) -> Option<String> {
+        Some(
+            self.attributes
+                .as_ref()?
+                .get("area-id")?
+                .as_str()?
+                .to_string(),
+        )
+    }
 }
 
 impl TryFrom<Row> for User {
@@ -92,7 +102,7 @@ impl From<User> for UserRepresentation {
 }
 
 impl KeycloakAdminClient {
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn list_users(
         self,
         tenant_id: &str,
@@ -139,7 +149,7 @@ impl KeycloakAdminClient {
         Ok((users, count))
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn get_user(self, realm: &str, user_id: &str) -> Result<User> {
         let current_user: UserRepresentation = self
             .client
@@ -149,7 +159,7 @@ impl KeycloakAdminClient {
         Ok(current_user.into())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn edit_user(
         self,
         realm: &str,
@@ -239,7 +249,7 @@ impl KeycloakAdminClient {
         Ok(current_user.into())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn delete_user(&self, realm: &str, user_id: &str) -> Result<()> {
         self.client
             .realm_users_with_id_delete(realm, user_id)
@@ -248,7 +258,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn create_user(self, realm: &str, user: &User) -> Result<User> {
         let mut new_user = user.clone();
         let new_user_id =

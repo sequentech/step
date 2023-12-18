@@ -37,7 +37,7 @@ impl From<Role> for GroupRepresentation {
 }
 
 impl KeycloakAdminClient {
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn list_roles(
         self,
         realm: &str,
@@ -73,7 +73,7 @@ impl KeycloakAdminClient {
         Ok((roles, count))
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn list_user_roles(
         self,
         realm: &str,
@@ -95,7 +95,7 @@ impl KeycloakAdminClient {
         Ok(roles)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn set_user_role(
         self,
         realm: &str,
@@ -111,7 +111,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn delete_user_role(
         self,
         realm: &str,
@@ -127,7 +127,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn delete_role(self, realm: &str, role_id: &str) -> Result<()> {
         self.client
             .realm_groups_with_id_delete(realm, role_id)
@@ -136,7 +136,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn create_role(self, realm: &str, role: &Role) -> Result<Role> {
         self.client
             .realm_groups_post(realm, role.clone().into())

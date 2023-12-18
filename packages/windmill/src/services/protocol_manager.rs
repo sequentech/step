@@ -47,7 +47,7 @@ pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> ProtocolManager
     ProtocolManager::new(pmkey)
 }
 
-#[instrument]
+#[instrument(err)]
 async fn init<C: Ctx>(
     board: &mut BoardClient,
     configuration: Configuration<C>,
@@ -59,7 +59,7 @@ async fn init<C: Ctx>(
     board.insert_messages(board_name, &vec![message]).await
 }
 
-#[instrument(skip(pm))]
+#[instrument(skip(pm), err)]
 pub async fn add_config_to_board<C: Ctx>(
     threshold: usize,
     board_name: &str,
@@ -79,7 +79,7 @@ pub async fn add_config_to_board<C: Ctx>(
     init(&mut board_client, configuration, pm, board_name).await
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     let mut board = get_board_client().await?;
 
@@ -109,7 +109,32 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     Ok(dkgpk.pk)
 }
 
-#[instrument]
+#[instrument(err)]
+pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Message>> {
+    let mut board = get_board_client().await?;
+
+    let valid_statements = vec![
+        StatementType::Configuration,
+        StatementType::ConfigurationSigned,
+        StatementType::Channel,
+        StatementType::ChannelsAllSigned,
+        StatementType::Shares,
+        StatementType::PublicKey,
+        StatementType::PublicKeySigned,
+    ];
+
+    let board_messages = board.get_messages(board_name, -1).await?;
+    let messages = convert_board_messages(&board_messages)?;
+
+    let filtered_messages: Vec<Message> = messages
+        .into_iter()
+        .filter(|message| valid_statements.contains(&message.statement.get_kind()))
+        .collect();
+
+    Ok(filtered_messages)
+}
+
+#[instrument(err)]
 pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     board_name: &str,
     trustee_pub_key: &StrandSignaturePk,
@@ -198,7 +223,7 @@ pub fn convert_board_messages(board_messages: &Vec<BoardMessage>) -> Result<Vec<
     Ok(messages)
 }
 
-#[instrument]
+#[instrument(skip(trustee_pks), err)]
 pub async fn add_ballots_to_board<C: Ctx>(
     board_name: &str,
     ballots: Vec<Ciphertext<C>>,
@@ -236,7 +261,7 @@ pub async fn add_ballots_to_board<C: Ctx>(
         .await
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn get_board_client() -> Result<BoardClient> {
     let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
     let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));

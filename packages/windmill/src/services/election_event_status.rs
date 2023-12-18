@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::hasura;
 use crate::hasura::election::{get_election, update_election_status};
 use crate::hasura::election_event::{get_election_event, update_election_event_status};
 use anyhow::{anyhow, Result};
@@ -9,6 +10,7 @@ use sequent_core::ballot::*;
 use sequent_core::services::keycloak::get_client_credentials;
 use serde_json::value::Value;
 use std::default::Default;
+use tracing::instrument;
 
 pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
     status_json_opt.and_then(|status_json| serde_json::from_value(status_json).ok())
@@ -25,6 +27,7 @@ pub fn has_config_created(status_json_opt: Option<Value>) -> bool {
         .unwrap_or(false)
 }
 
+#[instrument(err)]
 pub async fn update_event_voting_status(
     tenant_id: String,
     election_event_id: String,
@@ -90,6 +93,7 @@ pub async fn update_event_voting_status(
     Ok(())
 }
 
+#[instrument(err)]
 pub async fn update_election_voting_status(
     tenant_id: String,
     election_event_id: String,
@@ -114,7 +118,6 @@ pub async fn update_election_voting_status(
         .ok_or(anyhow!("Election event not found: {}", election_event_id))?;
 
     let mut status = get_election_status(election_event.status.clone()).unwrap_or(ElectionStatus {
-        keys_ceremony: vec![],
         voting_status: VotingStatus::NOT_STARTED,
     });
 

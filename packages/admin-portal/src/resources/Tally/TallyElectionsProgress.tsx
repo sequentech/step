@@ -15,6 +15,7 @@ import {ElectionStatusItem} from "@/components/ElectionStatusItem"
 import styled from "@emotion/styled"
 import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
+import globalSettings from "@/global-settings"
 
 export const TallyElectionsProgress: React.FC = () => {
     const {tallyId} = useElectionEventTallyStore()
@@ -47,7 +48,7 @@ export const TallyElectionsProgress: React.FC = () => {
             pagination: {page: 1, perPage: 1},
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 

@@ -19,7 +19,7 @@ use sequent_core::services::connection;
 )]
 pub struct GetCastBallots;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn find_ballots(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

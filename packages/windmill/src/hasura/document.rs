@@ -19,7 +19,7 @@ use sequent_core::services::connection;
 )]
 pub struct InsertDocument;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn insert_document(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -60,7 +60,7 @@ pub async fn insert_document(
 )]
 pub struct GetDocument;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn find_document(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

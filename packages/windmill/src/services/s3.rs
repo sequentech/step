@@ -21,7 +21,7 @@ pub fn get_public_bucket() -> String {
     minio_bucket
 }
 
-#[instrument(skip(data))]
+#[instrument(skip(data), err)]
 pub async fn upload_to_s3(
     data: &Vec<u8>,
     key: String,
@@ -107,7 +107,7 @@ pub fn get_public_document_key(tenant_id: String, document_id: String, name: Str
     format!("tenant-{}/document-{}/{}", tenant_id, document_id, name)
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn get_document_url(key: String, minio_bucket: String) -> Result<String> {
     let key_id = env::var("MINIO_ACCESS_KEY").expect(&format!("MINIO_ACCESS_KEY must be set"));
     let key_secret =
@@ -134,7 +134,7 @@ pub async fn get_document_url(key: String, minio_bucket: String) -> Result<Strin
     Ok(url)
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn get_upload_url(key: String) -> Result<String> {
     let key_id = env::var("MINIO_ACCESS_KEY").expect(&format!("MINIO_ACCESS_KEY must be set"));
     let key_secret =

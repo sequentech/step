@@ -19,7 +19,7 @@ use sequent_core::services::connection;
 )]
 pub struct InsertResultsAreaContest;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn insert_results_area_contest(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,

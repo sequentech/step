@@ -18,7 +18,7 @@ pub struct UpdateVotingStatusPayload {
     pub status: VotingStatus,
 }
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn update_voting_status(
@@ -40,12 +40,10 @@ pub async fn update_voting_status(
         Some(status) => serde_json::from_value(status)?,
         None => ElectionStatus {
             voting_status: payload.status.clone(),
-            keys_ceremony: vec![],
         },
     };
     let new_status = ElectionStatus {
         voting_status: payload.status.clone(),
-        keys_ceremony: old_status.keys_ceremony.clone(),
     };
 
     if payload.status == VotingStatus::OPEN && election_event.public_key.is_none() {

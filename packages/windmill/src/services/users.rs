@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::hasura::area::get_areas_by_ids;
 use anyhow::{anyhow, Context, Result};
 use keycloak::types::{CredentialRepresentation, UserRepresentation};
@@ -15,19 +16,22 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
 use crate::services::database::{get_database_pool, PgConfig};
-use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime};
+use deadpool_postgres::{Client as DbClient, Pool, PoolError, Runtime, Transaction};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::{BorrowToSql, ToSql, Type as SqlType};
 
 #[instrument(skip(auth_headers, admin), err)]
 pub async fn list_users(
     auth_headers: connection::AuthHeaders,
-    db_client: &DbClient,
+    transaction: &Transaction<'_>,
     admin: &KeycloakAdminClient,
     tenant_id: String,
     election_event_id: Option<String>,
     realm: &str,
     search: Option<String>,
+    first_name: Option<String>,
+    last_name: Option<String>,
+    username: Option<String>,
     email: Option<String>,
     limit: Option<i32>,
     offset: Option<i32>,
@@ -41,54 +45,86 @@ pub async fn list_users(
     } else {
         0
     };
-
-    let statement = db_client.prepare_cached(
-            r#"
-            WITH realm_cte AS (
-                SELECT id FROM realm WHERE name = $1
-            )
+    let email_pattern: Option<String> = if let Some(email_val) = email {
+        Some(format!("%{email_val}%"))
+    } else {
+        None
+    };
+    let first_name_pattern: Option<String> = if let Some(first_name_val) = first_name {
+        Some(format!("%{first_name_val}%"))
+    } else {
+        None
+    };
+    let last_name_pattern: Option<String> = if let Some(last_name_val) = last_name {
+        Some(format!("%{last_name_val}%"))
+    } else {
+        None
+    };
+    let username_pattern: Option<String> = if let Some(username_val) = username {
+        Some(format!("%{username_val}%"))
+    } else {
+        None
+    };
+    let statement = transaction.prepare(r#"
+        WITH realm_cte AS (
+            SELECT id FROM realm WHERE name = $1
+        )
+        SELECT
+            sub.id,
+            sub.email,
+            sub.email_verified,
+            sub.enabled,
+            sub.first_name,
+            sub.last_name,
+            sub.realm_id,
+            sub.username,
+            sub.created_timestamp,
+            sub.attributes,
+            sub.total_count
+        FROM (
             SELECT
-                sub.id,
-                sub.email,
-                sub.email_verified,
-                sub.enabled,
-                sub.first_name,
-                sub.last_name,
-                sub.realm_id,
-                sub.username,
-                sub.created_timestamp,
-                sub.attributes,
-                sub.total_count
-            FROM (
-                SELECT
-                    u.id,
-                    u.email,
-                    u.email_verified,
-                    u.enabled,
-                    u.first_name,
-                    u.last_name,
-                    u.realm_id,
-                    u.username,
-                    u.created_timestamp,
-                    COALESCE(json_object_agg(attr.name, attr.value) FILTER (WHERE attr.name IS NOT NULL), '{}'::json) AS attributes,
-                    COUNT(u.id) OVER() AS total_count
-                FROM
-                    user_entity AS u
-                INNER JOIN
-                    realm_cte ON realm_cte.id = u.realm_id
-                LEFT JOIN
-                    user_attribute AS attr ON u.id = attr.user_id
-                WHERE
-                    (u.email = $2 OR $2 IS NULL)
-                GROUP BY
-                    u.id
-            ) sub
-            LIMIT $3 OFFSET $4;
-            ;
-        "#,
-    ).await?;
-    let rows: Vec<Row> = db_client
-        .query(&statement, &[&realm, &email, &query_limit, &query_offset])
+                u.id,
+                u.email,
+                u.email_verified,
+                u.enabled,
+                u.first_name,
+                u.last_name,
+                u.realm_id,
+                u.username,
+                u.created_timestamp,
+                COALESCE(json_object_agg(attr.name, attr.value) FILTER (WHERE attr.name IS NOT NULL), '{}'::json) AS attributes,
+                COUNT(u.id) OVER() AS total_count
+            FROM
+                user_entity AS u
+            INNER JOIN
+                realm_cte ON realm_cte.id = u.realm_id
+            LEFT JOIN
+                user_attribute AS attr ON u.id = attr.user_id
+            WHERE
+                ($4::VARCHAR IS NULL OR email ILIKE $4) AND
+                ($5::VARCHAR IS NULL OR first_name ILIKE $5) AND
+                ($6::VARCHAR IS NULL OR last_name ILIKE $6) AND
+                ($7::VARCHAR IS NULL OR username ILIKE $7) AND
+                (u.id = ANY($8) OR $8 IS NULL)
+            GROUP BY
+                u.id
+        ) sub
+        LIMIT $2 OFFSET $3;
+    "#).await?;
+    let rows: Vec<Row> = transaction
+        .query(
+            &statement,
+            &[
+                &realm,
+                &query_limit,
+                &query_offset,
+                &email_pattern,
+                &first_name_pattern,
+                &last_name_pattern,
+                &username_pattern,
+                &user_ids,
+            ],
+        )
         .await
         .map_err(|err| anyhow!("{}", err))?;
     event!(
@@ -110,16 +146,7 @@ pub async fn list_users(
         .collect::<Result<Vec<User>>>()?;
 
     if let Some(ref some_election_event_id) = election_event_id {
-        let area_ids: Vec<String> = users
-            .iter()
-            .filter_map(|user| {
-                Some(
-                    user.attributes.as_ref()?.get("area-id")?.as_array()?[0]
-                        .as_str()?
-                        .to_string(),
-                )
-            })
-            .collect();
+        let area_ids: Vec<String> = users.iter().filter_map(|user| user.get_area_id()).collect();
         let areas_by_ids = get_areas_by_ids(
             auth_headers.clone(),
             tenant_id,
@@ -132,9 +159,7 @@ pub async fn list_users(
         .with_context(|| "can't find areas by ids")?
         .sequent_backend_area;
         let get_area = |user: &User| {
-            let area_id = user.attributes.as_ref()?.get("area-id")?.as_array()?[0]
-                .as_str()?
-                .to_string();
+            let area_id = user.get_area_id()?;
             return areas_by_ids.iter().find_map(|area| {
                 if (area.id == area_id) {
                     Some(UserArea {

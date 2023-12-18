@@ -19,7 +19,7 @@ use sequent_core::services::connection;
 )]
 pub struct GetBallotStyleArea;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn get_ballot_style_area(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -54,7 +54,7 @@ pub async fn get_ballot_style_area(
 )]
 pub struct InsertBallotStyle;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn insert_ballot_style(
     auth_headers: connection::AuthHeaders,
     ballot_style_id: String,

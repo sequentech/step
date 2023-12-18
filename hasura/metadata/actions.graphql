@@ -171,7 +171,9 @@ type Query {
   listPgaudit (
     limit: Int
     offset: Int
+    filter: PgAuditFilter 
     order_by: PgAuditOrderBy
+    audit_table: PgAuditTable
   ): DataListPgAudit
 }
 
@@ -214,6 +216,7 @@ type Mutation {
 
 type Mutation {
   update_election_voting_status (
+    election_event_id: uuid!
     election_id: uuid!
     voting_status: String!
   ): UpdateElectionVotingStatusOutput
@@ -239,9 +242,25 @@ enum OrderDirection {
   desc
 }
 
+enum PgAuditTable {
+  pgaudit_hasura 
+  pgaudit_keycloak
+}
+
 input TemplateInput {
   template : String!
   format : String!
+}
+
+input PgAuditFilter {
+  id : String
+  audit_type : String
+  class : String
+  command : String
+  dbname : String
+  session_id : String
+  statement : String
+  user : String
 }
 
 input PgAuditOrderBy {
@@ -287,7 +306,10 @@ input GetUsersInput {
   tenant_id : String!
   election_event_id : String
   search : String
+  first_name : String
+  last_name : String
   email : String
+  username : String
   limit : Int
   offset : Int
 }

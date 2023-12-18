@@ -36,7 +36,7 @@ impl From<Permission> for RoleRepresentation {
 }
 
 impl KeycloakAdminClient {
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn list_permissions(
         self,
         realm: &str,
@@ -63,7 +63,7 @@ impl KeycloakAdminClient {
         Ok((permissions, count))
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn set_role_permission(
         self,
         realm: &str,
@@ -86,7 +86,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn delete_role_permission(
         self,
         realm: &str,
@@ -109,7 +109,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn delete_permission(
         self,
         realm: &str,
@@ -122,7 +122,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn create_permission(
         self,
         realm: &str,

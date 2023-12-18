@@ -10,7 +10,7 @@ use crate::services::date::ISO8601;
 use crate::services::s3;
 use crate::types::error::Result;
 
-#[instrument(skip(bytes, auth_headers))]
+#[instrument(skip(bytes, auth_headers), err)]
 pub async fn upload_and_return_document(
     bytes: Vec<u8>,
     media_type: String,
@@ -72,7 +72,7 @@ pub async fn upload_and_return_document(
     })
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_upload_url(
     auth_headers: connection::AuthHeaders,
     name: &str,
