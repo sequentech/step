@@ -16,6 +16,7 @@ const PublishActionsStyled = {
         display: flex;
         margin-bottom: 8px;
         justify-content: flex-end;
+        width: 100%;
     `,
 }
 

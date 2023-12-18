@@ -33,35 +33,13 @@ const DiffViewStyled = {
         padding: 16px;
         height: 100%;
         width: 100%;
-        overflow-x: auto;
+        overflow-x: scroll;
         max-height: 500px;
     `,
     Json: styled.div`
         width: 100%;
-
-        @media (min-width: 768px) {
-            width: 300px;
-        }
-
-        @media (min-width: 1024px) {
-            width: 450px;
-        }
-
-        @media (min-width: 1280px) {
-            width: 570px;
-        }
-
-        @media (min-width: 1536px) {
-            width: 710px;
-        }
-
-        @media (min-width: 1920px) {
-            width: 900px;
-        }
-
-        @media (min-width: 2560px) {
-            width: 1210px;
-        }
+        max-width: 40vw;
+        overflow-x: scroll;
     `,
     Removed: styled.pre`
         width: 100%;
