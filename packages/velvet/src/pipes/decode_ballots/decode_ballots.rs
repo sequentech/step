@@ -41,8 +41,18 @@ impl DecodeBallots {
 
         for line in reader.lines() {
             let line = line?;
-            let plaintext = BigUint::from_str(&line)
-                .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+
+            let plaintext = BigUint::from_str(&line);
+
+            if let Err(error) = &plaintext {
+                if error.to_string() == "cannot parse integer from empty string" {
+                    continue;
+                }
+            }
+
+            let plaintext =
+                plaintext.map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+
             let decoded_vote = contest
                 .decode_plaintext_contest_bigint(&plaintext)
                 .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;

@@ -468,7 +468,7 @@ mod tests {
 
             Ok::<(), Error>(())
         })?;
-        
+
         // second area
         let uuid_area =
             fixture.create_area_dir(&election.id, &Uuid::from_str(&contest.id).unwrap())?;
@@ -657,6 +657,70 @@ mod tests {
 
             Ok::<(), Error>(())
         })?;
+
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "decode-ballots".to_string(),
+            config: fixture.config_path.clone(),
+            input_dir: fixture.root_dir.join("tests").join("input-dir"),
+            output_dir: fixture.root_dir.join("tests").join("output-dir"),
+        };
+
+        let config = cli.validate()?;
+        let mut state = State::new(&cli, &config)?;
+
+        // DecodeBallots
+        state.exec_next()?;
+
+        // DoTally
+        state.exec_next()?;
+
+        // MarkWinners
+        state.exec_next()?;
+
+        // Generate reports
+        state.exec_next()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_0_ballots() -> Result<()> {
+        let fixture = TestFixture::new()?;
+
+        let election_event_id = Uuid::new_v4();
+
+        let mut election = fixture.create_election_config(&election_event_id)?;
+        election.ballot_styles.clear();
+
+        // First ballot style
+        let contest =
+            fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
+
+        // first area
+        let uuid_area =
+            fixture.create_area_dir(&election.id, &Uuid::from_str(&contest.id).unwrap())?;
+        election.ballot_styles.push(generate_ballot_style(
+            &election.tenant_id,
+            &election.election_event_id,
+            &election.id,
+            &uuid_area,
+            vec![contest.clone()],
+        ));
+
+        let ballot_file = fixture
+            .input_dir_ballots
+            .join(format!("election__{}", &election.id))
+            .join(format!("contest__{}", &contest.id))
+            .join(format!("area__{uuid_area}"));
+
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .append(true)
+            .create(true)
+            .open(ballot_file.join("ballots.csv"))?;
+
+        writeln!(file, "")?;
 
         let cli = CliRun {
             stage: "main".to_string(),
