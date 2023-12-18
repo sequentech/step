@@ -38,6 +38,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
     ({electionEventId, electionId, type}: TPublish): React.JSX.Element => {
         const notify = useNotify()
         const {t} = useTranslation()
+        const [isEdit, setIsEdit] = useState<boolean>(false)
         const [showDiff, setShowDiff] = useState<boolean>(false)
         const [status, setStatus] = useState<number>(EPublishStatus.Void)
         const [ballotPublicationId, setBallotPublicationId] = useState<string | Identifier | null>(
@@ -108,6 +109,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         const onGenerate = async () => {
             try {
+                setIsEdit(false)
                 setShowDiff(true)
                 setStatus(EPublishStatus.GeneratedLoading)
 
@@ -216,9 +218,11 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 setShowDiff(true)
                 setStatus(EPublishStatus.Generated)
 
-                notify(t("publish.notifications.generated"), {
-                    type: "success",
-                })
+                if (!isEdit) {
+                    notify(t("publish.notifications.generated"), {
+                        type: "success",
+                    })
+                }
             }
         }, [generateData])
 
@@ -241,7 +245,10 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         onGenerate={onGenerate}
                         onChangeStatus={onChangeStatus}
                         electionEventId={electionEventId}
-                        setBallotPublicationId={setBallotPublicationId}
+                        setBallotPublicationId={(id: Identifier) => {
+                            setIsEdit(true)
+                            setBallotPublicationId(id)
+                        }}
                     />
                 ) : (
                     <PublishGenerate

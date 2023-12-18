@@ -776,8 +776,8 @@ const spanishTranslation: TranslationType = {
                 back: "Atrás",
             },
             empty: {
-                header: "No has Generado ningúna Publicación",
-                action: "Generar Primera Publicación",
+                header: "Ninguna Publicación aún.",
+                action: "Generar Publicación",
             },
             dialog: {
                 title: "Confirm action",

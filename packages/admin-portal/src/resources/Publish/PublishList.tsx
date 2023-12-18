@@ -50,7 +50,7 @@ export const PublishList: React.FC<TPublishList> = ({
     const notify = useNotify()
     const {t} = useTranslation()
 
-    const {data, error, isLoading} = useGetList<Sequent_Backend_Ballot_Publication>(
+    const {data, error} = useGetList<Sequent_Backend_Ballot_Publication>(
         "sequent_backend_ballot_publication",
         {
             filter: electionId
@@ -106,11 +106,6 @@ export const PublishList: React.FC<TPublishList> = ({
         }
     }, [error])
 
-    useEffect(() => {
-        console.log("PUBLISH :: DATA", data)
-        console.log("PUBLISH :: BALLOT CONTEXT", ballotContext)
-    }, [data])
-
     return (
         <Box>
             {ballotContext.total ? (
@@ -127,6 +122,7 @@ export const PublishList: React.FC<TPublishList> = ({
 
                         <DatagridConfigurable omit={OMIT_FIELDS}>
                             <TextField source="published_at" />
+                            <TextField source="created_at" />
                             <BooleanField source="is_generated" />
 
                             <WrapperField source="actions" label="Actions">

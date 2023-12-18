@@ -778,8 +778,8 @@ const englishTranslation = {
                 diff: "CHANGES TO PUBLISH",
             },
             empty: {
-                header: "Not Generate Publish Yet",
-                action: "Generate First Publish",
+                header: "No Publication Yet.",
+                action: "Generate Publication",
             },
             dialog: {
                 title: "Confirm action",
