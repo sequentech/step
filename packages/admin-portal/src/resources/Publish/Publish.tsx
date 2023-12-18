@@ -3,7 +3,7 @@ import React, {ComponentType, useEffect, useRef, useState} from "react"
 import {Box} from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
-import {useGetOne, useNotify, useRecordContext} from "react-admin"
+import {useGetOne, useNotify, useRecordContext, Identifier} from "react-admin"
 
 import {EPublishType} from "./EPublishType"
 import {PUBLISH_BALLOT} from "@/queries/PublishBallot"
@@ -40,7 +40,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const {t} = useTranslation()
         const [showDiff, setShowDiff] = useState<boolean>(false)
         const [status, setStatus] = useState<number>(EPublishStatus.Void)
-        const [ballotPublicationId, setBallotPublicationId] = useState<string | null>(null)
+        const [ballotPublicationId, setBallotPublicationId] = useState<string | Identifier | null>(
+            null
+        )
 
         const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
         const [generateData, setGenerateData] = useState<GetBallotPublicationChangesOutput | null>(
@@ -202,8 +204,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         useEffect(() => {
             if (ballotPublicationId) {
-                getPublishChanges()
-
+                setShowDiff(true)
                 setTimeout(() => {
                     refetch()
                 }, 3000)
@@ -212,6 +213,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         useEffect(() => {
             if (generateData) {
+                setShowDiff(true)
                 setStatus(EPublishStatus.Generated)
 
                 notify(t("publish.notifications.generated"), {

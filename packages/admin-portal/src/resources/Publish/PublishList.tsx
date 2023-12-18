@@ -1,6 +1,7 @@
 import React, {useEffect} from "react"
 
 import {useTranslation} from "react-i18next"
+import {Visibility} from "@mui/icons-material"
 import {IconButton} from "@sequentech/ui-essentials"
 import {Box, Typography, Button} from "@mui/material"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
@@ -13,6 +14,10 @@ import {
     BooleanField,
     ListContextProvider,
     DatagridConfigurable,
+    RaRecord,
+    FunctionField,
+    Identifier,
+    WrapperField,
 } from "react-admin"
 
 import {PublishActions} from "./PublishActions"
@@ -21,6 +26,7 @@ import {EPublishActionsType} from "./EPublishType"
 import {HeaderTitle} from "@/components/HeaderTitle"
 import {Sequent_Backend_Ballot_Publication} from "@/gql/graphql"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {Action, ActionsColumn} from "@/components/ActionButons"
 
 const OMIT_FIELDS: string[] = []
 
@@ -30,7 +36,7 @@ type TPublishList = {
     electionId?: number | string
     electionEventId: number | string | undefined
     onChangeStatus: (status: string) => void
-    setBallotPublicationId: (id: string) => void
+    setBallotPublicationId: (id: string | Identifier) => void
 }
 
 export const PublishList: React.FC<TPublishList> = ({
@@ -85,6 +91,13 @@ export const PublishList: React.FC<TPublishList> = ({
         </ResourceListStyles.EmptyBox>
     )
 
+    const actions: Action[] = [
+        {
+            icon: <Visibility />,
+            action: setBallotPublicationId,
+        },
+    ]
+
     useEffect(() => {
         if (error) {
             notify(t("publish.dialog.error"), {
@@ -112,16 +125,13 @@ export const PublishList: React.FC<TPublishList> = ({
                     <ListContextProvider value={ballotContext}>
                         <HeaderTitle title={"publish.header.history"} subtitle="" />
 
-                        <DatagridConfigurable
-                            omit={OMIT_FIELDS}
-                            rowClick={(id: string | number) => {
-                                setBallotPublicationId(String(id)) // Asegúrate de convertir a string si es necesario
-
-                                return false
-                            }}
-                        >
+                        <DatagridConfigurable omit={OMIT_FIELDS}>
                             <TextField source="published_at" />
                             <BooleanField source="is_generated" />
+
+                            <WrapperField source="actions" label="Actions">
+                                <ActionsColumn actions={actions} />
+                            </WrapperField>
                         </DatagridConfigurable>
                     </ListContextProvider>
                 </>
