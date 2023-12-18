@@ -104,7 +104,7 @@ export const PublishList: React.FC<TPublishList> = ({
             >
                 <HeaderTitle title={"publish.header.history"} subtitle="" />
 
-                <DatagridConfigurable omit={OMIT_FIELDS}>
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                     <TextField source="id" />
                     <BooleanField source="is_generated" />
                     <TextField source="published_at" />
