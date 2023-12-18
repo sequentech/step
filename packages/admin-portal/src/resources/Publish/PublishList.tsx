@@ -1,4 +1,4 @@
-import React from "react"
+import React, {ReactElement} from "react"
 
 import {useTranslation} from "react-i18next"
 import {Visibility} from "@mui/icons-material"
@@ -10,6 +10,8 @@ import {
     List,
     TextField,
     Identifier,
+    TextInput,
+    BooleanInput,
     BooleanField,
     DatagridConfigurable,
 } from "react-admin"
@@ -21,6 +23,11 @@ import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Action, ActionsColumn} from "@/components/ActionButons"
 
 const OMIT_FIELDS: string[] = []
+
+const filters: Array<ReactElement> = [
+    <TextInput source="id" key={0} />,
+    <BooleanInput source="is_generated" key={1} />,
+]
 
 type TPublishList = {
     status: number
@@ -40,6 +47,7 @@ export const PublishList: React.FC<TPublishList> = ({
     setBallotPublicationId = () => null,
 }) => {
     const {t} = useTranslation()
+    console.log(`has electionId=${electionId}`)
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
@@ -88,12 +96,13 @@ export const PublishList: React.FC<TPublishList> = ({
                               election_event_id: electionEventId,
                           }
                 }
+                filters={filters}
                 sx={{flexGrow: 2}}
                 empty={<Empty />}
             >
                 <HeaderTitle title={"publish.header.history"} subtitle="" />
 
-                <DatagridConfigurable omit={OMIT_FIELDS}>
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                     <TextField source="id" />
                     <BooleanField source="is_generated" />
                     <TextField source="published_at" />
