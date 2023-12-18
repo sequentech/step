@@ -67,7 +67,10 @@ jobs:
         context: ${{ matrix.context }}
         file: ${{ matrix.file }}
         push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-        tags: ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
+        tags: |
+          ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:${{ github.sha[:7] }}
+          ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:${{ github.run_number }}
+          ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:latest
         cache-from: type=gha,scope=${{ matrix.service }}
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
         build-args: SPA_NAME=${{ matrix.spa_name }}
