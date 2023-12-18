@@ -12,6 +12,7 @@ module.exports = function (env, argv) {
         output: {
             filename: "index.js",
             path: path.resolve(__dirname, "dist"),
+            publicPath: '', // Set to empty string to ensure correct base path
         },
         devtool: "source-map",
         module: {
@@ -33,14 +34,6 @@ module.exports = function (env, argv) {
             ],
         },
         externals: {
-            /*"react": "react",
-            "react-dom": "react-dom",
-            "@mui/material": "@mui/material",
-            "@emotion/react": "@emotion/react",
-            "@emotion/styled": "@emotion/styled",
-            "mui-image": "mui-image",
-            "react-i18next": "react-i18next",
-            "react-router-dom": "react-router-dom",*/
         },
         resolve: {
             alias: {
@@ -53,7 +46,12 @@ module.exports = function (env, argv) {
             new HtmlWebpackPlugin({
                 template: './public/index.html',
                 filename: './index.html',
-                favicon: './public/favicon.ico'
+                favicon: './public/favicon.ico',
+                publicPath: '', // Set to empty string to remove %PUBLIC_URL%
+                // pass variables to the template
+                templateParameters: {
+                    'PUBLIC_URL': '' // Replace %PUBLIC_URL% with an empty string
+                }
             }),
             new ProgressPlugin(),
             new ESLintPlugin({
@@ -64,7 +62,6 @@ module.exports = function (env, argv) {
         devServer: {
             contentBase: './dist',
             // no publicPath
-        }
-  
+        },
     }
 }
