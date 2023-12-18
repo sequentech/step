@@ -98,11 +98,7 @@ export const ImportElectionEvent: React.FC<ImportVotersTabsProps> = (props) => {
                 subtitle="electionEventScreen.import.eesubtitle"
             />
 
-            <ImportScreen
-                doCancel={handleCancel}
-                doImport={handleImport}
-                isLoading={loading}
-            />
+            <ImportScreen doCancel={handleCancel} doImport={handleImport} isLoading={loading} />
         </>
     )
 }

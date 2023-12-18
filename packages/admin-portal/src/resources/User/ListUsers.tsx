@@ -37,9 +37,9 @@ import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
-import { ImportVotersBaseTabs } from '@/components/election-event/ImportVotersBaseTabs'
-import importDrawerState from '@/atoms/import-drawer-state'
-import { useAtom } from 'jotai'
+import {ImportVotersBaseTabs} from "@/components/election-event/ImportVotersBaseTabs"
+import importDrawerState from "@/atoms/import-drawer-state"
+import {useAtom} from "jotai"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -400,7 +400,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     sx: {width: "30%"},
                 }}
             >
-                <ImportVotersBaseTabs doRefresh={() => refresh()}/>
+                <ImportVotersBaseTabs doRefresh={() => refresh()} />
             </Drawer>
 
             <Dialog

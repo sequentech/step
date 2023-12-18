@@ -35,7 +35,7 @@ import importDrawerState from "@/atoms/import-drawer-state"
 import {Dialog} from "@sequentech/ui-essentials"
 import {ImportScreen} from "@/components/election-event/ImportScreen"
 import {ListActions} from "@/components/ListActions"
-import { ImportElectionEvent } from '@/components/election-event/ImportElectionEvent'
+import {ImportElectionEvent} from "@/components/election-event/ImportElectionEvent"
 
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
@@ -241,9 +241,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                             validate={formValidator}
                             record={parsedValue}
                             toolbar={
-                                <Toolbar>
-                                    {canEdit ? <SaveButton type="button" /> : null}
-                                </Toolbar>
+                                <Toolbar>{canEdit ? <SaveButton type="button" /> : null}</Toolbar>
                             }
                         >
                             <Accordion

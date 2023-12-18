@@ -56,6 +56,7 @@ export const CreateContest: React.FC = () => {
                 <Hidden>
                     <BooleanInput source="is_acclaimed" />
                     <BooleanInput source="is_active" />
+                    <NumberInput source="min_votes" defaultValue="0" />
                     <NumberInput source="max_votes" defaultValue="1" />
                     <NumberInput source="winning_candidates_num" defaultValue={1} />
                     <SelectInput

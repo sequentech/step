@@ -280,7 +280,7 @@ const englishTranslation = {
                 sha: "Integrity (SHA 256)",
                 cancel: "Cancel",
                 import: "Import",
-            }
+            },
         },
         electionScreen: {
             common: {
