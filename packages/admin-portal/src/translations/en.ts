@@ -475,7 +475,7 @@ const englishTranslation = {
                 warning: "Warning",
                 json: "Preview",
                 noResult: "No result",
-                loadingData: 'Loading data ...'
+                loadingData: "Loading data ...",
             },
             language: {
                 es: "Spanish",

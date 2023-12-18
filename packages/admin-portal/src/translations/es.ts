@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import { TranslationType } from "./en"
+import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
@@ -477,7 +477,7 @@ const spanishTranslation: TranslationType = {
                 warning: "Aviso",
                 json: "Vista previa",
                 noResult: "Sin resultados",
-                loadingData: 'Cargando datos ...'
+                loadingData: "Cargando datos ...",
             },
             language: {
                 es: "Español",

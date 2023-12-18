@@ -4,7 +4,7 @@ import styled from "@emotion/styled"
 
 import {diffLines} from "diff"
 import {CircularProgress} from "@mui/material"
-import { useTranslation } from 'react-i18next'
+import {useTranslation} from "react-i18next"
 
 const DiffViewStyled = {
     Header: styled.span`
@@ -163,7 +163,7 @@ const DiffViewMemo = React.memo(
                                     ) : (
                                         <DiffViewStyled.Line key={index}>
                                             {line.value === "null"
-                                                ? t('common.label.loadingData')
+                                                ? t("common.label.loadingData")
                                                 : line.value}
                                         </DiffViewStyled.Line>
                                     )
@@ -187,7 +187,7 @@ const DiffViewMemo = React.memo(
                                         ) : (
                                             <DiffViewStyled.Line key={index}>
                                                 {line.value === "null"
-                                                    ? t('common.label.loadingData')
+                                                    ? t("common.label.loadingData")
                                                     : line.value}
                                             </DiffViewStyled.Line>
                                         )
