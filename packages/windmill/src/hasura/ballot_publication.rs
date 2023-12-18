@@ -210,6 +210,46 @@ pub async fn soft_delete_other_ballot_publications(
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/get_previous_publication_election.graphql",
+    response_derives = "Debug,Clone,Deserialize,Serialize"
+)]
+pub struct GetPreviousPublicationElection;
+
+#[instrument(skip_all, err)]
+pub async fn get_previous_publication_election(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    published_at: String,
+    election_id: String,
+) -> Result<Response<get_previous_publication_election::ResponseData>> {
+    let variables = get_previous_publication_election::Variables {
+        tenant_id,
+        election_event_id,
+        published_at,
+        election_id,
+    };
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = GetPreviousPublicationElection::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<get_previous_publication_election::ResponseData> =
+        res.json().await?;
+    response_body.ok()
+}
+
+///////
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/get_previous_publication.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
@@ -221,13 +261,11 @@ pub async fn get_previous_publication(
     tenant_id: String,
     election_event_id: String,
     published_at: String,
-    election_id: Option<String>,
 ) -> Result<Response<get_previous_publication::ResponseData>> {
     let variables = get_previous_publication::Variables {
         tenant_id,
         election_event_id,
         published_at,
-        election_id,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));

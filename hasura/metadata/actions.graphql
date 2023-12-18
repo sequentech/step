@@ -216,6 +216,7 @@ type Mutation {
 
 type Mutation {
   update_election_voting_status (
+    election_event_id: uuid!
     election_id: uuid!
     voting_status: String!
   ): UpdateElectionVotingStatusOutput

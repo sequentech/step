@@ -5,7 +5,6 @@ import styled from "@emotion/styled"
 import {diffLines} from "diff"
 import {CircularProgress} from "@mui/material"
 
-// TODO: Fix responsive in Block
 const DiffViewStyled = {
     Header: styled.span`
         font-family: Roboto;
@@ -35,18 +34,6 @@ const DiffViewStyled = {
         width: 100%;
         overflow-x: auto;
         max-height: 500px;
-
-        @media (max-width: 2700px) {
-            width: 1070px;
-        }
-
-        @media (max-width: 2400px) {
-            width: 700px;
-        }
-
-        @media (max-width: 1440px) {
-            width: 520px;
-        }
     `,
     Json: styled.div`
         width: 100%;

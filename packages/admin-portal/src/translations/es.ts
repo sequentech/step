@@ -787,7 +787,21 @@ const spanishTranslation: TranslationType = {
                 stop: "Parar eleccion",
                 pause: "pausar",
                 generate: "regenerar",
-                publish: "publicar cambios",
+                publish: "Publicar Cambios",
+                back: "Atrás",
+            },
+            empty: {
+                header: "No tienes cambios generados/publicados",
+                action: "Genera tu primer cambio",
+            },
+            dialog: {
+                title: "Confirm action",
+                info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
+                ok: "Confirm",
+                ko: "Cancel",
+                error: "Error al cargar las papeletas publicadas",
+                error_publish: "Error al publicar la papeleta",
+                error_status: "Error al cambiar el estado de la publicación",
             },
             label: {
                 current: "Actual",
@@ -796,6 +810,7 @@ const spanishTranslation: TranslationType = {
             notifications: {
                 generated: "Papeleta generada",
                 published: "Papeleta publicada",
+                chang_status: "Papeleta cambiada de estado",
             },
         },
         emailEditor: {

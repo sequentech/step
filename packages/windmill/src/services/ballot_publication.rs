@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::hasura::ballot_publication::{
-    get_ballot_publication, get_previous_publication, get_publication_ballot_styles,
-    insert_ballot_publication, soft_delete_other_ballot_publications,
-    soft_delete_other_ballot_publications_election, update_ballot_publication_d,
+    get_ballot_publication, get_previous_publication, get_previous_publication_election,
+    get_publication_ballot_styles, insert_ballot_publication,
+    soft_delete_other_ballot_publications, soft_delete_other_ballot_publications_election,
+    update_ballot_publication_d,
 };
 use crate::hasura::election::get_all_elections_for_event;
 use crate::hasura::election_event::get_election_event_helper;
@@ -267,19 +268,33 @@ pub async fn get_ballot_publication_diff(
     )
     .await?;
 
-    let previous_publication_data = &get_previous_publication(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        election_event_id.clone(),
-        ballot_publication.created_at.clone(),
-        ballot_publication.election_id.clone(),
-    )
-    .await?
-    .data
-    .with_context(|| "can't find ballot publication")?
-    .sequent_backend_ballot_publication;
-
-    let previous_publication_id_opt = previous_publication_data.get(0).map(|val| val.id.clone());
+    let previous_publication_id_opt =
+        if let Some(election_id) = ballot_publication.election_id.clone() {
+            let previous_publication_data = &get_previous_publication_election(
+                auth_headers.clone(),
+                tenant_id.clone(),
+                election_event_id.clone(),
+                ballot_publication.created_at.clone(),
+                election_id,
+            )
+            .await?
+            .data
+            .with_context(|| "can't find ballot publication")?
+            .sequent_backend_ballot_publication;
+            previous_publication_data.get(0).map(|val| val.id.clone())
+        } else {
+            let previous_publication_data = &get_previous_publication(
+                auth_headers.clone(),
+                tenant_id.clone(),
+                election_event_id.clone(),
+                ballot_publication.created_at.clone(),
+            )
+            .await?
+            .data
+            .with_context(|| "can't find ballot publication")?
+            .sequent_backend_ballot_publication;
+            previous_publication_data.get(0).map(|val| val.id.clone())
+        };
 
     let current_json = get_publication_json(
         auth_headers.clone(),
