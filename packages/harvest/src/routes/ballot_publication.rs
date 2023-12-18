@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
+use crate::services::electoral_log;
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -16,6 +17,13 @@ use windmill::services::ballot_publication::{
 };
 use windmill::services::ceremonies::tally_ceremony;
 
+use board_messages::electoral_log::message::Message;
+use board_messages::electoral_log::message::SigningData;
+use board_messages::electoral_log::newtypes::BallotPublicationIdString;
+use board_messages::electoral_log::newtypes::ElectionIdString;
+use board_messages::electoral_log::newtypes::EventIdString;
+use strand::signature::StrandSignatureSk;
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationInput {
     election_event_id: String,
@@ -25,6 +33,18 @@ pub struct GenerateBallotPublicationInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationOutput {
     ballot_publication_id: String,
+}
+
+pub fn dummy_signing_data() -> SigningData {
+    let sender_sk = StrandSignatureSk::gen().unwrap();
+    let system_sk = StrandSignatureSk::gen().unwrap();
+    let name = "dummy";
+
+    SigningData::new(sender_sk, name, system_sk)
+}
+
+pub fn dummy_log_database() -> String {
+    "dummy".to_string()
 }
 
 #[instrument(skip(claims))]
@@ -46,6 +66,28 @@ pub async fn generate_ballot_publication(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    // Posting to the electoral log
+    // Pending
+    // * sender and system signatures
+    // * correct electoral log immudb database
+    // * correct immudb connection parameters (see services::electoral_log)
+    /* let event = input.election_event_id.clone();
+    let election = input.election_id
+    .ok_or((Status::InternalServerError, "No election id found".to_string()))?;
+    let ballot_pub_id = ballot_publication_id.clone();
+    let sd = dummy_signing_data();
+    let log_database = dummy_log_database();
+
+    electoral_log::post_election_published(
+        event,
+        election,
+        ballot_pub_id,
+        &sd,
+        &log_database
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;*/
 
     Ok(Json(GenerateBallotPublicationOutput {
         ballot_publication_id,
