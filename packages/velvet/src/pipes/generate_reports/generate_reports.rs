@@ -245,9 +245,10 @@ impl GenerateReports {
         contest_id: Option<&Uuid>,
         area_id: Option<&Uuid>,
         contest: Contest,
-        mut contest_result: ContestResult,
         ballot_styles: Vec<BallotStyle>,
-    ) -> Result<()> {
+    ) -> Result<ReportData> {
+        let mut contest_result = self.read_contest_result(election_id, contest_id, area_id)?;
+
         let defaults = default_invalid_votes();
         for (key, value) in defaults {
             contest_result.invalid_votes.entry(key).or_insert(value);
@@ -293,7 +294,7 @@ impl GenerateReports {
         file.write_all(&bytes)?;
         serde_json::to_writer(file, &bytes)?;
 
-        Ok(())
+        Ok(report)
     }
 }
 
@@ -305,51 +306,22 @@ impl Pipe for GenerateReports {
 
             for contest_input in &election_input.contest_list {
                 for area_input in &contest_input.area_list {
-                    let mut contest_result = self.read_contest_result(
+                    let report = self.write_report(
                         &election_input.id,
                         Some(&contest_input.id),
                         Some(&area_input.id),
+                        contest_input.contest.clone(),
+                        election_input.ballot_styles.clone(),
                     )?;
                 }
 
-                let mut contest_result =
-                    self.read_contest_result(&election_input.id, Some(&contest_input.id), None)?;
-
-                let defaults = default_invalid_votes();
-                for (key, value) in defaults {
-                    contest_result.invalid_votes.entry(key).or_insert(value);
-                }
-
-                let winners =
-                    self.read_winners(&election_input.id, Some(&contest_input.id), None)?;
-
-                let report = ReportData {
-                    contest: contest_input.contest.clone(),
-                    contest_result,
-                    area_id: None,
-                    winners,
-                };
-
-                let bytes =
-                    self.generate_report(&election_input.ballot_styles[0], vec![report.clone()])?;
-
-                let mut path = PipeInputs::build_path(
-                    &self.output_dir,
-                    &contest_input.election_id,
+                let report = self.write_report(
+                    &election_input.id,
                     Some(&contest_input.id),
                     None,
-                );
-                fs::create_dir_all(&path)?;
-
-                let file = path.join(OUTPUT_PDF);
-                let mut file = OpenOptions::new()
-                    .write(true)
-                    .truncate(true)
-                    .create(true)
-                    .open(&file)?;
-
-                file.write_all(&bytes)?;
-                serde_json::to_writer(file, &bytes)?;
+                    contest_input.contest.clone(),
+                    election_input.ballot_styles.clone(),
+                )?;
 
                 reports.push(report)
             }
