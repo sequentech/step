@@ -239,7 +239,7 @@ impl GenerateReports {
         Ok(election_reports)
     }
 
-    fn toto(
+    fn write_report(
         &self,
         election_id: &Uuid,
         contest_id: Option<&Uuid>,
@@ -262,8 +262,22 @@ impl GenerateReports {
             winners,
         };
 
-        // TODO: find the right ballot style here
-        let bytes = self.generate_report(&ballot_styles[0], vec![report.clone()])?;
+        let ballot_style = ballot_styles.iter().find(|bs| {
+            if let Some(area_id) = area_id {
+                return bs.election_id == election_id.to_string()
+                    && bs.area_id == area_id.to_string();
+            }
+
+            false
+        });
+
+        let ballot_style = if ballot_style.is_some() {
+            ballot_style.unwrap()
+        } else {
+            &ballot_styles[0]
+        };
+
+        let bytes = self.generate_report(ballot_style, vec![report.clone()])?;
 
         let mut path = PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
 
