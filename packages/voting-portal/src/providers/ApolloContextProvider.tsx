@@ -4,10 +4,10 @@
 import React, {useEffect, useState, useContext, PropsWithChildren, createContext} from "react"
 import {ApolloClient, InMemoryCache, NormalizedCacheObject, createHttpLink} from "@apollo/client"
 import {setContext} from "@apollo/client/link/context"
-import { AuthContext } from "./AuthContextProvider"
-import { Box, CircularProgress } from "@mui/material"
+import {AuthContext} from "./AuthContextProvider"
+import {Box, CircularProgress} from "@mui/material"
 import {ApolloProvider} from "@apollo/client"
-import { useParams } from "react-router-dom"
+import {useParams} from "react-router-dom"
 
 interface ApolloContextValues {
     apolloClient: ApolloClient<NormalizedCacheObject> | null
@@ -21,7 +21,6 @@ const defaultApolloContextValues: ApolloContextValues = {
  */
 export const ApolloContext = createContext<ApolloContextValues>(defaultApolloContextValues)
 
-
 interface ApolloContextProviderProps {
     /**
      * The elements wrapped by the auth context.
@@ -29,9 +28,10 @@ interface ApolloContextProviderProps {
     children: JSX.Element
 }
 
-
 export const ApolloContextProvider = ({children}: ApolloContextProviderProps) => {
-    const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(null)
+    const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
+        null
+    )
     const {isAuthenticated, getAccessToken, login} = useContext(AuthContext)
     let {tenantId, eventId} = useParams()
 
@@ -42,7 +42,6 @@ export const ApolloContextProvider = ({children}: ApolloContextProviderProps) =>
     }, [isAuthenticated, tenantId, eventId])
 
     const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
-
         const httpLink = createHttpLink({
             uri: "http://localhost:8080/v1/graphql",
         })
@@ -92,12 +91,15 @@ export const ApolloContextProvider = ({children}: ApolloContextProviderProps) =>
 
 export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     const {apolloClient} = useContext(ApolloContext)
-    return <>{null === apolloClient
-        ? <Box>
-            <CircularProgress />
-        </Box>
-        : <ApolloProvider client={apolloClient}>
-            {children}
-        </ApolloProvider>
-    }</>
+    return (
+        <>
+            {null === apolloClient ? (
+                <Box>
+                    <CircularProgress />
+                </Box>
+            ) : (
+                <ApolloProvider client={apolloClient}>{children}</ApolloProvider>
+            )}
+        </>
+    )
 }
