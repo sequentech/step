@@ -35,6 +35,7 @@ uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
 tracing = "0.1"
 
 
+board-messages = { path="../board-messages" }
 immu-board = { path="../immu-board" }
 immudb-rs = { path="../immudb-rs" }
 strand = { path="../strand" }

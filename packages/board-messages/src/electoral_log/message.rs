@@ -11,7 +11,7 @@ use crate::electoral_log::statement::Statement;
 use crate::electoral_log::statement::StatementBody;
 use crate::electoral_log::statement::StatementHead;
 
-use crate::electoral_log::newtypes::ContextHash;
+use crate::electoral_log::newtypes::EventIdString;
 
 use super::newtypes::*;
 
@@ -25,14 +25,85 @@ pub struct Message {
 }
 impl Message {
     pub fn cast_vote_message(
-        context: ContextHash,
-        contest_h: ContestHash,
+        event: EventIdString,
+        election: ElectionIdString,
         pseudonym_h: PseudonymHash,
         vote_h: CastVoteHash,
         sd: &SigningData,
     ) -> Result<Self> {
-        let body = StatementBody::CastVote(contest_h, pseudonym_h, vote_h);
-        let head = StatementHead::from_body(context, &body);
+        let body = StatementBody::CastVote(election, pseudonym_h, vote_h);
+        Self::from_body(event, body, sd)
+    }
+
+    pub fn cast_vote_error_message(
+        event: EventIdString,
+        election: ElectionIdString,
+        pseudonym_h: PseudonymHash,
+        error: CastVoteErrorString,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::CastVoteError(election, pseudonym_h, error);
+        Self::from_body(event, body, sd)
+    }
+
+    pub fn election_published_message(
+        event: EventIdString,
+        election: ElectionIdString,
+        ballot_pub_id: BallotPublicationIdString,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::ElectionPublish(election, ballot_pub_id);
+        Self::from_body(event, body, sd)
+    }
+
+    pub fn election_open_message(
+        event: EventIdString,
+        election: ElectionIdString,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::ElectionPeriodOpen(election);
+        Self::from_body(event, body, sd)
+    }
+
+    pub fn election_close_message(
+        event: EventIdString,
+        election: ElectionIdString,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::ElectionPeriodClose(election);
+        Self::from_body(event, body, sd)
+    }
+
+    pub fn keygen_message(event: EventIdString, sd: &SigningData) -> Result<Self> {
+        let body = StatementBody::KeyGeneration;
+        Self::from_body(event, body, sd)
+    }
+
+    pub fn key_insertion_message(event: EventIdString, sd: &SigningData) -> Result<Self> {
+        let body = StatementBody::KeyInsertionCeremony;
+        Self::from_body(event, body, sd)
+    }
+
+    pub fn tally_open_message(
+        event: EventIdString,
+        election: ElectionIdString,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::TallyOpen(election);
+        Self::from_body(event, body, sd)
+    }
+
+    pub fn tally_close_message(
+        event: EventIdString,
+        election: ElectionIdString,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::TallyClose(election);
+        Self::from_body(event, body, sd)
+    }
+
+    fn from_body(event: EventIdString, body: StatementBody, sd: &SigningData) -> Result<Self> {
+        let head = StatementHead::from_body(event, &body);
         let statement = Statement::new(head, body);
 
         Message::sign(
