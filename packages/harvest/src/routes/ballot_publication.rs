@@ -68,7 +68,12 @@ pub async fn generate_ballot_publication(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let event = input.election_event_id.clone();
+    // Posting to the electoral log
+    // Pending
+    // * sender and system signatures
+    // * correct electoral log immudb database
+    // * correct immudb connection parameters (see services::electoral_log)
+    /* let event = input.election_event_id.clone();
     let election = input.election_id
     .ok_or((Status::InternalServerError, "No election id found".to_string()))?;
     let ballot_pub_id = ballot_publication_id.clone();
@@ -83,7 +88,7 @@ pub async fn generate_ballot_publication(
         &log_database
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;*/
 
     Ok(Json(GenerateBallotPublicationOutput {
         ballot_publication_id,
