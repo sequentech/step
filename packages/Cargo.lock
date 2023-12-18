@@ -2764,6 +2764,7 @@ dependencies = [
  "headless_chrome",
  "immu-board",
  "immudb-rs",
+ "regex",
  "reqwest",
  "rocket",
  "rust-s3",

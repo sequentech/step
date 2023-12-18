@@ -308,6 +308,17 @@ export enum OrderDirection {
   Desc = 'desc'
 }
 
+export type PgAuditFilter = {
+  audit_type?: InputMaybe<Scalars['String']['input']>;
+  class?: InputMaybe<Scalars['String']['input']>;
+  command?: InputMaybe<Scalars['String']['input']>;
+  dbname?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['String']['input']>;
+  session_id?: InputMaybe<Scalars['String']['input']>;
+  statement?: InputMaybe<Scalars['String']['input']>;
+  user?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type PgAuditOrderBy = {
   audit_type?: InputMaybe<OrderDirection>;
   class?: InputMaybe<OrderDirection>;
@@ -332,6 +343,11 @@ export type PgAuditRow = {
   statement: Scalars['String']['output'];
   user: Scalars['String']['output'];
 };
+
+export enum PgAuditTable {
+  PgauditHasura = 'pgaudit_hasura',
+  PgauditKeycloak = 'pgaudit_keycloak'
+}
 
 export type PublishBallotOutput = {
   __typename?: 'PublishBallotOutput';
@@ -2933,6 +2949,8 @@ export type Query_RootGet_UsersArgs = {
 
 
 export type Query_RootListPgauditArgs = {
+  audit_table?: InputMaybe<PgAuditTable>;
+  filter?: InputMaybe<PgAuditFilter>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
   order_by?: InputMaybe<PgAuditOrderBy>;
@@ -12392,6 +12410,7 @@ export type Sequent_Backend_Tally_Session_Contest = {
   contest_id: Scalars['uuid']['output'];
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id: Scalars['uuid']['output'];
+  election_id: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -12464,6 +12483,7 @@ export type Sequent_Backend_Tally_Session_Contest_Bool_Exp = {
   contest_id?: InputMaybe<Uuid_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  election_id?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
@@ -12508,6 +12528,7 @@ export type Sequent_Backend_Tally_Session_Contest_Insert_Input = {
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -12523,6 +12544,7 @@ export type Sequent_Backend_Tally_Session_Contest_Max_Fields = {
   contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
+  election_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   session_id?: Maybe<Scalars['Int']['output']>;
@@ -12537,6 +12559,7 @@ export type Sequent_Backend_Tally_Session_Contest_Min_Fields = {
   contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
+  election_id?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   session_id?: Maybe<Scalars['Int']['output']>;
@@ -12567,6 +12590,7 @@ export type Sequent_Backend_Tally_Session_Contest_Order_By = {
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
+  election_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
@@ -12601,6 +12625,8 @@ export enum Sequent_Backend_Tally_Session_Contest_Select_Column {
   /** column name */
   ElectionEventId = 'election_event_id',
   /** column name */
+  ElectionId = 'election_id',
+  /** column name */
   Id = 'id',
   /** column name */
   Labels = 'labels',
@@ -12621,6 +12647,7 @@ export type Sequent_Backend_Tally_Session_Contest_Set_Input = {
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -12662,6 +12689,7 @@ export type Sequent_Backend_Tally_Session_Contest_Stream_Cursor_Value_Input = {
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -12688,6 +12716,8 @@ export enum Sequent_Backend_Tally_Session_Contest_Update_Column {
   CreatedAt = 'created_at',
   /** column name */
   ElectionEventId = 'election_event_id',
+  /** column name */
+  ElectionId = 'election_id',
   /** column name */
   Id = 'id',
   /** column name */
@@ -15420,6 +15450,7 @@ export type InsertTenantMutation = { __typename?: 'mutation_root', insertTenant?
 export type ListPgauditQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
+  filter?: InputMaybe<PgAuditFilter>;
   order_by?: InputMaybe<PgAuditOrderBy>;
 }>;
 
@@ -15514,7 +15545,7 @@ export const Insert_Area_ContestsDocument = {"kind":"Document","definitions":[{"
 export const InsertCastVoteDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertCastVote"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"content"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insert_sequent_backend_cast_vote"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"objects"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"content"},"value":{"kind":"Variable","name":{"kind":"Name","value":"content"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"returning"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"voter_id_string"}}]}}]}}]}}]} as unknown as DocumentNode<InsertCastVoteMutation, InsertCastVoteMutationVariables>;
 export const CreateElectionEventDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateElectionEvent"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEvent"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"CreateElectionEventInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertElectionEvent"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEvent"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<CreateElectionEventMutation, CreateElectionEventMutationVariables>;
 export const InsertTenantDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertTenant"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"slug"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertTenant"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"slug"},"value":{"kind":"Variable","name":{"kind":"Name","value":"slug"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"slug"}}]}}]}}]} as unknown as DocumentNode<InsertTenantMutation, InsertTenantMutationVariables>;
-export const ListPgauditDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"listPgaudit"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"order_by"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"PgAuditOrderBy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"listPgaudit"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"Variable","name":{"kind":"Name","value":"order_by"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"audit_type"}},{"kind":"Field","name":{"kind":"Name","value":"class"}},{"kind":"Field","name":{"kind":"Name","value":"command"}},{"kind":"Field","name":{"kind":"Name","value":"dbname"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"server_timestamp"}},{"kind":"Field","name":{"kind":"Name","value":"session_id"}},{"kind":"Field","name":{"kind":"Name","value":"statement"}},{"kind":"Field","name":{"kind":"Name","value":"user"}}]}},{"kind":"Field","name":{"kind":"Name","value":"total"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"count"}}]}}]}}]}}]}}]} as unknown as DocumentNode<ListPgauditQuery, ListPgauditQueryVariables>;
+export const ListPgauditDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"listPgaudit"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"filter"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"PgAuditFilter"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"order_by"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"PgAuditOrderBy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"listPgaudit"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"filter"}}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"Variable","name":{"kind":"Name","value":"order_by"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"audit_type"}},{"kind":"Field","name":{"kind":"Name","value":"class"}},{"kind":"Field","name":{"kind":"Name","value":"command"}},{"kind":"Field","name":{"kind":"Name","value":"dbname"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"server_timestamp"}},{"kind":"Field","name":{"kind":"Name","value":"session_id"}},{"kind":"Field","name":{"kind":"Name","value":"statement"}},{"kind":"Field","name":{"kind":"Name","value":"user"}}]}},{"kind":"Field","name":{"kind":"Name","value":"total"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"count"}}]}}]}}]}}]}}]} as unknown as DocumentNode<ListPgauditQuery, ListPgauditQueryVariables>;
 export const ListUserRolesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ListUserRoles"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"list_user_roles"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"user_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"access"}},{"kind":"Field","name":{"kind":"Name","value":"attributes"}},{"kind":"Field","name":{"kind":"Name","value":"client_roles"}}]}}]}}]} as unknown as DocumentNode<ListUserRolesQuery, ListUserRolesQueryVariables>;
 export const PublishBallotDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"PublishBallot"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotPublicationId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publish_ballot"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"ballot_publication_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotPublicationId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ballot_publication_id"}}]}}]}}]} as unknown as DocumentNode<PublishBallotMutation, PublishBallotMutationVariables>;
 export const RestorePrivateKeyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"RestorePrivateKey"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tallySessionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"privateKeyBase64"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"restore_private_key"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"tally_session_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tallySessionId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"private_key_base64"},"value":{"kind":"Variable","name":{"kind":"Name","value":"privateKeyBase64"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"is_valid"}}]}}]}}]} as unknown as DocumentNode<RestorePrivateKeyMutation, RestorePrivateKeyMutationVariables>;

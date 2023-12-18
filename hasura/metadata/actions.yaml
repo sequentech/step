@@ -371,6 +371,8 @@ actions:
             "election_event_id": {{ head(removeNulls([$session_variables?['x-hasura-election-event-id'],"defaultdb"])) }},
             "limit": {{$body.input?.limit}},
             "offset": {{$body.input?.offset}},
+            "filter": {{$body.input?.filter}},
+            "audit_table": {{$body.input?.audit_table}},
             "order_by": {{$body.input?.order_by}}
           }
       template_engine: Kriti
@@ -498,8 +500,17 @@ custom_types:
     - description: null
       is_deprecated: null
       value: desc
+  - name: PgAuditTable
+    values:
+    - description: null
+      is_deprecated: null
+      value: pgaudit_hasura
+    - description: null
+      is_deprecated: null
+      value: pgaudit_keycloak
   input_objects:
   - name: TemplateInput
+  - name: PgAuditFilter
   - name: PgAuditOrderBy
   - name: SampleInput
   - name: CreateElectionEventInput
