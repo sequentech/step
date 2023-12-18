@@ -17,13 +17,14 @@ export const getPgauditVariables = (input: any) => {
 }
 
 export const getPgAudit = (fields: any, audit_table: string) => {
+    const auditTableText = audit_table.length ? ` = "${audit_table}"` : ""
     return gql`
         query listPgaudit(
             $limit: Int
             $offset: Int
             $filter: PgAuditFilter
             $order_by: PgAuditOrderBy
-            $audit_table: PgAuditTable = "${audit_table}"
+            $audit_table: PgAuditTable ${auditTableText}
         ) {
             listPgaudit(
                 limit: $limit

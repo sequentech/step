@@ -1,13 +1,13 @@
 import React, {ComponentType, useEffect, useRef, useState} from "react"
 
 import {Box} from "@mui/material"
-import {useGetOne, useNotify, useRecordContext} from "react-admin"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
+import {useGetOne, useNotify, useRecordContext, Identifier} from "react-admin"
 
 import {EPublishType} from "./EPublishType"
-import {EPublishStatus, PUBLICH_STATUS_CONVERT} from "./EPublishStatus"
 import {PUBLISH_BALLOT} from "@/queries/PublishBallot"
+import {EPublishStatus, PUBLICH_STATUS_CONVERT} from "./EPublishStatus"
 import {GENERATE_BALLOT_PUBLICATION} from "@/queries/GenerateBallotPublication"
 import {GET_BALLOT_PUBLICATION_CHANGE} from "@/queries/GetBallotPublicationChanges"
 
@@ -38,9 +38,12 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
     ({electionEventId, electionId, type}: TPublish): React.JSX.Element => {
         const notify = useNotify()
         const {t} = useTranslation()
+        const [isEdit, setIsEdit] = useState<boolean>(false)
         const [showDiff, setShowDiff] = useState<boolean>(false)
         const [status, setStatus] = useState<number>(EPublishStatus.Void)
-        const [ballotPublicationId, setBallotPublicationId] = useState<string | null>(null)
+        const [ballotPublicationId, setBallotPublicationId] = useState<string | Identifier | null>(
+            null
+        )
 
         const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
         const [generateData, setGenerateData] = useState<GetBallotPublicationChangesOutput | null>(
@@ -106,6 +109,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         const onGenerate = async () => {
             try {
+                setIsEdit(false)
+                setShowDiff(true)
                 setStatus(EPublishStatus.GeneratedLoading)
 
                 const {data} = await generateBallotPublication({
@@ -117,14 +122,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
                 setStatus(EPublishStatus.GeneratedLoading)
 
-                notify(t("publish.notifications.generated"), {
-                    type: "success",
-                })
-
                 if (data?.generate_ballot_publication?.ballot_publication_id) {
                     setBallotPublicationId(data?.generate_ballot_publication?.ballot_publication_id)
                 }
-                setTimeout(() => refetch(), 2000)
             } catch (e) {
                 notify(t("publish.dialog.error"), {
                     type: "error",
@@ -200,14 +200,29 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         useEffect(() => {
             if (electionEventId && ballotPublicationId && ballotPublication?.is_generated) {
-                setStatus(EPublishStatus.Generated)
                 getPublishChanges()
             }
         }, [ballotPublicationId, ballotPublication?.is_generated])
 
         useEffect(() => {
+            if (ballotPublicationId) {
+                setShowDiff(true)
+                setTimeout(() => {
+                    refetch()
+                }, 3000)
+            }
+        }, [ballotPublicationId])
+
+        useEffect(() => {
             if (generateData) {
                 setShowDiff(true)
+                setStatus(EPublishStatus.Generated)
+
+                if (!isEdit) {
+                    notify(t("publish.notifications.generated"), {
+                        type: "success",
+                    })
+                }
             }
         }, [generateData])
 
@@ -230,7 +245,10 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         onGenerate={onGenerate}
                         onChangeStatus={onChangeStatus}
                         electionEventId={electionEventId}
-                        setBallotPublicationId={setBallotPublicationId}
+                        setBallotPublicationId={(id: Identifier) => {
+                            setIsEdit(true)
+                            setBallotPublicationId(id)
+                        }}
                     />
                 ) : (
                     <PublishGenerate
