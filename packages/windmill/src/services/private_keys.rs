@@ -14,7 +14,7 @@ use tracing::instrument;
 use super::protocol_manager;
 use super::public_keys::deserialize_public_key;
 
-#[instrument]
+#[instrument(err)]
 pub async fn get_trustee_encrypted_private_key(
     board_name: &str,
     trustee_pub_key: &str,

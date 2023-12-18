@@ -13,7 +13,7 @@ use crate::services::ballot_style::create_ballot_style;
 use crate::services::celery_app::get_celery_app;
 use crate::types::error::Result;
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn update_election_event_ballot_styles(

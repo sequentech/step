@@ -13,6 +13,7 @@ use crate::hasura::election_event::update_election_event_status;
 use crate::services::ballot_publication::get_ballot_publication::GetBallotPublicationSequentBackendBallotPublication;
 use crate::services::ballot_publication::get_previous_publication::GetPreviousPublicationSequentBackendBallotPublication;
 use crate::services::celery_app::get_celery_app;
+use crate::services::date::ISO8601;
 use crate::services::election_event_status::get_election_event_status;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use anyhow::{anyhow, Context, Result};
@@ -24,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{event, instrument, Level};
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 async fn get_ballot_publication_by_id(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -49,7 +50,7 @@ async fn get_ballot_publication_by_id(
     Ok(ballot_publication)
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 async fn get_election_ids_for_publication(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -72,7 +73,7 @@ async fn get_election_ids_for_publication(
         .collect())
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn add_ballot_publication(
     tenant_id: String,
     election_event_id: String,
@@ -121,7 +122,7 @@ pub async fn add_ballot_publication(
     Ok(ballot_publication.id.clone())
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn update_publish_ballot(
     tenant_id: String,
     election_event_id: String,
@@ -172,7 +173,7 @@ pub async fn update_publish_ballot(
         election_event_id.clone(),
         ballot_publication_id.clone(),
         true,
-        Some(Utc::now().naive_utc()),
+        Some(ISO8601::now()),
     )
     .await?;
 
@@ -199,7 +200,7 @@ pub async fn update_publish_ballot(
     Ok(())
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 async fn get_publication_json(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

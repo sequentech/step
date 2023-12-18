@@ -12,7 +12,7 @@ use tar;
 use tracing::{event, instrument, Level};
 
 // .tar.gz file
-#[instrument]
+#[instrument(err)]
 pub fn compress_folder(folder_path: &Path) -> Result<Vec<u8>> {
     let tar_file_path = generate_random_path("tally-", ".tar.gz")?;
     event!(Level::INFO, " Path: {}", tar_file_path.display());

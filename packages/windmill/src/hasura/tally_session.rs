@@ -22,7 +22,7 @@ pub use crate::types::hasura_types::*;
 )]
 pub struct GetTallySessionHighestBatch;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_tally_session_highest_batch(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -64,7 +64,7 @@ pub async fn get_tally_session_highest_batch(
 )]
 pub struct InsertTallySession;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn insert_tally_session(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -109,7 +109,7 @@ pub async fn insert_tally_session(
 )]
 pub struct GetTallySessionById;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_tally_session_by_id(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -144,7 +144,7 @@ pub async fn get_tally_session_by_id(
 )]
 pub struct GetTallySessions;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_tally_sessions(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -177,7 +177,7 @@ pub async fn get_tally_sessions(
 )]
 pub struct SetTallySessionCompleted;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn set_tally_session_completed(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -213,7 +213,7 @@ pub async fn set_tally_session_completed(
 )]
 pub struct UpdateTallySessionStatus;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn update_tally_session_status(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

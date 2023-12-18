@@ -169,6 +169,7 @@ impl BoardClient {
             message
         FROM {}
         WHERE id > @last_id
+        ORDER BY id;
         "#,
             table.as_str()
         );
@@ -230,7 +231,8 @@ impl BoardClient {
             statement_kind,
             message
         FROM {}
-        WHERE sender_pk = @sender_pk AND statement_kind = @statement_kind;
+        WHERE sender_pk = @sender_pk AND statement_kind = @statement_kind
+        ORDER BY id;
         "#,
             table.as_str()
         );

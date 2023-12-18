@@ -4,7 +4,7 @@
 use crate::hasura::lock::*;
 use crate::services::date::ISO8601;
 use anyhow::{anyhow, Result};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Local};
 use sequent_core::services::connection;
 use tracing::instrument;
 
@@ -12,18 +12,18 @@ use tracing::instrument;
 pub struct PgLock {
     pub key: String,
     pub value: String,
-    pub expiry_date: Option<NaiveDateTime>,
+    pub expiry_date: Option<DateTime<Local>>,
 }
 
 impl PgLock {
-    #[instrument(skip(auth_headers))]
+    #[instrument(skip(auth_headers), err)]
     pub async fn acquire(
         auth_headers: connection::AuthHeaders,
         key: String,
         value: String,
-        expiry_date: Option<NaiveDateTime>,
+        expiry_date: Option<DateTime<Local>>,
     ) -> Result<PgLock> {
-        let expiry_str = expiry_date.clone().map(|naive| ISO8601::from_date(&naive));
+        let expiry_str = expiry_date.clone().map(|naive| ISO8601::to_string(&naive));
         let lock_data = upsert_lock(auth_headers, key.clone(), value.clone(), expiry_str)
             .await?
             .data
@@ -42,7 +42,7 @@ impl PgLock {
         }
     }
 
-    #[instrument(skip(auth_headers))]
+    #[instrument(skip(auth_headers), err)]
     pub async fn release(self, auth_headers: connection::AuthHeaders) -> Result<()> {
         let affected_rows = delete_lock(auth_headers, self.key.clone(), self.value.clone())
             .await?

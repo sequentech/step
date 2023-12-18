@@ -23,7 +23,7 @@ pub struct CreateKeysBody {
     pub threshold: usize,
 }
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn create_keys(

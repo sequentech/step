@@ -20,7 +20,7 @@ use sequent_core::services::connection;
 )]
 pub struct UpdateElectionStatus;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn update_election_status(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -57,7 +57,7 @@ pub async fn update_election_status(
 )]
 pub struct GetElection;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_election(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -92,7 +92,7 @@ pub async fn get_election(
 )]
 pub struct GetAllElectionsForEvent;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_all_elections_for_event(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -125,7 +125,7 @@ pub async fn get_all_elections_for_event(
 )]
 pub struct UpdateElectionStatistics;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn update_election_statistics(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -162,7 +162,7 @@ pub async fn update_election_statistics(
 )]
 pub struct UpdateElectionEventStatus;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn update_election_event_status(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

@@ -14,10 +14,11 @@ interface TallyResultsContestProps {
     electionId: string | null
     electionEventId: string | null
     tenantId: string | null
+    resultsEventId: string | null
 }
 
 export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) => {
-    const {areas, electionId, electionEventId, tenantId} = props
+    const {areas, electionId, electionEventId, tenantId, resultsEventId} = props
     const [value, setValue] = React.useState<number | null>(null)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
     const [contestId, setContestId] = useState<string | null>()
@@ -108,6 +109,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                         electionId={contest?.election_id}
                         electionEventId={contest?.election_event_id}
                         tenantId={contest?.tenant_id}
+                        resultsEventId={resultsEventId}
                     />
                 </CustomTabPanel>
             ))}
