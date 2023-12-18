@@ -64,6 +64,21 @@ const spanishTranslation: TranslationType = {
                 cancel: "Cancelar",
             },
         },
+        logsScreen: {
+            noPermissions: "No tienes permiso para acceder a las bitácoras.",
+            title: "Bitácoras",
+            subtitle: "Bitácoras generales de las baseses de datos principal y de IAM.",
+            column: {
+                id: "Id",
+                statement: "Statement",
+            },
+            main: {
+                title: "Bitácora de Base de Datos Principal",
+            },
+            iam: {
+                title: "Bitácora de Base de Datos de IAM",
+            },
+        },
         confirmationScreen: {
             title: "Su voto ha sido emitido",
             description:
@@ -348,6 +363,7 @@ const spanishTranslation: TranslationType = {
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
+                    bulkBody: "¿Estás seguro que quieres borrar los usuarios seleccionados?",
                 },
                 notifications: {
                     deleteError: "Error borrando usuario",
@@ -371,6 +387,7 @@ const spanishTranslation: TranslationType = {
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este votante?",
+                    bulkBody: "¿Estás seguro que quieres borrar los votantes seleccionados?",
                 },
                 notifications: {
                     deleteError: "Error borrando votante",
@@ -501,6 +518,7 @@ const spanishTranslation: TranslationType = {
             electionEvents: "Procesos Electorales",
             search: "Buscar",
             usersAndRoles: "Usuarios y Roles",
+            logs: "Bitácora",
             settings: "Configuracion",
             communicationTemplates: "Plantillas de Comunicación",
             active: "Activos",

@@ -10,7 +10,6 @@ import {
     List,
     TextField,
     Identifier,
-    WrapperField,
     BooleanField,
     DatagridConfigurable,
 } from "react-admin"

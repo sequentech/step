@@ -10,7 +10,7 @@ use sequent_core::services::keycloak;
 use tracing::instrument;
 use tracing::{event, Level};
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn review_boards() -> Result<()> {

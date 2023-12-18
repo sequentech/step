@@ -62,6 +62,21 @@ const englishTranslation = {
                 cancel: "Cancel",
             },
         },
+        logsScreen: {
+            noPermissions: "You don't have permission to access logs.",
+            title: "Logs",
+            subtitle: "General logs of the main and IAM databases",
+            column: {
+                id: "Id",
+                statement: "Statement",
+            },
+            main: {
+                title: "Main Database Logs",
+            },
+            iam: {
+                title: "IAM Database Logs",
+            },
+        },
         confirmationScreen: {
             title: "Your vote has been cast",
             description:
@@ -346,6 +361,7 @@ const englishTranslation = {
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",
+                    bulkBody: "Are you sure you want to delete the selected users?",
                 },
                 notifications: {
                     deleteError: "Error deleting user",
@@ -369,6 +385,7 @@ const englishTranslation = {
                 },
                 delete: {
                     body: "Are you sure you want to delete this voter?",
+                    bulkBody: "Are you sure you want to delete the selected voters?",
                 },
                 notifications: {
                     deleteError: "Error deleting voter",
@@ -499,6 +516,7 @@ const englishTranslation = {
             electionEvents: "Election Events",
             search: "Search",
             usersAndRoles: "Users and Roles",
+            logs: "Logs",
             settings: "Settings",
             communicationTemplates: "Communication Templates",
             active: "Active",

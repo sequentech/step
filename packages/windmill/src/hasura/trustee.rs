@@ -19,7 +19,7 @@ use sequent_core::services::connection;
 )]
 pub struct GetTrusteesById;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_trustees_by_id(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -52,7 +52,7 @@ pub async fn get_trustees_by_id(
 )]
 pub struct GetTrusteesByName;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_trustees_by_name(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,

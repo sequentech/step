@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-#[cfg(feature = "boards")]
-pub mod boards;
 #[cfg(feature = "keycloak")]
 pub mod connection;
 #[cfg(feature = "keycloak")]
@@ -12,5 +10,7 @@ pub mod jwt;
 pub mod keycloak;
 #[cfg(feature = "reports")]
 pub mod pdf;
+#[cfg(feature = "probe")]
+pub mod probe;
 #[cfg(feature = "reports")]
 pub mod reports;

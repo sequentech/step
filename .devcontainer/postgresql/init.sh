@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -ex
 
 psql \
     -v ON_ERROR_STOP=1 \

@@ -11,11 +11,12 @@ import {ReactI18NextChild} from "react-i18next"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
+    resultsEventId: string | null
 }
 
 const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> = memo(
     (props: TallyResultsProps): React.JSX.Element => {
-        const {tally} = props
+        const {tally, resultsEventId} = props
 
         const [value, setValue] = React.useState<number | null>(null)
         const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election>>([])
@@ -91,6 +92,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             electionId={electionId}
                             electionEventId={election.election_event_id}
                             tenantId={election.tenant_id}
+                            resultsEventId={resultsEventId}
                         />
                     </CustomTabPanel>
                 ))}

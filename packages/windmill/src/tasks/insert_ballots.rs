@@ -27,7 +27,7 @@ pub struct InsertBallotsPayload {
     pub trustee_names: Vec<String>,
 }
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn insert_ballots(

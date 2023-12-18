@@ -12,11 +12,12 @@ import globalSettings from "@/global-settings"
 interface TallyElectionsResultsProps {
     tenantId: string | null
     electionEventId: string | null
+    resultsEventId: string | null
     electionIds: any
 }
 
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
-    const {tenantId, electionEventId, electionIds} = props
+    const {tenantId, electionEventId, resultsEventId, electionIds} = props
     const {t} = useTranslation()
     const [resultsData, setResultsData] = useState<
         Array<
@@ -40,7 +41,11 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         "sequent_backend_results_election",
         {
             pagination: {page: 1, perPage: 1},
-            filter: {tenant_id: tenantId, election_event_id: electionEventId},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                results_event_id: resultsEventId,
+            },
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,

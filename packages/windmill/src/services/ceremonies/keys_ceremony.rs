@@ -9,6 +9,7 @@ use crate::hasura::keys_ceremony::{
 };
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::celery_app::get_celery_app;
+use crate::services::ceremonies::serialize_logs::*;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::private_keys::get_trustee_encrypted_private_key;
@@ -24,7 +25,7 @@ use tracing::instrument;
 use tracing::{event, Level};
 use uuid::Uuid;
 
-#[instrument]
+#[instrument(err)]
 pub fn get_keys_ceremony_status(input: Option<Value>) -> Result<CeremonyStatus> {
     input
         .map(|value| {
@@ -35,7 +36,7 @@ pub fn get_keys_ceremony_status(input: Option<Value>) -> Result<CeremonyStatus> 
         .flatten()
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn get_private_key(
     claims: JwtClaims,
     tenant_id: String,
@@ -119,7 +120,7 @@ pub async fn get_private_key(
     let status: Value = serde_json::to_value(CeremonyStatus {
         stop_date: None,
         public_key: current_status.public_key.clone(),
-        logs: current_status.logs.clone(),
+        logs: append_keys_trustee_download_log(&current_status.logs, &trustee_name),
         trustees: current_status
             .trustees
             .clone()
@@ -162,7 +163,7 @@ pub async fn get_private_key(
     Ok(encrypted_private_key)
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn find_trustee_private_key(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,
@@ -196,7 +197,7 @@ pub async fn find_trustee_private_key(
     get_trustee_encrypted_private_key(board_name.as_str(), trustee_public_key.as_str()).await
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn check_private_key(
     claims: JwtClaims,
     tenant_id: String,
@@ -259,7 +260,7 @@ pub async fn check_private_key(
     let new_status = CeremonyStatus {
         stop_date: None,
         public_key: current_status.public_key.clone(),
-        logs: current_status.logs.clone(),
+        logs: append_keys_trustee_check_log(&current_status.logs, &trustee_name),
         trustees: current_status
             .trustees
             .iter()
@@ -329,7 +330,7 @@ pub async fn check_private_key(
     Ok(true)
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn create_keys_ceremony(
     tenant_id: String,
     election_event_id: String,
@@ -389,7 +390,7 @@ pub async fn create_keys_ceremony(
     let status: Value = serde_json::to_value(CeremonyStatus {
         stop_date: None,
         public_key: None,
-        logs: vec![],
+        logs: generate_keys_initial_log(&trustee_names),
         trustees: trustees
             .clone()
             .into_iter()

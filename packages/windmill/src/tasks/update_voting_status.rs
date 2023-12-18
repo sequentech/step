@@ -18,7 +18,7 @@ pub struct UpdateVotingStatusPayload {
     pub status: VotingStatus,
 }
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn update_voting_status(

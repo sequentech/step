@@ -62,7 +62,7 @@ pub struct InsertElectionEvent;
 )]
 pub struct GetBatchElectionEvents;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn update_election_event_board(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -89,7 +89,7 @@ pub async fn update_election_event_board(
     response_body.ok()
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn update_election_event_status(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -116,7 +116,7 @@ pub async fn update_election_event_status(
     response_body.ok()
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_election_event(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -141,7 +141,7 @@ pub async fn get_election_event(
     response_body.ok()
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn update_election_event_public_key(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -169,7 +169,7 @@ pub async fn update_election_event_public_key(
     response_body.ok()
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn insert_election_event(
     auth_headers: connection::AuthHeaders,
     object: insert_election_event::sequent_backend_election_event_insert_input,
@@ -191,7 +191,7 @@ pub async fn insert_election_event(
     response_body.ok()
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn get_batch_election_events(
     auth_headers: connection::AuthHeaders,
     limit: i64,
@@ -216,7 +216,7 @@ pub async fn get_batch_election_events(
     response_body.ok()
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_current_bulletin_board_message_id(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -241,7 +241,7 @@ pub async fn get_current_bulletin_board_message_id(
     response_body.ok()
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn get_election_event_helper(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -271,7 +271,7 @@ pub async fn get_election_event_helper(
 )]
 pub struct UpdateElectionEventStatistics;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn update_election_event_statistics(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
