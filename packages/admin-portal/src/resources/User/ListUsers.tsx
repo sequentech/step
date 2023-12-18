@@ -404,6 +404,22 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
             </Drawer>
 
             <Dialog
+                variant="warning"
+                open={openDeleteBulkModal}
+                ok={t("common.label.delete")}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.warning")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmDeleteBulkAction()
+                    }
+                    setOpenDeleteBulkModal(false)
+                }}
+            >
+                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.bulkBody`)}
+            </Dialog>
+
+            <Dialog
                 variant="info"
                 open={openExport}
                 ok={t("common.label.export")}
