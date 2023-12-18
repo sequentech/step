@@ -35,8 +35,8 @@ impl CountingAlgorithm for PluralityAtLarge {
         let mut count_invalid: u64 = 0;
 
         for vote in votes {
-            if !vote.invalid_errors.is_empty() {
-                if vote.is_explicit_invalid {
+            if vote.is_explicit_invalid {
+                if !vote.invalid_errors.is_empty() {
                     *vote_count_invalid.entry(InvalidVote::Explicit).or_insert(0) += 1;
                 } else {
                     *vote_count_invalid.entry(InvalidVote::Implicit).or_insert(0) += 1;
