@@ -109,10 +109,7 @@ impl GenerateReports {
         let reports = self.compute_reports(reports)?;
 
         let mut map = Map::new();
-        map.insert(
-            "ballot_style".to_owned(),
-            serde_json::to_value(ballot_style)?,
-        );
+
         map.insert("reports".to_owned(), serde_json::to_value(reports)?);
 
         let html = include_str!("../../resources/report.hbs");
