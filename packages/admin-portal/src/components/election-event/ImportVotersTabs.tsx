@@ -93,6 +93,7 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
                         label: t("electionEventScreen.import.voters"),
                         component: () => (
                             <ImportScreen
+                                refresh="electionEventScreen.import.voters"
                                 doCancel={handleCancel}
                                 doImport={handleImportVoters}
                                 isLoading={loadingVoters}
@@ -103,6 +104,7 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
                         label: t("electionEventScreen.import.elections"),
                         component: () => (
                             <ImportScreen
+                                refresh="electionEventScreen.import.elections"
                                 doCancel={handleCancel}
                                 doImport={handleImportElections}
                                 isLoading={loadingElections}
@@ -113,6 +115,7 @@ export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
                         label: t("electionEventScreen.import.areas"),
                         component: () => (
                             <ImportScreen
+                                refresh="electionEventScreen.import.areas"
                                 doCancel={handleCancel}
                                 doImport={handleImportAreas}
                                 isLoading={loadingAreas}
