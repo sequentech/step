@@ -1,6 +1,6 @@
 import {Box, styled, Button, TextField, CircularProgress} from "@mui/material"
 import {DropFile} from "@sequentech/ui-essentials"
-import React, {useEffect, useRef} from "react"
+import React, {useEffect, useCallback, useRef} from "react"
 import {useTranslation} from "react-i18next"
 
 interface ImportScreenProps {
@@ -27,13 +27,27 @@ export const ImportScreen: React.FC<ImportScreenProps> = (props) => {
     const {t} = useTranslation()
 
     const [shaField, setShaField] = React.useState<string>("")
-    const [fileImport, setFileImport] = React.useState<FileList | null>(null)
-    // const fileImport = useRef<FileList | null>(null)
+    // const [fileImport, setFileImport] = React.useState<FileList | null>(null)
+    const fileImport = useRef<FileList | null>(null)
 
-    const handleFiles = (files: FileList | null) => {
-        setFileImport(files)
+    const handleFiles = useCallback((files: FileList | null) => {
+        console.log("handleFiles()", files)
+
+        // setFileImport(files)
         // fileImport.current = files
-    }
+    }, [])
+
+    useEffect(() => {
+        console.log("ImportScreen", doCancel, doImport, isLoading)
+    }, [])
+
+    useEffect(() => {
+        console.log("fileImport", fileImport.current)
+    }, [fileImport])
+
+    useEffect(() => {
+        console.log("shaField", shaField)
+    }, [shaField])
 
     return (
         <Box sx={{padding: "16px"}}>
@@ -67,12 +81,13 @@ export const ImportScreen: React.FC<ImportScreenProps> = (props) => {
                     marginTop: "16px",
                 }}
             >
-                <ImportStyles.CancelButton onClick={doCancel}>
+                <ImportStyles.CancelButton onClick={() => doCancel()}>
                     {t("electionEventScreen.import.cancel")}
                 </ImportStyles.CancelButton>
                 <ImportStyles.ImportButton
-                    disabled={!fileImport || shaField === ""}
-                    onClick={() => doImport(fileImport, shaField)}
+                    // disabled={!fileImport.current || shaField === ""}
+                    disabled={shaField === ""}
+                    onClick={() => doImport(fileImport.current, shaField)}
                 >
                     {t("electionEventScreen.import.import")}
                 </ImportStyles.ImportButton>

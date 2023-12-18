@@ -11,7 +11,14 @@ import {ImportScreen} from "./ImportScreen"
 import importDrawerState from '@/atoms/import-drawer-state'
 import { useAtom } from 'jotai'
 
-export const ImportVotersTabs: React.FC = () => {
+interface ImportVotersTabsProps {
+    doRefresh: () => void
+}
+
+export const ImportVotersTabs: React.FC<ImportVotersTabsProps> = (props) => {
+
+    const {doRefresh} = props
+
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
@@ -21,6 +28,7 @@ export const ImportVotersTabs: React.FC = () => {
     const navigate = useNavigate()
 
     const [value, setValue] = React.useState<number | null>(0)
+    const [loading, setLoading] = React.useState<boolean>(false)
 
     // const showVoters = authContext.isAuthorized(true, authContext.tenantId, IPermissions.VOTER_READ)
     // const showDashboard = authContext.isAuthorized(
@@ -67,6 +75,12 @@ export const ImportVotersTabs: React.FC = () => {
 
     const handleImportVoters = (file: FileList | null, sha: string) => {
         console.log("handleImportVoters()", file, sha)
+        setLoading(true)
+        setTimeout(() => {
+            setLoading(false)
+            setOpenImport(false)
+            doRefresh()
+        }, 5000);
     }
 
     const handleImportElections = (file: FileList | null, sha: string) => {
@@ -94,15 +108,27 @@ export const ImportVotersTabs: React.FC = () => {
             </Tabs>
 
             <CustomTabPanel index={0} value={value}>
-                <ImportScreen doCancel={handleCancel} doImport={handleImportVoters} isLoading={false}/>
+                <ImportScreen
+                    doCancel={handleCancel}
+                    doImport={handleImportVoters}
+                    isLoading={loading}
+                />
             </CustomTabPanel>
 
             <CustomTabPanel index={1} value={value}>
-                <ImportScreen doCancel={handleCancel} doImport={handleImportElections} isLoading={true}/>
+                <ImportScreen
+                    doCancel={handleCancel}
+                    doImport={handleImportElections}
+                    isLoading={true}
+                />
             </CustomTabPanel>
 
             <CustomTabPanel index={2} value={value}>
-                <ImportScreen doCancel={handleCancel} doImport={handleImportAreas} isLoading={true}/>
+                <ImportScreen
+                    doCancel={handleCancel}
+                    doImport={handleImportAreas}
+                    isLoading={true}
+                />
             </CustomTabPanel>
         </>
     )

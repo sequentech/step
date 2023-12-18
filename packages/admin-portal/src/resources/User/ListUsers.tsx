@@ -405,7 +405,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                     sx: {width: "30%"},
                 }}
             >
-                <ImportVotersBaseTabs />
+                <ImportVotersBaseTabs doRefresh={() => refresh()}/>
             </Drawer>
 
             <Dialog
