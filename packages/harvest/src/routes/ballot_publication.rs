@@ -19,11 +19,10 @@ use windmill::services::ceremonies::tally_ceremony;
 
 use board_messages::electoral_log::message::Message;
 use board_messages::electoral_log::message::SigningData;
-use board_messages::electoral_log::newtypes::EventIdString;
-use board_messages::electoral_log::newtypes::ElectionIdString;
 use board_messages::electoral_log::newtypes::BallotPublicationIdString;
+use board_messages::electoral_log::newtypes::ElectionIdString;
+use board_messages::electoral_log::newtypes::EventIdString;
 use strand::signature::StrandSignatureSk;
-
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationInput {
@@ -79,7 +78,7 @@ pub async fn generate_ballot_publication(
     let ballot_pub_id = ballot_publication_id.clone();
     let sd = dummy_signing_data();
     let log_database = dummy_log_database();
-    
+
     electoral_log::post_election_published(
         event,
         election,

@@ -74,18 +74,12 @@ impl Message {
         Self::from_body(event, body, sd)
     }
 
-    pub fn keygen_message(
-        event: EventIdString,
-        sd: &SigningData,
-    ) -> Result<Self> {
+    pub fn keygen_message(event: EventIdString, sd: &SigningData) -> Result<Self> {
         let body = StatementBody::KeyGeneration;
         Self::from_body(event, body, sd)
     }
-    
-    pub fn key_insertion_message(
-        event: EventIdString,
-        sd: &SigningData,
-    ) -> Result<Self> {
+
+    pub fn key_insertion_message(event: EventIdString, sd: &SigningData) -> Result<Self> {
         let body = StatementBody::KeyInsertionCeremony;
         Self::from_body(event, body, sd)
     }

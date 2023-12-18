@@ -3,5 +3,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod authorization;
-pub mod worker;
 pub mod electoral_log;
+pub mod worker;
