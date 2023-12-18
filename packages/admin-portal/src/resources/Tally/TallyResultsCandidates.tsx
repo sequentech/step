@@ -98,6 +98,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
         }
     )
 
