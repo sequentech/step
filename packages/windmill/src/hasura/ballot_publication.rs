@@ -240,12 +240,12 @@ pub async fn get_previous_publication_election(
         .json(&request_body)
         .send()
         .await?;
-    let response_body: Response<get_previous_publication_election::ResponseData> = res.json().await?;
+    let response_body: Response<get_previous_publication_election::ResponseData> =
+        res.json().await?;
     response_body.ok()
 }
 
 ///////
-
 
 #[derive(GraphQLQuery)]
 #[graphql(
