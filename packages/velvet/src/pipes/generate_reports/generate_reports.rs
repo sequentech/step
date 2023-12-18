@@ -31,6 +31,7 @@ use crate::pipes::{
 };
 
 const OUTPUT_PDF: &str = "report.pdf";
+const OUTPUT_HTML: &str = "report.html";
 
 pub struct GenerateReports {
     pub pipe_inputs: PipeInputs,
@@ -105,7 +106,7 @@ impl GenerateReports {
         &self,
         ballot_style: &BallotStyle,
         reports: Vec<ReportData>,
-    ) -> Result<Vec<u8>> {
+    ) -> Result<(Vec<u8>, Vec<u8>)> {
         let reports = self.compute_reports(reports)?;
 
         let mut map = Map::new();
@@ -113,21 +114,22 @@ impl GenerateReports {
         map.insert("reports".to_owned(), serde_json::to_value(reports)?);
 
         let html = include_str!("../../resources/report.hbs");
-        let render = reports::render_template_text(html, map).map_err(|e| {
+
+        let render = reports::render_template_text(&html, map).map_err(|e| {
             Error::UnexpectedError(format!(
                 "Error during render_template_text from report.hbs template file: {}",
                 e.to_string()
             ))
         })?;
 
-        let bytes = pdf::html_to_pdf(render).map_err(|e| {
+        let bytes_pdf = pdf::html_to_pdf(render).map_err(|e| {
             Error::UnexpectedError(format!(
                 "Error during html_to_pdf conversion: {}",
                 e.to_string()
             ))
         })?;
 
-        Ok(bytes)
+        Ok((bytes_pdf, html.as_bytes().to_vec()))
     }
 
     #[instrument(skip(self))]
@@ -294,7 +296,7 @@ impl GenerateReports {
         ballot_style: &BallotStyle,
         reports: Vec<ReportData>,
     ) -> Result<()> {
-        let bytes = self.generate_report(ballot_style, reports)?;
+        let (bytes_pdf, bytes_html) = self.generate_report(ballot_style, reports)?;
 
         let mut path = PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
 
@@ -306,9 +308,15 @@ impl GenerateReports {
             .truncate(true)
             .create(true)
             .open(&file)?;
+        file.write_all(&bytes_pdf)?;
 
-        file.write_all(&bytes)?;
-        serde_json::to_writer(file, &bytes)?;
+        let file = path.join(OUTPUT_HTML);
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(&file)?;
+        file.write_all(&bytes_html)?;
 
         Ok(())
     }
