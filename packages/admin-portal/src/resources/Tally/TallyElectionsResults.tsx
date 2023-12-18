@@ -8,7 +8,7 @@ import {Sequent_Backend_Election, Sequent_Backend_Results_Election} from "../../
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
 import globalSettings from "@/global-settings"
-import { NoItem } from '@/components/NoItem'
+import {NoItem} from "@/components/NoItem"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -58,8 +58,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
     useEffect(() => {
         console.log("results :>> ", results)
         console.log("elections :>> ", elections)
-        if (elections) {
-
+        if (elections && results) {
             const temp:
                 | Array<
                       Sequent_Backend_Election & {
@@ -74,7 +73,8 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                       }
                   >
                 | undefined = elections?.map((item, index) => {
-                console.log("item :>> ", item)
+                const result = results?.find((r) => r.election_id === item.id)
+                console.log("result :>> ", result)
 
                 return {
                     ...item,
@@ -82,11 +82,11 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                     id: item.id || "",
                     name: item.name,
                     status: item.status || "",
-                    elegible_census: item.method,
-                    total_valid_votes: item.voters,
-                    explicit_invalid_votes: item.number,
-                    implicit_invalid_votes: item.turnout,
-                    blank_votes: item.turnout,
+                    elegible_census: result?.elegible_census ?? 0,
+                    total_valid_votes: result?.total_valid_votes ?? 0,
+                    explicit_invalid_votes: result?.explicit_invalid_votes ?? 0,
+                    implicit_invalid_votes: result?.implicit_invalid_votes ?? 0,
+                    blank_votes: result?.blank_votes ?? 0,
                 }
             })
 
@@ -106,14 +106,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             headerName: t("tally.table.elegible_census"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] || "-",
-        },
-        {
-            field: "total_valid_votes",
-            headerName: t("tally.table.total_valid_votes"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || 0,
+            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] || 0,
         },
         {
             field: "total_valid_votes",
@@ -127,7 +120,21 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             headerName: t("tally.table.explicit_invalid_votes"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => `${props["value"] || 0}%`,
+            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || 0,
+        },
+        {
+            field: "implicit_invalid_votes",
+            headerName: t("tally.table.implicit_invalid_votes"),
+            flex: 1,
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || 0,
+        },
+        {
+            field: "blank_votes",
+            headerName: t("tally.table.blank_votes"),
+            flex: 1,
+            editable: false,
+            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || 0,
         },
     ]
 

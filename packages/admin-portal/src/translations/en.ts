@@ -783,7 +783,7 @@ const englishTranslation = {
                 method: "Tally Method",
                 elegible: "Elegible Voters",
                 number: "Number of Votes",
-                turnout: "(%)",
+                turnout: "%",
                 candidates: "Candidates",
                 global: "Participation Summary",
                 elegible_census: "Elegible Voters",

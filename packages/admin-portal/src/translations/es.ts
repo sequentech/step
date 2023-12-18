@@ -785,7 +785,7 @@ const spanishTranslation: TranslationType = {
                 method: "Método de Recuento",
                 elegible: "Votantes Elegibles",
                 number: "Número de Votos",
-                turnout: "(%)",
+                turnout: "%",
                 candidates: "Candidates",
                 global: "Resumen de participación",
                 elegible_census: "Censo de votantes elegibles",
