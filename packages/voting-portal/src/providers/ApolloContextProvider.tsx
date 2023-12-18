@@ -7,6 +7,7 @@ import {setContext} from "@apollo/client/link/context"
 import { AuthContext } from "./AuthContextProvider"
 import { Box, CircularProgress } from "@mui/material"
 import {ApolloProvider} from "@apollo/client"
+import { useParams } from "react-router-dom"
 
 interface ApolloContextValues {
     apolloClient: ApolloClient<NormalizedCacheObject> | null
@@ -31,7 +32,14 @@ interface ApolloContextProviderProps {
 
 export const ApolloContextProvider = ({children}: ApolloContextProviderProps) => {
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(null)
-    const {isAuthenticated, getAccessToken} = useContext(AuthContext)
+    const {isAuthenticated, getAccessToken, login} = useContext(AuthContext)
+    let {tenantId, eventId} = useParams()
+
+    useEffect(() => {
+        if (!isAuthenticated && tenantId && eventId) {
+            login(tenantId, eventId)
+        }
+    }, [isAuthenticated, tenantId, eventId])
 
     const createApolloClient = (): ApolloClient<NormalizedCacheObject> => {
 
