@@ -73,7 +73,6 @@ jobs:
         tags: |
           ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
           ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:${{ github.run_number }}
-          ${{ secrets.AWS_PROD_REGISTRY }}/${{ matrix.service }}:latest
         cache-from: type=gha,scope=${{ matrix.service }}
         cache-to: type=gha,mode=max,scope=${{ matrix.service }}
         build-args: SPA_NAME=${{ matrix.spa_name }}
