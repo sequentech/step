@@ -28,12 +28,13 @@ interface TallyResultsGlobalCandidatesProps {
     electionId: string
     electionEventId: string
     tenantId: string
+    resultsEventId: string | null
 }
 
 export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidatesProps> = (
     props
 ) => {
-    const {contestId, electionId, electionEventId, tenantId} = props
+    const {contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const {t} = useTranslation()
 
     const [resultsData, setResultsData] = useState<
@@ -52,7 +53,11 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 
     const {data: election} = useGetOne("sequent_backend_election", {
         id: electionId,
-        meta: {tenant_id: tenantId},
+        meta: {
+            tenant_id: tenantId,
+            election_event_id: electionEventId,
+            election_id: electionId,
+        },
     })
 
     const {data: candidates} = useGetList("sequent_backend_candidate", {
@@ -60,7 +65,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         filter: {
             contest_id: contestId,
             tenant_id: tenantId,
-            election_event_id: election?.election_event_id,
+            election_event_id: electionEventId,
         },
     })
 
@@ -73,6 +78,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                 tenant_id: tenantId,
                 election_event_id: electionEventId,
                 election_id: electionId,
+                results_event_id: resultsEventId,
             },
         },
         {
@@ -89,6 +95,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                 tenant_id: tenantId,
                 election_event_id: electionEventId,
                 election_id: electionId,
+                results_event_id: resultsEventId,
             },
         },
         {
@@ -110,17 +117,19 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
                           turnout: number
                       }
                   >
-                | undefined = candidates?.map((item, index) => {
+                | undefined = candidates?.map((candidate, index) => {
+                let candidateResult = results.find((r) => r.candidate_id === candidate.id)
+
                 return {
-                    ...item,
+                    ...candidate,
                     rowId: index,
-                    id: item.id || "",
-                    name: item.name,
-                    status: item.status || "",
-                    method: item.method,
-                    voters: item.voters,
-                    number: item.number,
-                    turnout: item.turnout,
+                    id: candidate.id || "",
+                    name: candidate.name,
+                    status: candidate.status || "",
+                    method: candidate.method,
+                    voters: candidate.voters,
+                    number: candidateResult?.cast_votes || 0,
+                    turnout: candidate.turnout,
                 }
             })
 

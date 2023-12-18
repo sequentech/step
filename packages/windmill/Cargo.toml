@@ -50,6 +50,9 @@ keycloak = "21.0.102"
 tracing = "0.1"
 thiserror = "1.0.50"
 
+# time
+time = "0.3.30"
+
 # for sending emails and sms
 lettre = "0.11.2"
 aws-config = { version = "1.0.3", features = ["behavior-version-latest"] }
