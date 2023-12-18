@@ -1,9 +1,9 @@
-use std::sync::Mutex;
-use std::sync::Arc;
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use warp::Future;
-use warp::{Filter, http::Response};
+use warp::{http::Response, Filter};
 
 pub struct ProbeHandler {
     address: SocketAddr,
@@ -14,7 +14,11 @@ pub struct ProbeHandler {
 }
 
 impl ProbeHandler {
-    pub fn new(live_path: &str, ready_path: &str, address: impl Into<SocketAddr>) -> ProbeHandler {
+    pub fn new(
+        live_path: &str,
+        ready_path: &str,
+        address: impl Into<SocketAddr>,
+    ) -> ProbeHandler {
         ProbeHandler {
             address: address.into(),
             live_path: live_path.to_string(),
@@ -23,45 +27,43 @@ impl ProbeHandler {
             is_ready: Arc::new(Mutex::new(Box::new(|| false))),
         }
     }
-    
+
     pub fn future(&self) -> impl Future<Output = ()> {
         let il = Arc::clone(&self.is_live);
         let ir = Arc::clone(&self.is_ready);
 
         let filter = warp::get().and(
-            warp::path(self.live_path.to_string()).map(move || {
-                let is_live = il.lock().unwrap();
-                // "Any code greater than or equal to 200 and less than 400 indicates success. Any other code indicates failure".
-                // https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-                if is_live() {
-                    Response::builder()
-                    .status(warp::http::StatusCode::OK)
-                    .body("Live")
-                }
-                else {
-                    Response::builder()
-                    .status(warp::http::StatusCode::BAD_REQUEST)
-                    .body("Not live")
-                }
-            })
-            .or(
-                warp::path(self.ready_path.to_string()).map(move || {
+            warp::path(self.live_path.to_string())
+                .map(move || {
+                    let is_live = il.lock().unwrap();
+                    // "Any code greater than or equal to 200 and less than 400
+                    // indicates success. Any other code indicates failure". https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+                    if is_live() {
+                        Response::builder()
+                            .status(warp::http::StatusCode::OK)
+                            .body("Live")
+                    } else {
+                        Response::builder()
+                            .status(warp::http::StatusCode::BAD_REQUEST)
+                            .body("Not live")
+                    }
+                })
+                .or(warp::path(self.ready_path.to_string()).map(move || {
                     let is_ready = ir.lock().unwrap();
-                    // "Any code greater than or equal to 200 and less than 400 indicates success. Any other code indicates failure".
-                    // https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+                    // "Any code greater than or equal to 200 and less than 400
+                    // indicates success. Any other code indicates failure". https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
                     if is_ready() {
                         Response::builder()
-                        .status(warp::http::StatusCode::OK)
-                        .body("Ready")
-                    }
-                    else {
+                            .status(warp::http::StatusCode::OK)
+                            .body("Ready")
+                    } else {
                         Response::builder()
-                        .status(warp::http::StatusCode::BAD_REQUEST)
-                        .body("Not ready")
+                            .status(warp::http::StatusCode::BAD_REQUEST)
+                            .body("Not ready")
                     }
-                })  
-            ));
-        
+                })),
+        );
+
         warp::serve(filter).bind(self.address)
     }
 
@@ -87,10 +89,10 @@ mod tests {
     #[tokio::test]
     async fn test_probe() {
         let mut ph = ProbeHandler::new("live", "ready", ([127, 0, 0, 1], 3030));
-        
+
         let f = ph.future();
         let handle = tokio::spawn(f);
-    
+
         let t = true;
         sleep(Duration::from_secs(20)).await;
         // curl localhost:3030/live
