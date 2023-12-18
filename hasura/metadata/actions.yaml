@@ -372,6 +372,7 @@ actions:
             "limit": {{$body.input?.limit}},
             "offset": {{$body.input?.offset}},
             "filter": {{$body.input?.filter}},
+            "audit_table": {{$body.input?.audit_table}},
             "order_by": {{$body.input?.order_by}}
           }
       template_engine: Kriti

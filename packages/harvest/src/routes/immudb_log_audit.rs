@@ -173,28 +173,27 @@ impl TryFrom<&Row> for PgAuditRow {
         let mut audit_type = String::from("");
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            // FIXME for some reason columns names appear with parentheses
             match column.as_str() {
-                "(pgaudit.id)" => assign_value!(SqlValue::N, value, id),
-                "(pgaudit.audit_type)" => {
+                c if c.ends_with(".id)") => assign_value!(SqlValue::N, value, id),
+                c if c.ends_with(".audit_type)") => {
                     assign_value!(SqlValue::S, value, audit_type)
                 }
-                "(pgaudit.class)" => assign_value!(SqlValue::S, value, class),
-                "(pgaudit.command)" => {
+                c if c.ends_with(".class)") => assign_value!(SqlValue::S, value, class),
+                c if c.ends_with(".command)") => {
                     assign_value!(SqlValue::S, value, command)
                 }
-                "(pgaudit.dbname)" => assign_value!(SqlValue::S, value, dbname),
-                "(pgaudit.server_timestamp)" => {
+                c if c.ends_with(".dbname)") => assign_value!(SqlValue::S, value, dbname),
+                c if c.ends_with(".server_timestamp)") => {
                     assign_value!(SqlValue::Ts, value, server_timestamp)
                 }
-                "(pgaudit.session_id)" => {
+                c if c.ends_with(".session_id)") => {
                     assign_value!(SqlValue::S, value, session_id)
                 }
-                "(pgaudit.statement)" => {
+                c if c.ends_with(".statement)") => {
                     assign_value!(SqlValue::S, value, statement)
                 }
-                "(pgaudit.user)" => assign_value!(SqlValue::S, value, user),
-                "(pgaudit.audit_type)" => {
+                c if c.ends_with(".user)") => assign_value!(SqlValue::S, value, user),
+                c if c.ends_with(".audit_type)") => {
                     assign_value!(SqlValue::S, value, audit_type)
                 }
                 _ => {

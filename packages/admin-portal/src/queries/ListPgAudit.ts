@@ -4,7 +4,7 @@
 import {gql} from "@apollo/client"
 import {PgAuditTable} from "@/gql/graphql"
 
-export const getPgauditVariables = (input: any, resourceName: string) => {
+export const getPgauditVariables = (input: any) => {
     return {
         filter: input?.where?._and?.reduce((acc: any, condition: any) => {
             Object.keys(condition).forEach((key) => {
@@ -12,19 +12,18 @@ export const getPgauditVariables = (input: any, resourceName: string) => {
             })
             return acc
         }, {}),
-        audit_table: resourceName as PgAuditTable,
         ...input,
     }
 }
 
-export const getPgAudit = (fields: any) => {
+export const getPgAudit = (fields: any, audit_table: string) => {
     return gql`
         query listPgaudit(
             $limit: Int
             $offset: Int
             $filter: PgAuditFilter
             $order_by: PgAuditOrderBy
-            $audit_table: PgAuditTable
+            $audit_table: PgAuditTable = "${audit_table}"
         ) {
             listPgaudit(
                 limit: $limit
