@@ -494,6 +494,7 @@ const spanishTranslation: TranslationType = {
                 warning: "Aviso",
                 json: "Vista previa",
                 noResult: "Sin resultados",
+                loadingData: "Cargando datos ...",
             },
             language: {
                 es: "Español",
@@ -793,8 +794,8 @@ const spanishTranslation: TranslationType = {
                 back: "Atrás",
             },
             empty: {
-                header: "No tienes cambios generados/publicados",
-                action: "Genera tu primer cambio",
+                header: "Ninguna Publicación aún.",
+                action: "Generar Publicación",
             },
             dialog: {
                 title: "Confirm action",

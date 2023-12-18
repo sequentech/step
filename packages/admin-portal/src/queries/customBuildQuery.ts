@@ -27,8 +27,18 @@ export const customBuildQuery =
                     return output
                 },
             }
-        }
-        if (resourceName === "user" && raFetchType === "GET_LIST") {
+        } else if (
+            resourceName === "sequent_backend_ballot_publication" &&
+            raFetchType === "GET_LIST"
+        ) {
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            if (!params?.filter?.election_id && ret?.variables?.where?._and) {
+                ret.variables.where._and.push({
+                    election_id: {_is_null: true},
+                })
+            }
+            return ret
+        } else if (resourceName === "user" && raFetchType === "GET_LIST") {
             const resource: any = {
                 type: {
                     fields: [],
@@ -52,8 +62,7 @@ export const customBuildQuery =
                     return output
                 },
             }
-        }
-        if (resourceName === "role" && raFetchType === "GET_LIST") {
+        } else if (resourceName === "role" && raFetchType === "GET_LIST") {
             const resource: any = {
                 type: {
                     fields: [],
@@ -77,8 +86,7 @@ export const customBuildQuery =
                     return output
                 },
             }
-        }
-        if (resourceName === "permission" && raFetchType === "GET_LIST") {
+        } else if (resourceName === "permission" && raFetchType === "GET_LIST") {
             const resource: any = {
                 type: {
                     fields: [],
