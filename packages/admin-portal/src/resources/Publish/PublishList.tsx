@@ -1,7 +1,9 @@
-import React, {useEffect, useRef} from "react"
+import React, {useEffect} from "react"
 
-import {Box} from "@mui/material"
 import {useTranslation} from "react-i18next"
+import {IconButton} from "@sequentech/ui-essentials"
+import {Box, Typography, Button} from "@mui/material"
+import {faPlus} from "@fortawesome/free-solid-svg-icons"
 
 import {
     useList,
@@ -18,6 +20,7 @@ import {EPublishStatus} from "./EPublishStatus"
 import {EPublishActionsType} from "./EPublishType"
 import {HeaderTitle} from "@/components/HeaderTitle"
 import {Sequent_Backend_Ballot_Publication} from "@/gql/graphql"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 
 const OMIT_FIELDS: string[] = []
 
@@ -38,11 +41,8 @@ export const PublishList: React.FC<TPublishList> = ({
     onChangeStatus = () => null,
     setBallotPublicationId = () => null,
 }) => {
-    let current: HTMLElement | null = null
-
     const notify = useNotify()
     const {t} = useTranslation()
-    const ref = useRef<HTMLElement>(null)
 
     const {data, error, isLoading} = useGetList<Sequent_Backend_Ballot_Publication>(
         "sequent_backend_ballot_publication",
@@ -67,6 +67,24 @@ export const PublishList: React.FC<TPublishList> = ({
                 : true),
     })
 
+    const Empty = () => (
+        <ResourceListStyles.EmptyBox>
+            <Typography variant="h4" paragraph>
+                {t("publish.empty.header")}
+            </Typography>
+            <>
+                <Typography variant="body1" paragraph>
+                    {t("common.resources.noResult.askCreate")}
+                </Typography>
+
+                <Button onClick={onGenerate}>
+                    <IconButton icon={faPlus} fontSize="24px" />
+                    {t("publish.empty.action")}
+                </Button>
+            </>
+        </ResourceListStyles.EmptyBox>
+    )
+
     useEffect(() => {
         if (error) {
             notify(t("publish.dialog.error"), {
@@ -76,43 +94,40 @@ export const PublishList: React.FC<TPublishList> = ({
     }, [error])
 
     useEffect(() => {
-        if (!current) {
-            current = ref.current
-        } else if (
-            current &&
-            !ballotContext.total &&
-            status === EPublishStatus.Void &&
-            !isLoading
-        ) {
-            onGenerate()
-        }
-    }, [ref, ballotContext.total, isLoading])
+        console.log("PUBLISH :: DATA", data)
+        console.log("PUBLISH :: BALLOT CONTEXT", ballotContext)
+    }, [data])
 
     return (
-        <Box ref={ref}>
-            <PublishActions
-                status={status}
-                onGenerate={onGenerate}
-                onChangeStatus={onChangeStatus}
-                type={EPublishActionsType.List}
-            />
+        <Box>
+            {ballotContext.total ? (
+                <>
+                    <PublishActions
+                        status={status}
+                        onGenerate={onGenerate}
+                        onChangeStatus={onChangeStatus}
+                        type={EPublishActionsType.List}
+                    />
 
-            <ListContextProvider value={ballotContext}>
-                <HeaderTitle title={"publish.header.history"} subtitle="" />
+                    <ListContextProvider value={ballotContext}>
+                        <HeaderTitle title={"publish.header.history"} subtitle="" />
 
-                <DatagridConfigurable
-                    omit={OMIT_FIELDS}
-                    rowClick={(id: string | number) => {
-                        setBallotPublicationId(String(id)) // Asegúrate de convertir a string si es necesario
+                        <DatagridConfigurable
+                            omit={OMIT_FIELDS}
+                            rowClick={(id: string | number) => {
+                                setBallotPublicationId(String(id)) // Asegúrate de convertir a string si es necesario
 
-                        return false
-                    }}
-                >
-                    <TextField source="id" />
-                    <BooleanField source="is_generated" />
-                    <TextField source="published_at" />
-                </DatagridConfigurable>
-            </ListContextProvider>
+                                return false
+                            }}
+                        >
+                            <TextField source="published_at" />
+                            <BooleanField source="is_generated" />
+                        </DatagridConfigurable>
+                    </ListContextProvider>
+                </>
+            ) : (
+                <Empty />
+            )}
         </Box>
     )
 }

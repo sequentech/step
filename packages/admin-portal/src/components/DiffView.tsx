@@ -4,6 +4,7 @@ import styled from "@emotion/styled"
 
 import {diffLines} from "diff"
 import {CircularProgress} from "@mui/material"
+import { useTranslation } from 'react-i18next'
 
 const DiffViewStyled = {
     Header: styled.span`
@@ -34,9 +35,57 @@ const DiffViewStyled = {
         width: 100%;
         overflow-x: auto;
         max-height: 500px;
+
+        @media (min-width: 768px) {
+            width: 300px;
+        }
+
+        @media (min-width: 1024px) {
+            width: 450px;
+        }
+
+        @media (min-width: 1280px) {
+            width: 570px;
+        }
+
+        @media (min-width: 1536px) {
+            width: 710px;
+        }
+
+        @media (min-width: 1920px) {
+            width: 900px;
+        }
+
+        @media (min-width: 2560px) {
+            width: 1210px;
+        }
     `,
     Json: styled.div`
         width: 100%;
+
+        @media (min-width: 768px) {
+            width: 300px;
+        }
+
+        @media (min-width: 1024px) {
+            width: 450px;
+        }
+
+        @media (min-width: 1280px) {
+            width: 570px;
+        }
+
+        @media (min-width: 1536px) {
+            width: 710px;
+        }
+
+        @media (min-width: 1920px) {
+            width: 900px;
+        }
+
+        @media (min-width: 2560px) {
+            width: 1210px;
+        }
     `,
     Removed: styled.pre`
         width: 100%;
@@ -72,6 +121,7 @@ type TDiffView<T> = {
 const DiffViewMemo = React.memo(
     <T extends {}>({current, currentTitle, modify, diffTitle, type = "modify"}: TDiffView<T>) => {
         const [diff, setDiff] = useState<any>("")
+        const {t} = useTranslation()
         const [oldJsonString, setOldJsonString] = useState<string>("")
         const [newJsonString, setNewJsonString] = useState<string>("")
 
@@ -113,7 +163,7 @@ const DiffViewMemo = React.memo(
                                     ) : (
                                         <DiffViewStyled.Line key={index}>
                                             {line.value === "null"
-                                                ? "Cargando datos ..."
+                                                ? t('common.label.loadingData')
                                                 : line.value}
                                         </DiffViewStyled.Line>
                                     )
@@ -137,7 +187,7 @@ const DiffViewMemo = React.memo(
                                         ) : (
                                             <DiffViewStyled.Line key={index}>
                                                 {line.value === "null"
-                                                    ? "Cargando datos ..."
+                                                    ? t('common.label.loadingData')
                                                     : line.value}
                                             </DiffViewStyled.Line>
                                         )

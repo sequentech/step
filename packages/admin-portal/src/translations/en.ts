@@ -475,6 +475,7 @@ const englishTranslation = {
                 warning: "Warning",
                 json: "Preview",
                 noResult: "No result",
+                loadingData: 'Loading data ...'
             },
             language: {
                 es: "Spanish",
@@ -777,8 +778,8 @@ const englishTranslation = {
                 diff: "CHANGES TO PUBLISH",
             },
             empty: {
-                header: "Not have a changes generated/publicated",
-                action: "Generate ur first change",
+                header: "Not Generate Publish Yet",
+                action: "Generate First Publish",
             },
             dialog: {
                 title: "Confirm action",
