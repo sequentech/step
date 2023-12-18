@@ -1,25 +1,33 @@
-import React, {useEffect, useRef} from "react"
+import React, {ReactElement} from "react"
 
-import {Box} from "@mui/material"
 import {useTranslation} from "react-i18next"
+import {Visibility} from "@mui/icons-material"
+import {IconButton} from "@sequentech/ui-essentials"
+import {Box, Typography, Button} from "@mui/material"
+import {faPlus} from "@fortawesome/free-solid-svg-icons"
 
 import {
-    useList,
+    List,
     TextField,
-    useNotify,
-    useGetList,
+    Identifier,
+    TextInput,
+    BooleanInput,
     BooleanField,
-    ListContextProvider,
     DatagridConfigurable,
 } from "react-admin"
 
 import {PublishActions} from "./PublishActions"
-import {EPublishStatus} from "./EPublishStatus"
 import {EPublishActionsType} from "./EPublishType"
 import {HeaderTitle} from "@/components/HeaderTitle"
-import {Sequent_Backend_Ballot_Publication} from "@/gql/graphql"
+import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {Action, ActionsColumn} from "@/components/ActionButons"
 
 const OMIT_FIELDS: string[] = []
+
+const filters: Array<ReactElement> = [
+    <TextInput source="id" key={0} />,
+    <BooleanInput source="is_generated" key={1} />,
+]
 
 type TPublishList = {
     status: number
@@ -27,7 +35,7 @@ type TPublishList = {
     electionId?: number | string
     electionEventId: number | string | undefined
     onChangeStatus: (status: string) => void
-    setBallotPublicationId: (id: string) => void
+    setBallotPublicationId: (id: string | Identifier) => void
 }
 
 export const PublishList: React.FC<TPublishList> = ({
@@ -38,81 +46,75 @@ export const PublishList: React.FC<TPublishList> = ({
     onChangeStatus = () => null,
     setBallotPublicationId = () => null,
 }) => {
-    let current: HTMLElement | null = null
-
-    const notify = useNotify()
     const {t} = useTranslation()
-    const ref = useRef<HTMLElement>(null)
+    console.log(`has electionId=${electionId}`)
 
-    const {data, error, isLoading} = useGetList<Sequent_Backend_Ballot_Publication>(
-        "sequent_backend_ballot_publication",
-        {
-            filter: electionId
-                ? {
-                      election_event_id: electionEventId,
-                      election_id: electionId,
-                  }
-                : {
-                      election_event_id: electionEventId,
-                  },
-        }
+    const Empty = () => (
+        <ResourceListStyles.EmptyBox>
+            <Typography variant="h4" paragraph>
+                {t("publish.empty.header")}
+            </Typography>
+            <>
+                <Typography variant="body1" paragraph>
+                    {t("common.resources.noResult.askCreate")}
+                </Typography>
+
+                <Button onClick={onGenerate}>
+                    <IconButton icon={faPlus} fontSize="24px" />
+                    {t("publish.empty.action")}
+                </Button>
+            </>
+        </ResourceListStyles.EmptyBox>
     )
 
-    const ballotContext = useList({
-        data,
-        filterCallback: (record) =>
-            (!!electionId || !record.election_id) &&
-            (electionId
-                ? record.election_ids?.some((id: string) => id === electionId) ?? false
-                : true),
-    })
-
-    useEffect(() => {
-        if (error) {
-            notify(t("publish.dialog.error"), {
-                type: "error",
-            })
-        }
-    }, [error])
-
-    useEffect(() => {
-        if (!current) {
-            current = ref.current
-        } else if (
-            current &&
-            !ballotContext.total &&
-            status === EPublishStatus.Void &&
-            !isLoading
-        ) {
-            onGenerate()
-        }
-    }, [ref, ballotContext.total, isLoading])
+    const actions: Action[] = [
+        {
+            icon: <Visibility />,
+            action: setBallotPublicationId,
+        },
+    ]
 
     return (
-        <Box ref={ref}>
-            <PublishActions
-                status={status}
-                onGenerate={onGenerate}
-                onChangeStatus={onChangeStatus}
-                type={EPublishActionsType.List}
-            />
-
-            <ListContextProvider value={ballotContext}>
+        <Box>
+            <List
+                actions={
+                    <PublishActions
+                        status={status}
+                        onGenerate={onGenerate}
+                        onChangeStatus={onChangeStatus}
+                        type={EPublishActionsType.List}
+                    />
+                }
+                resource="sequent_backend_ballot_publication"
+                filter={
+                    electionId
+                        ? {
+                              election_event_id: electionEventId,
+                              election_id: electionId,
+                          }
+                        : {
+                              election_event_id: electionEventId,
+                          }
+                }
+                sort={{
+                    field: "created_at",
+                    order: "DESC",
+                }}
+                filters={filters}
+                sx={{flexGrow: 2}}
+                empty={<Empty />}
+            >
                 <HeaderTitle title={"publish.header.history"} subtitle="" />
 
-                <DatagridConfigurable
-                    omit={OMIT_FIELDS}
-                    rowClick={(id: string | number) => {
-                        setBallotPublicationId(String(id)) // Asegúrate de convertir a string si es necesario
-
-                        return false
-                    }}
-                >
+                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
                     <TextField source="id" />
                     <BooleanField source="is_generated" />
                     <TextField source="published_at" />
+                    <TextField source="created_at" />
+
+                    <ActionsColumn actions={actions} />
                 </DatagridConfigurable>
-            </ListContextProvider>
+            </List>
         </Box>
     )
 }

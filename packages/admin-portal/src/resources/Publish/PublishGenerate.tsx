@@ -5,7 +5,7 @@ import styled from "@emotion/styled"
 import {Box} from "@mui/material"
 import {Button} from "react-admin"
 import {useTranslation} from "react-i18next"
-import {ArrowBackIosNew} from "@mui/icons-material"
+import {ArrowBackIosNew, Publish} from "@mui/icons-material"
 
 import {DiffView} from "@/components/DiffView"
 import {PublishActions} from "./PublishActions"
@@ -108,7 +108,9 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                         style={{
                             color: "#fff",
                         }}
-                    />
+                    >
+                        <Publish />
+                    </Button>
                 </PublishGenerateStyled.Bottom>
             </PublishGenerateStyled.Container>
         </Box>
