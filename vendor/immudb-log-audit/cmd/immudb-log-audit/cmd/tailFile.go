@@ -51,12 +51,12 @@ func tailFile(cmd *cobra.Command, args []string) error {
 
 	lp, err := cmdutils.NewLineParser(flagParser)
 	if err != nil {
-		return fmt.Errorf("collection configuration is corrupted, %w", err)
+		return fmt.Errorf("NewLineParser: collection configuration is corrupted, %w", err)
 	}
 
 	jsonRepository, err := newJsonRepository("sql", args[0])
 	if err != nil {
-		return fmt.Errorf("collection configuration is corrupted, %w", err)
+		return fmt.Errorf("newJsonRepository: collection configuration is corrupted, %w", err)
 	}
 
 	signals := make(chan os.Signal, 1)

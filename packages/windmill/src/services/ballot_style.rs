@@ -181,7 +181,7 @@ impl From<&get_ballot_style_area::GetBallotStyleAreaSequentBackendArea>
     }
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn create_ballot_style(
     auth_headers: connection::AuthHeaders,
     area_id: String,
@@ -194,7 +194,7 @@ pub async fn create_ballot_style(
         auth_headers.clone(),
         format!("create_ballot_style-{}-{}", tenant_id, election_event_id),
         Uuid::new_v4().to_string(),
-        Some(Utc::now().naive_utc() + Duration::seconds(60)),
+        Some(ISO8601::now() + Duration::seconds(60)),
     )
     .await?;
     let hasura_response = hasura::ballot_style::get_ballot_style_area(

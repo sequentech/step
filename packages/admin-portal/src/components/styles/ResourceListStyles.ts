@@ -1,7 +1,9 @@
 import styled from "@emotion/styled"
 import {styled as muiStyled} from "@mui/material/styles"
-import {Box, Drawer} from "@mui/material"
+import {Box, Drawer, Button} from "@mui/material"
 import {IconButton} from "@sequentech/ui-essentials"
+import MailIcon from "@mui/icons-material/Mail"
+import DeleteIcon from "@mui/icons-material/Delete"
 
 export const ResourceListStyles = {
     EmptyBox: styled(Box)`
@@ -22,5 +24,11 @@ export const ResourceListStyles = {
         media (max-width: 800px) {
             width: 60%;
         }
+    `,
+    DeleteIcon: styled(DeleteIcon)`
+        margin-right: 10px;
+    `,
+    MailIcon: styled(MailIcon)`
+        margin-right: 10px;
     `,
 }

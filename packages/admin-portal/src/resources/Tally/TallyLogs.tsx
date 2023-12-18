@@ -6,40 +6,18 @@ import {useGetList} from "react-admin"
 
 import {Sequent_Backend_Tally_Session_Execution} from "../../gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {JsonView} from "@/components/JsonView"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {ILog, ITallyCeremonyStatus} from "@/types/ceremonies"
+import globalSettings from "@/global-settings"
+import {Logs} from "@/components/Logs"
+import {sleep} from "@sequentech/ui-essentials"
 
-export const TallyLogs: React.FC = () => {
-    const {tallyId} = useElectionEventTallyStore()
-    const [tenantId] = useTenantStore()
-    const [dataTally, setDataTally] = useState<object | null>(null)
+interface TallyLogsProps {
+    tallySessionExecution?: Sequent_Backend_Tally_Session_Execution
+}
 
-    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
-        "sequent_backend_tally_session_execution",
-        {
-            pagination: {page: 1, perPage: 1},
-            sort: {field: "created_at", order: "DESC"},
-            filter: {
-                tally_session_id: tallyId,
-                tenant_id: tenantId,
-            },
-        },
-        {
-            refetchInterval: 5000,
-        }
-    )
+export const TallyLogs: React.FC<TallyLogsProps> = ({tallySessionExecution}) => {
+    let status = tallySessionExecution?.status as ITallyCeremonyStatus | undefined
 
-    useEffect(() => {
-        if (!tallySessionExecutions?.[0].status) {
-            return
-        }
-
-        let jsonData = null
-        if (tallySessionExecutions?.[0].status.logs[0]) {
-            jsonData = JSON.parse(tallySessionExecutions?.[0].status.logs[0])
-        }
-        setDataTally(jsonData)
-    }, [tallySessionExecutions])
-
-    return <>{dataTally ? <JsonView origin={dataTally} /> : <p>No logs available</p>}</>
+    return <Logs logs={status?.logs} />
 }

@@ -64,6 +64,21 @@ const spanishTranslation: TranslationType = {
                 cancel: "Cancelar",
             },
         },
+        logsScreen: {
+            noPermissions: "No tienes permiso para acceder a las bitácoras.",
+            title: "Bitácoras",
+            subtitle: "Bitácoras generales de las baseses de datos principal y de IAM.",
+            column: {
+                id: "Id",
+                statement: "Statement",
+            },
+            main: {
+                title: "Bitácora de Base de Datos Principal",
+            },
+            iam: {
+                title: "Bitácora de Base de Datos de IAM",
+            },
+        },
         confirmationScreen: {
             title: "Su voto ha sido emitido",
             description:
@@ -252,6 +267,9 @@ const spanishTranslation: TranslationType = {
                     },
                     success: "Recuento creado",
                 },
+                logs: {
+                    noLogs: "No hay registros disponibles",
+                },
             },
             import: {
                 eetitle: "Importar Evento Electoral",
@@ -357,6 +375,7 @@ const spanishTranslation: TranslationType = {
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
+                    bulkBody: "¿Estás seguro que quieres borrar los usuarios seleccionados?",
                 },
                 notifications: {
                     deleteError: "Error borrando usuario",
@@ -380,6 +399,7 @@ const spanishTranslation: TranslationType = {
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este votante?",
+                    bulkBody: "¿Estás seguro que quieres borrar los votantes seleccionados?",
                 },
                 notifications: {
                     deleteError: "Error borrando votante",
@@ -489,6 +509,7 @@ const spanishTranslation: TranslationType = {
                 noResult: "Sin resultados",
                 import: "Importar",
                 export: "Exportar",
+                loadingData: "Cargando datos ...",
             },
             language: {
                 es: "Español",
@@ -512,6 +533,7 @@ const spanishTranslation: TranslationType = {
             electionEvents: "Procesos Electorales",
             search: "Buscar",
             usersAndRoles: "Usuarios y Roles",
+            logs: "Bitácora",
             settings: "Configuracion",
             communicationTemplates: "Plantillas de Comunicación",
             active: "Activos",
@@ -783,7 +805,21 @@ const spanishTranslation: TranslationType = {
                 stop: "Parar eleccion",
                 pause: "pausar",
                 generate: "regenerar",
-                publish: "publicar cambios",
+                publish: "Publicar Cambios",
+                back: "Atrás",
+            },
+            empty: {
+                header: "Ninguna Publicación aún.",
+                action: "Generar Publicación",
+            },
+            dialog: {
+                title: "Confirm action",
+                info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
+                ok: "Confirm",
+                ko: "Cancel",
+                error: "Error al cargar las papeletas publicadas",
+                error_publish: "Error al publicar la papeleta",
+                error_status: "Error al cambiar el estado de la publicación",
             },
             label: {
                 current: "Actual",
@@ -792,6 +828,7 @@ const spanishTranslation: TranslationType = {
             notifications: {
                 generated: "Papeleta generada",
                 published: "Papeleta publicada",
+                chang_status: "Papeleta cambiada de estado",
             },
         },
         emailEditor: {

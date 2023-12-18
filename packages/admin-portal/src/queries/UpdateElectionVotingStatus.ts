@@ -5,10 +5,16 @@ import {gql} from "@apollo/client"
 
 export const UPDATE_ELECTION_VOTING_STATUS = gql`
     mutation UpdateElectionVotingStatus(
-        $election_event_id: uuid!
-        $tally_session_id: uuid!
+        $electionId: uuid!
+        $electionEventId: uuid!
         $status: String!
     ) {
-        
+        update_election_voting_status(
+            election_id: $electionId
+            voting_status: $status
+            election_event_id: $electionEventId
+        ) {
+            election_id
+        }
     }
 `

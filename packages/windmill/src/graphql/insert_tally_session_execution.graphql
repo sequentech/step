@@ -6,6 +6,7 @@ mutation InsertTallySessionExecution(
   $documentId: uuid
   $status: jsonb,
   $resultsEventId: uuid,
+  $sessionIds: [Int!],
 ) {
   insert_sequent_backend_tally_session_execution(
     objects:
@@ -17,6 +18,7 @@ mutation InsertTallySessionExecution(
         document_id: $documentId,
         status: $status,
         results_event_id: $resultsEventId,
+        session_ids: $sessionIds,
     }
   ) {
     returning {

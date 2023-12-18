@@ -5,6 +5,7 @@ use config::{Config, ConfigError, Environment};
 use deadpool_postgres::{Client, Pool, PoolError, Runtime, SslMode};
 use serde::{Deserialize, Serialize};
 use std::env;
+use tracing::instrument;
 
 #[cfg(any(feature = "fips_core", feature = "fips_full"))]
 use openssl::ssl::{SslConnector, SslMethod};
@@ -17,6 +18,18 @@ pub struct PgConfig {
     pub keycloak_db: deadpool_postgres::Config,
     pub low_sql_limit: i32,
     pub default_sql_limit: i32,
+    pub default_sql_batch_size: i32,
+}
+
+impl Default for PgConfig {
+    fn default() -> Self {
+        PgConfig {
+            keycloak_db: deadpool_postgres::Config::default(),
+            low_sql_limit: 1000,
+            default_sql_limit: 20,
+            default_sql_batch_size: 1000,
+        }
+    }
 }
 
 impl PgConfig {
@@ -30,6 +43,7 @@ impl PgConfig {
     }
 }
 
+#[instrument(err)]
 pub async fn generate_database_pool() -> Result<Arc<Pool>> {
     let config = PgConfig::from_env()?;
 

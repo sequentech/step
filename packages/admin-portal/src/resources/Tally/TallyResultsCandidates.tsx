@@ -22,6 +22,7 @@ import {
     TableBody,
     Typography,
 } from "@mui/material"
+import globalSettings from "@/global-settings"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -29,10 +30,11 @@ interface TallyResultsCandidatesProps {
     electionId: string
     electionEventId: string
     tenantId: string
+    resultsEventId: string | null
 }
 
 export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (props) => {
-    const {areaId, contestId, electionId, electionEventId, tenantId} = props
+    const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
     const {t} = useTranslation()
 
@@ -48,11 +50,20 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         }
     >("sequent_backend_candidate", {
         pagination: {page: 1, perPage: 9999},
+        filter: {
+            tenant_id: tenantId,
+            election_event_id: electionEventId,
+            contest_id: contestId,
+        },
     })
 
     const {data: election} = useGetOne("sequent_backend_election", {
         id: electionId,
-        meta: {tenant_id: tenantId},
+        meta: {
+            tenant_id: tenantId,
+            election_event_id: electionEventId,
+            election_id: electionId,
+        },
     })
 
     const {data: general} = useGetList<Sequent_Backend_Results_Area_Contest>(
@@ -64,10 +75,11 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                 tenant_id: tenantId,
                 election_event_id: electionEventId,
                 election_id: electionId,
+                results_event_id: resultsEventId,
             },
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 
@@ -81,10 +93,11 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                 election_event_id: electionEventId,
                 election_id: electionId,
                 area_id: areaId,
+                results_event_id: resultsEventId,
             },
         },
         {
-            refetchInterval: 5000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 
@@ -102,17 +115,19 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                           turnout: number
                       }
                   >
-                | undefined = candidates?.map((item, index) => {
+                | undefined = candidates?.map((candidate, index) => {
+                let candidateResult = results.find((r) => r.candidate_id === candidate.id)
+
                 return {
-                    ...item,
+                    ...candidate,
                     rowId: index,
-                    id: item.id || "",
-                    name: item.name,
-                    status: item.status || "",
-                    method: item.method,
-                    voters: item.voters,
-                    number: item.number,
-                    turnout: item.turnout,
+                    id: candidate.id || "",
+                    name: candidate.name,
+                    status: candidate.status || "",
+                    method: candidate.method,
+                    voters: candidate.voters,
+                    number: candidateResult?.cast_votes || 0,
+                    turnout: candidate.turnout,
                 }
             })
 

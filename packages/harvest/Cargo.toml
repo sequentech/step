@@ -32,8 +32,10 @@ strum_macros = "0.25"
 uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
 
 # logging
-tracing = "0.1.37"
+tracing = "0.1"
 
+
+board-messages = { path="../board-messages" }
 immu-board = { path="../immu-board" }
 immudb-rs = { path="../immudb-rs" }
 strand = { path="../strand" }
@@ -42,3 +44,6 @@ windmill = { path="../windmill" }
 
 # To connect to the Database
 deadpool-postgres = { version = "0.11.0", features = ["rt_tokio_1", "serde"] }
+
+# used for sanitizing input
+regex = { version = "1.10.2" }

@@ -16,3 +16,17 @@ export interface IElectionEventStatus {
     is_published?: boolean
     voting_status: EVotingStatus
 }
+
+export interface IElectionStatus {
+    voting_status: EVotingStatus
+}
+
+export interface IElectionEventStatistics {
+    num_emails_sent: number
+    num_sms_sent: number
+}
+
+export interface IElectionStatistics {
+    num_emails_sent: number
+    num_sms_sent: number
+}

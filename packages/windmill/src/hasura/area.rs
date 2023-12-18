@@ -19,7 +19,7 @@ use sequent_core::services::connection;
 )]
 pub struct GetElectionEventAreas;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_election_event_areas(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -54,7 +54,7 @@ pub async fn get_election_event_areas(
 )]
 pub struct GetAreasByIds;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_areas_by_ids(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

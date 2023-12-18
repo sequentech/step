@@ -62,6 +62,21 @@ const englishTranslation = {
                 cancel: "Cancel",
             },
         },
+        logsScreen: {
+            noPermissions: "You don't have permission to access logs.",
+            title: "Logs",
+            subtitle: "General logs of the main and IAM databases",
+            column: {
+                id: "Id",
+                statement: "Statement",
+            },
+            main: {
+                title: "Main Database Logs",
+            },
+            iam: {
+                title: "IAM Database Logs",
+            },
+        },
         confirmationScreen: {
             title: "Your vote has been cast",
             description:
@@ -250,6 +265,9 @@ const englishTranslation = {
                     },
                     success: "Tally created",
                 },
+                logs: {
+                    noLogs: "No logs available",
+                },
             },
             import: {
                 eetitle: "Import Election Event",
@@ -355,6 +373,7 @@ const englishTranslation = {
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",
+                    bulkBody: "Are you sure you want to delete the selected users?",
                 },
                 notifications: {
                     deleteError: "Error deleting user",
@@ -378,6 +397,7 @@ const englishTranslation = {
                 },
                 delete: {
                     body: "Are you sure you want to delete this voter?",
+                    bulkBody: "Are you sure you want to delete the selected voters?",
                 },
                 notifications: {
                     deleteError: "Error deleting voter",
@@ -487,6 +507,7 @@ const englishTranslation = {
                 noResult: "No result",
                 import: "Import",
                 export: "Export",
+                loadingData: "Loading data ...",
             },
             language: {
                 es: "Spanish",
@@ -510,6 +531,7 @@ const englishTranslation = {
             electionEvents: "Election Events",
             search: "Search",
             usersAndRoles: "Users and Roles",
+            logs: "Logs",
             settings: "Settings",
             communicationTemplates: "Communication Templates",
             active: "Active",
@@ -782,14 +804,29 @@ const englishTranslation = {
                 pause: "PAUSE",
                 generate: "REGENERATE",
                 publish: "PUBLISH CHANGES",
+                back: "BACK",
             },
             label: {
                 current: "Current",
                 diff: "CHANGES TO PUBLISH",
             },
+            empty: {
+                header: "No Publication Yet.",
+                action: "Generate Publication",
+            },
+            dialog: {
+                title: "Confirm action",
+                info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
+                ok: "Confirm",
+                ko: "Cancel",
+                error: "Error loading ballot publication",
+                error_publish: "Error publishing ballot publication",
+                error_status: "Error change ballot publication status",
+            },
             notifications: {
                 generated: "Ballot generated",
                 published: "Ballot published",
+                chang_status: "Ballot status changed",
             },
         },
         emailEditor: {

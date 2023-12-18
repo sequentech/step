@@ -1,10 +1,12 @@
-name: Linting and Formatting
+name: Tests
 
 on:
   pull_request:
+  push:
+    branches: [ 'main' ]
 
 jobs:
-  rust-ci:
+  run-tests:
     name: Run Rust tests
     runs-on: ubuntu-latest
     strategy:
@@ -20,7 +22,7 @@ jobs:
           - service: velvet
           - service: windmill
           - service: wrap-map-err
-            
+  
       fail-fast: false
     steps:
       - name: Check out code
@@ -40,4 +42,16 @@ jobs:
           version: 1.0
 
       - name: Run tests
+        env:
+          RUST_BACKTRACE: "full"
+          KEYCLOAK_DB__USER: "test"
+          KEYCLOAK_DB__PASSWORD: "test"
+          KEYCLOAK_DB__HOST: "test"
+          KEYCLOAK_DB__PORT: "3322"
+          KEYCLOAK_DB__DBNAME: "test"
+          KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: "Verified"
+          LOW_SQL_LIMIT: "1000"
+          DEFAULT_SQL_LIMIT: "20"
+          DEFAULT_SQL_BATCH_SIZE: "1000"
+
         run: cd packages/${{ matrix.service }} && cargo test
