@@ -6,25 +6,22 @@
 mod tests {
     use crate::cli::state::State;
     use crate::cli::CliRun;
-    use crate::fixtures;
     use crate::fixtures::ballot_styles::generate_ballot_style;
     use crate::fixtures::TestFixture;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
     use crate::pipes::do_tally::OUTPUT_CONTEST_RESULT_FILE;
-    use crate::pipes::generate_reports::{ReportData, ReportDataComputed};
+    use crate::pipes::generate_reports::ReportDataComputed;
     use crate::pipes::mark_winners::OUTPUT_WINNERS;
     use crate::pipes::pipe_inputs::{PREFIX_AREA, PREFIX_CONTEST, PREFIX_ELECTION};
     use crate::pipes::pipe_name::PipeNameOutputDir;
     use anyhow::{Error, Result};
     use sequent_core::ballot_codec::BigUIntCodec;
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
-    use serde_json::Value;
     use std::fs;
     use std::io::Write;
-    use std::path::PathBuf;
     use std::str::FromStr;
-    use tracing::{info, instrument};
-    use uuid::{uuid, Uuid};
+    use tracing::instrument;
+    use uuid::Uuid;
     use walkdir::WalkDir;
 
     #[instrument(skip_all)]

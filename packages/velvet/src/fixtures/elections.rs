@@ -1,6 +1,5 @@
 use sequent_core::ballot::BallotStyle;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use uuid::Uuid;
 
 use super::ballot_styles;

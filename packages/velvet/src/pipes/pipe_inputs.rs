@@ -31,7 +31,7 @@ pub struct PipeInputs {
     pub root_path_config: PathBuf,
     pub root_path_ballots: PathBuf,
     pub stage: Stage,
-    pub election_list: Vec<ElectionConfig>,
+    pub election_list: Vec<InputElectionConfig>,
 }
 
 impl PipeInputs {
@@ -71,7 +71,7 @@ impl PipeInputs {
         path
     }
 
-    fn read_input_dir_config(input_dir: &Path) -> Result<Vec<ElectionConfig>> {
+    fn read_input_dir_config(input_dir: &Path) -> Result<Vec<InputElectionConfig>> {
         let entries = fs::read_dir(input_dir)?;
 
         let mut configs = vec![];
@@ -83,7 +83,7 @@ impl PipeInputs {
         Ok(configs)
     }
 
-    fn read_election_list_config(path: &Path) -> Result<ElectionConfig> {
+    fn read_election_list_config(path: &Path) -> Result<InputElectionConfig> {
         let entries = fs::read_dir(path)?;
 
         let election_id =
@@ -95,6 +95,7 @@ impl PipeInputs {
         let config_file =
             fs::File::open(&config_path).map_err(|e| Error::FileAccess(config_path.clone(), e))?;
 
+        // TODO: election + election config => mergeable?
         let election: Election = serde_json::from_reader(config_file)?;
 
         let mut configs = vec![];
@@ -106,7 +107,7 @@ impl PipeInputs {
             }
         }
 
-        Ok(ElectionConfig {
+        Ok(InputElectionConfig {
             id: election_id,
             ballot_styles: election.ballot_styles,
             contest_list: configs,
@@ -114,10 +115,7 @@ impl PipeInputs {
         })
     }
 
-    fn read_contest_list_config(
-        path: &Path,
-        election_id: Uuid,
-    ) -> Result<ContestForElectionConfig> {
+    fn read_contest_list_config(path: &Path, election_id: Uuid) -> Result<InputContestConfig> {
         let contest_id =
             Self::parse_path_components(path, PREFIX_CONTEST).ok_or(Error::IDNotFound)?;
         let config_path = path.join(CONTEST_CONFIG_FILE);
@@ -135,7 +133,8 @@ impl PipeInputs {
             if path_area.is_dir() {
                 let area_id = Self::parse_path_components(&path_area, PREFIX_AREA)
                     .ok_or(Error::IDNotFound)?;
-                configs.push(Area {
+
+                configs.push(InputAreaConfig {
                     id: area_id,
                     contest_id,
                     path: path_area,
@@ -143,7 +142,7 @@ impl PipeInputs {
             }
         }
 
-        Ok(ContestForElectionConfig {
+        Ok(InputContestConfig {
             id: contest_id,
             election_id,
             contest,
@@ -166,24 +165,24 @@ impl PipeInputs {
 }
 
 #[derive(Debug)]
-pub struct ElectionConfig {
+pub struct InputElectionConfig {
     pub id: Uuid,
     pub ballot_styles: Vec<BallotStyle>,
-    pub contest_list: Vec<ContestForElectionConfig>,
+    pub contest_list: Vec<InputContestConfig>,
     pub path: PathBuf,
 }
 
 #[derive(Debug)]
-pub struct ContestForElectionConfig {
+pub struct InputContestConfig {
     pub id: Uuid,
     pub election_id: Uuid,
     pub contest: Contest,
-    pub area_list: Vec<Area>,
+    pub area_list: Vec<InputAreaConfig>,
     pub path: PathBuf,
 }
 
 #[derive(Debug)]
-pub struct Area {
+pub struct InputAreaConfig {
     pub id: Uuid,
     pub contest_id: Uuid,
     pub path: PathBuf,
