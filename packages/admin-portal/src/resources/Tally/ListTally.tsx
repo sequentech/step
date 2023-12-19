@@ -103,6 +103,11 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 tenant_id: tenantId,
                 election_event_id: electionEvent?.id,
             },
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
         }
     )
 
@@ -115,6 +120,11 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
                 tally_session_id: keysCeremonies?.[0]?.id,
                 tenant_id: tenantId,
             },
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
         }
     )
 

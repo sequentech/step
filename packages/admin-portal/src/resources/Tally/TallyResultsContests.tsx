@@ -32,13 +32,21 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
 
     // console.log("TallyResultsContest :: contestsData", contestsData)
 
-    const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
-        filter: {
-            election_id: electionData,
-            tenant_id: tenantData,
-            election_event_id: electionEventData,
+    const {data: contests} = useGetList<Sequent_Backend_Contest>(
+        "sequent_backend_contest",
+        {
+            filter: {
+                election_id: electionData,
+                tenant_id: tenantData,
+                election_event_id: electionEventData,
+            },
         },
-    })
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
+        }
+    )
 
     useEffect(() => {
         if (electionId) {

@@ -15,9 +15,17 @@ export const TallyStartDate: React.FC = () => {
 
     const {t} = useTranslation()
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
-        id: tallyId,
-    })
+    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            id: tallyId,
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
 
     return (
         <TextField

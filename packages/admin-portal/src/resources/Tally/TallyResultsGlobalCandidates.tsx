@@ -84,6 +84,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
         }
     )
 
@@ -102,6 +104,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
         }
     )
 

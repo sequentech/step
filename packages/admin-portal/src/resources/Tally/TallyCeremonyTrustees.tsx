@@ -50,9 +50,17 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const [errors, setErrors] = useState<String | null>(null)
     const [trusteeStatus, setTrusteeStatus] = useState<String | null>(null)
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
-        id: tallyId,
-    })
+    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            id: tallyId,
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
+        }
+    )
 
     const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
@@ -67,6 +75,8 @@ export const TallyCeremonyTrustees: React.FC = () => {
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
         }
     )
 

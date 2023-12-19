@@ -28,9 +28,17 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
         Array<Sequent_Backend_Election & {rowId: number; id: string; active: boolean}>
     >([])
 
-    const {data} = useGetOne<Sequent_Backend_Tally_Session>("sequent_backend_tally_session", {
-        id: tallyId,
-    })
+    const {data} = useGetOne<Sequent_Backend_Tally_Session>(
+        "sequent_backend_tally_session",
+        {
+            id: tallyId,
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
+        }
+    )
 
     const {data: elections} = useGetList("sequent_backend_election", {
         pagination: {page: 1, perPage: 9999},

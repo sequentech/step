@@ -47,14 +47,22 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             number: number
             turnout: number
         }
-    >("sequent_backend_candidate", {
-        pagination: {page: 1, perPage: 9999},
-        filter: {
-            tenant_id: tenantId,
-            election_event_id: electionEventId,
-            contest_id: contestId,
+    >(
+        "sequent_backend_candidate",
+        {
+            pagination: {page: 1, perPage: 9999},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                contest_id: contestId,
+            },
         },
-    })
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
+        }
+    )
 
     const {data: election} = useGetOne("sequent_backend_election", {
         id: electionId,
@@ -80,6 +88,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
         }
     )
 
@@ -99,6 +109,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
         }
     )
 

@@ -98,6 +98,8 @@ export const TallyCeremony: React.FC = () => {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchIntervalInBackground: true,
             refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
         }
     )
 
@@ -110,6 +112,8 @@ export const TallyCeremony: React.FC = () => {
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
         }
     )
 
@@ -126,6 +130,8 @@ export const TallyCeremony: React.FC = () => {
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
         }
     )
 

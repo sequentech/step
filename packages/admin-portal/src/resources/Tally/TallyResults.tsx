@@ -26,12 +26,20 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         const [data, setData] = useState<Sequent_Backend_Tally_Session | undefined>()
         const [areasData, setAreasData] = useState<RaRecord<Identifier>[]>()
 
-        const {data: areas} = useGetList<RaRecord<Identifier>>("sequent_backend_area", {
-            filter: {
-                tenant_id: data?.tenant_id,
-                election_event_id: data?.election_event_id,
+        const {data: areas} = useGetList<RaRecord<Identifier>>(
+            "sequent_backend_area",
+            {
+                filter: {
+                    tenant_id: data?.tenant_id,
+                    election_event_id: data?.election_event_id,
+                },
             },
-        })
+            {
+                refetchOnWindowFocus: false,
+                refetchOnReconnect: false,
+refetchOnMount: false,
+            }
+        )
 
         const {data: elections} = useGetMany<Sequent_Backend_Election>("sequent_backend_election", {
             ids: data?.election_ids || [],

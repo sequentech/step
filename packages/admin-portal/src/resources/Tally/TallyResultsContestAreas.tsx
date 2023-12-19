@@ -37,13 +37,26 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                 election_event_id: electionEventId,
                 contest_id: contestId,
             },
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
         }
     )
 
-    const {data: contest} = useGetOne<Sequent_Backend_Contest>("sequent_backend_contest", {
-        id: contestId,
-        meta: {tenant_id: tenantId},
-    })
+    const {data: contest} = useGetOne<Sequent_Backend_Contest>(
+        "sequent_backend_contest",
+        {
+            id: contestId,
+            meta: {tenant_id: tenantId},
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+refetchOnMount: false,
+        }
+    )
 
     useEffect(() => {
         tabGlobalClicked()
