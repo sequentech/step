@@ -749,8 +749,6 @@ mod tests {
         // Generate reports
         state.exec_next()?;
 
-        // TODO: assert result.json
-
         let mut path = cli.output_dir.clone();
         path.push("velvet-generate-reports");
         path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
@@ -762,7 +760,6 @@ mod tests {
 
         let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
         let report = &reports[0];
-        dbg!(&report);
 
         assert_eq!(report.contest_result.total_votes, 0);
         assert_eq!(
@@ -813,7 +810,7 @@ mod tests {
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
 
-        for i in 0..=10 {
+        for i in 0..10 {
             let mut choices = vec![
                 DecodedVoteChoice {
                     id: "0".to_owned(),
@@ -885,8 +882,27 @@ mod tests {
         // Generate reports
         state.exec_next()?;
 
-        // TODO: assert result.json
-        // blank vote is 5
+        let mut path = cli.output_dir.clone();
+        path.push("velvet-generate-reports");
+        path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
+        path.push(format!("{}{}", PREFIX_CONTEST, &contest.id));
+        path.push(format!("{}{}", PREFIX_AREA, &uuid_area));
+        path.push("report.json");
+
+        let f = fs::File::open(&path)?;
+
+        let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
+        let report = &reports[0];
+
+        assert_eq!(report.contest_result.total_votes, 10);
+        assert_eq!(
+            report
+                .candidate_result
+                .iter()
+                .map(|cr| cr.total_count)
+                .sum::<u64>(),
+            5
+        );
 
         Ok(())
     }

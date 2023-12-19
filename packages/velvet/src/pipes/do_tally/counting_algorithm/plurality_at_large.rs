@@ -46,9 +46,9 @@ impl CountingAlgorithm for PluralityAtLarge {
                 for choice in &vote.choices {
                     if choice.selected >= 0 {
                         *vote_count.entry(choice.id.clone()).or_insert(0) += 1;
-                        count_valid += 1;
                     }
                 }
+                count_valid += 1;
             }
         }
 

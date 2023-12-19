@@ -294,7 +294,7 @@ impl Contest {
         self.presentation
             .as_ref()
             .map(|presentation| {
-                vec![
+                [
                     "allowed".to_string(),
                     "warn".to_string(),
                     "warn-invalid-implicit-and-explicit".to_string(),
