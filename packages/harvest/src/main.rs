@@ -6,8 +6,8 @@
 extern crate rocket;
 
 use dotenv::dotenv;
-use sequent_core::util::init_log::init_log;
 use sequent_core::services::probe::ProbeHandler;
+use sequent_core::util::init_log::init_log;
 
 mod pdf;
 mod routes;
@@ -18,14 +18,12 @@ mod types;
 async fn rocket() -> _ {
     dotenv().ok();
     init_log(true);
-    
+
     let mut ph = ProbeHandler::new("live", "ready", ([0, 0, 0, 0], 3030));
     let f = ph.future();
-    ph.set_live(move || {
-        true    
-    });
+    ph.set_live(move || true);
     tokio::spawn(f);
-    
+
     rocket::build()
         .register(
             "/",
