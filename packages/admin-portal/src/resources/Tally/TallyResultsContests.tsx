@@ -23,7 +23,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     const [value, setValue] = React.useState<number | null>(0)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
     const [contestId, setContestId] = useState<string | null>()
-    
+
     const {t} = reactI18next.useTranslation()
     const [electionData, setElectionData] = useState<string | null>(null)
     const [electionEventData, setElectionEventData] = useState<string | null>(null)
@@ -44,7 +44,7 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-refetchOnMount: false,
+            refetchOnMount: false,
         }
     )
 

@@ -50,7 +50,7 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
         {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-refetchOnMount: false,
+            refetchOnMount: false,
         }
     )
 

@@ -60,7 +60,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-refetchOnMount: false,
+            refetchOnMount: false,
         }
     )
 
@@ -89,7 +89,7 @@ refetchOnMount: false,
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-refetchOnMount: false,
+            refetchOnMount: false,
         }
     )
 
@@ -110,7 +110,7 @@ refetchOnMount: false,
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-refetchOnMount: false,
+            refetchOnMount: false,
         }
     )
 
@@ -262,7 +262,9 @@ refetchOnMount: false,
                                     {t("tally.table.blank_votes")}
                                 </TableCell>
                                 <TableCell align="right">{general?.[0].blank_votes ?? 0}</TableCell>
-                                <TableCell align="right">{general?.[0].blank_votes ?? 0} %</TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].blank_votes ?? 0} %
+                                </TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>

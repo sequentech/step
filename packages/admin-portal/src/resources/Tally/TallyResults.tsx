@@ -8,7 +8,7 @@ import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql
 import {TallyResultsContest} from "./TallyResultsContests"
 import {Box, Tab, Tabs, Typography} from "@mui/material"
 import {ReactI18NextChild, useTranslation} from "react-i18next"
-import { ExportElectionMenu } from '@/components/tally/ExportElectionMenu'
+import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -37,7 +37,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             {
                 refetchOnWindowFocus: false,
                 refetchOnReconnect: false,
-refetchOnMount: false,
+                refetchOnMount: false,
             }
         )
 
