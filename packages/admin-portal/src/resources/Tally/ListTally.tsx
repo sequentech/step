@@ -107,7 +107,7 @@ export const ListTally: React.FC<ListAreaProps> = (props) => {
         {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-refetchOnMount: false,
+            refetchOnMount: false,
         }
     )
 
@@ -124,7 +124,7 @@ refetchOnMount: false,
         {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-refetchOnMount: false,
+            refetchOnMount: false,
         }
     )
 

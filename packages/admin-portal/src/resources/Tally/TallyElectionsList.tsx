@@ -36,7 +36,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
         {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-refetchOnMount: false,
+            refetchOnMount: false,
         }
     )
 

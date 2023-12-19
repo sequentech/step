@@ -3,10 +3,14 @@ import Button from "@mui/material/Button"
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
 import {EXPORT_FORMATS} from "./constants"
-import { Sequent_Backend_Area_Contest, Sequent_Backend_Contest, Sequent_Backend_Election, Sequent_Backend_Tally_Session } from '@/gql/graphql'
-import styled from '@emotion/styled'
+import {
+    Sequent_Backend_Area_Contest,
+    Sequent_Backend_Contest,
+    Sequent_Backend_Election,
+    Sequent_Backend_Tally_Session,
+} from "@/gql/graphql"
+import styled from "@emotion/styled"
 import {theme} from "@sequentech/ui-essentials"
-
 
 interface ExportElectionMenuProps {
     resource: string
@@ -38,7 +42,6 @@ const ExportButton = styled.div`
     }
 `
 
-
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
     const {resource, event, election, contest, area} = props
     const {t} = useTranslation()
@@ -55,13 +58,13 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
     }
 
     const handleExport = (type: string) => {
-        console.log("ExportElectionData :: ", resource);
-        console.log("======================");
+        console.log("ExportElectionData :: ", resource)
+        console.log("======================")
 
-        console.log("ExportElectionData :: ", event);
-        console.log("ExportElectionData :: ", election);
-        console.log("ExportElectionData :: ", contest);
-        console.log("ExportElectionData :: ", area);
+        console.log("ExportElectionData :: ", event)
+        console.log("ExportElectionData :: ", election)
+        console.log("ExportElectionData :: ", contest)
+        console.log("ExportElectionData :: ", area)
         console.log("ExportElectionData :: ", type)
     }
 
