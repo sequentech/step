@@ -113,7 +113,7 @@ async fn main() -> Result<()> {
                 &board_name,
                 Some(store_root.clone()),
             );
-            
+
             // Try to connect to detect errors early
             let board_result = board.get_board().await;
             match board_result {
