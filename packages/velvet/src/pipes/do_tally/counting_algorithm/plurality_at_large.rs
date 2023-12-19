@@ -108,6 +108,7 @@ impl CountingAlgorithm for PluralityAtLarge {
             total_valid_votes: count_valid,
             total_invalid_votes: count_invalid,
             invalid_votes: vote_count_invalid,
+            census: self.tally.census,
             candidate_result: result,
         };
 

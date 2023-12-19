@@ -50,6 +50,7 @@ impl Pipe for DoTally {
         for election_input in &self.pipe_inputs.election_list {
             for contest_input in &election_input.contest_list {
                 let mut contest_ballot_files = vec![];
+                let mut sum_census: u64 = 0;
 
                 for area_input in &contest_input.area_list {
                     let decoded_ballots_file = PipeInputs::build_path(
@@ -63,6 +64,7 @@ impl Pipe for DoTally {
                     let ca = tally::create_tally(
                         &contest_input.contest,
                         vec![decoded_ballots_file.clone()],
+                        area_input.census,
                     )
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
                     let res = ca
@@ -84,10 +86,13 @@ impl Pipe for DoTally {
                     serde_json::to_writer(file, &res)?;
 
                     contest_ballot_files.push(decoded_ballots_file);
+
+                    sum_census += area_input.census;
                 }
 
-                let ca = tally::create_tally(&contest_input.contest, contest_ballot_files)
-                    .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                let ca =
+                    tally::create_tally(&contest_input.contest, contest_ballot_files, sum_census)
+                        .map_err(|e| Error::UnexpectedError(e.to_string()))?;
                 let res = ca
                     .tally()
                     .map_err(|e| Error::UnexpectedError(e.to_string()))?;
@@ -115,6 +120,7 @@ pub struct ContestResult {
     pub total_votes: u64,
     pub total_valid_votes: u64,
     pub total_invalid_votes: u64,
+    pub census: u64,
     pub invalid_votes: HashMap<InvalidVote, u64>,
     pub candidate_result: Vec<CandidateResult>,
 }

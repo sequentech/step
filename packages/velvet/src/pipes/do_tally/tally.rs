@@ -18,11 +18,12 @@ pub struct Tally {
     pub id: TallyType,
     pub contest: Contest,
     pub ballots: Vec<DecodedVoteContest>,
+    pub census: u64,
 }
 
 impl Tally {
     #[instrument(skip(contest))]
-    pub fn new(contest: &Contest, ballots_files: Vec<PathBuf>) -> Result<Self> {
+    pub fn new(contest: &Contest, ballots_files: Vec<PathBuf>, census: u64) -> Result<Self> {
         let contest = contest.clone();
         let ballots = Self::get_ballots(ballots_files)?;
         let id = Self::get_tally_type(&contest)?;
@@ -31,6 +32,7 @@ impl Tally {
             id,
             contest,
             ballots,
+            census,
         })
     }
 
@@ -68,6 +70,7 @@ impl Tally {
 pub fn create_tally(
     contest: &Contest,
     ballots_files: Vec<PathBuf>,
+    census: u64,
 ) -> Result<Box<dyn CountingAlgorithm>> {
     let ballots_files = ballots_files
         .iter()
@@ -85,7 +88,7 @@ pub fn create_tally(
         .map(|p| PathBuf::from(p.as_path()))
         .collect();
 
-    let tally = Tally::new(contest, ballots_files)?;
+    let tally = Tally::new(contest, ballots_files, census)?;
 
     let ca = match tally.id {
         TallyType::PluralityAtLarge => PluralityAtLarge::new(tally),
