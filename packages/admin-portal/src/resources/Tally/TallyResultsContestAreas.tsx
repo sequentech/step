@@ -9,6 +9,7 @@ import {Box, Tabs, Tab} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsGlobalCandidates} from "./TallyResultsGlobalCandidates"
 import {TallyResultsCandidates} from "./TallyResultsCandidates"
+import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 
 interface TallyResultsContestAreasProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -80,9 +81,22 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         setValue(0)
     }
 
+    useEffect(() => {
+        console.log("TallyResultsContestAreas :: ", value)
+    }, [value])
+
     return (
         <>
-            <Box sx={{borderBottom: 1, borderColor: "divider"}}>
+            <Box
+                sx={{
+                    borderBottom: 1,
+                    borderColor: "divider",
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                }}
+            >
                 <Tabs value={value}>
                     <Tab label={t("tally.common.global")} onClick={() => tabGlobalClicked()} />
                     {areasData?.map((area, index) => {
@@ -95,6 +109,12 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                         )
                     })}
                 </Tabs>
+                {value !== null ? (
+                    <ExportElectionMenu
+                        resource={"sequent_backend_results_area_contest"}
+                        area={value < 1 ? "all" : areasData?.[value - 1]}
+                    />
+                ) : null}
             </Box>
 
             <CustomTabPanel index={0} value={value}>

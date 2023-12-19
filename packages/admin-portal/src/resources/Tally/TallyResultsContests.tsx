@@ -8,6 +8,7 @@ import {Sequent_Backend_Contest} from "../../gql/graphql"
 import {Box, Tab, Tabs} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsContestAreas} from "./TallyResultsContestAreas"
+import { ExportElectionMenu } from '@/components/tally/ExportElectionMenu'
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -92,7 +93,17 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
 
     return (
         <>
-            <Box sx={{borderBottom: 1, borderColor: "divider"}}>
+            <Box
+                sx={{
+                    borderBottom: 1,
+                    borderColor: "divider",
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                }}
+            >
+                {" "}
                 <Tabs value={value}>
                     {contestsData?.map((contest, index) => (
                         <Tab
@@ -102,6 +113,9 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                         />
                     ))}
                 </Tabs>
+                <ExportElectionMenu resource="sequent_backend_results_contest" 
+                contest={contestsData?.[value ?? 0]}
+                />
             </Box>
 
             {contestsData?.map((contest, index) => (

@@ -8,6 +8,7 @@ import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql
 import {TallyResultsContest} from "./TallyResultsContests"
 import {Box, Tab, Tabs} from "@mui/material"
 import {ReactI18NextChild} from "react-i18next"
+import { ExportElectionMenu } from '@/components/tally/ExportElectionMenu'
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -77,7 +78,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
 
         return (
             <>
-                <Box sx={{borderBottom: 1, borderColor: "divider"}}>
+                <Box sx={{borderBottom: 1, borderColor: "divider", display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center"}}>
                     <Tabs value={value}>
                         {electionsData?.map((election, index) => (
                             <Tab
@@ -87,6 +88,10 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             />
                         ))}
                     </Tabs>
+                    <ExportElectionMenu 
+                        resource='sequent_backend_results_election'
+                        election={electionsData?.[value ?? 0]}
+                        />
                 </Box>
                 {electionsData?.map((election, index) => (
                     <CustomTabPanel key={index} index={index} value={value}>
