@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use sequent_core::ballot::{
-    BallotStyle, Candidate, CandidatePresentation, Contest, ContestPresentation, PublicKeyConfig,
-};
+use sequent_core::ballot::Contest;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -77,7 +75,7 @@ impl TestFixture {
         election_event_id: &Uuid,
         election_id: &Uuid,
     ) -> Result<Contest> {
-        let mut contest = super::contests::get_contest_1(tenant_id, election_event_id, election_id);
+        let contest = super::contests::get_contest_1(tenant_id, election_event_id, election_id);
 
         let dir = self
             .input_dir_configs
