@@ -271,6 +271,18 @@ const spanishTranslation: TranslationType = {
                     noLogs: "No hay registros disponibles",
                 },
             },
+            import: {
+                eetitle: "Importar Evento Electoral",
+                eesubtitle: "Importar datos del Evento Electoral",
+                title: "Importar votantes",
+                subtitle: "Importar votantes al Evento Electoral",
+                voters: "Voters",
+                elections: "Elections",
+                areas: "Areas",
+                sha: "Integridad (SHA 256)",
+                cancel: "Cancelar",
+                import: "Importar",
+            },
         },
         electionScreen: {
             common: {
@@ -469,6 +481,7 @@ const spanishTranslation: TranslationType = {
             },
         },
         common: {
+            export: "La exportación puede ser un proceso largo. ¿Estás seguro que quieres exportar?",
             resources: {
                 electionEvent: "Evento Electoral",
                 election: "Elección",
@@ -494,6 +507,9 @@ const spanishTranslation: TranslationType = {
                 warning: "Aviso",
                 json: "Vista previa",
                 noResult: "Sin resultados",
+                import: "Importar",
+                export: "Exportar",
+                loadingData: "Cargando datos ...",
             },
             language: {
                 es: "Español",
@@ -769,14 +785,15 @@ const spanishTranslation: TranslationType = {
                 method: "Método de Recuento",
                 elegible: "Votantes Elegibles",
                 number: "Número de Votos",
-                turnout: "Participación (%)",
+                turnout: "%",
                 candidates: "Candidates",
-                global: "Resultados globales",
+                global: "Resumen de participación",
                 elegible_census: "Censo de votantes elegibles",
                 total_valid_votes: "Total de votos válidos",
                 explicit_invalid_votes: "Votos explícitamente inválidos",
                 implicit_invalid_votes: "Votos implícitamente inválidos",
                 blank_votes: "Votos en blanco",
+                number_of_votes: "Número de votos",
             },
         },
         publish: {
@@ -793,8 +810,8 @@ const spanishTranslation: TranslationType = {
                 back: "Atrás",
             },
             empty: {
-                header: "No tienes cambios generados/publicados",
-                action: "Genera tu primer cambio",
+                header: "Ninguna Publicación aún.",
+                action: "Generar Publicación",
             },
             dialog: {
                 title: "Confirm action",

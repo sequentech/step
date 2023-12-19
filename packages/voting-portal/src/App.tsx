@@ -17,6 +17,7 @@ import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {RouteParameterProvider} from "."
 import {DISABLE_AUTH, DEFAULT_TENANT_ID, DEFAULT_EVENT_ID} from "./Config"
+import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -64,7 +65,11 @@ const App = () => {
                         path="/tenant/:tenantId/event/:eventId/login"
                         element={
                             <RouteParameterProvider>
-                                <LoginScreen />
+                                <ApolloContextProvider>
+                                    <ApolloWrapper>
+                                        <LoginScreen />
+                                    </ApolloWrapper>
+                                </ApolloContextProvider>
                             </RouteParameterProvider>
                         }
                     />
@@ -72,7 +77,11 @@ const App = () => {
                         path="/tenant/:tenantId/event/:eventId/election-chooser"
                         element={
                             <RouteParameterProvider>
-                                <ElectionSelectionScreen />
+                                <ApolloContextProvider>
+                                    <ApolloWrapper>
+                                        <ElectionSelectionScreen />
+                                    </ApolloWrapper>
+                                </ApolloContextProvider>
                             </RouteParameterProvider>
                         }
                     />
@@ -80,7 +89,11 @@ const App = () => {
                         path="/tenant/:tenantId/event/:eventId/election/:electionId/start"
                         element={
                             <RouteParameterProvider>
-                                <StartScreen />
+                                <ApolloContextProvider>
+                                    <ApolloWrapper>
+                                        <StartScreen />
+                                    </ApolloWrapper>
+                                </ApolloContextProvider>
                             </RouteParameterProvider>
                         }
                     />
@@ -88,7 +101,11 @@ const App = () => {
                         path="/tenant/:tenantId/event/:eventId/election/:electionId/vote"
                         element={
                             <RouteParameterProvider>
-                                <VotingScreen />
+                                <ApolloContextProvider>
+                                    <ApolloWrapper>
+                                        <VotingScreen />
+                                    </ApolloWrapper>
+                                </ApolloContextProvider>
                             </RouteParameterProvider>
                         }
                     />
@@ -96,7 +113,11 @@ const App = () => {
                         path="/tenant/:tenantId/event/:eventId/election/:electionId/review"
                         element={
                             <RouteParameterProvider>
-                                <ReviewScreen />
+                                <ApolloContextProvider>
+                                    <ApolloWrapper>
+                                        <ReviewScreen />
+                                    </ApolloWrapper>
+                                </ApolloContextProvider>
                             </RouteParameterProvider>
                         }
                     />
@@ -104,7 +125,11 @@ const App = () => {
                         path="/tenant/:tenantId/event/:eventId/election/:electionId/confirmation"
                         element={
                             <RouteParameterProvider>
-                                <ConfirmationScreen />
+                                <ApolloContextProvider>
+                                    <ApolloWrapper>
+                                        <ConfirmationScreen />
+                                    </ApolloWrapper>
+                                </ApolloContextProvider>
                             </RouteParameterProvider>
                         }
                     />
@@ -112,7 +137,11 @@ const App = () => {
                         path="/tenant/:tenantId/event/:eventId/election/:electionId/audit"
                         element={
                             <RouteParameterProvider>
-                                <AuditScreen />
+                                <ApolloContextProvider>
+                                    <ApolloWrapper>
+                                        <AuditScreen />
+                                    </ApolloWrapper>
+                                </ApolloContextProvider>
                             </RouteParameterProvider>
                         }
                     />

@@ -45,6 +45,10 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     })
 
     useEffect(() => {
+        tabGlobalClicked()
+    }, [])
+
+    useEffect(() => {
         if (contestId) {
             setAreasData(contestAreas || [])
         }
@@ -73,24 +77,26 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
     }
 
     const tabGlobalClicked = () => {
-        console.log("tabGlobalClicked")
         setValue(0)
     }
 
     return (
         <>
-            <Tabs value={value}>
-                <Tab label={t("tally.common.global")} onClick={() => tabGlobalClicked()} />
-                {areasData?.map((area, index) => {
-                    return (
-                        <Tab
-                            key={index}
-                            label={areas?.find((item) => item.id === area.area_id)?.name}
-                            onClick={() => tabClicked(area, index)}
-                        />
-                    )
-                })}
-            </Tabs>
+            <Box sx={{borderBottom: 1, borderColor: "divider"}}>
+                <Tabs value={value}>
+                    <Tab label={t("tally.common.global")} onClick={() => tabGlobalClicked()} />
+                    {areasData?.map((area, index) => {
+                        return (
+                            <Tab
+                                key={index}
+                                label={areas?.find((item) => item.id === area.area_id)?.name}
+                                onClick={() => tabClicked(area, index)}
+                            />
+                        )
+                    })}
+                </Tabs>
+            </Box>
+
             <CustomTabPanel index={0} value={value}>
                 <TallyResultsGlobalCandidates
                     electionEventId={contest?.election_event_id}
