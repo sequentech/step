@@ -14,6 +14,8 @@ rust_src_path=$(echo $RUST_SRC_PATH | sed 's|\(.*rustlib/src/\).*|\1|')
 
 java_home=$(echo /nix/store/*-openjdk-*/lib/openjdk)
 
+cargo_target_dir=$(echo $CARGO_TARGET_DIR)
+
 # Add below
 
 # Generate `.vscode/settings.local.json`
@@ -21,15 +23,15 @@ cat << EOF > '.vscode/settings.local.json'
 {
     "rust-analyzer.server.extraEnv": {
         // See https://github.com/sequentech/backend-services/wiki/Running-tests-without-triggering-full-rebuilds
-        // "CARGO_TARGET_DIR": "rust-analyzer-target",
+        "CARGO_TARGET_DIR": "rust-local-$cargo_target_dir",
 
         // which cargo
         "PATH": "$cargo_dir",
 
-        // echo $PKG_CONFIG_PATH
+        // echo \$PKG_CONFIG_PATH
         "PKG_CONFIG_PATH": "$pkg_config_path",
 
-        // echo $RUST_SRC_PATH | sed 's|\(.*rustlib/src/\).*|\1|'
+        // echo \$RUST_SRC_PATH | sed 's|\(.*rustlib/src/\).*|\1|'
         "RUST_SRC_PATH": "$rust_src_path"
     },
 
