@@ -3,10 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::error::{Error, Result};
-use crate::{
-    cli::{state::Stage, CliRun},
-    fixtures::elections::Election,
-};
+use crate::cli::{state::Stage, CliRun};
 use sequent_core::ballot::{BallotStyle, Contest};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -96,7 +93,7 @@ impl PipeInputs {
         let config_file =
             fs::File::open(&config_path).map_err(|e| Error::FileAccess(config_path.clone(), e))?;
 
-        let election: Election = serde_json::from_reader(config_file)?;
+        let election: ElectionConfig = serde_json::from_reader(config_file)?;
 
         let mut configs = vec![];
         for entry in entries {
@@ -118,12 +115,12 @@ impl PipeInputs {
     fn read_contest_list_config(path: &Path, election_id: Uuid) -> Result<InputContestConfig> {
         let contest_id =
             Self::parse_path_components(path, PREFIX_CONTEST).ok_or(Error::IDNotFound)?;
-        let config_path = path.join(CONTEST_CONFIG_FILE);
-        if !config_path.exists() {
+        let config_path_contest = path.join(CONTEST_CONFIG_FILE);
+        if !config_path_contest.exists() {
             return Err(Error::ContestConfigNotFound(contest_id));
         }
-        let config_file =
-            fs::File::open(&config_path).map_err(|e| Error::FileAccess(config_path.clone(), e))?;
+        let config_file = fs::File::open(&config_path_contest)
+            .map_err(|e| Error::FileAccess(config_path_contest.clone(), e))?;
         let contest: Contest = serde_json::from_reader(config_file)?;
 
         let entries = fs::read_dir(path)?;
@@ -134,9 +131,19 @@ impl PipeInputs {
                 let area_id = Self::parse_path_components(&path_area, PREFIX_AREA)
                     .ok_or(Error::IDNotFound)?;
 
+                let config_path_area = path.join(CONTEST_CONFIG_FILE);
+                if !config_path_area.exists() {
+                    return Err(Error::AreaConfigNotFound(area_id));
+                }
+                let config_file = fs::File::open(&config_path_area)
+                    .map_err(|e| Error::FileAccess(config_path_area.clone(), e))?;
+                let area_config: AreaConfig = serde_json::from_reader(config_file)?;
+
                 configs.push(InputAreaConfig {
                     id: area_id,
+                    election_id,
                     contest_id,
+                    census: area_config.census,
                     path: path_area,
                 });
             }
@@ -185,6 +192,8 @@ pub struct InputContestConfig {
 pub struct InputAreaConfig {
     pub id: Uuid,
     pub election_id: Uuid,
+    pub contest_id: Uuid,
+    pub census: u64,
     pub path: PathBuf,
 }
 
