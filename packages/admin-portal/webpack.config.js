@@ -112,8 +112,12 @@ module.exports = function (env, argv) {
             new CleanWebpackPlugin(),
         ],
         devServer: {
-            contentBase: './dist',
-            // no publicPath
+            static: {
+                directory: path.resolve(__dirname, "dist"),
+            },
+            compress: true,  // Enable gzip compression
+            port: 3002,      // Run on port 3002
+            open: true,      // Automatically open the browser
         },
     }
 }
