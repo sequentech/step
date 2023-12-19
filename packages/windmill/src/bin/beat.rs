@@ -11,6 +11,7 @@ use std;
 use structopt::StructOpt;
 use tokio::time::Duration;
 use windmill::tasks::review_boards::review_boards;
+use sequent_core::services::probe::ProbeHandler;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
@@ -26,6 +27,13 @@ struct CeleryOpt {
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
+
+    let mut ph = ProbeHandler::new("live", "ready", ([0, 0, 0, 0], 3030));
+    let f = ph.future();
+    ph.set_live(move || {
+        true    
+    });
+    tokio::spawn(f);
 
     // Build a `Beat` with a default scheduler backend.
     let mut beat = celery::beat!(

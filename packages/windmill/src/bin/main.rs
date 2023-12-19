@@ -15,6 +15,7 @@ use structopt::StructOpt;
 use tracing::{event, Level};
 use windmill::services::celery_app::*;
 use windmill::services::database::*;
+use sequent_core::services::probe::ProbeHandler;
 extern crate chrono;
 
 #[derive(Debug, StructOpt)]
@@ -41,6 +42,14 @@ enum CeleryOpt {
 async fn main() -> Result<()> {
     dotenv().ok();
     init_log(true);
+
+    let mut ph = ProbeHandler::new("live", "ready", ([0, 0, 0, 0], 3030));
+    let f = ph.future();
+    ph.set_live(move || {
+        true    
+    });
+    tokio::spawn(f);
+
     let opt = CeleryOpt::from_args();
 
     match opt {
