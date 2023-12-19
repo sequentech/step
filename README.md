@@ -369,14 +369,17 @@ Then add the trustee in the admin portal with the key, in this case `YqYrRVXmPhB
 
 ```bash
 # run windmill task generator
-cd /workspaces/backend-services/packages/windmill/
-cargo run --bin beat
+cd /workspaces/backend-services/.devcontainer/
+docker compose up -d beat && \
+docker compose logs -f --tail 50 beat
 ```
 
 ```bash
 # run trustes
 cd /workspaces/backend-services/.devcontainer/
-docker compose up -d trustee1 trustee2
+docker compose up -d trustee1 trustee2 && \
+docker compose logs -f --tail 50 trustee1 trustee2
+
 ```
 
 ## Vault

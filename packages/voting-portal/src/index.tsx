@@ -17,6 +17,7 @@ import {ApolloProvider} from "@apollo/client"
 import {apolloClient} from "./services/ApolloService"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {DISABLE_AUTH} from "./Config"
+import {ApolloContextProvider} from "./providers/ApolloContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -83,9 +84,7 @@ root.render(
             <Provider store={store}>
                 <BrowserRouter>
                     <ThemeProvider theme={theme}>
-                        <ApolloProvider client={apolloClient}>
-                            <App />
-                        </ApolloProvider>
+                        <App />
                     </ThemeProvider>
                 </BrowserRouter>
             </Provider>
