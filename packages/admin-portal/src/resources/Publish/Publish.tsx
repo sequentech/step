@@ -93,6 +93,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                     setBallotPublicationId(data?.publish_ballot?.ballot_publication_id)
                 }
 
+                refetch()
                 setShowDiff(false)
 
                 notify(t("publish.notifications.published"), {
@@ -211,6 +212,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         }, [ballotPublicationId, ballotPublication?.is_generated])
 
         useEffect(() => {
+            console.log("PUBLISH :: BALLOT PUBLICATION ID", ballotPublicationId)
             if (ballotPublicationId) {
                 setShowDiff(true)
                 setTimeout(() => {
@@ -264,8 +266,9 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         electionId={electionId}
                         onGenerate={onGenerate}
                         onBack={() => {
-                            handleSetStatus(EPublishStatus.Generated)
+                            refetch()
                             setShowDiff(false)
+                            handleSetStatus(EPublishStatus.Generated)
                         }}
                         electionEventId={electionEventId}
                     />
