@@ -51,6 +51,7 @@ export const TallyTrusteesList: React.FC<TallyTrusteesListProps> = (props) => {
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
         }
     )
 
