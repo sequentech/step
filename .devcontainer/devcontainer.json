@@ -11,7 +11,7 @@
 	// Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
 	// https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
 	"initializeCommand": [
-		".devcontainer/initializeCommand.sh"
+		".devcontainer/scripts/initialize-command.sh"
 	],
 	// Use this environment variable if you need to bind mount your local source
 	// code into a new container
@@ -24,8 +24,8 @@
 	"userEnvProbe": "loginShell",
 	"updateRemoteUserUID": false,
 
-	"onCreateCommand": "direnv allow && devenv shell bash -c 'echo devenv run'",
-	"updateContentCommand": "direnv allow && devenv shell bash -c 'echo devenv run'",
+	"onCreateCommand": "direnv allow && devenv shell bash -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
+	"updateContentCommand": "direnv allow && devenv shell bash -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
 
 	// Adding host requirements so that there is no need to manually select the
 	// machine to run on all the time
@@ -81,7 +81,11 @@
 				"bierner.markdown-mermaid",
 
 				// For Keycloak SPIs
-				"vscjava.vscode-java-pack"
+				"vscjava.vscode-java-pack",
+
+				// To support multiple settings file and merge them, so that our
+				// fworkaround to support rust analyzer works fine
+				"swellaby.workspace-config-plus"
     		]
 		}
 	}

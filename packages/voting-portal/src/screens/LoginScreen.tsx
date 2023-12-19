@@ -14,15 +14,6 @@ export const LoginScreen: React.FC = () => {
     const navigate = useNavigate()
 
     useEffect(() => {
-        if (!authContext.isAuthenticated && tenantId && eventId) {
-            console.log(
-                `login: not authenticated, calling login with tenantId=${tenantId}, eventId=${eventId}`
-            )
-            authContext.login(tenantId, eventId)
-        }
-    }, [authContext.isAuthenticated, tenantId, eventId])
-
-    useEffect(() => {
         if (authContext.isAuthenticated) {
             console.log(`navigate to: /tenant/${tenantId}/event/${eventId}/election-chooser`)
             navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser`)

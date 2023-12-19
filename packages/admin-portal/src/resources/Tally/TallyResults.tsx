@@ -18,7 +18,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
     (props: TallyResultsProps): React.JSX.Element => {
         const {tally, resultsEventId} = props
 
-        const [value, setValue] = React.useState<number | null>(null)
+        const [value, setValue] = React.useState<number | null>(0)
         const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election>>([])
         const [electionId, setElectionId] = useState<string | null>(null)
         const [data, setData] = useState<Sequent_Backend_Tally_Session | undefined>()
@@ -50,6 +50,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         useEffect(() => {
             if (elections) {
                 setElectionsData(elections)
+                tabClicked(elections?.[0]?.id, 0)
             }
         }, [elections])
 
@@ -76,15 +77,17 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
 
         return (
             <>
-                <Tabs value={value}>
-                    {electionsData?.map((election, index) => (
-                        <Tab
-                            key={index}
-                            label={election.name}
-                            onClick={() => tabClicked(election.id, index)}
-                        />
-                    ))}
-                </Tabs>
+                <Box sx={{borderBottom: 1, borderColor: "divider"}}>
+                    <Tabs value={value}>
+                        {electionsData?.map((election, index) => (
+                            <Tab
+                                key={index}
+                                label={election.name}
+                                onClick={() => tabClicked(election.id, index)}
+                            />
+                        ))}
+                    </Tabs>
+                </Box>
                 {electionsData?.map((election, index) => (
                     <CustomTabPanel key={index} index={index} value={value}>
                         <TallyResultsContest
