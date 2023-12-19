@@ -1,4 +1,10 @@
 const path = require("path")
+// webpack.config.js
+const webpack = require('webpack')
+const dotenv = require('dotenv')
+
+// this will update the process.env with environment variables in .env file
+dotenv.config();
 
 const {CleanWebpackPlugin} = require("clean-webpack-plugin")
 const ESLintPlugin = require("eslint-webpack-plugin")
@@ -37,7 +43,7 @@ module.exports = function (env, argv) {
         output: {
             filename: "index.js",
             path: path.resolve(__dirname, "dist"),
-            //publicPath: '', // Set to empty string to ensure correct base path
+            publicPath: '/', // Set to empty string to ensure correct base path
         },
         devtool: "source-map",
         module: {
@@ -85,11 +91,6 @@ module.exports = function (env, argv) {
             // Configure CopyWebpackPlugin to include a list of files from 'public/' into 'dist/'
             new CopyWebpackPlugin({
                 patterns: [
-                    // First pattern to copy the specific file:
-                    {
-                        from: path.resolve(__dirname, 'public/tinymce/tinymce.min.js'),
-                        to: path.resolve(__dirname, 'dist/tinymce/tinymce.min.js'), // You can set the destination directory/path
-                    },
                     {
                         from: path.resolve(__dirname, 'public'), // Source folder
                         to: path.resolve(__dirname, 'dist'), // Destination folder
@@ -98,8 +99,6 @@ module.exports = function (env, argv) {
                                 // Ignore all .html and .ico files (as examples, you can modify as needed)
                                 '**/index.html',
                                 '**/favicon.ico',
-                                // Ignore everything in public/tinymce/ folder:
-                                '**/tinymce/**/*',
                             ],
                         },
                     },
@@ -110,6 +109,9 @@ module.exports = function (env, argv) {
                 extensions: [".js", ".jsx", ".ts", ".tsx"],
             }),
             new CleanWebpackPlugin(),
+            new webpack.DefinePlugin({
+                'process.env': JSON.stringify(process.env)
+            }),
         ],
         devServer: {
             static: {
@@ -118,6 +120,7 @@ module.exports = function (env, argv) {
             compress: true,  // Enable gzip compression
             port: 3002,      // Run on port 3002
             open: true,      // Automatically open the browser
+            historyApiFallback: true,
         },
     }
 }
