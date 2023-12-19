@@ -51,13 +51,11 @@ fn decode_plantexts_to_biguints(
 }
 
 #[instrument(skip_all, err)]
-pub async fn prepare_tally_for_area_contest(
-    area_contest_plaintext: AreaContestDataType,
+pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
-    results_event_id_opt: &Option<String>,
-    is_new: bool,
+    area_contest_plaintext: &AreaContestDataType,
 ) -> Result<()> {
-    let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext;
+    let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext.clone();
 
     let area_id = tally_session_contest.area_id.clone();
     let contest_id = contest.id.clone();
@@ -97,9 +95,9 @@ pub async fn prepare_tally_for_area_contest(
 }
 
 #[instrument(skip_all, err)]
-pub async fn create_election_configs(
-    area_contest_plaintexts: &Vec<AreaContestDataType>,
+pub fn create_election_configs(
     base_tempdir: PathBuf,
+    area_contest_plaintexts: &Vec<AreaContestDataType>,
 ) -> Result<()> {
     let mut elections_map: HashMap<String, Election> = HashMap::new();
 
@@ -151,7 +149,7 @@ pub async fn create_election_configs(
 }
 
 #[instrument(err)]
-pub async fn run_velvet_tally(base_tally_path: PathBuf) -> Result<()> {
+pub fn call_velvet(base_tally_path: PathBuf) -> Result<()> {
     //// Run Velvet
     let cli = CliRun {
         stage: "main".to_string(),
@@ -171,4 +169,16 @@ pub async fn run_velvet_tally(base_tally_path: PathBuf) -> Result<()> {
         state.exec_next()?;
     }
     Ok(())
+}
+
+#[instrument(err)]
+pub fn run_velvet_tally(
+    base_tally_path: PathBuf,
+    area_contest_plaintexts: &Vec<AreaContestDataType>,
+) -> Result<()> {
+    for area_contest_plaintext in area_contest_plaintexts {
+        prepare_tally_for_area_contest(base_tally_path.clone(), area_contest_plaintext)?;
+    }
+    create_election_configs(base_tally_path.clone(), area_contest_plaintexts)?;
+    call_velvet(base_tally_path.clone())
 }
