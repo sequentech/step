@@ -120,13 +120,13 @@ impl GenerateReports {
             ))
         })?;
 
-        let bytes_pdf = pdf::html_to_pdf(render).map_err(|e| {
+        let bytes_pdf = pdf::html_to_pdf(render.clone()).map_err(|e| {
             Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
         })?;
 
         Ok((
             bytes_pdf,
-            html.as_bytes().to_vec(),
+            render.as_bytes().to_vec(),
             reports.to_string().as_bytes().to_vec(),
         ))
     }
