@@ -17,11 +17,13 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
 use crate::hasura::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
-use crate::services::ceremonies::results::{generate_results_if_necessary, save_results};
+use crate::services::ceremonies::results::populate_results_tables;
+use crate::services::ceremonies::results::{generate_results_id_if_necessary, save_results};
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution;
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
+use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::compress::compress_folder;
 use crate::services::date::ISO8601;
 use crate::services::documents::upload_and_return_document;
@@ -184,24 +186,6 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
         return None;
     };
     Some(execution_status)
-}
-
-#[instrument(skip_all)]
-fn get_session_ids_by_type(messages: &Vec<Message>, kind: StatementType) -> Vec<i64> {
-    let mut plaintext_batch_ids: Vec<i64> = messages
-        .iter()
-        .map(|message| {
-            if kind == message.statement.get_kind() {
-                message.statement.get_batch_number() as i64
-            } else {
-                -1i64
-            }
-        })
-        .filter(|value| *value > -1)
-        .collect();
-    plaintext_batch_ids.sort_by_key(|id| id.clone());
-    plaintext_batch_ids.dedup();
-    plaintext_batch_ids
 }
 
 #[instrument(skip_all, err)]
@@ -406,139 +390,6 @@ async fn map_plaintext_data(
     )))
 }
 
-#[instrument(skip_all, err)]
-async fn tally_area_contest(
-    area_contest_plaintext: AreaContestDataType,
-    base_tempdir: PathBuf,
-    results_event_id_opt: &Option<String>,
-    is_new: bool,
-) -> Result<()> {
-    let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext;
-
-    let area_id = tally_session_contest.area_id.clone();
-    let contest_id = contest.id.clone();
-    let election_id = contest.election_id.clone();
-
-    let biguit_ballots = plaintexts
-        .iter()
-        .filter_map(|plaintext| {
-            let biguint = contest.decode_plaintext_contest_to_biguint(plaintext);
-
-            match biguint {
-                Ok(v) => {
-                    let biguit_str = v.to_str_radix(10);
-                    event!(Level::INFO, "Decoded biguint {biguit_str}");
-
-                    Some(biguit_str)
-                }
-                Err(e) => {
-                    event!(Level::WARN, "Decoding plaintext has failed: {e}");
-                    None
-                }
-            }
-        })
-        .collect::<Vec<_>>();
-
-    let velvet_input_dir = base_tempdir.join("input");
-    let velvet_output_dir = base_tempdir.join("output");
-
-    //// create ballots
-    let ballots_path = velvet_input_dir.join(format!(
-        "default/ballots/election__{election_id}/contest__{contest_id}/area__{area_id}"
-    ));
-    fs::create_dir_all(&ballots_path).map_err(|e| Error::FileAccess(ballots_path.clone(), e))?;
-
-    let csv_ballots_path = ballots_path.join("ballots.csv");
-    let mut csv_ballots_file = File::create(&csv_ballots_path)
-        .map_err(|e| Error::FileAccess(csv_ballots_path.clone(), e))?;
-    let buffer = biguit_ballots.join("\n").into_bytes();
-
-    csv_ballots_file
-        .write_all(&buffer)
-        .map_err(|e| Error::FileAccess(csv_ballots_path.clone(), e))?;
-
-    //// create velvet config
-    let velvet_path_config: PathBuf = velvet_input_dir.join("config.json");
-    let mut config_file = fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(&velvet_path_config)
-        .map_err(|e| Error::FileAccess(velvet_path_config.clone(), e))?;
-
-    writeln!(
-        config_file,
-        "{}",
-        serde_json::to_string(&fixtures::get_config())?
-    )
-    .map_err(|e| Error::FileAccess(velvet_path_config.clone(), e))?;
-
-    //// create area folder
-    let area_path: PathBuf = velvet_input_dir.join(format!(
-        "default/configs/election__{election_id}/contest__{contest_id}/area__{area_id}"
-    ));
-    fs::create_dir_all(&area_path).map_err(|e| Error::FileAccess(area_path.clone(), e))?;
-
-    //// create contest config file
-    let ballot_style_path: PathBuf = velvet_input_dir.join(format!(
-        "default/configs/election__{election_id}/election-config.json"
-    ));
-    let mut ballot_style_file = fs::File::create(&ballot_style_path)
-        .map_err(|e| Error::FileAccess(ballot_style_path.clone(), e))?;
-
-    writeln!(
-        ballot_style_file,
-        "{}",
-        serde_json::to_string(&ballot_style)?
-    )
-    .map_err(|e| Error::FileAccess(ballot_style_path.clone(), e))?;
-
-    //// create contest config file
-    let contest_config_path: PathBuf = velvet_input_dir.join(format!(
-        "default/configs/election__{election_id}/contest__{contest_id}/contest-config.json"
-    ));
-    let mut contest_config_file = fs::File::create(contest_config_path)
-        .map_err(|e| Error::FileAccess(ballot_style_path.clone(), e))?;
-
-    writeln!(contest_config_file, "{}", serde_json::to_string(&contest)?)
-        .map_err(|e| Error::FileAccess(ballot_style_path.clone(), e))?;
-
-    //// Run Velvet
-    let cli = CliRun {
-        stage: "main".to_string(),
-        pipe_id: "decode-ballots".to_string(),
-        config: velvet_path_config,
-        input_dir: velvet_input_dir,
-        output_dir: velvet_output_dir,
-    };
-
-    let config = cli.validate().map_err(|e| Error::String(e.to_string()))?;
-
-    let mut state = State::new(&cli, &config).map_err(|e| Error::String(e.to_string()))?;
-
-    while let Some(next_stage) = state.get_next() {
-        let stage_name = next_stage.to_string();
-        event!(Level::INFO, "Exec {}", stage_name);
-        state.exec_next().map_err(|e| {
-            Error::String(format!("Error during {}: {}", stage_name, e.to_string()))
-        })?;
-    }
-    if is_new {
-        if let Ok(results) = state.get_results() {
-            if let Some(results_event_id) = results_event_id_opt {
-                save_results(
-                    results,
-                    &contest.tenant_id,
-                    &contest.election_event_id,
-                    &results_event_id,
-                )
-                .await?;
-            }
-        }
-    }
-
-    Ok(())
-}
-
 #[instrument(skip(auth_headers), err)]
 async fn create_results_event(
     auth_headers: &connection::AuthHeaders,
@@ -605,29 +456,18 @@ pub async fn execute_tally_session(
     // base temp folder
     let base_tempdir = tempdir()?;
 
-    let (results_event_id, is_new) = generate_results_if_necessary(
-        &auth_headers,
+    let status = run_velvet_tally(base_tempdir.path().to_path_buf(), &plaintexts_data)?;
+
+    let results_event_id = populate_results_tables(
+        base_tempdir.path().to_path_buf(),
+        status,
+        &plaintexts_data,
         &tenant_id,
         &election_event_id,
         &new_status,
-        tally_session_execution,
+        tally_session_execution.clone(),
     )
     .await?;
-
-    // perform tallies with velvet
-    for area_contest_plaintext in plaintexts_data.iter() {
-        tally_area_contest(
-            area_contest_plaintext.clone(),
-            base_tempdir.path().to_path_buf(),
-            &results_event_id,
-            is_new,
-        )
-        .await
-        .map_err(|err| {
-            event!(Level::ERROR, "Tally area contest: {err}");
-            err
-        })?;
-    }
 
     // compressed file with the tally
     let data = compress_folder(base_tempdir.path())?;

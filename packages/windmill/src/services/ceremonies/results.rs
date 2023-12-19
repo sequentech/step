@@ -9,11 +9,14 @@ use crate::hasura::results_election::insert_results_election;
 use crate::hasura::results_event::insert_results_event;
 use crate::hasura::tally_session_execution::get_last_tally_session_execution::GetLastTallySessionExecutionSequentBackendTallySessionExecution;
 use crate::services::ceremonies::tally_ceremony::get_tally_ceremony_status;
+use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::connection;
 use sequent_core::services::keycloak;
 use sequent_core::types::ceremonies::*;
+use std::path::PathBuf;
 use tracing::{event, instrument, Level};
+use velvet::cli::state::State;
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
 
 #[instrument(skip_all)]
@@ -134,7 +137,7 @@ async fn create_results_event(
 }
 
 #[instrument(skip_all)]
-pub async fn generate_results_if_necessary(
+pub async fn generate_results_id_if_necessary(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,
     election_event_id: &str,
@@ -162,4 +165,42 @@ pub async fn generate_results_if_necessary(
     } else {
         Ok((previous_execution.results_event_id, is_new))
     }
+}
+
+pub async fn populate_results_tables(
+    base_tally_path: PathBuf,
+    state: State,
+    area_contest_plaintexts: &Vec<AreaContestDataType>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_status: &TallyCeremonyStatus,
+    previous_execution: GetLastTallySessionExecutionSequentBackendTallySessionExecution,
+) -> Result<Option<String>> {
+    let auth_headers = keycloak::get_client_credentials().await?;
+
+    let (results_event_id_opt, is_new) = generate_results_id_if_necessary(
+        &auth_headers,
+        tenant_id,
+        election_event_id,
+        tally_status,
+        previous_execution.clone(),
+    )
+    .await?;
+
+    if is_new {
+        if let Ok(results) = state.get_results() {
+            if let Some(results_event_id) = results_event_id_opt.clone() {
+                let (plaintexts, tally_session_contest, contest, ballot_style) =
+                    area_contest_plaintexts[0].clone();
+                save_results(
+                    results,
+                    &contest.tenant_id,
+                    &contest.election_event_id,
+                    &results_event_id,
+                )
+                .await?;
+            }
+        }
+    }
+    Ok(results_event_id_opt)
 }
