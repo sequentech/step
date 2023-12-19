@@ -381,6 +381,7 @@ mod tests {
         // First ballot style
         let contest =
             fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
+        let first_contest_id = contest.id.clone();
 
         // first area
         let area_config = fixture.create_area_config(
@@ -390,6 +391,8 @@ mod tests {
             &Uuid::from_str(&contest.id).unwrap(),
             100,
         )?;
+        let first_area_id = area_config.id.clone();
+
         election.ballot_styles.push(generate_ballot_style(
             &election.tenant_id,
             &election.election_event_id,
@@ -581,6 +584,7 @@ mod tests {
         // Second ballot style
         let contest =
             fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
+        let second_contest_id = contest.id.clone();
 
         let area_config = fixture.create_area_config(
             &election.tenant_id,
@@ -703,6 +707,76 @@ mod tests {
         // Generate reports
         state.exec_next()?;
 
+        // test first contest
+        let mut path = cli.output_dir.clone();
+        path.push("velvet-generate-reports");
+        path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
+        path.push(format!("{}{}", PREFIX_CONTEST, &first_contest_id));
+        path.push("report.json");
+
+        let f = fs::File::open(&path)?;
+
+        let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
+        let report = &reports[0];
+
+        assert_eq!(report.contest_result.total_votes, 142);
+        assert_eq!(report.contest_result.census, 200);
+        assert_eq!(
+            report
+                .candidate_result
+                .iter()
+                .map(|cr| cr.total_count)
+                .sum::<u64>(),
+            138
+        );
+
+        let mut path = cli.output_dir.clone();
+        path.push("velvet-generate-reports");
+        path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
+        path.push(format!("{}{}", PREFIX_CONTEST, &first_contest_id));
+        path.push(format!("{}{}", PREFIX_AREA, &first_area_id));
+        path.push("report.json");
+
+        let f = fs::File::open(&path)?;
+
+        let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
+        let report = &reports[0];
+
+        assert_eq!(report.contest_result.total_votes, 100);
+        assert_eq!(report.contest_result.census, 100);
+        assert_eq!(
+            report
+                .candidate_result
+                .iter()
+                .map(|cr| cr.total_count)
+                .sum::<u64>(),
+            98
+        );
+
+        // test second contest
+
+        let mut path = cli.output_dir.clone();
+        path.push("velvet-generate-reports");
+        path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
+        path.push(format!("{}{}", PREFIX_CONTEST, &second_contest_id));
+        path.push("report.json");
+
+        let f = fs::File::open(&path)?;
+
+        let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
+        let report = &reports[0];
+
+        assert_eq!(report.contest_result.total_votes, 20);
+        assert_eq!(report.contest_result.census, 100);
+        assert_eq!(
+            report
+                .candidate_result
+                .iter()
+                .map(|cr| cr.total_count)
+                .sum::<u64>(),
+            18
+        );
+
         Ok(())
     }
 
@@ -785,6 +859,7 @@ mod tests {
         let report = &reports[0];
 
         assert_eq!(report.contest_result.total_votes, 0);
+        assert_eq!(report.contest_result.census, 100);
         assert_eq!(
             report
                 .candidate_result
@@ -924,6 +999,7 @@ mod tests {
         let report = &reports[0];
 
         assert_eq!(report.contest_result.total_votes, 10);
+        assert_eq!(report.contest_result.census, 100);
         assert_eq!(
             report
                 .candidate_result
