@@ -32,6 +32,7 @@ use crate::pipes::{
 
 const OUTPUT_PDF: &str = "report.pdf";
 const OUTPUT_HTML: &str = "report.html";
+const OUTPUT_JSON: &str = "report.json";
 
 pub struct GenerateReports {
     pub pipe_inputs: PipeInputs,
@@ -102,12 +103,13 @@ impl GenerateReports {
     }
 
     #[instrument(skip_all)]
-    pub fn generate_report(&self, reports: Vec<ReportData>) -> Result<(Vec<u8>, Vec<u8>)> {
+    pub fn generate_report(&self, reports: Vec<ReportData>) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
         let reports = self.compute_reports(reports)?;
+        let reports = serde_json::to_value(reports)?;
 
         let mut map = Map::new();
 
-        map.insert("reports".to_owned(), serde_json::to_value(reports)?);
+        map.insert("reports".to_owned(), reports.clone());
 
         let html = include_str!("../../resources/report.hbs");
 
@@ -122,7 +124,11 @@ impl GenerateReports {
             Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
         })?;
 
-        Ok((bytes_pdf, html.as_bytes().to_vec()))
+        Ok((
+            bytes_pdf,
+            html.as_bytes().to_vec(),
+            reports.to_string().as_bytes().to_vec(),
+        ))
     }
 
     #[instrument(skip(self))]
@@ -266,7 +272,7 @@ impl GenerateReports {
         area_id: Option<&Uuid>,
         reports: Vec<ReportData>,
     ) -> Result<()> {
-        let (bytes_pdf, bytes_html) = self.generate_report(reports)?;
+        let (bytes_pdf, bytes_html, bytes_json) = self.generate_report(reports)?;
 
         let path = PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
 
@@ -287,6 +293,14 @@ impl GenerateReports {
             .create(true)
             .open(file)?;
         file.write_all(&bytes_html)?;
+
+        let file = path.join(OUTPUT_JSON);
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(file)?;
+        file.write_all(&bytes_json)?;
 
         Ok(())
     }
