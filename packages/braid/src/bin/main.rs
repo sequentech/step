@@ -13,7 +13,7 @@ use tracing::instrument;
 use tracing::{error, info};
 
 use braid::protocol2::board::immudb::{ImmudbBoard, ImmudbBoardIndex};
-use braid::protocol2::session::Session;
+use braid::protocol2::session::{BoardParams, Session};
 use braid::protocol2::trustee::Trustee;
 use braid::run::config::TrusteeConfig;
 use braid::util::assert_folder;
@@ -106,16 +106,18 @@ async fn main() -> Result<()> {
             info!("Connecting to board '{}'..", board_name.clone());
             let trustee: Trustee<RistrettoCtx> =
                 Trustee::new("Self".to_string(), sk.clone(), ek.clone());
-            let board_result = ImmudbBoard::new(
+            let board = BoardParams::new(
                 &args.server_url,
                 IMMUDB_USER,
                 IMMUDB_PW,
-                board_name.clone(),
+                &board_name,
                 Some(store_root.clone()),
-            )
-            .await;
-            let board = match board_result {
-                Ok(board) => board,
+            );
+            
+            // Try to connect to detect errors early
+            let board_result = board.get_board().await;
+            match board_result {
+                Ok(_) => (),
                 Err(error) => {
                     error!(
                         "Error connecting to board '{}': '{}'",
@@ -126,7 +128,7 @@ async fn main() -> Result<()> {
                 }
             };
 
-            let mut session = Session::new(trustee, board);
+            let session = Session::new(trustee, board);
             info!("Running trustee for board '{}'..", board_name);
             let session_result = session.step().await;
             match session_result {

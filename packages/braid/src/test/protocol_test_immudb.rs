@@ -22,7 +22,7 @@ use board_messages::braid::protocol_manager::ProtocolManager;
 use board_messages::braid::statement::StatementType;
 
 use crate::protocol2::board::immudb::ImmudbBoard;
-use crate::protocol2::session::Session;
+use crate::protocol2::session::{BoardParams, Session};
 use crate::protocol2::trustee::Trustee;
 
 const IMMUDB_USER: &str = "immudb";
@@ -88,7 +88,7 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
         .collect();
 
     for t in test.trustees.into_iter() {
-        let board = ImmudbBoard::new(
+        /* let board = ImmudbBoard::new(
             SERVER_URL,
             IMMUDB_USER,
             IMMUDB_PW,
@@ -96,7 +96,8 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
             None,
         )
         .await
-        .unwrap();
+        .unwrap();*/
+        let board = BoardParams::new(SERVER_URL, IMMUDB_USER, IMMUDB_PW, BOARD_DB, None);
         sessions.push(Session::new(t, board));
     }
 
