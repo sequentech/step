@@ -6,7 +6,7 @@ use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
 };
 use anyhow::{anyhow, Context, Result};
-use immudb_rs::{sql_value::Value as SqlValue, Client, Row};
+use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
 use regex::Regex;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
@@ -17,6 +17,14 @@ use std::env;
 use strum_macros::{Display, EnumString, ToString};
 use tracing::instrument;
 use windmill::services::database::PgConfig;
+
+// Helper function to create a NamedParam
+fn create_named_param(name: String, value: Value) -> NamedParam {
+    NamedParam {
+        name,
+        value: Some(SqlValue { value: Some(value) }),
+    }
+}
 
 macro_rules! assign_value {
     ($enum_variant:path, $value:expr, $target:ident) => {
@@ -76,71 +84,83 @@ pub struct GetPgauditBody {
 }
 
 impl GetPgauditBody {
-    // Returns the SQL clauses related to the request
+    // Returns the SQL clauses related to the request along with the parameters
     #[instrument(ret)]
-    fn as_sql_clauses(&self, to_count: bool) -> Result<String> {
+    fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
+        let mut params = Vec::new();
         let invalid_chars_re = Regex::new(r"['-/]")?;
 
         // Handle filters
         if let Some(filters_map) = &self.filter {
-            let where_clauses: Vec<String> = filters_map
-                .iter()
-                .filter_map(|(field, value)| {
-                    match field {
-                        OrderField::Id => {
-                            let int_value: i64 = value.parse().ok()?;
-                            Some(format!("id = {int_value}"))
-                        }
-                        // Don't support filtering by timestamp yet
-                        OrderField::ServerTimestamp => None,
-                        _ => {
-                            let sanitized_value =
-                                invalid_chars_re.replace_all(value, "");
-                            Some(format!(
-                                "{field} LIKE '(?i){sanitized_value}'"
-                            ))
-                        }
+            let mut where_clauses = Vec::new();
+
+            for (field, value) in filters_map {
+                let param_name = format!("param_{field}");
+                match field {
+                    OrderField::Id => {
+                        let int_value: i64 = value.parse()?;
+                        where_clauses.push(format!("id = @{}", param_name));
+                        params.push(create_named_param(
+                            param_name,
+                            Value::N(int_value),
+                        ));
                     }
-                })
-                .collect();
+                    OrderField::ServerTimestamp => {} // Not supported
+                    _ => {
+                        let sanitized_value =
+                            invalid_chars_re.replace_all(value, "");
+                        where_clauses
+                            .push(format!("{field} LIKE @{}", param_name));
+                        params.push(create_named_param(
+                            param_name,
+                            Value::S(sanitized_value.to_string()),
+                        ));
+                    }
+                }
+            }
+
             if !where_clauses.is_empty() {
                 clauses.push(format!("WHERE {}", where_clauses.join(" AND ")));
             }
         }
 
         // Handle order_by
-        if !to_count {
-            if let Some(order_by_map) = &self.order_by {
-                let order_clauses: Vec<String> = order_by_map
-                    .iter()
-                    .map(|(field, direction)| format!("{field} {direction}"))
-                    .collect();
-                if !order_clauses.is_empty() {
-                    clauses
-                        .push(format!("ORDER BY {}", order_clauses.join(", ")));
-                }
-            }
-
-            // Handle limit
-            let limit = self
-                .limit
-                .unwrap_or(PgConfig::from_env()?.default_sql_limit.into());
-            clauses.push(format!(
-                "LIMIT {}",
-                std::cmp::min(
-                    limit,
-                    PgConfig::from_env()?.low_sql_limit.into()
-                )
-            ));
-
-            // Handle offset
-            if let Some(offset) = self.offset {
-                clauses.push(format!("OFFSET {}", std::cmp::max(offset, 0)));
-            }
+        if !to_count && self.order_by.is_some() {
+            let order_by_clauses: Vec<String> = self
+                .order_by
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|(field, direction)| format!("{field} {direction}"))
+                .collect();
+            clauses.push(format!("ORDER BY {}", order_by_clauses.join(", ")));
         }
 
-        Ok(clauses.join(" "))
+        // Handle limit
+        if !to_count {
+            let limit_param_name = String::from("limit");
+            let limit_value = self
+                .limit
+                .unwrap_or(PgConfig::from_env()?.default_sql_limit.into());
+            let limit = std::cmp::min(
+                limit_value,
+                PgConfig::from_env()?.low_sql_limit.into(),
+            );
+            clauses.push(format!("LIMIT @{limit_param_name}"));
+            params.push(create_named_param(limit_param_name, Value::N(limit)));
+        }
+
+        // Handle offset
+        if !to_count && self.offset.is_some() {
+            let offset_param_name = String::from("offset");
+            let offset = std::cmp::max(self.offset.unwrap(), 0);
+            clauses.push(format!("OFFSET @{}", offset_param_name));
+            params
+                .push(create_named_param(offset_param_name, Value::N(offset)));
+        }
+
+        Ok((clauses.join(" "), params))
     }
 }
 
@@ -175,34 +195,34 @@ impl TryFrom<&Row> for PgAuditRow {
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             match column.as_str() {
                 c if c.ends_with(".id)") => {
-                    assign_value!(SqlValue::N, value, id)
+                    assign_value!(Value::N, value, id)
                 }
                 c if c.ends_with(".audit_type)") => {
-                    assign_value!(SqlValue::S, value, audit_type)
+                    assign_value!(Value::S, value, audit_type)
                 }
                 c if c.ends_with(".class)") => {
-                    assign_value!(SqlValue::S, value, class)
+                    assign_value!(Value::S, value, class)
                 }
                 c if c.ends_with(".command)") => {
-                    assign_value!(SqlValue::S, value, command)
+                    assign_value!(Value::S, value, command)
                 }
                 c if c.ends_with(".dbname)") => {
-                    assign_value!(SqlValue::S, value, dbname)
+                    assign_value!(Value::S, value, dbname)
                 }
                 c if c.ends_with(".server_timestamp)") => {
-                    assign_value!(SqlValue::Ts, value, server_timestamp)
+                    assign_value!(Value::Ts, value, server_timestamp)
                 }
                 c if c.ends_with(".session_id)") => {
-                    assign_value!(SqlValue::S, value, session_id)
+                    assign_value!(Value::S, value, session_id)
                 }
                 c if c.ends_with(".statement)") => {
-                    assign_value!(SqlValue::S, value, statement)
+                    assign_value!(Value::S, value, statement)
                 }
                 c if c.ends_with(".user)") => {
-                    assign_value!(SqlValue::S, value, user)
+                    assign_value!(Value::S, value, user)
                 }
                 c if c.ends_with(".audit_type)") => {
-                    assign_value!(SqlValue::S, value, audit_type)
+                    assign_value!(Value::S, value, audit_type)
                 }
                 _ => {
                     return Err(anyhow!(
@@ -234,7 +254,7 @@ impl TryFrom<&Row> for Aggregate {
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             match column.as_str() {
-                _ => assign_value!(SqlValue::N, value, count),
+                _ => assign_value!(Value::N, value, count),
             }
         }
         Ok(Aggregate { count })
@@ -259,8 +279,9 @@ pub async fn list_pgaudit(
     client.login().await?;
 
     client.open_session(&input.election_event_id).await?;
-    let clauses = input.as_sql_clauses(false)?;
-    let clauses_to_count = input.as_sql_clauses(true)?;
+    let (clauses, params) = input.as_sql(false)?;
+    let (clauses_to_count, count_params) = input.as_sql(true)?;
+
     let audit_table = input.audit_table;
     let sql = format!(
         r#"
@@ -278,7 +299,7 @@ pub async fn list_pgaudit(
         {clauses}
         "#,
     );
-    let sql_query_response = client.sql_query(&sql, vec![]).await?;
+    let sql_query_response = client.sql_query(&sql, params).await?;
     let items = sql_query_response
         .get_ref()
         .rows
@@ -294,7 +315,7 @@ pub async fn list_pgaudit(
         {clauses_to_count}
         "#,
     );
-    let sql_query_response = client.sql_query(&sql, vec![]).await?;
+    let sql_query_response = client.sql_query(&sql, count_params).await?;
     let mut rows_iter = sql_query_response
         .get_ref()
         .rows
@@ -320,42 +341,61 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn test_as_sql_clauses() {
+    fn test_as_sql() {
+        // Test with order_by
         let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
             "tenant_id": "some_tenant",
             "election_event_id": "some_event",
-            "order_by": {"id":"asc"}
+            "order_by": {"id": "asc"}
         }))
         .unwrap();
-        assert_eq!(
-            get_pgaudit_body.as_sql_clauses(false).unwrap(),
-            "ORDER BY id asc LIMIT 20"
-        );
+        let (sql, params) = get_pgaudit_body.as_sql(false).unwrap();
+        assert!(sql.contains("ORDER BY id asc LIMIT @limit"));
+        assert_eq!(params[0].name, "limit");
+        assert_eq!(params[0].value.as_ref().unwrap().value, Some(Value::N(20)));
 
+        // Test with limit, offset, and order_by
         let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
             "tenant_id": "some_tenant",
             "election_event_id": "some_event",
             "limit": 15,
             "offset": 5,
-            "order_by": {"id":"asc"}
+            "order_by": {"id": "asc"}
         }))
         .unwrap();
-        assert_eq!(
-            get_pgaudit_body.as_sql_clauses(false).unwrap(),
-            "ORDER BY id asc LIMIT 15 OFFSET 5"
-        );
-        assert_eq!(get_pgaudit_body.as_sql_clauses(true).unwrap(), "");
+        let (sql, params) = get_pgaudit_body.as_sql(false).unwrap();
+        assert!(sql.contains("ORDER BY id asc LIMIT @limit OFFSET @offset"));
+        assert_eq!(params.len(), 2);
+        assert_eq!(params[0].name, "limit");
+        assert_eq!(params[0].value.as_ref().unwrap().value, Some(Value::N(15)));
+        assert_eq!(params[1].name, "offset");
+        assert_eq!(params[1].value.as_ref().unwrap().value, Some(Value::N(5)));
 
+        // Test as_sql(true) without any parameters
+        let (sql, params) = get_pgaudit_body.as_sql(true).unwrap();
+        assert!(sql.is_empty());
+        assert!(params.is_empty());
+
+        // Test with high limit value
         let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
             "tenant_id": "some_tenant",
             "election_event_id": "some_event",
             "limit": 1550
         }))
         .unwrap();
+        let (sql, params) = get_pgaudit_body.as_sql(false).unwrap();
+        assert!(sql.contains("LIMIT @limit"));
+        assert_eq!(params.len(), 1);
+        assert_eq!(params[0].name, "limit");
         assert_eq!(
-            get_pgaudit_body.as_sql_clauses(false).unwrap(),
-            "LIMIT 1000"
+            params[0].value.as_ref().unwrap().value,
+            Some(Value::N(1000))
         );
-        assert_eq!(get_pgaudit_body.as_sql_clauses(true).unwrap(), "");
+        // Check limit value based on PgConfig settings
+
+        // Test as_sql(true) without any parameters
+        let (sql, params) = get_pgaudit_body.as_sql(true).unwrap();
+        assert!(sql.is_empty());
+        assert!(params.is_empty());
     }
 }
