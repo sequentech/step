@@ -420,7 +420,7 @@ export const TallyCeremony: React.FC = () => {
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="tally-results-general" />}
-                                >
+                            >
                                 <WizardStyles.AccordionTitle>
                                     {t("tally.generalInfoTitle")}
                                 </WizardStyles.AccordionTitle>
