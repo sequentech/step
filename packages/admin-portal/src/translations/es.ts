@@ -212,6 +212,7 @@ const spanishTranslation: TranslationType = {
             stats: {
                 elegibleVoters: "Votantes elegibles",
                 elections: "Elecciones",
+                contests: "Preguntas",
                 areas: "Áreas",
                 sentEmails: "Emails enviados",
                 sentSMS: "SMS enviados",

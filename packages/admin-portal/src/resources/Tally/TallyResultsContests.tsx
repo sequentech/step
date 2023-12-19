@@ -5,10 +5,10 @@ import React, {useEffect, useState} from "react"
 import {Identifier, RaRecord, useGetList} from "react-admin"
 
 import {Sequent_Backend_Contest} from "../../gql/graphql"
-import {Box, Tab, Tabs} from "@mui/material"
+import {Box, Tab, Tabs, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsContestAreas} from "./TallyResultsContestAreas"
-import { ExportElectionMenu } from '@/components/tally/ExportElectionMenu'
+import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -23,7 +23,8 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     const [value, setValue] = React.useState<number | null>(0)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
     const [contestId, setContestId] = useState<string | null>()
-
+    
+    const {t} = reactI18next.useTranslation()
     const [electionData, setElectionData] = useState<string | null>(null)
     const [electionEventData, setElectionEventData] = useState<string | null>(null)
     const [tenantData, setTenantData] = useState<string | null>(null)
@@ -99,12 +100,14 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                     borderColor: "divider",
                     display: "flex",
                     flexDirection: "row",
-                    justifyContent: "space-between",
+                    justifyContent: "flex-start",
                     alignItems: "center",
                 }}
             >
-                {" "}
-                <Tabs value={value}>
+                <Typography variant="body2" component="div" sx={{width: "80px"}}>
+                    {t("electionEventScreen.stats.contests")}.{" "}
+                </Typography>
+                <Tabs value={value} sx={{flex: 1}}>
                     {contestsData?.map((contest, index) => (
                         <Tab
                             key={index}
@@ -113,8 +116,9 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
                         />
                     ))}
                 </Tabs>
-                <ExportElectionMenu resource="sequent_backend_results_contest" 
-                contest={contestsData?.[value ?? 0]}
+                <ExportElectionMenu
+                    resource="sequent_backend_results_contest"
+                    contest={contestsData?.[value ?? 0]}
                 />
             </Box>
 

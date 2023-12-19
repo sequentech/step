@@ -6,8 +6,8 @@ import {useGetMany, RaRecord, Identifier, useGetList} from "react-admin"
 
 import {Sequent_Backend_Election, Sequent_Backend_Tally_Session} from "../../gql/graphql"
 import {TallyResultsContest} from "./TallyResultsContests"
-import {Box, Tab, Tabs} from "@mui/material"
-import {ReactI18NextChild} from "react-i18next"
+import {Box, Tab, Tabs, Typography} from "@mui/material"
+import {ReactI18NextChild, useTranslation} from "react-i18next"
 import { ExportElectionMenu } from '@/components/tally/ExportElectionMenu'
 
 interface TallyResultsProps {
@@ -19,6 +19,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
     (props: TallyResultsProps): React.JSX.Element => {
         const {tally, resultsEventId} = props
 
+        const {t} = useTranslation()
         const [value, setValue] = React.useState<number | null>(0)
         const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election>>([])
         const [electionId, setElectionId] = useState<string | null>(null)
@@ -78,8 +79,20 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
 
         return (
             <>
-                <Box sx={{borderBottom: 1, borderColor: "divider", display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center"}}>
-                    <Tabs value={value}>
+                <Box
+                    sx={{
+                        borderBottom: 1,
+                        borderColor: "divider",
+                        display: "flex",
+                        flexDirection: "row",
+                        justifyContent: "flex-start",
+                        alignItems: "center",
+                    }}
+                >
+                    <Typography variant="body2" component="div" sx={{width: "80px"}}>
+                        {t("electionEventScreen.stats.elections")}.{" "}
+                    </Typography>
+                    <Tabs value={value} sx={{flex: 1}}>
                         {electionsData?.map((election, index) => (
                             <Tab
                                 key={index}
@@ -88,10 +101,10 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                             />
                         ))}
                     </Tabs>
-                    <ExportElectionMenu 
-                        resource='sequent_backend_results_election'
+                    <ExportElectionMenu
+                        resource="sequent_backend_results_election"
                         election={electionsData?.[value ?? 0]}
-                        />
+                    />
                 </Box>
                 {electionsData?.map((election, index) => (
                     <CustomTabPanel key={index} index={index} value={value}>

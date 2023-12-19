@@ -210,6 +210,7 @@ const englishTranslation = {
             stats: {
                 elegibleVoters: "Elegible voters",
                 elections: "Elections",
+                contests: "Contests",
                 areas: "Areas",
                 sentEmails: "Emails sent",
                 sentSMS: "SMS sent",

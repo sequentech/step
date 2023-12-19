@@ -5,7 +5,7 @@ import React, {useEffect, useState} from "react"
 import {Identifier, RaRecord, useGetList, useGetOne} from "react-admin"
 
 import {Sequent_Backend_Area_Contest, Sequent_Backend_Contest} from "../../gql/graphql"
-import {Box, Tabs, Tab} from "@mui/material"
+import {Box, Tabs, Tab, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsGlobalCandidates} from "./TallyResultsGlobalCandidates"
 import {TallyResultsCandidates} from "./TallyResultsCandidates"
@@ -93,11 +93,14 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                     borderColor: "divider",
                     display: "flex",
                     flexDirection: "row",
-                    justifyContent: "space-between",
+                    justifyContent: "flex-start",
                     alignItems: "center",
                 }}
             >
-                <Tabs value={value}>
+                <Typography variant="body2" component="div" sx={{width: "80px"}}>
+                    {t("electionEventScreen.stats.areas")}.{" "}
+                </Typography>
+                <Tabs value={value} sx={{flex: 1}}>
                     <Tab label={t("tally.common.global")} onClick={() => tabGlobalClicked()} />
                     {areasData?.map((area, index) => {
                         return (
