@@ -177,13 +177,6 @@ const convertToElection = (input: IElectionDTO): IElection => ({
 
 export const ElectionSelectionScreen: React.FC = () => {
     const authContext = useContext(AuthContext)
-    let {tenantId, eventId} = useParams()
-
-    useEffect(() => {
-        if (!authContext.isAuthenticated && tenantId && eventId) {
-            authContext.login(tenantId, eventId)
-        }
-    }, [authContext, tenantId, eventId])
 
     const [ballotStyleElectionIds, setBallotStyleElectionIds] = useState<Array<string>>([])
     const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)

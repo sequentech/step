@@ -183,7 +183,7 @@ export const ElectionDataForm: React.FC = () => {
 
             // voting channels
             const all_channels = {...incoming?.voting_channels}
-            delete incoming.voting_channels
+            // delete incoming.voting_channels
             temp.voting_channels = {}
             for (const setting in votingSettings) {
                 const enabled_item: any = {}

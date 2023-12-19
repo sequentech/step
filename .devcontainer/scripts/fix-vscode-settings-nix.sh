@@ -1,0 +1,43 @@
+#!/bin/bash -i
+
+set -ex -o pipefail
+
+# Get the PATH for cargo
+cargo_path=$(which cargo)
+cargo_dir=$(dirname "$cargo_path")
+
+# Get PKG_CONFIG_PATH
+pkg_config_path=$(echo $PKG_CONFIG_PATH)
+
+# Get RUST_SRC_PATH
+rust_src_path=$(echo $RUST_SRC_PATH | sed 's|\(.*rustlib/src/\).*|\1|')
+
+java_home=$(echo /nix/store/*-openjdk-*/lib/openjdk)
+
+cargo_target_dir=$(echo $CARGO_TARGET_DIR)
+
+# Add below
+
+# Generate `.vscode/settings.local.json`
+cat << EOF > '.vscode/settings.local.json'
+{
+    "rust-analyzer.server.extraEnv": {
+        // See https://github.com/sequentech/backend-services/wiki/Running-tests-without-triggering-full-rebuilds
+        "CARGO_TARGET_DIR": "rust-local-$cargo_target_dir",
+
+        // which cargo
+        "PATH": "$cargo_dir",
+
+        // echo \$PKG_CONFIG_PATH
+        "PKG_CONFIG_PATH": "$pkg_config_path",
+
+        // echo \$RUST_SRC_PATH | sed 's|\(.*rustlib/src/\).*|\1|'
+        "RUST_SRC_PATH": "$rust_src_path"
+    },
+
+    // echo /nix/store/*-openjdk-*/lib/openjdk
+    "java.jdt.ls.java.home": "$java_home"
+}
+EOF
+
+echo "file '.vscode/settings.local.json' generated."

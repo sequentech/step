@@ -86,7 +86,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
     const {data: results} = useGetList<Sequent_Backend_Results_Area_Contest_Candidate>(
         "sequent_backend_results_area_contest_candidate",
         {
-            pagination: {page: 1, perPage: 1},
+            pagination: {page: 1, perPage: 9999},
             filter: {
                 contest_id: contestId,
                 tenant_id: tenantId,
@@ -98,6 +98,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
         }
     )
 
@@ -150,13 +151,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, string>) => props["value"] || "-",
-        },
-        {
-            field: "elegible",
-            headerName: t("tally.table.elegible"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || 0,
         },
         {
             field: "number",

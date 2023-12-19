@@ -7,6 +7,7 @@ import {styled} from "@mui/material/styles"
 import Box from "@mui/material/Box"
 import Paper from "@mui/material/Paper"
 import {useForwardedRef} from "../../utils/ref"
+import {Typography} from "@mui/material"
 
 const StyledForm = styledEmotion.form`
     height: 16rem;
@@ -15,6 +16,7 @@ const StyledForm = styledEmotion.form`
     text-align: center;
     position: relative;
     z-index: 10;
+    margin-bottom: 16px;
 `
 
 const StyledInput = styledEmotion.input`
@@ -59,6 +61,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
     ({handleFiles, children}, inputRef) => {
         const innerRef = useForwardedRef(inputRef)
         const [dragActive, setDragActive] = useState(false)
+        const [fileName, setFileName] = useState<string>("")
 
         // handle drag events
         const handleDrag: DragEventHandler<HTMLElement> = (e) => {
@@ -85,6 +88,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
         const handleChange: ChangeEventHandler<HTMLInputElement> = (e) => {
             e.preventDefault()
             if (e.target.files && e.target.files[0]) {
+                setFileName(e.target.files[0].name)
                 handleFiles(e.target.files)
             }
         }
@@ -109,6 +113,9 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                 >
                     {children}
                 </StyledLabel>
+                <Typography variant="h6" sx={{fontSize: "14px", margin: "8px 0"}}>
+                    {fileName}
+                </Typography>
                 {dragActive && (
                     <DragFileElement
                         onDragEnter={handleDrag}

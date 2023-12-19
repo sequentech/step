@@ -11,7 +11,17 @@ import {
     SaveButton,
     DeleteButton,
 } from "react-admin"
-import {Accordion, AccordionDetails, AccordionSummary, Tabs, Tab, Grid, Button} from "@mui/material"
+import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Tabs,
+    Tab,
+    Grid,
+    Button,
+    Drawer,
+    Box,
+} from "@mui/material"
 import React, {useContext, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
@@ -20,6 +30,12 @@ import {CustomTabPanel} from "@/components/CustomTabPanel"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {useAtom} from "jotai"
+import importDrawerState from "@/atoms/import-drawer-state"
+import {Dialog} from "@sequentech/ui-essentials"
+import {ImportScreen} from "@/components/election-event/ImportScreen"
+import {ListActions} from "@/components/ListActions"
+import {ImportElectionEvent} from "@/components/election-event/ImportElectionEvent"
 
 export const EditElectionEventDataForm: React.FC = () => {
     const {t} = useTranslation()
@@ -35,6 +51,8 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [expanded, setExpanded] = useState("election-event-data-general")
     const [languageSettings] = useState<any>([{es: true}, {en: true}])
     const [votingSettings] = useState<any>({online: true, kiosk: true})
+    const [openImport, setOpenImport] = useAtom(importDrawerState)
+    const [openExport, setOpenExport] = React.useState(false)
 
     const parseValues = (incoming: any) => {
         const temp = {...incoming}
@@ -79,13 +97,15 @@ export const EditElectionEventDataForm: React.FC = () => {
 
         // voting channels
         const all_channels = {...incoming?.voting_channels}
-        delete incoming.voting_channels
+
+        // delete incoming.voting_channels
         temp.voting_channels = {}
         for (const setting in votingSettings) {
             const enabled_item: any = {}
             enabled_item[setting] =
                 setting in all_channels ? all_channels[setting] : votingSettings[setting]
-            temp.voting_channels = {...temp.voting_channels, ...enabled_item}
+            // temp.voting_channels = {...temp.voting_channels, ...enabled_item}
+            temp.voting_channels = {...all_channels}
         }
 
         return temp
@@ -181,128 +201,189 @@ export const EditElectionEventDataForm: React.FC = () => {
         return tabNodes
     }
 
+    const handleImport = () => {
+        console.log("IMPORT")
+        setOpenImport(true)
+    }
+
+    const handleExport = () => {
+        console.log("EXPORT")
+        setOpenExport(true)
+    }
+
+    const confirmExportAction = async () => {
+        console.log("CONFIRM EXPORT")
+    }
+
     return (
-        <RecordContext.Consumer>
-            {(incoming) => {
-                const parsedValue = parseValues(incoming)
-                console.log("parsedValue :>> ", parsedValue)
-                return (
-                    <SimpleForm
-                        validate={formValidator}
-                        record={parsedValue}
-                        toolbar={
-                            <Toolbar>
-                                {canEdit ? <SaveButton type="button" /> : null}
-                                {canEdit ? <DeleteButton /> : null}
-                            </Toolbar>
-                        }
-                    >
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expanded === "election-event-data-general"}
-                            onChange={() => setExpanded("election-event-data-general")}
+        <>
+            <Box
+                sx={{
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "flex-end",
+                    alignItems: "center",
+                }}
+            >
+                <ListActions
+                    withImport
+                    doImport={handleImport}
+                    withExport
+                    doExport={handleExport}
+                    withColumns={false}
+                    withFilter={false}
+                />
+            </Box>
+            <RecordContext.Consumer>
+                {(incoming) => {
+                    const parsedValue = parseValues(incoming)
+                    console.log("parsedValue :>> ", parsedValue)
+                    return (
+                        <SimpleForm
+                            validate={formValidator}
+                            record={parsedValue}
+                            toolbar={
+                                <Toolbar>{canEdit ? <SaveButton type="button" /> : null}</Toolbar>
+                            }
                         >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="election-event-data-general" />}
+                            <Accordion
+                                sx={{width: "100%"}}
+                                expanded={expanded === "election-event-data-general"}
+                                onChange={() => setExpanded("election-event-data-general")}
                             >
-                                <ElectionHeaderStyles.Wrapper>
-                                    <ElectionHeaderStyles.Title>
-                                        {t("electionEventScreen.edit.general")}
-                                    </ElectionHeaderStyles.Title>
-                                </ElectionHeaderStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <Tabs value={value} onChange={handleChange}>
-                                    {renderTabs(parsedValue)}
-                                </Tabs>
-                                {renderTabContent(parsedValue)}
-                            </AccordionDetails>
-                        </Accordion>
+                                <AccordionSummary
+                                    expandIcon={<ExpandMoreIcon id="election-event-data-general" />}
+                                >
+                                    <ElectionHeaderStyles.Wrapper>
+                                        <ElectionHeaderStyles.Title>
+                                            {t("electionEventScreen.edit.general")}
+                                        </ElectionHeaderStyles.Title>
+                                    </ElectionHeaderStyles.Wrapper>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                    <Tabs value={value} onChange={handleChange}>
+                                        {renderTabs(parsedValue)}
+                                    </Tabs>
+                                    {renderTabContent(parsedValue)}
+                                </AccordionDetails>
+                            </Accordion>
 
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expanded === "election-event-data-dates"}
-                            onChange={() => setExpanded("election-event-data-dates")}
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="election-event-data-dates" />}
+                            <Accordion
+                                sx={{width: "100%"}}
+                                expanded={expanded === "election-event-data-dates"}
+                                onChange={() => setExpanded("election-event-data-dates")}
                             >
-                                <ElectionHeaderStyles.Wrapper>
-                                    <ElectionHeaderStyles.Title>
-                                        {t("electionEventScreen.edit.dates")}
-                                    </ElectionHeaderStyles.Title>
-                                </ElectionHeaderStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <Grid container spacing={4}>
-                                    <Grid item xs={12} md={6}>
-                                        <DateTimeInput
-                                            disabled={!canEdit}
-                                            source="dates.start_date"
-                                            label={t("electionScreen.field.startDateTime")}
-                                            parse={(value) => new Date(value).toISOString()}
-                                        />
+                                <AccordionSummary
+                                    expandIcon={<ExpandMoreIcon id="election-event-data-dates" />}
+                                >
+                                    <ElectionHeaderStyles.Wrapper>
+                                        <ElectionHeaderStyles.Title>
+                                            {t("electionEventScreen.edit.dates")}
+                                        </ElectionHeaderStyles.Title>
+                                    </ElectionHeaderStyles.Wrapper>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                    <Grid container spacing={4}>
+                                        <Grid item xs={12} md={6}>
+                                            <DateTimeInput
+                                                disabled={!canEdit}
+                                                source="dates.start_date"
+                                                label={t("electionScreen.field.startDateTime")}
+                                                parse={(value) => new Date(value).toISOString()}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12} md={6}>
+                                            <DateTimeInput
+                                                disabled={!canEdit}
+                                                source="dates.end_date"
+                                                label={t("electionScreen.field.endDateTime")}
+                                                parse={(value) => new Date(value).toISOString()}
+                                            />
+                                        </Grid>
                                     </Grid>
-                                    <Grid item xs={12} md={6}>
-                                        <DateTimeInput
-                                            disabled={!canEdit}
-                                            source="dates.end_date"
-                                            label={t("electionScreen.field.endDateTime")}
-                                            parse={(value) => new Date(value).toISOString()}
-                                        />
-                                    </Grid>
-                                </Grid>
-                            </AccordionDetails>
-                        </Accordion>
+                                </AccordionDetails>
+                            </Accordion>
 
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expanded === "election-event-data-language"}
-                            onChange={() => setExpanded("election-event-data-language")}
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="election-event-data-language" />}
+                            <Accordion
+                                sx={{width: "100%"}}
+                                expanded={expanded === "election-event-data-language"}
+                                onChange={() => setExpanded("election-event-data-language")}
                             >
-                                <ElectionHeaderStyles.Wrapper>
-                                    <ElectionHeaderStyles.Title>
-                                        {t("electionEventScreen.edit.language")}
-                                    </ElectionHeaderStyles.Title>
-                                </ElectionHeaderStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <Grid container spacing={4}>
-                                    <Grid item xs={12} md={6}>
-                                        {renderLangs(parsedValue)}
+                                <AccordionSummary
+                                    expandIcon={
+                                        <ExpandMoreIcon id="election-event-data-language" />
+                                    }
+                                >
+                                    <ElectionHeaderStyles.Wrapper>
+                                        <ElectionHeaderStyles.Title>
+                                            {t("electionEventScreen.edit.language")}
+                                        </ElectionHeaderStyles.Title>
+                                    </ElectionHeaderStyles.Wrapper>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                    <Grid container spacing={4}>
+                                        <Grid item xs={12} md={6}>
+                                            {renderLangs(parsedValue)}
+                                        </Grid>
                                     </Grid>
-                                </Grid>
-                            </AccordionDetails>
-                        </Accordion>
+                                </AccordionDetails>
+                            </Accordion>
 
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expanded === "election-event-data-allowed"}
-                            onChange={() => setExpanded("election-event-data-allowed")}
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="election-event-data-allowed" />}
+                            <Accordion
+                                sx={{width: "100%"}}
+                                expanded={expanded === "election-event-data-allowed"}
+                                onChange={() => setExpanded("election-event-data-allowed")}
                             >
-                                <ElectionHeaderStyles.Wrapper>
-                                    <ElectionHeaderStyles.Title>
-                                        {t("electionEventScreen.edit.allowed")}
-                                    </ElectionHeaderStyles.Title>
-                                </ElectionHeaderStyles.Wrapper>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <Grid container spacing={4}>
-                                    <Grid item xs={12} md={6}>
-                                        {renderVotingChannels(parsedValue)}
+                                <AccordionSummary
+                                    expandIcon={<ExpandMoreIcon id="election-event-data-allowed" />}
+                                >
+                                    <ElectionHeaderStyles.Wrapper>
+                                        <ElectionHeaderStyles.Title>
+                                            {t("electionEventScreen.edit.allowed")}
+                                        </ElectionHeaderStyles.Title>
+                                    </ElectionHeaderStyles.Wrapper>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                    <Grid container spacing={4}>
+                                        <Grid item xs={12} md={6}>
+                                            {renderVotingChannels(parsedValue)}
+                                        </Grid>
                                     </Grid>
-                                </Grid>
-                            </AccordionDetails>
-                        </Accordion>
-                    </SimpleForm>
-                )
-            }}
-        </RecordContext.Consumer>
+                                </AccordionDetails>
+                            </Accordion>
+                        </SimpleForm>
+                    )
+                }}
+            </RecordContext.Consumer>
+
+            <Drawer
+                anchor="right"
+                open={openImport}
+                onClose={() => {
+                    setOpenImport(false)
+                }}
+                PaperProps={{
+                    sx: {width: "30%"},
+                }}
+            >
+                <ImportElectionEvent doRefresh={() => {}} />
+            </Drawer>
+
+            <Dialog
+                variant="info"
+                open={openExport}
+                ok={t("common.label.export")}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.export")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmExportAction()
+                    }
+                    setOpenExport(false)
+                }}
+            >
+                {t("common.export")}
+            </Dialog>
+        </>
     )
 }
