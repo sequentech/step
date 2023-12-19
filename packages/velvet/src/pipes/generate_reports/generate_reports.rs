@@ -13,7 +13,7 @@ use sequent_core::{
     ballot::{Candidate, Contest},
     services::{pdf, reports},
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use tracing::instrument;
 use uuid::Uuid;
@@ -362,7 +362,7 @@ pub struct ElectionReportDataComputed {
     pub reports: Vec<ReportDataComputed>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ReportDataComputed {
     pub contest: Contest,
     pub area_id: Option<String>,
@@ -370,7 +370,7 @@ pub struct ReportDataComputed {
     pub candidate_result: Vec<CandidateResultForReport>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CandidateResultForReport {
     pub candidate: Candidate,
     pub total_count: u64,

@@ -11,13 +11,17 @@ mod tests {
     use crate::fixtures::TestFixture;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
     use crate::pipes::do_tally::OUTPUT_CONTEST_RESULT_FILE;
+    use crate::pipes::generate_reports::{ReportData, ReportDataComputed};
     use crate::pipes::mark_winners::OUTPUT_WINNERS;
+    use crate::pipes::pipe_inputs::{PREFIX_AREA, PREFIX_CONTEST, PREFIX_ELECTION};
     use crate::pipes::pipe_name::PipeNameOutputDir;
     use anyhow::{Error, Result};
     use sequent_core::ballot_codec::BigUIntCodec;
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+    use serde_json::Value;
     use std::fs;
     use std::io::Write;
+    use std::path::PathBuf;
     use std::str::FromStr;
     use tracing::{info, instrument};
     use uuid::{uuid, Uuid};
@@ -746,6 +750,30 @@ mod tests {
         state.exec_next()?;
 
         // TODO: assert result.json
+
+        let mut path = cli.output_dir.clone();
+        path.push("velvet-generate-reports");
+        path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
+        path.push(format!("{}{}", PREFIX_CONTEST, &contest.id));
+        path.push(format!("{}{}", PREFIX_AREA, &uuid_area));
+        path.push("report.json");
+
+        let f = fs::File::open(&path)?;
+
+        let reports: Vec<ReportDataComputed> = serde_json::from_reader(f)?;
+        let report = &reports[0];
+        dbg!(&report);
+
+        assert_eq!(report.contest_result.total_votes, 0);
+        assert_eq!(
+            report
+                .candidate_result
+                .iter()
+                .map(|cr| cr.total_count)
+                .sum::<u64>(),
+            0
+        );
+
         Ok(())
     }
 
@@ -785,7 +813,7 @@ mod tests {
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
 
-        for i in (0..=10) {
+        for i in 0..=10 {
             let mut choices = vec![
                 DecodedVoteChoice {
                     id: "0".to_owned(),
@@ -859,7 +887,7 @@ mod tests {
 
         // TODO: assert result.json
         // blank vote is 5
-        
+
         Ok(())
     }
 }
