@@ -89,7 +89,6 @@ impl GetPgauditBody {
     fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
         let mut params = Vec::new();
-        let invalid_chars_re = Regex::new(r"['-/]")?;
 
         // Handle filters
         if let Some(filters_map) = &self.filter {
@@ -108,13 +107,11 @@ impl GetPgauditBody {
                     }
                     OrderField::ServerTimestamp => {} // Not supported
                     _ => {
-                        let sanitized_value =
-                            invalid_chars_re.replace_all(value, "");
                         where_clauses
                             .push(format!("{field} LIKE @{}", param_name));
                         params.push(create_named_param(
                             param_name,
-                            Value::S(sanitized_value.to_string()),
+                            Value::S(value.to_string()),
                         ));
                     }
                 }
