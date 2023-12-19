@@ -7,9 +7,9 @@ const spanishTranslation: TranslationType = {
     translations: {
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
-            ballot: "Ballot",
-            review: "Review",
-            confirmation: "Confirmation",
+            ballot: "Papeleta",
+            review: "Revisión",
+            confirmation: "Confirmación",
             audit: "Auditar",
         },
         votingScreen: {

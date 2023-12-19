@@ -151,7 +151,7 @@ export default function Header({
                                             }}
                                         >
                                             <AccountCircle sx={{marginRight: "14px"}} />
-                                            Profile
+                                            {t("header.profile")}
                                         </MenuItem>
                                         {logoutFn && (
                                             <MenuItem
