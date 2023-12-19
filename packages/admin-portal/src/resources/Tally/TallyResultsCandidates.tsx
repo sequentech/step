@@ -43,7 +43,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             rowId: number
             id: string
             status: string
-            method: string
             voters: number
             number: number
             turnout: number
@@ -110,7 +109,6 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                           rowId: number
                           id: string
                           status: string
-                          method: string
                           voters: number
                           number: number
                           turnout: number
@@ -125,10 +123,9 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                     id: candidate.id || "",
                     name: candidate.name,
                     status: candidate.status || "",
-                    method: candidate.method,
-                    voters: candidate.voters,
                     number: candidateResult?.cast_votes || 0,
-                    turnout: candidate.turnout,
+                    voters: candidateResult?.winning_position || 0,
+                    turnout: candidateResult?.winning_position || 0,
                 }
             })
 
@@ -141,23 +138,28 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
     const columns: GridColDef[] = [
         {
             field: "name",
-            headerName: t("tally.table.elections"),
+            headerName: t("tally.table.options"),
             flex: 1,
             editable: false,
+            align: "left",
         },
         {
             field: "method",
-            headerName: t("tally.table.method"),
-            flex: 1,
-            editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] || "-",
-        },
-        {
-            field: "number",
             headerName: t("tally.table.number"),
             flex: 1,
             editable: false,
+            renderCell: (props: GridRenderCellParams<any, string>) => props["value"] || 0,
+            align: "right",
+            headerAlign: "right",
+        },
+        {
+            field: "number",
+            headerName: t("tally.table.voters"),
+            flex: 1,
+            editable: false,
             renderCell: (props: GridRenderCellParams<any, number>) => props["value"] || 0,
+            align: "right",
+            headerAlign: "right",
         },
         {
             field: "turnout",
@@ -165,6 +167,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, number>) => `${props["value"] || 0}%`,
+            align: "right",
+            headerAlign: "right",
         },
     ]
 
@@ -177,12 +181,13 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             {general && general.length ? (
                 <TableContainer component={Paper}>
                     <Table sx={{minWidth: 650}} aria-label="simple table">
-                        {/* <TableHead>
+                        <TableHead>
                             <TableRow>
-                                <TableCell>{t("tally.table.concept")}</TableCell>
-                                <TableCell align="right">{t("tally.table.value")}</TableCell>
+                                <TableCell></TableCell>
+                                <TableCell align="right">{t("tally.table.total")}</TableCell>
+                                <TableCell align="right">{t("tally.table.turnout")}</TableCell>
                             </TableRow>
-                        </TableHead> */}
+                        </TableHead>
                         <TableBody>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
@@ -190,6 +195,20 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                 </TableCell>
                                 <TableCell align="right">
                                     {general?.[0].elegible_census ?? 0}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].elegible_census ?? 0} %
+                                </TableCell>
+                            </TableRow>
+                            <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
+                                <TableCell component="th" scope="row">
+                                    {t("tally.table.number_votes")}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].elegible_census ?? 0}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].elegible_census ?? 0} %
                                 </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
@@ -199,6 +218,9 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                 <TableCell align="right">
                                     {general?.[0].total_valid_votes ?? 0}
                                 </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].total_valid_votes ?? 0} %
+                                </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
@@ -206,6 +228,9 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                 </TableCell>
                                 <TableCell align="right">
                                     {general?.[0].explicit_invalid_votes ?? 0}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].explicit_invalid_votes ?? 0} %
                                 </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
@@ -215,12 +240,16 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
                                 <TableCell align="right">
                                     {general?.[0].implicit_invalid_votes ?? 0}
                                 </TableCell>
+                                <TableCell align="right">
+                                    {general?.[0].implicit_invalid_votes ?? 0} %
+                                </TableCell>
                             </TableRow>
                             <TableRow sx={{"&:last-child td, &:last-child th": {border: 0}}}>
                                 <TableCell component="th" scope="row">
                                     {t("tally.table.blank_votes")}
                                 </TableCell>
                                 <TableCell align="right">{general?.[0].blank_votes ?? 0}</TableCell>
+                                <TableCell align="right">{general?.[0].blank_votes ?? 0} %</TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
