@@ -3,10 +3,14 @@ import Button from "@mui/material/Button"
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
 import {EXPORT_FORMATS} from "./constants"
-import { Sequent_Backend_Area_Contest, Sequent_Backend_Contest, Sequent_Backend_Election, Sequent_Backend_Tally_Session } from '@/gql/graphql'
-import styled from '@emotion/styled'
+import {
+    Sequent_Backend_Area_Contest,
+    Sequent_Backend_Contest,
+    Sequent_Backend_Election,
+    Sequent_Backend_Tally_Session,
+} from "@/gql/graphql"
+import styled from "@emotion/styled"
 import {theme} from "@sequentech/ui-essentials"
-
 
 interface ExportElectionMenuProps {
     resource: string
@@ -14,6 +18,7 @@ interface ExportElectionMenuProps {
     election?: Sequent_Backend_Election
     contest?: Sequent_Backend_Contest
     area?: Sequent_Backend_Area_Contest | string | undefined
+    areaName?: string | undefined
 }
 
 const ExportButton = styled.div`
@@ -38,9 +43,8 @@ const ExportButton = styled.div`
     }
 `
 
-
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
-    const {resource, event, election, contest, area} = props
+    const {resource, event, election, contest, area, areaName} = props
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
@@ -55,13 +59,13 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
     }
 
     const handleExport = (type: string) => {
-        console.log("ExportElectionData :: ", resource);
-        console.log("======================");
+        console.log("ExportElectionData :: ", resource)
+        console.log("======================")
 
-        console.log("ExportElectionData :: ", event);
-        console.log("ExportElectionData :: ", election);
-        console.log("ExportElectionData :: ", contest);
-        console.log("ExportElectionData :: ", area);
+        console.log("ExportElectionData :: ", event)
+        console.log("ExportElectionData :: ", election)
+        console.log("ExportElectionData :: ", contest)
+        console.log("ExportElectionData :: ", area)
         console.log("ExportElectionData :: ", type)
     }
 
@@ -88,7 +92,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                     vertical: "top",
                     horizontal: "right",
                 }}
-                sx={{maxWidth: 220}}
+                sx={{maxWidth: 620}}
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
@@ -109,7 +113,20 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                 overflow: "hidden",
                             }}
                         >
-                            <span title={format.label}>{format.label}</span>
+                            <span title={format.label}>
+                                {t("common.label.exportFormat", {
+                                    item: election
+                                        ? election?.name
+                                        : contest
+                                        ? contest.name
+                                        : area && area !== "all"
+                                        ? areaName
+                                        : area
+                                        ? t("common.label.globalAreaResults")
+                                        : t("common.label.allResults"),
+                                    format: format.label,
+                                })}
+                            </span>
                         </Box>
                     </MenuItem>
                 ))}

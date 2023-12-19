@@ -511,6 +511,9 @@ const spanishTranslation: TranslationType = {
                 import: "Importar",
                 export: "Exportar",
                 loadingData: "Cargando datos ...",
+                exportFormat: "Exportar resultados {{item}} en formato {{format}}",
+                allResults: "del evento electoral",
+                globalAreaResults: "de todas las áreas",
             },
             language: {
                 es: "Español",

@@ -41,7 +41,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-refetchOnMount: false,
+            refetchOnMount: false,
         }
     )
 
@@ -54,7 +54,7 @@ refetchOnMount: false,
         {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
-refetchOnMount: false,
+            refetchOnMount: false,
         }
     )
 
@@ -129,6 +129,7 @@ refetchOnMount: false,
                     <ExportElectionMenu
                         resource={"sequent_backend_results_area_contest"}
                         area={value < 1 ? "all" : areasData?.[value - 1]}
+                        areaName={areas?.find((item) => item.id === selectedArea)?.name}
                     />
                 ) : null}
             </Box>
