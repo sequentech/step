@@ -19,7 +19,7 @@ interface TallyResultsContestProps {
 
 export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) => {
     const {areas, electionId, electionEventId, tenantId, resultsEventId} = props
-    const [value, setValue] = React.useState<number | null>(null)
+    const [value, setValue] = React.useState<number | null>(0)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
     const [contestId, setContestId] = useState<string | null>()
 
@@ -63,9 +63,9 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     }, [areas])
 
     useEffect(() => {
-        console.log("TallyResultsContest :: in effect contestsData", contests)
         if (electionData) {
             setContestsData(contests || [])
+            tabClicked(contests?.[0]?.id, 0)
         }
     }, [electionData, contests])
 
@@ -92,15 +92,18 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
 
     return (
         <>
-            <Tabs value={value}>
-                {contestsData?.map((contest, index) => (
-                    <Tab
-                        key={index}
-                        label={contest.name}
-                        onClick={() => tabClicked(contest.id, index)}
-                    />
-                ))}
-            </Tabs>
+            <Box sx={{borderBottom: 1, borderColor: "divider"}}>
+                <Tabs value={value}>
+                    {contestsData?.map((contest, index) => (
+                        <Tab
+                            key={index}
+                            label={contest.name}
+                            onClick={() => tabClicked(contest.id, index)}
+                        />
+                    ))}
+                </Tabs>
+            </Box>
+
             {contestsData?.map((contest, index) => (
                 <CustomTabPanel key={index} index={index} value={value}>
                     <TallyResultsContestAreas

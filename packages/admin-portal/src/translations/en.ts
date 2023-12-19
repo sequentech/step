@@ -269,6 +269,18 @@ const englishTranslation = {
                     noLogs: "No logs available",
                 },
             },
+            import: {
+                eetitle: "Import Election Event",
+                eesubtitle: "Import election event data",
+                title: "Import Voters",
+                subtitle: "Import voters data",
+                voters: "Voters",
+                elections: "Elections",
+                areas: "Areas",
+                sha: "Integrity (SHA 256)",
+                cancel: "Cancel",
+                import: "Import",
+            },
         },
         electionScreen: {
             common: {
@@ -467,6 +479,7 @@ const englishTranslation = {
             },
         },
         common: {
+            export: "Export can be a long operation. Are you sure you want to export records?",
             resources: {
                 electionEvent: "Election Event",
                 election: "Election",
@@ -492,6 +505,8 @@ const englishTranslation = {
                 warning: "Warning",
                 json: "Preview",
                 noResult: "No result",
+                import: "Import",
+                export: "Export",
                 loadingData: "Loading data ...",
             },
             language: {
@@ -768,14 +783,15 @@ const englishTranslation = {
                 method: "Tally Method",
                 elegible: "Elegible Voters",
                 number: "Number of Votes",
-                turnout: "Turnout (%)",
+                turnout: "%",
                 candidates: "Candidates",
-                global: "Global results",
+                global: "Participation Summary",
                 elegible_census: "Elegible Voters",
                 total_valid_votes: "Total Valid Votes",
                 explicit_invalid_votes: "Explicitly Invalid Votes",
                 implicit_invalid_votes: "Implicitly Invalid Votes",
                 blank_votes: "Blank Votes",
+                number_of_votes: "Number of Votes",
             },
         },
         publish: {

@@ -25,7 +25,6 @@ export const ElectionTabs: React.FC = () => {
                 <TabbedShowLayout.Tab label={t("electionScreen.tabs.data")}>
                     <EditElectionData />
                 </TabbedShowLayout.Tab>
-                <TabbedShowLayout.Tab label="Dashboard">a</TabbedShowLayout.Tab>
                 <TabbedShowLayout.Tab label={t("electionScreen.tabs.voters")}>
                     a
                 </TabbedShowLayout.Tab>

@@ -13,7 +13,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {Accordion, AccordionSummary} from "@mui/material"
+import {Accordion, AccordionSummary, Button} from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
@@ -40,6 +40,7 @@ import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
 import globalSettings from "@/global-settings"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import DownloadIcon from "@mui/icons-material/Download"
 
 const WizardSteps = {
     Start: 0,
@@ -219,6 +220,11 @@ export const TallyCeremony: React.FC = () => {
         } catch (error) {
             notify(t("tally.startTallyError"), {type: "error"})
         }
+    }
+
+    const handleExportResults = async (e: any) => {
+        e.preventDefault()
+        console.log("EXPORT RESULTS", e)
     }
 
     return (
@@ -414,16 +420,15 @@ export const TallyCeremony: React.FC = () => {
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon id="tally-results-general" />}
-                            >
+                                >
                                 <WizardStyles.AccordionTitle>
                                     {t("tally.generalInfoTitle")}
                                 </WizardStyles.AccordionTitle>
                                 <TallyStyles.StyledSpacing>
-                                    <ListActions
-                                        withImport={false}
-                                        withColumns={false}
-                                        withFilter={false}
-                                    />
+                                    <Button onClick={handleExportResults} sx={{zIndex: 100}}>
+                                        <DownloadIcon />
+                                        {t("common.label.export")}
+                                    </Button>
                                 </TallyStyles.StyledSpacing>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
