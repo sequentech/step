@@ -8,6 +8,7 @@ use crate::{
     fixtures::elections::Election,
 };
 use sequent_core::ballot::{BallotStyle, Contest};
+use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -95,7 +96,6 @@ impl PipeInputs {
         let config_file =
             fs::File::open(&config_path).map_err(|e| Error::FileAccess(config_path.clone(), e))?;
 
-        // TODO: election + election config => mergeable?
         let election: Election = serde_json::from_reader(config_file)?;
 
         let mut configs = vec![];
@@ -184,6 +184,23 @@ pub struct InputContestConfig {
 #[derive(Debug)]
 pub struct InputAreaConfig {
     pub id: Uuid,
-    pub contest_id: Uuid,
+    pub election_id: Uuid,
     pub path: PathBuf,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ElectionConfig {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub election_event_id: Uuid,
+    pub ballot_styles: Vec<BallotStyle>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct AreaConfig {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub election_event_id: Uuid,
+    pub election_id: Uuid,
+    pub census: u64,
 }
