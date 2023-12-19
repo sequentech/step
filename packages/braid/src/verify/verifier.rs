@@ -5,11 +5,11 @@ use serde::Serialize;
 use strum::Display;
 use tracing::info;
 
-use braid_messages::artifact::Configuration;
-use braid_messages::message::Message;
-use braid_messages::message::VerifiedMessage;
-use braid_messages::newtypes::*;
-use braid_messages::statement::StatementType;
+use board_messages::braid::artifact::Configuration;
+use board_messages::braid::message::Message;
+use board_messages::braid::message::VerifiedMessage;
+use board_messages::braid::newtypes::*;
+use board_messages::braid::statement::StatementType;
 
 use crate::protocol2::board::immudb::ImmudbBoard;
 use crate::protocol2::predicate::Predicate;

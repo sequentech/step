@@ -3,16 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-export interface IElectionEventStatus {
-    config_created?: boolean
-}
-
-export enum IVotingStatus {
-    NOT_STARTED = "NOT_STARTED",
-    OPEN = "OPEN",
-    PAUSED = "PAUSED",
-    CLOSED = "CLOSED",
-}
+import {IElectionEventStatus} from "@/types/CoreTypes"
 
 export const getStatus = (data: IElectionEventStatus): IElectionEventStatus => {
     return data

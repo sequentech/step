@@ -7,6 +7,7 @@ use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
@@ -32,7 +33,7 @@ pub async fn create_tally_ceremony(
 ) -> Result<Json<CreateTallyCeremonyOutput>, (Status, String)> {
     authorize(&claims, true, None, vec![Permissions::ADMIN_CEREMONY])?;
     let input = body.into_inner();
-    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let tenant_id: String = claims.hasura_claims.tenant_id.clone();
 
     let tally_session_id = tally_ceremony::create_tally_ceremony(
         tenant_id,
@@ -52,22 +53,78 @@ pub async fn create_tally_ceremony(
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct StartTallyCeremonyInput {
+pub struct UpdateTallyCeremonyInput {
     election_event_id: String,
     tally_session_id: String,
+    status: TallyExecutionStatus,
 }
 
 #[instrument(skip(claims))]
-#[post("/start-tally-ceremony", format = "json", data = "<body>")]
-pub async fn start_tally_ceremony(
-    body: Json<StartTallyCeremonyInput>,
+#[post("/update-tally-ceremony", format = "json", data = "<body>")]
+pub async fn update_tally_ceremony(
+    body: Json<UpdateTallyCeremonyInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateTallyCeremonyOutput>, (Status, String)> {
     authorize(&claims, true, None, vec![Permissions::ADMIN_CEREMONY])?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
+    tally_ceremony::update_tally_ceremony(
+        tenant_id,
+        input.election_event_id.clone(),
+        input.tally_session_id.clone(),
+        input.status.clone(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
     Ok(Json(CreateTallyCeremonyOutput {
         tally_session_id: input.tally_session_id.clone(),
     }))
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Endpoint: /restore-private-key
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SetPrivateKeyInput {
+    election_event_id: String,
+    private_key_base64: String,
+    tally_session_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SetPrivateKeyOutput {
+    is_valid: bool,
+}
+
+// The main function to restore the private key
+#[instrument(skip(claims))]
+#[post("/restore-private-key", format = "json", data = "<body>")]
+pub async fn restore_private_key(
+    body: Json<SetPrivateKeyInput>,
+    claims: JwtClaims,
+) -> Result<Json<SetPrivateKeyOutput>, (Status, String)> {
+    authorize(&claims, true, None, vec![Permissions::TRUSTEE_CEREMONY])?;
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let is_valid = tally_ceremony::set_private_key(
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+        &input.tally_session_id,
+        &input.private_key_base64,
+    )
+    .await
+    .map_err(|e| (Status::BadRequest, format!("{:?}", e)))?;
+
+    event!(
+        Level::INFO,
+        "Restoring given private key, election_event_id={}, tally_session_id={}, is_valid={}",
+        input.election_event_id,
+        input.tally_session_id,
+        is_valid,
+    );
+    Ok(Json(SetPrivateKeyOutput { is_valid }))
 }

@@ -10,15 +10,18 @@ use std::collections::HashSet;
 use tracing::{event, instrument, Level};
 
 use crate::hasura;
-use crate::hasura::keys_ceremony::get_keys_ceremony;
+use crate::hasura::keys_ceremony::get_keys_ceremonies;
 use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
+use crate::services::ceremonies::serialize_logs::generate_logs;
+use crate::services::date::get_now_utc_unix_ms;
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::protocol_manager;
 use crate::services::public_keys;
 use crate::types::error::Result;
 use sequent_core::types::ceremonies::{CeremonyStatus, ExecutionStatus, Trustee, TrusteeStatus};
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 10)]
 pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Result<()> {
@@ -49,7 +52,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
     }
 
     // set public key in the election event
-    let public_key = public_keys::get_public_key(board_name).await?;
+    let public_key = public_keys::get_public_key(board_name.clone()).await?;
     hasura::election_event::update_election_event_public_key(
         auth_headers.clone(),
         tenant_id.clone(),
@@ -59,7 +62,7 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
     .await?;
 
     // find the keys ceremony, and then update it
-    let keys_ceremonies = get_keys_ceremony(
+    let keys_ceremonies = hasura::keys_ceremony::get_keys_ceremonies(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -99,9 +102,9 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
         .map(|trustee| trustee.name)
         .collect::<HashSet<String>>();
     let trustees_by_name = get_trustees_by_name(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        trustee_names.clone().into_iter().collect::<Vec<_>>(),
+        &auth_headers,
+        &tenant_id,
+        &trustee_names.clone().into_iter().collect::<Vec<_>>(),
     )
     .await?
     .data
@@ -115,11 +118,16 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
         return Err("trustee_names don't correspond to trustees_by_name".into());
     }
 
+    let messages = protocol_manager::get_board_public_key_messages(&board_name).await?;
+    let mut new_logs = generate_logs(&messages, 0, &vec![0])?;
+    let mut logs = current_status.logs.clone();
+    logs.append(&mut new_logs);
+
     let new_execution_status: String = ExecutionStatus::IN_PROCESS.to_string();
     let new_status: Value = serde_json::to_value(CeremonyStatus {
-        stop_date: None,
+        stop_date: Some(get_now_utc_unix_ms().to_string()),
         public_key: Some(public_key.clone()),
-        logs: vec![],
+        logs: logs,
         trustees: current_status
             .trustees
             .clone()
@@ -130,6 +138,17 @@ pub async fn set_public_key(tenant_id: String, election_event_id: String) -> Res
             })
             .collect::<Vec<Trustee>>(),
     })?;
+
+    // update public key
+    hasura::keys_ceremony::update_keys_ceremony_status(
+        auth_headers.clone(),
+        tenant_id.clone(),
+        election_event_id.clone(),
+        keys_ceremony.id.clone(),
+        new_status,
+        new_execution_status,
+    )
+    .await?;
 
     Ok(())
 }

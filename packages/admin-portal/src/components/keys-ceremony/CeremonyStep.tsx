@@ -4,25 +4,21 @@
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 
 import React, {useState} from "react"
-import {Toolbar} from "react-admin"
 import {useTranslation} from "react-i18next"
 
-import { theme, Dialog } from "@sequentech/ui-essentials"
+import {theme, Dialog} from "@sequentech/ui-essentials"
 import {
     IKeysCeremonyExecutionStatus as EStatus,
     IKeysCeremonyTrusteeStatus as TStatus,
     IExecutionStatus,
 } from "@/services/KeyCeremony"
-import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
+import {WizardStyles} from "@/components/styles/WizardStyles"
 
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import CloseIcon from "@mui/icons-material/Close"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
-import DoneOutlineIcon from "@mui/icons-material/DoneOutline"
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
-import Button from "@mui/material/Button"
-import {styled} from "@mui/material/styles"
-import {Accordion, AccordionDetails, AccordionSummary, Box, Chip, Typography} from "@mui/material"
+import {Accordion, AccordionSummary, Box, Typography} from "@mui/material"
 import Table from "@mui/material/Table"
 import TableBody from "@mui/material/TableBody"
 import TableCell from "@mui/material/TableCell"
@@ -30,6 +26,9 @@ import TableContainer from "@mui/material/TableContainer"
 import TableHead from "@mui/material/TableHead"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
+import {useGetOne} from "react-admin"
+import globalSettings from "@/global-settings"
+import {Logs} from "../Logs"
 
 export const statusColor: (status: string) => string = (status) => {
     if (status == EStatus.NOT_STARTED) {
@@ -45,110 +44,74 @@ export const statusColor: (status: string) => string = (status) => {
     }
 }
 
-// TODO: use this later when we support multiple ceremonies per election event
-// const CancelButton = styled(Button)`
-//     margin-left: auto;
-//     background-color: ${({theme}) => theme.palette.grey[100]};
-//     color: ${({theme}) => theme.palette.errorColor};
-//     border-color: ${({theme}) => theme.palette.errorColor};
-// 
-//     &:hover {
-//         background-color: ${({theme}) => theme.palette.errorColor};
-//     }
-// `
-
-const StyledToolbar = styled(Toolbar)`
-    flex-direction: row;
-    justify-content: space-between;
-`
-
-const BackButton = styled(Button)`
-    margin-right: auto;
-    background-color: ${({theme}) => theme.palette.grey[100]};
-    color: ${({theme}) => theme.palette.brandColor};
-`
-
-const StyledBox = styled(Box)`
-    margin-top: 30px;
-    margin-bottom: 30px;
-`
-
-const DoneIcon = styled(DoneOutlineIcon)`
-    color: ${({theme}) => theme.palette.brandSuccess};
-`
-
-const AccordionTitle = styled(ElectionHeaderStyles.Title)`
-    margin-bottom: 0 !important;
-`
-
-const AccordionDetails2 = styled(AccordionDetails)`
-    padding-top: 0;
-    margin-top: -10px;
-`
-
-const CeremonyStatus = styled(Chip)`
-    margin-top: 6px;
-    margin-left: auto;
-    margin-right: 10px;
-    font-weight: bold;
-`
-
 export interface CeremonyStepProps {
+    message?: React.ReactNode
     currentCeremony: Sequent_Backend_Keys_Ceremony | null
     electionEvent: Sequent_Backend_Election_Event
+    goNext?: () => void
     goBack: () => void
 }
 
 export const CeremonyStep: React.FC<CeremonyStepProps> = ({
+    message,
     currentCeremony,
     electionEvent,
     goBack,
+    goNext,
 }) => {
-    console.log(`ceremony step with currentCeremony.id=${currentCeremony?.id ?? null}`)
     const {t} = useTranslation()
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [progressExpanded, setProgressExpanded] = useState(true)
     const [logsExpanded, setLogsExpanded] = useState(true)
 
+    console.log(`ceremony step with currentCeremony.id=${currentCeremony?.id ?? null}`)
+
+    const {data: ceremony} = useGetOne<Sequent_Backend_Keys_Ceremony>(
+        "sequent_backend_keys_ceremony",
+        {
+            id: currentCeremony?.id ?? null,
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        }
+    )
+
     const confirmCancelCeremony = () => {}
-    const cancellable = () => {
-        return (
-            currentCeremony?.execution_status == EStatus.NOT_STARTED ||
-            currentCeremony?.execution_status == EStatus.IN_PROCESS
-        )
-    }
-    const status: IExecutionStatus = currentCeremony?.status
+    //const cancellable = () => {
+    //    return (
+    //        currentCeremony?.execution_status == EStatus.NOT_STARTED ||
+    //        currentCeremony?.execution_status == EStatus.IN_PROCESS
+    //    )
+    //}
+    // const status: IExecutionStatus = currentCeremony?.status
+    const status: IExecutionStatus = ceremony?.status
 
     return (
         <>
-            <StyledBox>
+            <WizardStyles.ContentBox>
+                {message}
                 <Accordion
                     sx={{width: "100%"}}
                     expanded={progressExpanded}
                     onChange={() => setProgressExpanded(!progressExpanded)}
                 >
                     <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                        <AccordionTitle>
+                        <WizardStyles.AccordionTitle>
                             {t("keysGeneration.ceremonyStep.progressHeader")}
-                        </AccordionTitle>
-                        <CeremonyStatus
-
+                        </WizardStyles.AccordionTitle>
+                        <WizardStyles.CeremonyStatus
                             sx={{
                                 backgroundColor: statusColor(
-                                    currentCeremony?.execution_status
-                                        ?? EStatus.NOT_STARTED
+                                    ceremony?.execution_status ?? EStatus.NOT_STARTED
                                 ),
                                 color: theme.palette.background.default,
                             }}
-                            label={t(
-                                "keysGeneration.ceremonyStep.executionStatus",
-                                {status: electionEvent.public_key
-                                    ? EStatus.IN_PROCESS
-                                    : currentCeremony?.execution_status,
+                            label={t("keysGeneration.ceremonyStep.executionStatus", {
+                                status: ceremony?.execution_status ?? EStatus.IN_PROCESS,
                             })}
                         />
                     </AccordionSummary>
-                    <AccordionDetails2>
+                    <WizardStyles.AccordionDetails>
                         <Typography variant="body2">
                             {t("keysGeneration.ceremonyStep.description")}
                         </Typography>
@@ -171,7 +134,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {status.trustees.map((trustee) => (
+                                    {status?.trustees?.map((trustee) => (
                                         <TableRow
                                             key={trustee.name as any}
                                             sx={{"&:last-child td, &:last-child th": {border: 0}}}
@@ -183,7 +146,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                 {!electionEvent.public_key ? (
                                                     <HourglassEmptyIcon />
                                                 ) : (
-                                                    <DoneIcon />
+                                                    <WizardStyles.DoneIcon />
                                                 )}
                                             </TableCell>
                                             <TableCell align="center">
@@ -191,7 +154,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                 trustee.status == TStatus.KEY_GENERATED ? (
                                                     <HourglassEmptyIcon />
                                                 ) : (
-                                                    <DoneIcon />
+                                                    <WizardStyles.DoneIcon />
                                                 )}
                                             </TableCell>
                                             <TableCell align="center">
@@ -200,7 +163,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                                 trustee.status == TStatus.KEY_RETRIEVED ? (
                                                     <HourglassEmptyIcon />
                                                 ) : (
-                                                    <DoneIcon />
+                                                    <WizardStyles.DoneIcon />
                                                 )}
                                             </TableCell>
                                         </TableRow>
@@ -208,83 +171,29 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                                 </TableBody>
                             </Table>
                         </TableContainer>
-                    </AccordionDetails2>
+                    </WizardStyles.AccordionDetails>
                 </Accordion>
 
-                <Accordion
-                    sx={{width: "100%"}}
-                    expanded={logsExpanded}
-                    onChange={() => setLogsExpanded(!logsExpanded)}
-                >
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                        <AccordionTitle>
-                            {t("keysGeneration.ceremonyStep.logsHeader.title")}
-                        </AccordionTitle>
-                    </AccordionSummary>
-                    <AccordionDetails2>
-                        {status?.logs.length > 0 ? (
-                            <Paper sx={{width: "100%", overflow: "hidden"}}>
-                                <TableContainer>
-                                    ?{" "}
-                                    <Table sx={{maxHeight: 450}} aria-label="simple table">
-                                        <TableHead>
-                                            <TableRow>
-                                                <TableCell>
-                                                    {t(
-                                                        "keysGeneration.ceremonyStep.logsHeader.date"
-                                                    )}
-                                                </TableCell>
-                                                <TableCell align="left">
-                                                    {t(
-                                                        "keysGeneration.ceremonyStep.logsHeader.entry"
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                            {status.logs.map((log) => (
-                                                <TableRow
-                                                    key={log?.created_date as any}
-                                                    sx={{
-                                                        "&:last-child td, &:last-child th": {
-                                                            border: 0,
-                                                        },
-                                                    }}
-                                                >
-                                                    <TableCell component="th" scope="row">
-                                                        {log?.created_date}
-                                                    </TableCell>
-                                                    <TableCell align="left">
-                                                        {log?.log_text}
-                                                    </TableCell>
-                                                </TableRow>
-                                            )) ?? null}
-                                        </TableBody>
-                                    </Table>
-                                </TableContainer>
-                            </Paper>
-                        ) : (
-                            <Box>
-                                <Typography variant="body2">
-                                    {t("keysGeneration.ceremonyStep.emptyLogs")}
-                                </Typography>
-                            </Box>
-                        )}
-                    </AccordionDetails2>
-                </Accordion>
-            </StyledBox>
-            <StyledToolbar>
-                <BackButton color="info" onClick={goBack}>
+                <Logs logs={status?.logs} />
+            </WizardStyles.ContentBox>
+            <WizardStyles.Toolbar>
+                <WizardStyles.BackButton color="info" onClick={goBack}>
                     <ArrowBackIosIcon />
                     {t("common.label.back")}
-                </BackButton>
+                </WizardStyles.BackButton>
+                {!!goNext && (
+                    <WizardStyles.NextButton color="info" onClick={goNext}>
+                        <ArrowForwardIosIcon />
+                        {t("common.label.next")}
+                    </WizardStyles.NextButton>
+                )}
                 {/*cancellable() ? (
                     <CancelButton onClick={() => setOpenConfirmationModal(true)}>
                         <CloseIcon />
                         {t("keysGeneration.ceremonyStep.cancel")}
                     </CancelButton>
                 ) : null*/}
-            </StyledToolbar>
+            </WizardStyles.Toolbar>
             <Dialog
                 variant="warning"
                 open={openConfirmationModal}

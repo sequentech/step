@@ -27,7 +27,7 @@ pub struct RenderTemplateBody {
     format: FormatType,
 }
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 60000)]
 pub async fn render_report(

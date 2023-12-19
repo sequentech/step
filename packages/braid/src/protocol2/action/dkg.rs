@@ -1,8 +1,9 @@
 #![allow(clippy::too_many_arguments)]
 use super::*;
 use anyhow::anyhow;
+use anyhow::Context;
 use anyhow::Result;
-use braid_messages::artifact::Channel;
+use board_messages::braid::artifact::Channel;
 use strand::elgamal::PublicKey;
 use strand::zkp::Zkp;
 
@@ -44,16 +45,11 @@ pub(super) fn sign_channels<C: Ctx>(
         .enumerate()
     {
         let hash = *h;
-        let channel = trustee.get_channel(&ChannelHash(hash), i);
-        if let Some(channel) = channel {
-            let pk_element = channel.channel_pk;
-            let ok = zkp.schnorr_verify(&pk_element, None, &channel.pk_proof, &label);
-            // FIXME assert
-            assert!(ok);
-        } else {
-            // FIXME panic
-            panic!();
-        }
+        let channel = trustee.get_channel(&ChannelHash(hash), i)?;
+        let pk_element = channel.channel_pk;
+        let ok = zkp.schnorr_verify(&pk_element, None, &channel.pk_proof, &label);
+        // FIXME assert
+        assert!(ok);
     }
 
     let m = Message::channels_all_signed_msg(cfg, channels_hs, trustee)?;
@@ -87,7 +83,7 @@ pub(super) fn compute_shares<C: Ctx>(
 
         let target_channel = trustee
             .get_channel(&ChannelHash(target_hash), i)
-            .ok_or(anyhow!("Could not retrieve channel"))?;
+            .with_context(|| "Could not retrieve channel")?;
 
         // Encrypt share for target trustee
         let encryption_pk = PublicKey::<C>::from_element(&target_channel.channel_pk, &ctx);
@@ -163,7 +159,7 @@ pub(super) fn sign_pk<C: Ctx>(
 
     let actual = trustee
         .get_dkg_public_key(pk_h, 0)
-        .ok_or(anyhow!("Could not retrieve dkg public key",))?;
+        .with_context(|| "Could not retrieve dkg public key")?;
 
     if (expected.0 == actual.pk) && (expected.1 == actual.verification_keys) {
         info!(
@@ -199,7 +195,7 @@ fn compute_pk_<C: Ctx>(
         let share_h = shares_hs.0[i];
         let share = trustee.get_shares(&SharesHash(share_h), i);
 
-        let share = share.ok_or(anyhow!("Failed to retrieve shares",))?;
+        let share = share.with_context(|| "Failed to retrieve shares")?;
 
         pk = pk.mul(&share.commitments[0]).modp(&ctx);
 
@@ -220,7 +216,7 @@ fn compute_pk_<C: Ctx>(
 
                 let my_channel = trustee
                     .get_channel(&ChannelHash(*my_channel_h), *self_p)
-                    .ok_or(anyhow!("Could not retrieve channel for self",))?;
+                    .with_context(|| "Could not retrieve channel for self")?;
 
                 let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
 

@@ -9,8 +9,6 @@ use std::path::PathBuf;
 use tracing::{debug, instrument};
 use tracing_subscriber::filter;
 
-use immudb_rs::Client;
-
 use immu_board::util::init_log;
 use immu_board::BoardClient;
 
@@ -100,7 +98,7 @@ impl Cli {
 }
 
 struct BBHelper {
-    client: Client,
+    client: BoardClient,
     index_dbname: String,
     board_dbname: String,
     actions: Vec<Action>,
@@ -136,8 +134,7 @@ impl BBHelper {
             None => env::var("IMMUDB_PASSWORD")
                 .context("password not provided and IMMUDB_PASSWORD env var not set")?,
         };
-        let mut client = Client::new(&server_url, &username, &password).await?;
-        client.login(&username, &password).await?;
+        let client = BoardClient::new(&server_url, &username, &password).await?;
         Ok(BBHelper {
             client: client,
             index_dbname: index_dbname,
@@ -146,72 +143,27 @@ impl BBHelper {
         })
     }
 
-    /// Creates the database, only if it doesn't exist. It also creates
-    /// the appropriate tables if they don't exist.
-    async fn upsert_database(&mut self, database_name: &str, tables: &str) -> Result<()> {
-        // create database if it doesn't exist
-        if !self.client.has_database(database_name).await? {
-            self.client.create_database(database_name).await?;
-            debug!("Database created!");
-        };
-        self.client.use_database(database_name).await?;
-
-        // List tables and create them if missing
-        if !self.client.has_tables().await? {
-            debug!("no tables! let's create them");
-            self.client.sql_exec(&tables, vec![]).await?;
-        }
-        Ok(())
-    }
-
-    async fn delete_database(&mut self, database_name: &str) -> Result<()> {
-        if self.client.has_database(database_name).await? {
-            self.client.delete_database(database_name).await?;
-        }
-        Ok(())
-    }
-
     async fn upsert_index_db(&mut self) -> Result<()> {
-        self.upsert_database(
-            self.index_dbname.clone().as_str(),
-            r#"
-            CREATE TABLE IF NOT EXISTS bulletin_boards (
-                id INTEGER AUTO_INCREMENT,
-                database_name VARCHAR[128],
-                is_archived BOOLEAN,
-                PRIMARY KEY id
-            );
-            CREATE UNIQUE INDEX ON bulletin_boards(database_name);
-            "#,
-        )
-        .await
+        self.client
+            .upsert_index_db(self.index_dbname.clone().as_str())
+            .await
     }
 
     async fn delete_index_db(&mut self) -> Result<()> {
-        self.delete_database(self.index_dbname.clone().as_str())
+        self.client
+            .delete_database(self.index_dbname.clone().as_str())
             .await
     }
 
     async fn upsert_board_db(&mut self) -> Result<()> {
-        self.upsert_database(
-            self.board_dbname.clone().as_str(),
-            r#"
-            CREATE TABLE IF NOT EXISTS messages (
-                id INTEGER AUTO_INCREMENT,
-                created TIMESTAMP,
-                signer_key BLOB,
-                statement_timestamp TIMESTAMP,
-                statement_kind VARCHAR,
-                message BLOB,
-                PRIMARY KEY id
-            );
-            "#,
-        )
-        .await
+        self.client
+            .upsert_board_db(self.board_dbname.clone().as_str())
+            .await
     }
 
     async fn delete_board_db(&mut self) -> Result<()> {
-        self.delete_database(self.board_dbname.clone().as_str())
+        self.client
+            .delete_database(self.board_dbname.clone().as_str())
             .await
     }
 

@@ -21,7 +21,7 @@ use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::get_board_client;
 use crate::types::error::Result;
 
-#[instrument]
+#[instrument(err)]
 pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Result<Value> {
     let index_db = env::var("IMMUDB_INDEX_DB").expect(&format!("IMMUDB_INDEX_DB must be set"));
     let board_name = get_event_board(tenant_id, election_event_id);
@@ -38,7 +38,7 @@ pub async fn upsert_immu_board(tenant_id: &str, election_event_id: &str) -> Resu
     Ok(board_value)
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn upsert_keycloak_realm(tenant_id: &str, election_event_id: &str) -> Result<()> {
     let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH").expect(&format!(
         "KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH must be set"
@@ -54,7 +54,7 @@ pub async fn upsert_keycloak_realm(tenant_id: &str, election_event_id: &str) -> 
     Ok(())
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn insert_election_event_db(
     auth_headers: &connection::AuthHeaders,
     object: &InsertElectionEventInput,
@@ -87,7 +87,7 @@ pub async fn insert_election_event_db(
     Ok(())
 }
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn insert_election_event_t(object: InsertElectionEventInput, id: String) -> Result<()> {

@@ -69,21 +69,20 @@ To launch the `admin-portal` in development mode, execute (the first time):
 ```bash
 cd /workspaces/backend-services/packages/
 yarn && yarn build:ui-essentials # only needed the first time
-yarn start:admin
+yarn start:admin-portal
 ```
 
 For subsequent runs, you only need:
 
 ```bash
 cd /workspaces/backend-services/packages/
-yarn start:admin
+yarn start:admin-portal
 ```
 
 Then it should open the admin-portal in the web browser, or else enter 
 in [http://127.0.0.1:3002/]
 
-
-### Workspaces
+## Workspaces
 
 When you open a new terminal, typically the current working directory (CWD) is
 `/workspaces` if you are using Github Codespaces. However, all the commands
@@ -95,7 +94,7 @@ This is important especially if you are for example relaunching a docker service
 `/workspaces/backend-services/.devcontainer` it should work, even if those two
 are typically a symlink to the other directory and are essentially the same.
 
-### Directory tree file organization
+## Directory tree file organization
 
 The directory tree is structured as follows:
 
@@ -131,7 +130,7 @@ both used in:
 a. Frontend code, compiled to WASM with Yarn.
 b. Backend code, compiled to native code with Cargo.
 
-### Launch the backend rust service
+## Launch the backend rust service
 
 Since we have not yet setup a docker container to automatically launch the
 rust&rocket based backend service, you can launch it manually by executing the
@@ -178,7 +177,7 @@ This should output something like:
 🚀 Rocket has launched from http://127.0.0.1:8000
 ```
 
-### Docker services logs
+## Docker services logs
 
 We have configured the use of [direnv] and [devenv] in this dev container, and
 doing so in the `devenv.nix` file we configured the 
@@ -204,7 +203,7 @@ automatically run docker compose logs on start up, for convenience.
 
 You can enter the Immudb web console at http://localhost:3325 and the user/pass is `immudb:immudb`.
 
-### Keycloak default realms
+## Keycloak default realms
 
 The deployment has 2 default Keycloak realms created by default, one for the
 default tenant and another for the default election event inside that tenant.
@@ -271,7 +270,7 @@ cd /workspaces/backend-services/.devcontainer/
 docker compose build configure-minio && docker compose up -d --no-deps configure-minio && docker compose logs -f configure-minio
 ```
 
-### Add Hasura migrations/changes
+## Add Hasura migrations/changes
 
 If you want to make changes to hasura, or if you want the Hasura console to
 automatically add migrations to the code, first run this project in Codespaces
@@ -318,7 +317,7 @@ Afterwards, you need to regenerate the typescript auto-generated types using
 
 ```bash
 cd /workspaces/backend-services/packages/
-yarn generate:admin
+yarn generate:admin-portal
 ```
 
 Additionally, the same graphql schema file is needed in `windmill` to generate 
@@ -416,7 +415,7 @@ Finally you'll need to rebuild/restart harvest:
 ## Update Sequent Core
 
 ```bash
-cd packages/sequent-core
+cd /workspaces/backend-services/packages/sequent-core
 wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
 wasm-pack -v pack .
 
@@ -434,13 +433,14 @@ wasm-pack -v pack .
   version "0.1.0"
   resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#01a1bb936433ef529b9132c783437534db75f67d"
 
-# luego ejecutar en packages/
+# luego ejecutar:
+cd /workspaces/backend-services/packages/
 rm ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
 cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/pkg/sequent-core-0.1.0.tgz
 
-rm -rf node_modules voting-portal/node_modules ballot-verifier/node_modules
+rm -rf node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules
 
 # y luego:
 
@@ -448,7 +448,6 @@ yarn && yarn build:ui-essentials
 
 # y luego ya funciona todo
 ```
-
 
 ## Create election event
 
@@ -458,10 +457,12 @@ In order to be able to create an election event, you need:
 
 ```bash
 cd /workspaces/backend-services/.devcontainer
-docker compose stop harvest; docker compose up -d --no-deps harvest
+docker compose down harvest && \              # stops & remove the container
+docker compose up -d --no-deps harvest && \   # brings up the contaner
+docker compose logs -f --tail 100 harvest     # tails the logs of the container
 ```
 
-2. Run the vault:
+1. Run the vault:
 
 ```bash
 cd /workspaces/backend-services/.devcontainer
@@ -539,18 +540,26 @@ docker compose build frontend && docker compose up -d --no-deps frontend
 
 ### The hasura schema changed or I want to add a query/mutation to the voting-portal/admin-portal
 
-Add the query/mutation to the `packages/voting-portal/src/queries/` folder and 
-then run `yarn generate` from the `packages/` folder to update the types.  Similarly,
-run `yarn generate:admin` to update the types of the `admin-portal` if you need it.
+Add the query/mutation to the `packages/voting-portal/src/queries/` folder and
+then run `yarn generate` from the `packages/` folder to update the types.
+Similarly, run `yarn generate:admin-portal` to update the types of the
+`admin-portal` if you need it.
 
 ### The voting portal will not load any elections
 
-It's possible you find that the voting portal is not loading any elections,
-and that inspecting it further, the Hasura/Graphql POST gives an error similar to
-`field not found in type: 'query_root'`. This is possibly because you're connecting
-to the wrong instance of Hasura. Possibly, you're running VS Code with Codespaces
-and a local Hasura client as well, so the container port is being forwarded to
-a different port than 8080.
+It's possible you find that the voting portal is not loading any elections, and
+that inspecting it further, the Hasura/Graphql POST gives an error similar to
+`field not found in type: 'query_root'`. This is possibly because you're
+connecting to the wrong instance of Hasura. Possibly, you're running VS Code
+with Codespaces and a local Hasura client as well, so the container port is
+being forwarded to a different port than 8080.
+
+## You get the `root does not exist` or hasura doesn't start, volumes don't mount
+
+This is a nasty error that we need to further investigate and fix. Typically
+start happening after the codespace has been stopped and restarted a few times.
+Currently the only fix we have is.. committing and pushing all your changes to
+your branch and starting a new codespace.
 
 ## Tamper-evident logging
 

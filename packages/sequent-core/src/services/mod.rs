@@ -10,5 +10,7 @@ pub mod jwt;
 pub mod keycloak;
 #[cfg(feature = "reports")]
 pub mod pdf;
+#[cfg(feature = "probe")]
+pub mod probe;
 #[cfg(feature = "reports")]
 pub mod reports;

@@ -15,6 +15,7 @@
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
@@ -43,3 +44,5 @@ Cargo.lock
 rust-toolchain
 result
 #rust/pkg
+
+/public/tinymce/

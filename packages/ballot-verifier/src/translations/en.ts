@@ -53,6 +53,7 @@ const englishTranslation = {
                     "This is the Ballot Id you typed in the previous step and that you collected from the Voting Booth.",
             },
             backButton: "Back",
+            printButton: "Print",
             finishButton: "Verified",
             verifySelectionsTitle: "Verify your ballot selections",
             verifySelectionsDescription:

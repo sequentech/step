@@ -4,7 +4,7 @@ FROM rust:1.72.0
 WORKDIR /app
 COPY ./braid/scripts/Cargo.toml ./Cargo.toml
 COPY ./braid ./braid
-COPY ./braid-messages ./braid-messages
+COPY ./board-messages ./board-messages
 COPY ./sequent-core ./sequent-core
 COPY ./immu-board ./immu-board
 COPY ./immudb-rs ./immudb-rs

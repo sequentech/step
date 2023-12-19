@@ -5,6 +5,7 @@ import React, {useState, useEffect, PropsWithChildren} from "react"
 import Typography from "@mui/material/Typography"
 import Paper, {PaperProps} from "@mui/material/Paper"
 import Box from "@mui/material/Box"
+import {useNavigate} from "react-router-dom"
 import {Link as RouterLink} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
@@ -15,6 +16,7 @@ import Button from "@mui/material/Button"
 import {
     faCircleQuestion,
     faTimesCircle,
+    faPrint,
     faAngleLeft,
     faAngleRight,
 } from "@fortawesome/free-solid-svg-icons"
@@ -31,7 +33,7 @@ import {
 import {keyBy} from "lodash"
 import {ICandidate} from "sequent-core"
 import Image from "mui-image"
-import { checkIsInvalidVote, checkIsWriteIn, getImageUrl } from "../services/ElectionConfigService"
+import {checkIsInvalidVote, checkIsWriteIn, getImageUrl} from "../services/ElectionConfigService"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -122,7 +124,12 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({answer, isWriteIn, wri
     const imageUrl = answer && getImageUrl(answer)
 
     return (
-        <Candidate title={answer?.name || ""} description={answer?.description} isWriteIn={isWriteIn} writeInValue={writeInValue}>
+        <Candidate
+            title={answer?.name || ""}
+            description={answer?.description}
+            isWriteIn={isWriteIn}
+            writeInValue={writeInValue}
+        >
             {imageUrl ? <Image src={imageUrl} duration={100} /> : null}
         </Candidate>
     )
@@ -144,8 +151,7 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
     const explicitInvalidAnswer =
         (questionPlaintext.is_explicit_invalid &&
             question.presentation?.invalid_vote_policy !== "not-allowed" &&
-            question.candidates.find((answer) => checkIsInvalidVote(answer)
-            )) ||
+            question.candidates.find((answer) => checkIsInvalidVote(answer))) ||
         null
     const answersById = keyBy(question.candidates, (a) => a.id)
     const properties = ballotService.getLayoutProperties(question)
@@ -314,6 +320,7 @@ interface ActionButtonProps {}
 
 const ActionButtons: React.FC<ActionButtonProps> = ({}) => {
     const {t} = useTranslation()
+    const triggerPrint = () => window.print()
 
     return (
         <ActionsContainer>
@@ -323,10 +330,18 @@ const ActionButtons: React.FC<ActionButtonProps> = ({}) => {
                     <span>{t("confirmationScreen.backButton")}</span>
                 </StyledButton>
             </StyledLink>
-            <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+            <StyledButton
+                onClick={triggerPrint}
+                variant="secondary"
+                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+            >
+                <Icon icon={faPrint} size="sm" />
+                <Box>{t("confirmationScreen.printButton")}</Box>
+            </StyledButton>
+            {/*<StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
                 <span>{t("confirmationScreen.finishButton")}</span>
                 <Icon icon={faAngleRight} size="sm" />
-            </StyledButton>
+            </StyledButton>*/}
         </ActionsContainer>
     )
 }
@@ -427,10 +442,14 @@ export const ConfirmationScreen: React.FC<IProps> = ({
     ballotId,
 }) => {
     const {t} = useTranslation()
+    const navigate = useNavigate()
     const [isLoading, setIsLoading] = useState(confirmationBallot === null)
 
     useEffect(() => {
         setIsLoading(confirmationBallot === null)
+        if (confirmationBallot == null) {
+            navigate("/")
+        }
     }, [confirmationBallot])
 
     return (
@@ -440,7 +459,7 @@ export const ConfirmationScreen: React.FC<IProps> = ({
                     labels={[
                         "breadcrumbSteps.import",
                         "breadcrumbSteps.verify",
-                        "breadcrumbSteps.finish",
+                        //"breadcrumbSteps.finish",
                     ]}
                     selected={1}
                 />

@@ -64,6 +64,21 @@ const spanishTranslation: TranslationType = {
                 cancel: "Cancelar",
             },
         },
+        logsScreen: {
+            noPermissions: "No tienes permiso para acceder a las bitácoras.",
+            title: "Bitácoras",
+            subtitle: "Bitácoras generales de las baseses de datos principal y de IAM.",
+            column: {
+                id: "Id",
+                statement: "Statement",
+            },
+            main: {
+                title: "Bitácora de Base de Datos Principal",
+            },
+            iam: {
+                title: "Bitácora de Base de Datos de IAM",
+            },
+        },
         confirmationScreen: {
             title: "Su voto ha sido emitido",
             description:
@@ -141,6 +156,13 @@ const spanishTranslation: TranslationType = {
                 kioskVoting: "Votación en Quiosco",
                 settingTitle: "Configuración",
                 settingSubtitle: "Ajustes generales",
+                sms: "SMS",
+                mail: "Mails",
+                spanish: "Spanish",
+                english: "English",
+                createNew: "Crear un Tipo de Elección",
+                emptyHeader: "No hay Tipos de Elección aún.",
+                emptyBody: "¿Quieres crear uno?",
             },
             create: {
                 title: "Crear Tipo de Elección",
@@ -202,10 +224,21 @@ const spanishTranslation: TranslationType = {
                 createNew: "Crear Ceremonia de Claves",
                 emptyHeader: "Ninguna Ceremonia de Claves aún.",
                 statusLabel: "Estado",
+                waitingKeys: "Esperando a la Generación de Claves..",
+                started: "Iniciada en",
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Ceremonia",
                     created: "Finished",
+                    start: "Comienzo",
+                    status: "Estado",
+                    download: "Descargar",
+                    check: "Comprobar",
+                    success: "Finalizado",
+                },
+                notify: {
+                    participateNow:
+                        "Ha sido invitado a participar a una Ceremonia de Claves. Por favor <1>haz clic abajo en la acción de llave de la ceremonia</1> para participar.",
                 },
             },
             tabs: {
@@ -217,6 +250,26 @@ const spanishTranslation: TranslationType = {
                 tally: "Recuento",
                 publish: "Publicar",
                 logs: "Logs",
+            },
+            tally: {
+                emptyHeader: "Ningún Recuento aún.",
+                title: "Recuento del Evento Electoral",
+                elections: "Elecciones",
+                electionNumber: "Número de Elecciones",
+                trustees: "Trustees",
+                status: "Estado",
+                create: {
+                    title: "Crear Recuento",
+                    subtitle: "Crear un nuevo Recuento para este Evento Electoral",
+                    createButton: "Iniciar la Ceremonia de Recuento",
+                    error: {
+                        create: "Error creando Recuento",
+                    },
+                    success: "Recuento creado",
+                },
+                logs: {
+                    noLogs: "No hay registros disponibles",
+                },
             },
         },
         electionScreen: {
@@ -247,6 +300,7 @@ const spanishTranslation: TranslationType = {
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
                 fileError: "Error al cargar el archivo",
+                fileLoaded: "Archivo cargado",
             },
             createElectionEventSuccess: "Creada la elección",
             createElectionEventError: "Error Creando la elección",
@@ -272,6 +326,7 @@ const spanishTranslation: TranslationType = {
             common: {
                 title: "Usuarios y Roles",
                 subtitle: "Configuración general",
+                mobileNumber: "Móvil",
             },
             users: {
                 title: "Usuarios",
@@ -294,9 +349,21 @@ const spanishTranslation: TranslationType = {
                     groups: "Grupos",
                     attributes: "Atributos",
                     area: "Área",
+                    password: "Contraseña",
+                    repeatPassword: "Repetir Contraseña",
+                    passwordMismatch: "Las contraseñas deben de coincidir",
+                    passwordLengthValidate: "La contraseña debe tener al menos 8 caracteres",
+                    passwordUppercaseValidate:
+                        "La contraseña debe contener al menos una letra mayúscula",
+                    passwordLowercaseValidate:
+                        "La contraseña debe contener al menos una letra minúscula",
+                    passwordDigitValidate: "La contraseña debe contener al menos un dígito",
+                    passwordSpecialCharValidate:
+                        "La contraseña debe contener al menos un carácter especial",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
+                    bulkBody: "¿Estás seguro que quieres borrar los usuarios seleccionados?",
                 },
                 notifications: {
                     deleteError: "Error borrando usuario",
@@ -306,6 +373,8 @@ const spanishTranslation: TranslationType = {
             voters: {
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                emptyHeader: "Ningún votante aún.",
+                askCreate: "¿Quieres crear uno?",
                 create: {
                     title: "Votante",
                     subtitle: "Crear votante",
@@ -318,6 +387,7 @@ const spanishTranslation: TranslationType = {
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este votante?",
+                    bulkBody: "¿Estás seguro que quieres borrar los votantes seleccionados?",
                 },
                 notifications: {
                     deleteError: "Error borrando votante",
@@ -424,6 +494,7 @@ const spanishTranslation: TranslationType = {
                 warning: "Aviso",
                 json: "Vista previa",
                 noResult: "Sin resultados",
+                loadingData: "Cargando datos ...",
             },
             language: {
                 es: "Español",
@@ -432,6 +503,9 @@ const spanishTranslation: TranslationType = {
             channel: {
                 online: "En línea",
                 kiosk: "Kiosco",
+            },
+            message: {
+                delete: "¿Estás seguro que quieres borrar este elemento?",
             },
         },
         createResource: {
@@ -444,6 +518,7 @@ const spanishTranslation: TranslationType = {
             electionEvents: "Procesos Electorales",
             search: "Buscar",
             usersAndRoles: "Usuarios y Roles",
+            logs: "Bitácora",
             settings: "Configuracion",
             communicationTemplates: "Plantillas de Comunicación",
             active: "Activos",
@@ -594,6 +669,187 @@ const spanishTranslation: TranslationType = {
                     entry: "Entrada",
                 },
                 emptyLogs: "Sin logs aún.",
+            },
+            startStep: {
+                title: "Ceremonia de Claves de Autoridad",
+                subtitle:
+                    "Estás a punto de participar en la Ceremonia de Claves como la Autoridad (<strong>{{name}}</strong>). Esto implica los siguientes pasos:",
+                one: "<strong>Descargar</strong> tu Clave Privada Encriptada.",
+                two: "Crear múltiples <strong>Copias de seguridad</strong> de tu Clave Privada Encriptada.",
+                three: "<strong>Verificar</strong> que las copias de seguridad funcionan correctamente.",
+            },
+            downloadStep: {
+                title: "Descargar Clave Privada Encriptada",
+                subtitle:
+                    "Para continuar, por favor descarga y guarda tu Clave Privada Encriptada en al menos dos dispositivos diferentes:",
+                downloadButton: "Descargar tu Clave Privada Encriptada",
+                errorDownloading: "Error de descarga: {{error}}",
+                errorEmptyKey: "Error de descarga, fichero vacío",
+                confirmdDialog: {
+                    ok: "Confirmar copias de seguridad y Continuar",
+                    cancel: "Volver",
+                    title: "Copia de seguridad de tu Clave Privada Encriptada",
+                    description:
+                        "Por favor, realiza una copia de seguridad de tu Clave Privada Encriptada en al menos dos ubicaciones seguras diferentes y luego confírmalo a continuación:",
+                    firstCopy: "Primera copia de seguridad realizada",
+                    secondCopy: "Segunda copia de seguridad realizada",
+                },
+            },
+            checkStep: {
+                title: "Verifica tus Copias de Seguridad de tu Clave Privada Encriptada",
+                subtitle:
+                    "Sube la Copia de Seguridad de tu Clave Privada Encriptada para verificar que sea correcta. Puedes intentarlo tantas veces como sea necesario, desde tus diferentes copias de seguridad:",
+                errorUploading: "Error de subida: {{error}}",
+                errorEmptyFile: "Fichero vacío o no encontrado",
+                verified: "Copia de seguridad verificada correctamente.",
+            },
+        },
+        tally: {
+            ceremonyTitle: "Elecciones para el Recuento",
+            ceremonySubTitle: "Seleccione las elecciones para el recuento",
+            tallyTitle: "Progreso del Recuento de Elecciones",
+            logsTitle: "Logs",
+            resultsTitle: "Resultados & Participación",
+            generalInfoTitle: "Información General",
+            trusteeTallyTitle: "Trustee",
+            trusteeTallySubTitle: "Estado de importación del fragmento de clave",
+            createTallySuccess: "Recuento creado",
+            createTallyError: "Error creando recuento",
+            startTallySuccess: "Recuento iniciado",
+            startTallyError: "Error iniciando recuento",
+            startTallyCeremonySuccess: "Iniciada la ceremonya del recuento",
+            startTallyCeremonyError: "No se ha podido iniciar la ceremonia del recuento",
+            cancelTallyCeremonySuccess: "Cancelada la ceremonya del recuento",
+            cancelTallyCeremonyError: "No se ha podido cancelar la ceremonia del recuento",
+            trusteeTitle: "Proceso del trustee",
+            trusteeSubTitle: "Por favor, importe su fragmento de clave",
+            invited: "Has sido invitado a participar en una ceremonia de recuento. Por favor, ",
+            click: "haz clic en la acción de recuento",
+            participate: "para participar.",
+            breadcrumbSteps: {
+                start: "Inicio",
+                finish: "Final",
+                tally: "Recuento",
+                results: "Resultados",
+                ceremony: "Ceremonia",
+            },
+            common: {
+                title: "Recuento",
+                subTitle: "Configuración del Recuento.",
+                cancel: "Atras",
+                next: "Siguiente",
+                date: "Fecha de Recuento",
+                global: "Global",
+                noTrustees: "No hay trustees aún",
+                imported: " trustees han importado su fragmento de clave",
+                needed: " trustees necesarios para el recuento",
+                start: "Iniciar Recuento",
+                ceremony: "Iniciar Ceremonia de Recuento",
+                results: "Resultados",
+                dialog: {
+                    ok: "Ok",
+                    okTally: "Iniciar recuento",
+                    okCancel: "Cancelar recuento",
+                    cancel: "Cerrar",
+                    title: "¿Estás seguro de que quieres iniciar una ceremonia?",
+                    tallyTitle: "¿Estás seguro de que quieres iniciar el recuento?",
+                    cancelTitle: "¿Estás seguro de que quieres cancelar el recuento?",
+                    message:
+                        "Estás a punto de iniciar una ceremonia de recuento. Esta acción notificará a los trustees para importar sus fragmentos de clave.",
+                    cancelMessage:
+                        "Estás a punto de cancelar la ceremonia de recuento. Esta acción no se puede deshacer.",
+                    ceremony:
+                        "Todos los trustees requeridos han verificado sus fragmentos de clave. Todo está listo para comenzar a recibir resultados. ¿Desea iniciar el Recuento?",
+                },
+            },
+            table: {
+                elections: "Elecciones",
+                selected: "Seleccionadas",
+                status: "Estado",
+                progress: "Progreso",
+                method: "Método de Recuento",
+                elegible: "Votantes Elegibles",
+                number: "Número de Votos",
+                turnout: "Participación (%)",
+                candidates: "Candidates",
+                global: "Resultados globales",
+                elegible_census: "Censo de votantes elegibles",
+                total_valid_votes: "Total de votos válidos",
+                explicit_invalid_votes: "Votos explícitamente inválidos",
+                implicit_invalid_votes: "Votos implícitamente inválidos",
+                blank_votes: "Votos en blanco",
+            },
+        },
+        publish: {
+            header: {
+                change: "Cambios a publicar",
+                history: "Historico de cambios",
+            },
+            action: {
+                start: "Empezar elección",
+                stop: "Parar eleccion",
+                pause: "pausar",
+                generate: "regenerar",
+                publish: "Publicar Cambios",
+                back: "Atrás",
+            },
+            empty: {
+                header: "Ninguna Publicación aún.",
+                action: "Generar Publicación",
+            },
+            dialog: {
+                title: "Confirm action",
+                info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
+                ok: "Confirm",
+                ko: "Cancel",
+                error: "Error al cargar las papeletas publicadas",
+                error_publish: "Error al publicar la papeleta",
+                error_status: "Error al cambiar el estado de la publicación",
+            },
+            label: {
+                current: "Actual",
+                diff: "Cambios a publicar",
+            },
+            notifications: {
+                generated: "Papeleta generada",
+                published: "Papeleta publicada",
+                chang_status: "Papeleta cambiada de estado",
+            },
+        },
+        emailEditor: {
+            subject: "Asunto del Email",
+            tabs: {
+                plaintext: "Cuerpo de Texto Plano",
+                richtext: "Cuerpo de Texto Enriquecido",
+            },
+        },
+        sendCommunication: {
+            send: "Enviar",
+            title: "Enviar Notificación",
+            subtitle: "Enviar una notificación a usuarios/votantes.",
+            sendButton: "Enviar Notificación",
+            voters: "Audiencia",
+            schedule: "Calendario",
+            nowInput: "Enviar ahora",
+            dateInput: "Fecha y hora de comienzo de envío",
+            chooseDate: "Por favor escoge una fecha",
+            languages: "Idiomas",
+            smsMessage: "Mensaje SMS",
+            errorSending: "Error enviando la notificación: {{error}}",
+            successSending: "Notificación programada/enviada con éxito",
+            votersSelection: {
+                ALL_USERS: "Todos",
+                NOT_VOTED: "Los que no votaron",
+                VOTED: "Los que ya votaron",
+                SELECTED: "A {{total}} Votantes seleccionados",
+            },
+            methodTitle: "Método de Comunicación",
+            communicationMethod: {
+                EMAIL: "Email",
+                SMS: "SMS",
+            },
+            email: {
+                subject: "Subject",
             },
         },
     },

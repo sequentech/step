@@ -15,7 +15,14 @@ import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IRole, IUser} from "sequent-core"
-import {FormControl, MenuItem, Select, SelectChangeEvent, TextField} from "@mui/material"
+import {
+    FormControl,
+    MenuItem,
+    Select,
+    SelectChangeEvent,
+    FormControlLabel,
+    Checkbox,
+} from "@mui/material"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
     DeleteUserRoleMutation,
@@ -28,9 +35,9 @@ import {EDIT_USER} from "@/queries/EditUser"
 import {LIST_USER_ROLES} from "@/queries/ListUserRoles"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {isUndefined} from "@sequentech/ui-essentials"
-import Checkbox from "@mui/material/Checkbox"
 import {DELETE_USER_ROLE} from "@/queries/DeleteUserRole"
 import {SET_USER_ROLE} from "@/queries/SetUserRole"
+import {FormStyles} from "@/components/styles/FormStyles"
 
 interface ListUserRolesProps {
     userId: string
@@ -138,6 +145,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const notify = useNotify()
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
+    const refresh = useRefresh()
 
     const [edit_user] = useMutation<EditUsersInput>(EDIT_USER)
     const {data: userRoles, refetch} = useQuery<ListUserRolesQuery>(LIST_USER_ROLES, {
@@ -162,21 +170,28 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const onSubmit = async () => {
         try {
-            let {data, errors} = await edit_user({
+            let {data} = await edit_user({
                 variables: {
                     body: {
                         user_id: user?.id,
                         tenant_id: tenantId,
                         election_event_id: electionEventId,
                         first_name: user?.first_name,
+                        last_name: user?.last_name,
+                        enabled: user?.enabled,
+                        password:
+                            user?.password && user?.password.length > 0 ? user.password : undefined,
                         email: user?.email,
                         attributes: {
-                            "area-id": [user?.attributes?.["area-id"]?.[0]],
+                            "area-id": user?.attributes?.["area-id"],
+                            "sequent.read-only.mobile-number":
+                                user?.attributes?.["sequent.read-only.mobile-number"],
                         },
                     },
                 },
             })
             notify(t("usersAndRolesScreen.voters.errors.editSuccess"), {type: "success"})
+            refresh()
             close?.()
         } catch (error) {
             notify(t("usersAndRolesScreen.voters.errors.editError"), {type: "error"})
@@ -186,15 +201,33 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const {name, value} = e.target
-        setUser({...user, [name]: value})
+        let newUser = {...user, [name]: value}
+        console.log(`newUser = `)
+        console.log(newUser)
+        setUser(newUser)
     }
+
+    const handleAttrChange =
+        (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
+            const {value} = e.target
+            let newUser = {
+                ...user,
+                attributes: {
+                    ...(user?.attributes ?? {}),
+                    [attrName]: [value],
+                },
+            }
+            console.log(`newUser = `)
+            console.log(newUser)
+            setUser(newUser)
+        }
 
     if (!user) {
         return null
     }
 
-    let areaIdAttribute = user?.attributes?.["area-id"] as Array<string> | undefined
-    let defaultAreaId = areaIdAttribute?.[0] ?? undefined
+    let areaIdAttribute = user?.attributes?.["area-id"] as string | undefined
+    let defaultAreaId = areaIdAttribute ?? undefined
 
     const handleSelectArea = async (e: SelectChangeEvent) => {
         if (!electionEventId) {
@@ -210,10 +243,52 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         })
     }
 
+    const validatePassword = (value: any) => {
+        if (!value || value.length == 0) {
+            return
+        }
+
+        const hasEnoughChars = value.length < 8
+        const hasUpperCase = /[A-Z]/.test(value)
+        const hasLowerCase = /[a-z]/.test(value)
+        const hasDigit = /\d/.test(value)
+        const hasSpecialChar = /[^a-zA-Z\d]/.test(value)
+
+        if (hasEnoughChars) {
+            return t("usersAndRolesScreen.users.fields.passwordLengthValidate")
+        }
+
+        if (!hasUpperCase) {
+            return t("usersAndRolesScreen.users.fields.passwordUppercaseValidate")
+        }
+
+        if (!hasLowerCase) {
+            return t("usersAndRolesScreen.users.fields.passwordLowercaseValidate")
+        }
+
+        if (!hasDigit) {
+            return t("usersAndRolesScreen.users.fields.passwordDigitValidate")
+        }
+
+        if (!hasSpecialChar) {
+            return t("usersAndRolesScreen.users.fields.passwordSpecialCharValidate")
+        }
+    }
+
+    const equalToPassword = (value: any, allValues: any) => {
+        if (!allValues.password || allValues.password.length == 0) {
+            return
+        }
+        if (value !== allValues.password) {
+            return t("usersAndRolesScreen.users.fields.passwordMismatch")
+        }
+    }
+
     return (
         <PageHeaderStyles.Wrapper>
             <SimpleForm
                 toolbar={<SaveButton alwaysEnable />}
+                record={user}
                 onSubmit={onSubmit}
                 sanitizeEmptyValues
             >
@@ -225,33 +300,53 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.subtitle`)}
                     </PageHeaderStyles.SubTitle>
 
-                    <TextField
-                        variant="outlined"
+                    <FormStyles.TextInput
                         label={t("usersAndRolesScreen.users.fields.first_name")}
-                        value={user.first_name || ""}
-                        name={"first_name"}
+                        source="first_name"
                         onChange={handleChange}
                     />
-                    <TextField
-                        variant="outlined"
+                    <FormStyles.TextInput
                         label={t("usersAndRolesScreen.users.fields.last_name")}
-                        value={user.last_name || ""}
-                        name={"last_name"}
+                        source="last_name"
                         onChange={handleChange}
                     />
-                    <TextField
-                        variant="outlined"
+                    <FormStyles.TextInput
                         label={t("usersAndRolesScreen.users.fields.email")}
-                        value={user.email || ""}
-                        name={"email"}
+                        source="email"
                         onChange={handleChange}
                     />
-                    <TextField
-                        variant="outlined"
+                    <FormStyles.TextInput
                         label={t("usersAndRolesScreen.users.fields.username")}
-                        value={user.username || ""}
-                        name={"username"}
+                        source="username"
                         onChange={handleChange}
+                    />
+                    <FormStyles.TextField
+                        label={t("usersAndRolesScreen.common.mobileNumber")}
+                        value={user?.attributes?.["sequent.read-only.mobile-number"]}
+                        onChange={handleAttrChange("sequent.read-only.mobile-number")}
+                    />
+                    <FormStyles.PasswordInput
+                        label={t("usersAndRolesScreen.users.fields.password")}
+                        source="password"
+                        validate={validatePassword}
+                        onChange={handleChange}
+                    />
+                    <FormStyles.PasswordInput
+                        label={t("usersAndRolesScreen.users.fields.repeatPassword")}
+                        source="repeat_password"
+                        validate={equalToPassword}
+                        onChange={handleChange}
+                    />
+                    <FormStyles.CheckboxControlLabel
+                        label={t("usersAndRolesScreen.users.fields.enabled")}
+                        control={
+                            <Checkbox
+                                checked={user.enabled || false}
+                                onChange={(event: any) => {
+                                    setUser({...user, enabled: event.target.checked})
+                                }}
+                            />
+                        }
                     />
                     {electionEventId ? (
                         <FormControl fullWidth>

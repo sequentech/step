@@ -7,6 +7,7 @@ use crate::types::hasura_types::Uuid;
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::default::Default;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
@@ -343,16 +344,27 @@ impl Contest {
 )]
 pub struct ElectionEventStatus {
     pub config_created: Option<bool>,
-    pub stopped: Option<bool>,
+    pub keys_ceremony_finished: Option<bool>,
+    pub tally_ceremony_finished: Option<bool>,
+    pub is_published: Option<bool>,
+    pub voting_status: VotingStatus,
+}
+
+impl Default for ElectionEventStatus {
+    fn default() -> Self {
+        ElectionEventStatus {
+            config_created: Some(false),
+            keys_ceremony_finished: Some(false),
+            tally_ceremony_finished: Some(false),
+            is_published: Some(false),
+            voting_status: VotingStatus::NOT_STARTED,
+        }
+    }
 }
 
 impl ElectionEventStatus {
     pub fn is_config_created(&self) -> bool {
         self.config_created.unwrap_or(false)
-    }
-
-    pub fn is_stopped(&self) -> bool {
-        self.stopped.unwrap_or(false)
     }
 }
 
@@ -368,6 +380,7 @@ impl ElectionEventStatus {
     Eq,
     Clone,
     EnumString,
+    JsonSchema,
 )]
 pub enum VotingStatus {
     NOT_STARTED,
@@ -385,51 +398,11 @@ pub enum VotingStatus {
     Eq,
     Debug,
     Clone,
+    Default,
 )]
-pub struct KeyCeremonyLog {
-    pub created_date: String,
-    pub log_text: String, 
-}
-
-
-#[allow(non_camel_case_types)]
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Display,
-    Serialize,
-    Deserialize,
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    EnumString,
-)]
-pub enum KeyCeremonyStatus {
-    NOT_STARTED,
-    IN_PROCESS,
-    SUCCESS,
-    CANCELLED,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Display,
-    Serialize,
-    Deserialize,
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    EnumString,
-)]
-pub enum KeyCeremonyTrusteeStatus {
-    WAITING,
-    KEY_GENERATED,
-    KEY_RETRIEVED,
-    KEY_CHECKED,
+pub struct ElectionEventStatistics {
+    pub num_emails_sent: i64,
+    pub num_sms_sent: i64,
 }
 
 #[derive(
@@ -441,31 +414,11 @@ pub enum KeyCeremonyTrusteeStatus {
     Eq,
     Debug,
     Clone,
+    Default,
 )]
-pub struct KeyCeremonyTrustee {
-    pub name: String,
-    pub status: KeyCeremonyTrusteeStatus
-}
-
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Debug,
-    Clone,
-)]
-pub struct KeyCeremony {
-    pub start_date: String,
-    pub stop_date: String,
-    pub status: KeyCeremonyStatus,
-    pub is_latest: bool,
-    pub threshold: u8,
-    pub public_key: String,
-    pub logs: Vec<KeyCeremonyLog>,
-    pub trustees: Vec<KeyCeremonyTrustee>,
+pub struct ElectionStatistics {
+    pub num_emails_sent: i64,
+    pub num_sms_sent: i64,
 }
 
 #[derive(
@@ -479,7 +432,6 @@ pub struct KeyCeremony {
     Clone,
 )]
 pub struct ElectionStatus {
-    pub keys_ceremony: Vec<KeyCeremony>,
     pub voting_status: VotingStatus,
 }
 
@@ -502,19 +454,4 @@ pub struct BallotStyle {
     pub public_key: Option<PublicKeyConfig>,
     pub area_id: Uuid,
     pub contests: Vec<Contest>,
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::ballot::HashableBallot;
-    use crate::serialization::base64::Base64Deserialize;
-    use strand::backend::ristretto::RistrettoCtx;
-
-    #[test]
-    fn test_deserialize_hashable_ballot() {
-        let ballot_str = r#"AQAAAAoAAAAxMC8xMS8yMDIzAQAAACQAAAA2OWYyZjk4Ny00NjBjLTQ4YWMtYWM3YS00ZDQ0ZDk5YjM3ZTaG/s2pIrKndrRcGlg8ht0D7TYHk2Kf6mfx3gRRwmHWFITf7bwtu3UrZVhmAVpwGWBDG6GNuy0APnkMN6eiP4MVCGJ31h+Nzi3fjcnKZVgA99RDRtxMI9GW+hC19abXeBvM08E7VOMQ8E661Ot2Av0ubGgyLKpTmu/YGk7YB3lODFdUaawRUAa74pImRt7aRBGjjOmGqCSczRjfq0hLcv0LJAAAAGYyZTAzYTBjLWI3YzItNGMwNy1iMTk5LWViOTBiOWMzYWZiNyQAAAA5MDUwNWM4YS0yM2E5LTRjZGYtYTI2Yi00ZTE5ZjZhMDk3ZDUkAAAAMzNmMTg1MDItYTY3Yy00ODUzLTgzMzMtYTU4NjMwNjYzNTU5JAAAAGYyZjEwNjVlLWI3ODQtNDZkMS1iODFhLWM3MWJmZWI5YWQ1NQHkAAAAVGhpcyBpcyB0aGUgZGVzY3JpcHRpb24gb2YgdGhlIGVsZWN0aW9uLiBZb3UgY2FuIGFkZCBzaW1wbGUgaHRtbCBsaWtlIDxzdHJvbmc+Ym9sZDwvc3Ryb25nPiBvciA8YSBocmVmPSJodHRwczovL3NlcXVlbnRlY2guaW8iIHJlbD0ibm9mb2xsb3ciPmxpbmtzIHRvIHdlYnNpdGVzPC9hPi4KCjxiciAvPjxiciAvPllvdSBuZWVkIHRvIHVzZSB0d28gYnIgZWxlbWVudCBmb3IgbmV3IHBhcmFncmFwaHMuASsAAAB3R3ZZU0h3YVFmL0NKU3lFMDdBQXNYYUFZZm95M1VwWndoOTR0V2tvVVVzACQAAAAyZjMxMmEzNi1mMzljLTQ2ZTQtOTY3MC0xZDFjZTQ2MjU3NDUBAQEAAAAkAAAANjlmMmY5ODctNDYwYy00OGFjLWFjN2EtNGQ0NGQ5OWIzN2U2JAAAADkwNTA1YzhhLTIzYTktNGNkZi1hMjZiLTRlMTlmNmEwOTdkNSQAAAAzM2YxODUwMi1hNjdjLTQ4NTMtODMzMy1hNTg2MzA2NjM1NTkkAAAAZjJmMTA2NWUtYjc4NC00NmQxLWI4MWEtYzcxYmZlYjlhZDU1ASQAAABXaG8ncyB0aGUgYmVzdCBwcmVzaWRlbnQgb2YgdGhlIFVTQT8BEgAAAENob29zZSBhIHByZXNpZGVudAEAAAAAAAAAAQAAAAAAAAABEwAAAGZpcnN0LXBhc3QtdGhlLXBvc3QBEgAAAHBsdXJhbGl0eS1hdC1sYXJnZQEDAAAAJAAAAGEyNDMwM2RlLTU3OTgtNDdjZC05YjNlLTRmMzkxZDFiYWU3YiQAAAA5MDUwNWM4YS0yM2E5LTRjZGYtYTI2Yi00ZTE5ZjZhMDk3ZDUkAAAAMzNmMTg1MDItYTY3Yy00ODUzLTgzMzMtYTU4NjMwNjYzNTU5JAAAAGYyZjEwNjVlLWI3ODQtNDZkMS1iODFhLWM3MWJmZWI5YWQ1NSQAAAA2OWYyZjk4Ny00NjBjLTQ4YWMtYWM3YS00ZDQ0ZDk5YjM3ZTYBCQAAAEpvZSBCaWRlbgEVAAAAVGhlIGN1cnJlbnQgcHJlc2lkZW50AAAkAAAAZDkyNDkzNDUtMTFiZS00NjUyLWFkMDQtMjk4ZDcwOTMxNjEwJAAAADkwNTA1YzhhLTIzYTktNGNkZi1hMjZiLTRlMTlmNmEwOTdkNSQAAAAzM2YxODUwMi1hNjdjLTQ4NTMtODMzMy1hNTg2MzA2NjM1NTkkAAAAZjJmMTA2NWUtYjc4NC00NmQxLWI4MWEtYzcxYmZlYjlhZDU1JAAAADY5ZjJmOTg3LTQ2MGMtNDhhYy1hYzdhLTRkNDRkOTliMzdlNgEMAAAARG9uYWxkIFRydW1wARUAAABBIHJpZ2h0LXdpbmcgcG9wdWxpc3QAACQAAAAxODIyMDg5ZC1hZTE3LTRhMDMtODkzNS0yNTE2NGIzZjIxNDIkAAAAOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1JAAAADMzZjE4NTAyLWE2N2MtNDg1My04MzMzLWE1ODYzMDY2MzU1OSQAAABmMmYxMDY1ZS1iNzg0LTQ2ZDEtYjgxYS1jNzFiZmViOWFkNTUkAAAANjlmMmY5ODctNDYwYy00OGFjLWFjN2EtNGQ0NGQ5OWIzN2U2AQwAAABCYXJyYWsgT2JhbWEBKgAAAEZpcnN0IEJsYWNrIHByZXNpZGVudCBhbmQgdmVyeSBjaGFyaXNtYXRpYwAAAA"#;
-
-        let hashable_ballot: HashableBallot<RistrettoCtx> =
-            Base64Deserialize::deserialize(ballot_str.to_string()).unwrap();
-    }
 }

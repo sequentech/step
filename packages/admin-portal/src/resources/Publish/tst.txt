@@ -1,0 +1,6 @@
+query MyQuery {
+    sequent_backend_ballot_publication(where: {_and: {election_event_id: {_eq: "33f18502-a67c-4853-8333-a58630663559"}, election_ids: {_in: ["f2f1065e-b784-46d1-b81a-c71bfeb9ad55"]}}}) {
+      id
+    }
+  }
+  

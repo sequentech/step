@@ -8,9 +8,9 @@ use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use sequent_core::services::connection;
+use sequent_core::types::ceremonies::TallyCeremonyStatus;
 use std::env;
 use tracing::instrument;
-use sequent_core::types::ceremonies::TallyCeremonyStatus;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -20,7 +20,7 @@ use sequent_core::types::ceremonies::TallyCeremonyStatus;
 )]
 pub struct GetLastTallySessionExecution;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_last_tally_session_execution(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -61,7 +61,7 @@ pub async fn get_last_tally_session_execution(
 )]
 pub struct InsertTallySessionExecution;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers, status), err)]
 pub async fn insert_tally_session_execution(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -71,6 +71,7 @@ pub async fn insert_tally_session_execution(
     document_id: Option<String>,
     status: Option<TallyCeremonyStatus>,
     results_event_id: Option<String>,
+    session_ids: Option<Vec<i64>>,
 ) -> Result<Response<insert_tally_session_execution::ResponseData>> {
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
@@ -87,6 +88,7 @@ pub async fn insert_tally_session_execution(
         document_id,
         status: json_status,
         results_event_id,
+        session_ids,
     };
 
     let request_body = InsertTallySessionExecution::build_query(variables);

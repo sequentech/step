@@ -4,7 +4,8 @@ mutation InsertTallySessionContest(
   $areaId: uuid!,
   $contestId: uuid!,
   $sessionId: Int!,
-  $tallySessionId: uuid!
+  $tallySessionId: uuid!,
+  $electionId: uuid!,
 ) {
   insert_sequent_backend_tally_session_contest(
     objects:
@@ -14,7 +15,8 @@ mutation InsertTallySessionContest(
         area_id: $areaId,
         contest_id: $contestId,
         session_id: $sessionId,
-        tally_session_id: $tallySessionId
+        tally_session_id: $tallySessionId,
+        election_id: $electionId,
     }
   ) {
     returning {

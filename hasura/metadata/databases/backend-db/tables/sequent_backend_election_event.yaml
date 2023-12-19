@@ -30,6 +30,7 @@ insert_permissions:
     - presentation
     - public_key
     - status
+    - statistics
     - tenant_id
     - updated_at
     - user_boards
@@ -55,6 +56,7 @@ insert_permissions:
     - presentation
     - public_key
     - status
+    - statistics
     - tenant_id
     - updated_at
     - user_boards
@@ -81,6 +83,7 @@ select_permissions:
     - presentation
     - public_key
     - status
+    - statistics
     - tenant_id
     - updated_at
     - user_boards
@@ -107,6 +110,7 @@ select_permissions:
     - presentation
     - public_key
     - status
+    - statistics
     - tenant_id
     - updated_at
     - user_boards
@@ -161,6 +165,7 @@ update_permissions:
     - presentation
     - public_key
     - status
+    - statistics
     - tenant_id
     - updated_at
     - user_boards
@@ -187,6 +192,7 @@ update_permissions:
     - presentation
     - public_key
     - status
+    - statistics
     - tenant_id
     - updated_at
     - user_boards

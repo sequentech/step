@@ -5,7 +5,7 @@
 import React from "react"
 import {Box, CircularProgress} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {useGetList, useRecordContext} from "react-admin"
+import {useGetList, useGetOne, useRecordContext} from "react-admin"
 import FenceIcon from "@mui/icons-material/Fence"
 import GroupIcon from "@mui/icons-material/Group"
 import MarkEmailReadOutlinedIcon from "@mui/icons-material/MarkEmailReadOutlined"
@@ -17,7 +17,8 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
 import StatItem from "./StatItem"
-import globalSettings from "@/GlobalSettings"
+import globalSettings from "@/global-settings"
+import {IElectionEventStatistics} from "@/types/CoreTypes"
 
 const CardList = styled(Box)`
     display: flex;
@@ -44,18 +45,37 @@ export default function Stats({forElection = false}: {forElection?: boolean}) {
         }
     )
 
-    const {total: totalUsers} = useGetList("user", {
-        filter: {tenant_id: tenantId, election_event_id: electionEventId},
-    })
+    const {data: updatedElectionEvent} = useGetOne<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {
+            id: electionEventId,
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        }
+    )
+
+    const {total: totalUsers} = useGetList(
+        "user",
+        {
+            filter: {tenant_id: tenantId, election_event_id: electionEventId},
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        }
+    )
 
     if (loading) {
         return <CircularProgress />
     }
+    const stats = updatedElectionEvent?.statistics as IElectionEventStatistics | null
 
     const res = {
         castVotes: dataStats?.castVotes?.aggregate?.count ?? 0,
         elections: dataStats?.elections?.aggregate?.count ?? 0,
         areas: dataStats?.areas?.aggregate?.count ?? 0,
+        emailsSent: stats?.num_emails_sent ?? 0,
+        smsSent: stats?.num_sms_sent ?? 0,
     }
 
     const iconSize = 60
@@ -82,12 +102,12 @@ export default function Stats({forElection = false}: {forElection?: boolean}) {
             ></StatItem>
             <StatItem
                 icon={<MarkEmailReadOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={0}
+                count={res.emailsSent}
                 label={t("electionEventScreen.stats.sentEmails")}
             ></StatItem>
             <StatItem
                 icon={<SmsOutlinedIcon sx={{fontSize: iconSize}} />}
-                count={0}
+                count={res.smsSent}
                 label={t("electionEventScreen.stats.sentSMS")}
             ></StatItem>
             <StatItem

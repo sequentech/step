@@ -23,7 +23,7 @@ struct VaultRead {
     renewable: bool,
 }
 
-#[instrument(skip(value))]
+#[instrument(skip(value), err)]
 pub async fn save_secret(key: String, value: String) -> Result<()> {
     let server_url = env::var("VAULT_SERVER_URL").expect(&format!("VAULT_SERVER_URL must be set"));
     let token = env::var("VAULT_TOKEN").expect(&format!("VAULT_TOKEN must be set"));
@@ -40,7 +40,7 @@ pub async fn save_secret(key: String, value: String) -> Result<()> {
     Ok(())
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn read_secret(key: String) -> Result<Option<String>> {
     let server_url = env::var("VAULT_SERVER_URL").expect(&format!("VAULT_SERVER_URL must be set"));
     let token = env::var("VAULT_TOKEN").expect(&format!("VAULT_TOKEN must be set"));

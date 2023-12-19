@@ -2,14 +2,14 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, ItemFn, ReturnType, Type, parse_quote};
+use syn::{parse_macro_input, parse_quote, ItemFn, ReturnType, Type};
 
 #[proc_macro_attribute]
 pub fn wrap_map_err(attr: TokenStream, item: TokenStream) -> TokenStream {
     // Parse the function to which the attribute is applied.
     let item2 = item.clone();
     let mut input = parse_macro_input!(item2 as ItemFn);
-    
+
     // Parse the error type provided as an argument to the attribute.
     let error_type: Type = syn::parse(attr).expect("Expected an error type as an argument");
 
@@ -48,7 +48,7 @@ pub fn wrap_map_err(attr: TokenStream, item: TokenStream) -> TokenStream {
             let result: #orig_ret_type = #block;
              result.map_err(::std::convert::Into::into)
         });
-        
+
         // Generate the expanded function.
         let output = quote! {
             #input

@@ -20,7 +20,7 @@ use sequent_core::services::connection;
 )]
 pub struct InsertScheduledEvent;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn insert_scheduled_event(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -72,7 +72,7 @@ pub async fn insert_scheduled_event(
 )]
 pub struct UpdateScheduledEventTaskId;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn update_scheduled_event_task_id(
     auth_headers: connection::AuthHeaders,
     id: String,

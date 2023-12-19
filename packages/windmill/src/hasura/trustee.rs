@@ -19,7 +19,7 @@ use sequent_core::services::connection;
 )]
 pub struct GetTrusteesById;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_trustees_by_id(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -52,15 +52,15 @@ pub async fn get_trustees_by_id(
 )]
 pub struct GetTrusteesByName;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_trustees_by_name(
-    auth_headers: connection::AuthHeaders,
-    tenant_id: String,
-    trustee_names: Vec<String>,
+    auth_headers: &connection::AuthHeaders,
+    tenant_id: &str,
+    trustee_names: &Vec<String>,
 ) -> Result<Response<get_trustees_by_name::ResponseData>> {
     let variables = get_trustees_by_name::Variables {
-        tenant_id: tenant_id,
-        trustee_names: trustee_names,
+        tenant_id: tenant_id.to_string(),
+        trustee_names: trustee_names.clone(),
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
@@ -69,7 +69,7 @@ pub async fn get_trustees_by_name(
     let client = reqwest::Client::new();
     let res = client
         .post(hasura_endpoint)
-        .header(auth_headers.key, auth_headers.value)
+        .header(auth_headers.key.clone(), auth_headers.value.clone())
         .json(&request_body)
         .send()
         .await?;

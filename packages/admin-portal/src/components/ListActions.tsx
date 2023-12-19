@@ -8,24 +8,34 @@ import {ImportButton, ImportConfig} from "react-admin-import-csv"
 import {Button, TopToolbar, ExportButton, FilterButton, SelectColumnsButton} from "react-admin"
 
 interface ListActionsProps {
+    withColumns?: boolean
     withImport?: boolean
     withExport?: boolean
     withFilter?: boolean
-    open: boolean
-    setOpen: (val: boolean) => void
+    withAction?: boolean
+    open?: boolean
+    setOpen?: (val: boolean) => void
+    doAction?: () => void
+    actionLabel?: string
     Component?: React.ReactNode
     custom?: boolean
+    extraActions?: Array<any>
 }
 
 export const ListActions: React.FC<ListActionsProps> = (props) => {
     const {
+        withColumns = true,
         withImport = true,
         withExport = true,
         withFilter = true,
+        withAction = false,
+        doAction = () => {},
+        actionLabel = "",
         Component,
-        open,
-        setOpen,
+        open = false,
+        setOpen = () => {},
         custom = true,
+        extraActions = [],
     } = props
 
     const {t} = useTranslation()
@@ -44,9 +54,11 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                     display: "flex",
                 }}
             >
-                <SelectColumnsButton />
+                {withColumns ? <SelectColumnsButton /> : null}
 
                 {withFilter ? <FilterButton /> : null}
+
+                {withAction ? <Button onClick={doAction} label={t(actionLabel)} /> : null}
 
                 {Component && (
                     <>
@@ -91,6 +103,8 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                 ) : null}
 
                 {withExport ? <ExportButton /> : null}
+
+                {extraActions.length > 0 && extraActions.map((item) => item)}
             </TopToolbar>
         </div>
     )

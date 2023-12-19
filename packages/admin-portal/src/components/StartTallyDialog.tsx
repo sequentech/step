@@ -31,6 +31,7 @@ import {CREATE_SCHEDULED_EVENT} from "../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../services/ScheduledEvent"
 import {useTenantStore} from "../providers/TenantContextProvider"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
+import globalSettings from "@/global-settings"
 
 const Horizontal = styled(Box)`
     display: flex;
@@ -185,7 +186,7 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
         },
         {
             refetchIntervalInBackground: true,
-            refetchInterval: 1000,
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         }
     )
 
@@ -221,7 +222,6 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
                     trustee_ids: selectedTrustees.map((t) => t.id),
                     election_ids: selectedElections.map((e) => e.id),
                 },
-                createdBy: "admin",
             },
         })
         if (data?.createScheduledEvent?.id && !tallySessionId) {

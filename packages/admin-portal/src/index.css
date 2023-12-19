@@ -34,8 +34,10 @@ code {
 
 
 .list-actions {
+  display: flex;
+
   .MuiButtonBase-root {
-    color: #0F054C !important;
+    color: #0F054C;
     text-align: center !important;
     font-size: 14px !important;
     font-style: normal !important;
@@ -46,7 +48,7 @@ code {
     border-radius: 0px !important;
     padding: 6px 12px !important;
     height: 35px !important;
-    background-color: #fff !important;
+    background-color: #fff;
     border-top: 1px solid #0F054C !important;
     border-bottom: 1px solid #0F054C !important;
     border-left: 1px solid #0F054C !important;
@@ -69,6 +71,12 @@ code {
       &:last-child {
         border-right: 1px solid #0F054C !important;
       }
+    }
+  }
+
+  .MuiButtonBase-root {
+    &:last-child {
+      border-right: 1px solid #0F054C !important;
     }
   }
 }

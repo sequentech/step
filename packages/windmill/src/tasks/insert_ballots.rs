@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Context;
-use braid_messages::newtypes::BatchNumber;
+use board_messages::braid::newtypes::BatchNumber;
 use celery::error::TaskError;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::HashableBallot;
@@ -16,7 +16,7 @@ use tracing::{event, instrument, Level};
 
 use crate::hasura;
 use crate::hasura::tally_session_contest::get_tally_session_contest;
-use crate::hasura::trustee::get_trustees_by_id;
+use crate::hasura::trustee::get_trustees_by_name;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
@@ -24,10 +24,10 @@ use crate::types::error::{Error, Result};
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct InsertBallotsPayload {
-    pub trustee_pks: Vec<String>,
+    pub trustee_names: Vec<String>,
 }
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn insert_ballots(
@@ -61,15 +61,11 @@ pub async fn insert_ballots(
         .expect("expected data".into())
         .sequent_backend_election_event[0];
 
-    let trustees = get_trustees_by_id(
-        auth_headers.clone(),
-        tenant_id.clone(),
-        body.trustee_pks.clone(),
-    )
-    .await?
-    .data
-    .with_context(|| "can't find trustees")?
-    .sequent_backend_trustee;
+    let trustees = get_trustees_by_name(&auth_headers, &tenant_id, &body.trustee_names)
+        .await?
+        .data
+        .with_context(|| "can't find trustees")?
+        .sequent_backend_trustee;
 
     event!(Level::INFO, "trustees len: {:?}", trustees.len());
 

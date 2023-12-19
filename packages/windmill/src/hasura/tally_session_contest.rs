@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
-use braid_messages::newtypes::BatchNumber;
+use board_messages::braid::newtypes::BatchNumber;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use sequent_core::services::connection;
@@ -20,7 +20,7 @@ pub use crate::types::hasura_types::*;
 )]
 pub struct InsertTallySessionContest;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn insert_tally_session_contest(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -29,6 +29,7 @@ pub async fn insert_tally_session_contest(
     contest_id: String,
     session_id: BatchNumber,
     tally_session_id: String,
+    election_id: String,
 ) -> Result<Response<insert_tally_session_contest::ResponseData>> {
     let variables = insert_tally_session_contest::Variables {
         tenant_id: tenant_id,
@@ -37,6 +38,7 @@ pub async fn insert_tally_session_contest(
         contest_id: contest_id,
         session_id: session_id as i64,
         tally_session_id: tally_session_id,
+        election_id,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
@@ -61,7 +63,7 @@ pub async fn insert_tally_session_contest(
 )]
 pub struct GetTallySessionContest;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_tally_session_contest(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

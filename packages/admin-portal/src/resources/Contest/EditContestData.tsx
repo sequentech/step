@@ -1,13 +1,9 @@
 import React from "react"
-import {EditBase} from "react-admin"
-import {ContestDataForm} from "./EditContestDataForm"
+import {EditBase, Identifier, RaRecord} from "react-admin"
+import {ContestDataForm, Sequent_Backend_Contest_Extended} from "./EditContestDataForm"
 
 export const EditContestData: React.FC = () => {
-    const transform = (data: any) => {
-        console.log("TRANSFORM ELECTION :: ", data)
-        console.log("TRANSFORM ELECTION :: enabled langs :: ", data.enabled_languages)
-        console.log("TRANSFORM ELECTION :: configuration :: ", data.configuration)
-
+    const transform = (data: Sequent_Backend_Contest_Extended): RaRecord<Identifier> => {
         // save presentation object
         // language_conf
         const enabled_language_codes = []

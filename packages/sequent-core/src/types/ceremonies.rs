@@ -4,12 +4,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use strum_macros::Display;
-use strum_macros::EnumString;
 use std::default::Default;
+use strum_macros::{Display, EnumString};
 
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
 pub enum ExecutionStatus {
     NOT_STARTED,
     IN_PROCESS,
@@ -23,7 +25,9 @@ pub struct Log {
     pub log_text: String,
 }
 
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
 pub enum TrusteeStatus {
     WAITING,
     KEY_GENERATED,
@@ -45,24 +49,42 @@ pub struct CeremonyStatus {
     pub trustees: Vec<Trustee>,
 }
 
-
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, Default)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
 pub enum TallyExecutionStatus {
     #[default]
-    NOT_STARTED,
+    STARTED,
     CONNECTED,
-    IN_PROCESS,
+    IN_PROGRESS,
     SUCCESS,
     CANCELLED,
 }
 
-
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, Default)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+)]
 pub enum TallyTrusteeStatus {
     #[default]
     WAITING,
     KEY_RESTORED,
-    KEY_CHECKED,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -71,13 +93,22 @@ pub struct TallyTrustee {
     pub status: TallyTrusteeStatus,
 }
 
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, Default)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+)]
 pub enum TallyElectionStatus {
     #[default]
     WAITING,
     MIXING,
     DECRYPTING,
-    COUNTING,
     SUCCESS,
     ERROR,
 }

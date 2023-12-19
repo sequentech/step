@@ -5,7 +5,8 @@ mutation InsertTallySession(
   $areaIds: [uuid!]!,
   $tallySessionId: uuid!,
   $keysCeremonyId: uuid!,
-  $executionStatus: String
+  $executionStatus: String,
+  $threshold: Int!,
 ) {
   insert_sequent_backend_tally_session(
     objects:
@@ -16,7 +17,8 @@ mutation InsertTallySession(
       area_ids: $areaIds,
       id: $tallySessionId,
       keys_ceremony_id: $keysCeremonyId,
-      execution_status: $executionStatus
+      execution_status: $executionStatus,
+      threshold: $threshold,
     }
   ) {
     returning {

@@ -11,6 +11,7 @@ use super::pipe_name::PipeName;
 use crate::cli::state::Stage;
 use crate::cli::CliRun;
 use crate::pipes::do_tally::DoTally;
+use tracing::instrument;
 
 pub trait Pipe {
     fn exec(&self) -> Result<()>;
@@ -19,14 +20,19 @@ pub trait Pipe {
 pub struct PipeManager;
 
 impl PipeManager {
+    #[instrument(skip_all)]
     pub fn get_pipe(cli: CliRun, stage: Stage) -> Result<Option<Box<dyn Pipe>>> {
         let pipe_inputs = PipeInputs::new(cli, stage)?;
 
-        Ok(match pipe_inputs.stage.current_pipe {
-            PipeName::DecodeBallots => Some(Box::new(DecodeBallots::new(pipe_inputs))),
-            PipeName::DoTally => Some(Box::new(DoTally::new(pipe_inputs))),
-            PipeName::MarkWinners => Some(Box::new(MarkWinners::new(pipe_inputs))),
-            PipeName::GenerateReports => Some(Box::new(GenerateReports::new(pipe_inputs))),
-        })
+        if let Some(current_pipe) = pipe_inputs.stage.current_pipe {
+            Ok(match current_pipe {
+                PipeName::DecodeBallots => Some(Box::new(DecodeBallots::new(pipe_inputs))),
+                PipeName::DoTally => Some(Box::new(DoTally::new(pipe_inputs))),
+                PipeName::MarkWinners => Some(Box::new(MarkWinners::new(pipe_inputs))),
+                PipeName::GenerateReports => Some(Box::new(GenerateReports::new(pipe_inputs))),
+            })
+        } else {
+            Ok(None)
+        }
     }
 }

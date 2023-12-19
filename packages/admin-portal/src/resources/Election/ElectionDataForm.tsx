@@ -9,13 +9,15 @@ import {
     useRecordContext,
     SimpleForm,
     useGetOne,
-    RecordContext,
     RadioButtonGroupInput,
     Toolbar,
     SaveButton,
     useNotify,
     useRefresh,
     useUpdate,
+    RaRecord,
+    Identifier,
+    RecordContext,
 } from "react-admin"
 import {
     Accordion,
@@ -27,9 +29,15 @@ import {
     styled,
     Box,
 } from "@mui/material"
-import {GetUploadUrlMutation, Sequent_Backend_Election} from "../../gql/graphql"
+import {
+    GetUploadUrlMutation,
+    Sequent_Backend_Document,
+    Sequent_Backend_Election,
+    Sequent_Backend_Election_Event,
+    Sequent_Backend_Tenant,
+} from "../../gql/graphql"
 
-import React, {useState} from "react"
+import React, {useCallback, useEffect, useState} from "react"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 
 import {useMutation} from "@apollo/client"
@@ -39,13 +47,19 @@ import {ElectionStyles} from "../../components/styles/ElectionStyles"
 import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
+import {useTenantStore} from "@/providers/TenantContextProvider"
 
 const Hidden = styled(Box)`
     display: none;
 `
+export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
+    enabled_languages?: {[key: string]: boolean}
+    defaultLanguage?: string
+}
 
 export const ElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
+    const [tenantId] = useTenantStore()
 
     const {t} = useTranslation()
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
@@ -56,14 +70,21 @@ export const ElectionDataForm: React.FC = () => {
     const [expanded, setExpanded] = useState("election-data-general")
     const [defaultLangValue, setDefaultLangValue] = useState<string>("")
 
-    const {data} = useGetOne("sequent_backend_election_event", {
+    const {data} = useGetOne<Sequent_Backend_Election_Event>("sequent_backend_election_event", {
         id: record.election_event_id,
     })
 
-    const {data: imageData, refetch: refetchImage} = useGetOne("sequent_backend_document", {
-        id: record.image_document_id,
-        meta: {tenant_id: record.tenant_id},
+    const {data: tenantData} = useGetOne<Sequent_Backend_Tenant>("sequent_backend_tenant", {
+        id: record.tenant_id || tenantId,
     })
+
+    const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
+        "sequent_backend_document",
+        {
+            id: record.image_document_id || record.tenant_id,
+            meta: {tenant_id: record.tenant_id},
+        }
+    )
 
     const [updateImage] = useUpdate()
 
@@ -79,80 +100,110 @@ export const ElectionDataForm: React.FC = () => {
             }
         }
 
+        console.log("buildLanguageSettings :: tempSettings :>> ", tempSettings)
+        console.log("buildLanguageSettings :: temp :>> ", temp)
+
         return temp
     }
 
-    const parseValues = (incoming: any) => {
-        const temp = {...incoming}
+    const parseValues = useCallback(
+        (incoming: Sequent_Backend_Election_Extended): Sequent_Backend_Election_Extended => {
+            if (!data) {
+                return incoming as Sequent_Backend_Election_Extended
+            }
 
-        const languageSettings = buildLanguageSettings()
-        const votingSettings = data?.voting_channels
+            const temp: Sequent_Backend_Election_Extended = {
+                ...incoming,
+            }
 
-        // languages
-        // temp.configuration = {...jsonConfiguration}
-        temp.enabled_languages = {}
+            let languageSettings
+            // if (!incoming?.presentation) languageSettings = buildLanguageSettings()
+            const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
-        if (languageSettings) {
+            // languages
+            // temp.configuration = {...jsonConfiguration}
+            temp.enabled_languages = {}
+
+            // if (languageSettings) {
             if (
                 incoming?.presentation?.language_conf?.enabled_language_codes &&
                 incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
             ) {
+                languageSettings = incoming?.presentation?.language_conf?.enabled_language_codes
+
                 // if presentation has lang then set from event
                 setDefaultLangValue(incoming?.presentation?.language_conf?.default_language_code)
                 temp.defaultLanguage = incoming?.presentation?.language_conf?.default_language_code
                 for (const setting of languageSettings) {
                     const enabled_item: any = {}
 
+                    console.log("setting :>> ", setting)
+                    console.log(
+                        "enabled_language_codes :>> ",
+                        incoming?.presentation?.language_conf?.enabled_language_codes
+                    )
+
                     const isInEnabled =
                         incoming?.presentation?.language_conf?.enabled_language_codes.length > 0
                             ? incoming?.presentation?.language_conf?.enabled_language_codes.find(
-                                  (item: any) => Object.keys(setting)[0] === item
+                                  (item: any) => setting === item
                               )
                             : false
 
                     if (isInEnabled) {
-                        enabled_item[Object.keys(setting)[0]] = true
+                        enabled_item[setting] = true
                     } else {
-                        enabled_item[Object.keys(setting)[0]] = false // setting[Object.keys(setting)[0]]
+                        enabled_item[setting] = false // setting[Object.keys(setting)[0]]
                     }
+
+                    console.log("enabled_item :>> ", enabled_item)
+
                     temp.enabled_languages = {...temp.enabled_languages, ...enabled_item}
                 }
             } else {
                 // if presentation has no lang then use always de default settings
+                languageSettings = buildLanguageSettings()
+
                 temp.defaultLanguage = ""
+                let enabled_items: any = {}
                 for (const item of languageSettings) {
-                    temp.enabled_languages = {...temp.enabled_languages, ...item}
+                    enabled_items = {...enabled_items, ...item}
                 }
+                temp.enabled_languages = {...temp.enabled_languages, ...enabled_items}
             }
-        }
+            // }
 
-        // set english first lang always
-        const en = {en: temp.enabled_languages["en"]}
-        delete temp.enabled_languages.en
-        const rest = temp.enabled_languages
-        temp.enabled_languages = {...en, ...rest}
+            // set english first lang always
+            if (temp.enabled_languages) {
+                const en = {en: temp.enabled_languages["en"]}
+                delete temp.enabled_languages.en
+                const rest = temp.enabled_languages
+                temp.enabled_languages = {...en, ...rest}
+            }
 
-        // voting channels
-        const all_channels = {...incoming?.voting_channels}
-        delete incoming.voting_channels
-        temp.voting_channels = {}
-        for (const setting in votingSettings) {
-            const enabled_item: any = {}
-            enabled_item[setting] =
-                setting in all_channels ? all_channels[setting] : votingSettings[setting]
-            temp.voting_channels = {...temp.voting_channels, ...enabled_item}
-        }
+            // voting channels
+            const all_channels = {...incoming?.voting_channels}
+            delete incoming.voting_channels
+            temp.voting_channels = {}
+            for (const setting in votingSettings) {
+                const enabled_item: any = {}
+                enabled_item[setting] =
+                    setting in all_channels ? all_channels[setting] : votingSettings[setting]
+                temp.voting_channels = {...temp.voting_channels, ...enabled_item}
+            }
 
-        // name, alias and description fields
-        if (!temp.presentation || !temp.presentation?.i18n) {
-            temp.presentation = {i18n: {en: {}}}
-        }
-        temp.presentation.i18n.en.name = temp.name
-        temp.presentation.i18n.en.alias = temp.alias
-        temp.presentation.i18n.en.description = temp.description
+            // name, alias and description fields
+            if (!temp.presentation || !temp.presentation?.i18n) {
+                temp.presentation = {i18n: {en: {}}}
+            }
+            temp.presentation.i18n.en.name = temp.name
+            temp.presentation.i18n.en.alias = temp.alias
+            temp.presentation.i18n.en.description = temp.description
 
-        return temp
-    }
+            return temp
+        },
+        [data]
+    )
 
     const handleChange = (event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
@@ -297,7 +348,7 @@ export const ElectionDataForm: React.FC = () => {
     return data ? (
         <RecordContext.Consumer>
             {(incoming) => {
-                const parsedValue = parseValues(incoming)
+                const parsedValue = parseValues(incoming as Sequent_Backend_Election_Extended)
                 console.log("parsedValue :>> ", parsedValue)
                 return (
                     <SimpleForm
@@ -494,13 +545,13 @@ export const ElectionDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <Grid container spacing={1}>
                                     <Grid item xs={2}>
-                                        {parsedValue.image_document_id &&
-                                        parsedValue.image_document_id !== "" ? (
+                                        {parsedValue?.image_document_id &&
+                                        parsedValue?.image_document_id !== "" ? (
                                             <img
                                                 width={200}
                                                 height={200}
-                                                src={`http://localhost:9000/public/tenant-${parsedValue.tenant_id}/document-${parsedValue.image_document_id}/${imageData?.name}`}
-                                                alt={`tenant-${parsedValue.tenant_id}/document-${parsedValue.image_document_id}/${imageData?.name}`}
+                                                src={`http://localhost:9000/public/tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                                alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
                                             />
                                         ) : null}
                                     </Grid>

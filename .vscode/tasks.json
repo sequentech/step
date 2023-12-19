@@ -7,8 +7,9 @@
             "args": [
                 "compose",
                 "logs",
-                "--timestamps",
                 "-f",
+                "--tail",
+                "200",
                 "harvest",
             ],
             "options": {
@@ -37,8 +38,9 @@
             "args": [
                 "compose",
                 "logs",
-                "--timestamps",
                 "-f",
+                "--tail",
+                "200",
                 "keycloak",
             ],
             "options": {
@@ -63,12 +65,13 @@
         },
         {
             "label": "logs: windmill",
-            "command": "bash",
+            "command": "docker",
             "args": [
                 "compose",
                 "logs",
-                "--timestamps",
                 "-f",
+                "--tail",
+                "200",
                 "windmill",
             ],
             "options": {
@@ -77,6 +80,26 @@
                     "COMPOSE_PROFILES": "base",
                 }
             },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "update .env",
+            "command": "bash",
+            "args": [
+                "./.devcontainer/initializeCommand.sh",
+            ],
             "presentation": {
                 "echo": true,
                 "reveal": "always",

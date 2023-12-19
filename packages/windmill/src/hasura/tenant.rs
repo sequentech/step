@@ -19,7 +19,7 @@ use sequent_core::services::connection;
 )]
 pub struct GetTenant;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn get_tenant(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -50,7 +50,7 @@ pub async fn get_tenant(
 )]
 pub struct InsertTenant;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn insert_tenant(
     auth_headers: connection::AuthHeaders,
     id: &str,
@@ -83,7 +83,7 @@ pub async fn insert_tenant(
 )]
 pub struct GetTenantBySlug;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn get_tenant_by_slug(
     auth_headers: connection::AuthHeaders,
     slug: String,

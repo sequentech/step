@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 use anyhow::anyhow;
+use anyhow::Context;
 use anyhow::Result;
 
 use super::*;
@@ -20,19 +21,16 @@ pub(crate) fn mix<C: Ctx>(
     let ciphertexts = if *mix_no == 1 {
         assert_eq!(signer_t, PROTOCOL_MANAGER_INDEX);
         // Ballot ciphertexts
-        let cs = trustee.get_ballots(source_h, *batch, PROTOCOL_MANAGER_INDEX);
-        if let Some(ballots) = cs {
-            info!(
-                "Mix computing shuffle [{} (ballots)] ({})..",
-                dbg_hash(&source_h.0),
-                ballots.ciphertexts.0.len()
-            );
+        let ballots = trustee
+            .get_ballots(source_h, *batch, PROTOCOL_MANAGER_INDEX)
+            .with_context(|| "Could not retrieve ciphertexts for mixing")?;
 
-            Some(ballots.ciphertexts)
-        } else {
-            error!("Could not retrieve ciphertexts for mixing");
-            None
-        }
+        info!(
+            "Mix computing shuffle [{} (ballots)] ({})..",
+            dbg_hash(&source_h.0),
+            ballots.ciphertexts.0.len()
+        );
+        ballots.ciphertexts
     } else {
         // First mix ciphertexts come from ballots, second from first mix, third from second, etc.
         // mix_no is 1-based, but trustees[] is 0-based, so the previous mixer is
@@ -41,39 +39,35 @@ pub(crate) fn mix<C: Ctx>(
         // Trustees[] elements are 1-based, so trustees[mix_no - 2] - 1.
         assert_eq!(signer_t, trustees[mix_no - 2] - 1);
         let signer_t = trustees[mix_no - 2] - 1;
-        let mix = trustee.get_mix(source_h, *batch, signer_t);
-        if let Some(cs) = mix {
-            info!(
-                "Mix computing shuffle [{} (mix)] ({})..",
-                dbg_hash(&source_h.0),
-                cs.ciphertexts.0.len()
-            );
+        let mix = trustee
+            .get_mix(source_h, *batch, signer_t)
+            .with_context(|| "Could not retrieve ciphertexts for mixing")?;
 
-            Some(cs.ciphertexts)
-        } else {
-            error!("Could not retrieve ciphertexts for mixing");
-            None
-        }
+        info!(
+            "Mix computing shuffle [{} (mix)] ({})..",
+            dbg_hash(&source_h.0),
+            mix.ciphertexts.0.len()
+        );
+
+        mix.ciphertexts
     };
-
-    let cs = ciphertexts.ok_or(anyhow!("Could not retrieve public key for mixing",))?;
 
     let dkg_pk = trustee
         .get_dkg_public_key(pk_h, 0)
-        .ok_or(anyhow!("Could not retrieve ciphertexts for mixing",))?;
+        .with_context(|| "Could not retrieve ciphertexts for mixing")?;
     let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &ctx);
 
     let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));
     info!("Mix computing generators..");
 
-    let hs = ctx.generators(cs.0.len() + 1, &seed)?;
+    let hs = ctx.generators(ciphertexts.0.len() + 1, &seed)?;
     let shuffler = strand::shuffler::Shuffler::new(&pk, &hs, &ctx);
 
     info!("Mix computing shuffle..");
-    let (e_primes, rs, perm) = shuffler.gen_shuffle(&cs.0);
+    let (e_primes, rs, perm) = shuffler.gen_shuffle(&ciphertexts.0);
 
     let label = cfg.label(*batch, format!("shuffle{mix_no}"));
-    let proof = shuffler.gen_proof(&cs.0, &e_primes, rs, &perm, &label)?;
+    let proof = shuffler.gen_proof(&ciphertexts.0, &e_primes, rs, &perm, &label)?;
 
     // FIXME removed self-verify
     // let ok = shuffler.check_proof(&proof, &cs, &e_primes, &label);
@@ -100,45 +94,39 @@ pub(crate) fn sign_mix<C: Ctx>(
     let ctx = C::default();
 
     let cfg = trustee.get_configuration(cfg_h)?;
-    let source = if signers_t == PROTOCOL_MANAGER_INDEX {
-        let cs = trustee.get_ballots(source_h, *batch, PROTOCOL_MANAGER_INDEX);
-        if let Some(ballots) = cs {
-            info!(
-                "SignMix verifying shuffle [{} (ballots)] => [{}] ({})..",
-                dbg_hash(&source_h.0),
-                dbg_hash(&cipher_h.0),
-                ballots.ciphertexts.0.len()
-            );
-            Some(ballots.ciphertexts)
-        } else {
-            error!("Could not retrieve ciphertexts for mixing");
-            None
-        }
+    let source_cs = if signers_t == PROTOCOL_MANAGER_INDEX {
+        let ballots = trustee
+            .get_ballots(source_h, *batch, PROTOCOL_MANAGER_INDEX)
+            .with_context(|| "Could not retrieve ciphertexts for mixing")?;
+
+        info!(
+            "SignMix verifying shuffle [{} (ballots)] => [{}] ({})..",
+            dbg_hash(&source_h.0),
+            dbg_hash(&cipher_h.0),
+            ballots.ciphertexts.0.len()
+        );
+        ballots.ciphertexts
     } else {
-        let mix = trustee.get_mix(source_h, *batch, signers_t);
-        if let Some(cs) = mix {
-            info!(
-                "SignMix verifying shuffle [{} (mix)] => [{}] ({})..",
-                dbg_hash(&source_h.0),
-                dbg_hash(&cipher_h.0),
-                cs.ciphertexts.0.len()
-            );
-            Some(cs.ciphertexts)
-        } else {
-            error!("Could not retrieve ciphertexts for mixing");
-            None
-        }
+        let mix = trustee
+            .get_mix(source_h, *batch, signers_t)
+            .with_context(|| "Could not retrieve ciphertexts for mixing")?;
+
+        info!(
+            "SignMix verifying shuffle [{} (mix)] => [{}] ({})..",
+            dbg_hash(&source_h.0),
+            dbg_hash(&cipher_h.0),
+            mix.ciphertexts.0.len()
+        );
+        mix.ciphertexts
     };
 
     let target = trustee.get_mix(cipher_h, *batch, signert_t);
-
-    let source_cs = source.ok_or(anyhow!("Failed to retrieve source of mix to sign",))?;
-    let mix = target.ok_or(anyhow!("Failed to retrieve target of mix to sign",))?;
+    let mix = target.with_context(|| "Failed to retrieve target of mix to sign")?;
 
     let mix_number = mix.mix_number;
     let dkg_pk = trustee
         .get_dkg_public_key(pk_h, 0)
-        .ok_or(anyhow!("Could not retrieve public key for mixing",))?;
+        .with_context(|| "Could not retrieve public key for mixing")?;
     let pk = strand::elgamal::PublicKey::from_element(&dkg_pk.pk, &ctx);
 
     let seed = cfg.label(*batch, format!("shuffle_generators{mix_no}"));

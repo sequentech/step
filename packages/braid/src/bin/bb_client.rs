@@ -1,20 +1,19 @@
 use anyhow::{anyhow, Result};
-use base64::{engine::general_purpose, Engine as _};
 use clap::Parser;
 use rayon::prelude::*;
 use std::fs;
 use std::marker::PhantomData;
 use tracing::{info, instrument};
 
-use sequent_core::util::init_log::init_log;
 use immu_board::{Board, BoardClient, BoardMessage};
+use sequent_core::util::init_log::init_log;
 
-use braid_messages::artifact::Configuration;
-use braid_messages::artifact::DkgPublicKey;
-use braid_messages::message::Message;
-use braid_messages::newtypes::PublicKeyHash;
-use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use braid_messages::statement::StatementType;
+use board_messages::braid::artifact::Configuration;
+use board_messages::braid::artifact::DkgPublicKey;
+use board_messages::braid::message::Message;
+use board_messages::braid::newtypes::PublicKeyHash;
+use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use board_messages::braid::statement::StatementType;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
@@ -166,13 +165,13 @@ async fn post_ballots<C: Ctx>(board: &mut BoardClient, board_name: &str, ctx: C)
                 .map_err(|e| anyhow!("Could not read configuration {}", e))?;
 
             let threshold = [1, 2];
-            let mut selected_trustees =
-                [braid_messages::newtypes::NULL_TRUSTEE; braid_messages::newtypes::MAX_TRUSTEES];
+            let mut selected_trustees = [board_messages::braid::newtypes::NULL_TRUSTEE;
+                board_messages::braid::newtypes::MAX_TRUSTEES];
             selected_trustees[0..threshold.len()].copy_from_slice(&threshold);
 
-            let ballot_batch = braid_messages::artifact::Ballots::new(ballots);
+            let ballot_batch = board_messages::braid::artifact::Ballots::new(ballots);
             let pm = get_pm(PhantomData::<RistrettoCtx>);
-            let message = braid_messages::message::Message::ballots_msg(
+            let message = board_messages::braid::message::Message::ballots_msg(
                 &configuration,
                 2,
                 &ballot_batch,
@@ -197,10 +196,7 @@ fn get_pm<C: Ctx>(ctxp: PhantomData<C>) -> ProtocolManager<C> {
         .expect("Should have been able to read the protocol manager file");
 
     let pm_config: ProtocolManagerConfig = toml::from_str(&contents).unwrap();
-    let bytes = general_purpose::STANDARD_NO_PAD
-        .decode(pm_config.signing_key)
-        .unwrap();
-    let sk = StrandSignatureSk::strand_deserialize(&bytes).unwrap();
+    let sk = StrandSignatureSk::from_der_b64_string(&pm_config.signing_key).unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: sk,
         phantom: ctxp,

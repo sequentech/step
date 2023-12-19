@@ -2,19 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Context;
-use celery::error::TaskError;
-use sequent_core::ballot::ElectionEventStatus;
-use sequent_core::services::keycloak;
-use serde::{Deserialize, Serialize};
-use tracing::instrument;
-
 use crate::hasura;
 use crate::hasura::election_event::update_election_event_status;
 use crate::services::celery_app::*;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::public_keys;
 use crate::types::error::{Error, Result};
+use anyhow::Context;
+use celery::error::TaskError;
+use sequent_core::ballot::ElectionEventStatus;
+use sequent_core::ballot::VotingStatus;
+use sequent_core::services::keycloak;
+use serde::{Deserialize, Serialize};
+use std::default::Default;
+use tracing::instrument;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct CreateKeysBody {
@@ -22,7 +23,7 @@ pub struct CreateKeysBody {
     pub threshold: usize,
 }
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn create_keys(
@@ -67,16 +68,15 @@ pub async fn create_keys(
     .await?;
 
     // update election event with status: keys created
-    let new_status = serde_json::to_value(ElectionEventStatus {
-        config_created: Some(true),
-        stopped: Some(false),
-    })?;
+    let mut new_status: ElectionEventStatus = Default::default();
+    new_status.config_created = Some(true);
+    let new_status_js = serde_json::to_value(new_status)?;
 
     update_election_event_status(
         auth_headers.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
-        new_status,
+        new_status_js,
     )
     .await?;
 

@@ -4,6 +4,7 @@
 
 pub mod area;
 pub mod area_contest;
+pub mod ballot_publication;
 pub mod ballot_style;
 pub mod cast_ballot;
 pub mod document;
@@ -12,6 +13,12 @@ pub mod election_event;
 pub mod event_execution;
 pub mod keys_ceremony;
 pub mod lock;
+pub mod results_area_contest;
+pub mod results_area_contest_candidate;
+pub mod results_contest;
+pub mod results_contest_candidate;
+pub mod results_election;
+pub mod results_event;
 pub mod scheduled_event;
 pub mod tally_session;
 pub mod tally_session_contest;

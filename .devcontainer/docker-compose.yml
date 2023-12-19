@@ -17,10 +17,10 @@ services:
       - label:disable
     environment:
       # postgres database to store Hasura metadata
-      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
       # this env var can be used to add the above postgres database to Hasura 
       # as a data source. this can be removed/updated based on your needs
-      PG_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
 
   # Needed to set up proper permissions for non root user in postgres
   postgres-volume-init:
@@ -29,13 +29,15 @@ services:
     container_name: postgres-volume-init
     volumes: 
       - db_logs:/logs
+      - keycloak_db_logs:/keycloak_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs
+    command: chown -R 999:999 /logs /keycloak_logs
 
   postgres:
     profiles: ["full", "base"]
+    image: sequentech.local/postgresql
     container_name: postgres
     build:
       context: ./postgresql
@@ -45,7 +47,7 @@ services:
       - db_data:/var/lib/postgresql/data
       - db_logs:/logs
     environment:
-      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -137,36 +139,33 @@ services:
       - ../hasura/metadata/:/hasura-metadata:cached
       - ../hasura/migrations/:/hasura-migrations:cached
     environment:
-      ## postgres database to store Hasura metadata
-      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
       # applies migrations on start
+      HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: 60
       HASURA_GRAPHQL_MIGRATIONS_DIR: /hasura-migrations
       HASURA_GRAPHQL_METADATA_DIR: /hasura-metadata
+      ## postgres database to store Hasura metadata
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
       ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
-      PG_DATABASE_URL: postgres://postgres:postgrespassword@postgres:5432/postgres
+      PG_DATABASE_URL: ${HASURA_PG_DATABASE_URL}
       ## enable the console served by server
-      HASURA_GRAPHQL_ENABLE_CONSOLE: "true" # set to "false" to disable console
+      # set to "false" to disable console
+      HASURA_GRAPHQL_ENABLE_CONSOLE: ${HASURA_GRAPHQL_ENABLE_CONSOLE} 
       ## enable debugging mode. It is recommended to disable this in production
-      HASURA_GRAPHQL_DEV_MODE: "true"
-      BACKEND_SERVICE_HOSTNAME: "http://localhost:8000"
+      HASURA_GRAPHQL_DEV_MODE: ${HASURA_GRAPHQL_DEV_MODE}
       # https://hasura.io/docs/latest/deployment/graphql-engine-flags/config-examples/#console-assets-on-server
-      HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: "/srv/console-assets"
-      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
       ## uncomment next line to run console offline (i.e load console assets from server instead of CDN)
-      # HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: /srv/console-assets
-      ## uncomment next line to set an admin secret
-      # HASURA_GRAPHQL_ADMIN_SECRET: myadminsecretkey
-      HASURA_GRAPHQL_METADATA_DEFAULTS: '{"backend_configs":{"dataconnector":{"athena":{"uri":"http://data-connector-agent:8081/api/v1/athena"},"mariadb":{"uri":"http://data-connector-agent:8081/api/v1/mariadb"},"mysql8":{"uri":"http://data-connector-agent:8081/api/v1/mysql"},"oracle":{"uri":"http://data-connector-agent:8081/api/v1/oracle"},"snowflake":{"uri":"http://data-connector-agent:8081/api/v1/snowflake"}}}}'
+      HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: ${HASURA_GRAPHQL_CONSOLE_ASSETS_DIR}
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: ${HASURA_GRAPHQL_ENABLED_LOG_TYPES}
+      HASURA_GRAPHQL_METADATA_DEFAULTS: ${HASURA_GRAPHQL_METADATA_DEFAULTS}
       # keycloak jwks endpoint
-      HASURA_GRAPHQL_JWT_SECRET: '{"jwk_url": "http://minio:9000/public/certs.json"}'
-      HASURA_GRAPHQL_ADMIN_SECRET: 'admin'
-      ACTIONS_ADMIN_SECRET: 'admin'
+      HASURA_GRAPHQL_JWT_SECRET: ${HASURA_GRAPHQL_JWT_SECRET}
+      HASURA_GRAPHQL_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      ACTIONS_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      HARVEST_DOMAIN: ${HARVEST_DOMAIN}
     depends_on:
       data-connector-agent:
         condition: service_healthy
       postgres:
-        condition: service_healthy
-      postgres-keycloak:
         condition: service_healthy
 
   data-connector-agent:
@@ -190,19 +189,26 @@ services:
 
   postgres-keycloak:
     profiles: ["full", "base"]
-    image: postgres:15
+    image: sequentech.local/postgresql
     container_name: postgres-keycloak
     restart: unless-stopped
     volumes:
       - keycloak_db_data:/var/lib/postgresql/data
+      - keycloak_db_logs:/logs
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     environment:
-      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready  -U postgres"]
       interval: 5s
       timeout: 10s
       retries: 15
       start_period: 5s
+    # depending on the `postgres` container to ensure that the
+    # `sequentech.local/postgresql` image is locally build, so that we can reuse
+    # it:
+    depends_on:
+      - postgres
 
   keycloak:
     profiles: ["full", "base"]
@@ -215,18 +221,19 @@ services:
       - 8090:8090
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    #ports:
-    #  - 8090:8090
     environment:
-      KC_HOSTNAME: "127.0.0.1"
-      KC_HOSTNAME_STRICT: "false"
-      KC_HTTP_PORT: "8090"
-      KC_DB_USERNAME: postgres
-      KC_DB_PASSWORD: postgrespassword
-      KC_DB_SCHEMA: public
-      KC_DB_URL: jdbc:postgresql://postgres-keycloak:5432/postgres
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: ${KC_HOSTNAME}
+      KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
+      KC_HTTP_PORT: ${KC_HTTP_PORT}
+      KC_DB: ${KC_DB}
+      KC_DB_USERNAME: ${KC_DB_USERNAME}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      KC_DB_SCHEMA: ${KC_DB_SCHEMA}
+      KC_DB_URL_HOST: ${KC_DB_URL_HOST}
+      KC_DB_URL_PORT: ${KC_DB_URL_PORT}
+      KC_DB_URL_DATABASE: ${KC_DB_URL_DATABASE}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       - ./keycloak/import:/opt/keycloak/data/import
@@ -240,7 +247,7 @@ services:
       /opt/keycloak/bin/kc.sh start-dev
       --features=preview
       --health-enabled=true
-      --spi-user-profile-declarative-user-profile-read-only-attributes=sequent.read-only.*
+      --spi-user-profile-declarative-user-profile-read-only-attributes=area-id,tenant-id,sequent.read-only.*
       --spi-user-profile-declarative-user-profile-admin-read-only-attributes=sequent.admin-read-only.*
       -Dkeycloak.profile.feature.upload_scripts=enabled
       --spi-email-sender-provider=dummy
@@ -332,16 +339,30 @@ services:
       "-x",
       "run"
     ]
-    env_file:
-      - .env
     environment:
-      ROCKET_ADDRESS: "0.0.0.0"
-      ROCKET_PORT: "8400"
-      RUSTFLAGS: -Awarnings
+      SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
+      LOG_LEVEL: ${LOG_LEVEL}
+      ROCKET_ADDRESS: ${ROCKET_ADDRESS}
+      ROCKET_PORT: ${HARVEST_PORT}
+      RUSTFLAGS: ${RUSTFLAGS}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      IMMUDB_USER: ${IMMUDB_USER}
+      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
+      KEYCLOAK_DB__USER: ${KEYCLOAK_DB__USER}
+      KEYCLOAK_DB__PASSWORD: ${KEYCLOAK_DB__PASSWORD}
+      KEYCLOAK_DB__HOST: ${KEYCLOAK_DB__HOST}
+      KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
+      KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
+      KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
+      LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
+      DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
+      DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
+
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
-     - 8400:8000
+     - ${HARVEST_PORT}:${HARVEST_PORT}
 
   trustee1:
     profiles: ["full"]
@@ -355,12 +376,12 @@ services:
       context: ../packages/
       dockerfile: ./braid/Dockerfile
     environment:
-        IMMUDB_USER: immudb
-        IMMUDB_PASSWORD: immudb
-        IMMUDB_URL: http://immudb:3322
-        IMMUDB_INDEX_DB: indexdb
-        TRUSTEE_CONFIG: /opt/braid/trustee1.toml
-        IGNORE_BOARDS: tenanttest,tenant90505c8a23a94cdfa26b4e19f6a097d5eventda4f7c9afd044da2a3afb032e80c1d7c
+        IMMUDB_USER: ${IMMUDB_USER}
+        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+        IMMUDB_URL: ${IMMUDB_SERVER_URL}
+        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+        TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
     depends_on:
       - immudb
   
@@ -378,12 +399,12 @@ services:
       - trustee1
       - immudb
     environment:
-        IMMUDB_USER: immudb
-        IMMUDB_PASSWORD: immudb
-        IMMUDB_URL: http://immudb:3322
-        IMMUDB_INDEX_DB: indexdb
-        TRUSTEE_CONFIG: /opt/braid/trustee2.toml
-        IGNORE_BOARDS: tenanttest,tenant90505c8a23a94cdfa26b4e19f6a097d5eventda4f7c9afd044da2a3afb032e80c1d7c
+        IMMUDB_USER: ${IMMUDB_USER}
+        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+        IMMUDB_URL: ${IMMUDB_SERVER_URL}
+        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+        TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
+        IGNORE_BOARDS: ${IGNORE_BOARDS}
 
   # Create collection in immudb
   immudb-log-audit-init:
@@ -394,10 +415,14 @@ services:
       context: ../vendor/immudb-log-audit
       dockerfile: Dockerfile.immudb
     command: >
-      create sql pgaudit
+      create sql pgaudit_hasura
       --parser pgauditjsonlog
       --log-level debug
-      --immudb-host immudb
+      --immudb-user ${IMMUDB_USER}
+      --immudb-password ${IMMUDB_PASSWORD}
+      --immudb-host ${IMMUDB_HOST}
+      --immudb-port ${IMMUDB_PORT}
+      --immudb-database ${IMMUDB_LOGS_DB}
     depends_on:
       - postgres
       - immudb
@@ -408,12 +433,16 @@ services:
     image: sequentech.local/immudb-log-audit
     container_name: immudb-log-audit
     command: >
-      tail file pgaudit "/logs/*.json"
+      tail file pgaudit_hasura "/logs/*.json"
       --follow
       --parser pgauditjsonlog
       --file-registry-dir=/data
       --log-level debug
-      --immudb-host immudb
+      --immudb-user ${IMMUDB_USER}
+      --immudb-password ${IMMUDB_PASSWORD}
+      --immudb-host ${IMMUDB_HOST}
+      --immudb-port ${IMMUDB_PORT}
+      --immudb-database ${IMMUDB_LOGS_DB}
     volumes: 
       - 'immudb_log_audit_data:/data'
       - 'db_logs:/logs'
@@ -425,13 +454,60 @@ services:
       - immudb
       - immudb-log-audit-init
 
+  # Create collection in immudb
+  immudb-log-audit-init-keycloak:
+    profiles: ["full", "base"]
+    image: sequentech.local/immudb-log-audit
+    container_name: immudb-log-audit-init-keycloak
+    command: >
+      create sql pgaudit_keycloak
+      --parser pgauditjsonlog
+      --log-level debug
+      --immudb-user ${IMMUDB_USER}
+      --immudb-password ${IMMUDB_PASSWORD}
+      --immudb-host ${IMMUDB_HOST}
+      --immudb-port ${IMMUDB_PORT}
+      --immudb-database ${IMMUDB_LOGS_DB}
+    depends_on:
+      - postgres
+      - immudb
+      - immudb-log-audit-init
+
+  # Send audit logs to immudb
+  immudb-log-audit-keycloak:
+    profiles: ["full", "base"]
+    image: sequentech.local/immudb-log-audit
+    container_name: immudb-log-audit-keycloak
+    command: >
+      tail file pgaudit_keycloak "/logs/*.json"
+      --follow
+      --parser pgauditjsonlog
+      --file-registry-dir=/data
+      --log-level debug
+      --immudb-user ${IMMUDB_USER}
+      --immudb-password ${IMMUDB_PASSWORD}
+      --immudb-host ${IMMUDB_HOST}
+      --immudb-port ${IMMUDB_PORT}
+      --immudb-database ${IMMUDB_LOGS_DB}
+    volumes: 
+      - 'keycloak_immudb_log_audit_data:/data'
+      - 'keycloak_db_logs:/logs'
+    # make sure to depend on the `immudb-log-audit-init` container to ensure
+    # that the `sequentech.local/immudb-log-audit` image is locally build, so
+    # that we can reuse it:
+    depends_on:
+      - postgres
+      - immudb
+      - immudb-log-audit-init-keycloak
+
+
   rabbitmq:
     profiles: ["full", "base"]
     image: rabbitmq:management
     container_name: rabbitmq
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -444,6 +520,11 @@ services:
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
+    depends_on:
+      - harvest
+    volumes:
+      - ./keycloak/import:/import
+      - ../packages/:/app
     restart: always
     working_dir: /app/immu-board
     entrypoint: [
@@ -466,9 +547,6 @@ services:
       "/tmp/immu-board",
       "upsert-init-db"
     ]
-    volumes:
-      - ./keycloak/import:/import
-      - ../packages/:/app
     env_file:
       - .env
 
@@ -486,16 +564,52 @@ services:
       "cargo",
       "watch",
       "-x",
-      "run --bin main consume -q short_queue tally_queue beat reports_queue"
+      "run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue"
     ]
     volumes:
       - ./keycloak/import:/import
       - ../packages/:/app
-    env_file:
-      - .env
     environment:
-      RUSTFLAGS: -Awarnings
-  
+      RUSTFLAGS: ${RUSTFLAGS}
+      LOG_LEVEL: ${LOG_LEVEL}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+      AMQP_ADDR: ${AMQP_ADDR}
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      MINIO_PRIVATE_URI: ${MINIO_PRIVATE_URI}
+      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
+      IMMUDB_USER: ${IMMUDB_USER}
+      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
+      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_PUBLIC_BUCKET: ${MINIO_PUBLIC_BUCKET}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_ACCESS_SECRET: ${MINIO_ACCESS_SECRET}
+      MINIO_REGION: ${MINIO_REGION}
+      VAULT_SERVER_URL: ${VAULT_SERVER_URL}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH}
+      KEYCLOAK_TENANT_REALM_CONFIG_PATH: ${KEYCLOAK_TENANT_REALM_CONFIG_PATH}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+      SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
+      VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      AWS_REGION: ${AWS_REGION}
+      SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
+      AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
+      EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
+      EMAIL_FROM: ${EMAIL_FROM}
+      KEYCLOAK_DB__USER: ${KEYCLOAK_DB__USER}
+      KEYCLOAK_DB__PASSWORD: ${KEYCLOAK_DB__PASSWORD}
+      KEYCLOAK_DB__HOST: ${KEYCLOAK_DB__HOST}
+      KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
+      KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
+      KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
+      LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
+      DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
+      DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
   beat:
     profiles: ["full"]
     stdin_open: true
@@ -516,15 +630,19 @@ services:
     volumes:
       - ./keycloak/import:/import
       - ../packages/:/app
-    env_file:
-      - .env
     environment:
-      RUSTFLAGS: -Awarnings
+      RUSTFLAGS: ${RUSTFLAGS}
+      LOG_LEVEL: ${LOG_LEVEL}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+      AMQP_ADDR: ${AMQP_ADDR}
 
 volumes:
   db_data:
   db_logs:
+  keycloak_db_logs:
   immudb_log_audit_data:
+  keycloak_immudb_log_audit_data:
   keycloak_db_data:
   immudb_data:
   immudb_logs:

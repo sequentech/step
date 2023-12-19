@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::keycloak::KeycloakAdminClient;
+use crate::types::keycloak::TENANT_ID_ATTR_NAME;
 use anyhow::Result;
 use keycloak::types::RealmRepresentation;
 use keycloak::KeycloakError;
@@ -38,7 +39,7 @@ fn replace_uuids(input: &str) -> String {
 }
 
 impl KeycloakAdminClient {
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn upsert_realm(
         self,
         board_name: &str,
@@ -65,7 +66,10 @@ impl KeycloakAdminClient {
                         mod_user.attributes.clone().unwrap_or(HashMap::new());
                     let tenant_attribute_js: Value =
                         json!(vec![tenant_id.to_string()]);
-                    attributes.insert("tenant-id".into(), tenant_attribute_js);
+                    attributes.insert(
+                        TENANT_ID_ATTR_NAME.into(),
+                        tenant_attribute_js,
+                    );
                     mod_user.attributes = Some(attributes);
                     mod_user
                 })

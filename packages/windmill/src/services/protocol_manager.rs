@@ -2,13 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use braid_messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey};
-use braid_messages::message::Message;
-use braid_messages::newtypes::BatchNumber;
-use braid_messages::newtypes::PublicKeyHash;
-use braid_messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
-use braid_messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
-use braid_messages::statement::StatementType;
+use board_messages::braid::artifact::{Ballots, Channel, Configuration, DkgPublicKey};
+use board_messages::braid::message::Message;
+use board_messages::braid::newtypes::BatchNumber;
+use board_messages::braid::newtypes::PublicKeyHash;
+use board_messages::braid::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
+use board_messages::braid::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
+use board_messages::braid::statement::StatementType;
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
@@ -47,7 +47,7 @@ pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> ProtocolManager
     ProtocolManager::new(pmkey)
 }
 
-#[instrument]
+#[instrument(err)]
 async fn init<C: Ctx>(
     board: &mut BoardClient,
     configuration: Configuration<C>,
@@ -59,7 +59,7 @@ async fn init<C: Ctx>(
     board.insert_messages(board_name, &vec![message]).await
 }
 
-#[instrument(skip(pm))]
+#[instrument(skip(pm), err)]
 pub async fn add_config_to_board<C: Ctx>(
     threshold: usize,
     board_name: &str,
@@ -68,7 +68,7 @@ pub async fn add_config_to_board<C: Ctx>(
 ) -> Result<()> {
     let configuration = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from(&pm.signing_key)?,
+        StrandSignaturePk::from_sk(&pm.signing_key)?,
         trustee_pks,
         threshold,
         PhantomData,
@@ -79,7 +79,7 @@ pub async fn add_config_to_board<C: Ctx>(
     init(&mut board_client, configuration, pm, board_name).await
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     let mut board = get_board_client().await?;
 
@@ -109,7 +109,32 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     Ok(dkgpk.pk)
 }
 
-#[instrument]
+#[instrument(err)]
+pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Message>> {
+    let mut board = get_board_client().await?;
+
+    let valid_statements = vec![
+        StatementType::Configuration,
+        StatementType::ConfigurationSigned,
+        StatementType::Channel,
+        StatementType::ChannelsAllSigned,
+        StatementType::Shares,
+        StatementType::PublicKey,
+        StatementType::PublicKeySigned,
+    ];
+
+    let board_messages = board.get_messages(board_name, -1).await?;
+    let messages = convert_board_messages(&board_messages)?;
+
+    let filtered_messages: Vec<Message> = messages
+        .into_iter()
+        .filter(|message| valid_statements.contains(&message.statement.get_kind()))
+        .collect();
+
+    Ok(filtered_messages)
+}
+
+#[instrument(err)]
 pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     board_name: &str,
     trustee_pub_key: &StrandSignaturePk,
@@ -198,7 +223,7 @@ pub fn convert_board_messages(board_messages: &Vec<BoardMessage>) -> Result<Vec<
     Ok(messages)
 }
 
-#[instrument]
+#[instrument(skip(trustee_pks), err)]
 pub async fn add_ballots_to_board<C: Ctx>(
     board_name: &str,
     ballots: Vec<Ciphertext<C>>,
@@ -236,7 +261,7 @@ pub async fn add_ballots_to_board<C: Ctx>(
         .await
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn get_board_client() -> Result<BoardClient> {
     let user = env::var("IMMUDB_USER").expect(&format!("IMMUDB_USER must be set"));
     let password = env::var("IMMUDB_PASSWORD").expect(&format!("IMMUDB_PASSWORD must be set"));
@@ -244,7 +269,6 @@ pub async fn get_board_client() -> Result<BoardClient> {
         env::var("IMMUDB_SERVER_URL").expect(&format!("IMMUDB_SERVER_URL must be set"));
 
     let mut board_client = BoardClient::new(&server_url, &user, &password).await?;
-    board_client.login(&user, &password).await?;
 
     Ok(board_client)
 }

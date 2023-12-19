@@ -4,12 +4,56 @@
 use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
 use anyhow::{anyhow, Result};
-use keycloak::types::UserRepresentation;
+use keycloak::types::{CredentialRepresentation, UserRepresentation};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
+use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
+
+impl User {
+    pub fn get_mobile_phone(&self) -> Option<String> {
+        match self.attributes {
+            Some(ref attributes) => {
+                let mobile_phone =
+                    attributes.get(MOBILE_PHONE_ATTR_NAME)?.clone();
+                serde_json::from_value(mobile_phone).ok()?
+            }
+            None => None,
+        }
+    }
+
+    pub fn get_area_id(&self) -> Option<String> {
+        Some(
+            self.attributes
+                .as_ref()?
+                .get("area-id")?
+                .as_str()?
+                .to_string(),
+        )
+    }
+}
+
+impl TryFrom<Row> for User {
+    type Error = anyhow::Error;
+    fn try_from(item: Row) -> Result<Self> {
+        let attributes_value: Value = item.try_get("attributes")?;
+        let attributes_map: HashMap<String, Value> =
+            serde_json::from_value(attributes_value)?;
+        Ok(User {
+            id: item.try_get("id")?,
+            attributes: Some(attributes_map),
+            email: item.try_get("email")?,
+            email_verified: item.try_get("email_verified")?,
+            enabled: item.try_get("enabled")?,
+            first_name: item.try_get("first_name")?,
+            last_name: item.try_get("last_name")?,
+            username: item.try_get("username")?,
+            area: None,
+        })
+    }
+}
 
 impl From<UserRepresentation> for User {
     fn from(item: UserRepresentation) -> Self {
@@ -22,6 +66,7 @@ impl From<UserRepresentation> for User {
             first_name: item.first_name.clone(),
             last_name: item.last_name.clone(),
             username: item.username.clone(),
+            area: None,
         }
     }
 }
@@ -57,9 +102,11 @@ impl From<User> for UserRepresentation {
 }
 
 impl KeycloakAdminClient {
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn list_users(
         self,
+        tenant_id: &str,
+        election_event_id: &str,
         realm: &str,
         search: Option<String>,
         email: Option<String>,
@@ -95,13 +142,24 @@ impl KeycloakAdminClient {
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         let users = user_representations
+            .clone()
             .into_iter()
             .map(|user| user.into())
             .collect();
         Ok((users, count))
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
+    pub async fn get_user(self, realm: &str, user_id: &str) -> Result<User> {
+        let current_user: UserRepresentation = self
+            .client
+            .realm_users_with_id_get(realm, user_id)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))?;
+        Ok(current_user.into())
+    }
+
+    #[instrument(skip(self), err)]
     pub async fn edit_user(
         self,
         realm: &str,
@@ -112,6 +170,7 @@ impl KeycloakAdminClient {
         first_name: Option<String>,
         last_name: Option<String>,
         username: Option<String>,
+        password: Option<String>,
     ) -> Result<User> {
         let mut current_user: UserRepresentation = self
             .client
@@ -156,6 +215,32 @@ impl KeycloakAdminClient {
             None => current_user.username,
         };
 
+        current_user.credentials = match password {
+            Some(val) => Some(
+                [
+                    // the new credential
+                    vec![CredentialRepresentation {
+                        type_: Some("password".to_string()),
+                        temporary: Some(true),
+                        value: Some(val),
+                        ..Default::default()
+                    }],
+                    // the filtered list, without password
+                    current_user
+                        .credentials
+                        .unwrap_or(vec![])
+                        .clone()
+                        .into_iter()
+                        .filter(|credential| {
+                            credential.type_ != Some("password".to_string())
+                        })
+                        .collect(),
+                ]
+                .concat(),
+            ),
+            None => current_user.credentials,
+        };
+
         self.client
             .realm_users_with_id_put(realm, user_id, current_user.clone())
             .await
@@ -164,8 +249,8 @@ impl KeycloakAdminClient {
         Ok(current_user.into())
     }
 
-    #[instrument(skip(self))]
-    pub async fn delete_user(self, realm: &str, user_id: &str) -> Result<()> {
+    #[instrument(skip(self), err)]
+    pub async fn delete_user(&self, realm: &str, user_id: &str) -> Result<()> {
         self.client
             .realm_users_with_id_delete(realm, user_id)
             .await
@@ -173,11 +258,12 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), err)]
     pub async fn create_user(self, realm: &str, user: &User) -> Result<User> {
         let mut new_user = user.clone();
-        let new_user_id = new_user.id.clone().unwrap_or(Uuid::new_v4().to_string());
-        new_user.id =Some(new_user_id.clone());
+        let new_user_id =
+            new_user.id.clone().unwrap_or(Uuid::new_v4().to_string());
+        new_user.id = Some(new_user_id.clone());
         self.client
             .realm_users_post(realm, new_user.clone().into())
             .await

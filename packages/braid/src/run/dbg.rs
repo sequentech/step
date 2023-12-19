@@ -20,16 +20,16 @@ use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use crate::protocol2::action::Action;
 use crate::protocol2::board::local::LocalBoard;
-use braid_messages::artifact::Ballots;
-use braid_messages::artifact::Configuration;
-use braid_messages::message::Message;
-use braid_messages::newtypes::PublicKeyHash;
-use braid_messages::newtypes::NULL_TRUSTEE;
-use braid_messages::protocol_manager::ProtocolManager;
+use board_messages::braid::artifact::Ballots;
+use board_messages::braid::artifact::Configuration;
+use board_messages::braid::message::Message;
+use board_messages::braid::newtypes::PublicKeyHash;
+use board_messages::braid::newtypes::NULL_TRUSTEE;
+use board_messages::braid::protocol_manager::ProtocolManager;
 
 use crate::protocol2::trustee::Trustee;
 use crate::test::vector_board::VectorBoard;
-use braid_messages::newtypes::MAX_TRUSTEES;
+use board_messages::braid::newtypes::MAX_TRUSTEES;
 
 #[instrument(skip(log_reload))]
 pub fn dbg<C: Ctx>(ctx: C, log_reload: Handle<LevelFilter, Registry>) -> Result<()> {
@@ -144,7 +144,12 @@ impl<C: Ctx> Status<C> {
             let data2: Vec<String> = b
                 .artifacts
                 .keys()
-                .map(|k| format!("{}-{}", k.artifact_type, k.statement_entry.signer_position))
+                .map(|k| {
+                    format!(
+                        "{}-{}",
+                        k.statement_entry.kind, k.statement_entry.signer_position
+                    )
+                })
                 .collect();
             let mut data3 = vec![format!("{:?}", b.configuration)];
 
@@ -244,12 +249,12 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
 
     let trustee_pks: Vec<StrandSignaturePk> = trustees
         .iter()
-        .map(|t| StrandSignaturePk::from(&t.signing_key).unwrap())
+        .map(|t| StrandSignaturePk::from_sk(&t.signing_key).unwrap())
         .collect();
 
     let cfg = Configuration::<C>::new(
         0,
-        StrandSignaturePk::from(&pm.signing_key).unwrap(),
+        StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
         trustee_pks.clone(),
         threshold.len(),
         PhantomData,

@@ -1,11 +1,9 @@
 import React from "react"
-import {CreateBase, EditBase} from "react-admin"
-import {CandidateDataForm} from "./CandidateDataForm"
+import {CreateBase, EditBase, Identifier, RaRecord} from "react-admin"
+import {CandidateDataForm, Sequent_Backend_Candidate_Extended} from "./CandidateDataForm"
 
 export const CreateCandidateData: React.FC = () => {
-    const transform = (data: any) => {
-        console.log("TRANSFORM ELECTION :: ", data)
-
+    const transform = (data: Sequent_Backend_Candidate_Extended): RaRecord<Identifier> => {
         // save presentation object
         // language_conf
         console.log("data before :: ", data)

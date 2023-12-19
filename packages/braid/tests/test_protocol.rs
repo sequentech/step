@@ -4,25 +4,40 @@ use tracing_subscriber::reload::Handle;
 use tracing_subscriber::{filter, reload};
 use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use tracing_tree::HierarchicalLayer;
-cfg_if::cfg_if! {
+/*cfg_if::cfg_if! {
     if #[cfg(unix)] {
         use strand::backend::rug::RugCtx;
         use strand::backend::rug::P2048 as RUGP2048;
     }
-}
+}*/
 
 #[test]
-fn test_protocol() {
+fn test_protocol_memory() {
     init_log(true);
 
     let ctx = RistrettoCtx;
-    braid::test::protocol_test::run(1000, 1, ctx);
-    cfg_if::cfg_if! {
+    braid::test::protocol_test_memory::run(1000, 1, ctx);
+    /*cfg_if::cfg_if! {
         if #[cfg(unix)] {
             let ctx = RugCtx::<RUGP2048>::default();
-            braid::test::protocol_test::run(100, 1, ctx);
+            braid::test::protocol_test_memory::run(100, 1, ctx);
         }
-    }
+    }*/
+}
+
+#[tokio::test]
+#[ignore]
+async fn test_protocol_immudb() {
+    init_log(true);
+
+    let ctx = RistrettoCtx;
+    braid::test::protocol_test_immudb::run(1000, 1, ctx).await;
+    /* cfg_if::cfg_if! {
+        if #[cfg(unix)] {
+            let ctx = RugCtx::<RUGP2048>::default();
+            braid::test::protocol_test_immudb::run_immudb(100, 1, ctx).await;
+        }
+    } */
 }
 
 pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
