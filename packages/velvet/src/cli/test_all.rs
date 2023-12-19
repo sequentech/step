@@ -720,7 +720,7 @@ mod tests {
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
 
-        writeln!(file, "")?;
+        writeln!(file)?;
 
         let cli = CliRun {
             stage: "main".to_string(),
@@ -745,6 +745,121 @@ mod tests {
         // Generate reports
         state.exec_next()?;
 
+        // TODO: assert result.json
+        Ok(())
+    }
+
+    #[test]
+    fn test_blank_votes() -> Result<()> {
+        let fixture = TestFixture::new()?;
+
+        let election_event_id = Uuid::new_v4();
+
+        let mut election = fixture.create_election_config(&election_event_id)?;
+        election.ballot_styles.clear();
+
+        // First ballot style
+        let contest =
+            fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
+
+        // first area
+        let uuid_area =
+            fixture.create_area_dir(&election.id, &Uuid::from_str(&contest.id).unwrap())?;
+        election.ballot_styles.push(generate_ballot_style(
+            &election.tenant_id,
+            &election.election_event_id,
+            &election.id,
+            &uuid_area,
+            vec![contest.clone()],
+        ));
+
+        let ballot_file = fixture
+            .input_dir_ballots
+            .join(format!("election__{}", &election.id))
+            .join(format!("contest__{}", &contest.id))
+            .join(format!("area__{uuid_area}"));
+
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .append(true)
+            .create(true)
+            .open(ballot_file.join("ballots.csv"))?;
+
+        for i in (0..=10) {
+            let mut choices = vec![
+                DecodedVoteChoice {
+                    id: "0".to_owned(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "1".to_owned(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "2".to_owned(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "3".to_owned(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "4".to_owned(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+            ];
+
+            let mut plaintext_prepare = DecodedVoteContest {
+                contest_id: contest.id.clone(),
+                is_explicit_invalid: false,
+                invalid_errors: vec![],
+                choices: vec![],
+            };
+
+            if i < 5 {
+                choices[0].selected = 0;
+            }
+
+            plaintext_prepare.choices = choices;
+
+            let plaintext = contest
+                .encode_plaintext_contest_bigint(&plaintext_prepare)
+                .unwrap();
+
+            writeln!(file, "{}", plaintext)?;
+        }
+
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "decode-ballots".to_string(),
+            config: fixture.config_path.clone(),
+            input_dir: fixture.root_dir.join("tests").join("input-dir"),
+            output_dir: fixture.root_dir.join("tests").join("output-dir"),
+        };
+
+        let config = cli.validate()?;
+        let mut state = State::new(&cli, &config)?;
+
+        // DecodeBallots
+        state.exec_next()?;
+
+        // DoTally
+        state.exec_next()?;
+
+        // MarkWinners
+        state.exec_next()?;
+
+        // Generate reports
+        state.exec_next()?;
+
+        // TODO: assert result.json
+        // blank vote is 5
+        
         Ok(())
     }
 }
