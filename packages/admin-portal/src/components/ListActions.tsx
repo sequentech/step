@@ -4,13 +4,17 @@ import {Drawer} from "@mui/material"
 import {Add} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {ImportButton, ImportConfig} from "react-admin-import-csv"
+import DownloadIcon from "@mui/icons-material/Download"
+import UploadIcon from "@mui/icons-material/Upload"
 
 import {Button, TopToolbar, ExportButton, FilterButton, SelectColumnsButton} from "react-admin"
 
 interface ListActionsProps {
     withColumns?: boolean
     withImport?: boolean
+    doImport?: () => void
     withExport?: boolean
+    doExport?: () => void
     withFilter?: boolean
     withAction?: boolean
     open?: boolean
@@ -26,7 +30,9 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
     const {
         withColumns = true,
         withImport = true,
+        doImport = () => {},
         withExport = true,
+        doExport = () => {},
         withFilter = true,
         withAction = false,
         doAction = () => {},
@@ -82,27 +88,35 @@ export const ListActions: React.FC<ListActionsProps> = (props) => {
                 )}
 
                 {withImport ? (
-                    <ImportButton
-                        sx={{
-                            color: "#0F054C",
-                            textAlign: "center",
-                            fontSize: "14px",
-                            fontStyle: "normal",
-                            fontWeight: "500",
-                            lineHeight: "normal",
-                            letterSpacing: "normal",
-                            textTransform: "uppercase",
-                            border: "1px solid #0F054C",
-                            borderRadius: "0px",
-                            padding: "6px 12px",
-                        }}
-                        className="test-import-button"
-                        {...props}
-                        {...config}
-                    />
-                ) : null}
+                    <Button onClick={doImport} label={t("common.label.import")}>
+                        <UploadIcon />
+                    </Button>
+                ) : // <ImportButton
+                //     sx={{
+                //         color: "#0F054C",
+                //         textAlign: "center",
+                //         fontSize: "14px",
+                //         fontStyle: "normal",
+                //         fontWeight: "500",
+                //         lineHeight: "normal",
+                //         letterSpacing: "normal",
+                //         textTransform: "uppercase",
+                //         border: "1px solid #0F054C",
+                //         borderRadius: "0px",
+                //         padding: "6px 12px",
+                //     }}
+                //     className="test-import-button"
+                //     {...props}
+                //     {...config}
+                // />
+                null}
 
-                {withExport ? <ExportButton /> : null}
+                {withExport ? (
+                    <Button onClick={doExport} label={t("common.label.export")}>
+                        <DownloadIcon />
+                    </Button>
+                ) : // <ExportButton />
+                null}
 
                 {extraActions.length > 0 && extraActions.map((item) => item)}
             </TopToolbar>

@@ -20,7 +20,7 @@ import {
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
-import {alpha, Button, Chip, Typography} from "@mui/material"
+import {alpha, Button, Chip, Drawer, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -37,6 +37,9 @@ import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
+import {ImportVotersBaseTabs} from "@/components/election-event/ImportVotersBaseTabs"
+import importDrawerState from "@/atoms/import-drawer-state"
+import {useAtom} from "jotai"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -57,6 +60,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     const [tenantId] = useTenantStore()
 
     const [open, setOpen] = React.useState(false)
+    const [openImport, setOpenImport] = useAtom(importDrawerState)
+    const [openExport, setOpenExport] = React.useState(false)
     const [openNew, setOpenNew] = React.useState(false)
     const [audienceSelection, setAudienceSelection] = React.useState<AudienceSelection>(
         AudienceSelection.SELECTED
@@ -278,6 +283,18 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         )
     }
 
+    const handleImport = () => {
+        setOpenImport(true)
+    }
+
+    const handleExport = () => {
+        setOpenExport(true)
+    }
+
+    const confirmExportAction = async () => {
+        console.log("CONFIRM EXPORT")
+    }
+
     return (
         <>
             <List
@@ -285,7 +302,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                 empty={<Empty />}
                 actions={
                     <ListActions
-                        withImport={false}
+                        withImport
+                        doImport={handleImport}
+                        withExport
+                        doExport={handleExport}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={
@@ -369,6 +389,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
             >
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.body`)}
             </Dialog>
+
+            <Drawer
+                anchor="right"
+                open={openImport}
+                onClose={() => {
+                    setOpenImport(false)
+                }}
+                PaperProps={{
+                    sx: {width: "30%"},
+                }}
+            >
+                <ImportVotersBaseTabs doRefresh={() => refresh()} />
+            </Drawer>
+
             <Dialog
                 variant="warning"
                 open={openDeleteBulkModal}
@@ -383,6 +417,22 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                 }}
             >
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.bulkBody`)}
+            </Dialog>
+
+            <Dialog
+                variant="info"
+                open={openExport}
+                ok={t("common.label.export")}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.export")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmExportAction()
+                    }
+                    setOpenExport(false)
+                }}
+            >
+                {t("common.export")}
             </Dialog>
         </>
     )
