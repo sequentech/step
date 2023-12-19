@@ -46,6 +46,11 @@ export const CreateTally: React.FC<CreateTallyProps> = (props) => {
         {
             pagination: {page: 1, perPage: 9999},
             filter: {election_event_id: record?.id, tenant_id: record?.tenant_id},
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 
