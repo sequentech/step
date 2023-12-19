@@ -85,6 +85,7 @@
 
 				// To support multiple settings file and merge them, so that our
 				// fworkaround to support rust analyzer works fine
+				"swellaby.workspace-config-plus"
     		]
 		}
 	}

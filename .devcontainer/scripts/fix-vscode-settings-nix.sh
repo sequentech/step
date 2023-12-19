@@ -16,8 +16,8 @@ java_home=$(echo /nix/store/*-openjdk-*/lib/openjdk)
 
 # Add below
 
-# Generate settings.fix-nix.json
-cat << EOF > '.vscode/settings.fix-nix.json'
+# Generate `.vscode/settings.local.json`
+cat << EOF > '.vscode/settings.local.json'
 {
     "rust-analyzer.server.extraEnv": {
         // See https://github.com/sequentech/backend-services/wiki/Running-tests-without-triggering-full-rebuilds
@@ -38,4 +38,4 @@ cat << EOF > '.vscode/settings.fix-nix.json'
 }
 EOF
 
-echo "settings.fix-nix.json generated in .vscode directory."
+echo "file '.vscode/settings.local.json' generated."

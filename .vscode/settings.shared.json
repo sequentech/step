@@ -6,5 +6,5 @@
     "java.compile.nullAnalysis.mode": "automatic",
     "java.configuration.updateBuildConfiguration": "automatic",
     "docker.containers.label": "ContainerName",
-    "docker.commands.attach": "${containerCommand} exec -it ${containerId} ${shellCommand}",
+    "docker.commands.attach": "${containerCommand} exec -it ${containerId} ${shellCommand}"
 }
