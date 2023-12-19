@@ -145,6 +145,10 @@ const AuthContextProvider = ({children}: AuthContextProviderProps) => {
                 // back to the Keycloak login form
                 if (!isAuthenticatedResponse) {
                     console.log("user is not yet authenticated. forwarding user to login.")
+                    if (localStorage.getItem("token")) {
+                        localStorage.removeItem("token")
+                    }
+                    logout()
                     await keycloak.login()
                 }
                 if (isAuthenticatedResponse && keycloak.token) {
