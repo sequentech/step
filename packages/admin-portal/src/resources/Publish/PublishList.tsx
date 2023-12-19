@@ -97,8 +97,8 @@ export const PublishList: React.FC<TPublishList> = ({
                           }
                 }
                 sort={{
-                    field: 'created_at',
-                    order: 'DESC',
+                    field: "created_at",
+                    order: "DESC",
                 }}
                 filters={filters}
                 sx={{flexGrow: 2}}
