@@ -434,12 +434,6 @@ export const TallyCeremony: React.FC = () => {
                                 <WizardStyles.AccordionTitle>
                                     {t("tally.generalInfoTitle")}
                                 </WizardStyles.AccordionTitle>
-                                <TallyStyles.StyledSpacing>
-                                    <ExportElectionMenu
-                                        resource="sequent_backend_results_event"
-                                        event={data}
-                                    />
-                                </TallyStyles.StyledSpacing>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
                                 <TallyStartDate />

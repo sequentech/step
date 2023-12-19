@@ -18,6 +18,7 @@ interface ExportElectionMenuProps {
     election?: Sequent_Backend_Election
     contest?: Sequent_Backend_Contest
     area?: Sequent_Backend_Area_Contest | string | undefined
+    areaName?: string | undefined
 }
 
 const ExportButton = styled.div`
@@ -43,7 +44,7 @@ const ExportButton = styled.div`
 `
 
 export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => {
-    const {resource, event, election, contest, area} = props
+    const {resource, event, election, contest, area, areaName} = props
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
 
@@ -91,7 +92,7 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                     vertical: "top",
                     horizontal: "right",
                 }}
-                sx={{maxWidth: 220}}
+                sx={{maxWidth: 620}}
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
             >
@@ -112,7 +113,20 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                 overflow: "hidden",
                             }}
                         >
-                            <span title={format.label}>{format.label}</span>
+                            <span title={format.label}>
+                                {t("common.label.exportFormat", {
+                                    item: election
+                                        ? election?.name?.slice(0, 12)
+                                        : contest
+                                        ? contest?.name?.slice(0, 12)
+                                        : area && area !== "all"
+                                        ? areaName?.slice(0, 12)
+                                        : area
+                                        ? t("common.label.globalAreaResults")
+                                        : t("common.label.allResults"),
+                                    format: format.label,
+                                })}
+                            </span>
                         </Box>
                     </MenuItem>
                 ))}

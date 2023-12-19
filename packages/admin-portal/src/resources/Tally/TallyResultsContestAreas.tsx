@@ -129,6 +129,7 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                     <ExportElectionMenu
                         resource={"sequent_backend_results_area_contest"}
                         area={value < 1 ? "all" : areasData?.[value - 1]}
+                        areaName={areas?.find((item) => item.id === selectedArea)?.name}
                     />
                 ) : null}
             </Box>

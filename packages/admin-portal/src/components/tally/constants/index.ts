@@ -11,8 +11,4 @@ export const EXPORT_FORMATS = [
         label: "JSON",
         value: "json",
     },
-    {
-        label: "CSV",
-        value: "csv",
-    },
 ]
