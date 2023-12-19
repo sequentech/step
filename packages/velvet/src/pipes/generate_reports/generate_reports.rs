@@ -25,7 +25,7 @@ use crate::pipes::{
 use crate::pipes::{
     do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
     mark_winners::{WinnerResult, OUTPUT_WINNERS},
-    pipe_inputs::{PipeInputs, PREFIX_ELECTION},
+    pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir,
     Pipe,
 };
@@ -111,18 +111,15 @@ impl GenerateReports {
 
         let html = include_str!("../../resources/report.hbs");
 
-        let render = reports::render_template_text(&html, map).map_err(|e| {
+        let render = reports::render_template_text(html, map).map_err(|e| {
             Error::UnexpectedError(format!(
                 "Error during render_template_text from report.hbs template file: {}",
-                e.to_string()
+                e
             ))
         })?;
 
         let bytes_pdf = pdf::html_to_pdf(render).map_err(|e| {
-            Error::UnexpectedError(format!(
-                "Error during html_to_pdf conversion: {}",
-                e.to_string()
-            ))
+            Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
         })?;
 
         Ok((bytes_pdf, html.as_bytes().to_vec()))
@@ -271,7 +268,7 @@ impl GenerateReports {
     ) -> Result<()> {
         let (bytes_pdf, bytes_html) = self.generate_report(reports)?;
 
-        let mut path = PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
+        let path = PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
 
         fs::create_dir_all(&path)?;
 
@@ -280,7 +277,7 @@ impl GenerateReports {
             .write(true)
             .truncate(true)
             .create(true)
-            .open(&file)?;
+            .open(file)?;
         file.write_all(&bytes_pdf)?;
 
         let file = path.join(OUTPUT_HTML);
@@ -288,7 +285,7 @@ impl GenerateReports {
             .write(true)
             .truncate(true)
             .create(true)
-            .open(&file)?;
+            .open(file)?;
         file.write_all(&bytes_html)?;
 
         Ok(())
@@ -303,7 +300,7 @@ impl Pipe for GenerateReports {
 
             for contest_input in &election_input.contest_list {
                 for area_input in &contest_input.area_list {
-                    let report = self.make_report(
+                    let _report = self.make_report(
                         &election_input.id,
                         Some(&contest_input.id),
                         Some(&area_input.id),
