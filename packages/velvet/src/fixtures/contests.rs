@@ -1,6 +1,4 @@
-use sequent_core::ballot::{
-    BallotStyle, Candidate, CandidatePresentation, Contest, ContestPresentation, PublicKeyConfig,
-};
+use sequent_core::ballot::{Contest, ContestPresentation};
 use uuid::Uuid;
 
 use super::candidates;

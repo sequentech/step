@@ -49,14 +49,19 @@ mod tests {
                     &election.id,
                 )?;
                 (0..area_num).try_for_each(|index| {
-                    let uuid_area = fixture
-                        .create_area_dir(&election.id, &Uuid::from_str(&contest.id).unwrap())?;
+                    let area_config = fixture.create_area_dir(
+                        &election.tenant_id,
+                        &election_event_id,
+                        &election.id,
+                        &Uuid::from_str(&contest.id).unwrap(),
+                        100,
+                    )?;
 
                     election.ballot_styles.push(generate_ballot_style(
                         &election.tenant_id,
                         &election.election_event_id,
                         &election.id,
-                        &uuid_area,
+                        &area_config.id,
                         vec![contest.clone()],
                     ));
 
@@ -64,7 +69,7 @@ mod tests {
                         .input_dir_ballots
                         .join(format!("election__{}", &election.id))
                         .join(format!("contest__{}", &contest.id))
-                        .join(format!("area__{uuid_area}"));
+                        .join(format!("area__{}", area_config.id));
 
                     if index == 1 {
                         // skip 1 ballot file
@@ -378,13 +383,18 @@ mod tests {
             fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
 
         // first area
-        let uuid_area =
-            fixture.create_area_dir(&election.id, &Uuid::from_str(&contest.id).unwrap())?;
+        let area_config = fixture.create_area_dir(
+            &election.tenant_id,
+            &election_event_id,
+            &election.id,
+            &Uuid::from_str(&contest.id).unwrap(),
+            100,
+        )?;
         election.ballot_styles.push(generate_ballot_style(
             &election.tenant_id,
             &election.election_event_id,
             &election.id,
-            &uuid_area,
+            &area_config.id,
             vec![contest.clone()],
         ));
 
@@ -392,7 +402,7 @@ mod tests {
             .input_dir_ballots
             .join(format!("election__{}", &election.id))
             .join(format!("contest__{}", &contest.id))
-            .join(format!("area__{uuid_area}"));
+            .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
             .write(true)
@@ -471,13 +481,18 @@ mod tests {
         })?;
 
         // second area
-        let uuid_area =
-            fixture.create_area_dir(&election.id, &Uuid::from_str(&contest.id).unwrap())?;
+        let area_config = fixture.create_area_dir(
+            &election.tenant_id,
+            &election_event_id,
+            &election.id,
+            &Uuid::from_str(&contest.id).unwrap(),
+            100,
+        )?;
         election.ballot_styles.push(generate_ballot_style(
             &election.tenant_id,
             &election.election_event_id,
             &election.id,
-            &uuid_area,
+            &area_config.id,
             vec![contest.clone()],
         ));
 
@@ -485,7 +500,7 @@ mod tests {
             .input_dir_ballots
             .join(format!("election__{}", &election.id))
             .join(format!("contest__{}", &contest.id))
-            .join(format!("area__{uuid_area}"));
+            .join(format!("area__{}", &area_config.id));
 
         let mut file = fs::OpenOptions::new()
             .write(true)
@@ -567,13 +582,19 @@ mod tests {
         let contest =
             fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
 
-        let uuid_area =
-            fixture.create_area_dir(&election.id, &Uuid::from_str(&contest.id).unwrap())?;
+        let area_config = fixture.create_area_dir(
+            &election.tenant_id,
+            &election_event_id,
+            &election.id,
+            &Uuid::from_str(&contest.id).unwrap(),
+            100,
+        )?;
+
         election.ballot_styles.push(generate_ballot_style(
             &election.tenant_id,
             &election.election_event_id,
             &election.id,
-            &uuid_area,
+            &area_config.id,
             vec![contest.clone()],
         ));
 
@@ -581,7 +602,7 @@ mod tests {
             .input_dir_ballots
             .join(format!("election__{}", &election.id))
             .join(format!("contest__{}", &contest.id))
-            .join(format!("area__{uuid_area}"));
+            .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
             .write(true)
@@ -699,13 +720,18 @@ mod tests {
             fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
 
         // first area
-        let uuid_area =
-            fixture.create_area_dir(&election.id, &Uuid::from_str(&contest.id).unwrap())?;
+        let area_config = fixture.create_area_dir(
+            &election.tenant_id,
+            &election_event_id,
+            &election.id,
+            &Uuid::from_str(&contest.id).unwrap(),
+            100,
+        )?;
         election.ballot_styles.push(generate_ballot_style(
             &election.tenant_id,
             &election.election_event_id,
             &election.id,
-            &uuid_area,
+            &area_config.id,
             vec![contest.clone()],
         ));
 
@@ -713,7 +739,7 @@ mod tests {
             .input_dir_ballots
             .join(format!("election__{}", &election.id))
             .join(format!("contest__{}", &contest.id))
-            .join(format!("area__{uuid_area}"));
+            .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
             .write(true)
@@ -750,7 +776,7 @@ mod tests {
         path.push("velvet-generate-reports");
         path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
         path.push(format!("{}{}", PREFIX_CONTEST, &contest.id));
-        path.push(format!("{}{}", PREFIX_AREA, &uuid_area));
+        path.push(format!("{}{}", PREFIX_AREA, &area_config.id));
         path.push("report.json");
 
         let f = fs::File::open(&path)?;
@@ -785,13 +811,19 @@ mod tests {
             fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
 
         // first area
-        let uuid_area =
-            fixture.create_area_dir(&election.id, &Uuid::from_str(&contest.id).unwrap())?;
+        let area_config = fixture.create_area_dir(
+            &election.tenant_id,
+            &election_event_id,
+            &election.id,
+            &Uuid::from_str(&contest.id).unwrap(),
+            100,
+        )?;
+
         election.ballot_styles.push(generate_ballot_style(
             &election.tenant_id,
             &election.election_event_id,
             &election.id,
-            &uuid_area,
+            &area_config.id,
             vec![contest.clone()],
         ));
 
@@ -799,7 +831,7 @@ mod tests {
             .input_dir_ballots
             .join(format!("election__{}", &election.id))
             .join(format!("contest__{}", &contest.id))
-            .join(format!("area__{uuid_area}"));
+            .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
             .write(true)
@@ -883,7 +915,7 @@ mod tests {
         path.push("velvet-generate-reports");
         path.push(format!("{}{}", PREFIX_ELECTION, &election.id));
         path.push(format!("{}{}", PREFIX_CONTEST, &contest.id));
-        path.push(format!("{}{}", PREFIX_AREA, &uuid_area));
+        path.push(format!("{}{}", PREFIX_AREA, &area_config.id));
         path.push("report.json");
 
         let f = fs::File::open(&path)?;

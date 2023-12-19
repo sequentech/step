@@ -12,6 +12,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::config::{self, Config};
+use crate::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use crate::pipes::pipe_name::PipeName;
 
 #[derive(Debug)]
@@ -50,11 +51,8 @@ impl TestFixture {
     }
 
     #[instrument]
-    pub fn create_election_config(
-        &self,
-        election_event_id: &Uuid,
-    ) -> Result<super::elections::Election> {
-        let election = super::elections::get_election1(election_event_id);
+    pub fn create_election_config(&self, election_event_id: &Uuid) -> Result<ElectionConfig> {
+        let election = super::elections::get_election_config_1(election_event_id);
 
         let mut path = self
             .input_dir_configs
@@ -90,23 +88,31 @@ impl TestFixture {
     }
 
     #[instrument]
-    pub fn create_area_dir(&self, election_uuid: &Uuid, contest_uuid: &Uuid) -> Result<Uuid> {
-        let uuid = Uuid::new_v4();
+    pub fn create_area_dir(
+        &self,
+        tenant_id: &Uuid,
+        election_event_id: &Uuid,
+        election_id: &Uuid,
+        contest_id: &Uuid,
+        census: u64,
+    ) -> Result<AreaConfig> {
+        let area_config =
+            super::areas::get_area_config(tenant_id, election_event_id, election_id, census);
 
         let dir_configs = self
             .input_dir_configs
-            .join(format!("election__{election_uuid}"))
-            .join(format!("contest__{contest_uuid}"))
-            .join(format!("area__{uuid}"));
+            .join(format!("election__{election_id}"))
+            .join(format!("contest__{contest_id}"))
+            .join(format!("area__{}", area_config.id));
         let dir_ballots = self
             .input_dir_ballots
-            .join(format!("election__{election_uuid}"))
-            .join(format!("contest__{contest_uuid}"))
-            .join(format!("area__{uuid}"));
+            .join(format!("election__{election_id}"))
+            .join(format!("contest__{contest_id}"))
+            .join(format!("area__{}", area_config.id));
         fs::create_dir_all(dir_configs)?;
         fs::create_dir_all(dir_ballots)?;
 
-        Ok(uuid)
+        Ok(area_config)
     }
 }
 

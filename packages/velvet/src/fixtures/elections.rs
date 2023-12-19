@@ -2,7 +2,7 @@ use uuid::Uuid;
 use crate::pipes::pipe_inputs::ElectionConfig;
 use super::ballot_styles;
 
-pub fn get_election1(election_event_id: &Uuid) -> ElectionConfig {
+pub fn get_election_config_1(election_event_id: &Uuid) -> ElectionConfig {
     let tenant_id = Uuid::new_v4();
     let election_id = Uuid::new_v4();
 
@@ -18,7 +18,7 @@ pub fn get_election1(election_event_id: &Uuid) -> ElectionConfig {
     }
 }
 
-pub fn get_election2() -> ElectionConfig {
+pub fn get_election_config_2() -> ElectionConfig {
     let tenant_id = Uuid::new_v4();
     let election_event_id = Uuid::new_v4();
     let election_id = Uuid::new_v4();
