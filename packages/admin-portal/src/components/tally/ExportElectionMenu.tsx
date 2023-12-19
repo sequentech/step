@@ -116,11 +116,11 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                             <span title={format.label}>
                                 {t("common.label.exportFormat", {
                                     item: election
-                                        ? election?.name
+                                        ? election?.name?.slice(0, 12)
                                         : contest
-                                        ? contest.name
+                                        ? contest?.name?.slice(0, 12)
                                         : area && area !== "all"
-                                        ? areaName
+                                        ? areaName?.slice(0, 12)
                                         : area
                                         ? t("common.label.globalAreaResults")
                                         : t("common.label.allResults"),
