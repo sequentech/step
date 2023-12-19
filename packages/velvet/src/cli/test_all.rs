@@ -49,7 +49,7 @@ mod tests {
                     &election.id,
                 )?;
                 (0..area_num).try_for_each(|index| {
-                    let area_config = fixture.create_area_dir(
+                    let area_config = fixture.create_area_config(
                         &election.tenant_id,
                         &election_event_id,
                         &election.id,
@@ -383,7 +383,7 @@ mod tests {
             fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
 
         // first area
-        let area_config = fixture.create_area_dir(
+        let area_config = fixture.create_area_config(
             &election.tenant_id,
             &election_event_id,
             &election.id,
@@ -481,7 +481,7 @@ mod tests {
         })?;
 
         // second area
-        let area_config = fixture.create_area_dir(
+        let area_config = fixture.create_area_config(
             &election.tenant_id,
             &election_event_id,
             &election.id,
@@ -582,7 +582,7 @@ mod tests {
         let contest =
             fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
 
-        let area_config = fixture.create_area_dir(
+        let area_config = fixture.create_area_config(
             &election.tenant_id,
             &election_event_id,
             &election.id,
@@ -720,7 +720,7 @@ mod tests {
             fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
 
         // first area
-        let area_config = fixture.create_area_dir(
+        let area_config = fixture.create_area_config(
             &election.tenant_id,
             &election_event_id,
             &election.id,
@@ -811,7 +811,7 @@ mod tests {
             fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
 
         // first area
-        let area_config = fixture.create_area_dir(
+        let area_config = fixture.create_area_config(
             &election.tenant_id,
             &election_event_id,
             &election.id,

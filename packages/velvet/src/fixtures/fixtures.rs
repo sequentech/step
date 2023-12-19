@@ -88,7 +88,7 @@ impl TestFixture {
     }
 
     #[instrument]
-    pub fn create_area_dir(
+    pub fn create_area_config(
         &self,
         tenant_id: &Uuid,
         election_event_id: &Uuid,
@@ -109,8 +109,11 @@ impl TestFixture {
             .join(format!("election__{election_id}"))
             .join(format!("contest__{contest_id}"))
             .join(format!("area__{}", area_config.id));
-        fs::create_dir_all(dir_configs)?;
+        fs::create_dir_all(&dir_configs)?;
         fs::create_dir_all(dir_ballots)?;
+
+        let mut file = fs::File::create(dir_configs.join("area-config.json"))?;
+        writeln!(file, "{}", serde_json::to_string(&area_config)?)?;
 
         Ok(area_config)
     }

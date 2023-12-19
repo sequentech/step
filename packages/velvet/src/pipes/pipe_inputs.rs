@@ -21,6 +21,7 @@ pub const DEFAULT_DIR_BALLOTS: &str = "default/ballots";
 
 pub const ELECTION_CONFIG_FILE: &str = "election-config.json";
 pub const CONTEST_CONFIG_FILE: &str = "contest-config.json";
+pub const AREA_CONFIG_FILE: &str = "area-config.json";
 pub const BALLOTS_FILE: &str = "ballots.csv";
 
 #[derive(Debug)]
@@ -131,10 +132,14 @@ impl PipeInputs {
                 let area_id = Self::parse_path_components(&path_area, PREFIX_AREA)
                     .ok_or(Error::IDNotFound)?;
 
-                let config_path_area = path.join(CONTEST_CONFIG_FILE);
+                let config_path_area = path
+                    .join(format!("{PREFIX_AREA}{area_id}"))
+                    .join(AREA_CONFIG_FILE);
+
                 if !config_path_area.exists() {
                     return Err(Error::AreaConfigNotFound(area_id));
                 }
+
                 let config_file = fs::File::open(&config_path_area)
                     .map_err(|e| Error::FileAccess(config_path_area.clone(), e))?;
                 let area_config: AreaConfig = serde_json::from_reader(config_file)?;
