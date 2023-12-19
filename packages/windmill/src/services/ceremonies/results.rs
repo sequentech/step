@@ -170,7 +170,6 @@ pub async fn generate_results_id_if_necessary(
 pub async fn populate_results_tables(
     base_tally_path: PathBuf,
     state: State,
-    area_contest_plaintexts: &Vec<AreaContestDataType>,
     tenant_id: &str,
     election_event_id: &str,
     tally_status: &TallyCeremonyStatus,
@@ -190,15 +189,7 @@ pub async fn populate_results_tables(
     if is_new {
         if let Ok(results) = state.get_results() {
             if let Some(results_event_id) = results_event_id_opt.clone() {
-                let (plaintexts, tally_session_contest, contest, ballot_style) =
-                    area_contest_plaintexts[0].clone();
-                save_results(
-                    results,
-                    &contest.tenant_id,
-                    &contest.election_event_id,
-                    &results_event_id,
-                )
-                .await?;
+                save_results(results, tenant_id, election_event_id, &results_event_id).await?;
             }
         }
     }

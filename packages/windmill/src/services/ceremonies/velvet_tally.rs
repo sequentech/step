@@ -156,8 +156,8 @@ pub fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
         stage: "main".to_string(),
         pipe_id: "decode-ballots".to_string(),
         config: base_tally_path.join("velvet-config.json"),
-        input_dir: base_tally_path.join("input-dir"),
-        output_dir: base_tally_path.join("input-dir"),
+        input_dir: base_tally_path.join("input"),
+        output_dir: base_tally_path.join("output"),
     };
 
     let config = cli.validate()?;

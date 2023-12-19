@@ -461,7 +461,6 @@ pub async fn execute_tally_session(
     let results_event_id = populate_results_tables(
         base_tempdir.path().to_path_buf(),
         status,
-        &plaintexts_data,
         &tenant_id,
         &election_event_id,
         &new_status,
