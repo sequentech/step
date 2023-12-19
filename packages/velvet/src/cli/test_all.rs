@@ -680,7 +680,7 @@ mod tests {
         state.exec_next()?;
 
         // Generate reports
-        //state.exec_next()?;
+        state.exec_next()?;
 
         Ok(())
     }
