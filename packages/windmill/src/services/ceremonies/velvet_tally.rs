@@ -17,6 +17,7 @@ use uuid::{uuid, Uuid};
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
 use velvet::fixtures::elections::Election;
+use velvet::fixtures::get_config;
 
 pub type AreaContestDataType = (
     Vec<<RistrettoCtx as Ctx>::P>,
@@ -149,7 +150,7 @@ pub fn create_election_configs(
 }
 
 #[instrument(err)]
-pub fn call_velvet(base_tally_path: PathBuf) -> Result<()> {
+pub fn call_velvet(base_tally_path: PathBuf) -> Result<State> {
     //// Run Velvet
     let cli = CliRun {
         stage: "main".to_string(),
@@ -168,6 +169,17 @@ pub fn call_velvet(base_tally_path: PathBuf) -> Result<()> {
         event!(Level::INFO, "Exec {}", stage_name);
         state.exec_next()?;
     }
+    Ok(state)
+}
+
+pub fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
+    let config_path = base_tally_path.join("velvet-config.json");
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(&config_path)?;
+
+    writeln!(file, "{}", serde_json::to_string(&get_config())?)?;
     Ok(())
 }
 
@@ -175,10 +187,11 @@ pub fn call_velvet(base_tally_path: PathBuf) -> Result<()> {
 pub fn run_velvet_tally(
     base_tally_path: PathBuf,
     area_contest_plaintexts: &Vec<AreaContestDataType>,
-) -> Result<()> {
+) -> Result<State> {
     for area_contest_plaintext in area_contest_plaintexts {
         prepare_tally_for_area_contest(base_tally_path.clone(), area_contest_plaintext)?;
     }
     create_election_configs(base_tally_path.clone(), area_contest_plaintexts)?;
+    create_config_file(base_tally_path.clone())?;
     call_velvet(base_tally_path.clone())
 }
