@@ -509,7 +509,7 @@ const englishTranslation = {
                 import: "Import",
                 export: "Export",
                 loadingData: "Loading data ...",
-                exportFormat: "Export {{item}} results in {{format}} format",
+                exportFormat: "Export '{{item}}' results in {{format}} format",
                 allResults: "election event",
                 globalAreaResults: "all areas",
             },
