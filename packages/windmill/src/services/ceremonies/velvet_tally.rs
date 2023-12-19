@@ -7,11 +7,13 @@ use crate::hasura::tally_session_execution::get_last_tally_session_execution::{
 use anyhow::{anyhow, Context, Result};
 use sequent_core::ballot::{BallotStyle, Contest};
 use sequent_core::ballot_codec::PlaintextCodec;
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx, serialization::StrandDeserialize};
 use tracing::{event, instrument, Level};
+use uuid::{uuid, Uuid};
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
 use velvet::fixtures::elections::Election;
@@ -89,7 +91,6 @@ pub async fn prepare_tally_for_area_contest(
         "default/configs/election__{election_id}/contest__{contest_id}/contest-config.json"
     ));
     let mut contest_config_file = fs::File::create(contest_config_path)?;
-
     writeln!(contest_config_file, "{}", serde_json::to_string(&contest)?)?;
 
     Ok(())
@@ -100,6 +101,52 @@ pub async fn create_election_configs(
     area_contest_plaintexts: &Vec<AreaContestDataType>,
     base_tempdir: PathBuf,
 ) -> Result<()> {
+    let mut elections_map: HashMap<String, Election> = HashMap::new();
+
+    // aggregate all ballot styles for each election
+    for area_contest_plaintext in area_contest_plaintexts {
+        let (plaintexts, tally_session_contest, contest, ballot_style) = area_contest_plaintext;
+
+        let area_id = tally_session_contest.area_id.clone();
+        let contest_id = contest.id.clone();
+        let election_id = contest.election_id.clone();
+        let mut velvet_election: Election = match elections_map.get(&election_id) {
+            Some(election) => election.clone(),
+            None => Election {
+                id: Uuid::parse_str(&election_id)?,
+                tenant_id: Uuid::parse_str(&contest.tenant_id)?,
+                election_event_id: Uuid::parse_str(&contest.election_event_id)?,
+                ballot_styles: vec![],
+            },
+        };
+        velvet_election.ballot_styles.push(ballot_style.clone());
+        elections_map.insert(election_id.clone(), velvet_election);
+    }
+
+    // deduplicate the ballot styles
+    for (key, value) in &elections_map {
+        let mut velvet_election: Election = value.clone();
+        velvet_election
+            .ballot_styles
+            .sort_by_key(|ballot_style| ballot_style.id.clone());
+        velvet_election
+            .ballot_styles
+            .dedup_by_key(|ballot_style| ballot_style.id.clone());
+    }
+
+    // write the election configs
+    for (election_id, election) in &elections_map {
+        let election_config_path: PathBuf = base_tempdir.join(format!(
+            "input/default/configs/election__{election_id}/election-config.json"
+        ));
+        let mut election_config_file = fs::File::create(election_config_path)?;
+        writeln!(
+            election_config_file,
+            "{}",
+            serde_json::to_string(&election)?
+        )?;
+    }
+
     Ok(())
 }
 
