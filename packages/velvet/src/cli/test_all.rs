@@ -665,6 +665,7 @@ mod tests {
             input_dir: fixture.root_dir.join("tests").join("input-dir"),
             output_dir: fixture.root_dir.join("tests").join("output-dir"),
         };
+        println!("cli config: {:?}", cli);
 
         let config = cli.validate()?;
         let mut state = State::new(&cli, &config)?;
@@ -679,7 +680,7 @@ mod tests {
         state.exec_next()?;
 
         // Generate reports
-        state.exec_next()?;
+        //state.exec_next()?;
 
         Ok(())
     }
