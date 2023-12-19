@@ -127,7 +127,6 @@ impl GetPgauditBody {
 
         // Handle order_by
         if !to_count && self.order_by.is_some() {
-            let order_by_param_name = String::from("order_by");
             let order_by_clauses: Vec<String> = self
                 .order_by
                 .as_ref()
@@ -135,11 +134,7 @@ impl GetPgauditBody {
                 .iter()
                 .map(|(field, direction)| format!("{field} {direction}"))
                 .collect();
-            clauses.push(format!("ORDER BY @{}", order_by_param_name));
-            params.push(create_named_param(
-                order_by_param_name,
-                Value::S(order_by_clauses.join(", ")),
-            ));
+            clauses.push(format!("ORDER BY {}", order_by_clauses.join(", ")));
         }
 
         // Handle limit
@@ -152,7 +147,7 @@ impl GetPgauditBody {
                 limit_value,
                 PgConfig::from_env()?.low_sql_limit.into(),
             );
-            clauses.push(format!("LIMIT @{}", limit_param_name));
+            clauses.push(format!("LIMIT @{limit_param_name}"));
             params.push(create_named_param(limit_param_name, Value::N(limit)));
         }
 
@@ -355,15 +350,9 @@ mod tests {
         }))
         .unwrap();
         let (sql, params) = get_pgaudit_body.as_sql(false).unwrap();
-        assert!(sql.contains("ORDER BY @order_by LIMIT @limit"));
-        assert_eq!(params.len(), 2);
-        assert_eq!(params[0].name, "order_by");
-        assert_eq!(
-            params[0].value.as_ref().unwrap().value,
-            Some(Value::S("id asc".to_string()))
-        );
-        assert_eq!(params[1].name, "limit");
-        // Check limit value based on PgConfig settings
+        assert!(sql.contains("ORDER BY id asc LIMIT @limit"));
+        assert_eq!(params[0].name, "limit");
+        assert_eq!(params[0].value.as_ref().unwrap().value, Some(Value::N(20)));
 
         // Test with limit, offset, and order_by
         let get_pgaudit_body: GetPgauditBody = serde_json::from_value(json!({
@@ -375,17 +364,12 @@ mod tests {
         }))
         .unwrap();
         let (sql, params) = get_pgaudit_body.as_sql(false).unwrap();
-        assert!(sql.contains("ORDER BY @order_by LIMIT @limit OFFSET @offset"));
-        assert_eq!(params.len(), 3);
-        assert_eq!(params[0].name, "order_by");
-        assert_eq!(
-            params[0].value.as_ref().unwrap().value,
-            Some(Value::S("id asc".to_string()))
-        );
-        assert_eq!(params[1].name, "limit");
-        assert_eq!(params[1].value.as_ref().unwrap().value, Some(Value::N(15)));
-        assert_eq!(params[2].name, "offset");
-        assert_eq!(params[2].value.as_ref().unwrap().value, Some(Value::N(5)));
+        assert!(sql.contains("ORDER BY id asc LIMIT @limit OFFSET @offset"));
+        assert_eq!(params.len(), 2);
+        assert_eq!(params[0].name, "limit");
+        assert_eq!(params[0].value.as_ref().unwrap().value, Some(Value::N(15)));
+        assert_eq!(params[1].name, "offset");
+        assert_eq!(params[1].value.as_ref().unwrap().value, Some(Value::N(5)));
 
         // Test as_sql(true) without any parameters
         let (sql, params) = get_pgaudit_body.as_sql(true).unwrap();
@@ -403,7 +387,10 @@ mod tests {
         assert!(sql.contains("LIMIT @limit"));
         assert_eq!(params.len(), 1);
         assert_eq!(params[0].name, "limit");
-        assert_eq!(params[0].value.as_ref().unwrap().value, Some(Value::N(1000)));
+        assert_eq!(
+            params[0].value.as_ref().unwrap().value,
+            Some(Value::N(1000))
+        );
         // Check limit value based on PgConfig settings
 
         // Test as_sql(true) without any parameters
