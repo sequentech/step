@@ -49,6 +49,7 @@ export const TallyElectionsProgress: React.FC = () => {
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
         }
     )
 
