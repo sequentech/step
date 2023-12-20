@@ -16,8 +16,8 @@ use tracing::{event, instrument, Level};
 use uuid::{uuid, Uuid};
 use velvet::cli::state::State;
 use velvet::cli::CliRun;
-use velvet::fixtures::elections::Election;
 use velvet::fixtures::get_config;
+use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 
 pub type AreaContestDataType = (
     Vec<<RistrettoCtx as Ctx>::P>,
@@ -84,6 +84,19 @@ pub fn prepare_tally_for_area_contest(
         "default/configs/election__{election_id}/contest__{contest_id}/area__{area_id}"
     ));
     fs::create_dir_all(&area_path)?;
+    // create area config
+    let area_config_path: PathBuf = velvet_input_dir.join(format!(
+        "default/configs/election__{election_id}/contest__{contest_id}/area__{area_id}/area-config.json"
+    ));
+    let area_config = AreaConfig {
+        id: Uuid::parse_str(&area_id)?,
+        tenant_id: Uuid::parse_str(&contest.tenant_id)?,
+        election_event_id: Uuid::parse_str(&contest.election_event_id)?,
+        election_id: Uuid::parse_str(&election_id)?,
+        census: biguit_ballots.len() as u64,
+    };
+    let mut area_config_file = fs::File::create(area_config_path)?;
+    writeln!(area_config_file, "{}", serde_json::to_string(&area_config)?)?;
 
     //// create contest config file
     let contest_config_path: PathBuf = velvet_input_dir.join(format!(
@@ -100,7 +113,7 @@ pub fn create_election_configs(
     base_tempdir: PathBuf,
     area_contest_plaintexts: &Vec<AreaContestDataType>,
 ) -> Result<()> {
-    let mut elections_map: HashMap<String, Election> = HashMap::new();
+    let mut elections_map: HashMap<String, ElectionConfig> = HashMap::new();
 
     // aggregate all ballot styles for each election
     for area_contest_plaintext in area_contest_plaintexts {
@@ -109,9 +122,9 @@ pub fn create_election_configs(
         let area_id = tally_session_contest.area_id.clone();
         let contest_id = contest.id.clone();
         let election_id = contest.election_id.clone();
-        let mut velvet_election: Election = match elections_map.get(&election_id) {
+        let mut velvet_election: ElectionConfig = match elections_map.get(&election_id) {
             Some(election) => election.clone(),
-            None => Election {
+            None => ElectionConfig {
                 id: Uuid::parse_str(&election_id)?,
                 tenant_id: Uuid::parse_str(&contest.tenant_id)?,
                 election_event_id: Uuid::parse_str(&contest.election_event_id)?,
@@ -124,7 +137,7 @@ pub fn create_election_configs(
 
     // deduplicate the ballot styles
     for (key, value) in &elections_map {
-        let mut velvet_election: Election = value.clone();
+        let mut velvet_election: ElectionConfig = value.clone();
         velvet_election
             .ballot_styles
             .sort_by_key(|ballot_style| ballot_style.id.clone());
