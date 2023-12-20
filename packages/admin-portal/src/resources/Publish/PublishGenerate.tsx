@@ -43,6 +43,7 @@ const PublishGenerateStyled = {
 
 export type TPublishGenerate = {
     data: any
+    readOnly: boolean
     status: number
     electionId?: string
     onBack: () => void
@@ -54,6 +55,7 @@ export type TPublishGenerate = {
 export const PublishGenerate: React.FC<TPublishGenerate> = ({
     data,
     status,
+    readOnly,
     onBack = () => null,
     onPublish = () => null,
     onGenerate = () => null,
@@ -71,21 +73,25 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
 
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
-            <PublishActions
-                status={status}
-                onPublish={onPublish}
-                onGenerate={onGenerate}
-                type={EPublishActionsType.Generate}
-            />
+            {!readOnly && (
+                <PublishActions
+                    status={status}
+                    onPublish={onPublish}
+                    onGenerate={onGenerate}
+                    type={EPublishActionsType.Generate}
+                />
+            )}
 
             <PublishGenerateStyled.Container>
                 <PublishGenerateStyled.AccordionHeaderTitle>
-                    {t("publish.header.change")}
+                    {readOnly ? t("publish.header.viewChange") : t("publish.header.change")}
                 </PublishGenerateStyled.AccordionHeaderTitle>
 
                 <DiffView
-                    currentTitle={t("publish.label.current")}
-                    diffTitle={t("publish.label.diff")}
+                    currentTitle={
+                        readOnly ? t("publish.label.previous") : t("publish.label.current")
+                    }
+                    diffTitle={readOnly ? t("publish.label.publication") : t("publish.label.diff")}
                     current={currentState}
                     modify={previousState}
                 />
@@ -102,15 +108,17 @@ export const PublishGenerate: React.FC<TPublishGenerate> = ({
                         <ArrowBackIosNew />
                     </Button>
 
-                    <Button
-                        onClick={onPublish}
-                        label={t("publish.action.publish")}
-                        style={{
-                            color: "#fff",
-                        }}
-                    >
-                        <Publish />
-                    </Button>
+                    {!readOnly && (
+                        <Button
+                            onClick={onPublish}
+                            label={t("publish.action.publish")}
+                            style={{
+                                color: "#fff",
+                            }}
+                        >
+                            <Publish />
+                        </Button>
+                    )}
                 </PublishGenerateStyled.Bottom>
             </PublishGenerateStyled.Container>
         </Box>
