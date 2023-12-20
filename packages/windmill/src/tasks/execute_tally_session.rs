@@ -463,7 +463,7 @@ pub async fn execute_tally_session(
         status,
         &tenant_id,
         &election_event_id,
-        &new_status,
+        session_ids.clone(),
         tally_session_execution.clone(),
     )
     .await?;
