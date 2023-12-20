@@ -3,7 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
-import {Candidate, stringToHtml, isUndefined, normalizeWriteInText} from "@sequentech/ui-essentials"
+import {
+    Candidate,
+    stringToHtml,
+    isUndefined,
+    normalizeWriteInText,
+    translate,
+} from "@sequentech/ui-essentials"
 import {ICandidate} from "sequent-core"
 import Image from "mui-image"
 import {
@@ -20,7 +26,6 @@ import {
 } from "../../services/ElectionConfigService"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import { useTranslation } from 'react-i18next'
-import { translate } from '../../utils'
 
 export interface IAnswerProps {
     answer: ICandidate

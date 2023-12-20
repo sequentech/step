@@ -13,6 +13,7 @@ import {
     isString,
     stringToHtml,
     theme,
+    translateElection,
 } from "@sequentech/ui-essentials"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
@@ -31,7 +32,6 @@ import {DISABLE_AUTH} from "../Config"
 import {ELECTIONS_LIST} from "../fixtures/election"
 import {TenantEventContext} from ".."
 import {AuthContext} from "../providers/AuthContextProvider"
-import { translate, translateElection } from '../utils'
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;

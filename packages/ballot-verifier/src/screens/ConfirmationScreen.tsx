@@ -18,7 +18,6 @@ import {
     faTimesCircle,
     faPrint,
     faAngleLeft,
-    faAngleRight,
 } from "@fortawesome/free-solid-svg-icons"
 import {
     Candidate,
@@ -29,6 +28,7 @@ import {
     WarnBox,
     Dialog,
     theme,
+    translate
 } from "@sequentech/ui-essentials"
 import {keyBy} from "lodash"
 import {ICandidate} from "sequent-core"
@@ -97,7 +97,7 @@ interface VoteChoiceProps {
 }
 
 const VoteChoice: React.FC<VoteChoiceProps> = ({text, points, ordered}) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
     const content = (
         <Typography variant="body2">
@@ -146,7 +146,7 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
     question,
     ballotService,
 }) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const selectedAnswers = questionPlaintext.choices.filter((a) => a.selected > -1)
     const explicitInvalidAnswer =
         (questionPlaintext.is_explicit_invalid &&
@@ -160,7 +160,7 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
     return (
         <>
             <Typography variant="body2" fontWeight={"bold"}>
-                {question.name || ""}
+                {translate(question, "name", i18n.language) || ""}
             </Typography>
             {questionPlaintext.invalid_errors.map((error, index) => (
                 <WarnBox variant="warning" key={index}>

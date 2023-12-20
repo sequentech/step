@@ -4,7 +4,13 @@
 import {Box, Typography} from "@mui/material"
 import React, {useContext} from "react"
 import {useTranslation} from "react-i18next"
-import {BreadCrumbSteps, PageLimit, theme, stringToHtml} from "@sequentech/ui-essentials"
+import {
+    BreadCrumbSteps,
+    PageLimit,
+    theme,
+    stringToHtml,
+    translateElection,
+} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"
@@ -12,7 +18,6 @@ import {useAppSelector} from "../store/hooks"
 import {IElection, selectElectionById} from "../store/elections/electionsSlice"
 import {CircularProgress} from "@mui/material"
 import {TenantEventContext} from ".."
-import { translateElection } from '../utils'
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;

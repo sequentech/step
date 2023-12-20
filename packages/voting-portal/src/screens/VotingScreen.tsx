@@ -15,6 +15,7 @@ import {
     stringToHtml,
     isUndefined,
     Dialog,
+    translateElection
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -32,7 +33,6 @@ import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {TenantEventContext} from ".."
-import { translateElection } from '../utils'
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
