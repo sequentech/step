@@ -90,6 +90,7 @@ impl Pipe for DecodeBallots {
                             file.display()
                         );
                     }
+
                     match res {
                         Ok(decoded_ballots) => {
                             let mut output_path = PipeInputs::build_path(

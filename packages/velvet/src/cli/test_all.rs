@@ -1026,11 +1026,13 @@ mod tests {
         election.ballot_styles.clear();
 
         // First ballot style
-        let mut contest =
-            fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
-
-        // set min_votes
-        contest.min_votes = 1;
+        let contest = fixture.create_contest_config_with_min_max_votes(
+            &election.tenant_id,
+            &election_event_id,
+            &election.id,
+            1,
+            1,
+        )?;
 
         // first area
         let area_config = fixture.create_area_config(

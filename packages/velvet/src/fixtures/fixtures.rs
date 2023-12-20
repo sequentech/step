@@ -88,6 +88,35 @@ impl TestFixture {
     }
 
     #[instrument]
+    pub fn create_contest_config_with_min_max_votes(
+        &self,
+        tenant_id: &Uuid,
+        election_event_id: &Uuid,
+        election_id: &Uuid,
+        min_votes: u64,
+        max_votes: u64,
+    ) -> Result<Contest> {
+        let contest = super::contests::get_contest_min_max_votes(
+            tenant_id,
+            election_event_id,
+            election_id,
+            min_votes,
+            max_votes,
+        );
+
+        let dir = self
+            .input_dir_configs
+            .join(format!("election__{}", &election_id))
+            .join(format!("contest__{}", &contest.id));
+        fs::create_dir_all(&dir)?;
+
+        let mut file = fs::File::create(dir.join("contest-config.json"))?;
+        writeln!(file, "{}", serde_json::to_string(&contest)?)?;
+
+        Ok(contest)
+    }
+
+    #[instrument]
     pub fn create_area_config(
         &self,
         tenant_id: &Uuid,

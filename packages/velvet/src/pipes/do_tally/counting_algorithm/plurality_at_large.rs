@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use sequent_core::plaintext::InvalidPlaintextErrorType;
 use std::collections::HashMap;
 use tracing::instrument;
 
@@ -36,12 +37,20 @@ impl CountingAlgorithm for PluralityAtLarge {
         let mut count_blank: u64 = 0;
 
         for vote in votes {
-            if vote.is_explicit_invalid {
-                if !vote.invalid_errors.is_empty() {
+            if !vote.invalid_errors.is_empty() {
+                if vote.is_explicit_invalid {
                     *vote_count_invalid.entry(InvalidVote::Explicit).or_insert(0) += 1;
                 } else {
                     *vote_count_invalid.entry(InvalidVote::Implicit).or_insert(0) += 1;
-                    // TODO: is_blank?
+
+                    let has_blank_votes = vote.invalid_errors.iter().any(|e| {
+                        e.error_type == InvalidPlaintextErrorType::Implicit
+                            && e.message == Some("errors.implicit.selectedMin".to_string())
+                    });
+
+                    if has_blank_votes {
+                        count_blank += 1;
+                    }
                 }
                 count_invalid += 1;
             } else {
