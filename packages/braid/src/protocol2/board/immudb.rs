@@ -29,7 +29,7 @@ impl ImmudbBoard {
         let board_client = BoardClient::new(server_url, username, password).await?;
         Ok(ImmudbBoard {
             board_client: board_client,
-            board_dbname,
+            board_dbname: board_dbname.to_string(),
             store_root,
         })
     }
