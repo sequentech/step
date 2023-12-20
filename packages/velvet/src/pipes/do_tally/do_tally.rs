@@ -24,7 +24,7 @@ pub struct DoTally {
 }
 
 impl DoTally {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }

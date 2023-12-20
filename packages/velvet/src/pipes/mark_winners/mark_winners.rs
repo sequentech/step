@@ -23,7 +23,7 @@ pub struct MarkWinners {
 }
 
 impl MarkWinners {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }

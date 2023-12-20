@@ -38,7 +38,7 @@ pub struct GenerateReports {
 }
 
 impl GenerateReports {
-    #[instrument]
+    #[instrument(skip_all)]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         let input_dir = pipe_inputs
             .cli

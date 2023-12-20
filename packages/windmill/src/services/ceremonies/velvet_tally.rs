@@ -196,7 +196,7 @@ pub fn create_config_file(base_tally_path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-#[instrument(err)]
+#[instrument(skip(area_contest_plaintexts), err)]
 pub fn run_velvet_tally(
     base_tally_path: PathBuf,
     area_contest_plaintexts: &Vec<AreaContestDataType>,
