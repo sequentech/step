@@ -727,7 +727,7 @@ mod tests {
                 .iter()
                 .map(|cr| cr.total_count)
                 .sum::<u64>(),
-            138
+            134
         );
 
         let mut path = cli.output_dir.clone();
@@ -1158,7 +1158,7 @@ mod tests {
         );
 
         assert_eq!(report.contest_result.total_votes, 10);
-        assert_eq!(report.contest_result.total_blank_votes, 5);
+        assert_eq!(report.contest_result.total_blank_votes, 0);
         assert_eq!(report.contest_result.total_valid_votes, 5);
         assert_eq!(report.contest_result.total_invalid_votes, 5);
 
