@@ -5,10 +5,11 @@ import React, {useEffect, useState} from "react"
 import {Identifier, RaRecord, useGetList, useGetOne} from "react-admin"
 
 import {Sequent_Backend_Area_Contest, Sequent_Backend_Contest} from "../../gql/graphql"
-import {Box, Tabs, Tab} from "@mui/material"
+import {Box, Tabs, Tab, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsGlobalCandidates} from "./TallyResultsGlobalCandidates"
 import {TallyResultsCandidates} from "./TallyResultsCandidates"
+import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 
 interface TallyResultsContestAreasProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -36,13 +37,26 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                 election_event_id: electionEventId,
                 contest_id: contestId,
             },
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 
-    const {data: contest} = useGetOne<Sequent_Backend_Contest>("sequent_backend_contest", {
-        id: contestId,
-        meta: {tenant_id: tenantId},
-    })
+    const {data: contest} = useGetOne<Sequent_Backend_Contest>(
+        "sequent_backend_contest",
+        {
+            id: contestId,
+            meta: {tenant_id: tenantId},
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
 
     useEffect(() => {
         tabGlobalClicked()
@@ -80,10 +94,26 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
         setValue(0)
     }
 
+    useEffect(() => {
+        console.log("TallyResultsContestAreas :: ", value)
+    }, [value])
+
     return (
         <>
-            <Box sx={{borderBottom: 1, borderColor: "divider"}}>
-                <Tabs value={value}>
+            <Box
+                sx={{
+                    borderBottom: 1,
+                    borderColor: "divider",
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "flex-start",
+                    alignItems: "center",
+                }}
+            >
+                <Typography variant="body2" component="div" sx={{width: "80px"}}>
+                    {t("electionEventScreen.stats.areas")}.{" "}
+                </Typography>
+                <Tabs value={value} sx={{flex: 1}}>
                     <Tab label={t("tally.common.global")} onClick={() => tabGlobalClicked()} />
                     {areasData?.map((area, index) => {
                         return (
@@ -95,6 +125,13 @@ export const TallyResultsContestAreas: React.FC<TallyResultsContestAreasProps> =
                         )
                     })}
                 </Tabs>
+                {value !== null ? (
+                    <ExportElectionMenu
+                        resource={"sequent_backend_results_area_contest"}
+                        area={value < 1 ? "all" : areasData?.[value - 1]}
+                        areaName={areas?.find((item) => item.id === selectedArea)?.name}
+                    />
+                ) : null}
             </Box>
 
             <CustomTabPanel index={0} value={value}>
