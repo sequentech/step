@@ -43,15 +43,6 @@ impl CountingAlgorithm for PluralityAtLarge {
                     count_invalid_votes.explicit += 1;
                 } else {
                     count_invalid_votes.implicit += 1;
-
-                    let has_blank_votes = vote.invalid_errors.iter().any(|e| {
-                        e.error_type == InvalidPlaintextErrorType::Implicit
-                            && e.message == Some("errors.implicit.selectedMin".to_string())
-                    });
-
-                    if has_blank_votes {
-                        count_blank += 1;
-                    }
                 }
                 count_invalid += 1;
             } else {
