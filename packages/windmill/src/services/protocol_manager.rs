@@ -263,15 +263,11 @@ pub async fn add_ballots_to_board<C: Ctx>(
 
 #[instrument(err)]
 pub async fn get_board_client() -> Result<BoardClient> {
-    let username = env::var("IMMUDB_USER")
-        .context("IMMUDB_USER must be set")?;
-    let password = env::var("IMMUDB_PASSWORD")
-        .context("IMMUDB_PASSWORD must be set")?;
-    let server_url = env::var("IMMUDB_SERVER_URL")
-        .context("IMMUDB_SERVER_URL must be set")?;
+    let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
+    let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
+    let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
 
-    let mut board_client =
-        BoardClient::new(&server_url, &username, &password).await?;
+    let mut board_client = BoardClient::new(&server_url, &username, &password).await?;
 
     Ok(board_client)
 }
