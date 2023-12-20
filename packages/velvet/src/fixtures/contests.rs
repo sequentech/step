@@ -22,10 +22,10 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
         is_encrypted: true,
         candidates: vec![
             candidates::get_candidate_0(tenant_id, election_event_id, election_id, &contest_id),
-            candidates::get_candidate_1(&tenant_id, &election_event_id, &election_id, &contest_id),
-            candidates::get_candidate_2(&tenant_id, &election_event_id, &election_id, &contest_id),
-            candidates::get_candidate_3(&tenant_id, &election_event_id, &election_id, &contest_id),
-            candidates::get_candidate_4(&tenant_id, &election_event_id, &election_id, &contest_id),
+            candidates::get_candidate_1(tenant_id, election_event_id, election_id, &contest_id),
+            candidates::get_candidate_2(tenant_id, election_event_id, election_id, &contest_id),
+            candidates::get_candidate_3(tenant_id, election_event_id, election_id, &contest_id),
+            candidates::get_candidate_4(tenant_id, election_event_id, election_id, &contest_id),
         ],
         presentation: Some(ContestPresentation {
             allow_writeins: false,
