@@ -50,6 +50,7 @@ impl CountingAlgorithm for PluralityAtLarge {
 
                     if has_blank_votes {
                         count_blank += 1;
+                        *vote_count_invalid.entry(InvalidVote::Blank).or_insert(0) += 1;
                     }
                 }
                 count_invalid += 1;

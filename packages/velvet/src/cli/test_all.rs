@@ -9,6 +9,7 @@ mod tests {
     use crate::fixtures::ballot_styles::generate_ballot_style;
     use crate::fixtures::TestFixture;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
+    use crate::pipes::do_tally::invalid_vote::InvalidVote;
     use crate::pipes::do_tally::OUTPUT_CONTEST_RESULT_FILE;
     use crate::pipes::generate_reports::ReportDataComputed;
     use crate::pipes::mark_winners::OUTPUT_WINNERS;
@@ -1012,6 +1013,14 @@ mod tests {
         assert_eq!(report.contest_result.total_blank_votes, 5);
         assert_eq!(report.contest_result.total_valid_votes, 10);
         assert_eq!(report.contest_result.total_invalid_votes, 0);
+        assert_eq!(
+            *report
+                .contest_result
+                .invalid_votes
+                .get(&InvalidVote::Blank)
+                .unwrap_or(&0),
+            0
+        );
 
         Ok(())
     }
@@ -1161,6 +1170,14 @@ mod tests {
         assert_eq!(report.contest_result.total_blank_votes, 5);
         assert_eq!(report.contest_result.total_valid_votes, 5);
         assert_eq!(report.contest_result.total_invalid_votes, 5);
+        assert_eq!(
+            *report
+                .contest_result
+                .invalid_votes
+                .get(&InvalidVote::Blank)
+                .unwrap_or(&0),
+            5
+        );
 
         Ok(())
     }
