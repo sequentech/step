@@ -37,6 +37,11 @@ export const TallyElectionsProgress: React.FC = () => {
         "sequent_backend_tally_session",
         {
             id: tallyId,
+        },
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 
@@ -49,6 +54,9 @@ export const TallyElectionsProgress: React.FC = () => {
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 

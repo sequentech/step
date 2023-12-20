@@ -20,6 +20,7 @@ import {useTranslation} from "react-i18next"
 import GroupIcon from "@mui/icons-material/Group"
 import SettingsIcon from "@mui/icons-material/Settings"
 import MailIcon from "@mui/icons-material/Mail"
+import ChecklistIcon from "@mui/icons-material/Checklist"
 
 const StyledItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -78,6 +79,11 @@ export const CustomMenu = () => {
                     to="/user-roles"
                     primaryText={open ? t("sideMenu.usersAndRoles") : null}
                     leftIcon={<GroupIcon sx={{color: adminTheme.palette.brandColor}} />}
+                />
+                <StyledItem
+                    to="/logs"
+                    primaryText={open ? t("sideMenu.logs") : null}
+                    leftIcon={<ChecklistIcon sx={{color: adminTheme.palette.brandColor}} />}
                 />
                 <StyledItem
                     to="/settings"

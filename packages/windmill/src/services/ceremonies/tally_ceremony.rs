@@ -17,6 +17,9 @@ use crate::hasura::tally_session_execution::{
 use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_status;
+use crate::services::ceremonies::serialize_logs::{
+    append_tally_trustee_log, generate_tally_initial_log,
+};
 use crate::services::ceremonies::tally_ceremony::get_keys_ceremonies::GetKeysCeremoniesSequentBackendKeysCeremony;
 use crate::services::ceremonies::tally_ceremony::get_last_tally_session_execution::{
     GetLastTallySessionExecutionSequentBackendTallySession,
@@ -42,7 +45,7 @@ use std::str::FromStr;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn find_last_tally_session_execution(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -81,7 +84,7 @@ pub async fn find_last_tally_session_execution(
     )))
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_tally_session(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -113,7 +116,7 @@ pub async fn get_tally_session(
     Ok((tally_session.clone(), tally_session_contests))
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonyStatus> {
     input
         .map(|value| {
@@ -124,7 +127,7 @@ pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonySt
         .flatten()
 }
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn find_keys_ceremony(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -168,7 +171,7 @@ fn generate_initial_tally_status(
 ) -> TallyCeremonyStatus {
     TallyCeremonyStatus {
         stop_date: None,
-        logs: vec![],
+        logs: generate_tally_initial_log(election_ids),
         trustees: keys_ceremony_status
             .trustees
             .iter()
@@ -189,7 +192,7 @@ fn generate_initial_tally_status(
 }
 
 // get area ids that are linked to these election ids
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_area_ids(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -233,6 +236,7 @@ pub async fn get_area_ids(
     Ok(area_ids)
 }
 
+#[instrument(err)]
 pub async fn insert_tally_session_contests(
     auth_headers: &connection::AuthHeaders,
     tenant_id: &str,
@@ -299,7 +303,7 @@ pub async fn insert_tally_session_contests(
     Ok(())
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn create_tally_ceremony(
     tenant_id: String,
     election_event_id: String,
@@ -367,7 +371,7 @@ pub async fn create_tally_ceremony(
     Ok(tally_session_id.clone())
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn update_tally_ceremony(
     tenant_id: String,
     election_event_id: String,
@@ -469,7 +473,7 @@ pub async fn update_tally_ceremony(
     Ok(())
 }
 
-#[instrument]
+#[instrument(err)]
 pub async fn set_private_key(
     claims: &JwtClaims,
     tenant_id: &str,
@@ -531,6 +535,13 @@ pub async fn set_private_key(
         ));
     };
 
+    if TallyTrusteeStatus::WAITING != found_trustee.status {
+        return Err(anyhow!(
+            "Unexpected trustee status {}",
+            found_trustee.status.to_string()
+        ));
+    }
+
     // get the encrypted private key
     let encrypted_private_key =
         find_trustee_private_key(&auth_headers, &tenant_id, &election_event_id, &trustee_name)
@@ -539,8 +550,8 @@ pub async fn set_private_key(
     if encrypted_private_key != private_key_base64 {
         return Ok(false);
     }
-    let status = get_tally_ceremony_status(tally_session_execution.status)?;
-    let mut new_status = status.clone();
+    let mut new_status = tally_ceremony_status.clone();
+    new_status.logs = append_tally_trustee_log(&new_status.logs, &trustee_name);
     new_status.trustees = new_status
         .trustees
         .iter()

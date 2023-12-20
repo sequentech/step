@@ -2,12 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {BreadCrumbSteps, BreadCrumbStepsVariant, Dialog, theme} from "@sequentech/ui-essentials"
+import {
+    BreadCrumbSteps,
+    BreadCrumbStepsVariant,
+    Dialog,
+    sleep,
+    theme,
+} from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {Accordion, AccordionSummary} from "@mui/material"
+import {Accordion, AccordionSummary, Button} from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
@@ -23,15 +29,19 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
 import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation} from "@apollo/client"
-import {ITallyExecutionStatus} from "@/types/ceremonies"
+import {ILog, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Keys_Ceremony,
     Sequent_Backend_Tally_Session,
+    Sequent_Backend_Tally_Session_Execution,
 } from "@/gql/graphql"
 import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
 import globalSettings from "@/global-settings"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import DownloadIcon from "@mui/icons-material/Download"
+import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 
 const WizardSteps = {
     Start: 0,
@@ -57,6 +67,7 @@ export const TallyCeremony: React.FC = () => {
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
     const [localTallyId, setLocalTallyId] = useState<string | null>(null)
+    const [tenantId] = useTenantStore()
 
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
@@ -86,6 +97,9 @@ export const TallyCeremony: React.FC = () => {
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchIntervalInBackground: true,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 
@@ -97,6 +111,27 @@ export const TallyCeremony: React.FC = () => {
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
+
+    const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
+        "sequent_backend_tally_session_execution",
+        {
+            pagination: {page: 1, perPage: 1},
+            sort: {field: "created_at", order: "DESC"},
+            filter: {
+                tally_session_id: tallyId,
+                tenant_id: tenantId,
+            },
+        },
+        {
+            refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 
@@ -197,6 +232,11 @@ export const TallyCeremony: React.FC = () => {
         }
     }
 
+    const handleExportResults = async (e: any) => {
+        e.preventDefault()
+        console.log("EXPORT RESULTS", e)
+    }
+
     return (
         <>
             <WizardStyles.WizardWrapper>
@@ -280,25 +320,7 @@ export const TallyCeremony: React.FC = () => {
                             </WizardStyles.AccordionDetails>
                         </Accordion>
 
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedData["tally-data-logs"]}
-                            onChange={() =>
-                                setExpandedData((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-data-logs": !prev["tally-data-logs"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary expandIcon={<ExpandMoreIcon id="tally-data-logs" />}>
-                                <WizardStyles.AccordionTitle>
-                                    {t("tally.logsTitle")}
-                                </WizardStyles.AccordionTitle>
-                            </AccordionSummary>
-                            <WizardStyles.AccordionDetails>
-                                <TallyLogs />
-                            </WizardStyles.AccordionDetails>
-                        </Accordion>
+                        <TallyLogs tallySessionExecution={tallySessionExecutions?.[0]} />
 
                         <Accordion
                             sx={{width: "100%"}}
@@ -323,6 +345,9 @@ export const TallyCeremony: React.FC = () => {
                                     tenantId={tally?.tenant_id}
                                     electionEventId={tally?.election_event_id}
                                     electionIds={tally?.election_ids}
+                                    resultsEventId={
+                                        tallySessionExecutions?.[0]?.results_event_id ?? null
+                                    }
                                 />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
@@ -345,7 +370,12 @@ export const TallyCeremony: React.FC = () => {
                                 </WizardStyles.AccordionTitle>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
-                                <TallyResults tally={tally} />
+                                <TallyResults
+                                    tally={tally}
+                                    resultsEventId={
+                                        tallySessionExecutions?.[0]?.results_event_id ?? null
+                                    }
+                                />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
                     </>
@@ -386,27 +416,7 @@ export const TallyCeremony: React.FC = () => {
                             </WizardStyles.AccordionDetails>
                         </Accordion>
 
-                        <Accordion
-                            sx={{width: "100%"}}
-                            expanded={expandedData["tally-results-logs"]}
-                            onChange={() =>
-                                setExpandedData((prev: IExpanded) => ({
-                                    ...prev,
-                                    "tally-results-logs": !prev["tally-results-logs"],
-                                }))
-                            }
-                        >
-                            <AccordionSummary
-                                expandIcon={<ExpandMoreIcon id="tally-results-logs" />}
-                            >
-                                <WizardStyles.AccordionTitle>
-                                    {t("tally.logsTitle")}
-                                </WizardStyles.AccordionTitle>
-                            </AccordionSummary>
-                            <WizardStyles.AccordionDetails>
-                                <TallyLogs />
-                            </WizardStyles.AccordionDetails>
-                        </Accordion>
+                        <TallyLogs tallySessionExecution={tallySessionExecutions?.[0]} />
 
                         <Accordion
                             sx={{width: "100%"}}
@@ -424,13 +434,6 @@ export const TallyCeremony: React.FC = () => {
                                 <WizardStyles.AccordionTitle>
                                     {t("tally.generalInfoTitle")}
                                 </WizardStyles.AccordionTitle>
-                                <TallyStyles.StyledSpacing>
-                                    <ListActions
-                                        withImport={false}
-                                        withColumns={false}
-                                        withFilter={false}
-                                    />
-                                </TallyStyles.StyledSpacing>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
                                 <TallyStartDate />
@@ -438,6 +441,9 @@ export const TallyCeremony: React.FC = () => {
                                     tenantId={tally?.tenant_id}
                                     electionEventId={tally?.election_event_id}
                                     electionIds={tally?.election_ids}
+                                    resultsEventId={
+                                        tallySessionExecutions?.[0]?.results_event_id ?? null
+                                    }
                                 />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
@@ -458,9 +464,20 @@ export const TallyCeremony: React.FC = () => {
                                 <WizardStyles.AccordionTitle>
                                     {t("tally.resultsTitle")}
                                 </WizardStyles.AccordionTitle>
+                                <TallyStyles.StyledSpacing>
+                                    <ExportElectionMenu
+                                        resource="sequent_backend_results_event"
+                                        event={data}
+                                    />
+                                </TallyStyles.StyledSpacing>
                             </AccordionSummary>
-                            <WizardStyles.AccordionDetails>
-                                <TallyResults tally={tally} />
+                            <WizardStyles.AccordionDetails style={{zIndex: 100}}>
+                                <TallyResults
+                                    tally={tally}
+                                    resultsEventId={
+                                        tallySessionExecutions?.[0]?.results_event_id ?? null
+                                    }
+                                />
                             </WizardStyles.AccordionDetails>
                         </Accordion>
                     </>

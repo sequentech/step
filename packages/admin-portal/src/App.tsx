@@ -58,6 +58,7 @@ import {useTranslation} from "react-i18next"
 import { CommunicationTemplateEdit } from './resources/CommunicationTemplate/CommunicationTemplateEdit'
 import { CommunicationTemplateList } from './resources/CommunicationTemplate/CommunicationTemplateList'
 import { CommunicationTemplateCreate } from './resources/CommunicationTemplate/CommunicationTemplateCreate'
+import {Logs} from "./screens/Logs"
 
 export const AppWrapper = () => {
     const [apolloClient, setApolloClient] = useState<ApolloClient<NormalizedCacheObject> | null>(
@@ -120,14 +121,11 @@ const App: React.FC<AppProps> = ({apolloClient}) => {
             i18nProvider={adminI18nProvider}
         >
             <CustomRoutes>
+                <Route path="/logs" element={<Logs />} />
                 <Route path="/user-roles" element={<UserAndRoles />} />
                 <Route path="/messages" element={<Messages />} />
                 <Route path="/settings" element={<SettingsScreen />} />
             </CustomRoutes>
-
-            {
-                // <Resource name="pgaudit" list={PgAuditList} options={{label: "PGAudit"}} />
-            }
 
             <Resource
                 name="sequent_backend_election_event"

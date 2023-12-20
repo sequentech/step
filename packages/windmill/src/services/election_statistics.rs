@@ -7,11 +7,13 @@ use sequent_core::ballot::*;
 use sequent_core::services::keycloak::get_client_credentials;
 use serde_json::value::Value;
 use std::default::Default;
+use tracing::instrument;
 
 pub fn get_election_statistics(statistics_json_opt: Option<Value>) -> Option<ElectionStatistics> {
     statistics_json_opt.and_then(|statistics_json| serde_json::from_value(statistics_json).ok())
 }
 
+#[instrument(err)]
 pub async fn update_election_statistics(
     tenant_id: String,
     election_event_id: String,

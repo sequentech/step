@@ -4,8 +4,8 @@ import styled from "@emotion/styled"
 
 import {diffLines} from "diff"
 import {CircularProgress} from "@mui/material"
+import {useTranslation} from "react-i18next"
 
-// TODO: Fix responsive in Block
 const DiffViewStyled = {
     Header: styled.span`
         font-family: Roboto;
@@ -33,23 +33,13 @@ const DiffViewStyled = {
         padding: 16px;
         height: 100%;
         width: 100%;
-        overflow-x: auto;
+        overflow-x: scroll;
         max-height: 500px;
-
-        @media (max-width: 2700px) {
-            width: 1070px;
-        }
-
-        @media (max-width: 2400px) {
-            width: 700px;
-        }
-
-        @media (max-width: 1440px) {
-            width: 520px;
-        }
     `,
     Json: styled.div`
         width: 100%;
+        max-width: 40vw;
+        overflow-x: scroll;
     `,
     Removed: styled.pre`
         width: 100%;
@@ -85,6 +75,7 @@ type TDiffView<T> = {
 const DiffViewMemo = React.memo(
     <T extends {}>({current, currentTitle, modify, diffTitle, type = "modify"}: TDiffView<T>) => {
         const [diff, setDiff] = useState<any>("")
+        const {t} = useTranslation()
         const [oldJsonString, setOldJsonString] = useState<string>("")
         const [newJsonString, setNewJsonString] = useState<string>("")
 
@@ -126,7 +117,7 @@ const DiffViewMemo = React.memo(
                                     ) : (
                                         <DiffViewStyled.Line key={index}>
                                             {line.value === "null"
-                                                ? "Cargando datos ..."
+                                                ? t("common.label.loadingData")
                                                 : line.value}
                                         </DiffViewStyled.Line>
                                     )
@@ -150,7 +141,7 @@ const DiffViewMemo = React.memo(
                                         ) : (
                                             <DiffViewStyled.Line key={index}>
                                                 {line.value === "null"
-                                                    ? "Cargando datos ..."
+                                                    ? t("common.label.loadingData")
                                                     : line.value}
                                             </DiffViewStyled.Line>
                                         )

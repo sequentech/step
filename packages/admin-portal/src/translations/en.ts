@@ -62,6 +62,21 @@ const englishTranslation = {
                 cancel: "Cancel",
             },
         },
+        logsScreen: {
+            noPermissions: "You don't have permission to access logs.",
+            title: "Logs",
+            subtitle: "General logs of the main and IAM databases",
+            column: {
+                id: "Id",
+                statement: "Statement",
+            },
+            main: {
+                title: "Main Database Logs",
+            },
+            iam: {
+                title: "IAM Database Logs",
+            },
+        },
         confirmationScreen: {
             title: "Your vote has been cast",
             description:
@@ -195,6 +210,7 @@ const englishTranslation = {
             stats: {
                 elegibleVoters: "Elegible voters",
                 elections: "Elections",
+                contests: "Contests",
                 areas: "Areas",
                 sentEmails: "Emails sent",
                 sentSMS: "SMS sent",
@@ -253,6 +269,18 @@ const englishTranslation = {
                 logs: {
                     noLogs: "No logs available",
                 },
+            },
+            import: {
+                eetitle: "Import Election Event",
+                eesubtitle: "Import election event data",
+                title: "Import Voters",
+                subtitle: "Import voters data",
+                voters: "Voters",
+                elections: "Elections",
+                areas: "Areas",
+                sha: "Integrity (SHA 256)",
+                cancel: "Cancel",
+                import: "Import",
             },
         },
         electionScreen: {
@@ -346,6 +374,7 @@ const englishTranslation = {
                 },
                 delete: {
                     body: "Are you sure you want to delete this user?",
+                    bulkBody: "Are you sure you want to delete the selected users?",
                 },
                 notifications: {
                     deleteError: "Error deleting user",
@@ -369,6 +398,7 @@ const englishTranslation = {
                 },
                 delete: {
                     body: "Are you sure you want to delete this voter?",
+                    bulkBody: "Are you sure you want to delete the selected voters?",
                 },
                 notifications: {
                     deleteError: "Error deleting voter",
@@ -450,6 +480,7 @@ const englishTranslation = {
             },
         },
         common: {
+            export: "Export can be a long operation. Are you sure you want to export records?",
             resources: {
                 electionEvent: "Election Event",
                 election: "Election",
@@ -475,6 +506,12 @@ const englishTranslation = {
                 warning: "Warning",
                 json: "Preview",
                 noResult: "No result",
+                import: "Import",
+                export: "Export",
+                loadingData: "Loading data ...",
+                exportFormat: "Export '{{item}}' results in {{format}} format",
+                allResults: "election event",
+                globalAreaResults: "all areas",
             },
             language: {
                 es: "Spanish",
@@ -498,6 +535,7 @@ const englishTranslation = {
             electionEvents: "Election Events",
             search: "Search",
             usersAndRoles: "Users and Roles",
+            logs: "Logs",
             settings: "Settings",
             communicationTemplates: "Communication Templates",
             active: "Active",
@@ -749,14 +787,19 @@ const englishTranslation = {
                 method: "Tally Method",
                 elegible: "Elegible Voters",
                 number: "Number of Votes",
-                turnout: "Turnout (%)",
-                candidates: "Candidates",
-                global: "Global results",
+                total: "Total",
+                turnout: "%",
+                candidates: "Candidate Results",
+                options: "Options",
+                global: "Participation Summary",
                 elegible_census: "Elegible Voters",
+                number_votes: "Number of Votes",
                 total_valid_votes: "Total Valid Votes",
                 explicit_invalid_votes: "Explicitly Invalid Votes",
                 implicit_invalid_votes: "Implicitly Invalid Votes",
                 blank_votes: "Blank Votes",
+                number_of_votes: "Number of Votes",
+                voters: "Winning position",
             },
         },
         publish: {
@@ -770,14 +813,29 @@ const englishTranslation = {
                 pause: "PAUSE",
                 generate: "REGENERATE",
                 publish: "PUBLISH CHANGES",
+                back: "BACK",
             },
             label: {
                 current: "Current",
                 diff: "CHANGES TO PUBLISH",
             },
+            empty: {
+                header: "No Publication Yet.",
+                action: "Generate Publication",
+            },
+            dialog: {
+                title: "Confirm action",
+                info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
+                ok: "Confirm",
+                ko: "Cancel",
+                error: "Error loading ballot publication",
+                error_publish: "Error publishing ballot publication",
+                error_status: "Error change ballot publication status",
+            },
             notifications: {
                 generated: "Ballot generated",
                 published: "Ballot published",
+                chang_status: "Ballot status changed",
             },
         },
         emailEditor: {

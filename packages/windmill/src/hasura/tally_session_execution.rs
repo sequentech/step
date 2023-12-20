@@ -20,7 +20,7 @@ use tracing::instrument;
 )]
 pub struct GetLastTallySessionExecution;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn get_last_tally_session_execution(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -61,7 +61,7 @@ pub async fn get_last_tally_session_execution(
 )]
 pub struct InsertTallySessionExecution;
 
-#[instrument(skip(auth_headers, status))]
+#[instrument(skip(auth_headers, status), err)]
 pub async fn insert_tally_session_execution(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

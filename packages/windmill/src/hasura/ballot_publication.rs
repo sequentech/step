@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Local};
 use graphql_client::{GraphQLQuery, Response};
 use reqwest;
 use std::env;
@@ -21,7 +21,7 @@ use sequent_core::services::connection;
 )]
 pub struct InsertBallotPublication;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn insert_ballot_publication(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -60,7 +60,7 @@ pub async fn insert_ballot_publication(
 )]
 pub struct GetBallotPublication;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn get_ballot_publication(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -95,16 +95,16 @@ pub async fn get_ballot_publication(
 )]
 pub struct UpdateBallotPublication;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn update_ballot_publication_d(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
     ballot_publication_id: String,
     is_generated: bool,
-    published_at: Option<NaiveDateTime>,
+    published_at: Option<DateTime<Local>>,
 ) -> Result<Response<update_ballot_publication::ResponseData>> {
-    let published_at_str = published_at.clone().map(|naive| ISO8601::from_date(&naive));
+    let published_at_str = published_at.clone().map(|naive| ISO8601::to_string(&naive));
     let variables = update_ballot_publication::Variables {
         ballot_publication_id: ballot_publication_id,
         election_event_id: election_event_id,
@@ -136,7 +136,7 @@ pub async fn update_ballot_publication_d(
 )]
 pub struct SoftDeleteOtherBallotPublicationsElection;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn soft_delete_other_ballot_publications_election(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -178,7 +178,7 @@ pub async fn soft_delete_other_ballot_publications_election(
 )]
 pub struct SoftDeleteOtherBallotPublications;
 
-#[instrument(skip(auth_headers))]
+#[instrument(skip(auth_headers), err)]
 pub async fn soft_delete_other_ballot_publications(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
@@ -210,24 +210,62 @@ pub async fn soft_delete_other_ballot_publications(
 #[derive(GraphQLQuery)]
 #[graphql(
     schema_path = "src/graphql/schema.json",
+    query_path = "src/graphql/get_previous_publication_election.graphql",
+    response_derives = "Debug,Clone,Deserialize,Serialize"
+)]
+pub struct GetPreviousPublicationElection;
+
+#[instrument(skip_all, err)]
+pub async fn get_previous_publication_election(
+    auth_headers: connection::AuthHeaders,
+    tenant_id: String,
+    election_event_id: String,
+    published_at: String,
+    election_id: String,
+) -> Result<Response<get_previous_publication_election::ResponseData>> {
+    let variables = get_previous_publication_election::Variables {
+        tenant_id,
+        election_event_id,
+        published_at,
+        election_id,
+    };
+    let hasura_endpoint =
+        env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
+    let request_body = GetPreviousPublicationElection::build_query(variables);
+
+    let client = reqwest::Client::new();
+    let res = client
+        .post(hasura_endpoint)
+        .header(auth_headers.key, auth_headers.value)
+        .json(&request_body)
+        .send()
+        .await?;
+    let response_body: Response<get_previous_publication_election::ResponseData> =
+        res.json().await?;
+    response_body.ok()
+}
+
+///////
+
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "src/graphql/schema.json",
     query_path = "src/graphql/get_previous_publication.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
 pub struct GetPreviousPublication;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn get_previous_publication(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,
     election_event_id: String,
     published_at: String,
-    election_id: Option<String>,
 ) -> Result<Response<get_previous_publication::ResponseData>> {
     let variables = get_previous_publication::Variables {
         tenant_id,
         election_event_id,
         published_at,
-        election_id,
     };
     let hasura_endpoint =
         env::var("HASURA_ENDPOINT").expect(&format!("HASURA_ENDPOINT must be set"));
@@ -252,7 +290,7 @@ pub async fn get_previous_publication(
 )]
 pub struct GetPublicationBallotStyles;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub async fn get_publication_ballot_styles(
     auth_headers: connection::AuthHeaders,
     tenant_id: String,

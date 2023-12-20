@@ -11,7 +11,7 @@ use std::time::Duration;
 use tempfile::tempdir;
 use tracing::instrument;
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub fn print_to_pdf(
     file_path: &str,
     pdf_options: PrintToPdfOptions,
@@ -39,7 +39,7 @@ pub fn print_to_pdf(
     Ok(bytes)
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub fn html_to_pdf(html: String) -> Result<Vec<u8>> {
     // Create temp html file
     let dir = tempdir()?;

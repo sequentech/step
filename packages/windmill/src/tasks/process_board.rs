@@ -15,7 +15,7 @@ use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::set_public_key::set_public_key;
 use crate::types::error::Result;
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn process_board(tenant_id: String, election_event_id: String) -> Result<()> {

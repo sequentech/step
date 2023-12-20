@@ -11,3 +11,17 @@ export enum EPublishStatus {
     Generated = 5,
     GeneratedLoading = 5.1,
 }
+
+export enum EPublishStatushChanges {
+    Open = "OPEN",
+    Paused = "PAUSED",
+    Closed = "CLOSED",
+    NotStarted = "NOT_STARTED",
+}
+
+export const PUBLICH_STATUS_CONVERT: {[key: string]: number} = {
+    [EPublishStatushChanges.NotStarted]: EPublishStatus.Void,
+    [EPublishStatushChanges.Open]: EPublishStatus.Started,
+    [EPublishStatushChanges.Paused]: EPublishStatus.Paused,
+    [EPublishStatushChanges.Closed]: EPublishStatus.Stopped,
+}

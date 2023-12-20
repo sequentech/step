@@ -97,6 +97,7 @@ pub struct SendCommunicationBody {
     sms: Option<SmsConfig>,
 }
 
+#[instrument(err)]
 fn get_variables(
     user: &User,
     election_event: Option<GetElectionEventSequentBackendElectionEvent>,
@@ -146,6 +147,7 @@ struct SmsSender {
     transport: SmsTransport,
 }
 
+#[instrument(err)]
 pub async fn get_aws_config() -> Result<aws_config::SdkConfig> {
     let region_provider = RegionProviderChain::first_try(Region::new(
         std::env::var("AWS_REGION").map_err(|err| anyhow!("AWS_REGION env var missing"))?,
@@ -156,6 +158,7 @@ pub async fn get_aws_config() -> Result<aws_config::SdkConfig> {
 }
 
 impl SmsSender {
+    #[instrument(err)]
     async fn new() -> Result<Self> {
         let sms_transport_name = std::env::var("SMS_TRANSPORT_NAME")
             .map_err(|err| anyhow!("SMS_TRANSPORT_NAME env var missing"))?;
@@ -199,6 +202,7 @@ impl SmsSender {
         })
     }
 
+    #[instrument(skip(self), err)]
     async fn send(&self, receiver: String, message: String) -> Result<()> {
         match self.transport {
             SmsTransport::AwsSns((ref aws_client, ref messsage_attributes)) => {
@@ -237,6 +241,7 @@ struct EmailSender {
 }
 
 impl EmailSender {
+    #[instrument(err)]
     async fn new() -> Result<Self> {
         let email_from =
             std::env::var("EMAIL_FROM").map_err(|err| anyhow!("EMAIL_FROM env var missing"))?;
@@ -260,6 +265,7 @@ impl EmailSender {
         })
     }
 
+    #[instrument(skip(self), err)]
     async fn send(
         &self,
         receiver: String,
@@ -330,7 +336,7 @@ impl EmailSender {
     }
 }
 
-#[instrument(skip(sender))]
+#[instrument(skip(sender), err)]
 async fn send_communication_sms(
     receiver: &Option<String>,
     template: &Option<SmsConfig>,
@@ -347,7 +353,7 @@ async fn send_communication_sms(
     Ok(())
 }
 
-#[instrument(skip(sender))]
+#[instrument(skip(sender), err)]
 async fn send_communication_email(
     receiver: &Option<String>,
     template: &Option<EmailConfig>,
@@ -370,7 +376,7 @@ async fn send_communication_email(
     Ok(())
 }
 
-#[instrument]
+#[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn send_communication(

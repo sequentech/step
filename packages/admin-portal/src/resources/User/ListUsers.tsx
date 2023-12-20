@@ -16,12 +16,11 @@ import {
     useNotify,
     useGetList,
     FunctionField,
-    BulkDeleteButton,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
-import {alpha, Button, Chip, Typography} from "@mui/material"
+import {alpha, Button, Chip, Drawer, Typography} from "@mui/material"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action, ActionsColumn} from "@/components/ActionButons"
@@ -38,7 +37,9 @@ import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {IRole, IUser} from "sequent-core"
-import styled from "@emotion/styled"
+import {ImportVotersBaseTabs} from "@/components/election-event/ImportVotersBaseTabs"
+import importDrawerState from "@/atoms/import-drawer-state"
+import {useAtom} from "jotai"
 
 const OMIT_FIELDS: Array<string> = []
 
@@ -54,40 +55,21 @@ export interface ListUsersProps {
     electionEventId?: string
 }
 
-const StyledButton = styled(Button)(({theme}) => ({
-    "color": theme.palette.error.main,
-    "&:hover": {
-        "backgroundColor": alpha(theme.palette.error.main, 0.12),
-        // Reset on mouse devices
-        "@media (hover: none)": {
-            backgroundColor: "transparent",
-        },
-    },
-}))
-
-const StyledIcon1 = styled(MailIcon)(() => ({
-    marginRight: "10px",
-}))
-
-const StyledIcon2 = styled(DeleteIcon)(() => ({
-    marginRight: "6px",
-}))
-
-const StyledIcon3 = styled(MailIcon)(() => ({
-    marginRight: "8px",
-}))
-
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
 
     const [open, setOpen] = React.useState(false)
+    const [openImport, setOpenImport] = useAtom(importDrawerState)
+    const [openExport, setOpenExport] = React.useState(false)
     const [openNew, setOpenNew] = React.useState(false)
     const [audienceSelection, setAudienceSelection] = React.useState<AudienceSelection>(
         AudienceSelection.SELECTED
     )
     const [openSendCommunication, setOpenSendCommunication] = React.useState(false)
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
+    const [openDeleteBulkModal, setOpenDeleteBulkModal] = React.useState(false)
+    const [selectedIds, setSelectedIds] = React.useState<Identifier[]>([])
     const [deleteId, setDeleteId] = React.useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = React.useState(false)
     const [recordIds, setRecordIds] = React.useState<Array<Identifier>>([])
@@ -136,6 +118,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     const handleClose = () => {
         setRecordIds([])
         setOpenSendCommunication(false)
+        setOpenDeleteModal(false)
+        setOpenDeleteBulkModal(false)
         setOpenDrawer(false)
         setOpenNew(false)
         setOpen(false)
@@ -145,6 +129,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         setOpen(true)
         setOpenNew(false)
         setOpenDeleteModal(false)
+        setOpenDeleteBulkModal(false)
         setOpenSendCommunication(false)
         setRecordIds([id as string])
     }
@@ -160,6 +145,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         setOpen(false)
         setOpenNew(false)
         setOpenDeleteModal(false)
+        setOpenDeleteBulkModal(false)
         setOpenSendCommunication(true)
 
         setAudienceSelection(audienceSelection)
@@ -173,6 +159,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         setOpen(false)
         setOpenNew(false)
         setOpenSendCommunication(false)
+        setOpenDeleteBulkModal(false)
         setOpenDeleteModal(true)
         setDeleteId(id as string)
     }
@@ -227,7 +214,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
         },
     ]
 
-    async function deleteBulk(selectedIds: Identifier[]) {
+    async function confirmDeleteBulkAction() {
         const {errors} = await deleteUsers({
             variables: {
                 tenantId: tenantId,
@@ -264,22 +251,48 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
     function BulkActions(props) {
         return (
             <>
-                <Button
-                    key="send-notification"
-                    onClick={() => {
-                        sendCommunicationAction(props.selectedIds ?? [], AudienceSelection.SELECTED)
-                    }}
-                >
-                    <StyledIcon1 />
-                    {t(`sendCommunication.send`)}
-                </Button>
+                {canSendCommunications && (
+                    <Button
+                        variant="actionbar"
+                        key="send-notification"
+                        onClick={() => {
+                            sendCommunicationAction(
+                                props.selectedIds ?? [],
+                                AudienceSelection.SELECTED
+                            )
+                        }}
+                    >
+                        <ResourceListStyles.MailIcon />
+                        {t(`sendCommunication.send`)}
+                    </Button>
+                )}
 
-                <StyledButton onClick={() => deleteBulk(props.selectedIds)}>
-                    <StyledIcon2 />
-                    {t("common.label.delete")}
-                </StyledButton>
+                {canEditUsers && (
+                    <Button
+                        variant="actionbar"
+                        onClick={() => {
+                            setSelectedIds(props.selectedIds)
+                            setOpenDeleteBulkModal(true)
+                        }}
+                    >
+                        <ResourceListStyles.DeleteIcon />
+                        {t("common.label.delete")}
+                    </Button>
+                )}
             </>
         )
+    }
+
+    const handleImport = () => {
+        setOpenImport(true)
+    }
+
+    const handleExport = () => {
+        setOpenExport(true)
+    }
+
+    const confirmExportAction = async () => {
+        console.log("CONFIRM EXPORT")
     }
 
     return (
@@ -289,7 +302,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                 empty={<Empty />}
                 actions={
                     <ListActions
-                        withImport={false}
+                        withImport
+                        doImport={handleImport}
+                        withExport
+                        doExport={handleExport}
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         Component={
@@ -302,7 +318,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                                     sendCommunicationAction([], AudienceSelection.ALL_USERS)
                                 }}
                             >
-                                <StyledIcon3 />
+                                <ResourceListStyles.MailIcon />
                                 {t("sendCommunication.send")}
                             </Button>,
                         ]}
@@ -372,6 +388,51 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId}) =>
                 }}
             >
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.body`)}
+            </Dialog>
+
+            <Drawer
+                anchor="right"
+                open={openImport}
+                onClose={() => {
+                    setOpenImport(false)
+                }}
+                PaperProps={{
+                    sx: {width: "30%"},
+                }}
+            >
+                <ImportVotersBaseTabs doRefresh={() => refresh()} />
+            </Drawer>
+
+            <Dialog
+                variant="warning"
+                open={openDeleteBulkModal}
+                ok={t("common.label.delete")}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.warning")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmDeleteBulkAction()
+                    }
+                    setOpenDeleteBulkModal(false)
+                }}
+            >
+                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.bulkBody`)}
+            </Dialog>
+
+            <Dialog
+                variant="info"
+                open={openExport}
+                ok={t("common.label.export")}
+                cancel={t("common.label.cancel")}
+                title={t("common.label.export")}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmExportAction()
+                    }
+                    setOpenExport(false)
+                }}
+            >
+                {t("common.export")}
             </Dialog>
         </>
     )
