@@ -27,6 +27,7 @@ impl StatementHead {
             StatementBody::CastVoteError(_, _, _) => StatementType::CastVoteError,
             StatementBody::ElectionPublish(_, _) => StatementType::ElectionPublish,
             StatementBody::ElectionPeriodOpen(_) => StatementType::ElectionPeriodOpen,
+            StatementBody::ElectionPeriodPause(_) => StatementType::ElectionPeriodPause,
             StatementBody::ElectionPeriodClose(_) => StatementType::ElectionPeriodClose,
             StatementBody::KeyGeneration => StatementType::KeyGeneration,
             StatementBody::KeyInsertionCeremony => StatementType::KeyInsertionCeremony,
@@ -62,11 +63,7 @@ pub enum StatementBody {
     //
     // "Publicación, apertura y cierre de las elecciones"
     ElectionPeriodOpen(ElectionIdString),
-    // /workspaces/backend-services/packages/harvest/src/main.rs
-    //    routes::voting_status::update_event_status,
-    //    routes::voting_status::update_election_status,
-    //
-    // "Publicación, apertura y cierre de las elecciones"
+    ElectionPeriodPause(ElectionIdString),
     ElectionPeriodClose(ElectionIdString),
     // /workspaces/backend-services/packages/windmill/src/celery_app.rs
     // create_keys
@@ -97,6 +94,7 @@ pub enum StatementType {
     ElectionPublish,
     ElectionPeriodOpen,
     ElectionPeriodClose,
+    ElectionPeriodPause,
     KeyGeneration,
     KeyInsertionCeremony,
     TallyOpen,

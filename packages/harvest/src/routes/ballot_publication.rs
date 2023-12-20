@@ -4,25 +4,23 @@
 use crate::services::authorization::authorize;
 use crate::services::electoral_log;
 use anyhow::Result;
+use board_messages::electoral_log::message::Message;
+use board_messages::electoral_log::message::SigningData;
+use board_messages::electoral_log::newtypes::BallotPublicationIdString;
+use board_messages::electoral_log::newtypes::ElectionIdString;
+use board_messages::electoral_log::newtypes::EventIdString;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use strand::signature::StrandSignatureSk;
 use tracing::{event, instrument, Level};
 use windmill::services::ballot_publication::{
     add_ballot_publication, get_ballot_publication_diff, update_publish_ballot,
     PublicationDiff,
 };
-use windmill::services::ceremonies::tally_ceremony;
-
-use board_messages::electoral_log::message::Message;
-use board_messages::electoral_log::message::SigningData;
-use board_messages::electoral_log::newtypes::BallotPublicationIdString;
-use board_messages::electoral_log::newtypes::ElectionIdString;
-use board_messages::electoral_log::newtypes::EventIdString;
-use strand::signature::StrandSignatureSk;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationInput {
@@ -33,18 +31,6 @@ pub struct GenerateBallotPublicationInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationOutput {
     ballot_publication_id: String,
-}
-
-pub fn dummy_signing_data() -> SigningData {
-    let sender_sk = StrandSignatureSk::gen().unwrap();
-    let system_sk = StrandSignatureSk::gen().unwrap();
-    let name = "dummy";
-
-    SigningData::new(sender_sk, name, system_sk)
-}
-
-pub fn dummy_log_database() -> String {
-    "dummy".to_string()
 }
 
 #[instrument(skip(claims))]

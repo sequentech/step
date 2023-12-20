@@ -65,6 +65,15 @@ impl Message {
         Self::from_body(event, body, sd)
     }
 
+    pub fn election_pause_message(
+        event: EventIdString,
+        election: ElectionIdString,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::ElectionPeriodPause(election);
+        Self::from_body(event, body, sd)
+    }
+
     pub fn election_close_message(
         event: EventIdString,
         election: ElectionIdString,
