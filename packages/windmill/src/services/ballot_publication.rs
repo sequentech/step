@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::election_event_board::get_election_event_board;
 use crate::hasura::ballot_publication::{
     get_ballot_publication, get_previous_publication, get_previous_publication_election,
     get_publication_ballot_styles, insert_ballot_publication,
@@ -15,6 +16,7 @@ use crate::services::ballot_publication::get_previous_publication::GetPreviousPu
 use crate::services::celery_app::get_celery_app;
 use crate::services::date::ISO8601;
 use crate::services::election_event_status::get_election_event_status;
+use crate::services::electoral_log::*;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
@@ -196,6 +198,15 @@ pub async fn update_publish_ballot(
         new_status_js,
     )
     .await?;
+
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "missing bulletin board")?;
+
+    let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
+    electoral_log
+        .post_election_open(election_event_id.clone(), None)
+        .await
+        .with_context(|| "error posting to the electoral log")?;
 
     Ok(())
 }

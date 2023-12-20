@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
-use crate::services::electoral_log::*;
 use crate::services::voting_status;
 use anyhow::{Context, Result};
 use rocket::http::Status;
@@ -15,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::election_event_status;
+use windmill::services::electoral_log::*;
 
 #[instrument(skip(claims))]
 #[post("/update-event-voting-status", format = "json", data = "<body>")]

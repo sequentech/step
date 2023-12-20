@@ -2,18 +2,13 @@
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
-use crate::services::electoral_log::*;
 use anyhow::{Context, Result};
-use rocket::http::Status;
-use rocket::serde::json::Json;
 use sequent_core::ballot::VotingStatus;
-use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::election_event_status;
+use windmill::services::electoral_log::*;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateEventVotingStatusInput {
@@ -42,10 +37,8 @@ pub async fn update_event_status(
         election_event.bulletin_board_reference.clone(),
     )
     .with_context(|| "missing bulletin board")?;
-    event!(Level::INFO, "board_name = {board_name}");
 
     let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
-    event!(Level::INFO, "electoral log acquired");
 
     match input.voting_status {
         VotingStatus::NOT_STARTED => {
@@ -54,17 +47,20 @@ pub async fn update_event_status(
         VotingStatus::OPEN => {
             electoral_log
                 .post_election_open(input.election_event_id.clone(), None)
-                .await?;
+                .await
+                .with_context(|| "error posting to the electoral log")?;
         }
         VotingStatus::PAUSED => {
             electoral_log
                 .post_election_pause(input.election_event_id.clone(), None)
-                .await?;
+                .await
+                .with_context(|| "error posting to the electoral log")?;
         }
         VotingStatus::CLOSED => {
             electoral_log
                 .post_election_close(input.election_event_id.clone(), None)
-                .await?;
+                .await
+                .with_context(|| "error posting to the electoral log")?;
         }
     };
 
