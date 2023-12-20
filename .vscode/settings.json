@@ -1,19 +1,17 @@
 {
-    "rust-analyzer.linkedProjects": [
-        "/workspaces/backend-services/packages/Cargo.toml",
-        "./packages/sequent-core/Cargo.toml"
-    ],
-    "rust-analyzer.server.extraEnv": {
-        // which cargo
-        "PATH": "/nix/store/kpf8rygjg59wscsrzgd7sjm63300kbpj-devenv-profile/bin",
-        //  echo $PKG_CONFIG_PATH
-        "PKG_CONFIG_PATH": "/nix/store/kpf8rygjg59wscsrzgd7sjm63300kbpj-devenv-profile/lib/pkgconfig:",
-        // echo $RUST_SRC_PATH
-        "RUST_SRC_PATH": "/nix/store/rn2ry1xyg2mg7axdi6xbwnidlha24i7h-rust-lib-src",
-    },
-    "java.jdt.ls.java.home": "/nix/store/j11sdzavh0nxipvixmkf81i0pzr0a051-openjdk-19.0.2+7/lib/openjdk",
-    "java.compile.nullAnalysis.mode": "automatic",
-    "java.configuration.updateBuildConfiguration": "automatic",
-    "docker.containers.label": "ContainerName",
-    "docker.commands.attach": "${containerCommand} exec -it ${containerId} ${shellCommand}",
+  "rust-analyzer.linkedProjects": [
+    "/workspaces/backend-services/packages/Cargo.toml",
+    "./packages/sequent-core/Cargo.toml"
+  ],
+  "rust-analyzer.server.extraEnv": {
+    "CARGO_TARGET_DIR": "rust-local-target",
+    "PATH": "/bin:/nix/store/czh9iwvhf4z5h3yllhadgivvq9h0ibvd-devenv-profile/bin:/nix/store/czh9iwvhf4z5h3yllhadgivvq9h0ibvd-devenv-profile/bin",
+    "PKG_CONFIG_PATH": "/nix/store/czh9iwvhf4z5h3yllhadgivvq9h0ibvd-devenv-profile/lib/pkgconfig:",
+    "RUST_SRC_PATH": "/nix/store/s4vxjh97v58yci24ki9avkhxffnzhhh4-rust-lib-src"
+  },
+  "java.jdt.ls.java.home": "/nix/store/cil2nww912vap0q84y2z1rjv8vnfhjbs-openjdk-19.0.2+7/lib/openjdk",
+  "java.compile.nullAnalysis.mode": "automatic",
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "docker.containers.label": "ContainerName",
+  "docker.commands.attach": "${containerCommand} exec -it ${containerId} ${shellCommand}"
 }
