@@ -1,18 +1,13 @@
+use anyhow::Result;
 use board_messages::electoral_log::message::Message;
 use board_messages::electoral_log::message::SigningData;
 use board_messages::electoral_log::newtypes::*;
-
-use anyhow::{anyhow, Result};
-use immu_board::BoardClient;
 use immu_board::BoardMessage;
-
-async fn dummy_board_client() -> Result<BoardClient> {
-    BoardClient::new("http://immudb:3322", "immudb", "immudb").await
-}
+use windmill::services::protocol_manager::get_board_client;
 
 pub(crate) async fn post_cast_vote(
     event_id: String,
-    election_id: String,
+    election_id: Option<String>,
     pseudonym_h: PseudonymHash,
     vote_h: CastVoteHash,
     sd: &SigningData,
@@ -29,7 +24,7 @@ pub(crate) async fn post_cast_vote(
 
 pub(crate) async fn post_cast_vote_error(
     event_id: String,
-    election_id: String,
+    election_id: Option<String>,
     pseudonym_h: PseudonymHash,
     error: String,
     sd: &SigningData,
@@ -52,7 +47,7 @@ pub(crate) async fn post_cast_vote_error(
 
 pub(crate) async fn post_election_published(
     event_id: String,
-    election_id: String,
+    election_id: Option<String>,
     ballot_pub_id: String,
     sd: &SigningData,
     elog_database: &str,
@@ -73,8 +68,7 @@ pub(crate) async fn post_election_published(
 
 pub(crate) async fn post_election_open(
     event_id: String,
-    election_id: String,
-    ballot_pub_id: String,
+    election_id: Option<String>,
     sd: &SigningData,
     elog_database: &str,
 ) -> Result<()> {
@@ -88,8 +82,7 @@ pub(crate) async fn post_election_open(
 
 pub(crate) async fn post_election_close(
     event_id: String,
-    election_id: String,
-    ballot_pub_id: String,
+    election_id: Option<String>,
     sd: &SigningData,
     elog_database: &str,
 ) -> Result<()> {
@@ -127,7 +120,7 @@ pub(crate) async fn post_key_insertion(
 
 pub(crate) async fn post_tally_open(
     event_id: String,
-    election_id: String,
+    election_id: Option<String>,
     sd: &SigningData,
     elog_database: &str,
 ) -> Result<()> {
@@ -141,7 +134,7 @@ pub(crate) async fn post_tally_open(
 
 pub(crate) async fn post_tally_close(
     event_id: String,
-    election_id: String,
+    election_id: Option<String>,
     sd: &SigningData,
     elog_database: &str,
 ) -> Result<()> {
@@ -161,7 +154,7 @@ async fn post(
     let board_message: BoardMessage = message.try_into()?;
     let ms = vec![board_message];
 
-    let mut client = dummy_board_client().await?;
+    let mut client = get_board_client().await?;
     client
         .insert_electoral_log_messages(elog_database, &ms)
         .await

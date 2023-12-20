@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
+use crate::services::electoral_log::post_election_open;
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -41,6 +42,11 @@ pub async fn update_event_status(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    // post_election_open(
+    //     input.election_event_id.clone(),
+    //     None,
+    // ).await?;
 
     Ok(Json(UpdateEventVotingStatusOutput {
         election_event_id: input.election_event_id.clone(),

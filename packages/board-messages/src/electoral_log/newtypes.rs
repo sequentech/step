@@ -4,7 +4,7 @@ use strand::hash::Hash;
 #[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Hash)]
 pub struct EventIdString(pub String);
 #[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Hash)]
-pub struct ElectionIdString(pub String);
+pub struct ElectionIdString(pub Option<String>);
 #[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Hash)]
 pub struct ContestIdString(pub String);
 #[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Hash)]

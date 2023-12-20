@@ -7,7 +7,6 @@ use crate::types::resources::{
 };
 use anyhow::{anyhow, Context, Result};
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
-use regex::Regex;
 use rocket::response::Debug;
 use rocket::serde::json::Json;
 use sequent_core::services::connection;
@@ -17,6 +16,21 @@ use std::env;
 use strum_macros::{Display, EnumString, ToString};
 use tracing::instrument;
 use windmill::services::database::PgConfig;
+
+#[instrument(err)]
+pub async fn get_immudb_client() -> Result<Client> {
+    let username =
+        env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
+    let password =
+        env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
+    let server_url = env::var("IMMUDB_SERVER_URL")
+        .context("IMMUDB_SERVER_URL must be set")?;
+
+    let mut client = Client::new(&server_url, &username, &password).await?;
+    client.login().await?;
+
+    Ok(client)
+}
 
 // Helper function to create a NamedParam
 fn create_named_param(name: String, value: Value) -> NamedParam {
@@ -264,16 +278,8 @@ pub async fn list_pgaudit(
     body: Json<GetPgauditBody>,
     auth_headers: connection::AuthHeaders,
 ) -> Result<Json<DataList<PgAuditRow>>, Debug<anyhow::Error>> {
-    let server_url = env::var("IMMUDB_SERVER_URL")
-        .context("IMMUDB_SERVER_URL env var not set")?;
-    let username =
-        env::var("IMMUDB_USER").context("IMMUDB_USER env var not set")?;
-    let password = env::var("IMMUDB_PASSWORD")
-        .context("IMMUDB_PASSWORD env var not set")?;
     let input = body.into_inner();
-
-    let mut client = Client::new(&server_url, &username, &password).await?;
-    client.login().await?;
+    let mut client = get_immudb_client().await?;
 
     client.open_session(&input.election_event_id).await?;
     let (clauses, params) = input.as_sql(false)?;
