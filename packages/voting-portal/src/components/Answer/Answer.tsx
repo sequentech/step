@@ -19,6 +19,8 @@ import {
     getLinkUrl,
 } from "../../services/ElectionConfigService"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
+import { useTranslation } from 'react-i18next'
+import { translate } from '../../utils'
 
 export interface IAnswerProps {
     answer: ICandidate
@@ -51,6 +53,7 @@ export const Answer: React.FC<IAnswerProps> = ({
     const dispatch = useAppDispatch()
     const imageUrl = getImageUrl(answer)
     const infoUrl = getLinkUrl(answer)
+    const {i18n} = useTranslation()
 
     const isChecked = (): boolean => {
         if (!isInvalidVote) {
@@ -118,8 +121,8 @@ export const Answer: React.FC<IAnswerProps> = ({
 
     return (
         <Candidate
-            title={answer.name}
-            description={stringToHtml(answer.description || "")}
+            title={translate(answer, "name", i18n.language)}
+            description={stringToHtml(translate(answer, "description", i18n.language) || "")}
             isActive={isActive}
             checked={isChecked()}
             setChecked={setChecked}

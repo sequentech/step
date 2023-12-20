@@ -32,6 +32,7 @@ import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {TenantEventContext} from ".."
+import { translateElection } from '../utils'
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -74,7 +75,7 @@ interface ActionButtonProps {
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({ballotStyle, disableNext}) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {tenantId, eventId} = useContext(TenantEventContext)
     const {encryptBallotSelection, decodeAuditableBallot} = provideBallotService()
     const selectionState = useAppSelector(
@@ -142,7 +143,7 @@ export const VotingScreen: React.FC = () => {
     const {electionId} = useParams<{electionId?: string}>()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const election = useAppSelector(selectElectionById(String(electionId)))
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const [openBallotHelp, setOpenBallotHelp] = useState(false)
 
     const onSetDisableNext = (id: string) => (value: boolean) => {
@@ -170,7 +171,7 @@ export const VotingScreen: React.FC = () => {
                 />
             </Box>
             <StyledTitle variant="h4">
-                <Box>{election.name || ""}</Box>
+                <Box>{translateElection(election, "name", i18n.language) || ""}</Box>
                 <IconButton
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
@@ -189,7 +190,7 @@ export const VotingScreen: React.FC = () => {
             </StyledTitle>
             {election.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(election.description)}
+                    {stringToHtml(translateElection(election, "description", i18n.language))}
                 </Typography>
             ) : null}
             {ballotStyle.ballot_eml.contests.map((question, index) => (

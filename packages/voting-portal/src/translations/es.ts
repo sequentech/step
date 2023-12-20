@@ -13,8 +13,8 @@ const spanishTranslation: TranslationType = {
             audit: "Auditar",
         },
         votingScreen: {
-            backButton: "Back",
-            reviewButton: "Next",
+            backButton: "Atrás",
+            reviewButton: "Siguente",
             ballotHelpDialog: {
                 title: "Información: Pantalla de votación",
                 content:

@@ -1,9 +1,7 @@
 export const translate = (object: any, key: string, lang: string): string | undefined => {
-    console.log("translate object", object)
-
     if (object && object[key]) {
         if (object[`${key}_i18n`]) {
-            return object[key][lang] || object[key]["en"]
+            return object[`${key}_i18n`][lang] || object[key]["en"]
         }
         return object[key]
     }
