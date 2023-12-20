@@ -38,7 +38,7 @@ const DiffViewStyled = {
     `,
     Json: styled.div`
         width: 100%;
-        max-width: 40vw;
+        max-width: 35vw;
         overflow-x: scroll;
     `,
     Removed: styled.pre`
