@@ -202,7 +202,7 @@ pub struct InputAreaConfig {
     pub path: PathBuf,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ElectionConfig {
     pub id: Uuid,
     pub tenant_id: Uuid,
@@ -210,7 +210,7 @@ pub struct ElectionConfig {
     pub ballot_styles: Vec<BallotStyle>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct AreaConfig {
     pub id: Uuid,
     pub tenant_id: Uuid,
