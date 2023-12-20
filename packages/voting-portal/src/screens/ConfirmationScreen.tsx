@@ -130,6 +130,7 @@ export const ConfirmationScreen: React.FC = () => {
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
+
     const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/election/${electionId}/public/ballot-locator/${ballotId}`
 
     return (
