@@ -5,9 +5,10 @@ import React, {useEffect, useState} from "react"
 import {Identifier, RaRecord, useGetList} from "react-admin"
 
 import {Sequent_Backend_Contest} from "../../gql/graphql"
-import {Box, Tab, Tabs} from "@mui/material"
+import {Box, Tab, Tabs, Typography} from "@mui/material"
 import * as reactI18next from "react-i18next"
 import {TallyResultsContestAreas} from "./TallyResultsContestAreas"
+import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 
 interface TallyResultsContestProps {
     areas: RaRecord<Identifier>[] | undefined
@@ -19,10 +20,11 @@ interface TallyResultsContestProps {
 
 export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) => {
     const {areas, electionId, electionEventId, tenantId, resultsEventId} = props
-    const [value, setValue] = React.useState<number | null>(null)
+    const [value, setValue] = React.useState<number | null>(0)
     const [contestsData, setContestsData] = useState<Array<Sequent_Backend_Contest>>([])
     const [contestId, setContestId] = useState<string | null>()
 
+    const {t} = reactI18next.useTranslation()
     const [electionData, setElectionData] = useState<string | null>(null)
     const [electionEventData, setElectionEventData] = useState<string | null>(null)
     const [tenantData, setTenantData] = useState<string | null>(null)
@@ -30,13 +32,21 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
 
     // console.log("TallyResultsContest :: contestsData", contestsData)
 
-    const {data: contests} = useGetList<Sequent_Backend_Contest>("sequent_backend_contest", {
-        filter: {
-            election_id: electionData,
-            tenant_id: tenantData,
-            election_event_id: electionEventData,
+    const {data: contests} = useGetList<Sequent_Backend_Contest>(
+        "sequent_backend_contest",
+        {
+            filter: {
+                election_id: electionData,
+                tenant_id: tenantData,
+                election_event_id: electionEventData,
+            },
         },
-    })
+        {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+        }
+    )
 
     useEffect(() => {
         if (electionId) {
@@ -63,9 +73,9 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     }, [areas])
 
     useEffect(() => {
-        console.log("TallyResultsContest :: in effect contestsData", contests)
         if (electionData) {
             setContestsData(contests || [])
+            tabClicked(contests?.[0]?.id, 0)
         }
     }, [electionData, contests])
 
@@ -92,15 +102,34 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
 
     return (
         <>
-            <Tabs value={value}>
-                {contestsData?.map((contest, index) => (
-                    <Tab
-                        key={index}
-                        label={contest.name}
-                        onClick={() => tabClicked(contest.id, index)}
-                    />
-                ))}
-            </Tabs>
+            <Box
+                sx={{
+                    borderBottom: 1,
+                    borderColor: "divider",
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "flex-start",
+                    alignItems: "center",
+                }}
+            >
+                <Typography variant="body2" component="div" sx={{width: "80px"}}>
+                    {t("electionEventScreen.stats.contests")}.{" "}
+                </Typography>
+                <Tabs value={value} sx={{flex: 1}}>
+                    {contestsData?.map((contest, index) => (
+                        <Tab
+                            key={index}
+                            label={contest.name}
+                            onClick={() => tabClicked(contest.id, index)}
+                        />
+                    ))}
+                </Tabs>
+                <ExportElectionMenu
+                    resource="sequent_backend_results_contest"
+                    contest={contestsData?.[value ?? 0]}
+                />
+            </Box>
+
             {contestsData?.map((contest, index) => (
                 <CustomTabPanel key={index} index={index} value={value}>
                     <TallyResultsContestAreas

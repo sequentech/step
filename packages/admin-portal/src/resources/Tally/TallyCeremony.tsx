@@ -13,7 +13,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
-import {Accordion, AccordionSummary} from "@mui/material"
+import {Accordion, AccordionSummary, Button} from "@mui/material"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {ListActions} from "@/components/ListActions"
 import {TallyElectionsList} from "./TallyElectionsList"
@@ -40,6 +40,8 @@ import {CancelButton, NextButton} from "./styles"
 import {statusColor} from "./constants"
 import globalSettings from "@/global-settings"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import DownloadIcon from "@mui/icons-material/Download"
+import {ExportElectionMenu} from "@/components/tally/ExportElectionMenu"
 
 const WizardSteps = {
     Start: 0,
@@ -95,6 +97,9 @@ export const TallyCeremony: React.FC = () => {
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchIntervalInBackground: true,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 
@@ -106,6 +111,9 @@ export const TallyCeremony: React.FC = () => {
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 
@@ -121,6 +129,9 @@ export const TallyCeremony: React.FC = () => {
         },
         {
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
         }
     )
 
@@ -219,6 +230,11 @@ export const TallyCeremony: React.FC = () => {
         } catch (error) {
             notify(t("tally.startTallyError"), {type: "error"})
         }
+    }
+
+    const handleExportResults = async (e: any) => {
+        e.preventDefault()
+        console.log("EXPORT RESULTS", e)
     }
 
     return (
@@ -418,13 +434,6 @@ export const TallyCeremony: React.FC = () => {
                                 <WizardStyles.AccordionTitle>
                                     {t("tally.generalInfoTitle")}
                                 </WizardStyles.AccordionTitle>
-                                <TallyStyles.StyledSpacing>
-                                    <ListActions
-                                        withImport={false}
-                                        withColumns={false}
-                                        withFilter={false}
-                                    />
-                                </TallyStyles.StyledSpacing>
                             </AccordionSummary>
                             <WizardStyles.AccordionDetails>
                                 <TallyStartDate />
@@ -455,8 +464,14 @@ export const TallyCeremony: React.FC = () => {
                                 <WizardStyles.AccordionTitle>
                                     {t("tally.resultsTitle")}
                                 </WizardStyles.AccordionTitle>
+                                <TallyStyles.StyledSpacing>
+                                    <ExportElectionMenu
+                                        resource="sequent_backend_results_event"
+                                        event={data}
+                                    />
+                                </TallyStyles.StyledSpacing>
                             </AccordionSummary>
-                            <WizardStyles.AccordionDetails>
+                            <WizardStyles.AccordionDetails style={{zIndex: 100}}>
                                 <TallyResults
                                     tally={tally}
                                     resultsEventId={

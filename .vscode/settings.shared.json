@@ -1,0 +1,10 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "/workspaces/backend-services/packages/Cargo.toml",
+        "./packages/sequent-core/Cargo.toml"
+    ],
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "docker.containers.label": "ContainerName",
+    "docker.commands.attach": "${containerCommand} exec -it ${containerId} ${shellCommand}"
+}
