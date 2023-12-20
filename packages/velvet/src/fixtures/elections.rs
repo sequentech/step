@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use super::ballot_styles;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Election {
     pub id: Uuid,
     pub tenant_id: Uuid,
