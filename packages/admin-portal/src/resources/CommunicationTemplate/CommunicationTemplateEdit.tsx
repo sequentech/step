@@ -7,4 +7,8 @@ type TCommunicationTemplateEdit = {
     id?: Identifier | undefined
 }
 
-export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = () => null
+export const CommunicationTemplateEdit: React.FC<TCommunicationTemplateEdit> = () => {
+    return (
+        <h1>Communication Template Edit</h1>
+    )
+}

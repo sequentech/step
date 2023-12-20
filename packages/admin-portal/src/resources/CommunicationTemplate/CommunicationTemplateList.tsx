@@ -8,7 +8,7 @@ import {Box, Button, Drawer, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 
-import {List, TextField, TextInput, useDelete, Identifier, DatagridConfigurable} from "react-admin"
+import {List, TextField, useDelete, Identifier, DatagridConfigurable} from "react-admin"
 
 import {IPermissions} from "@/types/keycloak"
 import {ListActions} from "@/components/ListActions"
@@ -53,27 +53,25 @@ export const CommunicationTemplateList: React.FC = () => {
     const [openDrawer, setOpenDrawer] = React.useState<boolean>(false)
     const [recordId, setRecordId] = React.useState<Identifier | undefined>(undefined)
 
-    const handleCloseCreateDrawer = () => {
-        setRecordId(undefined)
+    const handleCloseDrawer = () => {
         setOpenDrawer(false)
         setOpen(false)
-    }
 
-    const handleOpenCreateDrawer = () => {
-        setRecordId(undefined)
-        setOpenDrawer(true)
-        setOpen(false)
-    }
-
-    const handleCloseEditDrawer = () => {
-        setOpen(false)
         setTimeout(() => {
             setRecordId(undefined)
         }, 400)
     }
 
-    const editAction = (id: Identifier) => {
+    const handleCreateDrawer = () => {
+        setRecordId(undefined)
+        setOpenDrawer(true)
+        setOpen(true)
+    }
+
+    const handleEditDrawer = (id: Identifier) => {
         setRecordId(id)
+        setOpenDrawer(true)
+        setOpen(true)
     }
 
     const deleteAction = (id: Identifier) => {
@@ -87,12 +85,12 @@ export const CommunicationTemplateList: React.FC = () => {
     }
 
     const actions: any[] = [
-        {icon: <EditIcon />, action: editAction},
+        {icon: <EditIcon />, action: handleEditDrawer},
         {icon: <DeleteIcon />, action: deleteAction},
     ]
 
     const CreateButton = () => (
-        <Button onClick={handleOpenCreateDrawer}>
+        <Button onClick={handleCreateDrawer}>
             <IconButton icon={faPlus} fontSize="24px" />
             {t("communicationTemplate.action.createOne")}
         </Button>
@@ -103,6 +101,7 @@ export const CommunicationTemplateList: React.FC = () => {
             <Typography variant="h4" paragraph>
                 {t("communicationTemplate.empty.title")}
             </Typography>
+
             {canWriteTenant ? (
                 <>
                     <Typography variant="body1" paragraph>
@@ -135,7 +134,7 @@ export const CommunicationTemplateList: React.FC = () => {
                         withFilter
                         open={openDrawer}
                         setOpen={setOpenDrawer}
-                        Component={<CommunicationTemplateCreate close={handleCloseCreateDrawer} />}
+                        Component={<CommunicationTemplateCreate close={handleCloseDrawer} />}
                     />
                 }
                 empty={<Empty />}
@@ -150,12 +149,16 @@ export const CommunicationTemplateList: React.FC = () => {
             <Drawer
                 anchor="right"
                 open={open}
-                onClose={handleCloseEditDrawer}
+                onClose={handleCloseDrawer}
                 PaperProps={{
                     sx: {width: "40%"},
                 }}
             >
-                <CommunicationTemplateEdit id={recordId} close={handleCloseEditDrawer} />
+                {recordId ? (
+                    <CommunicationTemplateEdit id={recordId} close={handleCloseDrawer} />
+                ) : (
+                    <CommunicationTemplateCreate close={handleCloseDrawer} />
+                )}
             </Drawer>
 
             <Dialog
