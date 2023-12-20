@@ -114,6 +114,14 @@ impl Pipe for DoTally {
         Ok(())
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InvalidVotes {
+    pub explicit: u64,
+    pub implicit: u64,
+    pub implicit_blank: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContestResult {
     pub contest: Contest,
@@ -122,7 +130,7 @@ pub struct ContestResult {
     pub total_invalid_votes: u64,
     pub total_blank_votes: u64,
     pub census: u64,
-    pub invalid_votes: HashMap<InvalidVote, u64>,
+    pub invalid_votes: InvalidVotes,
     pub candidate_result: Vec<CandidateResult>,
 }
 

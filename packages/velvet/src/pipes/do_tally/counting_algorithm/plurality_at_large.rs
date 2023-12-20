@@ -8,7 +8,7 @@ use tracing::instrument;
 
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
-    invalid_vote::InvalidVote, tally::Tally, CandidateResult, ContestResult,
+    invalid_vote::InvalidVote, tally::Tally, CandidateResult, ContestResult, InvalidVotes,
 };
 
 use super::Result;
@@ -31,7 +31,11 @@ impl CountingAlgorithm for PluralityAtLarge {
         let votes = &self.tally.ballots;
 
         let mut vote_count: HashMap<String, u64> = HashMap::new();
-        let mut vote_count_invalid: HashMap<InvalidVote, u64> = HashMap::new();
+        let mut count_invalid_votes = InvalidVotes {
+            explicit: 0,
+            implicit: 0,
+            implicit_blank: 0,
+        };
         let mut count_valid: u64 = 0;
         let mut count_invalid: u64 = 0;
         let mut count_blank: u64 = 0;
@@ -39,9 +43,9 @@ impl CountingAlgorithm for PluralityAtLarge {
         for vote in votes {
             if !vote.invalid_errors.is_empty() {
                 if vote.is_explicit_invalid {
-                    *vote_count_invalid.entry(InvalidVote::Explicit).or_insert(0) += 1;
+                    count_invalid_votes.explicit += 1;
                 } else {
-                    *vote_count_invalid.entry(InvalidVote::Implicit).or_insert(0) += 1;
+                    count_invalid_votes.implicit += 1;
 
                     let has_blank_votes = vote.invalid_errors.iter().any(|e| {
                         e.error_type == InvalidPlaintextErrorType::Implicit
@@ -50,7 +54,7 @@ impl CountingAlgorithm for PluralityAtLarge {
 
                     if has_blank_votes {
                         count_blank += 1;
-                        *vote_count_invalid.entry(InvalidVote::Blank).or_insert(0) += 1;
+                        count_invalid_votes.implicit_blank += 1;
                     }
                 }
                 count_invalid += 1;
@@ -128,7 +132,7 @@ impl CountingAlgorithm for PluralityAtLarge {
             total_valid_votes: count_valid,
             total_invalid_votes: count_invalid,
             total_blank_votes: count_blank,
-            invalid_votes: vote_count_invalid,
+            invalid_votes: count_invalid_votes,
             census: self.tally.census,
             candidate_result: result,
         };

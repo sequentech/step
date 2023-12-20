@@ -244,12 +244,7 @@ impl GenerateReports {
         area_id: Option<&Uuid>,
         contest: Contest,
     ) -> Result<ReportData> {
-        let mut contest_result = self.read_contest_result(election_id, contest_id, area_id)?;
-
-        let defaults = default_invalid_votes();
-        for (key, value) in defaults {
-            contest_result.invalid_votes.entry(key).or_insert(value);
-        }
+        let contest_result = self.read_contest_result(election_id, contest_id, area_id)?;
 
         let winners = self.read_winners(election_id, contest_id, area_id)?;
 
@@ -337,14 +332,6 @@ impl Pipe for GenerateReports {
 
         Ok(())
     }
-}
-
-fn default_invalid_votes() -> HashMap<InvalidVote, u64> {
-    let mut map = HashMap::new();
-    map.insert(InvalidVote::Implicit, 0);
-    map.insert(InvalidVote::Explicit, 0);
-    map.insert(InvalidVote::Blank, 0);
-    map
 }
 
 #[derive(Debug, Clone)]

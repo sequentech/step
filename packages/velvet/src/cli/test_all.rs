@@ -1013,14 +1013,7 @@ mod tests {
         assert_eq!(report.contest_result.total_blank_votes, 5);
         assert_eq!(report.contest_result.total_valid_votes, 10);
         assert_eq!(report.contest_result.total_invalid_votes, 0);
-        assert_eq!(
-            *report
-                .contest_result
-                .invalid_votes
-                .get(&InvalidVote::Blank)
-                .unwrap_or(&0),
-            0
-        );
+        assert_eq!(report.contest_result.invalid_votes.implicit_blank, 0);
 
         Ok(())
     }
@@ -1170,14 +1163,7 @@ mod tests {
         assert_eq!(report.contest_result.total_blank_votes, 5);
         assert_eq!(report.contest_result.total_valid_votes, 5);
         assert_eq!(report.contest_result.total_invalid_votes, 5);
-        assert_eq!(
-            *report
-                .contest_result
-                .invalid_votes
-                .get(&InvalidVote::Blank)
-                .unwrap_or(&0),
-            5
-        );
+        assert_eq!(report.contest_result.invalid_votes.implicit_blank, 5);
 
         Ok(())
     }
