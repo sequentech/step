@@ -336,6 +336,11 @@ services:
     entrypoint: [
       "cargo",
       "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
       "-x",
       "run"
     ]
@@ -563,6 +568,11 @@ services:
     entrypoint: [
       "cargo",
       "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
       "-x",
       "run --bin main consume -q short_queue tally_queue beat reports_queue communication_queue"
     ]
@@ -624,6 +634,11 @@ services:
     entrypoint: [
       "cargo",
       "watch",
+      "--why",
+      # ignoring rust-local-target/ since it's used for local builds and
+      # otherwise triggers a rebuild all the time (probably rust analyzer)
+      "--ignore",
+      "rust-local-target/",
       "-x",
       "run --bin beat"
     ]
