@@ -31,9 +31,11 @@ const filters: Array<ReactElement> = [
 
 type TPublishList = {
     status: number
-    onGenerate: () => void
     electionId?: number | string
     electionEventId: number | string | undefined
+    canRead: boolean
+    canWrite: boolean
+    onGenerate: () => void
     onChangeStatus: (status: string) => void
     setBallotPublicationId: (id: string | Identifier) => void
 }
@@ -42,6 +44,8 @@ export const PublishList: React.FC<TPublishList> = ({
     status,
     electionId,
     electionEventId,
+    canRead,
+    canWrite,
     onGenerate = () => null,
     onChangeStatus = () => null,
     setBallotPublicationId = () => null,
@@ -54,18 +58,23 @@ export const PublishList: React.FC<TPublishList> = ({
             <Typography variant="h4" paragraph>
                 {t("publish.empty.header")}
             </Typography>
-            <>
-                <Typography variant="body1" paragraph>
-                    {t("common.resources.noResult.askCreate")}
-                </Typography>
-
-                <Button onClick={onGenerate}>
-                    <IconButton icon={faPlus} fontSize="24px" />
-                    {t("publish.empty.action")}
-                </Button>
-            </>
+            {canWrite && (
+                <>
+                    <Button onClick={onGenerate}>
+                        <IconButton icon={faPlus} fontSize="24px" />
+                        {t("publish.empty.action")}
+                    </Button>
+                    <Typography variant="body1" paragraph>
+                        {t("common.resources.noResult.askCreate")}
+                    </Typography>
+                </>
+            )}
         </ResourceListStyles.EmptyBox>
     )
+
+    if (!canRead) {
+        return <Empty />
+    }
 
     const actions: Action[] = [
         {
@@ -97,8 +106,8 @@ export const PublishList: React.FC<TPublishList> = ({
                           }
                 }
                 sort={{
-                    field: 'created_at',
-                    order: 'DESC',
+                    field: "created_at",
+                    order: "DESC",
                 }}
                 filters={filters}
                 sx={{flexGrow: 2}}

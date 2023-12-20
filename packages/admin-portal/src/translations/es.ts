@@ -798,8 +798,9 @@ const spanishTranslation: TranslationType = {
         },
         publish: {
             header: {
-                change: "Cambios a publicar",
-                history: "Historico de cambios",
+                change: "Cambios a Publicar",
+                viewChange: "Ver Publicación",
+                history: "Historico de Cambios",
             },
             action: {
                 start: "Empezar elección",
@@ -814,22 +815,24 @@ const spanishTranslation: TranslationType = {
                 action: "Generar Publicación",
             },
             dialog: {
-                title: "Confirm action",
-                info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
-                ok: "Confirm",
-                ko: "Cancel",
+                title: "Confirmar Acción",
+                info: "Has hecho clic en una acción sensible, por lo que necesitamos que la confirmes para poder continuar.",
+                ok: "Confirmar",
+                ko: "Cancelar",
                 error: "Error al cargar las papeletas publicadas",
                 error_publish: "Error al publicar la papeleta",
                 error_status: "Error al cambiar el estado de la publicación",
             },
             label: {
                 current: "Actual",
+                previous: "Publicación Anterior",
                 diff: "Cambios a publicar",
+                publication: "Publicación",
             },
             notifications: {
                 generated: "Papeleta generada",
                 published: "Papeleta publicada",
-                chang_status: "Papeleta cambiada de estado",
+                change_status: "Votación cambiada de estado",
             },
         },
         emailEditor: {
