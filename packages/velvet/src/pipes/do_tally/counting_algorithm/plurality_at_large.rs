@@ -7,9 +7,7 @@ use std::collections::HashMap;
 use tracing::instrument;
 
 use super::{CountingAlgorithm, Error};
-use crate::pipes::do_tally::{
-    invalid_vote::InvalidVote, tally::Tally, CandidateResult, ContestResult, InvalidVotes,
-};
+use crate::pipes::do_tally::{tally::Tally, CandidateResult, ContestResult, InvalidVotes};
 
 use super::Result;
 

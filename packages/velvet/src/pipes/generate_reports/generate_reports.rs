@@ -18,10 +18,7 @@ use serde_json::Map;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::pipes::{
-    do_tally::invalid_vote::InvalidVote,
-    error::{Error, Result},
-};
+use crate::pipes::error::{Error, Result};
 use crate::pipes::{
     do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
     mark_winners::{WinnerResult, OUTPUT_WINNERS},

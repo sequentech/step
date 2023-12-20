@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::invalid_vote::InvalidVote;
 use super::tally;
 use crate::pipes::{
     decode_ballots::OUTPUT_DECODED_BALLOTS_FILE,

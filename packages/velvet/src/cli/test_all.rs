@@ -9,7 +9,6 @@ mod tests {
     use crate::fixtures::ballot_styles::generate_ballot_style;
     use crate::fixtures::TestFixture;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
-    use crate::pipes::do_tally::invalid_vote::InvalidVote;
     use crate::pipes::do_tally::OUTPUT_CONTEST_RESULT_FILE;
     use crate::pipes::generate_reports::ReportDataComputed;
     use crate::pipes::mark_winners::OUTPUT_WINNERS;
