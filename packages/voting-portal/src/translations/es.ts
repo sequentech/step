@@ -102,7 +102,7 @@ const spanishTranslation: TranslationType = {
                 ok: "OK",
             },
             downloadButton: "Descargar",
-            step2Title: "2. Verifica tu boleta",
+            step2Title: "2. Verifica tu papeleta",
             step2Description:
                 "<a href='{{linkToBallotVerifier}}' target='_blank'>Accede al verificador del voto</a>, que se abrirá una nueva pestaña en tu navegador.",
             step2HelpDialog: {
