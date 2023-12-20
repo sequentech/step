@@ -171,7 +171,7 @@ type Query {
   listPgaudit (
     limit: Int
     offset: Int
-    filter: PgAuditFilter 
+    filter: PgAuditFilter
     order_by: PgAuditOrderBy
     audit_table: PgAuditTable
   ): DataListPgAudit
@@ -243,7 +243,7 @@ enum OrderDirection {
 }
 
 enum PgAuditTable {
-  pgaudit_hasura 
+  pgaudit_hasura
   pgaudit_keycloak
 }
 
