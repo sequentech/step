@@ -178,7 +178,8 @@ pub async fn populate_results_tables(
         if let Ok(results) = state.get_results() {
             save_results(results, tenant_id, election_event_id, &results_event_id).await?;
         }
+        Ok(results_event_id_opt)
+    } else {
+        Ok(previous_execution.results_event_id)
     }
-
-    Ok(results_event_id_opt)
 }
