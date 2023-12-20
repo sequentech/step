@@ -35,18 +35,19 @@ insert_permissions:
       - tenant_id:
           _eq: X-Hasura-Tenant-Id
     columns:
-    - cast_ballot_signature
-    - voter_id_string
     - annotations
-    - labels
+    - area_id
+    - ballot_id
+    - cast_ballot_signature
     - content
     - created_at
-    - last_updated_at
-    - area_id
     - election_event_id
     - election_id
     - id
+    - labels
+    - last_updated_at
     - tenant_id
+    - voter_id_string
     set:
       voter_id_string: x-hasura-User-Id
   role: user
@@ -90,18 +91,19 @@ select_permissions:
 - comment: ""
   permission:
     columns:
-    - cast_ballot_signature
-    - voter_id_string
     - annotations
-    - labels
+    - area_id
+    - ballot_id
+    - cast_ballot_signature
     - content
     - created_at
-    - last_updated_at
-    - area_id
     - election_event_id
     - election_id
     - id
+    - labels
+    - last_updated_at
     - tenant_id
+    - voter_id_string
     filter:
       _and:
       - area_id:
