@@ -1009,6 +1009,9 @@ mod tests {
             5
         );
 
+        assert_eq!(report.contest_result.total_blank_votes, 5);
+        assert_eq!(report.contest_result.total_valid_votes, 10);
+
         Ok(())
     }
 }

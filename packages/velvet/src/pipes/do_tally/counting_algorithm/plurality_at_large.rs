@@ -33,6 +33,7 @@ impl CountingAlgorithm for PluralityAtLarge {
         let mut vote_count_invalid: HashMap<InvalidVote, u64> = HashMap::new();
         let mut count_valid: u64 = 0;
         let mut count_invalid: u64 = 0;
+        let mut count_blank: u64 = 0;
 
         for vote in votes {
             if vote.is_explicit_invalid {
@@ -40,14 +41,23 @@ impl CountingAlgorithm for PluralityAtLarge {
                     *vote_count_invalid.entry(InvalidVote::Explicit).or_insert(0) += 1;
                 } else {
                     *vote_count_invalid.entry(InvalidVote::Implicit).or_insert(0) += 1;
+                    // TODO: is_blank?
                 }
                 count_invalid += 1;
             } else {
+                let mut is_blank = true;
+
                 for choice in &vote.choices {
                     if choice.selected >= 0 {
                         *vote_count.entry(choice.id.clone()).or_insert(0) += 1;
+                        is_blank = false;
                     }
                 }
+
+                if is_blank {
+                    count_blank += 1;
+                }
+
                 count_valid += 1;
             }
         }
@@ -107,6 +117,7 @@ impl CountingAlgorithm for PluralityAtLarge {
             total_votes: count_valid + count_invalid,
             total_valid_votes: count_valid,
             total_invalid_votes: count_invalid,
+            total_blank_votes: count_blank,
             invalid_votes: vote_count_invalid,
             census: self.tally.census,
             candidate_result: result,
