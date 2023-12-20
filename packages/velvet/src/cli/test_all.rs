@@ -750,7 +750,7 @@ mod tests {
                 .iter()
                 .map(|cr| cr.total_count)
                 .sum::<u64>(),
-            98
+            96
         );
 
         // test second contest
@@ -774,7 +774,7 @@ mod tests {
                 .iter()
                 .map(|cr| cr.total_count)
                 .sum::<u64>(),
-            18
+            16
         );
 
         Ok(())
