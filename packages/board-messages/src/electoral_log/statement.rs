@@ -33,7 +33,7 @@ impl StatementHead {
             StatementBody::TallyOpen(_) => StatementType::TallyOpen,
             StatementBody::TallyClose(_) => StatementType::TallyClose,
         };
-        let timestamp = instant::now() as u64;
+        let timestamp = crate::timestamp();
 
         StatementHead {
             event,
