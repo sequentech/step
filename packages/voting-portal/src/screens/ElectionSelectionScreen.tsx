@@ -31,6 +31,7 @@ import {DISABLE_AUTH} from "../Config"
 import {ELECTIONS_LIST} from "../fixtures/election"
 import {TenantEventContext} from ".."
 import {AuthContext} from "../providers/AuthContextProvider"
+import { translate, translateElection } from '../utils'
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -59,6 +60,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     const election = useAppSelector(selectElectionById(electionId))
     const {tenantId, eventId} = useContext(TenantEventContext)
     const navigate = useNavigate()
+    const {i18n} = useTranslation()
 
     const onClickToVote = () => {
         navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/start`)
@@ -84,7 +86,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
         <SelectElection
             isActive={true}
             isOpen={true}
-            title={election.name || ""}
+            title={translateElection(election, "name", i18n.language) || ""}
             electionHomeUrl={"https://sequentech.io"}
             hasVoted={false}
             onClickToVote={onClickToVote}
@@ -190,7 +192,7 @@ export const ElectionSelectionScreen: React.FC = () => {
         },
     })
     const dispatch = useAppDispatch()
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
 
     const [electionIds, setElectionIds] = useState<Array<string>>([])
@@ -215,6 +217,10 @@ export const ElectionSelectionScreen: React.FC = () => {
             setBallotStyleElectionIds(electionIds)
         }
     }, [loading, error, data, dispatch])
+
+    useEffect(() => {
+        console.log("i18n.language", i18n.language)
+    }, [i18n.language]);
 
     useEffect(() => {
         if (DISABLE_AUTH) {
