@@ -1,4 +1,4 @@
-import React, {useState} from "react"
+import React, {useContext, useState} from "react"
 
 import styled from "@emotion/styled"
 
@@ -10,6 +10,9 @@ import {Button, FilterButton, SelectColumnsButton} from "react-admin"
 
 import {EPublishActionsType} from "./EPublishType"
 import {EPublishStatus, EPublishStatushChanges} from "./EPublishStatus"
+import {useTenantStore} from "@/providers/TenantContextProvider"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {IPermissions} from "@/types/keycloak"
 
 const PublishActionsStyled = {
     Container: styled.div`
@@ -21,7 +24,7 @@ const PublishActionsStyled = {
 }
 
 export type PublishActionsProps = {
-    status: null | number
+    status: number
     onPublish?: () => void
     onGenerate: () => void
     onChangeStatus?: (status: string) => void
@@ -36,6 +39,16 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     onChangeStatus = () => null,
 }) => {
     const {t} = useTranslation()
+    const [tenantId] = useTenantStore()
+    const authContext = useContext(AuthContext)
+    const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_WRITE)
+    const canRead = authContext.isAuthorized(true, tenantId, IPermissions.PUBLISH_READ)
+    const canChangeStatus = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.ELECTION_STATE_WRITE
+    )
+
     const [showDialog, setShowDialog] = useState(false)
     const [currentCallback, setCurrentCallback] = useState<any>(null)
 
@@ -47,22 +60,20 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         )
     }
 
-    const ButtonDisabledOrNot = ({st, label, onClick, Icon, disabledStatus, noDisabled}: any) => (
+    const ButtonDisabledOrNot = ({st, label, onClick, Icon, disabledStatus}: any) => (
         <Button
             onClick={onClick}
             label={t(label)}
             style={
-                !noDisabled
-                    ? st === status || disabledStatus?.includes(status)
-                        ? {
-                              backgroundColor: "#eee",
-                              color: "#ccc",
-                              cursor: "not-allowed",
-                          }
-                        : {}
+                disabledStatus?.includes(status)
+                    ? {
+                          color: "#ccc",
+                          cursor: "not-allowed",
+                          backgroundColor: "#eee",
+                      }
                     : {}
             }
-            disabled={!noDisabled ? st === status || disabledStatus?.includes(status) : false}
+            disabled={disabledStatus?.includes(status) || st === status + 0.1}
         >
             <IconOrProgress st={st} Icon={Icon} />
         </Button>
@@ -83,68 +94,78 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                         <>
                             <SelectColumnsButton />
                             <FilterButton />
-                            <ButtonDisabledOrNot
-                                onClick={() =>
-                                    handleEvent(handleOnChange(EPublishStatushChanges.Open))
-                                }
-                                label={t("publish.action.start")}
-                                st={EPublishStatus.Started}
-                                Icon={PlayCircle}
-                                disabledStatus={[
-                                    EPublishStatus.Stopped,
-                                    EPublishStatus.GeneratedLoading,
-                                ]}
-                            />
+                            {canChangeStatus && (
+                                <ButtonDisabledOrNot
+                                    onClick={() =>
+                                        handleEvent(handleOnChange(EPublishStatushChanges.Open))
+                                    }
+                                    label={t("publish.action.start")}
+                                    st={EPublishStatus.Started}
+                                    Icon={PlayCircle}
+                                    disabledStatus={[
+                                        EPublishStatus.Stopped,
+                                        EPublishStatus.Started,
+                                        EPublishStatus.GeneratedLoading,
+                                    ]}
+                                />
+                            )}
 
-                            <ButtonDisabledOrNot
-                                onClick={() =>
-                                    handleEvent(handleOnChange(EPublishStatushChanges.Paused))
-                                }
-                                label={t("publish.action.pause")}
-                                st={EPublishStatus.Paused}
-                                Icon={PauseCircle}
-                                disabledStatus={[
-                                    EPublishStatus.Void,
-                                    EPublishStatus.Stopped,
-                                    EPublishStatus.Generated,
-                                    EPublishStatus.GeneratedLoading,
-                                ]}
-                            />
+                            {canChangeStatus && (
+                                <ButtonDisabledOrNot
+                                    onClick={() =>
+                                        handleEvent(handleOnChange(EPublishStatushChanges.Paused))
+                                    }
+                                    label={t("publish.action.pause")}
+                                    st={EPublishStatus.Paused}
+                                    Icon={PauseCircle}
+                                    disabledStatus={[
+                                        EPublishStatus.Void,
+                                        EPublishStatus.Paused,
+                                        EPublishStatus.Stopped,
+                                        EPublishStatus.Generated,
+                                        EPublishStatus.GeneratedLoading,
+                                    ]}
+                                />
+                            )}
 
-                            <ButtonDisabledOrNot
-                                onClick={() =>
-                                    handleEvent(handleOnChange(EPublishStatushChanges.Closed))
-                                }
-                                label={t("publish.action.stop")}
-                                st={EPublishStatus.Stopped}
-                                Icon={StopCircle}
-                                disabledStatus={[
-                                    EPublishStatus.Void,
-                                    EPublishStatus.Generated,
-                                    EPublishStatus.GeneratedLoading,
-                                ]}
-                            />
+                            {canChangeStatus && (
+                                <ButtonDisabledOrNot
+                                    onClick={() =>
+                                        handleEvent(handleOnChange(EPublishStatushChanges.Closed))
+                                    }
+                                    label={t("publish.action.stop")}
+                                    st={EPublishStatus.Stopped}
+                                    Icon={StopCircle}
+                                    disabledStatus={[
+                                        EPublishStatus.Void,
+                                        EPublishStatus.Stopped,
+                                        EPublishStatus.Generated,
+                                        EPublishStatus.GeneratedLoading,
+                                    ]}
+                                />
+                            )}
 
-                            <ButtonDisabledOrNot
-                                onClick={onGenerate}
-                                label={t("publish.action.publish")}
-                                Icon={Publish}
-                                disabledStatus={[
-                                    EPublishStatus.Stopped,
-                                    EPublishStatus.GeneratedLoading,
-                                ]}
-                                noDisabled
-                            />
+                            {canWrite && (
+                                <ButtonDisabledOrNot
+                                    Icon={Publish}
+                                    onClick={onGenerate}
+                                    st={EPublishStatus.Generated}
+                                    label={t("publish.action.publish")}
+                                    disabledStatus={[EPublishStatus.Stopped]}
+                                />
+                            )}
                         </>
                     ) : (
                         <>
-                            <ButtonDisabledOrNot
-                                onClick={() => handleEvent(onGenerate)}
-                                label={t("publish.action.generate")}
-                                st={EPublishStatus.Generated}
-                                Icon={RotateLeft}
-                                noDisabled
-                            />
+                            {canWrite && (
+                                <ButtonDisabledOrNot
+                                    Icon={RotateLeft}
+                                    disabledStatus={[]}
+                                    st={EPublishStatus.Generated}
+                                    label={t("publish.action.generate")}
+                                    onClick={() => handleEvent(onGenerate)}
+                                />
+                            )}
                         </>
                     )}
                 </div>

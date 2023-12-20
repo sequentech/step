@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
@@ -38,7 +39,7 @@ pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
         .cloned()
         .collect();
 
-    let now = instant::Instant::now();
+    let now = Instant::now();
     let test = create_protocol_test(n_trustees, &threshold, ctx).unwrap();
     run_protocol_test(test, ciphertexts, batches, &threshold).unwrap();
 

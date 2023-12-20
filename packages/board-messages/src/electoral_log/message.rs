@@ -152,8 +152,8 @@ impl TryFrom<Message> for BoardMessage {
     fn try_from(message: Message) -> Result<BoardMessage> {
         Ok(BoardMessage {
             id: 0,
-            created: (instant::now() * 1000f64) as i64,
-            statement_timestamp: (message.statement.head.timestamp * 1000) as i64,
+            created: crate::timestamp() as i64,
+            statement_timestamp: message.statement.head.timestamp as i64,
             statement_kind: message.statement.head.kind.to_string(),
             message: message.strand_serialize()?,
             sender_pk: message.sender.pk.to_der_b64_string()?,
