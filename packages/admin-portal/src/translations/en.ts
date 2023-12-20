@@ -804,27 +804,30 @@ const englishTranslation = {
         },
         publish: {
             header: {
-                change: "Changes to be Publish",
+                change: "Changes to be Published",
+                viewChange: "View Publication",
                 history: "Publish History",
             },
             action: {
-                start: "START ELECTION",
-                stop: "STOP ELECTION",
-                pause: "PAUSE",
-                generate: "REGENERATE",
-                publish: "PUBLISH CHANGES",
-                back: "BACK",
+                start: "Start Election",
+                stop: "Stop Election",
+                pause: "Pause",
+                generate: "Regenerate",
+                publish: "Publish Changes",
+                back: "Back",
             },
             label: {
                 current: "Current",
-                diff: "CHANGES TO PUBLISH",
+                previous: "Previous Publication",
+                publication: "Publication",
+                diff: "Changes to Publish",
             },
             empty: {
                 header: "No Publication Yet.",
                 action: "Generate Publication",
             },
             dialog: {
-                title: "Confirm action",
+                title: "Confirm Action",
                 info: "You have clicked on a sensitive action, so we need you to confirm in order to continue",
                 ok: "Confirm",
                 ko: "Cancel",
@@ -835,7 +838,7 @@ const englishTranslation = {
             notifications: {
                 generated: "Ballot generated",
                 published: "Ballot published",
-                chang_status: "Ballot status changed",
+                change_status: "Election status changed",
             },
         },
         emailEditor: {

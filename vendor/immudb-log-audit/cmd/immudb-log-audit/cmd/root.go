@@ -22,6 +22,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"net/http"
+	"io"
 
 	"github.com/codenotary/immudb-log-audit/pkg/cmd"
 	"github.com/codenotary/immudb/pkg/client"
@@ -103,8 +105,27 @@ func rootPost(cmd *cobra.Command, args []string) {
 }
 
 func Execute() {
+	http.HandleFunc("/live", liveHandler)
+
+	go func() {
+        fmt.Println("Live probe handler listening on 3030/live")
+        log.Fatal(http.ListenAndServe(":8080", nil))
+    }()
+	
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func liveHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, "Live")
+	return
+}
+// Not yet used
+func readyHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, "Ready")
+	return
 }
