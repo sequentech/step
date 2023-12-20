@@ -32,7 +32,6 @@ impl CountingAlgorithm for PluralityAtLarge {
         let mut count_invalid_votes = InvalidVotes {
             explicit: 0,
             implicit: 0,
-            implicit_blank: 0,
         };
         let mut count_valid: u64 = 0;
         let mut count_invalid: u64 = 0;
@@ -52,7 +51,6 @@ impl CountingAlgorithm for PluralityAtLarge {
 
                     if has_blank_votes {
                         count_blank += 1;
-                        count_invalid_votes.implicit_blank += 1;
                     }
                 }
                 count_invalid += 1;

@@ -14,7 +14,7 @@ use crate::utils::HasId;
 use sequent_core::ballot::Candidate;
 use sequent_core::ballot::Contest;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs};
+use std::fs;
 use tracing::instrument;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
@@ -118,7 +118,6 @@ impl Pipe for DoTally {
 pub struct InvalidVotes {
     pub explicit: u64,
     pub implicit: u64,
-    pub implicit_blank: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
