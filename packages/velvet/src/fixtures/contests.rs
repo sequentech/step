@@ -1,6 +1,4 @@
-use sequent_core::ballot::{
-    BallotStyle, Candidate, CandidatePresentation, Contest, ContestPresentation, PublicKeyConfig,
-};
+use sequent_core::ballot::{Contest, ContestPresentation};
 use uuid::Uuid;
 
 use super::candidates;
@@ -24,10 +22,54 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
         is_encrypted: true,
         candidates: vec![
             candidates::get_candidate_0(tenant_id, election_event_id, election_id, &contest_id),
-            candidates::get_candidate_1(&tenant_id, &election_event_id, &election_id, &contest_id),
-            candidates::get_candidate_2(&tenant_id, &election_event_id, &election_id, &contest_id),
-            candidates::get_candidate_3(&tenant_id, &election_event_id, &election_id, &contest_id),
-            candidates::get_candidate_4(&tenant_id, &election_event_id, &election_id, &contest_id),
+            candidates::get_candidate_1(tenant_id, election_event_id, election_id, &contest_id),
+            candidates::get_candidate_2(tenant_id, election_event_id, election_id, &contest_id),
+            candidates::get_candidate_3(tenant_id, election_event_id, election_id, &contest_id),
+            candidates::get_candidate_4(tenant_id, election_event_id, election_id, &contest_id),
+        ],
+        presentation: Some(ContestPresentation {
+            allow_writeins: false,
+            base32_writeins: true,
+            invalid_vote_policy: "allowed".into(),
+            cumulative_number_of_checkboxes: None,
+            shuffle_categories: true,
+            shuffle_all_options: true,
+            shuffle_category_list: None,
+            show_points: false,
+            enable_checkable_lists: None,
+        }),
+    }
+}
+
+pub fn get_contest_min_max_votes(
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    election_id: &Uuid,
+    min_votes: u64,
+    max_votes: u64,
+) -> Contest {
+    let contest_id = Uuid::new_v4();
+    Contest {
+        id: contest_id.to_string(),
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+        election_id: election_id.to_string(),
+        name: Some("Secretario General".into()),
+        description: Some(
+            "Elige quien quieres que sea tu Secretario General en tu municipio".into(),
+        ),
+        max_votes: max_votes as i64,
+        min_votes: min_votes as i64,
+        winning_candidates_num: 1,
+        voting_type: Some("first-past-the-post".into()),
+        counting_algorithm: Some("plurality-at-large".into()), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
+        is_encrypted: true,
+        candidates: vec![
+            candidates::get_candidate_0(tenant_id, election_event_id, election_id, &contest_id),
+            candidates::get_candidate_1(tenant_id, election_event_id, election_id, &contest_id),
+            candidates::get_candidate_2(tenant_id, election_event_id, election_id, &contest_id),
+            candidates::get_candidate_3(tenant_id, election_event_id, election_id, &contest_id),
+            candidates::get_candidate_4(tenant_id, election_event_id, election_id, &contest_id),
         ],
         presentation: Some(ContestPresentation {
             allow_writeins: false,

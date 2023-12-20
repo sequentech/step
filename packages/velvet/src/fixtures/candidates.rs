@@ -1,6 +1,4 @@
-use sequent_core::ballot::{
-    BallotStyle, Candidate, CandidatePresentation, Contest, ContestPresentation, PublicKeyConfig,
-};
+use sequent_core::ballot::{Candidate, CandidatePresentation};
 use uuid::Uuid;
 
 pub fn get_candidate_0(

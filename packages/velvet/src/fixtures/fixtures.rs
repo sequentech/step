@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use sequent_core::ballot::{
-    BallotStyle, Candidate, CandidatePresentation, Contest, ContestPresentation, PublicKeyConfig,
-};
+use sequent_core::ballot::Contest;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
@@ -14,6 +12,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::config::{self, Config};
+use crate::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use crate::pipes::pipe_name::PipeName;
 
 #[derive(Debug)]
@@ -52,11 +51,8 @@ impl TestFixture {
     }
 
     #[instrument]
-    pub fn create_election_config(
-        &self,
-        election_event_id: &Uuid,
-    ) -> Result<super::elections::Election> {
-        let election = super::elections::get_election1(election_event_id);
+    pub fn create_election_config(&self, election_event_id: &Uuid) -> Result<ElectionConfig> {
+        let election = super::elections::get_election_config_1(election_event_id);
 
         let mut path = self
             .input_dir_configs
@@ -77,7 +73,7 @@ impl TestFixture {
         election_event_id: &Uuid,
         election_id: &Uuid,
     ) -> Result<Contest> {
-        let mut contest = super::contests::get_contest_1(tenant_id, election_event_id, election_id);
+        let contest = super::contests::get_contest_1(tenant_id, election_event_id, election_id);
 
         let dir = self
             .input_dir_configs
@@ -92,23 +88,63 @@ impl TestFixture {
     }
 
     #[instrument]
-    pub fn create_area_dir(&self, election_uuid: &Uuid, contest_uuid: &Uuid) -> Result<Uuid> {
-        let uuid = Uuid::new_v4();
+    pub fn create_contest_config_with_min_max_votes(
+        &self,
+        tenant_id: &Uuid,
+        election_event_id: &Uuid,
+        election_id: &Uuid,
+        min_votes: u64,
+        max_votes: u64,
+    ) -> Result<Contest> {
+        let contest = super::contests::get_contest_min_max_votes(
+            tenant_id,
+            election_event_id,
+            election_id,
+            min_votes,
+            max_votes,
+        );
+
+        let dir = self
+            .input_dir_configs
+            .join(format!("election__{}", &election_id))
+            .join(format!("contest__{}", &contest.id));
+        fs::create_dir_all(&dir)?;
+
+        let mut file = fs::File::create(dir.join("contest-config.json"))?;
+        writeln!(file, "{}", serde_json::to_string(&contest)?)?;
+
+        Ok(contest)
+    }
+
+    #[instrument]
+    pub fn create_area_config(
+        &self,
+        tenant_id: &Uuid,
+        election_event_id: &Uuid,
+        election_id: &Uuid,
+        contest_id: &Uuid,
+        census: u64,
+    ) -> Result<AreaConfig> {
+        let area_config =
+            super::areas::get_area_config(tenant_id, election_event_id, election_id, census);
 
         let dir_configs = self
             .input_dir_configs
-            .join(format!("election__{election_uuid}"))
-            .join(format!("contest__{contest_uuid}"))
-            .join(format!("area__{uuid}"));
+            .join(format!("election__{election_id}"))
+            .join(format!("contest__{contest_id}"))
+            .join(format!("area__{}", area_config.id));
         let dir_ballots = self
             .input_dir_ballots
-            .join(format!("election__{election_uuid}"))
-            .join(format!("contest__{contest_uuid}"))
-            .join(format!("area__{uuid}"));
-        fs::create_dir_all(dir_configs)?;
+            .join(format!("election__{election_id}"))
+            .join(format!("contest__{contest_id}"))
+            .join(format!("area__{}", area_config.id));
+        fs::create_dir_all(&dir_configs)?;
         fs::create_dir_all(dir_ballots)?;
 
-        Ok(uuid)
+        let mut file = fs::File::create(dir_configs.join("area-config.json"))?;
+        writeln!(file, "{}", serde_json::to_string(&area_config)?)?;
+
+        Ok(area_config)
     }
 }
 

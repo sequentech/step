@@ -2,13 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use sequent_core::plaintext::InvalidPlaintextErrorType;
 use std::collections::HashMap;
 use tracing::instrument;
 
-use super::CountingAlgorithm;
-use crate::pipes::do_tally::{
-    invalid_vote::InvalidVote, tally::Tally, CandidateResult, ContestResult,
-};
+use super::{CountingAlgorithm, Error};
+use crate::pipes::do_tally::{tally::Tally, CandidateResult, ContestResult, InvalidVotes};
 
 use super::Result;
 
@@ -30,71 +29,98 @@ impl CountingAlgorithm for PluralityAtLarge {
         let votes = &self.tally.ballots;
 
         let mut vote_count: HashMap<String, u64> = HashMap::new();
-        let mut vote_count_invalid: HashMap<InvalidVote, u64> = HashMap::new();
+        let mut count_invalid_votes = InvalidVotes {
+            explicit: 0,
+            implicit: 0,
+        };
         let mut count_valid: u64 = 0;
         let mut count_invalid: u64 = 0;
+        let mut count_blank: u64 = 0;
 
         for vote in votes {
             if !vote.invalid_errors.is_empty() {
                 if vote.is_explicit_invalid {
-                    *vote_count_invalid.entry(InvalidVote::Explicit).or_insert(0) += 1;
+                    count_invalid_votes.explicit += 1;
                 } else {
-                    *vote_count_invalid.entry(InvalidVote::Implicit).or_insert(0) += 1;
+                    count_invalid_votes.implicit += 1;
                 }
                 count_invalid += 1;
             } else {
+                let mut is_blank = true;
+
                 for choice in &vote.choices {
                     if choice.selected >= 0 {
                         *vote_count.entry(choice.id.clone()).or_insert(0) += 1;
-                        count_valid += 1;
+                        is_blank = false;
                     }
                 }
+
+                if is_blank {
+                    count_blank += 1;
+                }
+
+                count_valid += 1;
             }
         }
 
-        let result: Vec<CandidateResult> = vote_count
+        let result: Result<Vec<CandidateResult>> = vote_count
             .into_iter()
-            .map(|(id, total_count)| CandidateResult {
-                candidate: self
+            .map(|(id, total_count)| {
+                let candidate = self
                     .tally
                     .contest
                     .candidates
                     .iter()
                     .find(|c| c.id == id)
                     .cloned()
-                    .unwrap(),
-                total_count,
+                    .ok_or(Error::CandidateNotFound(id))?;
+
+                Ok(CandidateResult {
+                    candidate,
+                    total_count,
+                })
             })
             .collect();
+        let result = result?;
 
-        let result = contest
+        let result: Result<Vec<CandidateResult>> = contest
             .candidates
             .iter()
             .map(|c| {
-                result
-                    .iter()
-                    .find(|rc| rc.candidate.id == c.id)
-                    .cloned()
-                    .unwrap_or(CandidateResult {
-                        candidate: self
-                            .tally
-                            .contest
-                            .candidates
-                            .iter()
-                            .find(|rc| rc.id == c.id)
-                            .unwrap()
-                            .clone(),
-                        total_count: 0,
-                    })
+                let candidate_result = result.iter().find(|rc| rc.candidate.id == c.id).cloned();
+
+                if let Some(candidate_result) = candidate_result {
+                    Ok(candidate_result)
+                } else {
+                    let candidate = self
+                        .tally
+                        .contest
+                        .candidates
+                        .iter()
+                        .find(|rc| rc.id == c.id)
+                        .cloned();
+
+                    if let Some(candidate) = candidate {
+                        return Ok(CandidateResult {
+                            candidate,
+                            total_count: 0,
+                        });
+                    }
+
+                    Err(Error::CandidateNotFound(c.id.to_string()))
+                }
             })
-            .collect::<Vec<CandidateResult>>();
+            .collect();
+        let result = result?;
 
         let contest_result = ContestResult {
             contest: self.tally.contest.clone(),
             total_votes: count_valid + count_invalid,
             total_valid_votes: count_valid,
             total_invalid_votes: count_invalid,
-            invalid_votes: vote_count_invalid,
+            total_blank_votes: count_blank,
+            invalid_votes: count_invalid_votes,
+            census: self.tally.census,
             candidate_result: result,
         };
 

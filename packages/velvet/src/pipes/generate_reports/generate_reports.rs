@@ -13,25 +13,23 @@ use sequent_core::{
     ballot::{Candidate, Contest},
     services::{pdf, reports},
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::pipes::{
-    do_tally::invalid_vote::InvalidVote,
-    error::{Error, Result},
-};
+use crate::pipes::error::{Error, Result};
 use crate::pipes::{
     do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE},
     mark_winners::{WinnerResult, OUTPUT_WINNERS},
-    pipe_inputs::{PipeInputs, PREFIX_ELECTION},
+    pipe_inputs::PipeInputs,
     pipe_name::PipeNameOutputDir,
     Pipe,
 };
 
 const OUTPUT_PDF: &str = "report.pdf";
 const OUTPUT_HTML: &str = "report.html";
+const OUTPUT_JSON: &str = "report.json";
 
 pub struct GenerateReports {
     pub pipe_inputs: PipeInputs,
@@ -102,30 +100,32 @@ impl GenerateReports {
     }
 
     #[instrument(skip_all)]
-    pub fn generate_report(&self, reports: Vec<ReportData>) -> Result<(Vec<u8>, Vec<u8>)> {
+    pub fn generate_report(&self, reports: Vec<ReportData>) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
         let reports = self.compute_reports(reports)?;
+        let reports = serde_json::to_value(reports)?;
 
         let mut map = Map::new();
 
-        map.insert("reports".to_owned(), serde_json::to_value(reports)?);
+        map.insert("reports".to_owned(), reports.clone());
 
         let html = include_str!("../../resources/report.hbs");
 
-        let render = reports::render_template_text(&html, map).map_err(|e| {
+        let render = reports::render_template_text(html, map).map_err(|e| {
             Error::UnexpectedError(format!(
                 "Error during render_template_text from report.hbs template file: {}",
-                e.to_string()
+                e
             ))
         })?;
 
-        let bytes_pdf = pdf::html_to_pdf(render).map_err(|e| {
-            Error::UnexpectedError(format!(
-                "Error during html_to_pdf conversion: {}",
-                e.to_string()
-            ))
+        let bytes_pdf = pdf::html_to_pdf(render.clone()).map_err(|e| {
+            Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
         })?;
 
-        Ok((bytes_pdf, html.as_bytes().to_vec()))
+        Ok((
+            bytes_pdf,
+            render.as_bytes().to_vec(),
+            reports.to_string().as_bytes().to_vec(),
+        ))
     }
 
     #[instrument(skip(self))]
@@ -241,12 +241,7 @@ impl GenerateReports {
         area_id: Option<&Uuid>,
         contest: Contest,
     ) -> Result<ReportData> {
-        let mut contest_result = self.read_contest_result(election_id, contest_id, area_id)?;
-
-        let defaults = default_invalid_votes();
-        for (key, value) in defaults {
-            contest_result.invalid_votes.entry(key).or_insert(value);
-        }
+        let contest_result = self.read_contest_result(election_id, contest_id, area_id)?;
 
         let winners = self.read_winners(election_id, contest_id, area_id)?;
 
@@ -269,9 +264,9 @@ impl GenerateReports {
         area_id: Option<&Uuid>,
         reports: Vec<ReportData>,
     ) -> Result<()> {
-        let (bytes_pdf, bytes_html) = self.generate_report(reports)?;
+        let (bytes_pdf, bytes_html, bytes_json) = self.generate_report(reports)?;
 
-        let mut path = PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
+        let path = PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id);
 
         fs::create_dir_all(&path)?;
 
@@ -280,7 +275,7 @@ impl GenerateReports {
             .write(true)
             .truncate(true)
             .create(true)
-            .open(&file)?;
+            .open(file)?;
         file.write_all(&bytes_pdf)?;
 
         let file = path.join(OUTPUT_HTML);
@@ -288,8 +283,16 @@ impl GenerateReports {
             .write(true)
             .truncate(true)
             .create(true)
-            .open(&file)?;
+            .open(file)?;
         file.write_all(&bytes_html)?;
+
+        let file = path.join(OUTPUT_JSON);
+        let mut file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(file)?;
+        file.write_all(&bytes_json)?;
 
         Ok(())
     }
@@ -303,7 +306,7 @@ impl Pipe for GenerateReports {
 
             for contest_input in &election_input.contest_list {
                 for area_input in &contest_input.area_list {
-                    let report = self.make_report(
+                    let _report = self.make_report(
                         &election_input.id,
                         Some(&contest_input.id),
                         Some(&area_input.id),
@@ -328,14 +331,6 @@ impl Pipe for GenerateReports {
     }
 }
 
-fn default_invalid_votes() -> HashMap<InvalidVote, u64> {
-    let mut map = HashMap::new();
-    map.insert(InvalidVote::Implicit, 0);
-    map.insert(InvalidVote::Explicit, 0);
-    map.insert(InvalidVote::Blank, 0);
-    map
-}
-
 #[derive(Debug, Clone)]
 pub struct ReportData {
     pub contest: Contest,
@@ -351,7 +346,7 @@ pub struct ElectionReportDataComputed {
     pub reports: Vec<ReportDataComputed>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ReportDataComputed {
     pub contest: Contest,
     pub area_id: Option<String>,
@@ -359,7 +354,7 @@ pub struct ReportDataComputed {
     pub candidate_result: Vec<CandidateResultForReport>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CandidateResultForReport {
     pub candidate: Candidate,
     pub total_count: u64,
