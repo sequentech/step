@@ -192,34 +192,65 @@ impl BoardClient {
         Ok(messages)
     }
 
-    pub async fn get_messages_from_kind(
+    pub async fn get_messages_filtered(
         &mut self,
         board_db: &str,
         kind: &str,
         sender_pk: &str,
+        min_ts: Option<i64>,
+        max_ts: Option<i64>,
     ) -> Result<Vec<BoardMessage>> {
-        self.get_from_kind(board_db, Table::BraidMessages, kind, sender_pk)
-            .await
+        self.get_filtered(
+            board_db,
+            Table::BraidMessages,
+            kind,
+            sender_pk,
+            min_ts,
+            max_ts,
+        )
+        .await
     }
 
-    pub async fn get_electoral_log_messages_from_kind(
+    pub async fn get_electoral_log_messages_filtered(
         &mut self,
         board_db: &str,
         kind: &str,
         sender_pk: &str,
+        min_ts: Option<i64>,
+        max_ts: Option<i64>,
     ) -> Result<Vec<BoardMessage>> {
-        self.get_from_kind(board_db, Table::ElectoralLogMessages, kind, sender_pk)
-            .await
+        self.get_filtered(
+            board_db,
+            Table::ElectoralLogMessages,
+            kind,
+            sender_pk,
+            min_ts,
+            max_ts,
+        )
+        .await
     }
 
-    /// Get all messages whose id is bigger than `last_id`
-    async fn get_from_kind(
+    async fn get_filtered(
         &mut self,
         board_db: &str,
         table: Table,
         kind: &str,
         sender_pk: &str,
+        min_ts: Option<i64>,
+        max_ts: Option<i64>,
     ) -> Result<Vec<BoardMessage>> {
+        let (min_clause, min_clause_value) = if let Some(min_ts) = min_ts {
+            ("AND created >= @min_ts", min_ts)
+        } else {
+            ("", 0)
+        };
+
+        let (max_clause, max_clause_value) = if let Some(max_ts) = max_ts {
+            ("AND created <= @max_ts", max_ts)
+        } else {
+            ("", 0)
+        };
+
         self.client.use_database(board_db).await?;
         let sql = format!(
             r#"
@@ -232,11 +263,16 @@ impl BoardClient {
             message
         FROM {}
         WHERE sender_pk = @sender_pk AND statement_kind = @statement_kind
+        {}
+        {}
         ORDER BY id;
         "#,
-            table.as_str()
+            table.as_str(),
+            min_clause,
+            max_clause,
         );
-        let params = vec![
+
+        let mut params = vec![
             NamedParam {
                 name: String::from("sender_pk"),
                 value: Some(SqlValue {
@@ -250,6 +286,22 @@ impl BoardClient {
                 }),
             },
         ];
+        if min_clause_value != 0 {
+            params.push(NamedParam {
+                name: String::from("min_ts"),
+                value: Some(SqlValue {
+                    value: Some(Value::Ts(min_clause_value)),
+                }),
+            })
+        }
+        if max_clause_value != 0 {
+            params.push(NamedParam {
+                name: String::from("max_ts"),
+                value: Some(SqlValue {
+                    value: Some(Value::Ts(max_clause_value)),
+                }),
+            })
+        }
 
         let sql_query_response = self.client.sql_query(&sql, params).await?;
         let messages = sql_query_response
@@ -615,7 +667,7 @@ pub(crate) mod tests {
         assert_eq!(board.database_name, BOARD_DB);
         let board_message = BoardMessage {
             id: 1,
-            created: 0,
+            created: 555,
             sender_pk: "".to_string(),
             statement_timestamp: 0,
             statement_kind: "".to_string(),
@@ -623,8 +675,39 @@ pub(crate) mod tests {
         };
         let messages = vec![board_message];
         b.insert_messages(BOARD_DB, &messages).await.unwrap();
+        b.insert_electoral_log_messages(BOARD_DB, &messages)
+            .await
+            .unwrap();
         let ret = b.get_messages(BOARD_DB, 0).await.unwrap();
         assert_eq!(messages, ret);
+        let ret = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
+        assert_eq!(messages, ret);
+        let ret = b
+            .get_electoral_log_messages_filtered(BOARD_DB, "", "", None, None)
+            .await
+            .unwrap();
+        assert_eq!(messages, ret);
+        let ret = b
+            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(1i64), None)
+            .await
+            .unwrap();
+        assert_eq!(messages, ret);
+        let ret = b
+            .get_electoral_log_messages_filtered(BOARD_DB, "", "", None, Some(556i64))
+            .await
+            .unwrap();
+        assert_eq!(messages, ret);
+        let ret = b
+            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(1i64), Some(556i64))
+            .await
+            .unwrap();
+        assert_eq!(messages, ret);
+        let ret = b
+            .get_electoral_log_messages_filtered(BOARD_DB, "", "", Some(556i64), Some(666i64))
+            .await
+            .unwrap();
+        assert_eq!(ret.len(), 0);
+
         tear_down(b).await;
     }
 }

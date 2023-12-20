@@ -126,10 +126,12 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
         }
 
         dkg_pk_message = b
-            .get_messages_from_kind(
+            .get_messages_filtered(
                 BOARD_DB,
                 &StatementType::PublicKey.to_string(),
                 &pk_strings[0],
+                None,
+                None,
             )
             .await
             .unwrap();
@@ -193,10 +195,12 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
         }
 
         plaintexts_out = b
-            .get_messages_from_kind(
+            .get_messages_filtered(
                 BOARD_DB,
                 &StatementType::Plaintexts.to_string(),
                 &pk_strings[selected_trustees[0] - 1],
+                None,
+                None,
             )
             .await
             .unwrap();
