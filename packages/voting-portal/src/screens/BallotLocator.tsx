@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
 import {PageLimit, theme} from "@sequentech/ui-essentials"
@@ -23,10 +27,10 @@ export default function BallotLocator() {
 
     const [inputBallotId, setInputBallotId] = useState<string>("")
 
-    function locate() {
-        navigate(
-            `/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${inputBallotId}`
-        )
+    function locate(withBallotId = false) {
+        let id = withBallotId ? inputBallotId : ""
+
+        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${id}`)
     }
 
     const hasBallotId = !!ballotId
@@ -41,20 +45,32 @@ export default function BallotLocator() {
                 <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
                     {t("ballotLocator.description")}
                 </Typography>
-                <TextField
-                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                        setInputBallotId(event.target.value)
-                    }}
-                    value={inputBallotId}
-                    InputLabelProps={{
-                        shrink: true,
-                    }}
-                    label="Ballot ID"
-                    placeholder="Type in your Ballot ID"
-                />
-                <Button className="normal" onClick={() => locate()}>
-                    <span>{t("ballotLocator.locate")}</span>
-                </Button>
+                {!hasBallotId && (
+                    <>
+                        <TextField
+                            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                                setInputBallotId(event.target.value)
+                            }}
+                            value={inputBallotId}
+                            InputLabelProps={{
+                                shrink: true,
+                            }}
+                            label="Ballot ID"
+                            placeholder="Type in your Ballot ID"
+                        />
+                        <Button className="normal" onClick={() => locate(true)}>
+                            <span>{t("ballotLocator.locate")}</span>
+                        </Button>
+                    </>
+                )}
+
+                {hasBallotId && (
+                    <>
+                        <Button className="normal" onClick={() => locate()}>
+                            <span>{t("ballotLocator.locate")}</span>
+                        </Button>
+                    </>
+                )}
             </PageLimit>
         </>
     )
