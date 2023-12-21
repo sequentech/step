@@ -17,8 +17,6 @@ import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 
-const OMIT_FIELDS = ["message"]
-
 export interface ElectoralLogListProps {
     aside?: ReactElement
 }
@@ -47,7 +45,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({aside}) => {
                 }}
                 aside={aside}
             >
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
+                <DatagridConfigurable bulkActionButtons={<></>}>
                     <NumberField source="id" />
                     <FunctionField
                         source="created"
@@ -60,7 +58,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({aside}) => {
                         }
                     />
                     <TextField source="statement_kind" />
-                    <TextField source="message" sx={{maxWidth: "200px"}} />
+                    <TextField source="message" sx={{wordBreak: 'break-word'}} />
                 </DatagridConfigurable>
             </List>
         </>
