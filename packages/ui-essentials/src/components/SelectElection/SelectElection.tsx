@@ -40,15 +40,6 @@ const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
             }
         `
             : ""}
-
-    ${({isactive}) =>
-        "true" === isactive
-            ? `
-            &:hover {
-                cursor: pointer;
-            }
-        `
-            : ""}
     @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
         position: relative;
         flex-direction: column;
@@ -187,7 +178,6 @@ const SelectElection: React.FC<SelectElectionProps> = ({
 
     return (
         <BorderBox
-            onClick={handleClickToVote}
             isopen={String(!!isOpen)}
             isactive={String(!!isActive)}
             role="button"
@@ -195,7 +185,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
         >
             <TextContainer>
                 <StyledTitle>{title}</StyledTitle>
-                <Box sx={{display: {xs: "none", md: "block"}}}>
+                <Box sx={{display: {xs: "none", md: "inline-flex"}}}>
                     <StyledLink href={electionHomeUrl} target="_blank">
                         {t("selectElection.electionWebsite")}
                     </StyledLink>
