@@ -147,7 +147,12 @@ const spanishTranslation: TranslationType = {
             },
         },
         ballotLocator: {
-            title: "Locate your ballot",
+            title: "Localiza tu boleta",
+            description: "Ingresa tu ID de boleta aquí para localizarla",
+            locate: "Localiza tu boleta",
+            locateAgain: "Localiza otra boleta",
+            found: "Tu ID de boleta {{ballotID}} ha sido localizada",
+            notFound: "Tu ID de boleta {{ballotID}} no ha sido localizada",
         },
     },
 }

@@ -55,9 +55,11 @@ export default function BallotLocator() {
                 <StyledTitle variant="h1">
                     <Box>{t("ballotLocator.title")}</Box>
                 </StyledTitle>
-                <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
-                    {t("ballotLocator.description")}
-                </Typography>
+                {
+                    // <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
+                    //     {t("ballotLocator.description")}
+                    // </Typography>
+                }
 
                 {hasBallotId && (
                     <Box>
@@ -83,7 +85,7 @@ export default function BallotLocator() {
                                 shrink: true,
                             }}
                             label="Ballot ID"
-                            placeholder="Type in your Ballot ID"
+                            placeholder={t("ballotLocator.description")}
                         />
                         <Button className="normal" onClick={() => locate(true)}>
                             <span>{t("ballotLocator.locate")}</span>
@@ -94,7 +96,7 @@ export default function BallotLocator() {
                 {hasBallotId && (
                     <>
                         <Button className="normal" onClick={() => locate()}>
-                            <span>{t("ballotLocator.locate")}</span>
+                            <span>{t("ballotLocator.locateAgain")}</span>
                         </Button>
                     </>
                 )}
