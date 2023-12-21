@@ -21,7 +21,6 @@ import {
 import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
-import {AuditableBallot} from "../fixtures/ballot"
 import TextField from "@mui/material/TextField"
 import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import JsonImg from "../public/json.png"
@@ -271,7 +270,12 @@ export const HomeScreen: React.FC<IProps> = ({
                 <StyledButton
                     sx={{width: {xs: "100%", sm: "200px"}}}
                     disabled={!isNextActive}
-                    onClick={() => isNextActive && navigate("/confirmation")}
+                    onClick={() =>
+                        isNextActive &&
+                        navigate(
+                            `/confirmation`
+                        )
+                    }
                 >
                     <span>{t("homeScreen.nextButton")}</span>
                     <Icon icon={faAngleRight} size="sm" />

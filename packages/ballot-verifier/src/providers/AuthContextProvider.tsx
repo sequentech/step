@@ -1,0 +1,242 @@
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React from "react"
+import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
+import {createContext, useEffect, useState} from "react"
+import {DEFAULT_TENANT_ID, DEFAULT_EVENT_ID, KEYCLOAK_URL, KEYCLOAK_CLIENT_ID} from "../Config"
+
+/**
+ * KeycloakConfig configures the connection to the Keycloak server.
+ */
+const keycloakConfig: (
+    tenantId: string,
+    eventId: string,
+    keycloakUrl: string,
+    clientId: string
+) => KeycloakConfig = (tenantId, eventId, keycloakUrl, clientId) => {
+    return {
+        realm: `tenant-${tenantId}-event-${eventId}`,
+        url: keycloakUrl,
+        clientId: clientId,
+    }
+}
+
+/**
+ * KeycloakInitOptions configures the Keycloak client.
+ */
+const keycloakInitOptions: KeycloakInitOptions = {
+    // Configure that Keycloak will check if a user is already authenticated
+    // (when opening the app or reloading the page). If not authenticated the
+    // user will be send to the login form. If already authenticated the webapp
+    // will open.
+    onLoad: "login-required",
+    checkLoginIframe: false,
+}
+
+// Create the Keycloak client instance
+var keycloak = new Keycloak(
+    keycloakConfig(DEFAULT_TENANT_ID, DEFAULT_EVENT_ID, KEYCLOAK_URL, KEYCLOAK_CLIENT_ID)
+)
+
+/**
+ * AuthContextValues defines the structure for the default values of the
+ * {@link AuthContext}.
+ */
+interface AuthContextValues {
+    /**
+     * Whether or not a user is currently authenticated
+     */
+    isAuthenticated: boolean
+    /**
+     * The name of the authenticated user
+     */
+    username: string
+    /**
+     * The name of the authenticated user
+     */
+    email: string
+    /**
+     * Function to initiate the logout
+     */
+    logout: () => void
+    /**
+     * Check if the user has the given role
+     */
+    hasRole: (role: string) => boolean
+    /**
+     * Get Access Token
+     */
+    getAccessToken: () => string | undefined
+
+    login: (tenantId: string, eventId: string) => void
+
+    openProfileLink: () => Promise<void>
+}
+
+/**
+ * Default values for the {@link AuthContext}
+ */
+const defaultAuthContextValues: AuthContextValues = {
+    isAuthenticated: false,
+    username: "",
+    email: "",
+    logout: () => {},
+    login: (tenantId: string, eventId: string) => {},
+    hasRole: (role) => false,
+    getAccessToken: () => undefined,
+    openProfileLink: () => new Promise(() => undefined),
+}
+
+/**
+ * Create the AuthContext using the default values.
+ */
+export const AuthContext = createContext<AuthContextValues>(defaultAuthContextValues)
+
+/**
+ * The props that must be passed to create the {@link AuthContextProvider}.
+ */
+interface AuthContextProviderProps {
+    /**
+     * The elements wrapped by the auth context.
+     */
+    children: JSX.Element
+}
+
+/**
+ * AuthContextProvider is responsible for managing the authentication state of the current user.
+ *
+ * @param props
+ */
+const AuthContextProvider = ({children}: AuthContextProviderProps) => {
+    // Create the local state in which we will keep track if a user is authenticated
+    const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
+    // Local state that will contain the users name once it is loaded
+    const [username, setUsername] = useState<string>("")
+    const [email, setEmail] = useState<string>("")
+
+    const [tenantId, setTenantId] = useState<string | null>(null)
+    const [eventId, setEventId] = useState<string | null>(null)
+
+    // Effect used to initialize the Keycloak client. It has no dependencies so
+    // it is only rendered when the app is (re-)loaded.
+    useEffect(() => {
+        /**
+         * Initialize the Keycloak instance
+         */
+        async function initializeKeycloak() {
+            console.log("initialize Keycloak")
+            if (!tenantId || !eventId) {
+                console.log("Received empty tenant or event id, ignoring..")
+                return
+            }
+            if (isAuthenticated) {
+                return
+            }
+            try {
+                // Create a new Keycloak instance with the updated configuration
+                keycloak = new Keycloak(
+                    keycloakConfig(tenantId, eventId, KEYCLOAK_URL, KEYCLOAK_CLIENT_ID)
+                )
+
+                const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
+
+                // If the authentication was not successfull the user is send
+                // back to the Keycloak login form
+                if (!isAuthenticatedResponse) {
+                    console.log("user is not yet authenticated. forwarding user to login.")
+                    if (localStorage.getItem("token")) {
+                        localStorage.removeItem("token")
+                    }
+                    logout()
+                    await keycloak.login()
+                }
+                if (isAuthenticatedResponse && keycloak.token) {
+                    localStorage.setItem("token", keycloak.token)
+                }
+                // If we get here the user is authenticated and we can update
+                // the state accordingly
+                console.log("user already authenticated")
+                setAuthenticated(isAuthenticatedResponse)
+            } catch (error) {
+                console.log("error initializing Keycloak")
+                console.log(error)
+                setAuthenticated(false)
+            }
+        }
+
+        initializeKeycloak()
+    }, [tenantId, eventId, isAuthenticated])
+
+    // This effect loads the users profile in order to extract the username
+    useEffect(() => {
+        /**
+         * Load the profile for of the user from Keycloak
+         */
+        async function loadProfile() {
+            try {
+                const profile = await keycloak.loadUserProfile()
+                if (profile.firstName) {
+                    setUsername(profile.firstName)
+                } else if (profile.username) {
+                    setUsername(profile.username)
+                }
+                if (profile.email) {
+                    setEmail(profile.email)
+                }
+            } catch {
+                console.log("error trying to load the users profile")
+            }
+        }
+        console.log(`useEffect(): isAuthenticated=${isAuthenticated}`)
+
+        // Only load the profile if a user is authenticated
+        if (isAuthenticated) {
+            loadProfile()
+        }
+    }, [isAuthenticated])
+
+    /**
+     * Initiate the logout
+     */
+    const logout = () => {
+        localStorage.removeItem("token")
+        keycloak.logout()
+    }
+
+    const login = (tenantId: string, eventId: string) => {
+        setTenantId(tenantId)
+        setEventId(eventId)
+    }
+
+    /**
+     * Check if the user has the given role
+     * @param role to be checked
+     * @returns whether or not if the user has the role
+     */
+    const hasRole = (role: string) => {
+        return keycloak.hasRealmRole(role)
+    }
+
+    const getAccessToken = () => keycloak.token
+
+    // Setup the context provider
+    return (
+        <AuthContext.Provider
+            value={{
+                isAuthenticated,
+                username,
+                email,
+                logout,
+                login,
+                hasRole,
+                getAccessToken,
+                openProfileLink: keycloak.accountManagement,
+            }}
+        >
+            {children}
+        </AuthContext.Provider>
+    )
+}
+
+export default AuthContextProvider
