@@ -110,7 +110,11 @@ const ActionButtons: React.FC = () => {
 }
 
 export const AuditScreen: React.FC = () => {
-    const {tenantId, eventId, electionId} = useParams<{tenantId?: string, eventId: string, electionId?: string}>()
+    const {tenantId, eventId, electionId} = useParams<{
+        tenantId?: string
+        eventId: string
+        electionId?: string
+    }>()
     const {globalSettings} = useContext(SettingsContext)
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const {t} = useTranslation()

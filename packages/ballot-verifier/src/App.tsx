@@ -4,7 +4,7 @@
 import React, {useContext, useEffect, useState} from "react"
 import {Routes, Route, useNavigate, Navigate} from "react-router-dom"
 import {styled} from "@mui/material/styles"
-import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
+import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
 import {HomeScreen} from "./screens/HomeScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
 import Stack from "@mui/material/Stack"
@@ -14,7 +14,6 @@ import {DEFAULT_EVENT_ID, DEFAULT_TENANT_ID, DISABLE_AUTH} from "./Config"
 import {RouteParameterProvider} from "."
 import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
 import {LoginScreen} from "./screens/LoginScreen"
-import { NotFoundScreen } from './screens/NotFoundScreen'
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
