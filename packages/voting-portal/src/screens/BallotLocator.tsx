@@ -67,9 +67,9 @@ export default function BallotLocator() {
                         data["sequent_backend_cast_vote"]
                             .map((item: any) => item.ballot_id)
                             .some((id: string) => id === ballotId) ? (
-                            <p>hello</p>
+                            <p>{t("ballotLocator.found", {ballotId})}</p>
                         ) : (
-                            <p>good bye</p>
+                            <p>{t("ballotLocator.notFound")}</p>
                         )}
                     </Box>
                 )}

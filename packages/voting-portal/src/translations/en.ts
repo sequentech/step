@@ -148,8 +148,8 @@ const englishTranslation = {
             description: "Put your ballot ID here to locate it",
             locate: "Locate your ballot",
             locateAgain: "Locate another ballot",
-            found: "Your ballot ID {{ballotID}} has been located",
-            notFound: "Your ballot ID {{ballotID}} has not been located",
+            found: "Your ballot ID {{ballotId}} has been located",
+            notFound: "Your ballot ID {{ballotId}} has not been located",
         },
     },
 }
