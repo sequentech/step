@@ -4,10 +4,11 @@ import {useQuery} from "@apollo/client"
 import {useContext} from "react"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import globalSettings from "@/global-settings"
+import { SettingsContext } from "@/providers/SettingsContextProvider"
 
 export function useTreeMenuData(isArchivedElectionEvents: boolean) {
     const [tenantId] = useTenantStore()
+    const {globalSettings} = useContext(SettingsContext)
 
     return useQuery(FETCH_ELECTION_EVENTS_TREE, {
         variables: {

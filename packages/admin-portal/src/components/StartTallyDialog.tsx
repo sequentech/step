@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {Dialog, downloadUrl} from "@sequentech/ui-essentials"
 import {
     Box,
@@ -31,7 +31,7 @@ import {CREATE_SCHEDULED_EVENT} from "../queries/CreateScheduledEvent"
 import {ScheduledEventType} from "../services/ScheduledEvent"
 import {useTenantStore} from "../providers/TenantContextProvider"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
-import globalSettings from "@/global-settings"
+import { SettingsContext } from "@/providers/SettingsContextProvider"
 
 const Horizontal = styled(Box)`
     display: flex;
@@ -154,6 +154,7 @@ export const StartTallyDialog: React.FC<StartTallyDialogProps> = ({
     const [tallySessionId, setTallySessionId] = useState<string | null>(null)
     const [documentId, setDocumentId] = useState<string | null>(null)
     const refresh = useRefresh()
+    const {globalSettings} = useContext(SettingsContext)
     const {data, total, isLoading, error} = useGetList<Sequent_Backend_Trustee>(
         "sequent_backend_trustee",
         {

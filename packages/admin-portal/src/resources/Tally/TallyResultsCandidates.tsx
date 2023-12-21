@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useGetList, useGetOne} from "react-admin"
 
 import {
@@ -22,7 +22,7 @@ import {
     TableBody,
     Typography,
 } from "@mui/material"
-import globalSettings from "@/global-settings"
+import { SettingsContext } from "@/providers/SettingsContextProvider"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -37,6 +37,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
     const {areaId, contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate>>([])
     const {t} = useTranslation()
+    const {globalSettings} = useContext(SettingsContext)
 
     const {data: candidates} = useGetList<
         Sequent_Backend_Candidate & {

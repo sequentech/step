@@ -26,7 +26,7 @@ import {
 } from "@/gql/graphql"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
-import globalSettings from "@/global-settings"
+import { SettingsContext } from "@/providers/SettingsContextProvider"
 
 const WizardSteps = {
     Start: 0,
@@ -49,6 +49,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
     const [trusteeStatus, setTrusteeStatus] = useState<String | null>(null)
+    const {globalSettings} = useContext(SettingsContext)
 
     const {data} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",

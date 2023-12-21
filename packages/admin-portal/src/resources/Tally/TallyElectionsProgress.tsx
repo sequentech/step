@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useGetOne, useGetMany, useGetList, useReferenceOneFieldController} from "react-admin"
 
 import {
@@ -15,12 +15,13 @@ import {ElectionStatusItem} from "@/components/ElectionStatusItem"
 import styled from "@emotion/styled"
 import {LinearProgress, Typography, linearProgressClasses} from "@mui/material"
 import {useTranslation} from "react-i18next"
-import globalSettings from "@/global-settings"
+import { SettingsContext } from "@/providers/SettingsContextProvider"
 
 export const TallyElectionsProgress: React.FC = () => {
     const {tallyId} = useElectionEventTallyStore()
     const {t} = useTranslation()
     const [rand, setRand] = useState<number>(0)
+    const {globalSettings} = useContext(SettingsContext)
 
     const [electionsData, setElectionsData] = useState<
         Array<

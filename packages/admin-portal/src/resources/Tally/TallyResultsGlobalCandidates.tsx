@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useGetList, useGetOne} from "react-admin"
 
 import {
@@ -22,7 +22,7 @@ import {
     TableCell,
     TableHead,
 } from "@mui/material"
-import globalSettings from "@/global-settings"
+import { SettingsContext } from "@/providers/SettingsContextProvider"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -37,6 +37,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
 ) => {
     const {contestId, electionId, electionEventId, tenantId, resultsEventId} = props
     const {t} = useTranslation()
+    const {globalSettings} = useContext(SettingsContext)
 
     const [resultsData, setResultsData] = useState<
         Array<

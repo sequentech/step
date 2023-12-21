@@ -7,7 +7,6 @@ import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
 import {isArray, isNull, isString, sleep} from "@sequentech/ui-essentials"
 import {IPermissions} from "@/types/keycloak"
-import globalSettings from "@/global-settings"
 
 /**
  * KeycloakConfig configures the connection to the Keycloak server.

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React from "react"
+import React, { useContext } from "react"
 import {Box, CircularProgress} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {useGetList, useGetOne, useRecordContext} from "react-admin"
@@ -17,8 +17,8 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
 import StatItem from "./StatItem"
-import globalSettings from "@/global-settings"
 import {IElectionEventStatistics} from "@/types/CoreTypes"
+import { SettingsContext } from "@/providers/SettingsContextProvider"
 
 const CardList = styled(Box)`
     display: flex;
@@ -30,6 +30,7 @@ const CardList = styled(Box)`
 export default function Stats({forElection = false}: {forElection?: boolean}) {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
+    const {globalSettings} = useContext(SettingsContext)
 
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const electionEventId = record.id
