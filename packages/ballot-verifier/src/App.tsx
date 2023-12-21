@@ -10,10 +10,10 @@ import {ConfirmationScreen} from "./screens/ConfirmationScreen"
 import Stack from "@mui/material/Stack"
 import {IConfirmationBallot, provideBallotService} from "./services/BallotService"
 import {AuthContext} from "./providers/AuthContextProvider"
-import {DEFAULT_EVENT_ID, DEFAULT_TENANT_ID, DISABLE_AUTH} from "./Config"
 import {RouteParameterProvider} from "."
 import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
 import {LoginScreen} from "./screens/LoginScreen"
+import {SettingsContext} from "./providers/SettingsContextProvider"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -36,20 +36,23 @@ const HeaderWithContext: React.FC = () => {
 
 const App = () => {
     const navigate = useNavigate()
+    const {globalSettings} = useContext(SettingsContext)
     const [confirmationBallot, setConfirmationBallot] = useState<IConfirmationBallot | null>(null)
     const [ballotId, setBallotId] = useState<string>("")
     const [fileName, setFileName] = useState("")
     const ballotService = provideBallotService()
 
     useEffect(() => {
-        if (DISABLE_AUTH) {
-            navigate(`/tenant/${DEFAULT_TENANT_ID}/event/${DEFAULT_EVENT_ID}/start`)
+        if (globalSettings.DISABLE_AUTH) {
+            navigate(
+                `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/start`
+            )
         }
     }, [navigate])
 
     return (
         <StyledApp>
-            {DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
+            {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
             <PageBanner marginBottom="auto">
                 <Routes>
                     <Route path="*" element={<NotFoundScreen />} />
@@ -58,7 +61,7 @@ const App = () => {
                         element={
                             <Navigate
                                 replace
-                                to={`/tenant/${DEFAULT_TENANT_ID}/event/${DEFAULT_EVENT_ID}/login`}
+                                to={`/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/login`}
                             />
                         }
                     />

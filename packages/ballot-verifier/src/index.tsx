@@ -11,9 +11,8 @@ import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 import AuthContextProvider from "./providers/AuthContextProvider"
-import {DISABLE_AUTH} from "./Config"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
-import {SettingsWrapper} from "./providers/SettingsContextProvider"
+import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -78,15 +77,22 @@ export const RouteParameterProvider: React.FC<{children: React.ReactNode}> = ({c
     )
 }
 
+export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({children}) => {
+    const {globalSettings} = useContext(SettingsContext)
+    return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
+}
+
 root.render(
     <React.StrictMode>
-        <KeycloakProvider disable={DISABLE_AUTH}>
-            <BrowserRouter>
-                <ThemeProvider theme={theme}>
-                    <App />
-                </ThemeProvider>
-            </BrowserRouter>
-        </KeycloakProvider>
+        <SettingsWrapper>
+            <KeycloakProviderContainer>
+                <BrowserRouter>
+                    <ThemeProvider theme={theme}>
+                        <App />
+                    </ThemeProvider>
+                </BrowserRouter>
+            </KeycloakProviderContainer>
+        </SettingsWrapper>
     </React.StrictMode>
 )
 
