@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
-use strand::hash::Hash;
+use strand::hash::{Hash, HashWrapper};
 
 #[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
@@ -23,10 +23,28 @@ pub struct BallotPublicationIdString(pub String);
 )]
 pub struct CastVoteErrorString(pub String);
 
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct PseudonymHash(pub Hash);
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct PseudonymHash(pub HashWrapper);
 
-#[derive(BorshSerialize, BorshDeserialize, Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct CastVoteHash(pub Hash);
+impl PseudonymHash {
+    // Provide methods to work with HashWrapper as needed
+    pub fn new(hash: Hash) -> Self {
+        PseudonymHash(HashWrapper::new(hash))
+    }
+}
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct CastVoteHash(pub HashWrapper);
+
+impl CastVoteHash {
+    // Provide methods to work with HashWrapper as needed
+    pub fn new(hash: Hash) -> Self {
+        CastVoteHash(HashWrapper::new(hash))
+    }
+}
 
 pub type Timestamp = u64;

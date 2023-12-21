@@ -1,9 +1,11 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 use strum::Display;
 
 use crate::electoral_log::newtypes::*;
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
 pub struct Statement {
     pub head: StatementHead,
     pub body: StatementBody,
@@ -14,7 +16,7 @@ impl Statement {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
 pub struct StatementHead {
     pub event: EventIdString,
     pub kind: StatementType,
@@ -44,7 +46,7 @@ impl StatementHead {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
 pub enum StatementBody {
     // NOT IMPLEMENTED YET, but please feel free
     // "Emisión de voto (sólo como registro que el sistema almacenó correctamente el voto)
@@ -87,7 +89,7 @@ pub enum StatementBody {
     TallyClose(ElectionIdString),
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Display)]
+#[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug)]
 pub enum StatementType {
     CastVote,
     CastVoteError,

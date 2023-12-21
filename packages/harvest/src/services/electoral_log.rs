@@ -9,6 +9,7 @@ use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
 };
 use anyhow::{anyhow, Context, Result};
+use board_messages::electoral_log::message::Message;
 use immu_board::assign_value;
 use immu_board::util::get_event_board;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
@@ -20,6 +21,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
+use strand::serialization::StrandDeserialize;
 use strum_macros::{Display, EnumString, ToString};
 use tracing::{event, instrument, Level};
 use windmill::services::database::PgConfig;
@@ -33,6 +35,7 @@ pub enum OrderField {
     Created,
     StatementTimestamp,
     StatementKind,
+    Message,
 }
 
 #[derive(Deserialize, Debug)]
@@ -67,7 +70,9 @@ impl GetElectoralLogBody {
                             Value::N(int_value),
                         ));
                     }
-                    OrderField::StatementTimestamp | OrderField::Created => {}
+                    OrderField::StatementTimestamp
+                    | OrderField::Created
+                    | OrderField::Message => {}
                     _ => {
                         where_clauses
                             .push(format!("{field} LIKE @{}", param_name));
@@ -129,6 +134,7 @@ pub struct ElectoralLogRow {
     created: i64,
     statement_timestamp: i64,
     statement_kind: String,
+    message: String,
 }
 
 impl TryFrom<&Row> for ElectoralLogRow {
@@ -137,8 +143,10 @@ impl TryFrom<&Row> for ElectoralLogRow {
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         let mut id = 0;
         let mut created: i64 = 0;
+        let mut sender_pk = String::from("");
         let mut statement_timestamp: i64 = 0;
         let mut statement_kind = String::from("");
+        let mut message = vec![];
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             match column.as_str() {
@@ -148,11 +156,17 @@ impl TryFrom<&Row> for ElectoralLogRow {
                 c if c.ends_with(".created)") => {
                     assign_value!(Value::Ts, value, created)
                 }
+                c if c.ends_with(".sender_pk)") => {
+                    assign_value!(Value::S, value, sender_pk)
+                }
                 c if c.ends_with(".statement_timestamp)") => {
                     assign_value!(Value::Ts, value, statement_timestamp)
                 }
                 c if c.ends_with(".statement_kind)") => {
                     assign_value!(Value::S, value, statement_kind)
+                }
+                c if c.ends_with(".message)") => {
+                    assign_value!(Value::Bs, value, message)
                 }
                 _ => {
                     return Err(anyhow!(
@@ -167,6 +181,11 @@ impl TryFrom<&Row> for ElectoralLogRow {
             created,
             statement_timestamp,
             statement_kind,
+            message: serde_json::to_string_pretty(
+                &Message::strand_deserialize(&message)
+                    .with_context(|| "Error deserializing message")?,
+            )
+            .with_context(|| "Error serializing message to json")?,
         })
     }
 }
@@ -191,8 +210,10 @@ pub async fn list_electoral_log(
         SELECT
             id,
             created,
+            sender_pk,
             statement_timestamp,
-            statement_kind
+            statement_kind,
+            message
         FROM electoral_log_messages
         {clauses}
         "#,

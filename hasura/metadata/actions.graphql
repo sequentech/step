@@ -503,6 +503,7 @@ type ElectoralLogRow {
   created : Int!
   statement_timestamp : Int!
   statement_kind : String!
+  message: String!
 }
 
 type DataListElectoralLog {

@@ -16,7 +16,7 @@ use crate::electoral_log::newtypes::EventIdString;
 
 use super::newtypes::*;
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, std::fmt::Debug)]
 pub struct Message {
     pub sender: Sender,
     pub sender_signature: StrandSignature,
@@ -171,7 +171,7 @@ impl TryFrom<Message> for BoardMessage {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, std::fmt::Debug)]
 pub struct Sender {
     pub name: String,
     pub pk: StrandSignaturePk,
