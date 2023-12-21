@@ -220,7 +220,7 @@ export const ElectionSelectionScreen: React.FC = () => {
 
     useEffect(() => {
         console.log("i18n.language", i18n.language)
-    }, [i18n.language]);
+    }, [i18n.language])
 
     useEffect(() => {
         if (DISABLE_AUTH) {

@@ -25,7 +25,7 @@ import TextField from "@mui/material/TextField"
 import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import JsonImg from "../public/json.png"
 import Image from "mui-image"
-import { TenantEventContext } from '..'
+import {TenantEventContext} from ".."
 
 const ActionsContainer = styled(Box)`
     display: flex;

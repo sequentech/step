@@ -25,7 +25,7 @@ import {
     getLinkUrl,
 } from "../../services/ElectionConfigService"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
-import { useTranslation } from 'react-i18next'
+import {useTranslation} from "react-i18next"
 
 export interface IAnswerProps {
     answer: ICandidate

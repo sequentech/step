@@ -15,7 +15,7 @@ import {
     stringToHtml,
     isUndefined,
     Dialog,
-    translateElection
+    translateElection,
 } from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"

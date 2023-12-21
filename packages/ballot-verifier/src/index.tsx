@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, { useContext } from "react"
+import React, {useContext} from "react"
 import ReactDOM from "react-dom/client"
 import {BrowserRouter, useParams} from "react-router-dom"
 import "./index.css"
@@ -10,8 +10,8 @@ import "./services/i18n"
 import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
-import AuthContextProvider from './providers/AuthContextProvider'
-import { DISABLE_AUTH } from './Config'
+import AuthContextProvider from "./providers/AuthContextProvider"
+import {DISABLE_AUTH} from "./Config"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
@@ -62,7 +62,6 @@ const KeycloakProvider: React.FC<KeycloakProviderProps> = ({disable, children}) 
         </AuthContextProvider>
     )
 }
-
 
 export const RouteParameterProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
     const {tenantId, eventId} = useParams<{tenantId: string; eventId: string}>()
