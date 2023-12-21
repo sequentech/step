@@ -13,6 +13,7 @@ import {theme} from "@sequentech/ui-essentials"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {DISABLE_AUTH} from "./Config"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
+import {SettingsWrapper} from "./providers/SettingsContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 

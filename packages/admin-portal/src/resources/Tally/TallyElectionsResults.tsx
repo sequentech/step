@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useContext, useEffect, useState} from "react"
 import {useGetMany, useGetList} from "react-admin"
 
 import {Sequent_Backend_Election, Sequent_Backend_Results_Election} from "../../gql/graphql"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {useTranslation} from "react-i18next"
-import globalSettings from "@/global-settings"
 import {NoItem} from "@/components/NoItem"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -20,6 +20,7 @@ interface TallyElectionsResultsProps {
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
     const {tenantId, electionEventId, resultsEventId, electionIds} = props
     const {t} = useTranslation()
+    const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<
         Array<
             Sequent_Backend_Election & {
