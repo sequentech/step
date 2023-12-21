@@ -22,6 +22,19 @@ const StyledTitle = styled(Typography)`
     margin-top: 20px;
     margin-bottom: 16px;
 `
+
+const StyleParagraphSuccess = styled(Typography)`
+    margin-top: 25.5px;
+    padding: 8px 16px;
+    background-color: ${({theme}) => theme.palette.green.light};
+`
+
+const StyleParagraphDanger = styled(Typography)`
+    margin-top: 25.5px;
+    padding: 8px 16px;
+    background-color: ${({theme}) => theme.palette.red.light};
+`
+
 export default function BallotLocator() {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const navigate = useNavigate()
@@ -67,9 +80,13 @@ export default function BallotLocator() {
                         data["sequent_backend_cast_vote"]
                             .map((item: any) => item.ballot_id)
                             .some((id: string) => id === ballotId) ? (
-                            <p>{t("ballotLocator.found", {ballotId})}</p>
+                            <StyleParagraphSuccess>
+                                {t("ballotLocator.found", {ballotId})}
+                            </StyleParagraphSuccess>
                         ) : (
-                            <p>{t("ballotLocator.notFound")}</p>
+                            <StyleParagraphDanger>
+                                {t("ballotLocator.notFound", {ballotId})}
+                            </StyleParagraphDanger>
                         )}
                     </Box>
                 )}
