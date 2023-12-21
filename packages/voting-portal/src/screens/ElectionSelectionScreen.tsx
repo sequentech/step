@@ -27,10 +27,10 @@ import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSl
 import {IElection, selectElectionById, setElection} from "../store/elections/electionsSlice"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {AppDispatch} from "../store/store"
-import {DISABLE_AUTH} from "../Config"
 import {ELECTIONS_LIST} from "../fixtures/election"
 import {TenantEventContext} from ".."
 import {AuthContext} from "../providers/AuthContextProvider"
+import {SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -176,8 +176,6 @@ const convertToElection = (input: IElectionDTO): IElection => ({
 })
 
 export const ElectionSelectionScreen: React.FC = () => {
-    const authContext = useContext(AuthContext)
-
     const [ballotStyleElectionIds, setBallotStyleElectionIds] = useState<Array<string>>([])
     const {loading, error, data} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
     const {
@@ -190,6 +188,7 @@ export const ElectionSelectionScreen: React.FC = () => {
         },
     })
     const dispatch = useAppDispatch()
+    const {globalSettings} = useContext(SettingsContext)
     const {t} = useTranslation()
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
 
@@ -217,7 +216,7 @@ export const ElectionSelectionScreen: React.FC = () => {
     }, [loading, error, data, dispatch])
 
     useEffect(() => {
-        if (DISABLE_AUTH) {
+        if (globalSettings.DISABLE_AUTH) {
             setElectionIds(ELECTIONS_LIST.map((election) => election.id))
         }
 
