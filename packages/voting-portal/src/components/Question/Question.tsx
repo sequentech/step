@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
 import {Box} from "@mui/material"
-import {theme, stringToHtml, shuffle, splitList, keyBy} from "@sequentech/ui-essentials"
+import {theme, stringToHtml, shuffle, splitList, keyBy, translate} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
 import {IContest} from "sequent-core"
@@ -23,6 +23,7 @@ import {
 } from "../../services/CategoryService"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {InvalidErrorsList} from "../InvalidErrorsList/InvalidErrorsList"
+import {useTranslation} from "react-i18next"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -53,6 +54,7 @@ export const Question: React.FC<IQuestionProps> = ({
     isReview,
     setDisableNext,
 }) => {
+    const {i18n} = useTranslation()
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
@@ -98,10 +100,12 @@ export const Question: React.FC<IQuestionProps> = ({
 
     return (
         <Box>
-            <StyledTitle variant="h5">{question.name || ""}</StyledTitle>
+            <StyledTitle variant="h5">
+                {translate(question, "name", i18n.language) || ""}
+            </StyledTitle>
             {question.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(question.description)}
+                    {stringToHtml(translate(question, "description", i18n.language) || "")}
                 </Typography>
             ) : null}
             <CandidatesWrapper>
