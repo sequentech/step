@@ -51,12 +51,12 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({aside}) => {
                     <NumberField source="id" />
                     <FunctionField
                         source="created"
-                        render={(record: any) => new Date(record.created / 1000).toUTCString()}
+                        render={(record: any) => new Date(record.created * 1000).toUTCString()}
                     />
                     <FunctionField
                         source="statement_timestamp"
                         render={(record: any) =>
-                            new Date(record.statement_timestamp / 1000).toUTCString()
+                            new Date(record.statement_timestamp * 1000).toUTCString()
                         }
                     />
                     <TextField source="statement_kind" />
