@@ -7,7 +7,7 @@ import {useTranslation} from "react-i18next"
 import {PageLimit, theme} from "@sequentech/ui-essentials"
 import {Box, TextField, Typography, Button} from "@mui/material"
 import {styled} from "@mui/material/styles"
-import {useNavigate, useParams} from "react-router-dom"
+import {Link, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {useQuery} from "@apollo/client"
 
@@ -52,7 +52,7 @@ export default function BallotLocator() {
 
     const hasBallotId = !!ballotId
 
-    const {data} = useQuery(GET_CAST_VOTE, {
+    const {data, loading} = useQuery(GET_CAST_VOTE, {
         variables: {
             tenantId,
             electionEventId: eventId,
@@ -74,7 +74,7 @@ export default function BallotLocator() {
                     // </Typography>
                 }
 
-                {hasBallotId && (
+                {hasBallotId && !loading && (
                     <Box>
                         {data &&
                         data["sequent_backend_cast_vote"]
@@ -117,6 +117,12 @@ export default function BallotLocator() {
                         </Button>
                     </>
                 )}
+
+                <Box sx={{marginTop: "32px"}}>
+                    <Link to={`/tenant/${tenantId}/event/${eventId}/election-chooser`}>
+                        {t("votingScreen.backButton")}
+                    </Link>
+                </Box>
             </PageLimit>
         </>
     )
