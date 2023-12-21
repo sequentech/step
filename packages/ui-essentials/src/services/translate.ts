@@ -1,11 +1,20 @@
-export const translate = (object: any, key: string, lang: string): string | undefined => {
-    if (object && object[key]) {
-        if (object[`${key}_i18n`]) {
-            return object[`${key}_i18n`][lang] || object[key]["en"]
+type TranslationDict = {[lang: string]: string}
+
+export const translate = <T, K extends keyof T>(
+    input: T,
+    key: K,
+    lang: string
+): string | undefined => {
+    const i18n_key = `${String(key)}_i18n`
+    if ((input as any)[i18n_key]) {
+        let dict = (input as any)[i18n_key] as TranslationDict
+
+        if (lang in dict) {
+            return dict[lang]
         }
-        return object[key]
     }
-    return undefined
+
+    return input[key] as string
 }
 
 export const translateElection = (object: any, key: string, lang: string): string => {
