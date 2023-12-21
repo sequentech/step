@@ -108,31 +108,27 @@ fn process_plaintexts(
                     .iter()
                     .find(|tsc| tsc.session_id == batch_num as i64);
 
-                let contest = tally_session_contest_opt.and_then(|tally_session_contest| {
+                let ballot_style_opt = if let Some(tally_session_contest) = tally_session_contest_opt {
                     ballot_styles
-                        .iter()
-                        .find(|ballot_style| ballot_style.area_id == tally_session_contest.area_id)
-                        .and_then(|ballot_style| {
-                            ballot_style
-                                .contests
-                                .iter()
-                                .find(|contest| contest.id == tally_session_contest.contest_id)
-                        })
-                });
-
-                let ballot_style_opt = ballot_styles.iter().find(|b| {
-                    if let Some(tally_session_contest) = tally_session_contest_opt {
-                        if b.contests
+                    .iter()
+                    .find(|ballot_style|
+                        ballot_style.area_id == tally_session_contest.area_id &&
+                        ballot_style.election_id == tally_session_contest.election_id &&
+                        ballot_style
+                            .contests
                             .iter()
-                            .any(|c| c.id == tally_session_contest.contest_id)
-                        {
-                            return true;
-                        }
-                        return false;
-                    }
+                            .any(|contest| contest.id == tally_session_contest.contest_id)
+                    )
+                } else { None };
 
-                    false
-                });
+                let contest = if let Some(tally_session_contest) = tally_session_contest_opt {
+                    ballot_style_opt.map(|ballot_style| ballot_style
+                        .contests
+                        .iter()
+                        .find(|contest| contest.id == tally_session_contest.contest_id)
+                    )
+                        .flatten()
+                } else { None };
 
                 (
                     plaintexts,
