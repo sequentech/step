@@ -28,7 +28,7 @@ import {
     WarnBox,
     Dialog,
     theme,
-    translate
+    translate,
 } from "@sequentech/ui-essentials"
 import {keyBy} from "lodash"
 import {ICandidate} from "sequent-core"
