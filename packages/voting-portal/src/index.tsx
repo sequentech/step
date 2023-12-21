@@ -13,11 +13,8 @@ import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
-import {ApolloProvider} from "@apollo/client"
-import {apolloClient} from "./services/ApolloService"
 import AuthContextProvider from "./providers/AuthContextProvider"
-import {DISABLE_AUTH} from "./Config"
-import {ApolloContextProvider} from "./providers/ApolloContextProvider"
+import {SettingsContext, SettingsWrapper} from "./providers/SettingsContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -78,17 +75,24 @@ export const RouteParameterProvider: React.FC<{children: React.ReactNode}> = ({c
     )
 }
 
+export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({children}) => {
+    const {globalSettings} = useContext(SettingsContext)
+    return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
+}
+
 root.render(
     <React.StrictMode>
-        <KeycloakProvider disable={DISABLE_AUTH}>
-            <Provider store={store}>
-                <BrowserRouter>
-                    <ThemeProvider theme={theme}>
-                        <App />
-                    </ThemeProvider>
-                </BrowserRouter>
-            </Provider>
-        </KeycloakProvider>
+        <SettingsWrapper>
+            <KeycloakProviderContainer>
+                <Provider store={store}>
+                    <BrowserRouter>
+                        <ThemeProvider theme={theme}>
+                            <App />
+                        </ThemeProvider>
+                    </BrowserRouter>
+                </Provider>
+            </KeycloakProviderContainer>
+        </SettingsWrapper>
     </React.StrictMode>
 )
 
