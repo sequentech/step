@@ -8,6 +8,8 @@ import {PageLimit, theme} from "@sequentech/ui-essentials"
 import {Box, TextField, Typography, Button} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {useNavigate, useParams} from "react-router-dom"
+import {GET_CAST_VOTE} from "../queries/GetCastVote"
+import {useQuery} from "@apollo/client"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -30,10 +32,21 @@ export default function BallotLocator() {
     function locate(withBallotId = false) {
         let id = withBallotId ? inputBallotId : ""
 
+        setInputBallotId("")
+
         navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${id}`)
     }
 
     const hasBallotId = !!ballotId
+
+    const {data} = useQuery(GET_CAST_VOTE, {
+        variables: {
+            tenantId,
+            electionEventId: eventId,
+            electionId,
+            ballotId,
+        },
+    })
 
     return (
         <>
@@ -45,6 +58,20 @@ export default function BallotLocator() {
                 <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
                     {t("ballotLocator.description")}
                 </Typography>
+
+                {hasBallotId && (
+                    <Box>
+                        {data &&
+                        data["sequent_backend_cast_vote"]
+                            .map((item: any) => item.ballot_id)
+                            .some((id: string) => id === ballotId) ? (
+                            <p>hello</p>
+                        ) : (
+                            <p>good bye</p>
+                        )}
+                    </Box>
+                )}
+
                 {!hasBallotId && (
                     <>
                         <TextField
