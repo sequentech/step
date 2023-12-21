@@ -180,7 +180,7 @@ async fn run_protocol_test_immudb<C: Ctx + 'static>(
     }
 
     let mut plaintexts_out: Vec<BoardMessage> = vec![];
-    for i in 0..60 {
+    for i in 0..100 {
         info!("Cycle {}", i);
 
         let handles: Vec<_> = sessions
