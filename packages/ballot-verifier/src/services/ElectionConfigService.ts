@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {ICandidate, IContest} from "sequent-core"
+import {ICandidate} from "sequent-core"
 
 export const findUrlByTitle = (answer: ICandidate, urlTitle: string): string | undefined =>
     answer.presentation?.urls?.find((url) => urlTitle === url.title)?.url

@@ -6,6 +6,10 @@ import {TranslationType} from "./en"
 const spanishTranslation: TranslationType = {
     translations: {
         welcome: "Comencemos: Importa la papeleta auditable...",
+        404: {
+            title: "Página no encontrada",
+            subtitle: "La página que busca no existe",
+        },
         homeScreen: {
             step1: "Paso 1: Importa tu papeleta electoral.",
             description1:
