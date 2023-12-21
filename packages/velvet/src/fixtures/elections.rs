@@ -1,6 +1,6 @@
-use uuid::Uuid;
-use crate::pipes::pipe_inputs::ElectionConfig;
 use super::ballot_styles;
+use crate::pipes::pipe_inputs::ElectionConfig;
+use uuid::Uuid;
 
 pub fn get_election_config_1(election_event_id: &Uuid) -> ElectionConfig {
     let tenant_id = Uuid::new_v4();

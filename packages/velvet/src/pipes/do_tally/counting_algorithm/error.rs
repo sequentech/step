@@ -6,7 +6,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug)]
 pub enum Error {
-    CandidateNotFound(String)
+    CandidateNotFound(String),
 }
 
 impl core::fmt::Display for Error {
