@@ -18,7 +18,7 @@ import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {IBallotStyle, setBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
-import {useNavigate, useParams} from "react-router-dom"
+import {useNavigate} from "react-router-dom"
 import {useQuery} from "@apollo/client"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {GetBallotStylesQuery, GetElectionsQuery} from "../gql/graphql"
@@ -80,16 +80,25 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
         return null
     }
 
+    const handleClickBallotLocator = () => {
+        navigate(
+            `/ballot-locator/election/42c8c4eb-d270-4e50-bae1-3e55b4315320/ballotId/f0c4dd02-5621-43c4-852a-776ffccc8162`
+        )
+    }
+
     return (
-        <SelectElection
-            isActive={true}
-            isOpen={true}
-            title={election.name || ""}
-            electionHomeUrl={"https://sequentech.io"}
-            hasVoted={false}
-            onClickToVote={onClickToVote}
-            onClickElectionResults={() => undefined}
-        />
+        <>
+            <SelectElection
+                isActive={true}
+                isOpen={true}
+                title={election.name || ""}
+                electionHomeUrl={"https://sequentech.io"}
+                hasVoted={false}
+                onClickToVote={onClickToVote}
+                onClickElectionResults={() => undefined}
+                onClickBallotLocator={handleClickBallotLocator}
+            />
+        </>
     )
 }
 

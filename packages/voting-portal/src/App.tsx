@@ -145,6 +145,19 @@ const App = () => {
                             </RouteParameterProvider>
                         }
                     />
+
+                    <Route
+                        path="/ballot-locator/election/:electionId/ballotId/:ballotId"
+                        element={
+                            <RouteParameterProvider>
+                                <ApolloContextProvider>
+                                    <ApolloWrapper>
+                                        <AuditScreen />
+                                    </ApolloWrapper>
+                                </ApolloContextProvider>
+                            </RouteParameterProvider>
+                        }
+                    />
                 </Routes>
             </PageBanner>
             <Footer />

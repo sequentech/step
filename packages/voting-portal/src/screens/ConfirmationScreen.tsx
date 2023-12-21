@@ -131,7 +131,7 @@ export const ConfirmationScreen: React.FC = () => {
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
 
-    const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/election/${electionId}/public/ballot-locator/${ballotId}`
+    const ballotTrackerUrl = `${window.location.protocol}//${window.location.host}/ballot-locator/election/${electionId}/ballotId/${ballotId}`
 
     return (
         <PageLimit maxWidth="lg">
