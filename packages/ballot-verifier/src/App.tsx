@@ -14,6 +14,7 @@ import {DEFAULT_EVENT_ID, DEFAULT_TENANT_ID, DISABLE_AUTH} from "./Config"
 import {RouteParameterProvider} from "."
 import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
 import {LoginScreen} from "./screens/LoginScreen"
+import { NotFoundScreen } from './screens/NotFoundScreen'
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -52,6 +53,7 @@ const App = () => {
             {DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
             <PageBanner marginBottom="auto">
                 <Routes>
+                    <Route path="*" element={<NotFoundScreen />} />
                     <Route
                         path="/"
                         element={

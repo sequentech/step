@@ -110,7 +110,7 @@ const ActionButtons: React.FC = () => {
 }
 
 export const AuditScreen: React.FC = () => {
-    const {electionId} = useParams<{electionId?: string}>()
+    const {tenantId, eventId, electionId} = useParams<{tenantId?: string, eventId: string, electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
@@ -233,7 +233,7 @@ export const AuditScreen: React.FC = () => {
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
                     t("auditScreen.step2Description", {
-                        linkToBallotVerifier: globalSettings.BALLOT_VERIFIER_URL,
+                        linkToBallotVerifier: `${globalSettings.BALLOT_VERIFIER_URL}tenant/${tenantId}/event/${eventId}/start`,
                     })
                 )}
             </Typography>
