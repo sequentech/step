@@ -113,6 +113,9 @@ const englishTranslation = {
             openDate: "Open: ",
             closeDate: "Close: ",
         },
+        header: {
+            profile: "Profile",
+        },
     },
 }
 
