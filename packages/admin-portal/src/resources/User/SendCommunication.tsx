@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useState} from "react"
+import React, {useContext, useState} from "react"
 import {
     SaveButton,
     SimpleForm,
@@ -25,8 +25,8 @@ import {FormStyles} from "@/components/styles/FormStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {CREATE_SCHEDULED_EVENT} from "@/queries/CreateScheduledEvent"
 import {CreateScheduledEventMutation} from "@/gql/graphql"
-import globalSettings from "@/global-settings"
 import {ScheduledEventType} from "@/services/ScheduledEvent"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 export enum AudienceSelection {
     ALL_USERS = "ALL_USERS",
@@ -105,6 +105,7 @@ export const SendCommunication: React.FC<SendCommunicationProps> = ({
     electionEventId,
 }) => {
     const {isLoading} = useListContext()
+    const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
     const notify = useNotify()

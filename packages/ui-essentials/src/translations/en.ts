@@ -114,6 +114,9 @@ const englishTranslation = {
             closeDate: "Close: ",
             ballotLocator: "Locate your ballot",
         },
+        header: {
+            profile: "Profile",
+        },
     },
 }
 

@@ -6,7 +6,8 @@ import {
     GET_CAST_VOTES_BY_DATERANGE,
     GET_CAST_VOTES_FOR_ELECTION,
 } from "@/queries/GetCastVotes"
-import globalSettings from "@/global-settings"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {useContext} from "react"
 
 export function useVotesHook({
     electionEventId,
@@ -20,6 +21,7 @@ export function useVotesHook({
     endDate?: Date
 }) {
     const [tenantId] = useTenantStore()
+    const {globalSettings} = useContext(SettingsContext)
     const hasDateRange = !!startDate && !!endDate
     const query = hasDateRange
         ? GET_CAST_VOTES_BY_DATERANGE

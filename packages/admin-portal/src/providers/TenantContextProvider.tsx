@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useState} from "react"
-import globalSettings from "@/global-settings"
 
 interface TenantContextProps {
     tenantId: string | null
@@ -10,7 +9,7 @@ interface TenantContextProps {
 }
 
 const defaultTenantContext: TenantContextProps = {
-    tenantId: globalSettings.DEFAULT_TENANT_ID,
+    tenantId: "",
     setTenantId: () => undefined,
 }
 

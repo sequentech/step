@@ -7,14 +7,14 @@ const spanishTranslation: TranslationType = {
     translations: {
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
-            ballot: "Ballot",
-            review: "Review",
-            confirmation: "Confirmation",
+            ballot: "Papeleta",
+            review: "Revisión",
+            confirmation: "Confirmación",
             audit: "Auditar",
         },
         votingScreen: {
-            backButton: "Back",
-            reviewButton: "Next",
+            backButton: "Atrás",
+            reviewButton: "Siguente",
             ballotHelpDialog: {
                 title: "Información: Pantalla de votación",
                 content:
@@ -37,12 +37,12 @@ const spanishTranslation: TranslationType = {
                 "Puede enviar su voto a la urna electrónica para que sea debidamente registrado.",
         },
         reviewScreen: {
-            title: "Review your ballot",
+            title: "Revisa tu voto",
             description:
-                "To make changes in your selections, click “<b>Change selection</b>” button, to confirm your selections, click “<b>Submit Ballot</b>” button bellow, and to audit your ballot click the “<b>Audit the Ballot</b>” button bellow. Please note than once you submit your ballot, you have voted and you will not be issued another ballot for this election.",
-            backButton: "Edit ballot",
-            castBallotButton: "Cast your ballot",
-            auditButton: "Audit ballot",
+                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Cambiar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar papeleta</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar la papeleta</b>” debajo. Tenga en cuenta que una vez que envíe su papeleta, habrá votado y no se le emitirá otra papeleta para esta elección.",
+            backButton: "Editar tu voto",
+            castBallotButton: "Enviar tu voto",
+            auditButton: "Auditar papeleta",
             reviewScreenHelpDialog: {
                 title: "Información: Pantalla de revisión",
                 content:
@@ -102,7 +102,7 @@ const spanishTranslation: TranslationType = {
                 ok: "OK",
             },
             downloadButton: "Descargar",
-            step2Title: "2. Verifica tu boleta",
+            step2Title: "2. Verifica tu papeleta",
             step2Description:
                 "<a href='{{linkToBallotVerifier}}' target='_blank'>Accede al verificador del voto</a>, que se abrirá una nueva pestaña en tu navegador.",
             step2HelpDialog: {

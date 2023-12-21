@@ -16,9 +16,9 @@ import {LoginScreen} from "./screens/LoginScreen"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {RouteParameterProvider} from "."
-import {DISABLE_AUTH, DEFAULT_TENANT_ID, DEFAULT_EVENT_ID} from "./Config"
 import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
 import BallotLocator from "./screens/BallotLocator"
+import {SettingsContext} from "./providers/SettingsContextProvider"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -41,16 +41,19 @@ const HeaderWithContext: React.FC = () => {
 
 const App = () => {
     const navigate = useNavigate()
+    const {globalSettings} = useContext(SettingsContext)
 
     useEffect(() => {
-        if (DISABLE_AUTH) {
-            navigate(`/tenant/${DEFAULT_TENANT_ID}/event/${DEFAULT_EVENT_ID}/election-chooser`)
+        if (globalSettings.DISABLE_AUTH) {
+            navigate(
+                `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/election-chooser`
+            )
         }
     }, [navigate])
 
     return (
         <StyledApp>
-            {DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
+            {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
             <PageBanner marginBottom="auto">
                 <Routes>
                     <Route
@@ -58,7 +61,7 @@ const App = () => {
                         element={
                             <Navigate
                                 replace
-                                to={`/tenant/${DEFAULT_TENANT_ID}/event/${DEFAULT_EVENT_ID}/login`}
+                                to={`/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/login`}
                             />
                         }
                     />

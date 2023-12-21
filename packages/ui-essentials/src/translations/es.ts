@@ -118,6 +118,9 @@ const spanishTranslation: TranslationType = {
             closeDate: "Cerrada: ",
             ballotLocator: "Localiza tu voto",
         },
+        header: {
+            profile: "Perfil",
+        },
     },
 }
 
