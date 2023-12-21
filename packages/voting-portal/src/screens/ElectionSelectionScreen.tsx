@@ -81,9 +81,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({electionId}) => {
     }
 
     const handleClickBallotLocator = () => {
-        navigate(
-            `/ballot-locator/election/42c8c4eb-d270-4e50-bae1-3e55b4315320/ballotId/f0c4dd02-5621-43c4-852a-776ffccc8162`
-        )
+        navigate(`/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator`)
     }
 
     return (

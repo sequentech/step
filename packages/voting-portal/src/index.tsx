@@ -13,11 +13,8 @@ import reportWebVitals from "./reportWebVitals"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 import SequentCoreLibInit, {set_hooks} from "sequent-core"
-import {ApolloProvider} from "@apollo/client"
-import {apolloClient} from "./services/ApolloService"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {DISABLE_AUTH} from "./Config"
-import {ApolloContextProvider} from "./providers/ApolloContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 

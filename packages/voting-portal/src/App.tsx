@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useContext} from "react"
-import {Routes, Route, useLocation, Navigate} from "react-router-dom"
+import {Routes, Route, Navigate} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
 import Stack from "@mui/material/Stack"
@@ -18,6 +18,7 @@ import {AuthContext} from "./providers/AuthContextProvider"
 import {RouteParameterProvider} from "."
 import {DISABLE_AUTH, DEFAULT_TENANT_ID, DEFAULT_EVENT_ID} from "./Config"
 import {ApolloContextProvider, ApolloWrapper} from "./providers/ApolloContextProvider"
+import BallotLocator from "./screens/BallotLocator"
 
 const StyledApp = styled(Stack)`
     min-height: 100vh;
@@ -147,12 +148,12 @@ const App = () => {
                     />
 
                     <Route
-                        path="/ballot-locator/election/:electionId/ballotId/:ballotId"
+                        path="/tenant/:tenantId/event/:eventId/election/:electionId/ballot-locator/:ballotId?"
                         element={
                             <RouteParameterProvider>
                                 <ApolloContextProvider>
                                     <ApolloWrapper>
-                                        <AuditScreen />
+                                        <BallotLocator />
                                     </ApolloWrapper>
                                 </ApolloContextProvider>
                             </RouteParameterProvider>
