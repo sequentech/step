@@ -117,6 +117,9 @@ const spanishTranslation: TranslationType = {
             openDate: "Abierta: ",
             closeDate: "Cerrada: ",
         },
+        header: {
+            profile: "Perfil",
+        },
     },
 }
 

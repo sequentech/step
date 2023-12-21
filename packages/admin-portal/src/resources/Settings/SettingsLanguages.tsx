@@ -77,7 +77,6 @@ export const SettingsLanguages: React.FC<void> = () => {
                     </SettingsLanguagesStyles.Text>
 
                     <Switch
-                        disabled={true}
                         checked={setting?.[method] || false}
                         onChange={() => handleToggle(method)}
                     />
