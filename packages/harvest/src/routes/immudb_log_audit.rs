@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -6,6 +7,7 @@ use crate::types::resources::{
     Aggregate, DataList, OrderDirection, TotalAggregate,
 };
 use anyhow::{anyhow, Context, Result};
+use immu_board::assign_value;
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue};
 use rocket::response::Debug;
 use rocket::serde::json::Json;
@@ -33,29 +35,11 @@ pub async fn get_immudb_client() -> Result<Client> {
 }
 
 // Helper function to create a NamedParam
-fn create_named_param(name: String, value: Value) -> NamedParam {
+pub fn create_named_param(name: String, value: Value) -> NamedParam {
     NamedParam {
         name,
         value: Some(SqlValue { value: Some(value) }),
     }
-}
-
-macro_rules! assign_value {
-    ($enum_variant:path, $value:expr, $target:ident) => {
-        match $value.value.as_ref() {
-            Some($enum_variant(inner)) => {
-                $target = inner.clone();
-            }
-            _ => {
-                return Err(
-                    anyhow!(
-                        r#"invalid column value for `$enum_variant`, `$value`, 
-                        `$target`"#
-                    )
-                );
-            }
-        }
-    };
 }
 
 // Enumeration for the valid fields in the immudb table
@@ -254,21 +238,6 @@ impl TryFrom<&Row> for PgAuditRow {
             statement,
             user,
         })
-    }
-}
-
-impl TryFrom<&Row> for Aggregate {
-    type Error = anyhow::Error;
-
-    fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        let mut count = 0;
-
-        for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            match column.as_str() {
-                _ => assign_value!(Value::N, value, count),
-            }
-        }
-        Ok(Aggregate { count })
     }
 }
 

@@ -103,6 +103,12 @@ export type CreateTallyOutput = {
   tally_session_id: Scalars['uuid']['output'];
 };
 
+export type DataListElectoralLog = {
+  __typename?: 'DataListElectoralLog';
+  items: Array<Maybe<ElectoralLogRow>>;
+  total: TotalAggregate;
+};
+
 export type DataListPgAudit = {
   __typename?: 'DataListPgAudit';
   items: Array<Maybe<PgAuditRow>>;
@@ -126,6 +132,26 @@ export type EditUsersInput = {
   tenant_id: Scalars['String']['input'];
   user_id: Scalars['String']['input'];
   username?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type ElectoralLogFilter = {
+  StatementKind?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type ElectoralLogOrderBy = {
+  created?: InputMaybe<OrderDirection>;
+  id?: InputMaybe<OrderDirection>;
+  statement_kind?: InputMaybe<OrderDirection>;
+  statement_timestamp?: InputMaybe<OrderDirection>;
+};
+
+export type ElectoralLogRow = {
+  __typename?: 'ElectoralLogRow';
+  created: Scalars['Int']['output'];
+  id: Scalars['Int']['output'];
+  statement_kind: Scalars['String']['output'];
+  statement_timestamp: Scalars['Int']['output'];
 };
 
 export type FetchDocumentOutput = {
@@ -2753,6 +2779,8 @@ export type Query_Root = {
   get_permissions: GetPermissionsOutput;
   get_roles: GetRolesOutput;
   get_users: GetUsersOutput;
+  /** List Electoral Log */
+  listElectoralLog?: Maybe<DataListElectoralLog>;
   /** List PostgreSQL audit logs */
   listPgaudit?: Maybe<DataListPgAudit>;
   list_user_roles: Array<KeycloakRole>;
@@ -2946,6 +2974,15 @@ export type Query_RootGet_RolesArgs = {
 
 export type Query_RootGet_UsersArgs = {
   body: GetUsersInput;
+};
+
+
+export type Query_RootListElectoralLogArgs = {
+  election_event_id?: InputMaybe<Scalars['String']['input']>;
+  filter?: InputMaybe<ElectoralLogFilter>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<ElectoralLogOrderBy>;
 };
 
 

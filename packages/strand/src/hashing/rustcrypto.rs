@@ -10,6 +10,7 @@ use crate::util::StrandError;
 /// Sha-512 hashes are 64 bytes.
 pub const STRAND_HASH_LENGTH_BYTES: usize = 64;
 /// Sha-512 hashes are 64 byte arrays: [u8; 64].
+
 pub type Hash = [u8; STRAND_HASH_LENGTH_BYTES];
 
 pub(crate) type Hasher = Sha512;

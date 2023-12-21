@@ -42,6 +42,7 @@ async fn rocket() -> _ {
                 routes::fetch_document::fetch_document,
                 routes::scheduled_event::create_scheduled_event,
                 routes::immudb_log_audit::list_pgaudit,
+                routes::electoral_log::list_electoral_log,
                 routes::insert_election_event::insert_election_event_f,
                 routes::insert_tenant::insert_tenant,
                 routes::users::create_user,

@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
+use serde::{Deserialize, Serialize};
 
 use immu_board::BoardMessage;
 use strand::serialization::StrandSerialize;
