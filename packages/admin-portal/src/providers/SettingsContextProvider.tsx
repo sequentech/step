@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, CircularProgress} from "@mui/material"
 import React, {createContext, useContext, useEffect, useState} from "react"
+import {styled} from "@mui/material/styles"
 
 export interface GlobalSettings {
     QUERY_POLL_INTERVAL_MS: number
@@ -86,15 +87,27 @@ const SettingsContextProvider = (props: SettingsContextProviderProps) => {
     )
 }
 
+const StyledBox = styled(Box)`
+    display: flex;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    margin: auto;
+    align-items: center;
+    justify-content: center;
+`
+
 export const SettingsGate: React.FC<React.PropsWithChildren> = ({children}) => {
     const {loaded} = useContext(SettingsContext)
 
     return loaded ? (
         <>{children}</>
     ) : (
-        <Box>
+        <StyledBox>
             <CircularProgress />
-        </Box>
+        </StyledBox>
     )
 }
 
