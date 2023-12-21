@@ -25,6 +25,29 @@
             "problemMatcher": []
         },
         {
+            "label": "start.build.admin-portal",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "-c",
+                "cd packages && yarn && yarn build:ui-essentials && yarn start:admin-portal",
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "start.voting-portal",
             "command": "devenv",
             "args": [
@@ -86,6 +109,34 @@
                     "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
                     "COMPOSE_PROFILES": "base",
                 }
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "folderOpen"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.restart.harvest",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose down harvest; docker compose up -d --no-deps harvest && docker compose logs -f --tail 100 harvest",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
             },
             "presentation": {
                 "echo": true,
@@ -164,6 +215,34 @@
             "problemMatcher": []
         },
         {
+            "label": "logs.restart.beat",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose down beat; docker compose up -d --no-deps beat && docker compose logs -f --tail 100 beat",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "folderOpen"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "logs.windmill",
             "command": "docker",
             "args": [
@@ -191,6 +270,34 @@
             "isBackground": true,
             "runOptions": {
                 "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.restart.windmill",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose down windmill; docker compose up -d --no-deps windmill && docker compose logs -f --tail 100 windmill",
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "backend-services_devcontainer",
+                    "COMPOSE_PROFILES": "base",
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "folderOpen"
             },
             "problemMatcher": []
         },
@@ -238,7 +345,7 @@
             "problemMatcher": []
         },
         {
-            "label": "format-code",
+            "label": "format.code",
             "command": "devenv",
             "args": [
                 "shell",
