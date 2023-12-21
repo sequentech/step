@@ -18,6 +18,7 @@ import {apolloClient} from "./services/ApolloService"
 import AuthContextProvider from "./providers/AuthContextProvider"
 import {DISABLE_AUTH} from "./Config"
 import {ApolloContextProvider} from "./providers/ApolloContextProvider"
+import {SettingsWrapper} from "./providers/SettingsContextProvider"
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
@@ -80,15 +81,17 @@ export const RouteParameterProvider: React.FC<{children: React.ReactNode}> = ({c
 
 root.render(
     <React.StrictMode>
-        <KeycloakProvider disable={DISABLE_AUTH}>
-            <Provider store={store}>
-                <BrowserRouter>
-                    <ThemeProvider theme={theme}>
-                        <App />
-                    </ThemeProvider>
-                </BrowserRouter>
-            </Provider>
-        </KeycloakProvider>
+        <SettingsWrapper>
+            <KeycloakProvider disable={DISABLE_AUTH}>
+                <Provider store={store}>
+                    <BrowserRouter>
+                        <ThemeProvider theme={theme}>
+                            <App />
+                        </ThemeProvider>
+                    </BrowserRouter>
+                </Provider>
+            </KeycloakProvider>
+        </SettingsWrapper>
     </React.StrictMode>
 )
 
