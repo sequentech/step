@@ -152,6 +152,7 @@ export interface SelectElectionProps {
     closeDate?: string
     onClickToVote?: () => void
     onClickElectionResults?: () => void
+    onClickBallotLocator?: () => void
 }
 
 const SelectElection: React.FC<SelectElectionProps> = ({
@@ -164,6 +165,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     closeDate,
     onClickToVote,
     onClickElectionResults,
+    onClickBallotLocator,
 }) => {
     const {t} = useTranslation()
     const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
@@ -180,6 +182,8 @@ const SelectElection: React.FC<SelectElectionProps> = ({
             onClickElectionResults()
         }
     }
+
+    const displayBallotLocator = !!onClickBallotLocator
 
     return (
         <BorderBox
@@ -235,15 +239,26 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                     </StyledLink>
                 </Box>
             </DatesUrlWrap>
-            {isOpen ? (
-                <StyledButton onClick={handleClickToVote}>
-                    {t("selectElection.voteButton")}
-                </StyledButton>
-            ) : (
-                <StyledButton variant="secondary" onClick={handleClickElectionResults}>
-                    {t("selectElection.resultsButton")}
-                </StyledButton>
-            )}
+            <Box sx={{display: "flex"}}>
+                {isOpen ? (
+                    <StyledButton onClick={handleClickToVote}>
+                        {t("selectElection.voteButton")}
+                    </StyledButton>
+                ) : (
+                    <StyledButton variant="secondary" onClick={handleClickElectionResults}>
+                        {t("selectElection.resultsButton")}
+                    </StyledButton>
+                )}
+                {displayBallotLocator && (
+                    <StyledButton
+                        sx={{marginLeft: "16px"}}
+                        variant="secondary"
+                        onClick={onClickBallotLocator}
+                    >
+                        {t("selectElection.ballotLocator")}
+                    </StyledButton>
+                )}
+            </Box>
         </BorderBox>
     )
 }
